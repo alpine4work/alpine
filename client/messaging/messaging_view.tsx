@@ -557,10 +557,10 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     useEffect(() => {
         if (!NativeMobileBridge) return;
 
-        return NativeMobileBridge.keyboard.subscribeToScrollMainContent(scrollOffsetDelta => {
+        return NativeMobileBridge.keyboard.subscribeToFrameChange(coveredHeightDelta => {
             const view = assertExists(viewRef.current);
 
-            view.setScrollOffset(view.getScrollOffset() + scrollOffsetDelta, {
+            view.setScrollOffset(view.getScrollOffset() + coveredHeightDelta, {
                 behavior: "smooth",
             });
         });

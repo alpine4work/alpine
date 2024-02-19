@@ -13,7 +13,10 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {RemLength} from "~/shared/design/spacing.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
-import {emptyPostContentWithReferences} from "~/shared/forum/post_content_schema.js";
+import {
+    PostContentWithReferences,
+    emptyPostContentWithReferences,
+} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -38,7 +41,7 @@ export function PostEditorInline({
     const [containerRef, containerSize] = useResizeObserver();
     const [inlineButtonRef, inlineButtonSize] = useResizeObserver();
     const [phantomContentRef, phantomContentSize] = useResizeObserver();
-    const editorRef = useRef<ContentEditorRef>(null);
+    const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
     const [state, setState] = useState(() =>
         ContentEditorState.create(emptyPostContentWithReferences),
     );

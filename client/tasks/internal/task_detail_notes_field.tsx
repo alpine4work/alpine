@@ -64,7 +64,7 @@ function TaskDetailNotesField(
     });
 
     const labelId = useId();
-    const editorRef = useRef<ContentEditorRef>(null);
+    const editorRef = useRef<ContentEditorRef<TaskNotesContentWithReferences>>(null);
 
     useImperativeHandle(
         ref,

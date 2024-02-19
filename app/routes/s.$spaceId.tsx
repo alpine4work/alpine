@@ -640,7 +640,7 @@ function useMobileWebKitKeyboardSupport() {
         };
 
         // NOCOMMIT: Should scroll up chat when opened. Can we have this hook into
-        // `NativeMobileBridge.subscribeToScrollMainContent()` support?
+        // `NativeMobileBridge.keyboard.subscribeToFrameChange()` support?
 
         const overflowYParentCache = new WeakMap<
             Node,

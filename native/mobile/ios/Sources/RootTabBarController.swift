@@ -331,7 +331,21 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                     navigationBarTopOffset = max(0, scrollOffset - navigationBarHeight)
                 }
 
-                let lastNavigationBarTopOffset = self.lastNavigationBarTopOffset
+                let lastNavigationBarTopOffset =
+                    scrollOffset >= scrollHeight - clientHeight
+                    ?  // If we're at the bottom of the screen, the last navigation bar top offset may
+                    // be many pixels above us (where the last scroll direction change happened).
+                    // This happens when you perfectly scroll to the end of the scroll view and
+                    // don't overscroll (hard to do with a finger gesture on iOS).
+                    //
+                    // We saw an issue here on iOS when `<DocumentContentEditor>` calls
+                    // `scrollTo()` when the keyboard opens scrolling to the bottom of the view.
+                    // The navigation bar animation appeared a little glitchy because it was
+                    // animating from a much higher position in the scroll view.
+                    max(
+                        self.lastNavigationBarTopOffset,
+                        scrollHeight - clientHeight - navigationBarHeight
+                    ) : self.lastNavigationBarTopOffset
                 self.lastNavigationBarTopOffset = navigationBarTopOffset
 
                 let _ = lastNavigationBarTopOffset

@@ -1,13 +1,13 @@
 import {RefCallback, useCallback} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
-import {InternalError} from "~/shared/error/error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {scrollbarStyles, sprinkles} from "~/shared/styles/styles.js";
@@ -1200,17 +1200,4 @@ export function installScrollbarAuditorInDev() {
             element,
         );
     }
-}
-
-function getElementSafeAreaInsetTopPx(element: Element): number {
-    const safeAreaInsetTop = getComputedStyle(element).getPropertyValue("--safe-area-inset-top");
-    if (!safeAreaInsetTop) return 0;
-
-    const safeAreaInsetTopNumber = parseFloat(safeAreaInsetTop);
-
-    if (safeAreaInsetTop.endsWith("px")) return safeAreaInsetTopNumber;
-    if (safeAreaInsetTop.endsWith("rem"))
-        return safeAreaInsetTopNumber * getRemPxWithoutListening();
-
-    throw new InternalError("Unrecognized unit for CSS variable `--safe-area-inset-top`");
 }

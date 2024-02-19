@@ -220,7 +220,7 @@ function ChannelEditDescriptionModal({
 }) {
     const context = useAppContext();
     const modalRef = useRef<ModalWithButtonsRef>(null);
-    const editorRef = useRef<ContentEditorRef>(null);
+    const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const [{state, hasContentChanged}, setState] = useState<{
         state: ContentEditorState<MessageContentWithReferences>;

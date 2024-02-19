@@ -11,6 +11,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
 import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
@@ -18,11 +19,6 @@ import {
     DocumentCommentThreadListView,
     DocumentCommentThreadListViewRef,
 } from "~/client/documents/document_comment_thread_list_view.js";
-import {
-    desktopDocumentPaddingX,
-    documentContentClassName,
-    mobileDocumentPaddingX,
-} from "~/client/documents/document_content_view.js";
 import {
     DocumentContentEditorSideDecoration,
     DocumentContentEditorSideDecorations,
@@ -45,8 +41,14 @@ import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {
+    addRemLengths,
+    convertRemLengthToPx,
+    parseRemLengthNumber,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,
@@ -78,10 +80,14 @@ import {
     colorSchemeVars,
     contentEditorStyles,
     contentSchemaStyles,
+    documentContentStyles,
     spinAnimationClassName,
 } from "~/shared/styles/styles.js";
 
 export const documentContentEditorSidebarWidth = spacing["96"];
+
+const {desktopDocumentPaddingX, documentContentClassName, mobileDocumentPaddingX} =
+    documentContentStyles;
 
 export function DocumentContentEditor({
     withMobileLayout,
@@ -175,7 +181,7 @@ function DocumentContentEditorStateful({
     const isInitialAppRender = useIsInitialAppRender();
     const {isAppleDevice} = useClientInfo();
     const isMobile = useIsMobile();
-    const editorRef = useRef<ContentEditorRef>(null);
+    const editorRef = useRef<ContentEditorRef<DocumentContentWithReferences>>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
     const commentThreadListViewRef = useRef<DocumentCommentThreadListViewRef>(null);
@@ -727,6 +733,59 @@ function DocumentContentEditorStateful({
         }, [isInitialAppRender, scrollToEditorRect, sidebarState]);
     }
 
+    /* ========================================================================== *\
+     *                           Native Mobile Keyboard                           *
+    \* ========================================================================== */
+
+    useEffect(() => {
+        if (!NativeMobileBridge) return;
+
+        return NativeMobileBridge.keyboard.subscribeToFrameChange(
+            (coveredKeyboardHeightDelta, newKeyboardHeight, oldKeyboardHeight) => {
+                const keyboardHeightDelta = newKeyboardHeight - oldKeyboardHeight;
+
+                if (keyboardHeightDelta <= 0) return;
+
+                const remPx = getRemPxWithoutListening();
+                const paragraphLineHeight =
+                    parseRemLengthNumber(contentSchemaStyles.paragraphLineHeight) * remPx;
+
+                const editorContainerElement = assertExists(editorContainerRef.current);
+                const editor = assertExists(editorRef.current);
+                const editorState = editor.getState();
+
+                const coords = editor.coordsAtPos(editorState.getSelection().from);
+
+                const willSelectionBeOffScreen =
+                    window.innerHeight - coords.bottom <
+                    keyboardHeightDelta +
+                        // Some slop. We consider the selection offscreen if there's less than a line
+                        // of space between it and the keyboard.
+                        paragraphLineHeight;
+
+                if (!willSelectionBeOffScreen) return;
+
+                const insetTop = getElementSafeAreaInsetTopPx(editorContainerElement);
+                const insetBottom = newKeyboardHeight;
+
+                const idealTop =
+                    insetTop +
+                    (window.innerHeight - insetBottom - insetTop) / 2 -
+                    paragraphLineHeight;
+                const scrollDelta = coords.top - idealTop;
+
+                editorContainerElement.scrollTo({
+                    top: editorContainerElement.scrollTop + scrollDelta,
+                    behavior: "smooth",
+                });
+            },
+        );
+    }, []);
+
+    /* ========================================================================== *\
+     *                               Navigation Bar                               *
+    \* ========================================================================== */
+
     const contextMenuActions: Array<Array<MenuAction>> = [
         [
             {
@@ -985,7 +1044,7 @@ function DocumentContentEditorStateful({
 const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
     editorContainerElement: HTMLElement;
     editorContainerRect: DOMRect;
-    editor: ContentEditorRef;
+    editor: ContentEditorRef<DocumentContentWithReferences>;
     seenCommentThreadIds: Set<DocumentCommentThreadId>;
     decorationByMarkTop: Map<
         number,

@@ -30,7 +30,7 @@ export function PostEditorModal({
 }) {
     const context = useAppContext();
     const showToast = useShowToast();
-    const editorRef = useRef<ContentEditorRef>(null);
+    const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
     const [{state, hasContentChanged}, setState] = useState<{
         state: ContentEditorState<PostContentWithReferences>;
         hasContentChanged: boolean;

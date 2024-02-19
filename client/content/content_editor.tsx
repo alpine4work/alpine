@@ -115,7 +115,8 @@ const historyPluginKey = new Lazy((): PluginKey => {
 // TODO(calebmer): Make content editor SSR safe by rendering it as read-only on
 // the server and mounting as editable on the client after hydration.
 
-export type ContentEditorRef = {
+export type ContentEditorRef<Content extends ContentWithReferences> = {
+    getState(): ContentEditorState<Content>;
     isFocused(): boolean;
     focus(options?: FocusOptions): void;
     blur(): void;
@@ -142,7 +143,7 @@ export type ContentEditorRef = {
 const ContentEditorForwardRef = forwardRef(ContentEditorWrapper) as <
     Content extends ContentWithReferences,
 >(
-    props: PropsWithoutRef<ContentEditorProps<Content>> & RefAttributes<ContentEditorRef>,
+    props: PropsWithoutRef<ContentEditorProps<Content>> & RefAttributes<ContentEditorRef<Content>>,
 ) => ReactElement;
 export {ContentEditorForwardRef as ContentEditor};
 
@@ -308,7 +309,7 @@ export type ContentEditorPhantomSelection = {
 // non-editable `<ContentView>` for an editable `<ContentEditor>` component.
 function ContentEditorWrapper<Content extends ContentWithReferences>(
     props: ContentEditorProps<Content>,
-    ref: Ref<ContentEditorRef>,
+    ref: Ref<ContentEditorRef<Content>>,
 ) {
     const isInitialAppRender = useIsInitialAppRender();
 
@@ -337,10 +338,11 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     "aria-labelledby": ariaLabelledBy,
     containerClassName: customContainerClassName,
     editorRef,
-}: ContentEditorProps<Content> & {editorRef: Ref<ContentEditorRef>}) {
+}: ContentEditorProps<Content> & {editorRef: Ref<ContentEditorRef<Content>>}) {
     useImperativeHandle(
         editorRef,
         () => ({
+            getState: () => state,
             isFocused: () => false,
             focus: () => {
                 throw new UnimplementedError(
@@ -366,7 +368,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                 );
             },
         }),
-        [],
+        [state],
     );
 
     return (
@@ -395,7 +397,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
  * [1]: https://prosemirror.net
  */
 function ContentEditor<Content extends ContentWithReferences>(
-    props: ContentEditorProps<Content> & {editorRef: Ref<ContentEditorRef>},
+    props: ContentEditorProps<Content> & {editorRef: Ref<ContentEditorRef<Content>>},
 ) {
     const {
         editorRef,
@@ -490,6 +492,9 @@ function ContentEditor<Content extends ContentWithReferences>(
     useImperativeHandle(
         editorRef,
         () => ({
+            getState: () => {
+                return propsRef.current.state;
+            },
             isFocused: () => {
                 const view = assertExists(viewRef.current);
                 return document.activeElement === view.dom;

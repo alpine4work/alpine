@@ -106,7 +106,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
     const inboxPeekContext = useInboxPeekContext();
-    const editorRef = useRef<ContentEditorRef>(null);
+    const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
     const [state, setState] = useState(
         () =>
             restoreStateRef?.current?.state ??

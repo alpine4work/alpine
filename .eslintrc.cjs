@@ -1,5 +1,26 @@
 "use strict";
 
+const baseNoRestrictedImports = {
+    paths: [
+        {
+            name: "react-router",
+            importNames: ["useNavigate"],
+            message: "Import `useNavigate()` from `~/client/remix/use_navigate`",
+        },
+        {
+            name: "react-router-dom",
+            importNames: ["useNavigate"],
+            message: "Import `useNavigate()` from `~/client/remix/use_navigate`",
+        },
+        {
+            name: "@remix-run/react",
+            importNames: ["useNavigate"],
+            message: "Import `useNavigate()` from `~/client/remix/use_navigate`",
+        },
+    ],
+    patterns: [],
+};
+
 /** @type {import('eslint').Linter.Config} */
 module.exports = {
     extends: ["@remix-run/eslint-config", "@remix-run/eslint-config/node"],
@@ -199,28 +220,7 @@ module.exports = {
 
         // Restrict the use of some imports and recommend alternatives for our
         // codebase.
-        "no-restricted-imports": [
-            "error",
-            {
-                paths: [
-                    {
-                        name: "react-router",
-                        importNames: ["useNavigate"],
-                        message: "Import `useNavigate()` from `~/client/remix/use_navigate`",
-                    },
-                    {
-                        name: "react-router-dom",
-                        importNames: ["useNavigate"],
-                        message: "Import `useNavigate()` from `~/client/remix/use_navigate`",
-                    },
-                    {
-                        name: "@remix-run/react",
-                        importNames: ["useNavigate"],
-                        message: "Import `useNavigate()` from `~/client/remix/use_navigate`",
-                    },
-                ],
-            },
-        ],
+        "no-restricted-imports": ["error", baseNoRestrictedImports],
 
         // Use the exhaustive deps lint rule on some custom hooks.
         //
@@ -362,6 +362,28 @@ module.exports = {
                 // Remix uses default exports in the `./app` directory to figure out
                 // what to render.
                 "import/no-default-export": "off",
+            },
+        },
+        {
+            files: ["shared/styles/internal/**/*"],
+            rules: {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        ...baseNoRestrictedImports,
+                        paths: [
+                            ...baseNoRestrictedImports.paths,
+                            {
+                                name: "~/shared/styles/internal/styles.js",
+                                message: "Can't import style bundle from `.css.ts` file",
+                            },
+                            {
+                                name: "~/shared/styles/styles.js",
+                                message: "Can't import style bundle from `.css.ts` file",
+                            },
+                        ],
+                    },
+                ],
             },
         },
     ],

@@ -147,7 +147,7 @@ function MessageContentEditor({
     onCancel: () => void;
     onSave: () => void;
 }) {
-    const editorRef = useRef<ContentEditorRef>(null);
+    const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const hasInitiallyMountedRef = useRef(false);
 

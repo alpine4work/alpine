@@ -304,7 +304,26 @@ export const NativeMobileBridge: {
          * bottom of the screen are still at the bottom of the screen. Whereas for
          * documents we want to scroll such that the cursor is visible and not occluded
          * by the keyboard.
+         *
+         * This function is also called if the keyboard height changes. For example
+         * when you switch keyboard layout (like when you switch to the emoji picker).
+         *
+         * - `coveredHeightDelta` is the difference between the new keyboard height and
+         *   the old keyboard height excluding the space occupied by the tab bar. When
+         *   you need to scroll content at the bottom of the screen out of the way of
+         *   the keyboard (like in chats), you only want to scroll the space newly
+         *   covered by the keyboard. The tab bar already covers some content so the
+         *   keyboard space that now covers the tab bar doesn't make a difference on
+         *   visible content.
+         *
+         * - `newHeight` is the keyboard's current height.
+         *
+         * - `oldHeight` is the keyboard's height before the frame change.
+         *   `newHeight - oldHeight` will give you the height delta including tab bar
+         *   space.
          */
-        subscribeToScrollMainContent(listener: (scrollOffsetDelta: number) => void): void;
+        subscribeToFrameChange(
+            listener: (coveredHeightDelta: number, newHeight: number, oldHeight: number) => void,
+        ): void;
     };
 } | null = typeof window !== "undefined" ? (window as any).__NativeMobileBridge ?? null : null;

@@ -10,6 +10,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {Id} from "~/shared/id/id.js";
 import {TaskActionTransactionLeaseId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 
 /**
  * An entry in our undo stack. Entries need to identify the task we're
@@ -41,7 +42,7 @@ export type TaskUndoStackEntry =
           readonly type: "Notes";
           readonly rootParentTaskId: TaskId;
           readonly taskId: TaskId;
-          readonly contentEditorRef: RefObject<ContentEditorRef | null>;
+          readonly contentEditorRef: RefObject<ContentEditorRef<TaskNotesContentWithReferences> | null>;
           readonly release: () => void;
       };
 

@@ -59,8 +59,12 @@ export const navigationBarHeight = {
     mobile: mobileNavigationBarHeight,
 } as const;
 
-const desktopNavigationBarHeightRem = parseRemLengthNumber(spacing[desktopNavigationBarHeight]);
-const mobileNavigationBarHeightRem = parseRemLengthNumber(spacing[mobileNavigationBarHeight]);
+export const desktopNavigationBarHeightRem = parseRemLengthNumber(
+    spacing[desktopNavigationBarHeight],
+);
+export const mobileNavigationBarHeightRem = parseRemLengthNumber(
+    spacing[mobileNavigationBarHeight],
+);
 
 {
     // IMPORTANT: If you change this value, you must also change
@@ -764,7 +768,21 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             }
 
                             const lastNavigationBarTopOffset =
-                                lastNavigationBarTopOffsetRef.current;
+                                scrollOffset >= scrollHeight - clientHeight
+                                    ? // If we're at the bottom of the screen, the last navigation bar top offset may
+                                      // be many pixels above us (where the last scroll direction change happened).
+                                      // This happens when you perfectly scroll to the end of the scroll view and
+                                      // don't overscroll (hard to do with a finger gesture on iOS).
+                                      //
+                                      // We saw an issue here on iOS when `<DocumentContentEditor>` calls
+                                      // `scrollTo()` when the keyboard opens scrolling to the bottom of the view.
+                                      // The navigation bar animation appeared a little glitchy because it was
+                                      // animating from a much higher position in the scroll view.
+                                      Math.max(
+                                          lastNavigationBarTopOffsetRef.current,
+                                          scrollHeight - clientHeight - navigationBarHeight,
+                                      )
+                                    : lastNavigationBarTopOffsetRef.current;
                             lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
 
                             setScrollDirectionState({

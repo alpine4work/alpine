@@ -33,7 +33,10 @@ import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_with
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
-import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContentWithReferences,
+    emptyMessageContentWithReferences,
+} from "~/shared/messaging/message_content_schema.js";
 import {
     messageInputMinHeight,
     messageViewBubbleBorderRadius,
@@ -161,7 +164,7 @@ function ContentEditorCommentInput({
     const [isSendButtonPending, setIsSendButtonPending] = useState(false);
     const isSendButtonDisabled = isContentEmpty(commentState.getDoc());
 
-    const editorRef = useRef<ContentEditorRef>(null);
+    const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
     const shouldFocusNextRenderRef = useRef(true);
 
     useEffect(() => {

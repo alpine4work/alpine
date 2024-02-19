@@ -799,7 +799,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // Don't include tab bar height in scroll offset delta since the tab bar is
         // already "dead space". The newly covered content is the extra space added by
         // the keyboard.
-        let scrollOffsetDelta =
+        let coveredHeightDelta =
             max(
                 0,
                 (screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y)
@@ -821,7 +821,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // animation. This is fine. It will appear as if the content is "reacting" to
         // the keyboard (e.g. the keyboard is pushing the content up). The iMessage
         // keyboard open animation is like this.
-        updateWebViewSafeAreaInsets(alsoScrollMainContent: -scrollOffsetDelta)
+        updateWebViewSafeAreaInsets(
+            alsoCallFrameChangeListeners: (
+                -coveredHeightDelta, screen.coordinateSpace.bounds.height - endScreenFrame.origin.y,
+                screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y
+            )
+        )
     }
 
     @objc private func keyboardWillHide(notification: NSNotification) {
@@ -847,7 +852,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // Don't include tab bar height in scroll offset delta since the tab bar is
         // already "dead space". The newly covered content is the extra space added by
         // the keyboard.
-        let scrollOffsetDelta =
+        let coveredHeightDelta =
             max(
                 0,
                 (screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y)
@@ -862,7 +867,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // Start animating the main content down but don't remove safe area insets
         // until the keyboard is fully hidden.
         webView.evaluateJavaScript(
-            "window.__NativeMobileBridge.keyboard._callScrollMainContentListeners(\(-scrollOffsetDelta))"
+            "window.__NativeMobileBridge.keyboard._callFrameChangeListeners(\(-coveredHeightDelta), \(screen.coordinateSpace.bounds.height - endScreenFrame.origin.y), \(screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y))"
         )
     }
 
@@ -925,7 +930,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         updateWebViewSafeAreaInsets()
     }
 
-    private func updateWebViewSafeAreaInsets(alsoScrollMainContent: Double = 0) {
+    private func updateWebViewSafeAreaInsets(
+        alsoCallFrameChangeListeners: (Double, Double, Double) = (0, 0, 0)
+    ) {
         let safeAreaInsets = getSafeAreaInsets()
 
         let styleString = """
@@ -951,7 +958,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     styleElement.innerHTML = styleString;
                     document.head.appendChild(styleElement);
                 }
-            \(alsoScrollMainContent != 0 ? "\n    window.__NativeMobileBridge.keyboard._callScrollMainContentListeners(\(alsoScrollMainContent));\n" : "")}
+            \(alsoCallFrameChangeListeners != (0, 0, 0) ? "\n    window.__NativeMobileBridge.keyboard._callFrameChangeListeners(\(alsoCallFrameChangeListeners.0), \(alsoCallFrameChangeListeners.1), \(alsoCallFrameChangeListeners.2));\n" : "")}
             """
 
         webView.evaluateJavaScript(source)
@@ -1551,7 +1558,7 @@ private class WebLoadingIndicatorController: UIViewController {
 private let bridgeSource = """
     {
         const navigationExternalPopListeners = new Set();
-        const keyboardScrollMainContentListeners = new Set();
+        const keyboardFrameChangeListeners = new Set();
 
         const NativeMobileBridge = {
             health: {
@@ -1612,16 +1619,16 @@ private let bridgeSource = """
                 },
             },
             keyboard: {
-                subscribeToScrollMainContent: listener => {
-                    keyboardScrollMainContentListeners.add(listener);
+                subscribeToFrameChange: listener => {
+                    keyboardFrameChangeListeners.add(listener);
                     return () => {
-                        keyboardScrollMainContentListeners.delete(listener);
+                        keyboardFrameChangeListeners.delete(listener);
                     };
                 },
-                _callScrollMainContentListeners: scrollOffsetDelta => {
-                    for (const listener of keyboardScrollMainContentListeners) {
+                _callFrameChangeListeners: (coveredHeightDelta, newHeight, oldHeight) => {
+                    for (const listener of keyboardFrameChangeListeners) {
                         try {
-                            listener(scrollOffsetDelta);
+                            listener(coveredHeightDelta, newHeight, oldHeight);
                         } catch (error) {
                             setTimeout(() => {
                                 throw error;
