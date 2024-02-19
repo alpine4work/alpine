@@ -81,7 +81,7 @@ import {
     emojiFontFamily,
 } from "~/shared/styles/styles.js";
 
-const {docClassName, emptyBodyClassName, emptyTitleClassName} = contentSchemaStyles;
+const {docClassName, emptyBodyClassName, emptyTitleClassName, linkClassName} = contentSchemaStyles;
 
 const {
     containerClassName,
@@ -880,6 +880,9 @@ function ContentEditor<Content extends ContentWithReferences>(
             touchTapState?.cancel();
             touchTapState = null;
 
+            // If our view already has focus, we don't need a tap to give it focus.
+            if (view.hasFocus()) return;
+
             // If we're not on mobile the document is always editable.
             if (!isDualModalityRef.current) return;
 
@@ -890,6 +893,25 @@ function ContentEditor<Content extends ContentWithReferences>(
             // If there's a focused element this tap dismisses the focus. It doesn't make
             // the editor editable.
             if (document.activeElement && document.activeElement !== document.body) return;
+
+            let isTargetInteractive = false;
+            if (event.target instanceof HTMLElement && view.dom.contains(event.target)) {
+                let element: HTMLElement | null = event.target;
+
+                while (element !== null && element !== view.dom) {
+                    if (element.classList.contains(linkClassName)) {
+                        isTargetInteractive = true;
+                        break;
+                    }
+
+                    element = element.parentElement;
+                }
+            }
+
+            // If the touch target is a link or image or comment or some other interactive
+            // element, then they handle the touch event. The touch will not give our
+            // editor focus.
+            if (isTargetInteractive) return;
 
             // If there's a selection this tap dismisses the selection. It doesn't make the
             // editor editable.
