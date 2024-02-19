@@ -573,6 +573,25 @@ function ContentEditor<Content extends ContentWithReferences>(
             // modality where tapping on a link instead edits the text.
             editable: () => !initialIsDualModality,
 
+            attributes: {
+                // Native spellcheck is often more distracting then it's worth. It puts a red
+                // squiggly under names, nouns, industry terms, and oddly sometimes
+                // contractions (like "they're", maybe has to do with curly quotes?).
+                //
+                // It's also inconsistent with `<input>`s which don't have spellcheck on by
+                // default.
+                //
+                // NOTE(calebmer, 2022-12-29): Someday in the future we should build our own
+                // spellchecker.
+                //
+                // NOTE(calebmer, 2023-02-19): Re-enabling this is now even harder now that we
+                // have custom right-click menus. On desktop you right click to see the correct
+                // spellings. But if we have our own right-click menu we can't show the correct
+                // spellings there so we only show a permanent red squiggle which is bad. I
+                // think the best answer here is to build our own spellchecker eventually.
+                spellcheck: "false",
+            },
+
             domParser: ContentEditorDomParser.fromSchema(schema),
             clipboardSerializer:
                 ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
