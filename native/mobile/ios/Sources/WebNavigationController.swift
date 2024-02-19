@@ -788,6 +788,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         keyboardOffset = view.frame.height - endFrame.origin.y
 
+        setAllWebScrollViewScrollIndicatorInsets()
+
         // We don't need to do any `UIView.animate()` business since it seems like
         // this function is called in the context of an animation.
         //
@@ -841,6 +843,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         keyboardOffset = view.frame.height - endFrame.origin.y
 
+        setAllWebScrollViewScrollIndicatorInsets()
+
         // We don't need to do any `UIView.animate()` business since it seems like
         // this function is called in the context of an animation.
         //
@@ -893,7 +897,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // Include the tab bar in our safe area insets.
         let safeAreaInsetBottom = max(
             windowSafeAreaInsets.bottom,
-            tabBarController?.tabBar.frame.height ?? 0
+            tabBarController?.tabBar.frame.height ?? 0,
+            keyboardOffset
         )
 
         let safeAreaInsetLeft = windowSafeAreaInsets.left
@@ -938,7 +943,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let styleString = """
             :root {
                 --safe-area-inset-top: \(safeAreaInsets.top)px;
-                --safe-area-inset-bottom: \(max(safeAreaInsets.bottom, keyboardOffset))px;
+                --safe-area-inset-bottom: \(safeAreaInsets.bottom)px;
                 --safe-area-inset-left: \(safeAreaInsets.left)px;
                 --safe-area-inset-right: \(safeAreaInsets.right)px;
                 --window-safe-area-inset-bottom: \(windowSafeAreaInsets.bottom)px;
