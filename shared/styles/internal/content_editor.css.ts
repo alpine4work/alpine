@@ -102,3 +102,16 @@ export const inlineMentionInputClassName = style({});
 globalStyle(`${containerClassName} ${mentionClassName}`, {
     userSelect: "all",
 });
+
+export const dualModalityContainerClassName = style({});
+
+// If we use a dual input modality then when in editing mode links are inert.
+// When you click on them you can edit their text instead of navigating to the
+// link. Reflect this in the UI by removing their link color. They'll look like
+// regular text with an underline.
+globalStyle(
+    `${dualModalityContainerClassName} ${docClassName}[contenteditable=true] ${linkClassName}`,
+    {
+        color: "inherit",
+    },
+);

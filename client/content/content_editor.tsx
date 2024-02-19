@@ -88,6 +88,7 @@ const {
     inlineElementPaddingToLineHeightClassName,
     shiftKeyOrAltKeyDownClassName,
     inlineMentionInputClassName,
+    dualModalityContainerClassName,
 } = contentEditorStyles;
 
 // TODO(calebmer): Implement touch toolbar for mobile.
@@ -645,6 +646,8 @@ function ContentEditor<Content extends ContentWithReferences>(
             // `renderContentToHtml()`.
             markViews: {
                 link: createContentEditorLinkMarkViewConstructor({
+                    isDualModality: () => isDualModalityRef.current,
+
                     onPointerEnterAfterDelay: ({mark, range}) => {
                         // We don't want to open floaters on mobile.
                         if (isMobileRef.current) return;
@@ -1432,7 +1435,11 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     return (
         <div
-            className={classNames(containerClassName, customContainerClassName)}
+            className={classNames(
+                containerClassName,
+                isDualModality ? dualModalityContainerClassName : undefined,
+                customContainerClassName,
+            )}
             onFocus={onFocus}
             onFocusCapture={event => {
                 // When the user hits cmd-k to open a link input in `<MessageView>`, types a

@@ -17,11 +17,13 @@ const {linkPressedClassName} = contentSchemaStyles;
  * optimizing for reading content here over writing.
  */
 export function createContentEditorLinkMarkViewConstructor({
+    isDualModality,
     onPointerEnterAfterDelay,
     onPointerEnter,
     onPointerLeave,
     onNavigate,
 }: {
+    isDualModality: () => boolean;
     onPointerEnterAfterDelay: (options: {mark: Mark; range: {from: number; to: number}}) => void;
     onPointerEnter: (mark: Mark) => void;
     onPointerLeave: (mark: Mark) => void;
@@ -35,10 +37,15 @@ export function createContentEditorLinkMarkViewConstructor({
 
         assert(dom instanceof HTMLAnchorElement);
 
+        const isInert = (): boolean => {
+            if (!isDualModality()) return false;
+            return view.hasFocus();
+        };
+
         let isPointerDownAndOver = false;
 
         const maybeUpdateStyle = () => {
-            if (isPointerDownAndOver) {
+            if (isPointerDownAndOver && !isInert()) {
                 dom.classList.add(linkPressedClassName);
             } else {
                 dom.classList.remove(linkPressedClassName);
@@ -50,10 +57,10 @@ export function createContentEditorLinkMarkViewConstructor({
             maybeUpdateStyle();
 
             // If the user interacts with the link, don't open a floater after a delay.
-            if (pointerEnterDelayTimeout) {
-                pointerEnterDelayTimeout.clear();
-                pointerEnterDelayTimeout = null;
-            }
+            pointerEnterDelayTimeout?.clear();
+            pointerEnterDelayTimeout = null;
+
+            if (isInert()) return;
 
             // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
             // modifier. Unless the click was meant to open the link in a separate tab. We
@@ -75,6 +82,8 @@ export function createContentEditorLinkMarkViewConstructor({
             isPointerDownAndOver = false;
             maybeUpdateStyle();
 
+            if (isInert()) return;
+
             // Only process pointer up events that started on our element.
             if (!wasPointerDownAndOver) return;
 
@@ -84,10 +93,10 @@ export function createContentEditorLinkMarkViewConstructor({
         let pointerEnterDelayTimeout: Timeout | null = null;
 
         dom.addEventListener("pointerenter", event => {
-            if (pointerEnterDelayTimeout) {
-                pointerEnterDelayTimeout.clear();
-                pointerEnterDelayTimeout = null;
-            }
+            pointerEnterDelayTimeout?.clear();
+            pointerEnterDelayTimeout = null;
+
+            if (isInert()) return;
 
             const posResult = view.posAtCoords({left: event.clientX, top: event.clientY});
             if (!posResult) return;
@@ -143,10 +152,10 @@ export function createContentEditorLinkMarkViewConstructor({
             isPointerDownAndOver = false;
             maybeUpdateStyle();
 
-            if (pointerEnterDelayTimeout) {
-                pointerEnterDelayTimeout.clear();
-                pointerEnterDelayTimeout = null;
-            }
+            pointerEnterDelayTimeout?.clear();
+            pointerEnterDelayTimeout = null;
+
+            if (isInert()) return;
 
             onPointerLeave(mark);
         });
