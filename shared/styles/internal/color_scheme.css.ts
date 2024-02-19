@@ -113,6 +113,25 @@ const constantColors = Object.fromEntries(
     ]),
 ) as {[C in keyof typeof colorsWithShade as `${C}-const`]: string};
 
+const translucentColorSchemeVars = createGlobalTheme(
+    ":root",
+    Object.fromEntries(
+        themeColors.map(color => [`${color}-60-opacity-60`, `${colorsWithShade[`${color}-60`]}99`]),
+    ) as {[C in ThemeColor as `${C}-60-opacity-60`]: `#${string}`},
+);
+
+globalStyle(darkColorSchemeSelector, {
+    vars: assignVars(
+        translucentColorSchemeVars,
+        Object.fromEntries(
+            themeColors.map(color => [
+                `${color}-60-opacity-60`,
+                `${invertedColorsWithShade[`${color}-60`]}99`,
+            ]),
+        ) as {[C in ThemeColor as `${C}-60-opacity-60`]: `#${string}`},
+    ),
+});
+
 function createTheme(color: ThemeColor) {
     return {
         "theme-5": baseColorSchemeVars[`${color}-5`],
@@ -122,6 +141,7 @@ function createTheme(color: ThemeColor) {
         "theme-40": baseColorSchemeVars[`${color}-40`],
         "theme-50": baseColorSchemeVars[`${color}-50`],
         "theme-60": baseColorSchemeVars[`${color}-60`],
+        "theme-60-opacity-60": translucentColorSchemeVars[`${color}-60-opacity-60`],
         "theme-70": baseColorSchemeVars[`${color}-70`],
         "theme-80": baseColorSchemeVars[`${color}-80`],
         "theme-90": baseColorSchemeVars[`${color}-90`],
@@ -192,6 +212,7 @@ export const colorSchemeVars = {
     ...constantColors,
     ...themeColorSchemeVars,
     ...specialGreyColorVars,
+    ...translucentColorSchemeVars,
 };
 
 /**

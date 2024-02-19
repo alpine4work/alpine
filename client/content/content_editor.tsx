@@ -412,10 +412,6 @@ function ContentEditor<Content extends ContentWithReferences>(
     const navigate = useNavigate();
     const isMobile = useIsMobile();
 
-    // We choose our interaction mode based on whether the device's primary input
-    // can hover. This is true on a laptop (e.g. MacOS) and false on a phone (e.g.
-    // iOS). Haven't tested this with an iPad. Ideally it's true when a hardware
-    // trackpad is connected and false when it's not.
     const [canPrimaryInputHover, setCanPrimaryInputHover] = useState(
         () => !window.matchMedia("(hover: none)").matches,
     );
@@ -436,6 +432,28 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
     }, []);
 
+    // We choose our interaction mode based on whether the device's primary input
+    // can hover. This is true on a laptop (e.g. MacOS) and false on a phone (e.g.
+    // iOS). Haven't tested this with an iPad. Ideally it's true when a hardware
+    // trackpad is connected and false when it's not.
+    //
+    // The difference between `isMobile` and `isDualModality` can be a bit
+    // confusing.
+    //
+    // - On desktop, `isDualModality` is always false. `isMobile` will be true if
+    //   the window is small but usually will be false (since we don't recommend
+    //   small windows on desktop).
+    //
+    // - On an iPhone, document content editors are `isMobile = true` and
+    //   `isDualModality = true`. However, message inputs are `isMobile = true` and
+    //   `isDualModality = false`.
+    //
+    // - This isn't implemented yet but on an iPad we should have
+    //   `isMobile = false` (since it's big enough for our desktop screen size) and
+    //   should have `isDualModality = true` if there's no hardware keyboard but
+    //   `isDualModality = false` if there is a hardware keyboard. If the user is
+    //   primarily using the iPad via touch it should behave more like an iPhone
+    //   than a laptop.
     const isDualModality = !canPrimaryInputHover;
 
     // The props for the current React commit. We are integrating with a stateful
@@ -449,6 +467,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     // Please avoid using `propsRef` unless you can thoroughly reason through why
     // it's safe!
     const propsRef = useRef(props);
+    const isMobileRef = useRef(isMobile);
     const isDualModalityRef = useRef(isDualModality);
     const navigateRef = useRef(navigate);
     // Don't get the current account when running in a unit test so we don't need
@@ -459,6 +478,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const currentAccountRef = useRef(currentAccount);
     useInsertionEffect(() => {
         propsRef.current = props;
+        isMobileRef.current = isMobile;
         isDualModalityRef.current = isDualModality;
         navigateRef.current = navigate;
         currentAccountRef.current = currentAccount;
@@ -626,7 +646,11 @@ function ContentEditor<Content extends ContentWithReferences>(
             markViews: {
                 link: createContentEditorLinkMarkViewConstructor({
                     onPointerEnterAfterDelay: ({mark, range}) => {
+                        // We don't want to open floaters on mobile.
+                        if (isMobileRef.current) return;
+
                         const floaterState = getContentEditorFloaterState(view.state);
+
                         // Don't open pointer link preview if the current floater is a comment
                         // input floater.
                         if (floaterState.type !== "CommentInput") {
@@ -643,6 +667,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     },
                     onPointerEnter: mark => {
                         const floaterState = getContentEditorFloaterState(view.state);
+
                         if (floaterState.type === "PointerLink" && floaterState.mark.eq(mark)) {
                             view.dispatch(
                                 setContentEditorFloaterState(view.state.tr, {
@@ -654,6 +679,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     },
                     onPointerLeave: mark => {
                         const floaterState = getContentEditorFloaterState(view.state);
+
                         if (floaterState.type === "PointerLink" && floaterState.mark.eq(mark)) {
                             view.dispatch(
                                 setContentEditorFloaterState(view.state.tr, {

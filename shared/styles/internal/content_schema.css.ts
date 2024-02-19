@@ -786,6 +786,10 @@ export const linkClassName = style({
     },
 });
 
+export const linkPressedClassName = style({
+    color: colorSchemeVars["theme-60-opacity-60"],
+});
+
 export const mentionClassName = style({
     position: "relative",
 });

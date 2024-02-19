@@ -8,8 +8,9 @@ import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_op
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
-// NOCOMMIT: Link press visual state
+const {linkPressedClassName} = contentSchemaStyles;
 
 /**
  * Opens the link when the node is clicked instead of selecting text. We're
@@ -36,8 +37,23 @@ export function createContentEditorLinkMarkViewConstructor({
 
         let isPointerDownAndOver = false;
 
+        const maybeUpdateStyle = () => {
+            if (isPointerDownAndOver) {
+                dom.classList.add(linkPressedClassName);
+            } else {
+                dom.classList.remove(linkPressedClassName);
+            }
+        };
+
         dom.addEventListener("pointerdown", event => {
             isPointerDownAndOver = true;
+            maybeUpdateStyle();
+
+            // If the user interacts with the link, don't open a floater after a delay.
+            if (pointerEnterDelayTimeout) {
+                pointerEnterDelayTimeout.clear();
+                pointerEnterDelayTimeout = null;
+            }
 
             // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
             // modifier. Unless the click was meant to open the link in a separate tab. We
@@ -57,6 +73,7 @@ export function createContentEditorLinkMarkViewConstructor({
         dom.addEventListener("pointerup", event => {
             const wasPointerDownAndOver = isPointerDownAndOver;
             isPointerDownAndOver = false;
+            maybeUpdateStyle();
 
             // Only process pointer up events that started on our element.
             if (!wasPointerDownAndOver) return;
@@ -124,6 +141,7 @@ export function createContentEditorLinkMarkViewConstructor({
 
         dom.addEventListener("pointerleave", () => {
             isPointerDownAndOver = false;
+            maybeUpdateStyle();
 
             if (pointerEnterDelayTimeout) {
                 pointerEnterDelayTimeout.clear();
