@@ -153,6 +153,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     private var lastApplicationDidBecomeActiveNotificationTime: DispatchTime?
 
+    private var theme30Color = UIColor(named: "indigo-30")!
+    private var theme40Color = UIColor(named: "indigo-40")!
+    private var theme50Color = UIColor(named: "indigo-50")!
+    private var theme60Color = UIColor(named: "indigo-60")!
+
     init(initialPath: String, websiteDataStore: WKWebsiteDataStore) {
         self.initialPath = initialPath
 
@@ -313,6 +318,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // https://stackoverflow.com/questions/27655930/how-can-i-give-wkwebview-a-colored-background
         webView.isOpaque = false
 
+        // Use the space theme color as the tint color. The tint color will be used as
+        // the selection and caret color among other things.
+        webView.tintColor = initThemeTintColor()
+
         // Don't allow zooming.
         webView.scrollView.minimumZoomScale = 1
         webView.scrollView.maximumZoomScale = 1
@@ -374,6 +383,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // `<VirtualizedScrollView>`).
         webView.isHidden = true
         view.addSubview(webView)
+    }
+
+    private func initThemeTintColor() -> UIColor {
+        return UIColor { [self] (traits) in
+            traits.userInterfaceStyle == .dark ? theme60Color : theme40Color
+        }
     }
 
     private func initWebViewHealthTimer() {
@@ -614,6 +629,35 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 webViewHealthState.readyTime = DispatchTime.now()
             } else if messageBody == "health.ping" {
                 webViewHealthState.lastPingTime = DispatchTime.now()
+            } else if messageBody.starts(with: "colors.setThemeColors") {
+                let colorsString = messageBody.suffix(
+                    from: messageBody.index(messageBody.startIndex, offsetBy: 22)
+                )
+                let colorStrings = colorsString.split(separator: ",")
+
+                let colors = colorStrings.map({ (colorString) -> UIColor? in
+                    let scanner = Scanner(string: String(colorString.dropFirst(1)))
+                    var hexInt: UInt64 = 0
+
+                    if !scanner.scanHexInt64(&hexInt) { return nil }
+
+                    let red = CGFloat((hexInt & 0xff0000) >> 16) / 255
+                    let green = CGFloat((hexInt & 0x00ff00) >> 8) / 255
+                    let blue = CGFloat((hexInt & 0x0000ff) >> 0) / 255
+
+                    return UIColor(red: red, green: green, blue: blue, alpha: 1.0)
+                })
+
+                theme30Color = (colors.count >= 1 ? colors[0] : nil) ?? UIColor(named: "indigo-30")!
+                theme40Color = (colors.count >= 2 ? colors[1] : nil) ?? UIColor(named: "indigo-40")!
+                theme50Color = (colors.count >= 3 ? colors[2] : nil) ?? UIColor(named: "indigo-50")!
+                theme60Color = (colors.count >= 4 ? colors[2] : nil) ?? UIColor(named: "indigo-60")!
+
+                // Use the space theme color as the tint color. The tint color will be used as
+                // the selection and caret color among other things.
+                //
+                // We set it again here so the web view re-renders?
+                webView.tintColor = initThemeTintColor()
             }
         }
     }
@@ -1516,6 +1560,11 @@ private let bridgeSource = """
                 },
                 ping: () => {
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage("health.ping");
+                },
+            },
+            colors: {
+                setThemeColors: options => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`colors.setThemeColors:${options["theme-30"]},${options["theme-40"]},${options["theme-50"]},${options["theme-60"]}`);
                 },
             },
             navigation: {

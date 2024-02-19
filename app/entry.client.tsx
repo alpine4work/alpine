@@ -6,6 +6,7 @@ import {ReactContextModule} from "~/client/context/react_context_module.js";
 import {installScrollbarAuditorInDev} from "~/client/design/scrollbar.js";
 import {attachDevConsoleNotInProduction} from "~/client/dev/dev_console.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {updateNativeMobileThemeColors} from "~/client/remix/update_native_mobile_theme_colors.js";
 import {ClientRpcContextModule} from "~/client/rpc/client_rpc_context_module.js";
 import {createClientTracer} from "~/client/tracer/client_tracer.js";
 import {Context} from "~/shared/context/context.js";
@@ -111,6 +112,9 @@ async function main() {
             installScrollbarAuditorInDev();
         }
     });
+
+    // Tell native mobile what our theme color is from server rendering.
+    updateNativeMobileThemeColors();
 
     attachDevConsoleNotInProduction();
 }

@@ -1,5 +1,6 @@
 import {useEffect, useState} from "react";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {updateNativeMobileThemeColors} from "~/client/remix/update_native_mobile_theme_colors.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -26,24 +27,35 @@ export function ColorSchemeManager() {
     useEffect(() => {
         const darkColorSchemeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
-        const reset = () => {
-            const colorScheme = localStorage.getItem("colorScheme");
+        const update = () => {
+            const colorSchemeString = localStorage.getItem("colorScheme");
 
             const isDarkColorScheme =
-                colorScheme === "dark" || (!colorScheme && darkColorSchemeMediaQuery.matches);
+                colorSchemeString === "dark" ||
+                (!colorSchemeString && darkColorSchemeMediaQuery.matches);
 
-            const colorSchemeAttribute = isDarkColorScheme ? "dark" : "light";
+            const colorScheme = isDarkColorScheme ? "dark" : "light";
 
-            if (colorSchemeAttribute !== document.documentElement.dataset.colorScheme) {
-                document.documentElement.dataset.colorScheme = colorSchemeAttribute;
+            if (colorScheme !== document.documentElement.dataset.colorScheme) {
+                document.documentElement.dataset.colorScheme = colorScheme;
+
+                for (const listener of colorSchemeListeners) {
+                    try {
+                        listener(colorScheme);
+                    } catch (error) {
+                        scheduleUncaughtError(error);
+                    }
+                }
+
+                // Whenever we switch from dark mode to light mode, we need to update our
+                // theme colors in the native mobile app.
+                updateNativeMobileThemeColors();
             }
         };
 
-        reset();
-
-        darkColorSchemeMediaQuery.addEventListener("change", reset);
+        darkColorSchemeMediaQuery.addEventListener("change", update);
         return () => {
-            darkColorSchemeMediaQuery.removeEventListener("change", reset);
+            darkColorSchemeMediaQuery.removeEventListener("change", update);
         };
     }, []);
 
@@ -76,6 +88,10 @@ export function setColorScheme(colorScheme: ColorScheme) {
             scheduleUncaughtError(error);
         }
     }
+
+    // Whenever we switch from dark mode to light mode, we need to update our
+    // theme colors in the native mobile app.
+    updateNativeMobileThemeColors();
 }
 
 /**

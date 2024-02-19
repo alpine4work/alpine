@@ -42,6 +42,25 @@ export const NativeMobileBridge: {
     };
 
     /**
+     * Functions for updating dynamic colors (like the theme color) in our
+     * native code.
+     */
+    // TODO(calebmer): If your app is set to light mode but the system is set to
+    // dark mode we should coordinate that through this namespace.
+    readonly colors: {
+        /**
+         * Set the theme color in our native app. On iOS this is used as the
+         * `tintColor`. Which is in turn used as the caret and selection color.
+         */
+        setThemeColors(options: {
+            "theme-30": string;
+            "theme-40": string;
+            "theme-50": string;
+            "theme-60": string;
+        }): void;
+    };
+
+    /**
      * Properly managing navigation for our native mobile apps is a challenging
      * problem. Since navigation responsibilities are shared between web code and
      * native code. Native code is responsible for animating between routes and

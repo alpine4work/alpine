@@ -47,11 +47,13 @@ import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/con
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -806,6 +808,39 @@ function ContentEditor<Content extends ContentWithReferences>(
                 }));
             },
         });
+
+        if (isMobileWebKit) {
+            // NOTE(calebmer): This is a fix for what I consider to be a Safari bug. In iOS
+            // the selection highlight and caret color is controlled by the `caret-color`
+            // CSS property. On desktop the caret color defaults to the current text color.
+            // On iOS the caret color defaults to `WKWebView`'s `tintColor` property. On
+            // desktop, we want the caret color to be `grey-text` even while in a link so
+            // the cursor color doesn't change as the user moves it across different
+            // styles. So we set `caret-color` to `grey-text` in `content_schema.css.ts`.
+            // However on iOS we want the caret/selection color to be `WKWebView`'s
+            // `tintColor`. The problem is:
+            //
+            // 1. Setting [`caret-color: initial` in WebKit also sets the stored caret
+            //    color (which initially is null) to the current text color][1]
+            // 2. If the `WKWebView`'s `tintColor` is specifically `UIColor.systemBlue`
+            //    (the default `tintColor`) [WebKit uses the stored caret color][2] if it's
+            //    not null instead of `tintColor`
+            //
+            // 1 seems like the correct behavior on MacOS Safari but on iOS Safari when we
+            // set `caret-color: initial` we want `WKWebView`'s `tintColor` even if it's
+            // `UIColor.systemBlue`. Not the text color which is black. This seems like a
+            // bug in iOS Safari but it's easy to workaround by manually setting caret
+            // color back to `UIColor.systemBlue`.
+            //
+            // This will override `WKWebView`'s custom `tintColor` if `tintColor` not
+            // system blue so we have to be a little careful. In our native mobile app we
+            // set a non-system blue `tintColor` so we need to set `caret-color: initial`
+            // when running in our native mobile app shell.
+            //
+            // [1]: https://github.com/WebKit/WebKit/blob/ccd45357bd2ad7e46bbf93b899234eeb1c62cca2/Source/WebCore/rendering/style/RenderStyleSetters.h#L171
+            // [2]: https://github.com/WebKit/WebKit/blob/1a78cf12c8f5ff2e296f7eb25ff4bcbc86cfbfe8/Source/WebKit/UIProcess/ios/WKContentViewInteraction.mm#L4341-L4345
+            view.dom.style.caretColor = NativeMobileBridge ? "initial" : "-apple-system-blue";
+        }
 
         let touchTapState: {
             finish: (event: TouchEvent) => void;

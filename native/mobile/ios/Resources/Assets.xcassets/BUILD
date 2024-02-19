@@ -88,6 +88,10 @@ COLORS = [
     "grey-90",
     "grey-text",
     "grey-wash",
+    "indigo-30",
+    "indigo-40",
+    "indigo-50",
+    "indigo-60",
 ]
 
 js_run_binary(

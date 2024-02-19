@@ -18,7 +18,7 @@ func swizzleWebViewInputAccessoryView(_ webView: WKWebView) {
     guard let targetView = targetView else { return }
     let targetViewClass = type(of: targetView)
 
-    let noInputAccessoryViewClassName = "\(targetViewClass.superclass()!)_NoInputAccessoryView"
+    let noInputAccessoryViewClassName = "\(targetViewClass)_NoInputAccessoryView"
 
     let newClass: AnyClass
     if let existingClass = NSClassFromString(noInputAccessoryViewClassName) {
