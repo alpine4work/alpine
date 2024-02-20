@@ -790,6 +790,35 @@ export const linkPressedClassName = style({
     color: colorSchemeVars["theme-60-opacity-60"],
 });
 
+// In dark mode, highlighted link text color is a little too dark. So brighten
+// link color just a little so it's not too out-of-place but at least the link
+// text is easier to read.
+globalStyle(
+    Object.values(highlightClassNameByColor)
+        .map(
+            highlightClassName =>
+                `${darkColorSchemeSelector} ${linkClassName} ${highlightClassName}`,
+        )
+        .join(", "),
+    {
+        color: colorSchemeVars["theme-70"],
+        textDecorationLine: "underline",
+        textDecorationThickness: 1,
+    },
+);
+
+globalStyle(
+    Object.values(highlightClassNameByColor)
+        .map(
+            highlightClassName =>
+                `${darkColorSchemeSelector} ${linkPressedClassName} ${highlightClassName}`,
+        )
+        .join(", "),
+    {
+        color: colorSchemeVars["theme-70-opacity-60"],
+    },
+);
+
 export const mentionClassName = style({
     position: "relative",
 });

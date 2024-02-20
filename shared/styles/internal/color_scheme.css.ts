@@ -116,19 +116,22 @@ const constantColors = Object.fromEntries(
 const translucentColorSchemeVars = createGlobalTheme(
     ":root",
     Object.fromEntries(
-        themeColors.map(color => [`${color}-60-opacity-60`, `${colorsWithShade[`${color}-60`]}99`]),
-    ) as {[C in ThemeColor as `${C}-60-opacity-60`]: `#${string}`},
+        themeColors.flatMap(color => [
+            [`${color}-60-opacity-60`, `${colorsWithShade[`${color}-60`]}99`],
+            [`${color}-70-opacity-60`, `${colorsWithShade[`${color}-70`]}99`],
+        ]),
+    ) as {[C in ThemeColor as `${C}-60-opacity-60` | `${C}-70-opacity-60`]: `#${string}`},
 );
 
 globalStyle(darkColorSchemeSelector, {
     vars: assignVars(
         translucentColorSchemeVars,
         Object.fromEntries(
-            themeColors.map(color => [
-                `${color}-60-opacity-60`,
-                `${invertedColorsWithShade[`${color}-60`]}99`,
+            themeColors.flatMap(color => [
+                [`${color}-60-opacity-60`, `${invertedColorsWithShade[`${color}-60`]}99`],
+                [`${color}-70-opacity-60`, `${invertedColorsWithShade[`${color}-70`]}99`],
             ]),
-        ) as {[C in ThemeColor as `${C}-60-opacity-60`]: `#${string}`},
+        ) as {[C in ThemeColor as `${C}-60-opacity-60` | `${C}-70-opacity-60`]: `#${string}`},
     ),
 });
 
@@ -141,10 +144,11 @@ function createTheme(color: ThemeColor) {
         "theme-40": baseColorSchemeVars[`${color}-40`],
         "theme-50": baseColorSchemeVars[`${color}-50`],
         "theme-60": baseColorSchemeVars[`${color}-60`],
-        "theme-60-opacity-60": translucentColorSchemeVars[`${color}-60-opacity-60`],
         "theme-70": baseColorSchemeVars[`${color}-70`],
         "theme-80": baseColorSchemeVars[`${color}-80`],
         "theme-90": baseColorSchemeVars[`${color}-90`],
+        "theme-60-opacity-60": translucentColorSchemeVars[`${color}-60-opacity-60`],
+        "theme-70-opacity-60": translucentColorSchemeVars[`${color}-70-opacity-60`],
         "theme-selection": selectionColorSchemeVars[`${color}-selection`],
         "theme-selection-inverted": invertedSelectionColorSchemeVars[`${color}-selection`],
         "theme-5-const": constantColors[`${color}-5-const`],
