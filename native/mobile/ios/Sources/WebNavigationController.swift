@@ -10,7 +10,8 @@ private let logger = Logger(
 @objc protocol WebNavigationControllerDelegate {
     @objc optional func webNavigationController(
         _ navigationController: WebNavigationController,
-        didAddWebScrollView webScrollView: UIScrollView
+        didAddWebScrollView webScrollView: UIScrollView,
+        isMain: Bool
     )
     @objc optional func webNavigationController(
         _ navigationController: WebNavigationController,
@@ -23,7 +24,7 @@ private let logger = Logger(
 
 class WebNavigationController: UINavigationController, WKNavigationDelegate, WKUIDelegate,
     WKScriptMessageHandler, WKHTTPCookieStoreObserver, UIViewTreeObserverDelegate,
-    UIScrollViewDelegate
+    UIScrollViewDelegate, WebInputAccessoryObserverViewDelegate
 {
     #if PRODUCTION_RUN_ENVIRONMENT
         static let baseUrl = URL(string: "https://cyberworlds.dev")!
@@ -33,8 +34,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     static private var baseUrlAbsoluteStringWithTrailingSlash = baseUrl.absoluteString + "/"
 
-    static private let bottomBarRegex = try! Regex<(Substring, Substring)>(
-        " id='(NativeMobileBottomBar-[^']*)'"
+    // We use abbreviations since there's a character limit in WebKit layer names.
+    //
+    // - `nmbb` stands for `NativeMobileBottomBar`
+    // - `kt` stands for `KeyboardToolbar`
+    static private let bottomBarRegex = try! Regex<(Substring, Substring, Substring?)>(
+        " id='(nmbb-(kt-)?[^']*)'"
     )
 
     private let initialPath: String
@@ -45,6 +50,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     weak var webDelegate: WebNavigationControllerDelegate?
 
     private var webView: WKWebView!
+    private weak var webInputAccessoryObserverView: WebInputAccessoryObserverView?
     private var webViewTreeObserver: UIViewTreeObserver?
     private var hasInitialWebViewNavigationCommit = false
     private var windowSafeAreaInsets: UIEdgeInsets = .zero
@@ -85,7 +91,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     /// code along with native UI like the tab bar or software keyboard for fluid
     /// animations. For an HTML element to be a bottom bar it must:
     ///
-    /// 1. Set an `id` that starts with `NativeMobileBottomBar-`.
+    /// 1. Set an `id` that starts with `nmbb-`.
     ///
     /// 2. Set the CSS `will-change: transform` property. (This creates a new
     ///    browser compositing layer which is necessary for our native code to
@@ -107,13 +113,15 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     private class WebBottomBarViewState {
         let id: String
+        let isKeyboardToolbar: Bool
         var reconcileTimer: Timer?
 
         private var isAwaiting = false
         private var actionQueue = [() -> Void]()
 
-        init(id: String, reconcileTimer: Timer?) {
+        init(id: String, isKeyboardToolbar: Bool, reconcileTimer: Timer?) {
             self.id = id
+            self.isKeyboardToolbar = isKeyboardToolbar
             self.reconcileTimer = reconcileTimer
         }
 
@@ -328,7 +336,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         // Remove the accessory view with arrow up/down and "done" buttons. While
         // useful for web forms, users don't expect this in a native mobile app.
-        swizzleWebViewInputAccessoryView(webView)
+        let webInputAccessoryObserverView = WebInputAccessoryObserverView(frame: .zero)
+        webInputAccessoryObserverView.delegate = self
+        self.webInputAccessoryObserverView = webInputAccessoryObserverView
+        swizzleWebViewInputAccessoryView(
+            webView,
+            customInputAccessoryView: webInputAccessoryObserverView
+        )
 
         // Completely disable iOS WebKit's software keyboard handling. It's a mess. See
         // `useMobileWebKitKeyboardSupport()` in `s.$spaceId.tsx` for how we make it
@@ -448,6 +462,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         let url = webView.url
 
+        webInputAccessoryObserverView?.removeFromSuperview()
+        webInputAccessoryObserverView = nil
         webView.removeFromSuperview()
         webView.navigationDelegate = nil
         webView.uiDelegate = nil
@@ -691,18 +707,40 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
             schedule { [self] in
                 setWebScrollViewScrollIndicatorInsets(webScrollView)
-                webDelegate?.webNavigationController?(self, didAddWebScrollView: webScrollView)
+
+                // There may be other scroll views on our web page but we need to decide what
+                // the "main" scroll view is so that as it scrolls we can show/hide the tab
+                // bar, dismiss the keyboard, and more.
+                //
+                // So we use a simple "is this scroll view big enough?" heuristic. For instance
+                // in chat the main messaging section is big enough to be the main scroll view
+                // but not the message input. This may not work in general but is practical
+                // for our purposes.
+                //
+                // The root scroll view may not be the main scroll view since the root scroll
+                // view shouldn't be scrollable.
+                let isMain =
+                    webScrollView.frame.width >= view.frame.width * 0.5
+                    && webScrollView.frame.height >= view.frame.height * 0.5
+
+                // The main scrollbar pushes the keyboard down when it scrolls.
+                if isMain { webScrollView.keyboardDismissMode = .interactive }
+
+                webDelegate?.webNavigationController?(
+                    self,
+                    didAddWebScrollView: webScrollView,
+                    isMain: isMain
+                )
             }
         }
 
-        // We want to find compositing layers with an ID prefix of
-        // `NativeMobileBottomBar-`. We will animate these `UIView`s with the software
-        // keyboard and tab bar to make sure we see smooth animations. We can find the
-        // element ID that created the compositing layer in the layer name. An example
-        // layer name:
+        // We want to find compositing layers with an ID prefix of `nmbb-`. We will
+        // animate these `UIView`s with the software keyboard and tab bar to make sure
+        // we see smooth animations. We can find the element ID that created the
+        // compositing layer in the layer name. An example layer name:
         //
         // ```
-        // RenderBlock 0x136339300 DIV 0x10dff9d50 id='NativeMobileBottomBar-:Raml6:' class='sprinkles_flexShri...
+        // RenderBlock 0x136339300 DIV 0x10dff9d50 id='nmbb-:Raml6:' class='sprinkles_flexShri...
         // ```
         //
         // ([The layer name is also appended to the view description][1].)
@@ -733,6 +771,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 ) {
                     let webBottomBarViewState = WebBottomBarViewState(
                         id: String(match.1),
+                        isKeyboardToolbar: match.2 != nil,
                         reconcileTimer: nil
                     )
 
@@ -777,6 +816,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     @objc private func keyboardWillShow(notification: NSNotification) {
+        // `keyboardOffset` (which this function call uses) is updated in
+        // `webInputAccessoryObserverView(_:didMoveTo:)`. This method happens to run
+        // after that method.
+        setAllWebScrollViewScrollIndicatorInsets()
+
         let screen = notification.object as! UIScreen
         let beginScreenFrame =
             (notification.userInfo![UIResponder.keyboardFrameBeginUserInfoKey] as! NSValue)
@@ -784,21 +828,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let endScreenFrame =
             (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
             .cgRectValue
-        let endFrame = screen.coordinateSpace.convert(endScreenFrame, to: view)
 
-        keyboardOffset = view.frame.height - endFrame.origin.y
-
-        setAllWebScrollViewScrollIndicatorInsets()
-
-        // We don't need to do any `UIView.animate()` business since it seems like
-        // this function is called in the context of an animation.
-        //
-        // This changes the translation of a `CALayer` owned by WebKit! It should be
-        // fine mutating the translation from native code as long as web code doesn't
-        // touch it overriding our change.
-        updateAllWebBottomBarFrames()
-
-        // Don't include tab bar height in scroll offset delta since the tab bar is
+        // Don't include tab bar height in covered height delta since the tab bar is
         // already "dead space". The newly covered content is the extra space added by
         // the keyboard.
         let coveredHeightDelta =
@@ -832,6 +863,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     @objc private func keyboardWillHide(notification: NSNotification) {
+        // `keyboardOffset` (which this function call uses) is updated in
+        // `webInputAccessoryObserverView(_:didMoveTo:)`. This method happens to run
+        // after that method.
+        setAllWebScrollViewScrollIndicatorInsets()
+
         let screen = notification.object as! UIScreen
         let beginScreenFrame =
             (notification.userInfo![UIResponder.keyboardFrameBeginUserInfoKey] as! NSValue)
@@ -839,21 +875,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let endScreenFrame =
             (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
             .cgRectValue
-        let endFrame = screen.coordinateSpace.convert(endScreenFrame, to: view)
 
-        keyboardOffset = view.frame.height - endFrame.origin.y
-
-        setAllWebScrollViewScrollIndicatorInsets()
-
-        // We don't need to do any `UIView.animate()` business since it seems like
-        // this function is called in the context of an animation.
-        //
-        // This changes the translation of a `CALayer` owned by WebKit! It should be
-        // fine mutating the translation from native code as long as web code doesn't
-        // touch it overriding our change.
-        updateAllWebBottomBarFrames()
-
-        // Don't include tab bar height in scroll offset delta since the tab bar is
+        // Don't include tab bar height in covered height delta since the tab bar is
         // already "dead space". The newly covered content is the extra space added by
         // the keyboard.
         let coveredHeightDelta =
@@ -879,6 +902,23 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // Once the keyboard is fully hidden, now we update safe area insets so they
         // don't include space for the keyboard anymore.
         updateWebViewSafeAreaInsets()
+    }
+
+    fileprivate func webInputAccessoryObserverView(
+        _ webInputAccessoryObserverView: WebInputAccessoryObserverView,
+        didMoveTo keyboardOffset: Double
+    ) {
+        let lastKeyboardOffset = self.keyboardOffset
+        guard lastKeyboardOffset != keyboardOffset else { return }
+        self.keyboardOffset = keyboardOffset
+
+        // We don't need to do any `UIView.animate()` business since it seems like
+        // this function is called in the context of an animation.
+        //
+        // This changes the translation of a `CALayer` owned by WebKit! It should be
+        // fine mutating the translation from native code as long as web code doesn't
+        // touch it overriding our change.
+        updateAllWebBottomBarFrames()
     }
 
     @objc private func applicationWillResignActive(notification: NSNotification) {
@@ -1156,11 +1196,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     ) {
         let tabBarHeight = tabBarController?.tabBar.frame.height ?? 0
 
-        let translateY = -max(
-            0,
-            (tabBarHeight - tabBarScrollOffset) - windowSafeAreaInsets.bottom,
-            keyboardOffset - windowSafeAreaInsets.bottom
-        )
+        let translateY =
+            webBottomBarViewState.isKeyboardToolbar
+            ? -max(0, keyboardOffset > 0 ? keyboardOffset + bottomBarKeyboardToolbarHeight : 0)
+            : -max(
+                0,
+                (tabBarHeight - tabBarScrollOffset) - windowSafeAreaInsets.bottom,
+                keyboardOffset - windowSafeAreaInsets.bottom
+            )
 
         webBottomBarViewState.withLock {
             webBottomBarView.layer.transform = CATransform3DMakeAffineTransform(
@@ -1557,6 +1600,55 @@ private class WebLoadingIndicatorController: UIViewController {
     override func viewWillLayoutSubviews() {
         blurEffectView?.frame = view.bounds
         loadingIndicatorView?.center = view.center
+    }
+}
+
+private protocol WebInputAccessoryObserverViewDelegate: AnyObject {
+    func webInputAccessoryObserverView(
+        _ webInputAccessoryObserverView: WebInputAccessoryObserverView,
+        didMoveTo keyboardOffset: Double
+    )
+}
+
+/// We add this empty accessory view as the `inputAccessoryView` of our
+/// `WKWebView`. Then we observe changes to `inputAccessoryView`'s `superview`
+/// (the keyboard view). We must observe changes to the keyboard this way to
+/// detect when a gesture is dragging the keyboard down. A gesture to drag the
+/// keyboard down does not fire `keyboardWillShow` or `keyboardWillHide`
+/// notifications. So in order to both detect keyboard show/hide animations and
+/// drag gesture keyboard changes we need this observer.
+private class WebInputAccessoryObserverView: UIView {
+    weak var delegate: WebInputAccessoryObserverViewDelegate?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+    }
+
+    required init(coder: NSCoder) { fatalError("Unimplemented") }
+
+    deinit { superview?.removeObserver(self, forKeyPath: "center") }
+
+    override func willMove(toSuperview newSuperview: UIView?) {
+        superview?.removeObserver(self, forKeyPath: "center")
+        newSuperview?.addObserver(self, forKeyPath: "center", options: .init(), context: nil)
+    }
+
+    override func observeValue(
+        forKeyPath keyPath: String?,
+        of object: Any?,
+        change: [NSKeyValueChangeKey: Any]?,
+        context: UnsafeMutableRawPointer?
+    ) {
+        if keyPath != "center" { return }
+
+        let superview = object as! UIView
+
+        if let superSuperview = superview.superview {
+            let keyboardOffset = max(0, superSuperview.bounds.height - superview.frame.origin.y)
+
+            delegate?.webInputAccessoryObserverView(self, didMoveTo: keyboardOffset)
+        }
     }
 }
 

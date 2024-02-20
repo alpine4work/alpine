@@ -304,7 +304,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     return (
         <Box
             data-testid={dataTestId}
-            id={clientInfo.isNativeMobile ? `NativeMobileBottomBar-${id}` : id}
+            id={clientInfo.isNativeMobile ? `nmbb-${id}` : id}
             flexShrink="0"
             backgroundColor="grey-0"
             borderTop={!withoutBorderTop ? "grey-10" : undefined}
@@ -322,13 +322,12 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                 )} + var(--window-safe-area-inset-bottom, 0px))`,
                 marginBottom: `-${backgroundSlopBottom}`,
                 // Our native mobile wrapper looks for compositing layers created from an
-                // element with an ID that starts with `NativeMobileBottomBar-` and ties their
-                // position to the tab bar and software keyboard. So we get smooth animations
-                // while the keyboard opens or the tab bar shifts offscreen. To create a
-                // compositing layer we need to set `will-change: transform`. It's not
-                // specified that `will-change: transform` MUST create a compositing layer,
-                // instead some browser engines implement this hint themselves as an
-                // optimization.
+                // element with an ID that starts with `nmbb-` and ties their position to
+                // the tab bar and software keyboard. So we get smooth animations while the
+                // keyboard opens or the tab bar shifts offscreen. To create a compositing
+                // layer we need to set `will-change: transform`. It's not specified that
+                // `will-change: transform` MUST create a compositing layer, instead some
+                // browser engines implement this hint themselves as an optimization.
                 //
                 // It so happens that WebKit is one of those browsers. Here's the code in
                 // WebKit that does this: [part 1][1], [part 2][2].
@@ -337,8 +336,9 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                 // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
                 willChange: clientInfo.isNativeMobile ? "transform" : undefined,
                 // Set `transform` to its initial value assuming the tab bar is up.
-                transform:
-                    "translateY(calc(var(--window-safe-area-inset-bottom, 0px) - var(--safe-area-inset-bottom, 0px)))",
+                transform: clientInfo.isNativeMobile
+                    ? "translateY(calc(var(--window-safe-area-inset-bottom, 0px) - var(--safe-area-inset-bottom, 0px)))"
+                    : undefined,
             }}
             // Suppress React hydration warnings in our native mobile app. The native
             // mobile app sets the `transform` property on this element. Sometimes before

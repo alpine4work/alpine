@@ -145,24 +145,11 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
     func webNavigationController(
         _ navigationController: WebNavigationController,
-        didAddWebScrollView scrollView: UIScrollView
+        didAddWebScrollView scrollView: UIScrollView,
+        isMain: Bool
     ) {
-        // There may be other scroll views on our web page but we need to decide what
-        // the "main" scroll view is so that as it scrolls we can show/hide the tab bar.
-        // If a non-main scroll view scrolls we want to ignore those events.
-        //
-        // So we use a simple "is this scroll view big enough?" heuristic. For instance
-        // in chat the main messaging section is big enough to be the main scroll view
-        // but not the message input. This may not work in general but is practical
-        // for our purposes.
-        //
-        // We also exclude the root scroll view since the root scroll view shouldn't be
-        // scrollable.
-        if scrollView.frame.width < view.frame.width * 0.5
-            || scrollView.frame.height < view.frame.height * 0.5
-        {
-            return
-        }
+        // Only the main scroll view may push the tab bar down when scrolled.
+        guard isMain else { return }
 
         // See the comment on the same statement in
         // `webNavigationController(didScroll:)` for more information on why we call

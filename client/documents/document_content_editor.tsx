@@ -9,6 +9,7 @@ import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
+import {nativeMobileBottomBarKeyboardToolbarHeightRem} from "~/client/design/native_mobile_bottom_bar.js";
 import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
@@ -742,11 +743,22 @@ function DocumentContentEditorStateful({
 
         return NativeMobileBridge.keyboard.subscribeToFrameChange(
             (coveredKeyboardHeightDelta, newKeyboardHeight, oldKeyboardHeight) => {
+                const remPx = getRemPxWithoutListening();
+
+                // The content editor has a keyboard toolbar we need to add to our keyboard
+                // height since we need to move content out of the way of the toolbar too.
+                if (newKeyboardHeight > 0)
+                    newKeyboardHeight =
+                        newKeyboardHeight + nativeMobileBottomBarKeyboardToolbarHeightRem * remPx;
+
+                if (oldKeyboardHeight > 0)
+                    oldKeyboardHeight =
+                        oldKeyboardHeight + nativeMobileBottomBarKeyboardToolbarHeightRem * remPx;
+
                 const keyboardHeightDelta = newKeyboardHeight - oldKeyboardHeight;
 
                 if (keyboardHeightDelta <= 0) return;
 
-                const remPx = getRemPxWithoutListening();
                 const paragraphLineHeight =
                     parseRemLengthNumber(contentSchemaStyles.paragraphLineHeight) * remPx;
 
