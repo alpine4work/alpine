@@ -74,12 +74,6 @@ export function ContentEditorLinkInput({
             alignItems="center"
             paddingRight="1.5"
             height="8"
-            // Give more space in the input for larger URLs. So you can see more of the URL
-            // without having to scroll. 64 spacing doesn't show much of long URLs.
-            //
-            // Maybe the width should grow with the URL length for a bit? Until a
-            // max width?
-            width={url.length > 40 ? "96" : "64"}
             className={greyElevated2ClassName}
             color="grey-text"
             backgroundColor="grey-0"
@@ -109,7 +103,6 @@ export function ContentEditorLinkInput({
                 ref={inputRef}
                 type="text"
                 className={sprinkles({
-                    flex: "1",
                     height: "full",
                     paddingLeft: "8",
                     paddingRight: "1",
@@ -117,6 +110,14 @@ export function ContentEditorLinkInput({
                     color: "grey-text",
                     backgroundColor: "transparent",
                 })}
+                style={{
+                    // Give more space in the input for larger URLs. So you can see more of the URL
+                    // without having to scroll. 64 spacing doesn't show much of long URLs.
+                    //
+                    // Maybe the width should grow with the URL length for a bit? Until a
+                    // max width?
+                    width: url.length > 40 ? "20rem" : "12rem",
+                }}
                 placeholder="https://example.com"
                 disabled={isDisabled}
                 value={url}
