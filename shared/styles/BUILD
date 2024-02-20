@@ -36,7 +36,10 @@ esbuild(
     config = "internal/styles_esbuild_config.cjs",
     entry_point = "internal/styles.ts",
     # Leave font face `url()`s alone.
-    external = ["*.woff2"],
+    external = [
+        "*.woff2",
+        "*.ttf",
+    ],
     format = "esm",
     output = "styles.js",
     output_css = "styles.css",

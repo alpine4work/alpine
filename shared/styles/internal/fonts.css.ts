@@ -12,7 +12,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 // Font metrics taken from:
-// https://opentype.js.org/font-inspector.html
+// https://fontdrop.info
 const interFontAscender = 2728;
 const interFontDescender = 680;
 const interFontAscenderPercentage = interFontAscender / (interFontAscender + interFontDescender);

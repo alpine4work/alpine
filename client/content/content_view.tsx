@@ -16,10 +16,16 @@ import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/htm
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
-import {contentSchemaStyles, contentViewStyles, emojiFontFamily} from "~/shared/styles/styles.js";
+import {contentSchemaStyles, contentViewStyles} from "~/shared/styles/styles.js";
 
-const {docClassName, linkClassName, emptyTitleClassName, emptyBodyClassName, paragraphClassName} =
-    contentSchemaStyles;
+const {
+    docClassName,
+    linkClassName,
+    emptyTitleClassName,
+    emptyBodyClassName,
+    paragraphClassName,
+    emojiClassName,
+} = contentSchemaStyles;
 
 /**
  * A read-only view of content. Used as a complement to `<ContentEditor>` when
@@ -157,7 +163,7 @@ export function ContentView({
                         to: pos + index + emoji.length,
                         attrs: {
                             nodeName: "span",
-                            style: `font-family:${emojiFontFamily}`,
+                            class: emojiClassName,
                         },
                     });
                 }

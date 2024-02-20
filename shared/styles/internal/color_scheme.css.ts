@@ -90,11 +90,25 @@ globalStyle(darkColorSchemeSelector, {
 });
 
 const invertedSelectionColorSchemeVars: {
-    [K in keyof typeof selectionColors]: CssVarFunction;
-} = createGlobalTheme(":root", invertedSelectionColors);
+    [K in keyof typeof selectionColors as `${K}-inverted`]: CssVarFunction;
+} = createGlobalTheme(
+    ":root",
+    Object.fromEntries(
+        Object.entries(invertedSelectionColors).map(([key, value]) => [`${key}-inverted`, value]),
+    ) as {
+        [K in keyof typeof selectionColors as `${K}-inverted`]: `#${string}`;
+    },
+);
 
 globalStyle(darkColorSchemeSelector, {
-    vars: assignVars(invertedSelectionColorSchemeVars, selectionColors),
+    vars: assignVars(
+        invertedSelectionColorSchemeVars,
+        Object.fromEntries(
+            Object.entries(selectionColors).map(([key, value]) => [`${key}-inverted`, value]),
+        ) as {
+            [K in keyof typeof selectionColors as `${K}-inverted`]: `#${string}`;
+        },
+    ),
 });
 
 export const invertSelectionColorsClassName = style({});
@@ -150,7 +164,7 @@ function createTheme(color: ThemeColor) {
         "theme-60-opacity-60": translucentColorSchemeVars[`${color}-60-opacity-60`],
         "theme-70-opacity-60": translucentColorSchemeVars[`${color}-70-opacity-60`],
         "theme-selection": selectionColorSchemeVars[`${color}-selection`],
-        "theme-selection-inverted": invertedSelectionColorSchemeVars[`${color}-selection`],
+        "theme-selection-inverted": invertedSelectionColorSchemeVars[`${color}-selection-inverted`],
         "theme-5-const": constantColors[`${color}-5-const`],
         "theme-10-const": constantColors[`${color}-10-const`],
         "theme-20-const": constantColors[`${color}-20-const`],

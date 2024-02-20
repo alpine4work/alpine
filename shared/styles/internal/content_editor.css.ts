@@ -4,7 +4,6 @@ import {
     linkClassName,
     mentionClassName,
 } from "~/shared/styles/internal/content_schema.css.js";
-import {backgroundFontSizePercentage} from "~/shared/styles/internal/fonts.css.js";
 
 // The CSS for setting `min-height: 100%` here is pretty annoying. We set
 // `docClassName` to `min-height: 100%` and `containerClassName` to
@@ -63,19 +62,6 @@ globalStyle(`${containerClassName} > ${docClassName}`, {
     // case the user has made the screen tiny (developers, at least, do this often
     // while debugging) let's give them the text cursor affordance.
     cursor: "text",
-});
-
-/**
- * When applying a background color to some selected text, we want the
- * background to cover the entire line height, not just the size of the inline
- * element as determined by the browser.
- *
- * These styles using padding top/bottom to grow the inline element height to
- * the line height.
- */
-export const inlineElementPaddingToLineHeightClassName = style({
-    paddingTop: `${(backgroundFontSizePercentage - 1) / 2}em`,
-    paddingBottom: `${(backgroundFontSizePercentage - 1) / 2}em`,
 });
 
 // We use our `<FocusRing>` class for highlighting a selected node.

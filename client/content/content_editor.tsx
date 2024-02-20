@@ -74,18 +74,19 @@ import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
-import {
-    colorSchemeVars,
-    contentEditorStyles,
-    contentSchemaStyles,
-    emojiFontFamily,
-} from "~/shared/styles/styles.js";
+import {colorSchemeVars, contentEditorStyles, contentSchemaStyles} from "~/shared/styles/styles.js";
 
-const {docClassName, emptyBodyClassName, emptyTitleClassName, linkClassName} = contentSchemaStyles;
+const {
+    docClassName,
+    emptyBodyClassName,
+    emptyTitleClassName,
+    linkClassName,
+    phantomSelectionClassName,
+    emojiClassName,
+} = contentSchemaStyles;
 
 const {
     containerClassName,
-    inlineElementPaddingToLineHeightClassName,
     shiftKeyOrAltKeyDownClassName,
     inlineMentionInputClassName,
     dualModalityContainerClassName,
@@ -116,6 +117,11 @@ const {
 // selection/cursor is under the header, the cursor is still visible on top of
 // the header. This is likely a consequence of the cursor being rendered on top
 // of the web view (instead of deep inside it) and will be challenging to fix.
+//
+// TODO(calebmer): Safari doesn't support `ascent-override` and
+// `descent-override` which means our phantom selection or comment highlights
+// an emoji the top looks ragged instead of straight.
+// https://bugs.webkit.org/show_bug.cgi?id=219735
 
 function wrap<Content extends ContentWithReferences>(
     state: EditorState,
@@ -1609,7 +1615,7 @@ function createSelectionDecorations(doc: Node, selection: Selection, color: stri
 
     const decorations = [
         Decoration.inline(selection.from, selection.to, {
-            class: inlineElementPaddingToLineHeightClassName,
+            class: phantomSelectionClassName,
             style: `background-color:${color}`,
         }),
     ];
@@ -1628,7 +1634,7 @@ function createSelectionDecorations(doc: Node, selection: Selection, color: stri
             Decoration.widget(newlineIndicatorPos, () => {
                 const newlineIndicatorElement = document.createElement("span");
                 newlineIndicatorElement.textContent = " ";
-                newlineIndicatorElement.className = inlineElementPaddingToLineHeightClassName;
+                newlineIndicatorElement.className = phantomSelectionClassName;
                 newlineIndicatorElement.style.backgroundColor = color;
                 newlineIndicatorElement.style.userSelect = "none";
                 newlineIndicatorElement.ariaHidden = "true";
@@ -1664,7 +1670,7 @@ const addEmojiDecorations = createProsemirrorIncrementalReducer<DecorationSet>(n
             emojis.map(({index, emoji}) =>
                 Decoration.inline(offset + index, offset + index + emoji.length, {
                     nodeName: "span",
-                    style: `font-family:${emojiFontFamily}`,
+                    class: emojiClassName,
                 }),
             ),
         );

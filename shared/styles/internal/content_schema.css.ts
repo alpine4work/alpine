@@ -23,6 +23,7 @@ import {
 } from "~/shared/styles/internal/color_scheme.css.js";
 import {
     backgroundFontSizePercentage,
+    emojiFontFamily,
     fontSizes,
     fontStyles,
 } from "~/shared/styles/internal/fonts.css.js";
@@ -566,6 +567,10 @@ export const strikeClassName = style({
     textDecorationThickness: 1,
 });
 
+export const emojiClassName = style({
+    fontFamily: emojiFontFamily,
+});
+
 const commentBackgroundColors = {
     light: {
         default: Color(colors["yellow-50"]).fade(0.7).hexa(),
@@ -597,12 +602,39 @@ const nestedCommentBackgroundColors = {
     }),
 };
 
+/**
+ * When applying a background color to some selected text, we want the
+ * background to cover the entire line height, not just the size of the inline
+ * element as determined by the browser.
+ *
+ * You can use this for padding top and bottom to grow the inline element
+ * height to the line height.
+ */
+const inlineElementPaddingYToLineHeightVar = createVar("padding-y");
+
+globalStyle(":root", {
+    vars: {
+        [inlineElementPaddingYToLineHeightVar]: `calc((1lh - ${backgroundFontSizePercentage}em) / 2)`,
+    },
+    "@media": {
+        // The rounding math on iOS Safari seems to be not quite right when calculating
+        // this `calc()`. Removing 2/3 of a pixel when the pixel ration is 3 makes it
+        // look visually correct but this seems like a hack rather then properly
+        // accounting for iOS's pixel math.
+        "(-webkit-device-pixel-ratio: 3)": {
+            vars: {
+                [inlineElementPaddingYToLineHeightVar]: `calc((1lh - ${backgroundFontSizePercentage}em) / 2 - (2px / 3))`,
+            },
+        },
+    },
+});
+
 export const commentClassName = style({
     color: "inherit",
     backgroundColor: commentBackgroundColors.light.default,
     // Extend the comment background color to the line height.
-    paddingTop: `${(backgroundFontSizePercentage - 1) / 2}em`,
-    paddingBottom: `${(backgroundFontSizePercentage - 1) / 2}em`,
+    paddingTop: inlineElementPaddingYToLineHeightVar,
+    paddingBottom: inlineElementPaddingYToLineHeightVar,
     selectors: {
         "& &": {
             backgroundColor: nestedCommentBackgroundColors.light.default,
@@ -660,6 +692,11 @@ export const highlightClassNameByColor = mapObjectValues(colorByHighlightColor, 
             },
         },
     });
+});
+
+export const phantomSelectionClassName = style({
+    paddingTop: inlineElementPaddingYToLineHeightVar,
+    paddingBottom: inlineElementPaddingYToLineHeightVar,
 });
 
 export const commentActiveDynamicCssTemplate = `\
