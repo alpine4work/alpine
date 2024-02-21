@@ -2,20 +2,6 @@ workspace(name = "cyberworlds")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 
-# `rules_xcodeproj` needs an updated version of `bazel_features` but someone in
-# this file is downloading an old version. Make sure we install a new version
-# early on.
-http_archive(
-    name = "bazel_features",
-    sha256 = "0f23d75c7623d6dba1fd30513a94860447de87c8824570521fcc966eda3151c2",
-    strip_prefix = "bazel_features-1.4.1",
-    url = "https://github.com/bazel-contrib/bazel_features/releases/download/v1.4.1/bazel_features-v1.4.1.tar.gz",
-)
-
-load("@bazel_features//:deps.bzl", "bazel_features_deps")
-
-bazel_features_deps()
-
 # =========================================================================== #
 #                                Bazel Skylib                                 #
 # =========================================================================== #
@@ -365,8 +351,8 @@ http_file(
 
 http_archive(
     name = "build_bazel_rules_apple",
-    sha256 = "9c4f1e1ec4fdfeac5bddb07fa0e872c398e3d8eb0ac596af9c463f9123ace292",
-    url = "https://github.com/bazelbuild/rules_apple/releases/download/3.2.1/rules_apple.3.2.1.tar.gz",
+    sha256 = "34c41bfb59cdaea29ac2df5a2fa79e5add609c71bb303b2ebb10985f93fa20e7",
+    url = "https://github.com/bazelbuild/rules_apple/releases/download/3.1.1/rules_apple.3.1.1.tar.gz",
 )
 
 load(
@@ -396,16 +382,3 @@ load(
 )
 
 apple_support_dependencies()
-
-http_archive(
-    name = "rules_xcodeproj",
-    sha256 = "ccc719851a9942c53b9359984106e9fa5c5c97d9621b346243b638b18ec097f9",
-    url = "https://github.com/MobileNativeFoundation/rules_xcodeproj/releases/download/1.16.0/release.tar.gz",
-)
-
-load(
-    "@rules_xcodeproj//xcodeproj:repositories.bzl",
-    "xcodeproj_rules_dependencies",
-)
-
-xcodeproj_rules_dependencies()

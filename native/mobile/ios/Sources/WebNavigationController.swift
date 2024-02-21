@@ -277,52 +277,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         viewControllers = [rootViewController]
 
         initWebViewHealthTimer()
-
-        // // NOCOMMIT:
-        // Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [self] (_) in
-        //     print("TEST START")
-        //     let s = "toggleBoldface:"
-        //     let obj = webView.perform(
-        //         #selector(UIResponder.canPerformAction(_:withSender:)),
-        //         with: Selector(s),
-        //         with: nil
-        //     )
-        //     if let obj = obj as? AnyObject {
-        //         let pointer: UnsafeMutableRawPointer = Unmanaged<AnyObject>.passUnretained(obj)
-        //             .toOpaque()
-        //         let valueBool: Bool = pointer.load(as: Bool.self)
-        //         print("RESULT", valueBool)
-        //     }
-        //     print("TEST END")
-
-        //     //     print("TEST START")
-        //     //     let obj = webView.perform(
-        //     //         #selector(UIResponder.canPerformAction(_:withSender:)),
-        //     //         with: #selector(UIResponderStandardEditActions.select(_:)),
-        //     //         with: nil
-        //     //     )
-        //     //     if let obj = obj as? AnyObject {
-        //     //         let pointer: UnsafeMutableRawPointer = Unmanaged<AnyObject>.passUnretained(obj)
-        //     //             .toOpaque()
-        //     //         let valueBool: Bool = pointer.load(as: Bool.self)
-        //     //         print("RESULT", valueBool)
-        //     //     }
-        //     //     print("TEST END")
-
-        //     //     //     print("BEGIN")
-        //     //     //     loop(view, indent: 0)
-        //     //     //     print("END")
-        // }
     }
-
-    // NOCOMMIT:
-    // private func loop(_ view: UIView, indent: Int) {
-    //     print(
-    //         "\(String(repeating: "    ", count: indent))\(type(of: view).description()) hasMask=\(view.layer.mask != nil) \(view.layer.name ?? "nil") \(view.layer.zPosition)"
-    //     )
-
-    //     for subview in view.subviews { loop(subview, indent: indent + 1) }
-    // }
 
     required init(coder: NSCoder) { fatalError("Unimplemented") }
 
@@ -874,16 +829,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
             .cgRectValue
 
-        // As a backup, call our delegate method when the keyboard opens/closes. While
-        // the observer view should call `webInputAccessoryObserverView(_:didMoveTo:)`
-        // when the keyboard opens/closes we observe sometimes in practice we don't get
-        // the animation. Calling `webInputAccessoryObserverView(_:didMoveTo:)` twice
-        // with identical keyboard offset is a noop.
-        webInputAccessoryObserverView(
-            nil,
-            didMoveTo: screen.coordinateSpace.bounds.height - endScreenFrame.origin.y
-        )
-
         // Don't include tab bar height in covered height delta since the tab bar is
         // already "dead space". The newly covered content is the extra space added by
         // the keyboard.
@@ -931,16 +876,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
             .cgRectValue
 
-        // As a backup, call our delegate method when the keyboard opens/closes. While
-        // the observer view should call `webInputAccessoryObserverView(_:didMoveTo:)`
-        // when the keyboard opens/closes we observe sometimes in practice we don't get
-        // the animation. Calling `webInputAccessoryObserverView(_:didMoveTo:)` twice
-        // with identical keyboard offset is a noop.
-        webInputAccessoryObserverView(
-            nil,
-            didMoveTo: screen.coordinateSpace.bounds.height - endScreenFrame.origin.y
-        )
-
         // Don't include tab bar height in covered height delta since the tab bar is
         // already "dead space". The newly covered content is the extra space added by
         // the keyboard.
@@ -970,7 +905,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     fileprivate func webInputAccessoryObserverView(
-        _ webInputAccessoryObserverView: WebInputAccessoryObserverView?,
+        _ webInputAccessoryObserverView: WebInputAccessoryObserverView,
         didMoveTo keyboardOffset: Double
     ) {
         let lastKeyboardOffset = self.keyboardOffset
@@ -1269,9 +1204,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 (tabBarHeight - tabBarScrollOffset) - windowSafeAreaInsets.bottom,
                 keyboardOffset - windowSafeAreaInsets.bottom
             )
-
-        // NOCOMMIT???
-        webBottomBarView.layer.zPosition = 2000
 
         webBottomBarViewState.withLock {
             webBottomBarView.layer.transform = CATransform3DMakeAffineTransform(
@@ -1673,7 +1605,7 @@ private class WebLoadingIndicatorController: UIViewController {
 
 private protocol WebInputAccessoryObserverViewDelegate: AnyObject {
     func webInputAccessoryObserverView(
-        _ webInputAccessoryObserverView: WebInputAccessoryObserverView?,
+        _ webInputAccessoryObserverView: WebInputAccessoryObserverView,
         didMoveTo keyboardOffset: Double
     )
 }

@@ -2,11 +2,6 @@ load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
-load(
-    "@rules_xcodeproj//xcodeproj:defs.bzl",
-    "top_level_target",
-    "xcodeproj",
-)
 
 sources = glob(["Sources/**/*.swift"])
 
@@ -160,28 +155,4 @@ sh_test(
 build_test(
     name = "build_test",
     targets = [":app"],
-)
-
-xcodeproj(
-    name = "xcodeproj",
-    build_mode = "bazel",
-    default_xcode_configuration = "Debug",
-    project_name = "App",
-    tags = ["manual"],
-    top_level_targets = [
-        top_level_target(
-            ":app",
-            target_environments = [
-                "simulator",
-            ],
-        ),
-    ],
-    xcode_configurations = {
-        "Debug": {
-            "//command_line_option:compilation_mode": "dbg",
-        },
-        "Release": {
-            "//command_line_option:compilation_mode": "opt",
-        },
-    },
 )
