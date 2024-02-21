@@ -101,12 +101,6 @@ const {
 // may require swizzling or manual `UIView` tree modification. I haven't found
 // entrypoints in the WebKit source code for these behaviors yet, however.
 //
-// TODO(calebmer): Remove "AutoFill" option from the edit menu when you select
-// some text.
-//
-// TODO(calebmer): Remove "Underline" from the options after clicking "Format"
-// in the edit menu when you select some text.
-//
 // TODO(calebmer): We set `spellcheck="false"` but if you tap on a word that
 // Safari would have put a red squiggle under then replacement words appear.
 // This is confusing to users since it's unclear why this list would appear.
