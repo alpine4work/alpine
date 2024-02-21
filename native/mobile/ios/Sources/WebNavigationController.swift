@@ -339,10 +339,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let webInputAccessoryObserverView = WebInputAccessoryObserverView(frame: .zero)
         webInputAccessoryObserverView.delegate = self
         self.webInputAccessoryObserverView = webInputAccessoryObserverView
-        swizzleWebViewInputAccessoryView(
-            webView,
-            customInputAccessoryView: webInputAccessoryObserverView
-        )
+        swizzleWKWebView(webView, customInputAccessoryView: webInputAccessoryObserverView)
 
         // Completely disable iOS WebKit's software keyboard handling. It's a mess. See
         // `useMobileWebKitKeyboardSupport()` in `s.$spaceId.tsx` for how we make it

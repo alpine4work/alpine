@@ -95,18 +95,25 @@ const {
 
 // TODO(calebmer): Implement touch toolbar for mobile.
 
-// NOCOMMIT: Bugs I hope to fix
-//
-// The following are bugs I'd like to fix in the native mobile app. To do so
-// may require swizzling or manual `UIView` tree modification. I haven't found
-// entrypoints in the WebKit source code for these behaviors yet, however.
-//
-// TODO(calebmer): Remove "AutoFill" option from the edit menu when you select
-// some text.
-//
-// TODO(calebmer): Remove "Underline" from the options after clicking "Format"
-// in the edit menu when you select some text.
-//
+// NOTE(calebmer): The following are bugs I'd like to fix in the native mobile
+// app. To do so may require swizzling or manual `UIView` tree modification. I
+// haven't found entrypoints in the WebKit source code for these behaviors yet,
+// however.
+
+// ## High priority bugs:
+
+// TODO(calebmer): When you select some text then scroll so the
+// selection/cursor is under the header, the cursor is still visible on top of
+// the header. This is likely a consequence of the cursor being rendered on top
+// of the web view (instead of deep inside it) and will be challenging to fix.
+
+// TODO(calebmer): Safari doesn't support `ascent-override` and
+// `descent-override` which means our phantom selection or comment highlights
+// an emoji the top looks ragged instead of straight.
+// https://bugs.webkit.org/show_bug.cgi?id=219735
+
+// ## Medium priority bugs:
+
 // TODO(calebmer): We set `spellcheck="false"` but if you tap on a word that
 // Safari would have put a red squiggle under then replacement words appear.
 // This is confusing to users since it's unclear why this list would appear.
@@ -114,15 +121,21 @@ const {
 // which we don't want.
 // https://stackoverflow.com/questions/78022279/ios-safari-when-contenteditable-true-and-spellcheck-false-clicking-on-a-word-tha
 //
-// TODO(calebmer): When you select some text then scroll so the
-// selection/cursor is under the header, the cursor is still visible on top of
-// the header. This is likely a consequence of the cursor being rendered on top
-// of the web view (instead of deep inside it) and will be challenging to fix.
+// After much debugging I've narrowed the issue down to
+// `UITextInputTraits.autocorrectionType`. If I manually set
+// `UITextInputTraits.autocorrectionType = .no` (with swizzling, see
+// `swizzleWKWebView()`) it turns off both predictive input on the keyboard and
+// the tap to show corrections behavior I don't like. So looks like these two
+// behaviors are tied together in Apple's private text input code. Unfortunate.
+// https://developer.apple.com/documentation/uikit/uitextinputtraits/1624453-autocorrectiontype
 //
-// TODO(calebmer): Safari doesn't support `ascent-override` and
-// `descent-override` which means our phantom selection or comment highlights
-// an emoji the top looks ragged instead of straight.
-// https://bugs.webkit.org/show_bug.cgi?id=219735
+// I know it should be possible to get the behavior I want since Google Docs
+// has figured it out. (Though I don't think they use `WKWebView`.)
+//
+// Arguably this behavior is good and should be left in. I don't think so since
+// users may accidentally click on a word that makes sense to them and get this
+// menu which could be frustrating. Long term we also plan on implementing our
+// own spell checking. So the conflicting spell checking is unfortunate.
 
 function wrap<Content extends ContentWithReferences>(
     state: EditorState,
