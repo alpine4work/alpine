@@ -826,6 +826,16 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
             .cgRectValue
 
+        // As a backup, call our delegate method when the keyboard opens/closes. While
+        // the observer view should call `webInputAccessoryObserverView(_:didMoveTo:)`
+        // when the keyboard opens/closes we observe sometimes in practice we don't get
+        // the animation. Calling `webInputAccessoryObserverView(_:didMoveTo:)` twice
+        // with identical keyboard offset is a noop.
+        webInputAccessoryObserverView(
+            nil,
+            didMoveTo: screen.coordinateSpace.bounds.height - endScreenFrame.origin.y
+        )
+
         // Don't include tab bar height in covered height delta since the tab bar is
         // already "dead space". The newly covered content is the extra space added by
         // the keyboard.
@@ -873,6 +883,16 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
             .cgRectValue
 
+        // As a backup, call our delegate method when the keyboard opens/closes. While
+        // the observer view should call `webInputAccessoryObserverView(_:didMoveTo:)`
+        // when the keyboard opens/closes we observe sometimes in practice we don't get
+        // the animation. Calling `webInputAccessoryObserverView(_:didMoveTo:)` twice
+        // with identical keyboard offset is a noop.
+        webInputAccessoryObserverView(
+            nil,
+            didMoveTo: screen.coordinateSpace.bounds.height - endScreenFrame.origin.y
+        )
+
         // Don't include tab bar height in covered height delta since the tab bar is
         // already "dead space". The newly covered content is the extra space added by
         // the keyboard.
@@ -902,7 +922,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     fileprivate func webInputAccessoryObserverView(
-        _ webInputAccessoryObserverView: WebInputAccessoryObserverView,
+        _ webInputAccessoryObserverView: WebInputAccessoryObserverView?,
         didMoveTo keyboardOffset: Double
     ) {
         let lastKeyboardOffset = self.keyboardOffset
@@ -1602,7 +1622,7 @@ private class WebLoadingIndicatorController: UIViewController {
 
 private protocol WebInputAccessoryObserverViewDelegate: AnyObject {
     func webInputAccessoryObserverView(
-        _ webInputAccessoryObserverView: WebInputAccessoryObserverView,
+        _ webInputAccessoryObserverView: WebInputAccessoryObserverView?,
         didMoveTo keyboardOffset: Double
     )
 }
