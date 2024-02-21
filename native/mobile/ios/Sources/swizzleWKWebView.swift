@@ -63,6 +63,15 @@ func swizzleWKWebView(_ webView: WKWebView, customInputAccessoryView: UIView? = 
             newClass: newClass
         )
 
+        addNonOverridingMethod(
+            baseClass: targetViewClass,
+            stubClass: WKContentView_Custom.self,
+            // Use selector from `UITextInput` to make sure we have the right selector in
+            // our stub class.
+            selector: #selector(UITextInput.editMenu),
+            newClass: newClass
+        )
+
         objc_registerClassPair(newClass)
     }
 
@@ -101,6 +110,30 @@ private func addOverridingMethod(
         selector,
         method_getImplementation(stubMethod),
         stubMethodTypeEncoding
+    )
+}
+
+private func addNonOverridingMethod(
+    baseClass: AnyClass,
+    stubClass: AnyClass,
+    selector: Selector,
+    newClass: AnyClass
+) {
+    let baseMethod = class_getInstanceMethod(baseClass, selector)
+    guard baseMethod == nil else {
+        fatalError("Selector `\(selector)` exists in base class but shouldn't")
+    }
+
+    let stubMethod = class_getInstanceMethod(stubClass, selector)
+    guard let stubMethod = stubMethod else {
+        fatalError("Selector `\(selector)` doesn't exist in stub class")
+    }
+
+    class_addMethod(
+        newClass,
+        selector,
+        method_getImplementation(stubMethod),
+        method_getTypeEncoding(stubMethod)!
     )
 }
 
@@ -158,5 +191,17 @@ private func addOverridingMethod(
         )
 
         return superCanPerformActionForWebView(self, selector, action, sender)
+    }
+
+    /// Implement the [`UITextInput.editMenu`][1] protocol method. There's
+    /// currently no implementation of this method in `WKContentView` which is why
+    /// we aren't overriding.
+    ///
+    /// [1]: https://developer.apple.com/documentation/uikit/uitextinput/3975913-editmenu
+    @objc func editMenu(forTextRange textRange: UITextRange, suggestedActions: [UIMenuElement])
+        -> UIMenu?
+    {
+        // Not currently changing the edit menu but we could if we wanted to.
+        return UIMenu(children: suggestedActions)
     }
 }
