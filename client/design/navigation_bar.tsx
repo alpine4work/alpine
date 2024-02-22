@@ -27,6 +27,7 @@ import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
@@ -421,6 +422,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontWeight: "semi-bold" | "bold";
 }) {
     const navigate = useNavigate();
+    const {isAppleDevice, isNativeMobile} = useClientInfo();
     const showToast = useShowToast();
 
     const navigationBarHeightRem = isMobile
@@ -924,6 +926,18 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             justifyContent="center"
                             // Initial opacity is 0. Our code will update the opacity.
                             opacity="0"
+                            style={{
+                                // In iOS Safari we want our grey border to be 1px lower than the navigation
+                                // bar so it still shows even if the navigation bar is completely scrolled up.
+                                // That's because Safari on iOS has safe area between the content and the
+                                // notch. We'd like our border to render between the content and the safe area.
+                                //
+                                // This doesn't really work if we're rendering inside of some other app's
+                                // in-app browser which shows a header. Is there a condition we can check that
+                                // we're not in an in-app browser? Maybe its fine to have a double top border
+                                // in these situations.
+                                bottom: isMobile && isAppleDevice && !isNativeMobile ? -1 : 0,
+                            }}
                         />
                         <Box
                             ref={navigationBarContentRef}

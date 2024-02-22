@@ -321,9 +321,14 @@ export const NativeMobileBridge: {
          * - `oldHeight` is the keyboard's height before the frame change.
          *   `newHeight - oldHeight` will give you the height delta including tab bar
          *   space.
+         *
+         * IMPORTANT: Most of the time you shouldn't subscribe with this function and
+         * should instead use `subscribeToMobileKeyboardFrameChange()`. Since you may
+         * want to scroll in response to the keyboard opening when not in our native
+         * mobile app environment.
          */
         subscribeToFrameChange(
             listener: (coveredHeightDelta: number, newHeight: number, oldHeight: number) => void,
-        ): void;
+        ): () => void;
     };
 } | null = typeof window !== "undefined" ? (window as any).__NativeMobileBridge ?? null : null;

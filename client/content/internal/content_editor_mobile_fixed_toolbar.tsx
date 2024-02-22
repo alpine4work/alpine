@@ -1,3 +1,4 @@
+import {animate} from "motion";
 import {
     At,
     DotsThreeVertical,
@@ -8,39 +9,83 @@ import {
     TextBolder,
     TextItalic,
 } from "phosphor-react";
-import {ReactNode, useId} from "react";
+import {ReactNode, useEffect, useId, useRef} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
-import {nativeMobileBottomBarKeyboardToolbarHeight} from "~/client/design/native_mobile_bottom_bar.js";
+import {
+    nativeMobileBottomBarKeyboardToolbarHeight,
+    nativeMobileBottomBarKeyboardToolbarHeightRem,
+} from "~/client/design/native_mobile_bottom_bar.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
-
-// NOCOMMIT: Animate in on mobile
 
 export function ContentEditorMobileFixedToolbar({isFocused}: {isFocused: boolean}) {
     const {isNativeMobile} = useClientInfo();
 
+    const toolbarRef = useRef<HTMLDivElement>(null);
     const id = useId();
+
+    const isFocusedRef = useRef(isFocused);
+    useEffect(() => {
+        // In our native mobile app, the native mobile wrapper is responsible for
+        // making this toolbar visible.
+        if (isNativeMobile) return;
+
+        if (isFocusedRef.current === isFocused) return;
+        isFocusedRef.current = isFocused;
+
+        const toolbarElement = assertExists(toolbarRef.current);
+
+        if (isFocused) {
+            animate(
+                toolbarElement,
+                {
+                    y: [0, `-${nativeMobileBottomBarKeyboardToolbarHeightRem}rem`],
+                },
+                {
+                    duration: 0.2,
+                },
+            );
+        } else {
+            animate(
+                toolbarElement,
+                {
+                    y: [`-${nativeMobileBottomBarKeyboardToolbarHeightRem}rem`, 0],
+                },
+                {
+                    duration: 0.2,
+                },
+            );
+        }
+    }, [isFocused, isNativeMobile]);
 
     return (
         <Box
+            ref={toolbarRef}
             id={isNativeMobile ? `nmbb-kt-${id}` : id}
             position="fixed"
             // Render above everything on the page
             zIndex="60"
             left="0"
             right="0"
-            bottom={
-                isNativeMobile || !isFocused
-                    ? `-${nativeMobileBottomBarKeyboardToolbarHeight}`
-                    : "0"
-            }
             height={nativeMobileBottomBarKeyboardToolbarHeight}
             backgroundColor="grey-5"
             display="flex"
             paddingX="1"
             style={{
+                // `bottom: "-" + nativeMobileBottomBarKeyboardToolbarHeightRem + "rem"` also
+                // works except for in our Safari app keyboard support which limits the outlet
+                // height to what's visible above the keyboard.
+                top: `var(--space-outlet-height, 100svh)`,
+                transition:
+                    // Animate after `--space-outlet-height` changes when the keyboard opens in
+                    // mobile Safari (not our native app). This is a little hacky. Ideally we'd run
+                    // the animation in our effect again but this is simple and we don't care too
+                    // much about mobile Safari (we care a lot about our native app).
+                    isFocused && isMobileWebKit && !isNativeMobile ? `top 400ms ease` : undefined,
                 // Our native mobile wrapper looks for compositing layers created from an
                 // element with an ID that starts with `nmbb-` and ties their position to
                 // the tab bar and software keyboard. So we get smooth animations while the

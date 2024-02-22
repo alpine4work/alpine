@@ -27,6 +27,7 @@ import {PeekStackContextProvider, PeekStackContextProviderRef} from "~/client/pe
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {emitMobileKeyboardFrameChangeIfNotNativeMobile} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {RootNavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
@@ -254,7 +255,18 @@ export default function SpaceLayoutRoute() {
     // elements on mobile devices. (Like the URL bar.)
     const outletContainerStyle = {
         height: resizedWindowHeightForMobileWebKit ?? "100svh",
+        // This border is visible on mobile WebKit when the keyboard opens/closes
+        // leaving empty white space on the page while it animates. We use `box-shadow`
+        // instead of border so it renders outside the bounds of the outlet. Usually
+        // offscreen (with the exception of mobile WebKit keyboarding).
+        boxShadow: `0 0 0 1px ${colorSchemeVars["grey-5"]}`,
     };
+
+    if (resizedWindowHeightForMobileWebKit !== null) {
+        (outletContainerStyle as any)[
+            "--space-outlet-height"
+        ] = `${resizedWindowHeightForMobileWebKit}px`;
+    }
 
     if (!nativeMobileRouterState) {
         nodes.push(
@@ -608,6 +620,8 @@ function useMobileWebKitKeyboardSupport() {
             // view height.
             flushSync(() => {
                 setResizedWindowHeightForMobileWebKit(
+                    // `window.innerHeight` doesn't change even when the keyboard is open. But
+                    // `window.visualViewport?.height` does change.
                     window.visualViewport?.height ?? window.innerHeight,
                 );
             });
@@ -639,9 +653,6 @@ function useMobileWebKitKeyboardSupport() {
             }
         };
 
-        // NOCOMMIT: Should scroll up chat when opened. Can we have this hook into
-        // `NativeMobileBridge.keyboard.subscribeToFrameChange()` support?
-
         const overflowYParentCache = new WeakMap<
             Node,
             {element: HTMLElement; overflowY: "scroll" | "auto"} | null
@@ -672,6 +683,40 @@ function useMobileWebKitKeyboardSupport() {
             document.removeEventListener("touchmove", handleTouchMove);
         };
     }, []);
+
+    const lastResizedWindowHeightForMobileWebKitRef = useRef<number | null>(null);
+
+    // When the keyboard height changes, let our listeners know so they can scroll
+    // the view if necessary.
+    useEffect(() => {
+        if (lastResizedWindowHeightForMobileWebKitRef.current === null) {
+            lastResizedWindowHeightForMobileWebKitRef.current =
+                window.visualViewport?.height ?? window.innerHeight;
+        }
+
+        if (resizedWindowHeightForMobileWebKit === null) return;
+
+        const lastResizedWindowHeightForMobileWebKit =
+            lastResizedWindowHeightForMobileWebKitRef.current;
+        if (lastResizedWindowHeightForMobileWebKit === resizedWindowHeightForMobileWebKit) {
+            return;
+        }
+        lastResizedWindowHeightForMobileWebKitRef.current = resizedWindowHeightForMobileWebKit;
+
+        // `window.innerHeight` doesn't change even when the keyboard is open. But
+        // `window.visualViewport?.height` does change.
+        const oldKeyboardHeight = window.innerHeight - lastResizedWindowHeightForMobileWebKit;
+        const newKeyboardHeight = window.innerHeight - resizedWindowHeightForMobileWebKit;
+
+        const coveredKeyboardHeightDelta = oldKeyboardHeight - newKeyboardHeight;
+
+
+        emitMobileKeyboardFrameChangeIfNotNativeMobile(
+            coveredKeyboardHeightDelta,
+            newKeyboardHeight,
+            oldKeyboardHeight,
+        );
+    }, [resizedWindowHeightForMobileWebKit]);
 
     return {resizedWindowHeightForMobileWebKit};
 }

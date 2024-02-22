@@ -42,7 +42,7 @@ import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
-import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {subscribeToMobileKeyboardFrameChange} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
     addRemLengths,
@@ -739,9 +739,7 @@ function DocumentContentEditorStateful({
     \* ========================================================================== */
 
     useEffect(() => {
-        if (!NativeMobileBridge) return;
-
-        return NativeMobileBridge.keyboard.subscribeToFrameChange(
+        return subscribeToMobileKeyboardFrameChange(
             (coveredKeyboardHeightDelta, newKeyboardHeight, oldKeyboardHeight) => {
                 const remPx = getRemPxWithoutListening();
 

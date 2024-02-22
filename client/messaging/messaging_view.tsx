@@ -34,7 +34,7 @@ import {
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
-import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {subscribeToMobileKeyboardFrameChange} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
     VirtualizedScrollView,
@@ -555,9 +555,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     });
 
     useEffect(() => {
-        if (!NativeMobileBridge) return;
-
-        return NativeMobileBridge.keyboard.subscribeToFrameChange(coveredHeightDelta => {
+        return subscribeToMobileKeyboardFrameChange(coveredHeightDelta => {
             const view = assertExists(viewRef.current);
 
             view.setScrollOffset(view.getScrollOffset() + coveredHeightDelta, {
