@@ -165,7 +165,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         scrollDebounceTimeout?.invalidate()
         scrollDebounceTimeout = nil
 
-        webNavigationController.setTabBarScrollOffset(0)
+        webNavigationController.setTabBarScrollOffset(0, navigationBarScrollOffset: 0)
 
         mainScrollView = scrollView
     }
@@ -274,7 +274,10 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                 ((tabBar.frame.height / navigationBarHeight) * navigationBarScrollOffset)
 
             tabBar.frame.origin.y = (view.frame.height - tabBar.frame.height) + tabBarScrollOffset
-            webNavigationController.setTabBarScrollOffset(tabBarScrollOffset)
+            webNavigationController.setTabBarScrollOffset(
+                tabBarScrollOffset,
+                navigationBarScrollOffset: navigationBarScrollOffset
+            )
 
             // Mark the tab bar as hidden if the navigation bar is fully scrolled.
             tabBar.isHidden = navigationBarScrollOffset >= navigationBarHeight
@@ -360,14 +363,20 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                         options: .curveEaseIn,
                         animations: { [self] in
                             tabBar.frame.origin.y = tabBarFrameOriginY
-                            webNavigationController.setTabBarScrollOffset(tabBarScrollOffset)
+                            webNavigationController.setTabBarScrollOffset(
+                                tabBarScrollOffset,
+                                navigationBarScrollOffset: navigationBarScrollOffset
+                            )
                         },
                         completion: { [self] (finished) in
                             // Make sure even if the animation was cancelled we set the correct
                             // position.
                             if !finished {
                                 tabBar.frame.origin.y = tabBarFrameOriginY
-                                webNavigationController.setTabBarScrollOffset(tabBarScrollOffset)
+                                webNavigationController.setTabBarScrollOffset(
+                                    tabBarScrollOffset,
+                                    navigationBarScrollOffset: navigationBarScrollOffset
+                                )
                             }
 
                             // Mark the tab bar as hidden if the navigation bar is fully scrolled.

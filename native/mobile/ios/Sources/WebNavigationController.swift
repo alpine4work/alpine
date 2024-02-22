@@ -55,6 +55,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var hasInitialWebViewNavigationCommit = false
     private var windowSafeAreaInsets: UIEdgeInsets = .zero
     private var webScrollViews = [UIScrollView: UIScrollViewDelegateForwarder]()
+    private var webMaskedViews = [UIView: CALayerMasker]()
 
     private var webViewHealthState = WebViewHealthState(
         readyTime: nil,
@@ -157,6 +158,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     private var tabBarScrollOffset = 0.0
+    private var navigationBarScrollOffset = 0.0
     private var keyboardOffset = 0.0
 
     private var lastApplicationDidBecomeActiveNotificationTime: DispatchTime?
@@ -779,6 +781,45 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 }
             }
         }
+
+        // `WKContentView` is the root view of `WKWebView` and manages most integration
+        // of UI interactions with web code. It implements [`UITextInput`][1] (and
+        // [`BETextInput`][2] when BrowserEngineKit is used). It is also returned as
+        // [`textInputView`][3] (from the `UITextInput` protocol). So the UI for
+        // rendering selections are added as subviews to `WKContentView`. This means
+        // selection UI renders on top of all web content! This is problematic because
+        // Our web content has a navigation bar and toolbar that should occlude the
+        // text editor underneath. But if the selection UI intersects with the toolbar
+        // it renders on top of the toolbar!
+        //
+        // Coincidentally, we've observed that none of the selection UI views added to
+        // `WKContentView` have a [`CALayer.mask`][4] property. So we add a mask that
+        // clips the selection to our text editor! Excluding the navigation bar and
+        // toolbar.
+        //
+        // This is certainly a clever trick, ideally selection UI would naturally be
+        // rendered in the same `WKCompositingView` (or whatever) as the text editor so
+        // it has proper z-ordering. But we don't get that luxury and have to integrate
+        // with the text editing system Apple has provided.
+        //
+        // [1]: https://developer.apple.com/documentation/uikit/uitextinput
+        // [2]: https://developer.apple.com/documentation/browserenginekit/betextinput
+        // [3]: https://developer.apple.com/documentation/uikit/uitextinput/1614564-textinputview
+        // [4]: https://developer.apple.com/documentation/quartzcore/calayer/1410861-mask
+        if let webSuperview = webSubview.superview
+            // `webSubview.superview` may not be set yet at this point but `superlayer`
+            // will be set (view observer works by observing changes to the layer tree). So
+            // grab the superview from `superlayer.delegate`.
+            ?? webSubview.layer.superlayer?.delegate as? UIView,
+            type(of: webSuperview).description() == "WKContentView_Custom"
+                && webSubview.layer.name != "FixedClipping"
+        {
+            let layerMasker = CALayerMasker(
+                layer: webSubview.layer,
+                maskSuperlayerRect: getWebMaskedViewsMaskRect()
+            )
+            webMaskedViews[webSubview] = layerMasker
+        }
     }
 
     func viewTreeObserver(_ viewTreeObserver: UIViewTreeObserver, didRemove webSubview: UIView) {
@@ -805,6 +846,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     webBottomBarViewState?.reconcileTimer = nil
                 }
             }
+        }
+
+        if let webSuperview = webSubview.superview ?? webSubview.layer.superlayer?.delegate
+            as? UIView,
+            type(of: webSuperview).description() == "WKContentView_Custom"
+                && webSubview.layer.name != "FixedClipping"
+        {
+            webMaskedViews.removeValue(forKey: webSubview)
         }
     }
 
@@ -936,6 +985,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // fine mutating the translation from native code as long as web code doesn't
         // touch it overriding our change.
         updateAllWebBottomBarFrames()
+
+        // Masks should change when `keyboardOffset` changes.
+        updateAllWebMaskedViewMasks()
     }
 
     @objc private func applicationWillResignActive(notification: NSNotification) {
@@ -969,11 +1021,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         )
     }
 
-    /// Could also call `setTabBarHeightAndWindowSafeAreaInsets()` if you want to
-    /// update tab bar height at the same time.
     func setWindowSafeAreaInsets(_ windowSafeAreaInsets: UIEdgeInsets) {
         actuallySetWindowSafeAreaInsets(windowSafeAreaInsets)
+
+        // Scroll indicator insets and masked view masks change when window safe
+        // area changes.
         setAllWebScrollViewScrollIndicatorInsets()
+        updateAllWebMaskedViewMasks()
     }
 
     // We set safe area insets as CSS variables. Then we use these CSS
@@ -1188,9 +1242,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         )
     }
 
-    func setTabBarScrollOffset(_ tabBarScrollOffset: Double) {
+    func setTabBarScrollOffset(_ tabBarScrollOffset: Double, navigationBarScrollOffset: Double) {
         let lastTabBarScrollOffset = self.tabBarScrollOffset
         self.tabBarScrollOffset = tabBarScrollOffset
+        let lastNavigationBarScrollOffset = self.navigationBarScrollOffset
+        self.navigationBarScrollOffset = navigationBarScrollOffset
 
         // Optimization: If tab bar scroll offset didn't change then don't update our
         // bottom frames.
@@ -1198,6 +1254,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             // This may be called in the context of a `UIView.animate()` which will cause
             // our frame change to update as well.
             updateAllWebBottomBarFrames()
+        }
+
+        // Optimization: If tab bar scroll offset didn't change then don't update our
+        // masked view masks.
+        if lastNavigationBarScrollOffset != navigationBarScrollOffset {
+            updateAllWebMaskedViewMasks()
         }
     }
 
@@ -1273,6 +1335,37 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         RunLoop.current.add(reconcileTimer, forMode: .common)
 
         webBottomBarViewState.reconcileTimer = reconcileTimer
+    }
+
+    /// Get the visible rectangle we use when masking views. This
+    /// rectangle excludes:
+    ///
+    /// - The navigation bar from web code
+    /// - The keyboard toolbar from web code
+    /// - The software keyboard
+    private func getWebMaskedViewsMaskRect() -> CGRect {
+        let top = navigationBarHeight - navigationBarScrollOffset + windowSafeAreaInsets.top
+
+        let bottom =
+            keyboardOffset > 0
+            ? keyboardOffset
+                // If there's a keyboard toolbar then it "covers" the visible rectangle.
+                + (webBottomBarViews.contains(where: { (webBottomBarView, webBottomBarViewState) in
+                    webBottomBarViewState.isKeyboardToolbar
+                }) ? bottomBarKeyboardToolbarHeight : 0) : 0
+
+        return CGRect(
+            x: 0,
+            y: top,
+            width: view.frame.width,
+            height: view.frame.height - top - bottom
+        )
+    }
+
+    private func updateAllWebMaskedViewMasks() {
+        let maskRect = getWebMaskedViewsMaskRect()
+
+        for (_, layerMasker) in webMaskedViews { layerMasker.updateMaskSuperlayerRect(maskRect) }
     }
 }
 

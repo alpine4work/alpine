@@ -93,19 +93,12 @@ const {
     dualModalityContainerClassName,
 } = contentEditorStyles;
 
-// TODO(calebmer): Implement touch toolbar for mobile.
-
 // NOTE(calebmer): The following are bugs I'd like to fix in the native mobile
 // app. To do so may require swizzling or manual `UIView` tree modification. I
 // haven't found entrypoints in the WebKit source code for these behaviors yet,
 // however.
 
 // ## High priority bugs:
-
-// TODO(calebmer): When you select some text then scroll so the
-// selection/cursor is under the header, the cursor is still visible on top of
-// the header. This is likely a consequence of the cursor being rendered on top
-// of the web view (instead of deep inside it) and will be challenging to fix.
 
 // TODO(calebmer): Safari doesn't support `ascent-override` and
 // `descent-override` which means our phantom selection or comment highlights

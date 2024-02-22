@@ -30,7 +30,7 @@ export const backgroundFontSizePercentage =
 const interFontFace = fontFace({
     // See how to use variable fonts:
     // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
-    src: "url(/fonts/inter.woff2) format('woff2')",
+    src: "url(/fonts/inter.woff2) format('woff2 supports variations'), url(/fonts/inter.woff2) format('woff2-variations'), url(/fonts/inter.woff2) format('woff2')",
     fontWeight: "100 900",
     // It appears browsers add an extra descent to the font's ascent metric.
     // Presumably so that `background-color` appears centered around the text.
