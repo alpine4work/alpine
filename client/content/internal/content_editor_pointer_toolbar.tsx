@@ -40,6 +40,7 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
+import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
@@ -769,8 +770,7 @@ function ContentEditorPointerToolbarButton({
     onTooltipStateChange?: (state: TooltipState) => void;
 }) {
     const onPress = () => {
-        const view = viewRef.current;
-        assert(view);
+        const view = assertExists(viewRef.current);
         command(view.state, view.dispatch.bind(view), view);
     };
 
@@ -786,6 +786,13 @@ function ContentEditorPointerToolbarButton({
     );
 
     const {hoverProps, isHovered} = useHover({});
+
+    // Change this state only when `isPressed` changes. If it becomes active while
+    // pressed we don't want to change the color.
+    const [isPressedAndActive] = useStateWithDependencies(
+        (isPressed: boolean) => isPressed && isActive,
+        [isPressed],
+    );
 
     return (
         <Tooltip
@@ -831,7 +838,13 @@ function ContentEditorPointerToolbarButton({
                         borderRadius="base"
                         color={isPressed || isActive ? "grey-text" : "grey-70"}
                         backgroundColor={
-                            isPressed || isActive ? "grey-10" : isHovered ? "grey-5" : undefined
+                            isPressedAndActive
+                                ? "grey-20"
+                                : isPressed || isActive
+                                ? "grey-10"
+                                : isHovered
+                                ? "grey-5"
+                                : undefined
                         }
                     >
                         <IconContext.Provider

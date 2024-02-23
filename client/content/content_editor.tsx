@@ -1535,7 +1535,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                     phantomSelection={phantomSelection}
                 />
             ))}
-            {isMobile && <ContentEditorMobileKeyboardToolbar isFocused={isFocused} />}
+            {isMobile && (
+                <ContentEditorMobileKeyboardToolbar
+                    state={unwrap(state)}
+                    viewRef={viewRef}
+                    isFocused={isFocused}
+                />
+            )}
         </div>
     );
 }

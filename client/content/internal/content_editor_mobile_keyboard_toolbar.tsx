@@ -5,16 +5,29 @@ import {
     DotsThreeVertical,
     IconContext,
     ListBullets,
+    ListChecks,
     ListNumbers,
     TextBolder,
+    TextIndent,
     TextItalic,
+    TextOutdent,
 } from "phosphor-react";
-import {ReactNode, useEffect, useId, useRef, useState} from "react";
-import {mergeProps, useHover, usePress} from "react-aria";
+import {Command, EditorState} from "prosemirror-state";
+import {EditorView} from "prosemirror-view";
+import {ReactNode, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
+import {usePress} from "react-aria";
 import {
     ContentEditorMobileKeyboardSubstitute,
     ContentEditorMobileKeyboardSubstituteRef,
-} from "~/client/content/internal/content_editor_mobile_fixed_toolbar_keyboard_substitute.js";
+} from "~/client/content/internal/content_editor_mobile_keyboard_substitute.js";
+import {
+    areAllNodesListItemType,
+    createToggleListItemsCommand,
+    createToggleMarkCommand,
+    dedentListItemCommand,
+    getMarksSpanningAcrossEntireRange,
+    indentListItemCommand,
+} from "~/client/content/internal/content_editor_prosemirror_helpers.js";
 import {Box} from "~/client/design/box.js";
 import {
     nativeMobileBottomBarKeyboardToolbarHeight,
@@ -22,13 +35,22 @@ import {
 } from "~/client/design/native_mobile_bottom_bar.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
+import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {colorSchemeVars} from "~/shared/styles/styles.js";
 
-export function ContentEditorMobileKeyboardToolbar({isFocused}: {isFocused: boolean}) {
+export function ContentEditorMobileKeyboardToolbar({
+    state,
+    viewRef,
+    isFocused,
+}: {
+    state: EditorState & {schema: ContentProsemirrorSchema};
+    viewRef: RefObject<EditorView | null>;
+    isFocused: boolean;
+}) {
     const isMounted = useIsMounted();
     const {isNativeMobile} = useClientInfo();
 
@@ -88,6 +110,59 @@ export function ContentEditorMobileKeyboardToolbar({isFocused}: {isFocused: bool
             );
         }
     }, [isFocused, isNativeMobile]);
+
+    const {isBoldActive, isItalicActive} = useMemo(() => {
+        const marks = getMarksSpanningAcrossEntireRange(state.doc, state.selection);
+
+        const boldMark = state.schema.mark("bold");
+        const italicMark = state.schema.mark("italic");
+
+        return {
+            isBoldActive:
+                boldMark.isInSet(marks) ||
+                (!!state.storedMarks && boldMark.isInSet(state.storedMarks)),
+            isItalicActive:
+                italicMark.isInSet(marks) ||
+                (!!state.storedMarks && italicMark.isInSet(state.storedMarks)),
+        };
+    }, [state.doc, state.schema, state.selection, state.storedMarks]);
+
+    const isUnorderedListItemActive = useMemo(
+        () =>
+            areAllNodesListItemType(
+                state.doc,
+                state.selection,
+                state.schema.nodes.unorderedListItem,
+            ),
+        [state.doc, state.schema.nodes.unorderedListItem, state.selection],
+    );
+
+    const isOrderedListItemActive = useMemo(
+        () =>
+            areAllNodesListItemType(state.doc, state.selection, state.schema.nodes.orderedListItem),
+        [state.doc, state.schema.nodes.orderedListItem, state.selection],
+    );
+
+    const isCheckListItemActive = useMemo(
+        () =>
+            !!state.schema.nodes.checkListItem &&
+            areAllNodesListItemType(state.doc, state.selection, state.schema.nodes.checkListItem),
+        [state.doc, state.schema.nodes.checkListItem, state.selection],
+    );
+
+    const isIndentListItemEnabled = useMemo(
+        () =>
+            (isUnorderedListItemActive || isOrderedListItemActive || isCheckListItemActive) &&
+            indentListItemCommand(state),
+        [isCheckListItemActive, isOrderedListItemActive, isUnorderedListItemActive, state],
+    );
+
+    const isDedentListItemEnabled = useMemo(
+        () =>
+            (isUnorderedListItemActive || isOrderedListItemActive || isCheckListItemActive) &&
+            dedentListItemCommand(state),
+        [isCheckListItemActive, isOrderedListItemActive, isUnorderedListItemActive, state],
+    );
 
     return (
         <>
@@ -165,32 +240,111 @@ export function ContentEditorMobileKeyboardToolbar({isFocused}: {isFocused: bool
                     height={nativeMobileBottomBarKeyboardToolbarHeight}
                     backgroundColor="grey-5"
                     display="flex"
-                    paddingX="1"
+                    paddingX="0.5"
                     onPointerDownCapture={event => {
                         // Tapping on the toolbar shouldn't unfocus the content editor since that will
                         // remove the selection and hide the keyboard.
                         event.preventDefault();
                     }}
                 >
-                    <ContentEditorMobileKeyboardToolbarButton dividerRight>
+                    <ContentEditorMobileKeyboardToolbarButton
+                        dividerRight
+                        isActive={false}
+                        onPress={() => {
+                            // NOCOMMIT: Implement
+                        }}
+                    >
                         <At />
                     </ContentEditorMobileKeyboardToolbarButton>
-                    <ContentEditorMobileKeyboardToolbarButton dividerLeft>
+                    <ContentEditorMobileKeyboardToolbarButton
+                        dividerLeft
+                        isActive={isBoldActive}
+                        onPress={fromCommand(
+                            viewRef,
+                            createToggleMarkCommand(state.schema.mark("bold")),
+                        )}
+                    >
                         <TextBolder />
                     </ContentEditorMobileKeyboardToolbarButton>
-                    <ContentEditorMobileKeyboardToolbarButton dividerRight>
+                    <ContentEditorMobileKeyboardToolbarButton
+                        dividerRight
+                        isActive={isItalicActive}
+                        onPress={fromCommand(
+                            viewRef,
+                            createToggleMarkCommand(state.schema.mark("italic")),
+                        )}
+                    >
                         <TextItalic />
                     </ContentEditorMobileKeyboardToolbarButton>
-                    <ContentEditorMobileKeyboardToolbarButton dividerLeft>
-                        <ListBullets />
-                    </ContentEditorMobileKeyboardToolbarButton>
-                    <ContentEditorMobileKeyboardToolbarButton dividerRight>
-                        <ListNumbers />
-                    </ContentEditorMobileKeyboardToolbarButton>
-                    <ContentEditorMobileKeyboardToolbarButton dividerLeft>
+                    {!isOrderedListItemActive && !isCheckListItemActive && (
+                        <ContentEditorMobileKeyboardToolbarButton
+                            dividerLeft
+                            isActive={isUnorderedListItemActive}
+                            onPress={fromCommand(
+                                viewRef,
+                                createToggleListItemsCommand(state.schema.nodes.unorderedListItem),
+                            )}
+                        >
+                            <ListBullets />
+                        </ContentEditorMobileKeyboardToolbarButton>
+                    )}
+                    {!isUnorderedListItemActive && !isCheckListItemActive && (
+                        <ContentEditorMobileKeyboardToolbarButton
+                            dividerLeft={isOrderedListItemActive}
+                            dividerRight={!isOrderedListItemActive}
+                            isActive={isOrderedListItemActive}
+                            onPress={fromCommand(
+                                viewRef,
+                                createToggleListItemsCommand(state.schema.nodes.orderedListItem),
+                            )}
+                        >
+                            <ListNumbers />
+                        </ContentEditorMobileKeyboardToolbarButton>
+                    )}
+                    {state.schema.nodes.checkListItem && isCheckListItemActive && (
+                        <ContentEditorMobileKeyboardToolbarButton
+                            dividerLeft
+                            isActive={isCheckListItemActive}
+                            onPress={fromCommand(
+                                viewRef,
+                                createToggleListItemsCommand(state.schema.nodes.checkListItem),
+                            )}
+                        >
+                            <ListChecks />
+                        </ContentEditorMobileKeyboardToolbarButton>
+                    )}
+                    {(isOrderedListItemActive ||
+                        isUnorderedListItemActive ||
+                        isCheckListItemActive) && (
+                        <>
+                            <ContentEditorMobileKeyboardToolbarButton
+                                isActive={false}
+                                isDisabled={!isDedentListItemEnabled}
+                                onPress={fromCommand(viewRef, dedentListItemCommand)}
+                            >
+                                <TextOutdent />
+                            </ContentEditorMobileKeyboardToolbarButton>
+                            <ContentEditorMobileKeyboardToolbarButton
+                                dividerRight
+                                isActive={false}
+                                isDisabled={!isIndentListItemEnabled}
+                                onPress={fromCommand(viewRef, indentListItemCommand)}
+                            >
+                                <TextIndent />
+                            </ContentEditorMobileKeyboardToolbarButton>
+                        </>
+                    )}
+                    <ContentEditorMobileKeyboardToolbarButton
+                        dividerLeft
+                        isActive={false}
+                        onPress={() => {
+                            // NOCOMMIT: Implement
+                        }}
+                    >
                         <ChatCircleText />
                     </ContentEditorMobileKeyboardToolbarButton>
                     <ContentEditorMobileKeyboardToolbarButton
+                        isActive={false}
                         onPress={() => {
                             if (!NativeMobileBridge) {
                                 setIsSubstituteOpen(true);
@@ -208,6 +362,8 @@ export function ContentEditorMobileKeyboardToolbar({isFocused}: {isFocused: bool
             {isSubstituteOpen && (
                 <ContentEditorMobileKeyboardSubstitute
                     ref={substituteRef}
+                    state={state}
+                    viewRef={viewRef}
                     onClose={() => {
                         setIsSubstituteOpen(false);
                         void NativeMobileBridge?.keyboard.cleanupAfterSubstitute();
@@ -222,17 +378,28 @@ function ContentEditorMobileKeyboardToolbarButton({
     children,
     dividerLeft,
     dividerRight,
+    isActive,
+    isDisabled,
     onPress,
 }: {
     children?: ReactNode;
     dividerLeft?: boolean;
     dividerRight?: boolean;
-    onPress?: () => void;
+    isActive: boolean;
+    isDisabled?: boolean;
+    onPress: () => void;
 }) {
-    const {isHovered, hoverProps} = useHover({});
-    const {isPressed, pressProps} = usePress({onPress});
+    const {isPressed, pressProps} = usePress({
+        isDisabled,
+        onPress,
+    });
 
-    const hoverAndPressProps = mergeProps(hoverProps, pressProps);
+    // Change this state only when `isPressed` changes. If it becomes active while
+    // pressed we don't want to change the color.
+    const [isPressedAndActive] = useStateWithDependencies(
+        (isPressed: boolean) => isPressed && isActive,
+        [isPressed],
+    );
 
     return (
         <>
@@ -240,20 +407,21 @@ function ContentEditorMobileKeyboardToolbarButton({
                 <Box
                     // We want all space on the toolbar to be touchable so the user doesn't touch
                     // and nothing happens (which can feel like a bug).
-                    {...hoverAndPressProps}
-                    // In case `hoverAndPressProps` had a `ref`, unset it.
+                    {...pressProps}
+                    // In case `pressProps` had a `ref`, unset it.
                     ref={null}
                     height="full"
-                    width="1"
+                    width="0.5"
                 />
             )}
             <Box
                 // None of this is focusable since it's used on mobile where there's no
                 // keyboard navigation.
-                {...hoverAndPressProps}
+                {...pressProps}
                 flexGrow="1"
                 height="full"
                 paddingY="1"
+                paddingX="0.5"
                 display="flex"
                 justifyContent="center"
                 alignItems="center"
@@ -261,7 +429,16 @@ function ContentEditorMobileKeyboardToolbarButton({
                 <Box
                     width="full"
                     height="full"
-                    backgroundColor={isPressed ? "grey-20" : isHovered ? "grey-10" : undefined}
+                    color={isDisabled ? "grey-30" : isPressed || isActive ? "grey-text" : "grey-70"}
+                    backgroundColor={
+                        isDisabled
+                            ? undefined
+                            : isPressedAndActive
+                            ? "grey-20"
+                            : isPressed || isActive
+                            ? "grey-10"
+                            : undefined
+                    }
                     borderRadius="md"
                     display="flex"
                     justifyContent="center"
@@ -269,9 +446,7 @@ function ContentEditorMobileKeyboardToolbarButton({
                 >
                     <IconContext.Provider
                         value={{
-                            color: isPressed
-                                ? colorSchemeVars["grey-text"]
-                                : colorSchemeVars["grey-70"],
+                            color: "currentColor",
                             size: spacing["5"],
                         }}
                     >
@@ -281,11 +456,11 @@ function ContentEditorMobileKeyboardToolbarButton({
             </Box>
             {dividerRight && (
                 <Box
-                    {...hoverAndPressProps}
-                    // In case `hoverAndPressProps` had a `ref`, unset it.
+                    {...pressProps}
+                    // In case `pressProps` had a `ref`, unset it.
                     ref={null}
                     height="full"
-                    width="1"
+                    width="0.5"
                     paddingY="2"
                 >
                     <Box height="full" borderRight="grey-10" />
@@ -293,4 +468,11 @@ function ContentEditorMobileKeyboardToolbarButton({
             )}
         </>
     );
+}
+
+function fromCommand(viewRef: RefObject<EditorView | null>, command: Command): () => void {
+    return () => {
+        const view = assertExists(viewRef.current);
+        command(view.state, view.dispatch.bind(view), view);
+    };
 }

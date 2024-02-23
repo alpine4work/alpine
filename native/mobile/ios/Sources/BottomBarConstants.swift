@@ -14,4 +14,4 @@ let bottomBarKeyboardToolbarHeight = 50.0
 /// `nativeMobileBottomBarKeyboardSubstituteHeight` in
 /// `native_mobile_bottom_bar.ts` is a `Spacing` value. We use mobile sizes
 /// for `Spacing` since this is the code for our native mobile app.
-let bottomBarKeyboardSubstituteHeight = 320.0
+let bottomBarKeyboardSubstituteHeight = 340.0
