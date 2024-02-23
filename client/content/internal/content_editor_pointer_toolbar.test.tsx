@@ -374,7 +374,7 @@ test("toggles list on", () => {
     });
 
     act(() => {
-        screen.getByLabelText("Bulleted list").click();
+        screen.getByLabelText("Bullet list").click();
     });
 
     expect(getDoc().toJSON()).toEqual(
@@ -419,7 +419,7 @@ test("toggles list off", () => {
     });
 
     act(() => {
-        screen.getByLabelText("Bulleted list").click();
+        screen.getByLabelText("Bullet list").click();
     });
 
     expect(getDoc().toJSON()).toEqual(
@@ -439,7 +439,7 @@ test("toggles list off", () => {
     );
 
     act(() => {
-        screen.getByLabelText("Bulleted list").click();
+        screen.getByLabelText("Bullet list").click();
     });
 
     expect(getDoc().toJSON()).toEqual(
@@ -480,7 +480,7 @@ test("toggles list on even when there's already a list item of that type", () =>
     });
 
     act(() => {
-        screen.getByLabelText("Bulleted list").click();
+        screen.getByLabelText("Bullet list").click();
     });
 
     expect(getDoc().toJSON()).toEqual(
@@ -527,7 +527,7 @@ test("toggles list on even when there's already a list item of a different type"
     });
 
     act(() => {
-        screen.getByLabelText("Bulleted list").click();
+        screen.getByLabelText("Bullet list").click();
     });
 
     expect(getDoc().toJSON()).toEqual(
@@ -578,7 +578,7 @@ test("toggles list on even when the entire list is a different type with some in
     });
 
     act(() => {
-        screen.getByLabelText("Bulleted list").click();
+        screen.getByLabelText("Bullet list").click();
     });
 
     expect(getDoc().toJSON()).toEqual(

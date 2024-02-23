@@ -533,7 +533,6 @@ export const codeClassName = style({
     ...fontStyles.code,
     wordWrap: "break-word",
     boxDecorationBreak: "clone",
-    borderRadius: borderRadius["base"],
 });
 
 export const boldClassName = style({

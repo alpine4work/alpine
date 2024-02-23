@@ -1,9 +1,9 @@
 import {animate} from "motion";
 import {
     At,
+    ChatCircleText,
     DotsThreeVertical,
     IconContext,
-    Link as LinkIcon,
     ListBullets,
     ListNumbers,
     TextBolder,
@@ -178,11 +178,8 @@ export function ContentEditorMobileKeyboardToolbar({isFocused}: {isFocused: bool
                     <ContentEditorMobileKeyboardToolbarButton dividerLeft>
                         <TextBolder />
                     </ContentEditorMobileKeyboardToolbarButton>
-                    <ContentEditorMobileKeyboardToolbarButton>
-                        <TextItalic />
-                    </ContentEditorMobileKeyboardToolbarButton>
                     <ContentEditorMobileKeyboardToolbarButton dividerRight>
-                        <LinkIcon />
+                        <TextItalic />
                     </ContentEditorMobileKeyboardToolbarButton>
                     <ContentEditorMobileKeyboardToolbarButton dividerLeft>
                         <ListBullets />
@@ -190,8 +187,10 @@ export function ContentEditorMobileKeyboardToolbar({isFocused}: {isFocused: bool
                     <ContentEditorMobileKeyboardToolbarButton dividerRight>
                         <ListNumbers />
                     </ContentEditorMobileKeyboardToolbarButton>
+                    <ContentEditorMobileKeyboardToolbarButton dividerLeft>
+                        <ChatCircleText />
+                    </ContentEditorMobileKeyboardToolbarButton>
                     <ContentEditorMobileKeyboardToolbarButton
-                        dividerLeft
                         onPress={() => {
                             if (!NativeMobileBridge) {
                                 setIsSubstituteOpen(true);

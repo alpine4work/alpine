@@ -567,7 +567,7 @@ function ContentEditorPointerToolbarButtons({
                 <TextBolder />
             </ContentEditorPointerToolbarButton>
             <ContentEditorPointerToolbarButton
-                description="Italicize"
+                description="Italic"
                 keyboardShortcutHint={isAppleDevice ? "⌘+I" : "Ctrl+I"}
                 viewRef={viewRef}
                 isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
@@ -615,7 +615,7 @@ function ContentEditorPointerToolbarButtons({
             )}
             <ContentEditorPointerToolbarButton
                 dividerLeft
-                description="Bulleted list"
+                description="Bullet list"
                 keyboardShortcutHint="- Hello"
                 viewRef={viewRef}
                 isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
@@ -635,7 +635,7 @@ function ContentEditorPointerToolbarButtons({
             </ContentEditorPointerToolbarButton>
             <ContentEditorPointerToolbarButton
                 dividerRight={!state.schema.nodes.checkListItem && !!state.schema.nodes.heading}
-                description="Numbered list"
+                description="Number list"
                 keyboardShortcutHint="1. Hello"
                 viewRef={viewRef}
                 isTooltipDisabledWithoutAnimation={shouldDisableTooltips}

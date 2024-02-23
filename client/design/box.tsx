@@ -1,6 +1,8 @@
 import {DetailedHTMLProps, HTMLAttributes, Ref, createElement, forwardRef} from "react";
 import {Sprinkles, sprinkles} from "~/shared/styles/styles.js";
 
+export type BoxProps = Sprinkles & Omit<HTMLAttributes<HTMLDivElement>, keyof Sprinkles>;
+
 const BoxForwardRef = forwardRef(Box);
 export {BoxForwardRef as Box};
 
@@ -8,10 +10,7 @@ export {BoxForwardRef as Box};
 // plugin that inlines this component into `<div>`s and pre-computes the
 // `sprinkles()` function call. The only time we shouldn't inline this
 // component is if there's a spread in the props we can't statically analyze.
-function Box(
-    props: Sprinkles & Omit<HTMLAttributes<HTMLDivElement>, keyof Sprinkles>,
-    ref: Ref<HTMLDivElement>,
-) {
+function Box(props: BoxProps, ref: Ref<HTMLDivElement>) {
     const sprinklesProps: Sprinkles = {};
     const divProps: DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement> = {};
 
