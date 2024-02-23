@@ -2,6 +2,7 @@ import Foundation
 import WebKit
 
 private var customInputAccessoryViewAssociatedObjectKey: UInt8 = 0
+private var customInputViewAssociatedObjectKey: UInt8 = 0
 
 /// Swizzle `WKWebView` to modify WebKit functionality. Swizzling changes the
 /// class of the provided object with a custom class we've built that
@@ -20,7 +21,7 @@ private var customInputAccessoryViewAssociatedObjectKey: UInt8 = 0
 ///
 /// [1]: https://developer.apple.com/documentation/browserenginekit
 /// [2]: https://developer.apple.com/documentation/browserenginekit/integrating-custom-browser-text-views-with-uikit
-func swizzleWKWebView(_ webView: WKWebView, customInputAccessoryView: UIView? = nil) {
+func swizzleWKWebView(_ webView: WKWebView, customInputAccessoryView: UIView?) {
     var targetView: UIView?
 
     for view in webView.scrollView.subviews {
@@ -45,16 +46,12 @@ func swizzleWKWebView(_ webView: WKWebView, customInputAccessoryView: UIView? = 
             newClass: newClass
         )
 
-        if let customInputAccessoryView = customInputAccessoryView {
-            objc_setAssociatedObject(
-                targetView,
-                // The `&` is important. We want a unique pointer. We don't care about the
-                // variable's value.
-                &customInputAccessoryViewAssociatedObjectKey,
-                customInputAccessoryView,
-                objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC
-            )
-        }
+        addOverridingMethod(
+            baseClass: targetViewClass,
+            stubClass: WKContentView_Custom.self,
+            selector: #selector(getter: WKContentView_Custom.inputView),
+            newClass: newClass
+        )
 
         addOverridingMethod(
             baseClass: targetViewClass,
@@ -75,7 +72,42 @@ func swizzleWKWebView(_ webView: WKWebView, customInputAccessoryView: UIView? = 
         objc_registerClassPair(newClass)
     }
 
+    if let customInputAccessoryView = customInputAccessoryView {
+        objc_setAssociatedObject(
+            targetView,
+            // The `&` is important. We want a unique pointer. We don't care about the
+            // variable's value.
+            &customInputAccessoryViewAssociatedObjectKey,
+            customInputAccessoryView,
+            objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        )
+    }
+
     object_setClass(targetView, newClass)
+}
+
+/// Replace the `inputView` of a `WKWebView` we've swizzled with
+/// `swizzleWKWebView()`. Useful if you want to replace the default keyboard
+/// with something else.
+func reloadSwizzledWKWebViewInputView(_ webView: WKWebView, inputView: UIView?) {
+    var targetView: UIView?
+
+    for view in webView.scrollView.subviews {
+        if type(of: view).description() == "WKContentView_Custom" { targetView = view }
+    }
+
+    guard let targetView = targetView else { fatalError("`WKWebView` is not swizzled") }
+
+    objc_setAssociatedObject(
+        targetView,
+        // The `&` is important. We want a unique pointer. We don't care about the
+        // variable's value.
+        &customInputViewAssociatedObjectKey,
+        inputView,
+        objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC
+    )
+
+    targetView.reloadInputViews()
 }
 
 private func addOverridingMethod(
@@ -170,6 +202,27 @@ private func addNonOverridingMethod(
         // [1]: https://stackoverflow.com/questions/32546394/hiding-keyboard-accessorybar-in-wkwebview/32620344#32620344
         return objc_getAssociatedObject(self, &customInputAccessoryViewAssociatedObjectKey)
             as! UIView?
+    }
+
+    @objc override var inputView: UIView? {
+        // Allow replacing the keyboard with some other view.
+        // https://developer.apple.com/documentation/uikit/uiresponder/1621092-inputview
+        let customInputView =
+            objc_getAssociatedObject(self, &customInputViewAssociatedObjectKey) as! UIView?
+        if let customInputView = customInputView { return customInputView }
+
+        // We can't call `super.inputView` since we need to call the
+        // method implementation of our runtime class (`WKContentView` from WebKit),
+        // not our static class (`WKContentViewStub`).
+        let superclass: AnyClass = class_getSuperclass(object_getClass(self))!
+        let selector = #selector(getter: WKContentView_Custom.inputView)
+
+        let superInputView = unsafeBitCast(
+            method_getImplementation(class_getInstanceMethod(superclass, selector)!),
+            to: (@convention(c) (AnyObject, Selector) -> UIView?).self
+        )
+
+        return superInputView(self, selector)
     }
 
     @objc override func canPerformActionForWebView(_ action: Selector, withSender sender: Any?)

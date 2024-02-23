@@ -42,7 +42,7 @@ import {ContentEditorDomParser} from "~/client/content/internal/content_editor_d
 import {ContentEditorFloater} from "~/client/content/internal/content_editor_floater.js";
 import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
 import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view.js";
-import {ContentEditorMobileFixedToolbar} from "~/client/content/internal/content_editor_mobile_fixed_toolbar.js";
+import {ContentEditorMobileKeyboardToolbar} from "~/client/content/internal/content_editor_mobile_keyboard_toolbar.js";
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view.js";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
@@ -1535,7 +1535,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     phantomSelection={phantomSelection}
                 />
             ))}
-            {isMobile && <ContentEditorMobileFixedToolbar isFocused={isFocused} />}
+            {isMobile && <ContentEditorMobileKeyboardToolbar isFocused={isFocused} />}
         </div>
     );
 }

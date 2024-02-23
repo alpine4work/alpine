@@ -740,7 +740,9 @@ function DocumentContentEditorStateful({
 
     useEffect(() => {
         return subscribeToMobileKeyboardFrameChange(
-            (coveredKeyboardHeightDelta, newKeyboardHeight, oldKeyboardHeight) => {
+            (coveredKeyboardHeightDelta, newKeyboardHeight, oldKeyboardHeight, shouldScroll) => {
+                if (!shouldScroll) return;
+
                 const remPx = getRemPxWithoutListening();
 
                 // The content editor has a keyboard toolbar we need to add to our keyboard

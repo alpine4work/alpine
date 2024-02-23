@@ -19,6 +19,11 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         case down
     }
 
+    /// We want to hide the tab bar while the keyboard web substitute is open. Since
+    /// the tab bar renders on top of the web view and we don't want it to cover the
+    /// keyboard substitute.
+    private var isKeyboardWebSubstituteOpen = false
+
     init(spaceId: String, session: String) {
         self.spaceId = spaceId
 
@@ -280,7 +285,8 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             )
 
             // Mark the tab bar as hidden if the navigation bar is fully scrolled.
-            tabBar.isHidden = navigationBarScrollOffset >= navigationBarHeight
+            tabBar.isHidden =
+                isKeyboardWebSubstituteOpen || navigationBarScrollOffset >= navigationBarHeight
         }
 
         self.scrollDebounceTimeout?.invalidate()
@@ -380,7 +386,9 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                             }
 
                             // Mark the tab bar as hidden if the navigation bar is fully scrolled.
-                            tabBar.isHidden = navigationBarScrollOffset >= navigationBarHeight
+                            tabBar.isHidden =
+                                isKeyboardWebSubstituteOpen
+                                || navigationBarScrollOffset >= navigationBarHeight
                         }
                     )
                 }
@@ -407,6 +415,75 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             scrollDebounceTimeout.fire()
             scrollDebounceTimeout.invalidate()
             self.scrollDebounceTimeout = nil
+        }
+    }
+
+    func webNavigationController(
+        _ navigationController: WebNavigationController,
+        didKeyboardSubstituteOpenChange isKeyboardWebSubstituteOpen: Bool
+    ) {
+        self.isKeyboardWebSubstituteOpen = isKeyboardWebSubstituteOpen
+
+        let navigationBarScrollOffset = max(
+            0,
+            min(lastScrollOffset - self.lastNavigationBarTopOffset, navigationBarHeight)
+        )
+
+        let previousIsHidden = tabBar.isHidden
+
+        let nextIsHidden =
+            isKeyboardWebSubstituteOpen || navigationBarScrollOffset >= navigationBarHeight
+
+        tabBar.isHidden = nextIsHidden
+
+        // If the keyboard substitute closes and the tab bar should be visible (because
+        // the navigation bar is visible) then animate the tab bar into the right
+        // position.
+        //
+        // Test case: Unfocus a content editor when the keyboard substitute is open.
+        if previousIsHidden && !nextIsHidden {
+            // Immediately finish any current animations.
+            tabBar.layer.removeAllAnimations()
+
+            // 1. Start the animation offscreen
+            tabBar.frame.origin.y = (view.frame.height - tabBar.frame.height) + tabBar.frame.height
+
+            // Convert from navigation bar offset to tab bar offset. We want the native tab
+            // bar to disappear at the same rate as the web navigation bar.
+            let tabBarScrollOffset =
+                ((tabBar.frame.height / navigationBarHeight) * navigationBarScrollOffset)
+
+            let tabBarFrameOriginY = (view.frame.height - tabBar.frame.height) + tabBarScrollOffset
+
+            UIView.animate(
+                withDuration: navigationBarRevealOrHideAnimationDurationSeconds,
+                delay: 0,
+                options: .curveEaseIn,
+                animations: { [self] in
+                    // 2. Animate to the tab bar's current position
+                    tabBar.frame.origin.y = tabBarFrameOriginY
+                    webNavigationController.setTabBarScrollOffset(
+                        tabBarScrollOffset,
+                        navigationBarScrollOffset: navigationBarScrollOffset
+                    )
+                },
+                completion: { [self] (finished) in
+                    // Make sure even if the animation was cancelled we set the correct
+                    // position.
+                    if !finished {
+                        tabBar.frame.origin.y = tabBarFrameOriginY
+                        webNavigationController.setTabBarScrollOffset(
+                            tabBarScrollOffset,
+                            navigationBarScrollOffset: navigationBarScrollOffset
+                        )
+                    }
+
+                    // Mark the tab bar as hidden if the navigation bar is fully scrolled.
+                    tabBar.isHidden =
+                        isKeyboardWebSubstituteOpen
+                        || navigationBarScrollOffset >= navigationBarHeight
+                }
+            )
         }
     }
 }

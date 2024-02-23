@@ -15,6 +15,9 @@ export const reverseEasing =
     (n: number): number =>
         easing(1 - n);
 
+// Many of these easing curves are taken from:
+// https://easings.net/
+
 export const easeLinear: Easing = n => n;
 easeLinear.cubicBezier = "cubic-bezier(0.5, 0.5, 0.5, 0.5)";
 
@@ -181,3 +184,15 @@ export const easeInOutBounce = (t: number): number => {
     if (t < 1 / 2) return easeInBounce(t * 2) * 0.5;
     return easeOutBounce(t * 2 - 1) * 0.5 + 0.5;
 };
+
+/**
+ * Parse `cubic-bezier()` string to its control points.
+ */
+export function parseBezier(
+    bezier: `cubic-bezier(${number}, ${number}, ${number}, ${number})`,
+): readonly [number, number, number, number] {
+    return bezier
+        .slice(13, -1)
+        .split(", ", 4)
+        .map(string => parseFloat(string)) as any;
+}

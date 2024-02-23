@@ -710,11 +710,11 @@ function useMobileWebKitKeyboardSupport() {
 
         const coveredKeyboardHeightDelta = oldKeyboardHeight - newKeyboardHeight;
 
-
         emitMobileKeyboardFrameChangeIfNotNativeMobile(
             coveredKeyboardHeightDelta,
             newKeyboardHeight,
             oldKeyboardHeight,
+            true,
         );
     }, [resizedWindowHeightForMobileWebKit]);
 

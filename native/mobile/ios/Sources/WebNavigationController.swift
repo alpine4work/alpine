@@ -20,11 +20,15 @@ private let logger = Logger(
     @objc optional func webNavigationController(
         runScrollDebounceTimeout navigationController: WebNavigationController
     )
+    @objc optional func webNavigationController(
+        _ navigationController: WebNavigationController,
+        didKeyboardSubstituteOpenChange isKeyboardSubstituteOpen: Bool
+    )
 }
 
 class WebNavigationController: UINavigationController, WKNavigationDelegate, WKUIDelegate,
-    WKScriptMessageHandler, WKHTTPCookieStoreObserver, UIViewTreeObserverDelegate,
-    UIScrollViewDelegate, WebInputAccessoryObserverViewDelegate
+    WKScriptMessageHandler, WKScriptMessageHandlerWithReply, WKHTTPCookieStoreObserver,
+    UIViewTreeObserverDelegate, UIScrollViewDelegate, WebInputAccessoryObserverViewDelegate
 {
     #if PRODUCTION_RUN_ENVIRONMENT
         static let baseUrl = URL(string: "https://cyberworlds.dev")!
@@ -159,7 +163,15 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     private var tabBarScrollOffset = 0.0
     private var navigationBarScrollOffset = 0.0
-    private var keyboardOffset = 0.0
+    private var keyboardOffsetWithoutToolbar = 0.0
+
+    private var keyboardOffset: Double {
+        keyboardOffsetWithoutToolbar
+            // If there's a keyboard toolbar then it "covers" the visible rectangle.
+            + (webBottomBarViews.contains(where: { (webBottomBarView, webBottomBarViewState) in
+                webBottomBarViewState.isKeyboardToolbar
+            }) ? bottomBarKeyboardToolbarHeight : 0)
+    }
 
     private var lastApplicationDidBecomeActiveNotificationTime: DispatchTime?
 
@@ -167,6 +179,44 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var theme40Color = UIColor(named: "indigo-40")!
     private var theme50Color = UIColor(named: "indigo-50")!
     private var theme60Color = UIColor(named: "indigo-60")!
+
+    private var keyboardWebSubstituteState = KeyboardWebSubstituteState.closed {
+        didSet {
+            if case .closed = oldValue {
+                if case .closed = keyboardWebSubstituteState {
+                    // noop
+                } else {
+                    webDelegate?.webNavigationController?(
+                        self,
+                        didKeyboardSubstituteOpenChange: true
+                    )
+                }
+            } else {
+                if case .closed = keyboardWebSubstituteState {
+                    webDelegate?.webNavigationController?(
+                        self,
+                        didKeyboardSubstituteOpenChange: false
+                    )
+                }
+            }
+        }
+    }
+
+    private enum KeyboardWebSubstituteState {
+        case closed
+        case opening(oldKeyboardOffset: Double, timer: Timer)
+        case opened(oldKeyboardOffset: Double)
+    }
+
+    /// If greater than zero then when we report a keyboard frame change we'll
+    /// recommend that web code shouldn't scroll. For example, when our substitute
+    /// keyboard hides and the text keyboard reappears we don't recommend
+    /// scrolling.
+    ///
+    /// An integer instead of a boolean to help deal with race conditions. If two
+    /// concurrent bits of code want to set this to true they can both `+= 1` then
+    /// `-= 1`.
+    private var shouldDisableScrollFromKeyboardFrameChange = 0
 
     init(initialPath: String, websiteDataStore: WKWebsiteDataStore) {
         self.initialPath = initialPath
@@ -223,6 +273,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         extendedLayoutIncludesOpaqueBars = true
 
         webConfiguration.userContentController.add(self, name: "NativeMobileBridge")
+        webConfiguration.userContentController.addScriptMessageHandler(
+            self,
+            contentWorld: WKContentWorld.page,
+            name: "NativeMobileBridgeWithReply"
+        )
 
         initWebView()
 
@@ -526,6 +581,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // but we don't need to call `setAllWebScrollViewScrollIndicatorInsets()`
         // again.
         actuallySetWindowSafeAreaInsets(windowSafeAreaInsets)
+
+        // If we finished a new navigation then web code won't know it needs to
+        // reset the substitute opened by the previous web process. Reset it here.
+        cleanupAfterKeyboardWebSubstitute()
     }
 
     func webView(
@@ -580,100 +639,130 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         _ userContentController: WKUserContentController,
         didReceive message: WKScriptMessage
     ) {
-        if message.name == "NativeMobileBridge", let messageBody = message.body as? NSString {
-            let messageBody: String = messageBody as String
+        guard message.name == "NativeMobileBridge",
+            let originalMessageBody = message.body as? NSString
+        else { return }
 
-            // Ignore messages from an unhealthy web view.
-            if (webViewHealthState.isLoading || !webViewHealthState.isHealthy)
-                && messageBody != "health.ready"
-            {
-                return
-            }
+        let messageBody = originalMessageBody as String
 
-            if messageBody.starts(with: "navigation.push:") {
-                let urlString = messageBody.suffix(
-                    from: messageBody.index(messageBody.startIndex, offsetBy: 16)
-                )
-                let url = URL(string: String(urlString))!
+        // Ignore messages from an unhealthy web view.
+        if (webViewHealthState.isLoading || !webViewHealthState.isHealthy)
+            && messageBody != "health.ready"
+        {
+            return
+        }
 
-                let viewController = WebNavigationEntryController(
-                    url: url,
-                    webView: webView,
-                    healthState: webViewHealthState
-                )
-                super.pushViewController(viewController, animated: true)
-            } else if messageBody == "navigation.finishExternalPop" {
-                (topViewController! as! WebNavigationEntryController).moveWebViewInto(webView)
-            } else if messageBody.starts(with: "navigation.pop:") {
-                let urlString = messageBody.suffix(
-                    from: messageBody.index(messageBody.startIndex, offsetBy: 15)
-                )
-                let url = URL(string: String(urlString))!
+        if messageBody.starts(with: "navigation.push:") {
+            let urlString = messageBody.suffix(
+                from: messageBody.index(messageBody.startIndex, offsetBy: 16)
+            )
+            let url = URL(string: String(urlString))!
 
-                let viewController = viewControllers.last(where: { (viewController) in
-                    (viewController as! WebNavigationEntryController).url.absoluteString
-                        == url.absoluteString
-                })
+            let viewController = WebNavigationEntryController(
+                url: url,
+                webView: webView,
+                healthState: webViewHealthState
+            )
+            super.pushViewController(viewController, animated: true)
+        } else if messageBody == "navigation.finishExternalPop" {
+            (topViewController! as! WebNavigationEntryController).moveWebViewInto(webView)
+        } else if messageBody.starts(with: "navigation.pop:") {
+            let urlString = messageBody.suffix(
+                from: messageBody.index(messageBody.startIndex, offsetBy: 15)
+            )
+            let url = URL(string: String(urlString))!
 
-                if let viewController = viewController {
-                    (viewController as! WebNavigationEntryController).moveWebViewInto(webView)
+            let viewController = viewControllers.last(where: { (viewController) in
+                (viewController as! WebNavigationEntryController).url.absoluteString
+                    == url.absoluteString
+            })
 
-                    // Important to call `super.popToViewController()` since we don't want our
-                    // class's override to start an external pop.
-                    super.popToViewController(viewController, animated: true)
-                } else {
-                    // If we couldn't find the view controller to pop to, then set the top view
-                    // controller's view controller as the popped route.
-                    //
-                    // NOTE(calebmer): This branch really shouldn't happen. I'm not sure if this is
-                    // the best default if it does, though. If we find a valid use case where this
-                    // branch is executed then reconsider this behavior.
-                    (topViewController! as! WebNavigationEntryController).url = url
-                    (topViewController! as! WebNavigationEntryController).moveWebViewInto(webView)
-                }
-            } else if messageBody.starts(with: "navigation.replace:") {
-                let urlString = messageBody.suffix(
-                    from: messageBody.index(messageBody.startIndex, offsetBy: 19)
-                )
-                let url = URL(string: String(urlString))!
+            if let viewController = viewController {
+                (viewController as! WebNavigationEntryController).moveWebViewInto(webView)
 
-                (topViewController! as! WebNavigationEntryController).url = url
-            } else if messageBody == "navigationBar.runScrollDebounceTimeout" {
-                webDelegate?.webNavigationController?(runScrollDebounceTimeout: self)
-            } else if messageBody == "health.ready" {
-                webViewHealthState.readyTime = DispatchTime.now()
-            } else if messageBody == "health.ping" {
-                webViewHealthState.lastPingTime = DispatchTime.now()
-            } else if messageBody.starts(with: "colors.setThemeColors") {
-                let colorsString = messageBody.suffix(
-                    from: messageBody.index(messageBody.startIndex, offsetBy: 22)
-                )
-                let colorStrings = colorsString.split(separator: ",")
-
-                let colors = colorStrings.map({ (colorString) -> UIColor? in
-                    let scanner = Scanner(string: String(colorString.dropFirst(1)))
-                    var hexInt: UInt64 = 0
-
-                    if !scanner.scanHexInt64(&hexInt) { return nil }
-
-                    let red = CGFloat((hexInt & 0xff0000) >> 16) / 255
-                    let green = CGFloat((hexInt & 0x00ff00) >> 8) / 255
-                    let blue = CGFloat((hexInt & 0x0000ff) >> 0) / 255
-
-                    return UIColor(red: red, green: green, blue: blue, alpha: 1.0)
-                })
-
-                theme30Color = (colors.count >= 1 ? colors[0] : nil) ?? UIColor(named: "indigo-30")!
-                theme40Color = (colors.count >= 2 ? colors[1] : nil) ?? UIColor(named: "indigo-40")!
-                theme50Color = (colors.count >= 3 ? colors[2] : nil) ?? UIColor(named: "indigo-50")!
-                theme60Color = (colors.count >= 4 ? colors[2] : nil) ?? UIColor(named: "indigo-60")!
-
-                // Use the space theme color as the tint color. The tint color will be used as
-                // the selection and caret color among other things.
+                // Important to call `super.popToViewController()` since we don't want our
+                // class's override to start an external pop.
+                super.popToViewController(viewController, animated: true)
+            } else {
+                // If we couldn't find the view controller to pop to, then set the top view
+                // controller's view controller as the popped route.
                 //
-                // We set it again here so the web view re-renders?
-                webView.tintColor = initThemeTintColor()
+                // NOTE(calebmer): This branch really shouldn't happen. I'm not sure if this is
+                // the best default if it does, though. If we find a valid use case where this
+                // branch is executed then reconsider this behavior.
+                (topViewController! as! WebNavigationEntryController).url = url
+                (topViewController! as! WebNavigationEntryController).moveWebViewInto(webView)
             }
+        } else if messageBody.starts(with: "navigation.replace:") {
+            let urlString = messageBody.suffix(
+                from: messageBody.index(messageBody.startIndex, offsetBy: 19)
+            )
+            let url = URL(string: String(urlString))!
+
+            (topViewController! as! WebNavigationEntryController).url = url
+        } else if messageBody == "navigationBar.runScrollDebounceTimeout" {
+            webDelegate?.webNavigationController?(runScrollDebounceTimeout: self)
+        } else if messageBody == "health.ready" {
+            webViewHealthState.readyTime = DispatchTime.now()
+        } else if messageBody == "health.ping" {
+            webViewHealthState.lastPingTime = DispatchTime.now()
+        } else if messageBody.starts(with: "colors.setThemeColors") {
+            let colorsString = messageBody.suffix(
+                from: messageBody.index(messageBody.startIndex, offsetBy: 22)
+            )
+            let colorStrings = colorsString.split(separator: ",")
+
+            let colors = colorStrings.map({ (colorString) -> UIColor? in
+                let scanner = Scanner(string: String(colorString.dropFirst(1)))
+                var hexInt: UInt64 = 0
+
+                if !scanner.scanHexInt64(&hexInt) { return nil }
+
+                let red = CGFloat((hexInt & 0xff0000) >> 16) / 255
+                let green = CGFloat((hexInt & 0x00ff00) >> 8) / 255
+                let blue = CGFloat((hexInt & 0x0000ff) >> 0) / 255
+
+                return UIColor(red: red, green: green, blue: blue, alpha: 1.0)
+            })
+
+            theme30Color = (colors.count >= 1 ? colors[0] : nil) ?? UIColor(named: "indigo-30")!
+            theme40Color = (colors.count >= 2 ? colors[1] : nil) ?? UIColor(named: "indigo-40")!
+            theme50Color = (colors.count >= 3 ? colors[2] : nil) ?? UIColor(named: "indigo-50")!
+            theme60Color = (colors.count >= 4 ? colors[2] : nil) ?? UIColor(named: "indigo-60")!
+
+            // Use the space theme color as the tint color. The tint color will be used as
+            // the selection and caret color among other things.
+            //
+            // We set it again here so the web view re-renders?
+            webView.tintColor = initThemeTintColor()
+        } else {
+            logger.warning("Received unrecognized message from web view: \(messageBody)")
+        }
+    }
+
+    func userContentController(
+        _ userContentController: WKUserContentController,
+        didReceive message: WKScriptMessage,
+        replyHandler: @escaping (Any?, String?) -> Void
+    ) {
+        guard message.name == "NativeMobileBridgeWithReply",
+            let originalMessageBody = message.body as? NSString
+        else { return }
+
+        let messageBody = originalMessageBody as String
+
+        // Ignore messages from an unhealthy web view.
+        if webViewHealthState.isLoading || !webViewHealthState.isHealthy { return }
+
+        if messageBody == "keyboard.prepareForSubstitute" {
+            prepareForKeyboardWebSubstitute { replyHandler(nil, nil) }
+        } else if messageBody == "keyboard.cleanupAfterSubstitute" {
+            cleanupAfterKeyboardWebSubstitute { replyHandler(nil, nil) }
+        } else {
+            logger.warning("Received unrecognized message from web view: \(messageBody)")
+
+            // Don't call `replyHandler()`. We don't want to return a value that will cause
+            // a crash.
         }
     }
 
@@ -913,7 +1002,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         updateWebViewSafeAreaInsets(
             alsoCallFrameChangeListeners: (
                 -coveredHeightDelta, screen.coordinateSpace.bounds.height - endScreenFrame.origin.y,
-                screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y
+                screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y,
+                shouldDisableScrollFromKeyboardFrameChange == 0
             )
         )
     }
@@ -960,7 +1050,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // Start animating the main content down but don't remove safe area insets
         // until the keyboard is fully hidden.
         webView.evaluateJavaScript(
-            "window.__NativeMobileBridge.keyboard._callFrameChangeListeners(\(-coveredHeightDelta), \(screen.coordinateSpace.bounds.height - endScreenFrame.origin.y), \(screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y))"
+            "window.__NativeMobileBridge.keyboard._callFrameChangeListeners(\(-coveredHeightDelta), \(screen.coordinateSpace.bounds.height - endScreenFrame.origin.y), \(screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y), \(shouldDisableScrollFromKeyboardFrameChange == 0))"
         )
     }
 
@@ -972,11 +1062,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     fileprivate func webInputAccessoryObserverView(
         _ webInputAccessoryObserverView: WebInputAccessoryObserverView?,
-        didMoveTo keyboardOffset: Double
+        didMoveTo keyboardOffsetWithoutToolbar: Double
     ) {
-        let lastKeyboardOffset = self.keyboardOffset
-        guard lastKeyboardOffset != keyboardOffset else { return }
-        self.keyboardOffset = keyboardOffset
+        let lastKeyboardOffsetWithoutToolbar = self.keyboardOffsetWithoutToolbar
+        guard lastKeyboardOffsetWithoutToolbar != keyboardOffsetWithoutToolbar else { return }
+        self.keyboardOffsetWithoutToolbar = keyboardOffsetWithoutToolbar
 
         // We don't need to do any `UIView.animate()` business since it seems like
         // this function is called in the context of an animation.
@@ -1000,14 +1090,31 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         initWebViewHealthTimer()
     }
 
-    private func getSafeAreaInsets() -> UIEdgeInsets {
+    private func getSafeAreaInsets(
+        withoutPreservingOldKeyboardOffsetForOpenWebSubstitue: Bool = false
+    ) -> UIEdgeInsets {
         let safeAreaInsetTop = windowSafeAreaInsets.top
+
+        let keyboardSafeAreaInsetBottom =
+            switch keyboardWebSubstituteState {
+            case .closed: keyboardOffset
+            // Maintain the old keyboard offset while the keyboard substitute is open so
+            // layout doesn't shift around.
+            case .opening(let oldKeyboardOffset, _):
+                withoutPreservingOldKeyboardOffsetForOpenWebSubstitue
+                    ? bottomBarKeyboardSubstituteHeight + windowSafeAreaInsets.bottom
+                    : oldKeyboardOffset
+            case .opened(let oldKeyboardOffset):
+                withoutPreservingOldKeyboardOffsetForOpenWebSubstitue
+                    ? bottomBarKeyboardSubstituteHeight + windowSafeAreaInsets.bottom
+                    : oldKeyboardOffset
+            }
 
         // Include the tab bar in our safe area insets.
         let safeAreaInsetBottom = max(
             windowSafeAreaInsets.bottom,
             tabBarController?.tabBar.frame.height ?? 0,
-            keyboardOffset
+            keyboardSafeAreaInsetBottom
         )
 
         let safeAreaInsetLeft = windowSafeAreaInsets.left
@@ -1047,7 +1154,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     private func updateWebViewSafeAreaInsets(
-        alsoCallFrameChangeListeners: (Double, Double, Double) = (0, 0, 0)
+        alsoCallFrameChangeListeners: (Double, Double, Double, Bool) = (0, 0, 0, false)
     ) {
         let safeAreaInsets = getSafeAreaInsets()
 
@@ -1074,7 +1181,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     styleElement.innerHTML = styleString;
                     document.head.appendChild(styleElement);
                 }
-            \(alsoCallFrameChangeListeners != (0, 0, 0) ? "\n    window.__NativeMobileBridge.keyboard._callFrameChangeListeners(\(alsoCallFrameChangeListeners.0), \(alsoCallFrameChangeListeners.1), \(alsoCallFrameChangeListeners.2));\n" : "")}
+            \(alsoCallFrameChangeListeners != (0, 0, 0, false) ? "\n    window.__NativeMobileBridge.keyboard._callFrameChangeListeners(\(alsoCallFrameChangeListeners.0), \(alsoCallFrameChangeListeners.1), \(alsoCallFrameChangeListeners.2), \(alsoCallFrameChangeListeners.3));\n" : "")}
             """
 
         webView.evaluateJavaScript(source)
@@ -1089,7 +1196,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     private func setWebScrollViewScrollIndicatorInsets(_ webScrollView: UIScrollView) {
-        let safeAreaInsets = getSafeAreaInsets()
+        let safeAreaInsets = getSafeAreaInsets(
+            // Normally, we preserve the old keyboard offset in our safe area inset when a
+            // keyboard substitute is open so we don't shift layout when switching between
+            // the substitute and the regular keyboard. However, the scroll indicator
+            // insets don't effect document layout.
+            withoutPreservingOldKeyboardOffsetForOpenWebSubstitue: true
+        )
 
         let webScrollViewFrame = webScrollView.superview!.convert(webScrollView.frame, to: view)
         let webScrollViewTop = webScrollViewFrame.origin.y
@@ -1277,11 +1390,15 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         let translateY =
             webBottomBarViewState.isKeyboardToolbar
-            ? -max(0, keyboardOffset > 0 ? keyboardOffset + bottomBarKeyboardToolbarHeight : 0)
+            ? -max(
+                0,
+                keyboardOffsetWithoutToolbar > 0
+                    ? keyboardOffsetWithoutToolbar + bottomBarKeyboardToolbarHeight : 0
+            )
             : -max(
                 0,
                 (tabBarHeight - tabBarScrollOffset) - windowSafeAreaInsets.bottom,
-                keyboardOffset - windowSafeAreaInsets.bottom
+                keyboardOffsetWithoutToolbar - windowSafeAreaInsets.bottom
             )
 
         webBottomBarViewState.withLock {
@@ -1346,13 +1463,17 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private func getWebMaskedViewsMaskRect() -> CGRect {
         let top = navigationBarHeight - navigationBarScrollOffset + windowSafeAreaInsets.top
 
-        let bottom =
-            keyboardOffset > 0
-            ? keyboardOffset
-                // If there's a keyboard toolbar then it "covers" the visible rectangle.
-                + (webBottomBarViews.contains(where: { (webBottomBarView, webBottomBarViewState) in
-                    webBottomBarViewState.isKeyboardToolbar
-                }) ? bottomBarKeyboardToolbarHeight : 0) : 0
+        let substituteBottom: Double =
+            if case .opened(_) = keyboardWebSubstituteState {
+                bottomBarKeyboardSubstituteHeight + windowSafeAreaInsets.bottom
+            } else { 0 }
+
+        let bottom = max(
+            // The `keyboardOffset` variable contains the keyboard toolbar height if a
+            // keyboard toolbar exists.
+            keyboardOffset,
+            substituteBottom
+        )
 
         return CGRect(
             x: 0,
@@ -1366,6 +1487,66 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let maskRect = getWebMaskedViewsMaskRect()
 
         for (_, layerMasker) in webMaskedViews { layerMasker.updateMaskSuperlayerRect(maskRect) }
+    }
+
+    private func prepareForKeyboardWebSubstitute(completion: (() -> Void)? = nil) {
+        switch keyboardWebSubstituteState {
+        case .opened(_):
+            completion?()
+            return
+        case .opening(_, _):
+            completion?()
+            return
+        case .closed: break
+        }
+
+        let oldKeyboardOffset = keyboardOffset
+
+        // We observe the keyboard hide animation takes 0.25s. The animation
+        // automatically runs when we call `reloadInputViews()`.
+        let timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: false) { [self] (_) in
+            shouldDisableScrollFromKeyboardFrameChange -= 1
+
+            keyboardWebSubstituteState = .opened(oldKeyboardOffset: oldKeyboardOffset)
+            updateAllWebMaskedViewMasks()
+
+            completion?()
+        }
+
+        keyboardWebSubstituteState = .opening(oldKeyboardOffset: oldKeyboardOffset, timer: timer)
+        shouldDisableScrollFromKeyboardFrameChange += 1
+
+        // Replace the input view with an empty `UIView`. This will animate the
+        // keyboard offscreen. We will render a substitute for the keyboard in the
+        // web view.
+        reloadSwizzledWKWebViewInputView(webView, inputView: UIView())
+    }
+
+    private func cleanupAfterKeyboardWebSubstitute(completion: (() -> Void)? = nil) {
+        switch keyboardWebSubstituteState {
+        case .closed:
+            completion?()
+            return
+        case .opening(_, let timer):
+            timer.invalidate()
+            break
+        case .opened(_): break
+        }
+
+        shouldDisableScrollFromKeyboardFrameChange += 1
+
+        keyboardWebSubstituteState = .closed
+        updateAllWebMaskedViewMasks()
+
+        reloadSwizzledWKWebViewInputView(webView, inputView: nil)
+
+        // We observe the keyboard hide animation takes 0.25s. The animation
+        // automatically runs when we call `reloadInputViews()`.
+        Timer.scheduledTimer(withTimeInterval: 0.25, repeats: false) { [self] (_) in
+            shouldDisableScrollFromKeyboardFrameChange -= 1
+
+            completion?()
+        }
     }
 }
 
@@ -1832,16 +2013,22 @@ private let bridgeSource = """
                         keyboardFrameChangeListeners.delete(listener);
                     };
                 },
-                _callFrameChangeListeners: (coveredHeightDelta, newHeight, oldHeight) => {
+                _callFrameChangeListeners: (coveredHeightDelta, newHeight, oldHeight, shouldScroll) => {
                     for (const listener of keyboardFrameChangeListeners) {
                         try {
-                            listener(coveredHeightDelta, newHeight, oldHeight);
+                            listener(coveredHeightDelta, newHeight, oldHeight, shouldScroll);
                         } catch (error) {
                             setTimeout(() => {
                                 throw error;
                             }, 0);
                         }
                     }
+                },
+                prepareForSubstitute: () => {
+                    return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.prepareForSubstitute");
+                },
+                cleanupAfterSubstitute: () => {
+                    return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.cleanupAfterSubstitute");
                 },
             },
         };

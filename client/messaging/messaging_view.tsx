@@ -555,13 +555,17 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     });
 
     useEffect(() => {
-        return subscribeToMobileKeyboardFrameChange(coveredHeightDelta => {
-            const view = assertExists(viewRef.current);
+        return subscribeToMobileKeyboardFrameChange(
+            (coveredHeightDelta, newHeight, oldHeight, shouldScroll) => {
+                if (!shouldScroll) return;
 
-            view.setScrollOffset(view.getScrollOffset() + coveredHeightDelta, {
-                behavior: "smooth",
-            });
-        });
+                const view = assertExists(viewRef.current);
+
+                view.setScrollOffset(view.getScrollOffset() + coveredHeightDelta, {
+                    behavior: "smooth",
+                });
+            },
+        );
     }, []);
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(

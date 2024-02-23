@@ -4,7 +4,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 
 let mobileKeyboardFrameChangeEmitter: EventEmitter<
-    [coveredHeightDelta: number, newHeight: number, oldHeight: number]
+    [coveredHeightDelta: number, newHeight: number, oldHeight: number, shouldScroll: boolean]
 > | null = null;
 
 /**
@@ -22,7 +22,12 @@ let mobileKeyboardFrameChangeEmitter: EventEmitter<
  * Does nothing outside of mobile environments.
  */
 export function subscribeToMobileKeyboardFrameChange(
-    listener: (coveredHeightDelta: number, newHeight: number, oldHeight: number) => void,
+    listener: (
+        coveredHeightDelta: number,
+        newHeight: number,
+        oldHeight: number,
+        shouldScroll: boolean,
+    ) => void,
 ): () => void {
     // If this isn't mobile WebKit (native app or otherwise) we don't have keyboard
     // frame change events.
@@ -31,8 +36,8 @@ export function subscribeToMobileKeyboardFrameChange(
     return NativeMobileBridge
         ? NativeMobileBridge.keyboard.subscribeToFrameChange(listener)
         : (mobileKeyboardFrameChangeEmitter ??= new EventEmitter()).subscribe(
-              ([coveredHeightDelta, newHeight, oldHeight]) =>
-                  listener(coveredHeightDelta, newHeight, oldHeight),
+              ([coveredHeightDelta, newHeight, oldHeight, shouldScroll]) =>
+                  listener(coveredHeightDelta, newHeight, oldHeight, shouldScroll),
           );
 }
 
@@ -46,6 +51,7 @@ export function emitMobileKeyboardFrameChangeIfNotNativeMobile(
     coveredHeightDelta: number,
     newHeight: number,
     oldHeight: number,
+    shouldScroll: boolean,
 ) {
     // If this isn't mobile WebKit (native app or otherwise) we don't have keyboard
     // frame change events.
@@ -54,5 +60,5 @@ export function emitMobileKeyboardFrameChangeIfNotNativeMobile(
     assert(!NativeMobileBridge);
 
     mobileKeyboardFrameChangeEmitter ??= new EventEmitter();
-    mobileKeyboardFrameChangeEmitter.emit([coveredHeightDelta, newHeight, oldHeight]);
+    mobileKeyboardFrameChangeEmitter.emit([coveredHeightDelta, newHeight, oldHeight, shouldScroll]);
 }

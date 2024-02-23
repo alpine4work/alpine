@@ -328,7 +328,40 @@ export const NativeMobileBridge: {
          * mobile app environment.
          */
         subscribeToFrameChange(
-            listener: (coveredHeightDelta: number, newHeight: number, oldHeight: number) => void,
+            listener: (
+                coveredHeightDelta: number,
+                newHeight: number,
+                oldHeight: number,
+                shouldNotScroll: boolean,
+            ) => void,
         ): () => void;
+
+        /**
+         * Web code may choose to substitute out the native keyboard with some custom
+         * UI if useful. This is used in content editors to provide advanced formatting
+         * options to the user.
+         *
+         * Calling this function will close the keyboard while maintaining focus and
+         * will resolve once the keyboard has finished closing. Once this function
+         * resolves web code may display the substitute keyboard.
+         *
+         * You MUST call `cleanupAfterSubstitute()` when done with your substitute
+         * keyboard. Either after the user hits a close button or the editor unfocuses
+         * or your component unmounts. If you don't the user will be stuck in a state
+         * where they can never see the native keyboard! This is very bad.
+         */
+        prepareForSubstitute(): Promise<void>;
+
+        /**
+         * After the user is done with your web code substitute keyboard, call this
+         * function and the native keyboard will reappear if the editor still has
+         * focus. If the editor doesn't have focus then the native keyboard will appear
+         * next time you focus a text input.
+         *
+         * You MUST call this function after `prepareForSubstitute()` otherwise the
+         * user will be stuck in a very bad state where they can't open the native text
+         * input keyboard.
+         */
+        cleanupAfterSubstitute(): Promise<void>;
     };
 } | null = typeof window !== "undefined" ? (window as any).__NativeMobileBridge ?? null : null;

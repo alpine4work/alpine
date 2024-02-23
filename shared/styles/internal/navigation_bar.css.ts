@@ -1,4 +1,5 @@
 import {keyframes, style} from "@vanilla-extract/css";
+import {easeOutQuart} from "~/shared/design/easing.js";
 
 // These constants are exported from `navigation_bar.tsx` for convenience.
 // Generally you'll import from there unless you need this constant in CSS.
@@ -26,5 +27,5 @@ const navigationBarTitleFadeOutKeyframes = keyframes({
 
 export const navigationBarTitleFadeOutAnimationClassName = style({
     transformOrigin: "top center",
-    animation: `${navigationBarTitleFadeOutKeyframes} 500ms cubic-bezier(0.25, 1, 0.5, 1) forwards`,
+    animation: `${navigationBarTitleFadeOutKeyframes} 500ms ${easeOutQuart.cubicBezier} forwards`,
 });
