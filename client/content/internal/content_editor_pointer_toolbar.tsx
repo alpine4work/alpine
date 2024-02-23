@@ -20,6 +20,7 @@ import {Command, EditorState, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {Memo, ReactNode, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {mergeProps, useButton} from "react-aria";
+import {flushSync} from "react-dom";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {ContentEditorHighlightSelector} from "~/client/content/internal/content_editor_highlight_selector.js";
 import {ContentEditorLinkInput} from "~/client/content/internal/content_editor_link_input.js";
@@ -875,7 +876,7 @@ function ContentEditorPointerToolbarLinkButton({
 }) {
     const {isAppleDevice} = useClientInfo();
 
-    const wasJustClosedByOverlayRef = useRef(false);
+    const buttonContainerRef = useRef<HTMLDivElement>(null);
 
     const range = useMemo(
         () => trimSpacesFromProsemirrorRange(state.doc, state.selection),
@@ -897,25 +898,29 @@ function ContentEditorPointerToolbarLinkButton({
                 <Box
                     ref={useOutsidePress(event => {
                         const view = assertExists(viewRef.current);
+                        const buttonContainerElement = assertExists(buttonContainerRef.current);
+
                         if (
                             event.target instanceof Element &&
                             isElementOwnedBy(assertExists(view.dom.parentElement), event.target)
                         ) {
-                            view.dom.focus({preventScroll: true});
+                            // Flush sync here because we need our `isFocused` state to be true before the
+                            // link input closes. That way the pointer toolbar itself won't disappear.
+                            flushSync(() => {
+                                view.dom.focus({preventScroll: true});
+                            });
+                        }
+
+                        // Clicking the button again while it's open will close the overlay.
+                        if (
+                            event.target instanceof Element &&
+                            buttonContainerElement.contains(event.target)
+                        ) {
+                            return;
                         }
 
                         onLinkInputClose();
-                        wasJustClosedByOverlayRef.current = true;
-                        setTimeout(() => {
-                            wasJustClosedByOverlayRef.current = false;
-                        }, 0);
                     })}
-                    onBlur={event => {
-                        // If focus left the link input then close the link input.
-                        if (!event.currentTarget.contains(event.relatedTarget)) {
-                            onLinkInputClose();
-                        }
-                    }}
                 >
                     <ContentEditorLinkInput
                         viewRef={viewRef}
@@ -930,7 +935,7 @@ function ContentEditorPointerToolbarLinkButton({
                 </Box>
             }
         >
-            <Box>
+            <Box ref={buttonContainerRef}>
                 <ContentEditorPointerToolbarButton
                     dividerLeft={dividerLeft}
                     dividerRight={dividerRight}
@@ -943,17 +948,12 @@ function ContentEditorPointerToolbarLinkButton({
                     viewRef={viewRef}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                     command={() => {
-                        // If the user clicks on this button to close the link input overlay then
-                        // this `command` will run after the `useOutsidePress()` above which closes the
-                        // overlay. We want the overlay to stay closed so we need to coordinate with
-                        // a ref.
-                        if (!wasJustClosedByOverlayRef.current) {
-                            if (isLinkInputOpen) {
-                                onLinkInputClose();
-                            } else {
-                                onLinkInputOpen();
-                            }
+                        if (isLinkInputOpen) {
+                            onLinkInputClose();
+                        } else {
+                            onLinkInputOpen();
                         }
+
                         return false;
                     }}
                     onTooltipStateChange={state =>
@@ -996,7 +996,7 @@ function ContentEditorPointerToolbarHighlightButton({
 }) {
     const {isAppleDevice} = useClientInfo();
 
-    const wasJustClosedByOverlayRef = useRef(false);
+    const buttonContainerRef = useRef<HTMLDivElement>(null);
 
     const [isTooltipOpenAndNotAnimating, setIsTooltipOpenAndNotAnimating] = useState(false);
 
@@ -1011,12 +1011,18 @@ function ContentEditorPointerToolbarHighlightButton({
             disableAnimation={isTooltipOpenAndNotAnimating}
             overlay={
                 <Box
-                    ref={useOutsidePress(() => {
+                    ref={useOutsidePress(event => {
+                        const buttonContainerElement = assertExists(buttonContainerRef.current);
+
+                        // Clicking the button again while it's open will close the overlay.
+                        if (
+                            event.target instanceof Element &&
+                            buttonContainerElement.contains(event.target)
+                        ) {
+                            return;
+                        }
+
                         onHighlightSelectorClose();
-                        wasJustClosedByOverlayRef.current = true;
-                        setTimeout(() => {
-                            wasJustClosedByOverlayRef.current = false;
-                        }, 0);
                     })}
                 >
                     <ContentEditorHighlightSelector
@@ -1028,7 +1034,7 @@ function ContentEditorPointerToolbarHighlightButton({
                 </Box>
             }
         >
-            <Box>
+            <Box ref={buttonContainerRef}>
                 <ContentEditorPointerToolbarButton
                     dividerRight={dividerRight}
                     dividerLeft={dividerLeft}
@@ -1060,17 +1066,12 @@ function ContentEditorPointerToolbarHighlightButton({
                             return true;
                         }
 
-                        // If the user clicks on this button to close the highlight color overlay then
-                        // this `command` will run after the `useOutsidePress()` above which closes the
-                        // overlay. We want the overlay to stay closed so we need to coordinate with
-                        // a ref.
-                        if (!wasJustClosedByOverlayRef.current) {
-                            if (isHighlightSelectorOpen) {
-                                onHighlightSelectorClose();
-                            } else {
-                                onHighlightSelectorOpen();
-                            }
+                        if (isHighlightSelectorOpen) {
+                            onHighlightSelectorClose();
+                        } else {
+                            onHighlightSelectorOpen();
                         }
+
                         return false;
                     }}
                     onTooltipStateChange={state =>
