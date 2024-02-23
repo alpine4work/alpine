@@ -1,5 +1,7 @@
 import {animate} from "motion";
 import {
+    ArrowLeft,
+    Check,
     Code,
     IconContext,
     Link as LinkIcon,
@@ -15,6 +17,7 @@ import {
     TextStrikethrough,
     X,
 } from "phosphor-react";
+import {Mark} from "prosemirror-model";
 import {Command, EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
@@ -38,14 +41,18 @@ import {
     getMarksSpanningAcrossEntireRange,
 } from "~/client/content/internal/content_editor_prosemirror_helpers.js";
 import {Box, BoxProps} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {nativeMobileBottomBarKeyboardSubstituteHeight} from "~/client/design/native_mobile_bottom_bar.js";
+import {Spacer} from "~/client/design/spacer.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {easeOutCubic, parseBezier} from "~/shared/design/easing.js";
+import {HighlightColor, colorByHighlightColor} from "~/shared/design/highlight_color.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {colorSchemeVars, contentSchemaStyles} from "~/shared/styles/styles.js";
+import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
+import {buttonStyles, colorSchemeVars, contentSchemaStyles} from "~/shared/styles/styles.js";
 
 export type ContentEditorMobileKeyboardSubstituteRef = {
     closeWithAnimation(): void;
@@ -127,79 +134,46 @@ function ContentEditorMobileKeyboardSubstitute(
         [],
     );
 
-    const {isBoldActive, isItalicActive, isStrikeActive, isCodeActive} = useMemo(() => {
-        const marks = getMarksSpanningAcrossEntireRange(state.doc, state.selection);
+    const [isHighlightSelectorOpen, setIsHighlightSelectorOpen] = useState(false);
 
-        const boldMark = state.schema.mark("bold");
-        const italicMark = state.schema.mark("italic");
-        const strikeMark = state.schema.mark("strike");
-        const codeMark = state.schema.mark("code");
-
-        return {
-            isBoldActive:
-                boldMark.isInSet(marks) ||
-                (!!state.storedMarks && boldMark.isInSet(state.storedMarks)),
-            isItalicActive:
-                italicMark.isInSet(marks) ||
-                (!!state.storedMarks && italicMark.isInSet(state.storedMarks)),
-            isStrikeActive:
-                strikeMark.isInSet(marks) ||
-                (!!state.storedMarks && strikeMark.isInSet(state.storedMarks)),
-            isCodeActive:
-                codeMark.isInSet(marks) ||
-                (!!state.storedMarks && codeMark.isInSet(state.storedMarks)),
-        };
-    }, [state.doc, state.schema, state.selection, state.storedMarks]);
-
-    const isUnorderedListItemActive = useMemo(
-        () =>
-            areAllNodesListItemType(
-                state.doc,
-                state.selection,
-                state.schema.nodes.unorderedListItem,
-            ),
-        [state.doc, state.schema.nodes.unorderedListItem, state.selection],
+    const selectionMarks = useMemo(
+        () => getMarksSpanningAcrossEntireRange(state.doc, state.selection),
+        [state.doc, state.selection],
     );
 
-    const isOrderedListItemActive = useMemo(
-        () =>
-            areAllNodesListItemType(state.doc, state.selection, state.schema.nodes.orderedListItem),
-        [state.doc, state.schema.nodes.orderedListItem, state.selection],
+    const activeHighlightMark = useMemo(
+        () => selectionMarks.find(mark => mark.type.name === "highlight") ?? null,
+        [selectionMarks],
     );
 
-    const isCheckListItemActive = useMemo(
-        () =>
-            !!state.schema.nodes.checkListItem &&
-            areAllNodesListItemType(state.doc, state.selection, state.schema.nodes.checkListItem),
-        [state.doc, state.schema.nodes.checkListItem, state.selection],
-    );
+    const selectHighlightColor = (highlightColor: HighlightColor | null) => {
+        const view = assertExists(viewRef.current);
+        const {state} = view;
 
-    const isHeadingLevel1Active = useMemo(
-        () =>
-            !!state.schema.nodes.heading &&
-            areAllNodesBlockType(state.doc, state.selection, state.schema.nodes.heading, {
-                level: 1,
-            }),
-        [state.doc, state.schema.nodes.heading, state.selection],
-    );
-
-    const isHeadingLevel2Active = useMemo(
-        () =>
-            !!state.schema.nodes.heading &&
-            areAllNodesBlockType(state.doc, state.selection, state.schema.nodes.heading, {
-                level: 2,
-            }),
-        [state.doc, state.schema.nodes.heading, state.selection],
-    );
-
-    const isHeadingLevel3Active = useMemo(
-        () =>
-            !!state.schema.nodes.heading &&
-            areAllNodesBlockType(state.doc, state.selection, state.schema.nodes.heading, {
-                level: 3,
-            }),
-        [state.doc, state.schema.nodes.heading, state.selection],
-    );
+        if (
+            highlightColor &&
+            (!activeHighlightMark || activeHighlightMark.attrs.color !== highlightColor)
+        ) {
+            const range = trimSpacesFromProsemirrorRange(state.doc, state.selection);
+            view.dispatch(
+                state.tr.addMark(
+                    range.from,
+                    range.to,
+                    state.schema.mark("highlight", {
+                        color: highlightColor,
+                    }),
+                ),
+            );
+        } else {
+            view.dispatch(
+                state.tr.removeMark(
+                    state.selection.from,
+                    state.selection.to,
+                    state.schema.marks.highlight,
+                ),
+            );
+        }
+    };
 
     return (
         <Box
@@ -253,161 +227,263 @@ function ContentEditorMobileKeyboardSubstitute(
                 >
                     Styles
                 </Box>
-                <Box
-                    flexGrow="1"
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(2, 1fr)",
-                        gridTemplateRows: "repeat(6, 1fr)",
-                        gridAutoFlow: "column",
-                        // Simple border down the middle with gradient. Solution inspired by:
-                        // https://stackoverflow.com/a/61678228/1568890
-                        background: `linear-gradient(${colorSchemeVars["grey-5"]}, ${colorSchemeVars["grey-5"]}) center/1px 100% no-repeat`,
-                    }}
-                >
-                    <ContentEditorMobileKeyboardSubstituteButton
-                        icon={<TextBolder />}
-                        label="Bold"
-                        labelProps={{fontStyle: "extra-bold"}}
-                        isActive={isBoldActive}
-                        onPress={fromCommand(
-                            viewRef,
-                            createToggleMarkCommand(state.schema.mark("bold")),
-                        )}
+                {!isHighlightSelectorOpen ? (
+                    <ContentEditorMobileKeyboardSubstituteMain
+                        state={state}
+                        viewRef={viewRef}
+                        selectionMarks={selectionMarks}
+                        activeHighlightMark={activeHighlightMark}
+                        // No animation when switching to the highlight selector. iOS has no animation
+                        // when switching keyboard types. I promise following platform convention is
+                        // the reason, not that I'm lazy.
+                        onHighlightSelectorOpen={() => setIsHighlightSelectorOpen(true)}
+                        onSelectHighlightColor={selectHighlightColor}
                     />
-                    <ContentEditorMobileKeyboardSubstituteButton
-                        icon={<TextItalic />}
-                        label="Italic"
-                        labelProps={{className: contentSchemaStyles.italicClassName}}
-                        isActive={isItalicActive}
-                        onPress={fromCommand(
-                            viewRef,
-                            createToggleMarkCommand(state.schema.mark("italic")),
-                        )}
+                ) : (
+                    <ContentEditorMobileKeyboardSubstituteHighlightSelector
+                        state={state}
+                        viewRef={viewRef}
+                        activeHighlightMark={activeHighlightMark}
+                        onBack={() => setIsHighlightSelectorOpen(false)}
+                        onSelectHighlightColor={selectHighlightColor}
                     />
-                    <ContentEditorMobileKeyboardSubstituteButton
-                        icon={<LinkIcon />}
-                        label="Link"
-                        labelProps={{
-                            className: contentSchemaStyles.linkClassName,
-                            style: {color: "inherit"},
-                        }}
-                        isActive={false}
-                        onPress={() => {
-                            // NOCOMMIT: Implement
-                        }}
-                    />
-                    <ContentEditorMobileKeyboardSubstituteButton
-                        icon={<Palette />}
-                        label="Highlight"
-                        isActive={false}
-                        onPress={() => {
-                            // NOCOMMIT: Implement
-                        }}
-                    />
-                    <ContentEditorMobileKeyboardSubstituteButton
-                        icon={<TextStrikethrough />}
-                        label="Strikethrough"
-                        labelProps={{className: contentSchemaStyles.strikeClassName}}
-                        isActive={isStrikeActive}
-                        onPress={fromCommand(
-                            viewRef,
-                            createToggleMarkCommand(state.schema.mark("strike")),
-                        )}
-                    />
-                    <ContentEditorMobileKeyboardSubstituteButton
-                        icon={<Code />}
-                        label="Code"
-                        labelProps={{className: contentSchemaStyles.codeClassName}}
-                        isActive={isCodeActive}
-                        onPress={fromCommand(
-                            viewRef,
-                            createToggleMarkCommand(state.schema.mark("code")),
-                        )}
-                    />
-                    {state.schema.nodes.heading && (
-                        <>
-                            <ContentEditorMobileKeyboardSubstituteButton
-                                icon={<TextHOne />}
-                                label="Heading 1"
-                                labelProps={{
-                                    fontStyle: "bold",
-                                    style: {
-                                        transformOrigin: "left center",
-                                        transform: "scale(1.2)",
-                                    },
-                                }}
-                                isActive={isHeadingLevel1Active}
-                                onPress={fromCommand(
-                                    viewRef,
-                                    createToggleBlockTypeCommand(state.schema.nodes.heading, {
-                                        level: 1,
-                                    }),
-                                )}
-                            />
-                            <ContentEditorMobileKeyboardSubstituteButton
-                                icon={<TextHTwo />}
-                                label="Heading 2"
-                                labelProps={{
-                                    fontStyle: "bold",
-                                    style: {
-                                        transformOrigin: "left center",
-                                        transform: "scale(1.1)",
-                                    },
-                                }}
-                                isActive={isHeadingLevel2Active}
-                                onPress={fromCommand(
-                                    viewRef,
-                                    createToggleBlockTypeCommand(state.schema.nodes.heading, {
-                                        level: 2,
-                                    }),
-                                )}
-                            />
-                            <ContentEditorMobileKeyboardSubstituteButton
-                                icon={<TextHThree />}
-                                label="Heading 3"
-                                labelProps={{fontStyle: "bold"}}
-                                isActive={isHeadingLevel3Active}
-                                onPress={fromCommand(
-                                    viewRef,
-                                    createToggleBlockTypeCommand(state.schema.nodes.heading, {
-                                        level: 3,
-                                    }),
-                                )}
-                            />
-                        </>
-                    )}
-                    <ContentEditorMobileKeyboardSubstituteButton
-                        icon={<ListBullets />}
-                        label="Bullet list"
-                        isActive={isUnorderedListItemActive}
-                        onPress={fromCommand(
-                            viewRef,
-                            createToggleListItemsCommand(state.schema.nodes.unorderedListItem),
-                        )}
-                    />
-                    <ContentEditorMobileKeyboardSubstituteButton
-                        icon={<ListNumbers />}
-                        label="Number list"
-                        isActive={isOrderedListItemActive}
-                        onPress={fromCommand(
-                            viewRef,
-                            createToggleListItemsCommand(state.schema.nodes.orderedListItem),
-                        )}
-                    />
-                    {state.schema.nodes.checkListItem && (
-                        <ContentEditorMobileKeyboardSubstituteButton
-                            icon={<ListChecks />}
-                            label="Check list"
-                            isActive={isCheckListItemActive}
-                            onPress={fromCommand(
-                                viewRef,
-                                createToggleListItemsCommand(state.schema.nodes.checkListItem),
-                            )}
-                        />
-                    )}
-                </Box>
+                )}
             </Box>
+        </Box>
+    );
+}
+
+function ContentEditorMobileKeyboardSubstituteMain({
+    state,
+    viewRef,
+    selectionMarks,
+    activeHighlightMark,
+    onHighlightSelectorOpen,
+    onSelectHighlightColor,
+}: {
+    state: EditorState & {schema: ContentProsemirrorSchema};
+    viewRef: RefObject<EditorView | null>;
+    selectionMarks: ReadonlyArray<Mark>;
+    activeHighlightMark: Mark | null;
+    onHighlightSelectorOpen: () => void;
+    onSelectHighlightColor: (highlightColor: HighlightColor | null) => void;
+}) {
+    const {isBoldActive, isItalicActive, isStrikeActive, isCodeActive} = useMemo(() => {
+        const boldMark = state.schema.mark("bold");
+        const italicMark = state.schema.mark("italic");
+        const strikeMark = state.schema.mark("strike");
+        const codeMark = state.schema.mark("code");
+
+        return {
+            isBoldActive:
+                boldMark.isInSet(selectionMarks) ||
+                (!!state.storedMarks && boldMark.isInSet(state.storedMarks)),
+            isItalicActive:
+                italicMark.isInSet(selectionMarks) ||
+                (!!state.storedMarks && italicMark.isInSet(state.storedMarks)),
+            isStrikeActive:
+                strikeMark.isInSet(selectionMarks) ||
+                (!!state.storedMarks && strikeMark.isInSet(state.storedMarks)),
+            isCodeActive:
+                codeMark.isInSet(selectionMarks) ||
+                (!!state.storedMarks && codeMark.isInSet(state.storedMarks)),
+        };
+    }, [selectionMarks, state.schema, state.storedMarks]);
+
+    const isUnorderedListItemActive = useMemo(
+        () =>
+            areAllNodesListItemType(
+                state.doc,
+                state.selection,
+                state.schema.nodes.unorderedListItem,
+            ),
+        [state.doc, state.schema.nodes.unorderedListItem, state.selection],
+    );
+
+    const isOrderedListItemActive = useMemo(
+        () =>
+            areAllNodesListItemType(state.doc, state.selection, state.schema.nodes.orderedListItem),
+        [state.doc, state.schema.nodes.orderedListItem, state.selection],
+    );
+
+    const isCheckListItemActive = useMemo(
+        () =>
+            !!state.schema.nodes.checkListItem &&
+            areAllNodesListItemType(state.doc, state.selection, state.schema.nodes.checkListItem),
+        [state.doc, state.schema.nodes.checkListItem, state.selection],
+    );
+
+    const isHeadingLevel1Active = useMemo(
+        () =>
+            !!state.schema.nodes.heading &&
+            areAllNodesBlockType(state.doc, state.selection, state.schema.nodes.heading, {
+                level: 1,
+            }),
+        [state.doc, state.schema.nodes.heading, state.selection],
+    );
+
+    const isHeadingLevel2Active = useMemo(
+        () =>
+            !!state.schema.nodes.heading &&
+            areAllNodesBlockType(state.doc, state.selection, state.schema.nodes.heading, {
+                level: 2,
+            }),
+        [state.doc, state.schema.nodes.heading, state.selection],
+    );
+
+    const isHeadingLevel3Active = useMemo(
+        () =>
+            !!state.schema.nodes.heading &&
+            areAllNodesBlockType(state.doc, state.selection, state.schema.nodes.heading, {
+                level: 3,
+            }),
+        [state.doc, state.schema.nodes.heading, state.selection],
+    );
+
+    return (
+        <Box
+            flexGrow="1"
+            style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, 1fr)",
+                gridTemplateRows: "repeat(6, 1fr)",
+                gridAutoFlow: "column",
+                // Simple border down the middle with gradient. Solution inspired by:
+                // https://stackoverflow.com/a/61678228/1568890
+                background: `linear-gradient(${colorSchemeVars["grey-5"]}, ${colorSchemeVars["grey-5"]}) center/1px 100% no-repeat`,
+            }}
+        >
+            <ContentEditorMobileKeyboardSubstituteButton
+                icon={<TextBolder />}
+                label="Bold"
+                labelProps={{fontStyle: "extra-bold"}}
+                isActive={isBoldActive}
+                onPress={fromCommand(viewRef, createToggleMarkCommand(state.schema.mark("bold")))}
+            />
+            <ContentEditorMobileKeyboardSubstituteButton
+                icon={<TextItalic />}
+                label="Italic"
+                labelProps={{className: contentSchemaStyles.italicClassName}}
+                isActive={isItalicActive}
+                onPress={fromCommand(viewRef, createToggleMarkCommand(state.schema.mark("italic")))}
+            />
+            <ContentEditorMobileKeyboardSubstituteButton
+                icon={<LinkIcon />}
+                label="Link"
+                labelProps={{
+                    className: contentSchemaStyles.linkClassName,
+                    style: {color: "inherit"},
+                }}
+                isActive={false}
+                onPress={() => {
+                    // NOCOMMIT: Implement
+                }}
+            />
+            <ContentEditorMobileKeyboardSubstituteButton
+                icon={<Palette />}
+                label="Highlight"
+                isActive={!!activeHighlightMark}
+                onPress={
+                    activeHighlightMark
+                        ? () => onSelectHighlightColor(null)
+                        : onHighlightSelectorOpen
+                }
+            />
+            <ContentEditorMobileKeyboardSubstituteButton
+                icon={<TextStrikethrough />}
+                label="Strikethrough"
+                labelProps={{className: contentSchemaStyles.strikeClassName}}
+                isActive={isStrikeActive}
+                onPress={fromCommand(viewRef, createToggleMarkCommand(state.schema.mark("strike")))}
+            />
+            <ContentEditorMobileKeyboardSubstituteButton
+                icon={<Code />}
+                label="Code"
+                labelProps={{className: contentSchemaStyles.codeClassName}}
+                isActive={isCodeActive}
+                onPress={fromCommand(viewRef, createToggleMarkCommand(state.schema.mark("code")))}
+            />
+            {state.schema.nodes.heading && (
+                <>
+                    <ContentEditorMobileKeyboardSubstituteButton
+                        icon={<TextHOne />}
+                        label="Heading 1"
+                        labelProps={{
+                            fontStyle: "bold",
+                            style: {
+                                transformOrigin: "left center",
+                                transform: "scale(1.2)",
+                            },
+                        }}
+                        isActive={isHeadingLevel1Active}
+                        onPress={fromCommand(
+                            viewRef,
+                            createToggleBlockTypeCommand(state.schema.nodes.heading, {
+                                level: 1,
+                            }),
+                        )}
+                    />
+                    <ContentEditorMobileKeyboardSubstituteButton
+                        icon={<TextHTwo />}
+                        label="Heading 2"
+                        labelProps={{
+                            fontStyle: "bold",
+                            style: {
+                                transformOrigin: "left center",
+                                transform: "scale(1.1)",
+                            },
+                        }}
+                        isActive={isHeadingLevel2Active}
+                        onPress={fromCommand(
+                            viewRef,
+                            createToggleBlockTypeCommand(state.schema.nodes.heading, {
+                                level: 2,
+                            }),
+                        )}
+                    />
+                    <ContentEditorMobileKeyboardSubstituteButton
+                        icon={<TextHThree />}
+                        label="Heading 3"
+                        labelProps={{fontStyle: "bold"}}
+                        isActive={isHeadingLevel3Active}
+                        onPress={fromCommand(
+                            viewRef,
+                            createToggleBlockTypeCommand(state.schema.nodes.heading, {
+                                level: 3,
+                            }),
+                        )}
+                    />
+                </>
+            )}
+            <ContentEditorMobileKeyboardSubstituteButton
+                icon={<ListBullets />}
+                label="Bullet list"
+                isActive={isUnorderedListItemActive}
+                onPress={fromCommand(
+                    viewRef,
+                    createToggleListItemsCommand(state.schema.nodes.unorderedListItem),
+                )}
+            />
+            <ContentEditorMobileKeyboardSubstituteButton
+                icon={<ListNumbers />}
+                label="Number list"
+                isActive={isOrderedListItemActive}
+                onPress={fromCommand(
+                    viewRef,
+                    createToggleListItemsCommand(state.schema.nodes.orderedListItem),
+                )}
+            />
+            {state.schema.nodes.checkListItem && (
+                <ContentEditorMobileKeyboardSubstituteButton
+                    icon={<ListChecks />}
+                    label="Check list"
+                    isActive={isCheckListItemActive}
+                    onPress={fromCommand(
+                        viewRef,
+                        createToggleListItemsCommand(state.schema.nodes.checkListItem),
+                    )}
+                />
+            )}
         </Box>
     );
 }
@@ -473,4 +549,141 @@ function fromCommand(viewRef: RefObject<EditorView | null>, command: Command): (
         const view = assertExists(viewRef.current);
         command(view.state, view.dispatch.bind(view), view);
     };
+}
+
+function ContentEditorMobileKeyboardSubstituteHighlightSelector({
+    state,
+    viewRef,
+    activeHighlightMark,
+    onBack,
+    onSelectHighlightColor,
+}: {
+    state: EditorState & {schema: ContentProsemirrorSchema};
+    viewRef: RefObject<EditorView | null>;
+    activeHighlightMark: Mark | null;
+    onBack: () => void;
+    onSelectHighlightColor: (highlightColor: HighlightColor | null) => void;
+}) {
+    return (
+        <Box>
+            <Box paddingLeft="4" display="flex" alignItems="center" gap="2.5">
+                <IconButton
+                    // Tapping on the button shouldn't unfocus the content editor.
+                    isFocusable={false}
+                    size="md"
+                    description="Back"
+                    withoutTooltip={true}
+                    onPress={onBack}
+                >
+                    <ArrowLeft />
+                </IconButton>
+                <Palette color={colorSchemeVars["grey-70"]} size={spacing["4"]} />
+                <Box color="grey-text" fontSize="100">
+                    Highlight
+                </Box>
+            </Box>
+            <Spacer space="4" />
+            <Box paddingX="4" display="flex" gap="2.5">
+                <ContentEditorMobileKeyboardSubstituteHighlightSelectorButton
+                    activeHighlightMark={activeHighlightMark}
+                    highlightColor={HighlightColor.Red}
+                    onSelectHighlightColor={onSelectHighlightColor}
+                />
+                <ContentEditorMobileKeyboardSubstituteHighlightSelectorButton
+                    activeHighlightMark={activeHighlightMark}
+                    highlightColor={HighlightColor.Orange}
+                    onSelectHighlightColor={onSelectHighlightColor}
+                />
+                <ContentEditorMobileKeyboardSubstituteHighlightSelectorButton
+                    activeHighlightMark={activeHighlightMark}
+                    highlightColor={HighlightColor.Green}
+                    onSelectHighlightColor={onSelectHighlightColor}
+                />
+                <ContentEditorMobileKeyboardSubstituteHighlightSelectorButton
+                    activeHighlightMark={activeHighlightMark}
+                    highlightColor={HighlightColor.Blue}
+                    onSelectHighlightColor={onSelectHighlightColor}
+                />
+                <ContentEditorMobileKeyboardSubstituteHighlightSelectorButton
+                    activeHighlightMark={activeHighlightMark}
+                    highlightColor={HighlightColor.Purple}
+                    onSelectHighlightColor={onSelectHighlightColor}
+                />
+            </Box>
+            <Spacer space="4" />
+            <Box paddingX="4" display="flex" justifyContent="flex-end">
+                <Button
+                    variant="neutral"
+                    // Tapping on the button shouldn't unfocus the content editor.
+                    isFocusable={false}
+                    isDisabled={!activeHighlightMark}
+                    onPress={() => onSelectHighlightColor(null)}
+                >
+                    Clear
+                </Button>
+            </Box>
+        </Box>
+    );
+}
+
+function ContentEditorMobileKeyboardSubstituteHighlightSelectorButton({
+    activeHighlightMark,
+    highlightColor,
+    onSelectHighlightColor,
+}: {
+    activeHighlightMark: Mark | null;
+    highlightColor: HighlightColor;
+    onSelectHighlightColor: (highlightColor: HighlightColor | null) => void;
+}) {
+    const isActive = activeHighlightMark?.attrs.color === highlightColor;
+
+    const {isPressed, pressProps} = usePress({
+        onPress: () => onSelectHighlightColor(highlightColor),
+    });
+
+    return (
+        <Box
+            {...pressProps}
+            flexGrow="1"
+            backgroundColor={highlightColor ? colorByHighlightColor[highlightColor] : undefined}
+            borderRadius="lg"
+            position="relative"
+            zIndex="0"
+            overflow="hidden"
+        >
+            <Box
+                style={{
+                    // CSS trick: Padding and margin percentages are always based on element width.
+                    // Even when setting `padding-bottom` or `margin-bottom`. In this case it
+                    // allows us to create a square when the width is dynamic.
+                    paddingBottom: "100%",
+                }}
+            />
+            <Box
+                position="absolute"
+                inset="0"
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+                color="grey-text"
+                fontSize="300"
+            >
+                A
+            </Box>
+            {isActive && (
+                <Box color={`${highlightColor}-60`} position="absolute" top="0.5" right="1">
+                    <Check weight="bold" size={spacing["4"]} />
+                </Box>
+            )}
+            {isPressed && (
+                <Box
+                    position="absolute"
+                    inset="0"
+                    backgroundColor="grey-dark"
+                    pointerEvents="none"
+                    style={{opacity: buttonStyles.buttonPressedOverlayOpacity}}
+                />
+            )}
+        </Box>
+    );
 }

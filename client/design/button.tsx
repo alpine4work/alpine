@@ -1,7 +1,7 @@
 import {PressEvent} from "@react-types/shared";
 import classNames from "classnames";
 import {IconContext, SpinnerGap} from "phosphor-react";
-import {ReactNode, Ref, forwardRef, useRef, useState} from "react";
+import {ReactNode, Ref, createElement, forwardRef, useRef, useState} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -129,6 +129,25 @@ function Button(
          * What to set `flexShrink` to. Defaults to 0.
          */
         flexShrink?: "0" | "1";
+
+        /**
+         * Disable focusing this button through sequential keyboard navigation using
+         * the `Tab` button. This sets `tabindex="-1"` on the element. The element will
+         * still be programmatically focusable.
+         *
+         * Defaults to `true`.
+         */
+        isTabbable?: boolean;
+
+        /**
+         * Disables the ability to focus this button. Turns the element into a `<div>`
+         * and doesn't set `tabindex` on the element. The element isn't even focusable
+         * programmatically. Useful if you don't want focus to move when the button is
+         * pressed.
+         *
+         * Defaults to `true`.
+         */
+        isFocusable?: boolean;
     },
     foreignRef: Ref<HTMLButtonElement>,
 ) {
@@ -148,6 +167,8 @@ function Button(
         height = "7",
         borderRightRadius = "base",
         flexShrink = "0",
+        isTabbable = true,
+        isFocusable = true,
     } = props;
     const showToast = useShowToast();
     const localRef = useRef<HTMLButtonElement>(null);
@@ -158,6 +179,7 @@ function Button(
     const {buttonProps, isPressed} = useButton(
         {
             ...props,
+            elementType: isFocusable ? "button" : "div",
             // Disable the button while we are pending to avoid multiple clicks firing the
             // action multiple times.
             isDisabled: isDisabled || isPending,
@@ -375,44 +397,50 @@ function Button(
 
     let node = (
         <FocusRing offset={isQuietVariant ? "0" : "0.5"}>
-            <button
-                {...mergeProps(buttonProps, hoverProps)}
-                ref={useMergedRefs(foreignRef, localRef)}
-                className={sprinkles({
-                    ...stylesByVariant[variant],
+            {createElement(
+                isFocusable ? "button" : "div",
+                {
+                    ...mergeProps(buttonProps, hoverProps),
+                    ref: useMergedRefs(foreignRef, localRef),
+                    className: sprinkles({
+                        ...stylesByVariant[variant],
 
-                    position: "relative",
-                    overflow: "hidden",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    height,
-                    minWidth: !isQuietVariant ? "16" : undefined,
-                    width: fullWidth ? "full" : undefined,
-                    paddingX,
-                    fontSize: "75",
-                    borderLeftRadius: "base",
-                    borderRightRadius,
-                    // You may notice our button doesn't have a pointer cursor. See:
-                    // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
-                    cursor: "default",
-                    // If this button is in a `display: flex` element, don't shrink the button based
-                    // on other contents.
-                    flexShrink,
-                })}
-                style={{
-                    // Use a box-shadow for drawing the border so it doesn't affect layout.
-                    boxShadow: isOutlineVariant
-                        ? `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`
-                        : undefined,
-                }}
-                // Allow the button to maintain focus when pending. This way if a button is
-                // used in a `useConfirmSaveAfterLosingFocus()` hook (like comment inputs in
-                // `<DocumentContentEditor>`) and it enters a pending state we don't think the
-                // parent element has lost focus.
-                disabled={isPending && !isDisabled ? undefined : buttonProps.disabled}
-            >
-                {isPressed && willDarkenWithOverlayOnPress && (
+                        position: "relative",
+                        overflow: "hidden",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        height,
+                        minWidth: !isQuietVariant ? "16" : undefined,
+                        width: fullWidth ? "full" : undefined,
+                        paddingX,
+                        fontSize: "75",
+                        borderLeftRadius: "base",
+                        borderRightRadius,
+                        // You may notice our button doesn't have a pointer cursor. See:
+                        // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
+                        cursor: "default",
+                        // If this button is in a `display: flex` element, don't shrink the button based
+                        // on other contents.
+                        flexShrink,
+                    }),
+                    style: {
+                        // Use a box-shadow for drawing the border so it doesn't affect layout.
+                        boxShadow: isOutlineVariant
+                            ? `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`
+                            : undefined,
+                    },
+                    tabIndex: isFocusable ? (!isTabbable ? -1 : buttonProps.tabIndex) : undefined,
+                    // Allow the button to maintain focus when pending. This way if a button is
+                    // used in a `useConfirmSaveAfterLosingFocus()` hook (like comment inputs in
+                    // `<DocumentContentEditor>`) and it enters a pending state we don't think the
+                    // parent element has lost focus.
+                    disabled:
+                        isPending && !isDisabled
+                            ? undefined
+                            : (buttonProps as {disabled?: boolean}).disabled,
+                },
+                isPressed && willDarkenWithOverlayOnPress && (
                     // For accent buttons, instead of choosing a darker background color shade when
                     // pressed we add a black overlay at a lowered opacity. We accomplish this with
                     // an overlay element since such a color is not in our color scheme.
@@ -432,8 +460,8 @@ function Button(
                         })}
                         style={{opacity: buttonStyles.buttonPressedOverlayOpacity}}
                     />
-                )}
-                {shouldShowPendingSpinner && !iconChild && (
+                ),
+                shouldShowPendingSpinner && !iconChild && (
                     <SpinnerGap
                         className={classNames(
                             sprinkles({position: "absolute"}),
@@ -441,7 +469,7 @@ function Button(
                         )}
                         size={spacing["4"]}
                     />
-                )}
+                ),
                 <span
                     className={sprinkles({
                         display: "flex",
@@ -476,8 +504,8 @@ function Button(
                         ) : (
                             iconChild
                         ))}
-                </span>
-            </button>
+                </span>,
+            )}
         </FocusRing>
     );
 
