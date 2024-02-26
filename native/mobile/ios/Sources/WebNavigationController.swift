@@ -9,19 +9,19 @@ private let logger = Logger(
 
 @objc protocol WebNavigationControllerDelegate {
     @objc optional func webNavigationController(
-        _ navigationController: WebNavigationController,
+        _ webNavigationController: WebNavigationController,
         didAddWebScrollView webScrollView: UIScrollView,
         isMain: Bool
     )
     @objc optional func webNavigationController(
-        _ navigationController: WebNavigationController,
+        _ webNavigationController: WebNavigationController,
         didScrollWebScrollView webScrollView: UIScrollView
     )
     @objc optional func webNavigationController(
-        runScrollDebounceTimeout navigationController: WebNavigationController
+        runScrollDebounceTimeout webNavigationController: WebNavigationController
     )
     @objc optional func webNavigationController(
-        _ navigationController: WebNavigationController,
+        _ webNavigationController: WebNavigationController,
         didKeyboardSubstituteOpenChange isKeyboardSubstituteOpen: Bool
     )
 }
@@ -328,6 +328,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         let rootViewController = WebNavigationEntryController(
             url: url,
+            webNavigationController: self,
             webView: webView,
             healthState: webViewHealthState
         )
@@ -660,6 +661,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
             let viewController = WebNavigationEntryController(
                 url: url,
+                webNavigationController: self,
                 webView: webView,
                 healthState: webViewHealthState
             )
@@ -685,7 +687,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 super.popToViewController(viewController, animated: true)
             } else {
                 // If we couldn't find the view controller to pop to, then set the top view
-                // controller's view controller as the popped route.
+                // controller as the popped route.
                 //
                 // NOTE(calebmer): This branch really shouldn't happen. I'm not sure if this is
                 // the best default if it does, though. If we find a valid use case where this
@@ -1333,7 +1335,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     // view back. (Unless the web view has found a new home. e.g. Because a push
                     // navigation happened.)
                     if context.isCancelled {
-                        if webView.superview == nil {
+                        if webView.superview == nil || webView.superview == view {
                             lastTopViewController.moveWebViewInto(webView)
                         }
                     } else {
@@ -1561,13 +1563,20 @@ private struct WebViewHealthState {
 
 private class WebNavigationEntryController: UIViewController {
     var url: URL
+    private weak var webNavigationController: WebNavigationController?
     private var loadingIndicatorTimer: Timer?
     private var loadingIndicatorTimerGeneration: Int = 0
     private var hasViewAppeared: Bool = false
     private var shouldPresentLoadingIndicator = false
 
-    init(url: URL, webView: WKWebView, healthState: WebViewHealthState) {
+    init(
+        url: URL,
+        webNavigationController: WebNavigationController,
+        webView: WKWebView,
+        healthState: WebViewHealthState
+    ) {
         self.url = url
+        self.webNavigationController = webNavigationController
 
         super.init(nibName: nil, bundle: nil)
 
@@ -1633,7 +1642,7 @@ private class WebNavigationEntryController: UIViewController {
             // continue receiving `requestAnimationFrame()` events.
             if subview === webView {
                 webView.isHidden = true
-                navigationController!.view.addSubview(webView)
+                webNavigationController!.view.addSubview(webView)
             }
         }
 
@@ -1750,6 +1759,14 @@ private class WebNavigationEntryController: UIViewController {
         // Don't show loading indicator if our entry isn't visible.
         if !hasViewAppeared { return }
 
+        // If the user is dragging to pop then the top view controller will have a
+        // `transitionCoordinator`. So if we detect no transition coordinator directly
+        // on our view controller, check the top view controller in our navigation
+        // controller.
+        let transitionCoordinator =
+            self.transitionCoordinator
+            ?? webNavigationController?.topViewController?.transitionCoordinator
+
         // Wait to show a loading indicator until any active transition is done.
         if let transitionCoordinator = transitionCoordinator {
             if !transitionCoordinator.isInteractive {
@@ -1818,8 +1835,7 @@ private class WebNavigationEntryController: UIViewController {
             UIAlertAction(
                 title: "Retry",
                 style: .default,
-                handler: { [self] (_) in (parent as? WebNavigationController)!.forceReloadWebView()
-                }
+                handler: { [self] (_) in webNavigationController!.forceReloadWebView() }
             )
         )
 

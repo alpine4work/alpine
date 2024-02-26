@@ -21,6 +21,7 @@ import {
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * This is a fork of the [`<RouterProvider>` component in `react-router`][1].
@@ -146,20 +147,37 @@ export function AppRouterProvider({
         if (lastLocationKeyForLayoutEffectRef.current === state.location.key) return;
         lastLocationKeyForLayoutEffectRef.current = state.location.key;
 
-        const url = new URL(router.createHref(state.location), window.location.href);
+        if (!NativeMobileBridge) return;
 
-        if (state.historyAction === "PUSH") {
-            NativeMobileBridge?.navigation.push(url);
-        } else if (state.historyAction === "POP") {
-            if (state.location.state?.isNotFromExternal) {
-                NativeMobileBridge?.navigation.pop(url);
-            } else {
-                NativeMobileBridge?.navigation.finishExternalPop();
-            }
-        } else if (state.historyAction === "REPLACE") {
-            // NOCOMMIT: Test that this works!
-            NativeMobileBridge?.navigation.replace(url);
-        }
+        // Double request animation frame to make absolutely certain the browser
+        // has finished painting the new location. We've observed cases on iOS for the
+        // drag from left to pop gesture where the animation finishes and the old route
+        // briefly flashes before the new route renders. This is because the browser
+        // hasn't finished rendering the correct route by the time we call
+        // `NativeMobileBridge.navigation.finishExternalPop()`.
+        //
+        // Double request animation frame guarantees we run some code after the
+        // browser's next animation frame.
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                assert(NativeMobileBridge);
+
+                const url = new URL(router.createHref(state.location), window.location.href);
+
+                if (state.historyAction === "PUSH") {
+                    NativeMobileBridge.navigation.push(url);
+                } else if (state.historyAction === "POP") {
+                    if (state.location.state?.isNotFromExternal) {
+                        NativeMobileBridge.navigation.pop(url);
+                    } else {
+                        NativeMobileBridge.navigation.finishExternalPop();
+                    }
+                } else if (state.historyAction === "REPLACE") {
+                    // NOCOMMIT: Test that this works!
+                    NativeMobileBridge.navigation.replace(url);
+                }
+            });
+        });
     }, [router, state.historyAction, state.location, state.location.key]);
 
     return (
