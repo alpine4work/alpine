@@ -247,10 +247,10 @@ index 08846c4605214228051c9ba21216a70dc8d015c3..b44a116652bf563e167b0b52f433d4b0
 +export { loadRouteModuleWithBlockingLinks, createClientRoutes, createServerRoutes } from './routes.js';
 +export { deserializeErrors } from './errors.js';
 diff --git a/dist/esm/routes.js b/dist/esm/routes.js
-index 76d512bf71729951e5c45dce97c9423f7308d250..0a5c5f2ea064e93ba8cc0eb1ddb6e0f8c640af32 100644
+index 76d512bf71729951e5c45dce97c9423f7308d250..4ec4f576b378a3beed6b9263bbc766875f7e22e2 100644
 --- a/dist/esm/routes.js
 +++ b/dist/esm/routes.js
-@@ -105,14 +105,15 @@ function createShouldRevalidate(route, routeModules, needsRevalidation) {
+@@ -105,40 +105,80 @@ function createShouldRevalidate(route, routeModules, needsRevalidation) {
      return arg.defaultShouldRevalidate;
    };
  }
@@ -268,8 +268,26 @@ index 76d512bf71729951e5c45dce97c9423f7308d250..0a5c5f2ea064e93ba8cc0eb1ddb6e0f8
    }) => {
      let routeModulePromise = loadRouteModuleWithBlockingLinks(route, routeModules);
      try {
-@@ -133,12 +134,46 @@ function createDataFunction(route, routeModules, isAction) {
+       if (isAction && !route.hasAction) {
+         let msg = `Route "${route.id}" does not have an action, but you are trying ` + `to submit to it. To fix this, please add an \`action\` function to the route`;
+         console.error(msg);
++        await routeModulePromise;
+         throw new Error(msg);
+       } else if (!isAction && !route.hasLoader) {
++        await routeModulePromise;
+         return null;
+       }
+       let result = await fetchData(request, route.id);
+       if (result instanceof Error) {
++        await routeModulePromise;
+         throw result;
+       }
+       if (isRedirectResponse(result)) {
++        await routeModulePromise;
+         throw getRedirect(result);
+       }
        if (isCatchResponse(result)) {
++        await routeModulePromise;
          throw result;
        }
 +
@@ -373,10 +391,10 @@ index f9e34d7b58f4c3abbdf5382fcb95f71d6322ac9f..7fa23c7a1381f4b232f52def1c201e2a
 +export function loadRouteModuleWithBlockingLinks(route: EntryRoute, routeModules: RouteModules): Promise<RouteModule>;
  export {};
 diff --git a/dist/routes.js b/dist/routes.js
-index 9ecc80713a04b565997423181c8c7091bb969be4..28b2793393385bb1fba393c4f8c8d0ec67ffdf39 100644
+index 9ecc80713a04b565997423181c8c7091bb969be4..953cbc08faf874c2c735a4b2c0c2329834245967 100644
 --- a/dist/routes.js
 +++ b/dist/routes.js
-@@ -133,7 +133,8 @@ async function loadRouteModuleWithBlockingLinks(route, routeModules$1) {
+@@ -133,33 +133,73 @@ async function loadRouteModuleWithBlockingLinks(route, routeModules$1) {
  }
  function createDataFunction(route, routeModules, isAction) {
    return async ({
@@ -386,8 +404,26 @@ index 9ecc80713a04b565997423181c8c7091bb969be4..28b2793393385bb1fba393c4f8c8d0ec
    }) => {
      let routeModulePromise = loadRouteModuleWithBlockingLinks(route, routeModules);
      try {
-@@ -154,12 +155,46 @@ function createDataFunction(route, routeModules, isAction) {
+       if (isAction && !route.hasAction) {
+         let msg = `Route "${route.id}" does not have an action, but you are trying ` + `to submit to it. To fix this, please add an \`action\` function to the route`;
+         console.error(msg);
++        await routeModulePromise;
+         throw new Error(msg);
+       } else if (!isAction && !route.hasLoader) {
++        await routeModulePromise;
+         return null;
+       }
+       let result = await data.fetchData(request, route.id);
+       if (result instanceof Error) {
++        await routeModulePromise;
+         throw result;
+       }
+       if (data.isRedirectResponse(result)) {
++        await routeModulePromise;
+         throw getRedirect(result);
+       }
        if (data.isCatchResponse(result)) {
++        await routeModulePromise;
          throw result;
        }
 +
@@ -434,7 +470,7 @@ index 9ecc80713a04b565997423181c8c7091bb969be4..28b2793393385bb1fba393c4f8c8d0ec
      }
    };
  }
-@@ -179,3 +214,4 @@ function getRedirect(response) {
+@@ -179,3 +219,4 @@ function getRedirect(response) {
  
  exports.createClientRoutes = createClientRoutes;
  exports.createServerRoutes = createServerRoutes;
