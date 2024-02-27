@@ -95,7 +95,7 @@ export function ContentEditorMentionFloater({
     const accountStore = useAccountClientStore();
     const allAccounts = useExpensivelyLoadAllSpaceAccounts();
 
-    const allUnsortedAccountDatas = useStore(
+    const allAccountDatas = useStore(
         useMemo(
             () =>
                 allAccounts
@@ -108,26 +108,17 @@ export function ContentEditorMentionFloater({
         ),
     );
 
-    const allAccountDatas = useMemo(() => {
-        if (!allUnsortedAccountDatas) return null;
+    const allAccountsFuse = useMemo(() => {
+        if (!allAccountDatas) return null;
 
-        // Sort accounts by name using the user's current locale. Ideally we would sort
-        // by relevance to the user but this is the simple thing to do for now.
-        const accountDatas = Array.from(allUnsortedAccountDatas).sort((account1, account2) =>
-            account1.name.localeCompare(account2.name),
-        );
-
-        // Build Fuse search index...
-        const fuse = new Fuse(accountDatas, {keys: ["name"], includeScore: true});
-
-        return {accountDatas, fuse};
-    }, [allUnsortedAccountDatas]);
+        return new Fuse(allAccountDatas, {keys: ["name"], includeScore: true});
+    }, [allAccountDatas]);
 
     const searchedAccountDatas = useMemo(() => {
-        if (!allAccountDatas) return null;
-        if (searchQuery.length === 0) return allAccountDatas.accountDatas;
-        return allAccountDatas.fuse.search(searchQuery).map(({item}) => item);
-    }, [allAccountDatas, searchQuery]);
+        if (!allAccountDatas || !allAccountsFuse) return null;
+        if (searchQuery.length === 0) return allAccountDatas;
+        return allAccountsFuse.search(searchQuery).map(({item}) => item);
+    }, [allAccountDatas, allAccountsFuse, searchQuery]);
 
     const [_selectionState, setSelectionState] = useState<{
         searchQuery: string;
@@ -152,8 +143,8 @@ export function ContentEditorMentionFloater({
         // If the account's short name is not ambiguous when searching all account
         // names then we will insert a short mention by default. The user can undo
         // (cmd-z) to get the long version of the mention.
-        const isShortNameAmbiguous = allAccountDatas
-            ? allAccountDatas.fuse
+        const isShortNameAmbiguous = allAccountsFuse
+            ? allAccountsFuse
                   .search(getAccountShortNameWithoutFullNameTooltip(accountData))
                   .filter(result => typeof result.score !== "number" || result.score < 0.25)
                   .length > 1

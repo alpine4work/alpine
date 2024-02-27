@@ -6,6 +6,7 @@ import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchEntityAffinityId} from "~/shared/search/search_entity_affinity_id.js";
@@ -386,4 +387,37 @@ export async function internalGetAffinitiveSearchEntityIds(
 
     candidateItems.sort((a, b) => b.points - a.points);
     return candidateItems.slice(0, limit);
+}
+
+/**
+ * Get all accounts our actor has an affinity for sorted by affinity score. We
+ * display accounts in this order when the user goes to mention someone or send
+ * a message.
+ */
+export async function getAccountIdsSortedBySearchEntityAffinity(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+): Promise<Array<AccountId>> {
+    const items = await arrayFromAsyncIterable(
+        SearchEntityTable.query(context, {
+            partitionKey: {
+                partitionType: "Account",
+                spaceId,
+                accountId: context.actor.getAccountId(),
+            },
+            startSortKey: {
+                sortRangeType: "SearchEntityAffinity",
+                entityId: `Account:${DynamoKeyAttributeSchema.id.getMinValue<AccountId>()}`,
+            },
+            endSortKey: {
+                sortRangeType: "SearchEntityAffinity",
+                entityId: `Account:${DynamoKeyAttributeSchema.id.getMaxValue<AccountId>()}`,
+            },
+            limit: "All",
+        }),
+    );
+
+    items.sort((a, b) => b.points - a.points);
+
+    return items.map(item => item.entityId.slice(8) as AccountId);
 }

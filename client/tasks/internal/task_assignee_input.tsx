@@ -143,21 +143,21 @@ function TaskAssigneeInput(
     useExpensivelyPreloadAllSpaceAccounts();
 
     const [shouldLoadAccounts, setShouldLoadAccounts] = useState(false);
-    const allUnsortedAccounts =
+    const allAccounts =
         useExpensivelyLoadAllSpaceAccounts({isDisabled: !shouldLoadAccounts}) ?? emptyArray;
 
     const accountById = useMemo(() => {
         const accountById = new Map<AccountId, AccountModel>();
-        for (const account of allUnsortedAccounts) accountById.set(account.id, account);
+        for (const account of allAccounts) accountById.set(account.id, account);
         return accountById;
-    }, [allUnsortedAccounts]);
+    }, [allAccounts]);
 
     const allItems = useStore(
         useMemo(() => {
             return Store.mapMany(
-                allUnsortedAccounts.map(account => accountStore.getAccountStore(account)),
-                allUnsortedAccountDatas => {
-                    const allItems: Array<TaskAssigneeInputItem> = allUnsortedAccountDatas.map(
+                allAccounts.map(account => accountStore.getAccountStore(account)),
+                allAccountDatas => {
+                    const allItems: Array<TaskAssigneeInputItem> = allAccountDatas.map(
                         accountData => ({
                             type: "Account",
                             key: `Account:${accountData.id}`,
@@ -174,13 +174,15 @@ function TaskAssigneeInput(
                         if (item1.accountData.id === currentAccount.id) return -1;
                         if (item2.accountData.id === currentAccount.id) return 1;
 
-                        return item1.accountData.name.localeCompare(item2.accountData.name);
+                        // Use the sort order from the server. The server returns accounts in
+                        // affinity order.
+                        return 0;
                     });
 
                     return allItems;
                 },
             );
-        }, [accountStore, allUnsortedAccounts, currentAccount.id]),
+        }, [accountStore, allAccounts, currentAccount.id]),
     );
 
     const itemsSearchIndex = useMemo(

@@ -103,14 +103,14 @@ export function ChatAccountPicker({
     useExpensivelyPreloadAllSpaceAccounts();
 
     const [shouldLoadAccounts, setShouldLoadAccounts] = useState(false);
-    const allUnsortedAccounts =
+    const allAccounts =
         useExpensivelyLoadAllSpaceAccounts({isDisabled: !shouldLoadAccounts}) ?? emptyArray;
 
     const accountById = useMemo(() => {
         const accountById = new Map<AccountId, AccountModel>();
-        for (const account of allUnsortedAccounts) accountById.set(account.id, account);
+        for (const account of allAccounts) accountById.set(account.id, account);
         return accountById;
-    }, [allUnsortedAccounts]);
+    }, [allAccounts]);
 
     const suggestedChatById = useMemo(() => {
         const suggestedChatById = new Map<ChatId, ChatModel>();
@@ -148,7 +148,7 @@ export function ChatAccountPicker({
             );
         }
 
-        for (const account of allUnsortedAccounts) {
+        for (const account of allAccounts) {
             itemStores.push(
                 accountStore.getAccountStore(account).map((accountData): ChatAccountPickerItem => {
                     return {
@@ -166,10 +166,13 @@ export function ChatAccountPicker({
                 if (item1.type === "Chat" && item2.type === "Chat") return 0;
                 if (item1.type === "Chat") return -1;
                 if (item2.type === "Chat") return 1;
-                return item1.textValue.localeCompare(item2.textValue);
+
+                // Use the sort order from the server. The server returns accounts in
+                // affinity order.
+                return 0;
             }),
         );
-    }, [accountStore, allUnsortedAccounts, currentAccount.id, suggestedChats]);
+    }, [accountStore, allAccounts, currentAccount.id, suggestedChats]);
 
     const allItems = useStore(allItemsStore);
 
