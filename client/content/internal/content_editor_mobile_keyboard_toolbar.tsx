@@ -17,6 +17,10 @@ import {EditorView} from "prosemirror-view";
 import {ReactNode, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {
+    ContentEditorMobileLinkRoute,
+    ContentEditorMobileLinkRouteState,
+} from "~/client/content/content_editor_mobile_link_route.js";
+import {
     ContentEditorMobileKeyboardSubstitute,
     ContentEditorMobileKeyboardSubstituteRef,
 } from "~/client/content/internal/content_editor_mobile_keyboard_substitute.js";
@@ -29,6 +33,7 @@ import {
     indentListItemCommand,
 } from "~/client/content/internal/content_editor_prosemirror_helpers.js";
 import {Box} from "~/client/design/box.js";
+import {MobileModal} from "~/client/design/mobile_modal.js";
 import {
     nativeMobileBottomBarKeyboardToolbarHeight,
     nativeMobileBottomBarKeyboardToolbarHeightRem,
@@ -162,6 +167,10 @@ export function ContentEditorMobileKeyboardToolbar({
             (isUnorderedListItemActive || isOrderedListItemActive || isCheckListItemActive) &&
             dedentListItemCommand(state),
         [isCheckListItemActive, isOrderedListItemActive, isUnorderedListItemActive, state],
+    );
+
+    const [linkRouteState, setLinkRouteState] = useState<ContentEditorMobileLinkRouteState | null>(
+        null,
     );
 
     return (
@@ -368,7 +377,20 @@ export function ContentEditorMobileKeyboardToolbar({
                         setIsSubstituteOpen(false);
                         void NativeMobileBridge?.keyboard.cleanupAfterSubstitute();
                     }}
+                    onLinkRouteOpen={setLinkRouteState}
                 />
+            )}
+            {linkRouteState && (
+                <MobileModal onClose={() => setLinkRouteState(null)}>
+                    {({onCloseWithAnimation}) => (
+                        <ContentEditorMobileLinkRoute
+                            initialText={linkRouteState.initialText}
+                            isTextEditable={linkRouteState.isTextEditable}
+                            initialUrl={linkRouteState.initialUrl}
+                            onCancel={onCloseWithAnimation}
+                        />
+                    )}
+                </MobileModal>
             )}
         </>
     );

@@ -18,6 +18,7 @@ import {
     useDevConsoleTool,
 } from "~/client/dev/dev_console.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
+import {disableMobileWebKitDefaultScroll} from "~/client/helpers/disable_mobile_web_kit_default_scroll.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
@@ -619,60 +620,16 @@ function useMobileWebKitKeyboardSupport() {
             });
         };
 
-        const handleTouchMove = (event: TouchEvent) => {
-            if (!(event.target instanceof Node)) {
-                event.preventDefault();
-                return;
-            }
-
-            // We cache the `overflow-y` parent for the event target because this handler
-            // needs to run very fast given `{passive: false}` is set. Otherwise
-            // interaction performance (e.g. scroll performance) will be hurt.
-            let overflowYParent = overflowYParentCache.get(event.target);
-            if (overflowYParent === undefined) {
-                overflowYParent = getOverflowYParent(event.target);
-                overflowYParentCache.set(event.target, overflowYParent);
-            }
-
-            const hasScrollableOverflowYParent =
-                !!overflowYParent &&
-                (overflowYParent.overflowY !== "auto" ||
-                    overflowYParent.element.scrollHeight > overflowYParent.element.clientHeight);
-
-            if (!hasScrollableOverflowYParent) {
-                event.preventDefault();
-                return;
-            }
-        };
-
-        const overflowYParentCache = new WeakMap<
-            Node,
-            {element: HTMLElement; overflowY: "scroll" | "auto"} | null
-        >();
-
-        const getOverflowYParent = (
-            node: Node,
-        ): {element: HTMLElement; overflowY: "scroll" | "auto"} | null => {
-            let element = node instanceof HTMLElement ? node : node.parentElement;
-
-            while (element) {
-                const {overflowY} = getComputedStyle(element);
-
-                if (overflowY === "scroll" || overflowY === "auto") {
-                    return {element, overflowY};
-                }
-
-                element = element.parentElement;
-            }
-
-            return null;
-        };
-
         (window.visualViewport ?? window).addEventListener("resize", handleResize);
-        document.addEventListener("touchmove", handleTouchMove, {passive: false});
+
+        // Disable default scroll when the keyboard is open. Opening the keyboard makes the
+        // `html` element scrollable even though `overflow: hidden` is set in CSS. This
+        // function stops the `html` element from being scrolled.
+        const enableDefaultScroll = disableMobileWebKitDefaultScroll();
+
         return () => {
             (window.visualViewport ?? window).removeEventListener("resize", handleResize);
-            document.removeEventListener("touchmove", handleTouchMove);
+            enableDefaultScroll();
         };
     }, []);
 

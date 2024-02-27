@@ -82,6 +82,7 @@ const properties = defineProperties({
             "60": 60,
             "70": 70,
             "80": 80,
+            "90": 90,
             "-10": -10,
             "-20": -20,
             "-30": -30,
@@ -90,6 +91,7 @@ const properties = defineProperties({
             "-60": -60,
             "-70": -70,
             "-80": -80,
+            "-90": -90,
         },
         cursor: {
             auto: "auto",

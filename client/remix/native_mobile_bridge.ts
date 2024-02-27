@@ -170,14 +170,8 @@ export const NativeMobileBridge: {
          * reloaded.) If a native initiated navigation goes back to this screen we'll
          * make sure this URL is rendered regardless of our current web code navigation
          * state.
-         *
-         * If `isModal` is true then instead of pushing the usual navigation stack
-         * entry from the right, the screen appears from the bottom of the screen over
-         * the tab bar. While in this screen there are no navigation animations. Use
-         * this for quick, single-purpose, focused views. Since there's no tab bar
-         * navigation or further navigation animations.
          */
-        push(url: URL, options: {isModal: boolean}): void;
+        push(url: URL): void;
 
         /**
          * There are two kinds of pop navigations that may happen in our native mobile
@@ -272,11 +266,37 @@ export const NativeMobileBridge: {
         replace(url: URL): void;
 
         /**
-         * Schedule a callback to run after a push animation completes. The push
-         * animation starts when `preparePush()` is called and ends when native code
-         * calls the animation completion handler.
+         * Works similar to `preparePush()` and `push()` except a modal is displayed
+         * from the bottom of the screen and the navigation stack is unchanged.
          */
-        scheduleAfterPushAnimation(action: () => void): void;
+        preparePresentModal(): void;
+
+        /**
+         * Works similar to `preparePush()` and `push()` except a modal is displayed
+         * from the bottom of the screen and the navigation stack is unchanged.
+         */
+        presentModal(): void;
+
+        /**
+         * Works similar to `preparePush()` and `push()` except a presented modal is
+         * animated offscreen and the navigation stack is unchanged.
+         */
+        prepareDismissModal(): void;
+
+        /**
+         * Works similar to `preparePush()` and `push()` except a presented modal is
+         * animated offscreen and the navigation stack is unchanged.
+         */
+        dismissModal(): void;
+
+        /**
+         * Schedule a callback to run after a push animation completes. The push
+         * animation starts when `preparePush()` (or another prepare function) is
+         * called and ends when native code calls the animation completion handler.
+         *
+         * Does not work for external pop navigations.
+         */
+        scheduleAfterAnimation(action: () => void): void;
     };
 
     /**

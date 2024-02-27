@@ -1,1 +1,0 @@
-export {getContentEditorMobileKeyboardSubstituteClosingAnimationPromise} from "~/client/content/internal/content_editor_mobile_keyboard_substitute.js";

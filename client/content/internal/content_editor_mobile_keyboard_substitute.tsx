@@ -33,6 +33,7 @@ import {
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
+import {ContentEditorMobileLinkRouteState} from "~/client/content/content_editor_mobile_link_route.js";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {
     areAllNodesBlockType,
@@ -49,10 +50,6 @@ import {nativeMobileBottomBarKeyboardSubstituteHeight} from "~/client/design/nat
 import {Spacer} from "~/client/design/spacer.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
-import {MobileContentEditorLinkRouteStateSchema} from "~/client/remix/mobile_content_editor_link_route_state.js";
-import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
@@ -63,8 +60,6 @@ import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/pro
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {generateId} from "~/shared/id/id.js";
-import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {buttonStyles, colorSchemeVars, contentSchemaStyles} from "~/shared/styles/styles.js";
 
@@ -80,28 +75,17 @@ export {ContentEditorMobileKeyboardSubstituteForwardRef as ContentEditorMobileKe
 let contentEditorMobileKeyboardSubstituteClosingAnimationPromiseResolver: PromiseResolver<void> | null =
     null;
 
-/**
- * If we are currently closing the content editor keyboard substitute then this
- * promise will resolve when we finish closing.
- */
-export function getContentEditorMobileKeyboardSubstituteClosingAnimationPromise(): Promise<void> {
-    return Promise.race([
-        contentEditorMobileKeyboardSubstituteClosingAnimationPromiseResolver?.promise,
-        // The closing animation should take 250ms but just in case there's a bug that
-        // causes us to never resolve the promise, let's resolve in 1000ms.
-        wait(delayScreenTransitionLoadingIndicatorLimitMs),
-    ]);
-}
-
 function ContentEditorMobileKeyboardSubstitute(
     {
         state,
         viewRef,
         onClose,
+        onLinkRouteOpen,
     }: {
         state: EditorState & {schema: ContentProsemirrorSchema};
         viewRef: RefObject<EditorView | null>;
         onClose: () => void;
+        onLinkRouteOpen: (state: ContentEditorMobileLinkRouteState) => void;
     },
     ref: Ref<ContentEditorMobileKeyboardSubstituteRef>,
 ) {
@@ -267,6 +251,7 @@ function ContentEditorMobileKeyboardSubstitute(
                         viewRef={viewRef}
                         selectionMarks={selectionMarks}
                         activeHighlightMark={activeHighlightMark}
+                        onLinkRouteOpen={onLinkRouteOpen}
                         // No animation when switching to the highlight selector. iOS has no animation
                         // when switching keyboard types. I promise following platform convention is
                         // the reason, not that I'm lazy.
@@ -292,6 +277,7 @@ function ContentEditorMobileKeyboardSubstituteMain({
     viewRef,
     selectionMarks,
     activeHighlightMark,
+    onLinkRouteOpen,
     onHighlightSelectorOpen,
     onSelectHighlightColor,
 }: {
@@ -299,12 +285,10 @@ function ContentEditorMobileKeyboardSubstituteMain({
     viewRef: RefObject<EditorView | null>;
     selectionMarks: ReadonlyArray<Mark>;
     activeHighlightMark: Mark | null;
+    onLinkRouteOpen: (state: ContentEditorMobileLinkRouteState) => void;
     onHighlightSelectorOpen: () => void;
     onSelectHighlightColor: (highlightColor: HighlightColor | null) => void;
 }) {
-    const navigate = useNavigate();
-    const {space} = useSpaceContext();
-
     const {isBoldActive, isItalicActive, isStrikeActive, isCodeActive} = useMemo(() => {
         const boldMark = state.schema.mark("bold");
         const italicMark = state.schema.mark("italic");
@@ -435,29 +419,24 @@ function ContentEditorMobileKeyboardSubstituteMain({
                             getContentEditorReferences(view.state).references,
                         );
 
-                    void navigate(
-                        `/s/${space.id}/mobile/editor/link/${
-                            MobileContentEditorLinkRouteStateSchema.serialize({
-                                type: "Document",
-                                // NOCOMMIT
-                                documentId: generateId(),
-                                selection: ProsemirrorSelectionWrapper.new(selection),
-                                // NOCOMMIT
-                                initialText:
-                                    // If selection text is not editable, truncate it so our URL isn't too long.
-                                    !isSelectionEditable && selectionText.length > 80
-                                        ? `${selectionText.slice(0, 80)}…`
-                                        : selectionText,
-                                isTextEditable: isSelectionEditable,
-                                initialUrl: linkSelection?.mark.attrs?.url ?? "",
-                            }) as string
-                        }`,
-                        {
-                            // Setting `isNativeMobileModal` to true will animate in this screen from the
-                            // bottom instead of from the right.
-                            state: NativeMobileBridge ? {isNativeMobileModal: true} : undefined,
-                        },
-                    );
+                    view.dispatch(view.state.tr.setSelection(selection));
+
+                    Promise.race([
+                        contentEditorMobileKeyboardSubstituteClosingAnimationPromiseResolver.promise,
+                        // The closing animation should take 250ms but just in case there's a bug that
+                        // causes us to never resolve the promise, let's resolve in 1000ms.
+                        wait(delayScreenTransitionLoadingIndicatorLimitMs),
+                    ]).finally(() => {
+                        onLinkRouteOpen({
+                            initialText:
+                                // If selection text is not editable, truncate it so our URL isn't too long.
+                                !isSelectionEditable && selectionText.length > 80
+                                    ? `${selectionText.slice(0, 80)}…`
+                                    : selectionText,
+                            isTextEditable: isSelectionEditable,
+                            initialUrl: linkSelection?.mark.attrs?.url ?? "",
+                        });
+                    });
                 }}
             />
             <ContentEditorMobileKeyboardSubstituteButton
