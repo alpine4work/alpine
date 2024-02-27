@@ -69,16 +69,9 @@ export function links(): Array<LinkDescriptor> {
         // - `overflow: hidden`: Turn off scrolling on `body` when in a space which
         //   comes with a top bar. This prevents over-scrolling up and down when at the
         //   top or bottom of a nested scroll view.
-        //
-        // - `background-color: ${colorSchemeVars["grey-0"]} !important`: Override
-        //   the default `grey-wash` background color with `grey-0` so when
-        //   overscrolling you get the same color as the navigation bar and tab bar.
-        //   We set the `grey-wash` background color on our outlet container.
         {
             rel: "stylesheet",
-            href: `data:text/css,${encodeURIComponent(
-                `html, body {overflow: hidden; background-color: ${colorSchemeVars["grey-0"]} !important}`,
-            )}`,
+            href: `data:text/css,${encodeURIComponent(`html, body {overflow: hidden}`)}`,
         },
     ];
 }
@@ -243,7 +236,6 @@ export default function SpaceLayoutRoute() {
         overflow: "hidden",
         position: "relative",
         zIndex: "0",
-        backgroundColor: "grey-wash",
     });
 
     // `height` is not a typo here. Even though all our containers (e.g. `html` and

@@ -1,7 +1,6 @@
 import {differenceInMinutes} from "date-fns";
 import {authorizeChatAccessForAccount, getChatAccountIds} from "~/server/chat/data/chat_table.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
-import {printContentSingleLineTextSnippet} from "~/server/content/print_content_single_line_text_snippet.js";
 import {
     ServerActionContextModules,
     ServerSessionActionContextModules,
@@ -40,6 +39,7 @@ import {
     getAccount,
     isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_table.js";
+import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {Context} from "~/shared/context/context.js";
 import {
     DocumentCommentModel,

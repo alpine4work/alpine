@@ -15,7 +15,7 @@ import {
 import {Command, EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {ReactNode, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
-import {usePress} from "react-aria";
+import {mergeProps, useHover, usePress} from "react-aria";
 import {
     ContentEditorMobileKeyboardSubstitute,
     ContentEditorMobileKeyboardSubstituteRef,
@@ -389,10 +389,13 @@ function ContentEditorMobileKeyboardToolbarButton({
     isDisabled?: boolean;
     onPress: () => void;
 }) {
+    const {isHovered, hoverProps} = useHover({});
     const {isPressed, pressProps} = usePress({
         isDisabled,
         onPress,
     });
+
+    const pressAndHoverProps = mergeProps(hoverProps, pressProps);
 
     // Change this state only when `isPressed` changes. If it becomes active while
     // pressed we don't want to change the color.
@@ -407,8 +410,8 @@ function ContentEditorMobileKeyboardToolbarButton({
                 <Box
                     // We want all space on the toolbar to be touchable so the user doesn't touch
                     // and nothing happens (which can feel like a bug).
-                    {...pressProps}
-                    // In case `pressProps` had a `ref`, unset it.
+                    {...pressAndHoverProps}
+                    // In case `pressAndHoverProps` had a `ref`, unset it.
                     ref={null}
                     height="full"
                     width="0.5"
@@ -417,7 +420,7 @@ function ContentEditorMobileKeyboardToolbarButton({
             <Box
                 // None of this is focusable since it's used on mobile where there's no
                 // keyboard navigation.
-                {...pressProps}
+                {...pressAndHoverProps}
                 flexGrow="1"
                 height="full"
                 paddingY="1"
@@ -435,7 +438,9 @@ function ContentEditorMobileKeyboardToolbarButton({
                             ? undefined
                             : isPressedAndActive
                             ? "grey-20"
-                            : isPressed || isActive
+                            : isHovered && isPressed
+                            ? "grey-20"
+                            : isPressed || isActive || isHovered
                             ? "grey-10"
                             : undefined
                     }
@@ -456,8 +461,8 @@ function ContentEditorMobileKeyboardToolbarButton({
             </Box>
             {dividerRight && (
                 <Box
-                    {...pressProps}
-                    // In case `pressProps` had a `ref`, unset it.
+                    {...pressAndHoverProps}
+                    // In case `pressAndHoverProps` had a `ref`, unset it.
                     ref={null}
                     height="full"
                     width="0.5"

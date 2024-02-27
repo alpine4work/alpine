@@ -1,5 +1,5 @@
-import {printContentSingleLineTextSnippet} from "~/server/content/print_content_single_line_text_snippet.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;

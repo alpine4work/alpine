@@ -1,6 +1,5 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {AddMarkStep, ReplaceStep} from "prosemirror-transform";
-import {printContentSingleLineTextSnippet} from "~/server/content/print_content_single_line_text_snippet.js";
 import {
     createDocument,
     createDocumentComment,
@@ -18,6 +17,7 @@ import {
     massageInboxEntriesQuery,
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
     DocumentContentProsemirrorSchema,

@@ -120,6 +120,14 @@ function Button(
         height?: "5" | "6" | "7";
 
         /**
+         * The font size of the button. Defaults to `75`.
+         */
+        // TODO(calebmer): Instead of having separate `paddingX`, `height`, and
+        // `fontSize` we should probably put together size presets that look nice like
+        // `<IconButton>`'s `size` prop?
+        fontSize?: "75" | "100";
+
+        /**
          * Amount of border radius to apply to the left of the button. Defaults to
          * `base`. Only really used to remove border radius.
          */
@@ -165,6 +173,7 @@ function Button(
         pressErrorTitle,
         paddingX = "3",
         height = "7",
+        fontSize = "75",
         borderRightRadius = "base",
         flexShrink = "0",
         isTabbable = true,
@@ -414,7 +423,7 @@ function Button(
                         minWidth: !isQuietVariant ? "16" : undefined,
                         width: fullWidth ? "full" : undefined,
                         paddingX,
-                        fontSize: "75",
+                        fontSize,
                         borderLeftRadius: "base",
                         borderRightRadius,
                         // You may notice our button doesn't have a pointer cursor. See:

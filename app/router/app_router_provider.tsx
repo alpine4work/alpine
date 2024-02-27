@@ -165,7 +165,9 @@ export function AppRouterProvider({
                 const url = new URL(router.createHref(state.location), window.location.href);
 
                 if (state.historyAction === "PUSH") {
-                    NativeMobileBridge.navigation.push(url);
+                    NativeMobileBridge.navigation.push(url, {
+                        isModal: !!state.location.state?.isNativeMobileModal,
+                    });
                 } else if (state.historyAction === "POP") {
                     if (state.location.state?.isNotFromExternal) {
                         NativeMobileBridge.navigation.pop(url);

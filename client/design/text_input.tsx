@@ -44,6 +44,22 @@ export type TextInputProps = {
     placeholder?: string;
 
     /**
+     * Is this input read-only? A read-only input is focusable but not editable.
+     * Unlike a disabled input which is neither focused nor editable.
+     */
+    isReadOnly?: boolean;
+
+    /**
+     * Hint to the browser for what type of virtual keyboard to use when editing
+     * this input. See the [HTML `inputmode` attribute docs][1] for valid values.
+     *
+     * Depending on what value you set, the input type might change.
+     *
+     * [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/inputmode
+     */
+    inputMode?: "tel" | "url" | "email" | "numeric" | "decimal";
+
+    /**
      * Hint to the browser what it should allow users to auto-complete. See the
      * [HTML `autocomplete` attribute docs][1] for valid values.
      *
@@ -53,6 +69,14 @@ export type TextInputProps = {
      * [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/autocomplete
      */
     autoComplete?: string;
+
+    /**
+     * Hint to the browser whether auto-capitalization should be allowed. See the
+     * [HTML `autocaptialize` attribute docs][1].
+     *
+     * [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/autocapitalize
+     */
+    autoCapitalize?: "sentences" | "words" | "none";
 
     /**
      * Name to assign this inputs value to when submitting a form.
@@ -67,7 +91,7 @@ export type TextInputProps = {
     /**
      * What font size should we use for the text in this input? Defaults to `75`.
      */
-    fontSize?: "75" | "200";
+    fontSize?: "75" | "100" | "200";
 
     /**
      * What font should we use for this text input? Defaults to `normal`.
@@ -85,6 +109,7 @@ export {TextInputForwardRef as TextInput};
 export const textInputClassName = sprinkles({
     border: "grey-20",
     backgroundColor: "grey-0",
+    color: "grey-text",
     borderRadius: "base",
 });
 
@@ -102,7 +127,10 @@ function TextInput(
         onChange,
         onEnter,
         placeholder,
+        isReadOnly,
+        inputMode,
         autoComplete,
+        autoCapitalize,
         formName,
         layout = "stacked",
         fontSize = "75",
@@ -112,6 +140,13 @@ function TextInput(
 ) {
     const {isAppleDevice} = useClientInfo();
     const id = useId();
+
+    const inputType =
+        inputMode === "url" || autoComplete === "url"
+            ? "url"
+            : inputMode === "email" || autoComplete === "email"
+            ? "email"
+            : "text";
 
     return (
         <Box
@@ -142,24 +177,31 @@ function TextInput(
             <FocusRing offset="border">
                 <input
                     ref={ref}
-                    className={classNames(
-                        textInputClassName,
-                        sprinkles({
-                            display: "block",
-                            width: "full",
-                            height: ({"75": "7", "200": "10"} as const)[fontSize],
-                            paddingX: ({"75": "2", "200": "3"} as const)[fontSize],
-                            fontSize,
-                            fontStyle,
-                            flex: layout === "inline" ? "auto" : undefined,
-                        }),
-                    )}
+                    className={sprinkles({
+                        border: "grey-20",
+                        borderRadius: "base",
+                        display: "block",
+                        width: "full",
+                        height: ({"75": "7", "100": "9", "200": "10"} as const)[fontSize],
+                        paddingX: ({"75": "2", "100": "2.5", "200": "3"} as const)[fontSize],
+                        fontSize,
+                        fontStyle,
+                        flex: layout === "inline" ? "auto" : undefined,
+                        backgroundColor: isReadOnly ? "grey-5" : "grey-0",
+                        color: isReadOnly ? "grey-70" : "grey-text",
+                    })}
+                    style={{
+                        // Allow contextual alternate glyphs in regular text content.
+                        fontFeatureSettings: inputType === "text" ? '"calt" on' : '"calt" off',
+                    }}
                     id={id}
-                    type={autoComplete === "email" ? "email" : "text"}
+                    type={inputType}
                     value={value}
                     onChange={event => onChange(event.currentTarget.value)}
                     placeholder={placeholder}
+                    readOnly={isReadOnly}
                     autoComplete={autoComplete}
+                    autoCapitalize={autoCapitalize}
                     name={formName}
                     aria-label={hideLabel ? label : undefined}
                     enterKeyHint={onEnter ? "done" : undefined}

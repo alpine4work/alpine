@@ -69,6 +69,14 @@ func swizzleWKWebView(_ webView: WKWebView, customInputAccessoryView: UIView?) {
             newClass: newClass
         )
 
+        addOverridingMethod(
+            baseClass: targetViewClass,
+            stubClass: WKContentView_Custom.self,
+            selector: #selector(WKContentView_Custom._elementDidFocus),
+            newClass: newClass,
+            areTypeEncodingDifferencesAllowed: true
+        )
+
         objc_registerClassPair(newClass)
     }
 
@@ -114,7 +122,8 @@ private func addOverridingMethod(
     baseClass: AnyClass,
     stubClass: AnyClass,
     selector: Selector,
-    newClass: AnyClass
+    newClass: AnyClass,
+    areTypeEncodingDifferencesAllowed: Bool = false
 ) {
     let baseMethod = class_getInstanceMethod(baseClass, selector)
     guard let baseMethod = baseMethod else {
@@ -130,18 +139,20 @@ private func addOverridingMethod(
     let stubMethodTypeEncoding = method_getTypeEncoding(stubMethod)!
 
     let baseMethodTypeEncodingString = String(cString: baseMethodTypeEncoding)
-    let stubMethodTypeEncodingString = String(cString: stubMethodTypeEncoding)
-    guard baseMethodTypeEncodingString == stubMethodTypeEncodingString else {
-        fatalError(
-            "Selector `\(selector)`'s stub method type encoding `\(stubMethodTypeEncodingString)` doesn't equal base method type encoding `\(baseMethodTypeEncodingString)`"
-        )
+    if !areTypeEncodingDifferencesAllowed {
+        let stubMethodTypeEncodingString = String(cString: stubMethodTypeEncoding)
+        guard baseMethodTypeEncodingString == stubMethodTypeEncodingString else {
+            fatalError(
+                "Selector `\(selector)`'s stub method type encoding `\(stubMethodTypeEncodingString)` doesn't equal base method type encoding `\(baseMethodTypeEncodingString)`"
+            )
+        }
     }
 
     class_addMethod(
         newClass,
         selector,
         method_getImplementation(stubMethod),
-        stubMethodTypeEncoding
+        baseMethodTypeEncodingString
     )
 }
 
@@ -189,6 +200,21 @@ private func addNonOverridingMethod(
     @objc func canPerformActionForWebView(_ action: Selector, withSender sender: Any?) -> Bool {
         fatalError("Stub implementation")
     }
+
+    /// In Objective-C the [signature][1] is:
+    ///
+    /// ```
+    /// - (void)_elementDidFocus:(const WebKit::FocusedElementInformation&)information userIsInteracting:(BOOL)userIsInteracting blurPreviousNode:(BOOL)blurPreviousNode activityStateChanges:(OptionSet<WebCore::ActivityState>)activityStateChanges userObject:(NSObject <NSSecureCoding> *)userObject
+    /// ```
+    ///
+    /// [1]: https://github.com/WebKit/WebKit/blob/5590366d49ca543c06cddd64d9e4e3bdfff6f52f/Source/WebKit/UIProcess/ios/WKContentViewInteraction.mm#L7811
+    @objc func _elementDidFocus(
+        _ information: UnsafeRawPointer,
+        userIsInteracting: Bool,
+        blurPreviousNode: Bool,
+        activityStateChanges: Bool,
+        userObject: Any?
+    ) { fatalError("Stub implementation") }
 }
 
 @objc private class WKContentView_Custom: WKContentViewStub {
@@ -256,5 +282,43 @@ private func addNonOverridingMethod(
     {
         // Not currently changing the edit menu but we could if we wanted to.
         return UIMenu(children: suggestedActions)
+    }
+
+    @objc override func _elementDidFocus(
+        _ information: UnsafeRawPointer,
+        userIsInteracting: Bool,
+        blurPreviousNode: Bool,
+        activityStateChanges: Bool,
+        userObject: Any?
+    ) {
+        // We can't call `super._elementDidFocus()` since we need to call the
+        // method implementation of our runtime class (`WKContentView` from WebKit),
+        // not our static class (`WKContentViewStub`).
+        let superclass: AnyClass = class_getSuperclass(object_getClass(self))!
+        let selector = #selector(WKContentView_Custom._elementDidFocus)
+
+        let superElementDidFocus = unsafeBitCast(
+            method_getImplementation(class_getInstanceMethod(superclass, selector)!),
+            to: (@convention(c) (AnyObject, Selector, UnsafeRawPointer, Bool, Bool, Bool, Any?) ->
+                Void)
+                .self
+        )
+
+        superElementDidFocus(
+            self,
+            selector,
+            information,
+            // Always set `userIsInteracting` to true so when programatically calling
+            // `focus()` the keyboard opens. This is the solution recommended on
+            // StackOverflow:
+            // https://stackoverflow.com/questions/32449870/programmatically-focus-on-a-form-in-a-webview-wkwebview/48623286#48623286
+            //
+            // Otherwise, the keyboard only opens when focusing after a `touchend` or
+            // `touchstart` event.
+            true,
+            blurPreviousNode,
+            activityStateChanges,
+            userObject
+        )
     }
 }

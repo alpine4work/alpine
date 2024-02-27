@@ -53,7 +53,11 @@ export function createContentEditorLinkMarkViewConstructor({
         };
 
         dom.addEventListener("pointerdown", event => {
-            isPointerDownAndOver = true;
+            isPointerDownAndOver =
+                event.button === 0 &&
+                (!isModifiedPointerEvent(event) ||
+                    isOpenLinkInSeparateTabPointerEvent(event, getClientInfoWithoutListening()));
+
             maybeUpdateStyle();
 
             // If the user interacts with the link, don't open a floater after a delay.

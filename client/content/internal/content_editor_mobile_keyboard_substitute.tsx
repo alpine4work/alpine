@@ -17,8 +17,8 @@ import {
     TextStrikethrough,
     X,
 } from "phosphor-react";
-import {Mark} from "prosemirror-model";
-import {Command, EditorState} from "prosemirror-state";
+import {Mark, Slice} from "prosemirror-model";
+import {Command, EditorState, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
     ReactNode,
@@ -32,6 +32,8 @@ import {
     useState,
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
+import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
+import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {
     areAllNodesBlockType,
     areAllNodesListItemType,
@@ -45,12 +47,24 @@ import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {nativeMobileBottomBarKeyboardSubstituteHeight} from "~/client/design/native_mobile_bottom_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
+import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {MobileContentEditorLinkRouteStateSchema} from "~/client/remix/mobile_content_editor_link_route_state.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {ContentReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {easeOutCubic, parseBezier} from "~/shared/design/easing.js";
 import {HighlightColor, colorByHighlightColor} from "~/shared/design/highlight_color.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
+import {generateId} from "~/shared/id/id.js";
+import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {buttonStyles, colorSchemeVars, contentSchemaStyles} from "~/shared/styles/styles.js";
 
@@ -62,6 +76,22 @@ const ContentEditorMobileKeyboardSubstituteForwardRef = forwardRef(
     ContentEditorMobileKeyboardSubstitute,
 );
 export {ContentEditorMobileKeyboardSubstituteForwardRef as ContentEditorMobileKeyboardSubstitute};
+
+let contentEditorMobileKeyboardSubstituteClosingAnimationPromiseResolver: PromiseResolver<void> | null =
+    null;
+
+/**
+ * If we are currently closing the content editor keyboard substitute then this
+ * promise will resolve when we finish closing.
+ */
+export function getContentEditorMobileKeyboardSubstituteClosingAnimationPromise(): Promise<void> {
+    return Promise.race([
+        contentEditorMobileKeyboardSubstituteClosingAnimationPromiseResolver?.promise,
+        // The closing animation should take 250ms but just in case there's a bug that
+        // causes us to never resolve the promise, let's resolve in 1000ms.
+        wait(delayScreenTransitionLoadingIndicatorLimitMs),
+    ]);
+}
 
 function ContentEditorMobileKeyboardSubstitute(
     {
@@ -121,7 +151,11 @@ function ContentEditorMobileKeyboardSubstitute(
             },
         );
 
-        animation.finished.finally(onClose);
+        animation.finished.finally(() => {
+            onClose();
+            contentEditorMobileKeyboardSubstituteClosingAnimationPromiseResolver?.resolve();
+            contentEditorMobileKeyboardSubstituteClosingAnimationPromiseResolver = null;
+        });
     });
 
     useImperativeHandle(
@@ -268,6 +302,9 @@ function ContentEditorMobileKeyboardSubstituteMain({
     onHighlightSelectorOpen: () => void;
     onSelectHighlightColor: (highlightColor: HighlightColor | null) => void;
 }) {
+    const navigate = useNavigate();
+    const {space} = useSpaceContext();
+
     const {isBoldActive, isItalicActive, isStrikeActive, isCodeActive} = useMemo(() => {
         const boldMark = state.schema.mark("bold");
         const italicMark = state.schema.mark("italic");
@@ -340,6 +377,8 @@ function ContentEditorMobileKeyboardSubstituteMain({
         [state.doc, state.schema.nodes.heading, state.selection],
     );
 
+    const linkSelection = useMemo(() => expandSelectionAroundLinkMark(state), [state]);
+
     return (
         <Box
             flexGrow="1"
@@ -374,9 +413,51 @@ function ContentEditorMobileKeyboardSubstituteMain({
                     className: contentSchemaStyles.linkClassName,
                     style: {color: "inherit"},
                 }}
-                isActive={false}
+                isActive={!!linkSelection}
                 onPress={() => {
-                    // NOCOMMIT: Implement
+                    const selection =
+                        linkSelection?.selection ??
+                        expandEmptySelectionAroundWord(state) ??
+                        state.selection;
+
+                    const view = assertExists(viewRef.current);
+
+                    contentEditorMobileKeyboardSubstituteClosingAnimationPromiseResolver ??=
+                        createPromiseResolver();
+
+                    // Blurring the editor should close our keyboard substitute so our closing
+                    // promise animation resolves.
+                    view.dom.blur();
+
+                    const {text: selectionText, isEditable: isSelectionEditable} =
+                        getSelectionSliceText(
+                            selection.content(),
+                            getContentEditorReferences(view.state).references,
+                        );
+
+                    void navigate(
+                        `/s/${space.id}/mobile/editor/link/${
+                            MobileContentEditorLinkRouteStateSchema.serialize({
+                                type: "Document",
+                                // NOCOMMIT
+                                documentId: generateId(),
+                                selection: ProsemirrorSelectionWrapper.new(selection),
+                                // NOCOMMIT
+                                initialText:
+                                    // If selection text is not editable, truncate it so our URL isn't too long.
+                                    !isSelectionEditable && selectionText.length > 80
+                                        ? `${selectionText.slice(0, 80)}…`
+                                        : selectionText,
+                                isTextEditable: isSelectionEditable,
+                                initialUrl: linkSelection?.mark.attrs?.url ?? "",
+                            }) as string
+                        }`,
+                        {
+                            // Setting `isNativeMobileModal` to true will animate in this screen from the
+                            // bottom instead of from the right.
+                            state: NativeMobileBridge ? {isNativeMobileModal: true} : undefined,
+                        },
+                    );
                 }}
             />
             <ContentEditorMobileKeyboardSubstituteButton
@@ -686,4 +767,213 @@ function ContentEditorMobileKeyboardSubstituteHighlightSelectorButton({
             )}
         </Box>
     );
+}
+
+/**
+ * If the selection is empty and inside a word then return a selection that
+ * covers that word. If the selection is at the edge of a word or already
+ * covers some content, return null.
+ */
+function expandEmptySelectionAroundWord(state: EditorState): TextSelection | null {
+    if (state.selection.from !== state.selection.to) return null;
+
+    const nodeBefore = state.selection.$from.nodeBefore;
+    if (nodeBefore && !nodeBefore.isText) return null;
+
+    const nodeAfter = state.selection.$from.nodeAfter;
+    if (nodeAfter && !nodeAfter.isText) return null;
+
+    const textBefore = nodeBefore
+        ? iterableFirst(Array.from(findUnicodeDefaultWordBoundarySpans(nodeBefore.text!)).reverse())
+              ?.text ?? ""
+        : "";
+    const textAfter = nodeAfter
+        ? iterableFirst(findUnicodeDefaultWordBoundarySpans(nodeAfter.text!))?.text ?? ""
+        : "";
+
+    const textAround = textBefore + textAfter;
+    if (textAround.length <= 2) return null;
+
+    const textAroundSpans = Array.from(findUnicodeDefaultWordBoundarySpans(textAround));
+    const textAroundSpan =
+        textAroundSpans.length === 1
+            ? textAroundSpans[0]!
+            : textAroundSpans.length === 2
+            ? textAroundSpans[0]!.length > textAroundSpans[1]!.length
+                ? textAroundSpans[0]!
+                : textAroundSpans[1]!
+            : null;
+    if (!textAroundSpan) return null;
+
+    return new TextSelection(
+        state.doc.resolve(
+            state.selection.from -
+                (textAroundSpan.length === textAround.length ||
+                textAroundSpan.length === textBefore.length
+                    ? textBefore.length
+                    : 0),
+        ),
+        state.doc.resolve(
+            state.selection.from +
+                (textAroundSpan.length === textAround.length ||
+                textAroundSpan.length === textAfter.length
+                    ? textAfter.length
+                    : 0),
+        ),
+    );
+}
+
+/**
+ * Expand the editor selection to include all text in the current text block
+ * with the same link mark. If there's no link mark covering the selection
+ * return null. Allows you to update a link mark all at once.
+ */
+function expandSelectionAroundLinkMark(
+    state: EditorState,
+): {selection: TextSelection; mark: Mark} | null {
+    if (!(state.selection instanceof TextSelection)) return null;
+
+    const parentNode = state.selection.$from.parent;
+    if (!parentNode.isTextblock) return null;
+    if (parentNode !== state.selection.$to.parent) return null;
+
+    let mark: Mark | undefined;
+
+    // 1. Try to find the mark within the selection (if selection is not empty)
+    const selectionSlice = state.selection.content();
+    let isSelectionNodeMissingMark = false;
+    selectionSlice.content.nodesBetween(0, selectionSlice.content.size, node => {
+        if (!node.isText) return;
+        if (isSelectionNodeMissingMark) return;
+
+        const currentMark = node?.marks.find(mark => mark.type.name === "link");
+        if (!currentMark) {
+            isSelectionNodeMissingMark = true;
+            return;
+        }
+
+        if (!mark) {
+            mark = currentMark;
+        } else if (!mark.eq(currentMark)) {
+            isSelectionNodeMissingMark = true;
+            return;
+        }
+    });
+    if (isSelectionNodeMissingMark) return null;
+
+    const selectionNodeBefore = state.selection.$from.nodeBefore;
+    if (selectionNodeBefore && !selectionNodeBefore.isText) return null;
+
+    const selectionNodeAfter = state.selection.$to.nodeAfter;
+    if (selectionNodeAfter && !selectionNodeAfter.isText) return null;
+
+    // 2. Try to find the mark before the selection (if selection isn't
+    //    at start)
+    const selectionNodeBeforeMark = selectionNodeBefore?.marks.find(
+        mark => mark.type.name === "link",
+    );
+    if (selectionNodeBeforeMark) {
+        if (!mark) {
+            mark = selectionNodeBeforeMark;
+        } else if (!mark.eq(selectionNodeBeforeMark)) {
+            return null;
+        }
+    }
+
+    // 3. Try to find the mark after the selection (if selection isn't
+    //    at end)
+    const selectionNodeAfterMark = selectionNodeAfter?.marks.find(
+        mark => mark.type.name === "link",
+    );
+    if (selectionNodeAfterMark) {
+        if (!mark) {
+            mark = selectionNodeAfterMark;
+        } else if (!mark.eq(selectionNodeAfterMark)) {
+            return null;
+        }
+    }
+
+    // If we found no mark, this isn't a link selection.
+    if (!mark) return null;
+
+    let extendFrom = selectionNodeBeforeMark ? selectionNodeBefore?.nodeSize ?? 0 : 0;
+    if (selectionNodeBeforeMark) {
+        // If `textOffset` is 0 then `nodeBefore` will be the full child before the
+        // node `$from` points to.
+        // https://github.com/ProseMirror/prosemirror-model/blob/a37b6b3adeb548dc9822211b680ce9d31be65842/src/resolvedpos.ts#L107-L115
+        const startIndex =
+            state.selection.$from.index() - (state.selection.$from.textOffset === 0 ? 2 : 1);
+
+        for (let i = startIndex; i >= 0; i--) {
+            const previousNode = parentNode.child(i);
+            if (previousNode.marks.some(otherMark => otherMark.eq(mark!))) {
+                extendFrom += previousNode.nodeSize;
+            } else {
+                break;
+            }
+        }
+    }
+
+    let extendTo = selectionNodeAfterMark ? selectionNodeAfter?.nodeSize ?? 0 : 0;
+    if (selectionNodeAfterMark) {
+        const startIndex = state.selection.$to.index() + 1;
+
+        for (let i = startIndex; i < parentNode.childCount; i++) {
+            const nextNode = parentNode.child(i);
+            if (nextNode.marks.some(otherMark => otherMark.eq(mark!))) {
+                extendTo += nextNode.nodeSize;
+            } else {
+                break;
+            }
+        }
+    }
+
+    const selection = new TextSelection(
+        state.doc.resolve(state.selection.from - extendFrom),
+        state.doc.resolve(state.selection.to + extendTo),
+    );
+
+    return {selection, mark};
+}
+
+/**
+ * Is the slice (from a selection) editable? Returns a single line of text from
+ * the selection regardless of whether it's editable or not. If the text spans
+ * multiple nodes then we print a single line of text with
+ * `printContentSingleLineTextSnippet()`.
+ */
+function getSelectionSliceText(
+    selectionSlice: Slice,
+    references: ContentReferences,
+): {text: string; isEditable: boolean} {
+    if (selectionSlice.content.childCount === 0) return {text: "", isEditable: true};
+
+    const schema = selectionSlice.content.firstChild!.type.schema;
+
+    let textNode =
+        selectionSlice.content.childCount === 1 ? selectionSlice.content.firstChild! : null;
+    if (textNode) {
+        let count = selectionSlice.openStart;
+        while (textNode && count > 0) {
+            count--;
+            textNode = textNode.content.childCount === 1 ? textNode.firstChild! : null;
+        }
+    }
+
+    if (selectionSlice.openStart !== selectionSlice.openEnd || !textNode?.isText) {
+        return {
+            text: printContentSingleLineTextSnippet({
+                // Intentionally calling `create()` and not `createChecked()` since for some
+                // schemas (e.g. documents) our slice may not match the expected schema.
+                doc: schema.topNodeType.create({}, selectionSlice.content.content),
+                references,
+            }),
+            isEditable: false,
+        };
+    }
+
+    return {
+        text: textNode.text!,
+        isEditable: true,
+    };
 }

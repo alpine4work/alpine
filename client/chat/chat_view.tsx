@@ -67,6 +67,7 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
         <Box
             data-testid="ChatViewTopBar"
             flexShrink="0"
+            width="full"
             display="flex"
             alignItems="center"
             style={{
@@ -75,6 +76,7 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
         >
             <Box
                 height={navigationBarHeight}
+                width="full"
                 paddingX={paddingX}
                 borderBottom="grey-10"
                 display="flex"

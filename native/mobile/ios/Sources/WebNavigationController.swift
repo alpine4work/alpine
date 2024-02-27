@@ -81,7 +81,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             if oldValue.isLoading != newValue.isLoading || oldValue.isHealthy != newValue.isHealthy
             {
 
-                (topViewController as! WebNavigationEntryController)
+                ((modalPresentedViewController ?? topViewController)
+                    as! WebNavigationEntryController)
                     .moveWebViewIntoIfHealthyOrElseReplaceWithSnapshotView(
                         webView,
                         healthState: newValue
@@ -217,6 +218,19 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     /// concurrent bits of code want to set this to true they can both `+= 1` then
     /// `-= 1`.
     private var shouldDisableScrollFromKeyboardFrameChange = 0
+
+    private var isPushNavigationAnimating = false
+    private var isAfterPushNavigationAnimationCallbackScheduled = false
+
+    /// The navigation entry we've presented modally or null if we haven't
+    /// presented a navigation entry modally.
+    fileprivate var modalPresentedViewController: WebNavigationEntryController? {
+        if let presentedViewController = presentedViewController as? WebNavigationEntryController {
+            return presentedViewController
+        } else {
+            return nil
+        }
+    }
 
     init(initialPath: String, websiteDataStore: WKWebsiteDataStore) {
         self.initialPath = initialPath
@@ -615,20 +629,33 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         //
         // [1]: https://stackoverflow.com/questions/29249132/wkwebview-complex-communication-between-javascript-native-code/49474323#49474323
         if prompt == "%%%navigation.preparePush" {
-            // TODO(calebmer): If `NativeMobileBridge.navigation.push()` is never called
-            // after this then we show a loading spinner forever. We expect JavaScript code
-            // to promptly call `NativeMobileBridge.navigation.push()`. But what if
-            // JavaScript code crashes? We need some recovery mechanisms to unfreeze
-            // the app.
-            (topViewController! as! WebNavigationEntryController).replaceWebViewWithSnapshotView()
+            // We don't do push animations when navigating in modal view controller.
+            if modalPresentedViewController == nil {
+                isPushNavigationAnimating = true
+
+                (topViewController! as! WebNavigationEntryController)
+                    // TODO(calebmer): If `NativeMobileBridge.navigation.push()` is never called
+                    // after this then we show a loading spinner forever. We expect JavaScript code
+                    // to promptly call `NativeMobileBridge.navigation.push()`. But what if
+                    // JavaScript code crashes? We need some recovery mechanisms to unfreeze
+                    // the app.
+                    .replaceWebViewWithSnapshotView()
+            } else {
+                logger.warning(
+                    "Ignored `NativeMobileBridge.navigation.preparePush()` which was called while the top navigation stack entry is a modal, this may cause issues"
+                )
+            }
+
             return nil
         } else if prompt == "%%%navigation.preparePop" {
-            // TODO(calebmer): If `NativeMobileBridge.navigation.pop()` is never called
-            // after this then we show a loading spinner forever. We expect JavaScript code
-            // to promptly call `NativeMobileBridge.navigation.push()`. But what if
-            // JavaScript code crashes? We need some recovery mechanisms to unfreeze
-            // the app.
-            (topViewController! as! WebNavigationEntryController).replaceWebViewWithSnapshotView()
+            ((modalPresentedViewController ?? topViewController!) as! WebNavigationEntryController)
+                // TODO(calebmer): If `NativeMobileBridge.navigation.pop()` is never called
+                // after this then we show a loading spinner forever. We expect JavaScript code
+                // to promptly call `NativeMobileBridge.navigation.push()`. But what if
+                // JavaScript code crashes? We need some recovery mechanisms to unfreeze
+                // the app.
+                .replaceWebViewWithSnapshotView()
+
             return nil
         } else {
             // Unrecognized prompt command. Do nothing.
@@ -653,21 +680,92 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             return
         }
 
-        if messageBody.starts(with: "navigation.push:") {
-            let urlString = messageBody.suffix(
-                from: messageBody.index(messageBody.startIndex, offsetBy: 16)
-            )
-            let url = URL(string: String(urlString))!
+        if messageBody.starts(with: "navigation.push:false,") {
+            // We don't do push animations when navigating in modal view controller.
+            if modalPresentedViewController == nil {
+                let urlString = messageBody.suffix(
+                    from: messageBody.index(messageBody.startIndex, offsetBy: 22)
+                )
+                let url = URL(string: String(urlString))!
 
-            let viewController = WebNavigationEntryController(
-                url: url,
-                webNavigationController: self,
-                webView: webView,
-                healthState: webViewHealthState
-            )
-            super.pushViewController(viewController, animated: true)
+                let viewController = WebNavigationEntryController(
+                    url: url,
+                    webNavigationController: self,
+                    webView: webView,
+                    healthState: webViewHealthState
+                )
+
+                super.pushViewController(viewController, animated: true)
+
+                let completion = { [self] in
+                    isPushNavigationAnimating = false
+
+                    if isAfterPushNavigationAnimationCallbackScheduled {
+                        webView.evaluateJavaScript(
+                            "window.__NativeMobileBridge.navigation._callScheduledAfterPushAnimationCallbacks()"
+                        )
+                    }
+                }
+
+                // Call completion after push animation. Derived from:
+                // https://stackoverflow.com/a/33767837/1568890
+                if let transitionCoordinator = transitionCoordinator {
+                    transitionCoordinator.animate(alongsideTransition: nil) { _ in completion() }
+                } else {
+                    DispatchQueue.main.async { completion() }
+                }
+            } else {
+                logger.warning(
+                    "Ignoring `NativeMobileBridge.navigation.push()` which was called while the top navigation stack entry is a modal, this may cause issues"
+                )
+            }
+        } else if messageBody.starts(with: "navigation.push:true,") {
+            // We don't do push animations when navigating in modal view controller.
+            if modalPresentedViewController == nil {
+                let urlString = messageBody.suffix(
+                    from: messageBody.index(messageBody.startIndex, offsetBy: 21)
+                )
+                let url = URL(string: String(urlString))!
+
+                let viewController = WebNavigationEntryController(
+                    url: url,
+                    webNavigationController: self,
+                    webView: webView,
+                    healthState: webViewHealthState
+                )
+
+                present(viewController, animated: true) { [self] in
+                    isPushNavigationAnimating = false
+
+                    if isAfterPushNavigationAnimationCallbackScheduled {
+                        webView.evaluateJavaScript(
+                            "window.__NativeMobileBridge.navigation._callScheduledAfterPushAnimationCallbacks()"
+                        )
+                    }
+                }
+            } else {
+                logger.warning(
+                    "Ignoring `NativeMobileBridge.navigation.push()` which was called while the top navigation stack entry is a modal, this may cause issues"
+                )
+            }
+        } else if messageBody == "navigation.scheduleAfterPushAnimation" {
+            if !isPushNavigationAnimating {
+                webView.evaluateJavaScript(
+                    "window.__NativeMobileBridge.navigation._callScheduledAfterPushAnimationCallbacks()"
+                )
+            } else {
+                isAfterPushNavigationAnimationCallbackScheduled = true
+            }
         } else if messageBody == "navigation.finishExternalPop" {
-            (topViewController! as! WebNavigationEntryController).moveWebViewInto(webView)
+            // While we have a modal view controller, we don't implement external pops from
+            // the navigation controller.
+            if modalPresentedViewController == nil {
+                (topViewController! as! WebNavigationEntryController).moveWebViewInto(webView)
+            } else {
+                logger.warning(
+                    "Ignoring `NativeMobileBridge.navigation.finishExternalPop()` which was called while the top navigation stack entry is a modal, this may cause issues"
+                )
+            }
         } else if messageBody.starts(with: "navigation.pop:") {
             let urlString = messageBody.suffix(
                 from: messageBody.index(messageBody.startIndex, offsetBy: 15)
@@ -682,9 +780,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             if let viewController = viewController {
                 (viewController as! WebNavigationEntryController).moveWebViewInto(webView)
 
-                // Important to call `super.popToViewController()` since we don't want our
-                // class's override to start an external pop.
-                super.popToViewController(viewController, animated: true)
+                if modalPresentedViewController != nil { dismiss(animated: true) }
+
+                if viewController != topViewController {
+                    // Important to call `super.popToViewController()` since we don't want our
+                    // class's override to start an external pop.
+                    super.popToViewController(viewController, animated: true)
+                }
             } else {
                 // If we couldn't find the view controller to pop to, then set the top view
                 // controller as the popped route.
@@ -692,8 +794,17 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 // NOTE(calebmer): This branch really shouldn't happen. I'm not sure if this is
                 // the best default if it does, though. If we find a valid use case where this
                 // branch is executed then reconsider this behavior.
+                //
+                // TODO(calebmer, 2024-02-26): This will happen if `push()` is called in modal
+                // navigation stack entry (see `modalPresentedViewController`). Since we haven't
+                // recorded the navigation stack within the modal in `viewControllers`. Right
+                // now we discourage navigation in a modal route so we're ok with this being
+                // broken. To fix we should probably have some kind of `modalNavigationUrls`
+                // property that keeps track of the modal navigation stack.
                 (topViewController! as! WebNavigationEntryController).url = url
                 (topViewController! as! WebNavigationEntryController).moveWebViewInto(webView)
+
+                if modalPresentedViewController != nil { dismiss(animated: true) }
             }
         } else if messageBody.starts(with: "navigation.replace:") {
             let urlString = messageBody.suffix(
@@ -701,7 +812,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             )
             let url = URL(string: String(urlString))!
 
-            (topViewController! as! WebNavigationEntryController).url = url
+            ((modalPresentedViewController ?? topViewController!) as! WebNavigationEntryController)
+                .url = url
         } else if messageBody == "navigationBar.runScrollDebounceTimeout" {
             webDelegate?.webNavigationController?(runScrollDebounceTimeout: self)
         } else if messageBody == "health.ready" {
@@ -1262,6 +1374,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     // Override pop navigation functions. We need to let JavaScript control when
     // the pop happens since it may need to load data.
     override func popViewController(animated: Bool) -> UIViewController? {
+        // While we have a modal view controller, we don't implement external pops from
+        // the navigation controller.
+        guard modalPresentedViewController == nil else { return nil }
+
         if viewControllers.count <= 1 { return nil }
 
         let viewController = super.popViewController(animated: animated)!
@@ -1277,6 +1393,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     // Override pop navigation functions. We need to let JavaScript control when
     // the pop happens since it may need to load data.
     override func popToRootViewController(animated: Bool) -> [UIViewController]? {
+        // While we have a modal view controller, we don't implement external pops from
+        // the navigation controller.
+        guard modalPresentedViewController == nil else { return nil }
+
         // If we're already at the root view controller, don't pop more.
         if viewControllers.count <= 1 { return nil }
 
@@ -1295,6 +1415,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     override func popToViewController(_ viewController: UIViewController, animated: Bool)
         -> [UIViewController]?
     {
+        // While we have a modal view controller, we don't implement external pops from
+        // the navigation controller.
+        guard modalPresentedViewController == nil else { return nil }
+
         guard let index = (viewControllers.lastIndex { $0 == viewController }) else { return nil }
 
         // We're trying to pop to the view controller that's already visible.
@@ -1314,6 +1438,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         lastTopViewController: WebNavigationEntryController,
         delta: Int
     ) {
+        // While we have a modal view controller, we don't implement external pops from
+        // the navigation controller.
+        guard modalPresentedViewController == nil else { return }
+
         // TODO(calebmer): If `NativeMobileBridge.navigation.finishExternalPop()` is
         // never called after this then we show a loading spinner forever. It's
         // certainly possible for an external pop to take a while (e.g. we need to load
@@ -1569,6 +1697,18 @@ private class WebNavigationEntryController: UIViewController {
     private var hasViewAppeared: Bool = false
     private var shouldPresentLoadingIndicator = false
 
+    // Presentation style needs to be over fullscreen because:
+    //
+    // 1. We want the modal to slide up and cover the app.
+    // 2. It needs to be "over" so we keep rendering the navigation view below.
+    //    That way when `NativeMobileBridge.navigation.preparePop()` is called and
+    //    the web view moves back to the underlying navigation controller the web
+    //    view will keep running.
+    override var modalPresentationStyle: UIModalPresentationStyle {
+        get { .overFullScreen }
+        set {}
+    }
+
     init(
         url: URL,
         webNavigationController: WebNavigationController,
@@ -1634,7 +1774,7 @@ private class WebNavigationEntryController: UIViewController {
             afterScreenUpdates: !(webView.window?.isHidden ?? true)
         )!
 
-        dismiss(animated: false)
+        if presentedViewController is WebLoadingIndicatorController { dismiss(animated: false) }
         for subview in view.subviews {
             subview.removeFromSuperview()
 
@@ -1652,7 +1792,7 @@ private class WebNavigationEntryController: UIViewController {
     }
 
     func moveWebViewInto(_ webView: WKWebView) {
-        dismiss(animated: false)
+        if presentedViewController is WebLoadingIndicatorController { dismiss(animated: false) }
 
         var hasWebView = false
         for subview in view.subviews {
@@ -1728,8 +1868,8 @@ private class WebNavigationEntryController: UIViewController {
         hasViewAppeared = false
         clearLoadingIndicatorTimer()
 
-        shouldPresentLoadingIndicator = presentedViewController != nil
-        dismiss(animated: false)
+        shouldPresentLoadingIndicator = presentedViewController is WebLoadingIndicatorController
+        if shouldPresentLoadingIndicator { dismiss(animated: false) }
     }
 
     private func clearLoadingIndicatorTimer() {
@@ -1746,7 +1886,7 @@ private class WebNavigationEntryController: UIViewController {
     /// spinner in the center.
     private func resetLoadingIndicatorTimer() {
         // Loading indicator already presented...
-        if presentedViewController != nil { return }
+        if presentedViewController is WebLoadingIndicatorController { return }
 
         let hasWebView = view.subviews.first(where: { (view) in view is WKWebView }) != nil
 
@@ -1765,7 +1905,9 @@ private class WebNavigationEntryController: UIViewController {
         // controller.
         let transitionCoordinator =
             self.transitionCoordinator
-            ?? webNavigationController?.topViewController?.transitionCoordinator
+            ?? (webNavigationController?.modalPresentedViewController
+            ?? webNavigationController?.topViewController)!
+            .transitionCoordinator
 
         // Wait to show a loading indicator until any active transition is done.
         if let transitionCoordinator = transitionCoordinator {
@@ -1808,7 +1950,7 @@ private class WebNavigationEntryController: UIViewController {
         }
 
         // If we're already presenting, noop. This should be an idempotent function.
-        if presentedViewController != nil { return }
+        if presentedViewController is WebLoadingIndicatorController { return }
 
         let loadingIndicator = WebLoadingIndicatorController()
 
@@ -1838,6 +1980,10 @@ private class WebNavigationEntryController: UIViewController {
                 handler: { [self] (_) in webNavigationController!.forceReloadWebView() }
             )
         )
+
+        // If we're already presenting a loading indicator, dismiss it before
+        // presenting our alert.
+        if presentedViewController is WebLoadingIndicatorController { dismiss(animated: false) }
 
         present(alert, animated: true)
     }
@@ -1964,6 +2110,8 @@ private let bridgeSource = """
         const navigationExternalPopListeners = new Set();
         const keyboardFrameChangeListeners = new Set();
 
+        let scheduledAfterPushNavigationAnimationCallbacks = [];
+
         const NativeMobileBridge = {
             health: {
                 ready: () => {
@@ -1982,8 +2130,8 @@ private let bridgeSource = """
                 preparePush: () => {
                     prompt("%%%navigation.preparePush");
                 },
-                push: url => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.push:${url}`);
+                push: (url, options) => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.push:${options.isModal},${url}`);
                 },
                 subscribeToExternalPop: listener => {
                     navigationExternalPopListeners.add(listener);
@@ -2015,6 +2163,27 @@ private let bridgeSource = """
                 },
                 replace: url => {
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replace:${url}`);
+                },
+                scheduleAfterPushAnimation: action => {
+                    if (scheduledAfterPushNavigationAnimationCallbacks.length === 0) {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.scheduleAfterPushAnimation");
+                    }
+
+                    scheduledAfterPushNavigationAnimationCallbacks.push(action);
+                },
+                _callScheduledAfterPushAnimationCallbacks: () => {
+                    const callbacks = scheduledAfterPushNavigationAnimationCallbacks;
+                    scheduledAfterPushNavigationAnimationCallbacks = [];
+
+                    for (const callback of callbacks) {
+                        try {
+                            callback();
+                        } catch (error) {
+                            setTimeout(() => {
+                                throw error;
+                            }, 0);
+                        }
+                    }
                 },
             },
             navigationBar: {

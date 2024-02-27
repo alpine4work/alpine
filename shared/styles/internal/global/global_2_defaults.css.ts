@@ -16,8 +16,8 @@ import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder
 import {backgroundColorVar} from "~/shared/styles/internal/sprinkles.css.js";
 
 globalStyle(":root", {
-    backgroundColor: colorSchemeVars["grey-wash"],
-    vars: {[backgroundColorVar]: colorSchemeVars["grey-wash"]},
+    backgroundColor: colorSchemeVars["grey-0"],
+    vars: {[backgroundColorVar]: colorSchemeVars["grey-0"]},
     color: colorSchemeVars["grey-text"],
     ...fontStyles.normal,
 

@@ -1,6 +1,5 @@
 import murmurhash from "murmurhash";
 import {authorizeInternalAccess} from "~/server/accounts/accounts_table.js";
-import {printContentSingleLineTextSnippetWithHighlighting} from "~/server/content/print_content_single_line_text_snippet.js";
 import {
     ServerSessionActionContext,
     ServerSessionActionContextModules,
@@ -53,6 +52,7 @@ import {
     getSpaceAccountNameSearchIndex,
 } from "~/server/spaces/spaces_table.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {printContentSingleLineTextSnippetWithHighlighting} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {Context} from "~/shared/context/context.js";
 import {formatPrettyRelativeDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_relative_date_without_full_time_tooltip.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";

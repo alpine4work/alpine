@@ -15,6 +15,7 @@ import {
     isRouteErrorResponse,
     useRouteError,
 } from "react-router";
+import {notFoundErrorDisplayMessage} from "~/app/helpers/not_found_error_display_message.js";
 import {AppLiveReload} from "~/app/router/app_live_reload.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
@@ -43,7 +44,6 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {NotFoundError, UnknownError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -197,7 +197,7 @@ export default function Root() {
         if (isRouteErrorResponse(routeError)) {
             if (routeError.status === 404)
                 return new NotFoundError("Route not found", {
-                    displayMessage: errorDisplayMessage`The page you opened could not be found. If you got here from a broken link let us know at ${errorDisplayMessage.supportLink}`,
+                    displayMessage: notFoundErrorDisplayMessage,
                 });
 
             return new UnknownError(

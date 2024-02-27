@@ -247,10 +247,10 @@ index 08846c4605214228051c9ba21216a70dc8d015c3..b44a116652bf563e167b0b52f433d4b0
 +export { loadRouteModuleWithBlockingLinks, createClientRoutes, createServerRoutes } from './routes.js';
 +export { deserializeErrors } from './errors.js';
 diff --git a/dist/esm/routes.js b/dist/esm/routes.js
-index 76d512bf71729951e5c45dce97c9423f7308d250..4ec4f576b378a3beed6b9263bbc766875f7e22e2 100644
+index 76d512bf71729951e5c45dce97c9423f7308d250..d20ea4d16cdd308d8feb34a7725c7d2c6985ad9f 100644
 --- a/dist/esm/routes.js
 +++ b/dist/esm/routes.js
-@@ -105,40 +105,80 @@ function createShouldRevalidate(route, routeModules, needsRevalidation) {
+@@ -105,40 +105,81 @@ function createShouldRevalidate(route, routeModules, needsRevalidation) {
      return arg.defaultShouldRevalidate;
    };
  }
@@ -274,7 +274,8 @@ index 76d512bf71729951e5c45dce97c9423f7308d250..4ec4f576b378a3beed6b9263bbc76687
 +        await routeModulePromise;
          throw new Error(msg);
        } else if (!isAction && !route.hasLoader) {
-+        await routeModulePromise;
++        let routeModule = await routeModulePromise;
++        if (routeModule.clientLoader) await routeModule.clientLoader({data: null, params});
          return null;
        }
        let result = await fetchData(request, route.id);
@@ -391,10 +392,10 @@ index f9e34d7b58f4c3abbdf5382fcb95f71d6322ac9f..7fa23c7a1381f4b232f52def1c201e2a
 +export function loadRouteModuleWithBlockingLinks(route: EntryRoute, routeModules: RouteModules): Promise<RouteModule>;
  export {};
 diff --git a/dist/routes.js b/dist/routes.js
-index 9ecc80713a04b565997423181c8c7091bb969be4..953cbc08faf874c2c735a4b2c0c2329834245967 100644
+index 9ecc80713a04b565997423181c8c7091bb969be4..09a3440d86686f45280a02a364237220dabff02a 100644
 --- a/dist/routes.js
 +++ b/dist/routes.js
-@@ -133,33 +133,73 @@ async function loadRouteModuleWithBlockingLinks(route, routeModules$1) {
+@@ -133,33 +133,74 @@ async function loadRouteModuleWithBlockingLinks(route, routeModules$1) {
  }
  function createDataFunction(route, routeModules, isAction) {
    return async ({
@@ -410,7 +411,8 @@ index 9ecc80713a04b565997423181c8c7091bb969be4..953cbc08faf874c2c735a4b2c0c23298
 +        await routeModulePromise;
          throw new Error(msg);
        } else if (!isAction && !route.hasLoader) {
-+        await routeModulePromise;
++        let routeModule = await routeModulePromise;
++        if (routeModule.clientLoader) await routeModule.clientLoader({data: null, params});
          return null;
        }
        let result = await data.fetchData(request, route.id);
@@ -470,7 +472,7 @@ index 9ecc80713a04b565997423181c8c7091bb969be4..953cbc08faf874c2c735a4b2c0c23298
      }
    };
  }
-@@ -179,3 +219,4 @@ function getRedirect(response) {
+@@ -179,3 +220,4 @@ function getRedirect(response) {
  
  exports.createClientRoutes = createClientRoutes;
  exports.createServerRoutes = createServerRoutes;

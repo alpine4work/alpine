@@ -170,8 +170,14 @@ export const NativeMobileBridge: {
          * reloaded.) If a native initiated navigation goes back to this screen we'll
          * make sure this URL is rendered regardless of our current web code navigation
          * state.
+         *
+         * If `isModal` is true then instead of pushing the usual navigation stack
+         * entry from the right, the screen appears from the bottom of the screen over
+         * the tab bar. While in this screen there are no navigation animations. Use
+         * this for quick, single-purpose, focused views. Since there's no tab bar
+         * navigation or further navigation animations.
          */
-        push(url: URL): void;
+        push(url: URL, options: {isModal: boolean}): void;
 
         /**
          * There are two kinds of pop navigations that may happen in our native mobile
@@ -264,6 +270,13 @@ export const NativeMobileBridge: {
          * state and web code's navigation state will be incompatible.
          */
         replace(url: URL): void;
+
+        /**
+         * Schedule a callback to run after a push animation completes. The push
+         * animation starts when `preparePush()` is called and ends when native code
+         * calls the animation completion handler.
+         */
+        scheduleAfterPushAnimation(action: () => void): void;
     };
 
     /**

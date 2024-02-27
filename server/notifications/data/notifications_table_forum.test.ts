@@ -1,5 +1,4 @@
 import {addMinutes, subMinutes} from "date-fns";
-import {printContentSingleLineTextSnippet} from "~/server/content/print_content_single_line_text_snippet.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createChannel, createPost, createPostComment} from "~/server/forum/data/forum_table.js";
 import {TestNotificationsContextModule} from "~/server/notifications/data/notifications_context_module.js";
@@ -20,6 +19,7 @@ import {
     massageInboxEntriesQuery,
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
