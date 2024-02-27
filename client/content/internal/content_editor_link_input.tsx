@@ -62,8 +62,9 @@ export function ContentEditorLinkInput({
         assert(viewRef.current);
         const {state} = viewRef.current;
         const dispatch = viewRef.current.dispatch.bind(viewRef.current);
+        const linkMarkType = assertExists(state.doc.type.schema.marks.link);
 
-        dispatch(state.tr.removeMark(range.from, range.to, mark));
+        dispatch(state.tr.removeMark(range.from, range.to, linkMarkType));
 
         onClose();
     };

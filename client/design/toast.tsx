@@ -221,14 +221,22 @@ export function ToastContextProvider({children}: {children?: ReactNode}) {
     );
 }
 
+const showToastForTest = () => {
+    throw new InternalError("Must render in a `<ToastContextProvider>` to show toasts");
+};
+
 /**
  * Return a function you can use to show toasts.
  */
 export function useShowToast(): (toast: Toast) => void {
     const showToast = useContext(ToastContext);
 
-    if (showToast === null)
+    if (showToast === null) {
+        // In unit tests, throw only when `showToast()` is called.
+        if (import.meta.jest) return showToastForTest;
+
         throw new InternalError("Must render in a `<ToastContextProvider>` to show toasts");
+    }
 
     return showToast;
 }

@@ -3,6 +3,7 @@ import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_prio
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {mobileMaxScreenWidth, mobilePlatformMediaQuery} from "~/shared/design/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 const IsMobileContext = createContext<boolean | null>(null);
 
@@ -48,6 +49,22 @@ export function IsMobileContextProvider({children}: {children?: ReactNode}) {
             mediaQueryList.removeEventListener("change", update);
         };
     }, [isNativeMobile]);
+
+    return <IsMobileContext.Provider value={isMobile}>{children}</IsMobileContext.Provider>;
+}
+
+export function TestIsMobileContextProvider({
+    isMobile,
+    children,
+}: {
+    isMobile: boolean;
+    children?: ReactNode;
+}) {
+    // Can only use in tests
+    assert(import.meta.jest);
+
+    // Must not have a parent context provider
+    assert(useContext(IsMobileContext) === null);
 
     return <IsMobileContext.Provider value={isMobile}>{children}</IsMobileContext.Provider>;
 }

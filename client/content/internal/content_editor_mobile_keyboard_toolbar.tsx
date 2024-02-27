@@ -17,9 +17,9 @@ import {EditorView} from "prosemirror-view";
 import {ReactNode, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {
-    ContentEditorMobileLinkRoute,
-    ContentEditorMobileLinkRouteState,
-} from "~/client/content/content_editor_mobile_link_route.js";
+    ContentEditorMobileLinkModal,
+    ContentEditorMobileLinkModalState,
+} from "~/client/content/content_editor_mobile_link_modal.js";
 import {
     ContentEditorMobileKeyboardSubstitute,
     ContentEditorMobileKeyboardSubstituteRef,
@@ -169,7 +169,7 @@ export function ContentEditorMobileKeyboardToolbar({
         [isCheckListItemActive, isOrderedListItemActive, isUnorderedListItemActive, state],
     );
 
-    const [linkRouteState, setLinkRouteState] = useState<ContentEditorMobileLinkRouteState | null>(
+    const [linkModalState, setLinkModalState] = useState<ContentEditorMobileLinkModalState | null>(
         null,
     );
 
@@ -257,6 +257,7 @@ export function ContentEditorMobileKeyboardToolbar({
                     }}
                 >
                     <ContentEditorMobileKeyboardToolbarButton
+                        label="Mention"
                         dividerRight
                         isActive={false}
                         onPress={() => {
@@ -266,6 +267,7 @@ export function ContentEditorMobileKeyboardToolbar({
                         <At />
                     </ContentEditorMobileKeyboardToolbarButton>
                     <ContentEditorMobileKeyboardToolbarButton
+                        label="Bold"
                         dividerLeft
                         isActive={isBoldActive}
                         onPress={fromCommand(
@@ -276,6 +278,7 @@ export function ContentEditorMobileKeyboardToolbar({
                         <TextBolder />
                     </ContentEditorMobileKeyboardToolbarButton>
                     <ContentEditorMobileKeyboardToolbarButton
+                        label="Italic"
                         dividerRight
                         isActive={isItalicActive}
                         onPress={fromCommand(
@@ -287,6 +290,7 @@ export function ContentEditorMobileKeyboardToolbar({
                     </ContentEditorMobileKeyboardToolbarButton>
                     {!isOrderedListItemActive && !isCheckListItemActive && (
                         <ContentEditorMobileKeyboardToolbarButton
+                            label="Bullet list"
                             dividerLeft
                             isActive={isUnorderedListItemActive}
                             onPress={fromCommand(
@@ -299,6 +303,7 @@ export function ContentEditorMobileKeyboardToolbar({
                     )}
                     {!isUnorderedListItemActive && !isCheckListItemActive && (
                         <ContentEditorMobileKeyboardToolbarButton
+                            label="Number list"
                             dividerLeft={isOrderedListItemActive}
                             dividerRight={!isOrderedListItemActive}
                             isActive={isOrderedListItemActive}
@@ -312,6 +317,7 @@ export function ContentEditorMobileKeyboardToolbar({
                     )}
                     {state.schema.nodes.checkListItem && isCheckListItemActive && (
                         <ContentEditorMobileKeyboardToolbarButton
+                            label="Check list"
                             dividerLeft
                             isActive={isCheckListItemActive}
                             onPress={fromCommand(
@@ -327,6 +333,7 @@ export function ContentEditorMobileKeyboardToolbar({
                         isCheckListItemActive) && (
                         <>
                             <ContentEditorMobileKeyboardToolbarButton
+                                label="Dedent"
                                 isActive={false}
                                 isDisabled={!isDedentListItemEnabled}
                                 onPress={fromCommand(viewRef, dedentListItemCommand)}
@@ -334,6 +341,7 @@ export function ContentEditorMobileKeyboardToolbar({
                                 <TextOutdent />
                             </ContentEditorMobileKeyboardToolbarButton>
                             <ContentEditorMobileKeyboardToolbarButton
+                                label="Indent"
                                 dividerRight
                                 isActive={false}
                                 isDisabled={!isIndentListItemEnabled}
@@ -344,6 +352,7 @@ export function ContentEditorMobileKeyboardToolbar({
                         </>
                     )}
                     <ContentEditorMobileKeyboardToolbarButton
+                        label="Comment"
                         dividerLeft
                         isActive={false}
                         onPress={() => {
@@ -353,6 +362,7 @@ export function ContentEditorMobileKeyboardToolbar({
                         <ChatCircleText />
                     </ContentEditorMobileKeyboardToolbarButton>
                     <ContentEditorMobileKeyboardToolbarButton
+                        label="More"
                         isActive={false}
                         onPress={() => {
                             if (!NativeMobileBridge) {
@@ -377,17 +387,18 @@ export function ContentEditorMobileKeyboardToolbar({
                         setIsSubstituteOpen(false);
                         void NativeMobileBridge?.keyboard.cleanupAfterSubstitute();
                     }}
-                    onLinkRouteOpen={setLinkRouteState}
+                    onLinkModalOpen={setLinkModalState}
                 />
             )}
-            {linkRouteState && (
-                <MobileModal onClose={() => setLinkRouteState(null)}>
+            {linkModalState && (
+                <MobileModal onClose={() => setLinkModalState(null)}>
                     {({onCloseWithAnimation}) => (
-                        <ContentEditorMobileLinkRoute
-                            initialText={linkRouteState.initialText}
-                            isTextEditable={linkRouteState.isTextEditable}
-                            initialUrl={linkRouteState.initialUrl}
-                            onCancel={onCloseWithAnimation}
+                        <ContentEditorMobileLinkModal
+                            viewRef={viewRef}
+                            initialText={linkModalState.initialText}
+                            isTextEditable={linkModalState.isTextEditable}
+                            initialUrl={linkModalState.initialUrl}
+                            onCloseWithAnimation={onCloseWithAnimation}
                         />
                     )}
                 </MobileModal>
@@ -397,6 +408,7 @@ export function ContentEditorMobileKeyboardToolbar({
 }
 
 function ContentEditorMobileKeyboardToolbarButton({
+    label,
     children,
     dividerLeft,
     dividerRight,
@@ -404,6 +416,7 @@ function ContentEditorMobileKeyboardToolbarButton({
     isDisabled,
     onPress,
 }: {
+    label: string;
     children?: ReactNode;
     dividerLeft?: boolean;
     dividerRight?: boolean;
@@ -443,6 +456,7 @@ function ContentEditorMobileKeyboardToolbarButton({
                 // None of this is focusable since it's used on mobile where there's no
                 // keyboard navigation.
                 {...pressAndHoverProps}
+                aria-label={label}
                 flexGrow="1"
                 height="full"
                 paddingY="1"

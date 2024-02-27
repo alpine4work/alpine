@@ -17,8 +17,8 @@ import {
     TextStrikethrough,
     X,
 } from "phosphor-react";
-import {Mark, Slice} from "prosemirror-model";
-import {Command, EditorState, TextSelection} from "prosemirror-state";
+import {Mark, Node, Slice} from "prosemirror-model";
+import {Command, EditorState, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
     ReactNode,
@@ -33,7 +33,7 @@ import {
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
-import {ContentEditorMobileLinkRouteState} from "~/client/content/content_editor_mobile_link_route.js";
+import {ContentEditorMobileLinkModalState} from "~/client/content/content_editor_mobile_link_modal.js";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {
     areAllNodesBlockType,
@@ -80,12 +80,12 @@ function ContentEditorMobileKeyboardSubstitute(
         state,
         viewRef,
         onClose,
-        onLinkRouteOpen,
+        onLinkModalOpen,
     }: {
         state: EditorState & {schema: ContentProsemirrorSchema};
         viewRef: RefObject<EditorView | null>;
         onClose: () => void;
-        onLinkRouteOpen: (state: ContentEditorMobileLinkRouteState) => void;
+        onLinkModalOpen: (state: ContentEditorMobileLinkModalState) => void;
     },
     ref: Ref<ContentEditorMobileKeyboardSubstituteRef>,
 ) {
@@ -251,7 +251,7 @@ function ContentEditorMobileKeyboardSubstitute(
                         viewRef={viewRef}
                         selectionMarks={selectionMarks}
                         activeHighlightMark={activeHighlightMark}
-                        onLinkRouteOpen={onLinkRouteOpen}
+                        onLinkModalOpen={onLinkModalOpen}
                         // No animation when switching to the highlight selector. iOS has no animation
                         // when switching keyboard types. I promise following platform convention is
                         // the reason, not that I'm lazy.
@@ -260,8 +260,6 @@ function ContentEditorMobileKeyboardSubstitute(
                     />
                 ) : (
                     <ContentEditorMobileKeyboardSubstituteHighlightSelector
-                        state={state}
-                        viewRef={viewRef}
                         activeHighlightMark={activeHighlightMark}
                         onBack={() => setIsHighlightSelectorOpen(false)}
                         onSelectHighlightColor={selectHighlightColor}
@@ -277,7 +275,7 @@ function ContentEditorMobileKeyboardSubstituteMain({
     viewRef,
     selectionMarks,
     activeHighlightMark,
-    onLinkRouteOpen,
+    onLinkModalOpen,
     onHighlightSelectorOpen,
     onSelectHighlightColor,
 }: {
@@ -285,7 +283,7 @@ function ContentEditorMobileKeyboardSubstituteMain({
     viewRef: RefObject<EditorView | null>;
     selectionMarks: ReadonlyArray<Mark>;
     activeHighlightMark: Mark | null;
-    onLinkRouteOpen: (state: ContentEditorMobileLinkRouteState) => void;
+    onLinkModalOpen: (state: ContentEditorMobileLinkModalState) => void;
     onHighlightSelectorOpen: () => void;
     onSelectHighlightColor: (highlightColor: HighlightColor | null) => void;
 }) {
@@ -361,7 +359,10 @@ function ContentEditorMobileKeyboardSubstituteMain({
         [state.doc, state.schema.nodes.heading, state.selection],
     );
 
-    const linkSelection = useMemo(() => expandSelectionAroundLinkMark(state), [state]);
+    const linkSelection = useMemo(
+        () => expandSelectionAroundLinkMark(state.doc, state.selection),
+        [state],
+    );
 
     return (
         <Box
@@ -401,7 +402,7 @@ function ContentEditorMobileKeyboardSubstituteMain({
                 onPress={() => {
                     const selection =
                         linkSelection?.selection ??
-                        expandEmptySelectionAroundWord(state) ??
+                        expandEmptySelectionAroundWord(state.doc, state.selection) ??
                         state.selection;
 
                     const view = assertExists(viewRef.current);
@@ -427,7 +428,7 @@ function ContentEditorMobileKeyboardSubstituteMain({
                         // causes us to never resolve the promise, let's resolve in 1000ms.
                         wait(delayScreenTransitionLoadingIndicatorLimitMs),
                     ]).finally(() => {
-                        onLinkRouteOpen({
+                        onLinkModalOpen({
                             initialText:
                                 // If selection text is not editable, truncate it so our URL isn't too long.
                                 !isSelectionEditable && selectionText.length > 80
@@ -612,14 +613,10 @@ function fromCommand(viewRef: RefObject<EditorView | null>, command: Command): (
 }
 
 function ContentEditorMobileKeyboardSubstituteHighlightSelector({
-    state,
-    viewRef,
     activeHighlightMark,
     onBack,
     onSelectHighlightColor,
 }: {
-    state: EditorState & {schema: ContentProsemirrorSchema};
-    viewRef: RefObject<EditorView | null>;
     activeHighlightMark: Mark | null;
     onBack: () => void;
     onSelectHighlightColor: (highlightColor: HighlightColor | null) => void;
@@ -753,13 +750,16 @@ function ContentEditorMobileKeyboardSubstituteHighlightSelectorButton({
  * covers that word. If the selection is at the edge of a word or already
  * covers some content, return null.
  */
-function expandEmptySelectionAroundWord(state: EditorState): TextSelection | null {
-    if (state.selection.from !== state.selection.to) return null;
+export function expandEmptySelectionAroundWord(
+    doc: Node,
+    selection: Selection,
+): TextSelection | null {
+    if (selection.from !== selection.to) return null;
 
-    const nodeBefore = state.selection.$from.nodeBefore;
+    const nodeBefore = selection.$from.nodeBefore;
     if (nodeBefore && !nodeBefore.isText) return null;
 
-    const nodeAfter = state.selection.$from.nodeAfter;
+    const nodeAfter = selection.$from.nodeAfter;
     if (nodeAfter && !nodeAfter.isText) return null;
 
     const textBefore = nodeBefore
@@ -785,15 +785,15 @@ function expandEmptySelectionAroundWord(state: EditorState): TextSelection | nul
     if (!textAroundSpan) return null;
 
     return new TextSelection(
-        state.doc.resolve(
-            state.selection.from -
+        doc.resolve(
+            selection.from -
                 (textAroundSpan.length === textAround.length ||
                 textAroundSpan.length === textBefore.length
                     ? textBefore.length
                     : 0),
         ),
-        state.doc.resolve(
-            state.selection.from +
+        doc.resolve(
+            selection.from +
                 (textAroundSpan.length === textAround.length ||
                 textAroundSpan.length === textAfter.length
                     ? textAfter.length
@@ -807,19 +807,20 @@ function expandEmptySelectionAroundWord(state: EditorState): TextSelection | nul
  * with the same link mark. If there's no link mark covering the selection
  * return null. Allows you to update a link mark all at once.
  */
-function expandSelectionAroundLinkMark(
-    state: EditorState,
+export function expandSelectionAroundLinkMark(
+    doc: Node,
+    selection: Selection,
 ): {selection: TextSelection; mark: Mark} | null {
-    if (!(state.selection instanceof TextSelection)) return null;
+    if (!(selection instanceof TextSelection)) return null;
 
-    const parentNode = state.selection.$from.parent;
+    const parentNode = selection.$from.parent;
     if (!parentNode.isTextblock) return null;
-    if (parentNode !== state.selection.$to.parent) return null;
+    if (parentNode !== selection.$to.parent) return null;
 
     let mark: Mark | undefined;
 
     // 1. Try to find the mark within the selection (if selection is not empty)
-    const selectionSlice = state.selection.content();
+    const selectionSlice = selection.content();
     let isSelectionNodeMissingMark = false;
     selectionSlice.content.nodesBetween(0, selectionSlice.content.size, node => {
         if (!node.isText) return;
@@ -840,10 +841,10 @@ function expandSelectionAroundLinkMark(
     });
     if (isSelectionNodeMissingMark) return null;
 
-    const selectionNodeBefore = state.selection.$from.nodeBefore;
+    const selectionNodeBefore = selection.$from.nodeBefore;
     if (selectionNodeBefore && !selectionNodeBefore.isText) return null;
 
-    const selectionNodeAfter = state.selection.$to.nodeAfter;
+    const selectionNodeAfter = selection.$to.nodeAfter;
     if (selectionNodeAfter && !selectionNodeAfter.isText) return null;
 
     // 2. Try to find the mark before the selection (if selection isn't
@@ -880,8 +881,7 @@ function expandSelectionAroundLinkMark(
         // If `textOffset` is 0 then `nodeBefore` will be the full child before the
         // node `$from` points to.
         // https://github.com/ProseMirror/prosemirror-model/blob/a37b6b3adeb548dc9822211b680ce9d31be65842/src/resolvedpos.ts#L107-L115
-        const startIndex =
-            state.selection.$from.index() - (state.selection.$from.textOffset === 0 ? 2 : 1);
+        const startIndex = selection.$from.index() - (selection.$from.textOffset === 0 ? 2 : 1);
 
         for (let i = startIndex; i >= 0; i--) {
             const previousNode = parentNode.child(i);
@@ -895,7 +895,7 @@ function expandSelectionAroundLinkMark(
 
     let extendTo = selectionNodeAfterMark ? selectionNodeAfter?.nodeSize ?? 0 : 0;
     if (selectionNodeAfterMark) {
-        const startIndex = state.selection.$to.index() + 1;
+        const startIndex = selection.$to.index() + 1;
 
         for (let i = startIndex; i < parentNode.childCount; i++) {
             const nextNode = parentNode.child(i);
@@ -907,12 +907,13 @@ function expandSelectionAroundLinkMark(
         }
     }
 
-    const selection = new TextSelection(
-        state.doc.resolve(state.selection.from - extendFrom),
-        state.doc.resolve(state.selection.to + extendTo),
-    );
-
-    return {selection, mark};
+    return {
+        selection: new TextSelection(
+            doc.resolve(selection.from - extendFrom),
+            doc.resolve(selection.to + extendTo),
+        ),
+        mark,
+    };
 }
 
 /**
