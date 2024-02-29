@@ -42,8 +42,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     //
     // - `nmbb` stands for `NativeMobileBottomBar`
     // - `kt` stands for `KeyboardToolbar`
+    // - `wkt` stands for `WithKeyboardToolbar`
     static private let bottomBarRegex = try! Regex<(Substring, Substring, Substring?)>(
-        " id='(nmbb-(kt-)?[^']*)'"
+        " id='(nmbb-(w?kt-)?[^']*)'"
     )
 
     private let initialPath: String
@@ -117,17 +118,22 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     /// `<MessageInput>` is an example of a component that meets these criteria.
     private var webBottomBarViews = [UIView: WebBottomBarViewState]()
 
+    private enum WebBottomBarViewType {
+        case normal(withKeyboardToolbar: Bool)
+        case keyboardToolbar
+    }
+
     private class WebBottomBarViewState {
         let id: String
-        let isKeyboardToolbar: Bool
+        let type: WebBottomBarViewType
         var reconcileTimer: Timer?
 
         private var isAwaiting = false
         private var actionQueue = [() -> Void]()
 
-        init(id: String, isKeyboardToolbar: Bool, reconcileTimer: Timer?) {
+        init(id: String, type: WebBottomBarViewType, reconcileTimer: Timer?) {
             self.id = id
-            self.isKeyboardToolbar = isKeyboardToolbar
+            self.type = type
             self.reconcileTimer = reconcileTimer
         }
 
@@ -170,7 +176,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         keyboardOffsetWithoutToolbar
             // If there's a keyboard toolbar then it "covers" the visible rectangle.
             + (webBottomBarViews.contains(where: { (webBottomBarView, webBottomBarViewState) in
-                webBottomBarViewState.isKeyboardToolbar
+                switch webBottomBarViewState.type {
+                case .normal(let withKeyboardToolbar): withKeyboardToolbar
+                case .keyboardToolbar: true
+                }
             }) ? bottomBarKeyboardToolbarHeight : 0)
     }
 
@@ -995,9 +1004,18 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 if let match = try! WebNavigationController.bottomBarRegex.firstMatch(
                     in: (webSubview.layer.name ?? "")
                 ) {
+                    let webBottomBarViewType: WebBottomBarViewType =
+                        if let typeMatch = match.2 {
+                            if typeMatch == "wkt-" {
+                                .normal(withKeyboardToolbar: true)
+                            } else {
+                                .keyboardToolbar
+                            }
+                        } else { .normal(withKeyboardToolbar: false) }
+
                     let webBottomBarViewState = WebBottomBarViewState(
                         id: String(match.1),
-                        isKeyboardToolbar: match.2 != nil,
+                        type: webBottomBarViewType,
                         reconcileTimer: nil
                     )
 
@@ -1342,23 +1360,16 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             withoutPreservingOldKeyboardOffsetForOpenWebSubstitue: true
         )
 
-        let webScrollViewFrame = webScrollView.superview!.convert(webScrollView.frame, to: view)
-        let webScrollViewTop = webScrollViewFrame.origin.y
-        let webScrollViewBottom =
-            view.frame.height - (webScrollViewFrame.origin.y + webScrollViewFrame.height)
-
         var verticalScrollIndicatorInsets = UIEdgeInsets(
-            top: max(0, safeAreaInsets.top + navigationBarHeight - webScrollViewTop),
+            top: safeAreaInsets.top + navigationBarHeight,
             left: safeAreaInsets.left,
-            bottom: max(0, safeAreaInsets.bottom - webScrollViewBottom),
+            bottom: safeAreaInsets.bottom,
             right: safeAreaInsets.right
         )
 
         // Make sure vertical scroll indicators make space for bottom bars:
         for webBottomBarView in webBottomBarViews.keys {
-            let tabBarHeight = tabBarController?.tabBar.frame.height ?? 0
-
-            let webBottomBarViewOriginYPlusHeight = webBottomBarView.superview!
+            let webBottomBarViewOriginY = webBottomBarView.superview!
                 .convert(
                     CGPoint(
                         x: 0,
@@ -1369,25 +1380,36 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                         //
                         // [1]: https://developer.apple.com/documentation/uikit/uiview/1622621-frame
                         y: webBottomBarView.layer.position.y
-                            + ((1 - webBottomBarView.layer.anchorPoint.y)
+                            - (webBottomBarView.layer.anchorPoint.y
                                 * webBottomBarView.layer.bounds.height)
                     ),
                     to: view
                 )
                 .y
 
-            let webBottomBarViewBottom = view.frame.height - webBottomBarViewOriginYPlusHeight
+            let webBottomBarAdditionalBottomInset = max(
+                0,
+                view.frame.height - webBottomBarViewOriginY - windowSafeAreaInsets.bottom
+            )
 
             verticalScrollIndicatorInsets.bottom = max(
                 verticalScrollIndicatorInsets.bottom,
-                webBottomBarView.layer.bounds.height
-                    + max(0, tabBarHeight - windowSafeAreaInsets.bottom) + webBottomBarViewBottom
-                    - webScrollViewBottom
+                safeAreaInsets.bottom + webBottomBarAdditionalBottomInset
             )
         }
 
+        let webScrollViewFrame = webScrollView.superview!.convert(webScrollView.frame, to: view)
+        let webScrollViewTop = webScrollViewFrame.origin.y
+        let webScrollViewBottom =
+            view.frame.height - (webScrollViewFrame.origin.y + webScrollViewFrame.height)
+
         webScrollView.automaticallyAdjustsScrollIndicatorInsets = false
-        webScrollView.verticalScrollIndicatorInsets = verticalScrollIndicatorInsets
+        webScrollView.verticalScrollIndicatorInsets = UIEdgeInsets(
+            top: max(0, verticalScrollIndicatorInsets.top - webScrollViewTop),
+            left: verticalScrollIndicatorInsets.left,
+            bottom: max(0, verticalScrollIndicatorInsets.bottom - webScrollViewBottom),
+            right: verticalScrollIndicatorInsets.right
+        )
     }
 
     override func pushViewController(_ viewController: UIViewController, animated: Bool) {
@@ -1543,17 +1565,22 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let tabBarHeight = tabBarController?.tabBar.frame.height ?? 0
 
         let translateY =
-            webBottomBarViewState.isKeyboardToolbar
-            ? -max(
-                0,
-                keyboardOffsetWithoutToolbar > 0
-                    ? keyboardOffsetWithoutToolbar + bottomBarKeyboardToolbarHeight : 0
-            )
-            : -max(
-                0,
-                (tabBarHeight - tabBarScrollOffset) - windowSafeAreaInsets.bottom,
-                keyboardOffsetWithoutToolbar - windowSafeAreaInsets.bottom
-            )
+            switch webBottomBarViewState.type {
+            case .normal(let withKeyboardToolbar):
+                -max(
+                    0,
+                    (tabBarHeight - tabBarScrollOffset) - windowSafeAreaInsets.bottom,
+                    keyboardOffsetWithoutToolbar - windowSafeAreaInsets.bottom
+                        + (withKeyboardToolbar && keyboardOffsetWithoutToolbar > 0
+                            ? bottomBarKeyboardToolbarHeight : 0)
+                )
+            case .keyboardToolbar:
+                -max(
+                    0,
+                    keyboardOffsetWithoutToolbar > 0
+                        ? keyboardOffsetWithoutToolbar + bottomBarKeyboardToolbarHeight : 0
+                )
+            }
 
         webBottomBarViewState.withLock {
             webBottomBarView.layer.transform = CATransform3DMakeAffineTransform(

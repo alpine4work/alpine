@@ -9,6 +9,7 @@ import {ContentView} from "~/client/content/content_view.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {nativeMobileBottomBarKeyboardToolbarHeight} from "~/client/design/native_mobile_bottom_bar.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -16,6 +17,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useInboxPeekContext} from "~/client/inbox/inbox_peek_context.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
+import {MessageInputMobileKeyboardToolbar} from "~/client/messaging/message_input_mobile_keyboard_toolbar.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {
     defaultMessageViewMarginX,
@@ -424,10 +426,10 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     // slow animations in an iOS emulator and open the keyboard.
     const bottomBarBackgroundSlopBottom = spacing["24"];
 
-    return (
+    let node = (
         <Box
             data-testid={dataTestId}
-            id={isBottomBar && clientInfo.isNativeMobile ? `nmbb-${id}` : id}
+            id={isBottomBar && clientInfo.isNativeMobile ? `nmbb-wkt-${id}` : id}
             flexShrink="0"
             backgroundColor="grey-0"
             borderTop={isBottomBar && !withoutBorderTop ? "grey-10" : undefined}
@@ -441,13 +443,17 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                     : `calc(${messageInputMinHeight} + var(--window-safe-area-inset-bottom, 0px))`,
                 // Remove one pixel from top to make space for a border.
                 paddingTop: !isBottomBar ? spacing["3"] : `calc(${spacing["3"]} - 1px)`,
-                paddingBottom: !isBottomBar
-                    ? spacing["3"]
-                    : `calc(${addRemLengths(
-                          spacing["3"],
-                          bottomBarBackgroundSlopBottom,
-                      )} + var(--window-safe-area-inset-bottom, 0px))`,
-                marginBottom: isBottomBar ? `-${bottomBarBackgroundSlopBottom}` : undefined,
+                paddingBottom: isBottomBar
+                    ? `calc(${bottomBarBackgroundSlopBottom} + var(--window-safe-area-inset-bottom, 0px))`
+                    : undefined,
+                marginBottom: isBottomBar
+                    ? isMobile
+                        ? `-${addRemLengths(
+                              bottomBarBackgroundSlopBottom,
+                              spacing[nativeMobileBottomBarKeyboardToolbarHeight],
+                          )}`
+                        : `-${bottomBarBackgroundSlopBottom}`
+                    : undefined,
                 // Our native mobile wrapper looks for compositing layers created from an
                 // element with an ID that starts with `nmbb-` and ties their position to
                 // the tab bar and software keyboard. So we get smooth animations while the
@@ -473,7 +479,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
             // React finishes hydrating. This is expected, React can ignore the difference.
             suppressHydrationWarning={isBottomBar && clientInfo.isNativeMobile ? true : undefined}
         >
-            <Box width="full" maxWidth="160" style={{margin: "0 auto"}}>
+            <Box width="full" maxWidth="160" paddingBottom="3" style={{margin: "0 auto"}}>
                 {replyingToMessage &&
                     (() => {
                         const height = addRemLengths(
@@ -621,7 +627,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                         >
                             <Box
                                 ref={useScrollbar()}
-                                maxHeight="96"
+                                maxHeight={isMobile ? "48" : "96"}
                                 position="relative"
                                 overflowX="hidden"
                                 overflowY="auto"
@@ -651,6 +657,9 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                                         onSend();
                                     }}
                                     onArrowUp={onArrowUp}
+                                    // Don't render the default content editor mobile keyboard toolbar. We render
+                                    // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
+                                    withoutMobileKeyboardToolbar={true}
                                 />
                             </Box>
                         </Box>
@@ -694,6 +703,27 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                     </Box>
                 </Box>
             </Box>
+            {isMobile && isBottomBar && <MessageInputMobileKeyboardToolbar />}
         </Box>
     );
+
+    // Cover the keyboard toolbar when it's in safe area.
+    if (isMobile && isBottomBar) {
+        node = (
+            <Box position="relative">
+                {node}
+                <Box
+                    position="absolute"
+                    zIndex="10"
+                    left="0"
+                    right="0"
+                    bottom="0"
+                    style={{height: "var(--window-safe-area-inset-bottom, 0px)"}}
+                    backgroundColor="grey-0"
+                />
+            </Box>
+        );
+    }
+
+    return node;
 }

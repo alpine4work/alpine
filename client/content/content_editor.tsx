@@ -246,6 +246,13 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     containerClassName?: string;
 
     /**
+     * Don't render the mobile keyboard toolbar with this content editor. Use this
+     * if you render your own toolbar outside the `<ContentEditor>`.
+     * `<MessageInput>` is a component that does this.
+     */
+    withoutMobileKeyboardToolbar?: boolean;
+
+    /**
      * Event fired when the user focuses the content editor.
      */
     onFocus?: (event: FocusEvent<HTMLDivElement>) => void;
@@ -439,6 +446,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         placeholder,
         className,
         containerClassName: customContainerClassName,
+        withoutMobileKeyboardToolbar,
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
         onFocus,
@@ -1535,7 +1543,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     phantomSelection={phantomSelection}
                 />
             ))}
-            {isMobile && (
+            {isMobile && !withoutMobileKeyboardToolbar && (
                 <ContentEditorMobileKeyboardToolbar
                     state={unwrap(state)}
                     viewRef={viewRef}
