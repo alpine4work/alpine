@@ -656,8 +656,14 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         <>
             {timestampDividerNode}
             <div
-                className={sprinkles({position: "relative", zIndex: "0"})}
+                className={sprinkles({
+                    width: "full",
+                    maxWidth: "160",
+                    position: "relative",
+                    zIndex: "0",
+                })}
                 style={{
+                    margin: "0 auto",
                     animation: shouldHighlight ? wiggleAnimation : undefined,
                 }}
                 data-testid={`MessageView:${

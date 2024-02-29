@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {useRef} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageList} from "~/client/messaging/message_list.js";
@@ -128,7 +129,19 @@ export function MessageShimmer<Message extends MessageModel>({
     }, []);
 
     return (
-        <div ref={shimmerRef} className={pulseAnimationClassName}>
+        <div
+            ref={shimmerRef}
+            className={classNames(
+                pulseAnimationClassName,
+                sprinkles({
+                    width: "full",
+                    maxWidth: "160",
+                }),
+            )}
+            style={{
+                margin: "0 auto",
+            }}
+        >
             {!shouldMergeWithPreviousMessage && (
                 <div
                     className={sprinkles({paddingY: "0.5"})}

@@ -2,7 +2,6 @@ import {ArrowRight} from "phosphor-react";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useCallback, useEffect, useRef, useState} from "react";
-import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {
     ContentEditorState,
@@ -22,13 +21,7 @@ import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_a
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {
-    RemLength,
-    Spacing,
-    addRemLengths,
-    parseRemLengthNumber,
-    spacing,
-} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/spacing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
@@ -39,25 +32,16 @@ import {
 } from "~/shared/messaging/message_content_schema.js";
 import {
     messageInputMinHeight,
-    messageViewBubbleBorderRadius,
     messageViewBubbleMinHeight,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
 } from "~/shared/messaging/messaging_shared_styles.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {
-    colorSchemeVars,
     greyElevated2ClassName,
     overlayFadeOutAnimationDurationMs,
     sprinkles,
 } from "~/shared/styles/styles.js";
-
-const accountAvatarSize: Spacing = "7";
-const accountAvatarPaddingY: RemLength = `${
-    (parseRemLengthNumber(messageViewBubbleMinHeight) -
-        parseRemLengthNumber(spacing[accountAvatarSize])) /
-    2
-}rem`;
 
 export function ContentEditorCommentInputFloater({
     state,
@@ -114,12 +98,7 @@ export function ContentEditorCommentInputFloater({
             // text its commenting on.
             fallbackPlacements={[]}
             overlay={
-                <Box
-                    // Add a bit of bottom padding so that if we are extending the screen width
-                    // down we have a bit of margin between the bottom of our comment input and the
-                    // bottom of the screen.
-                    paddingBottom="1"
-                >
+                <Box>
                     <ContentEditorCommentInput
                         state={state}
                         viewRef={viewRef}
@@ -246,20 +225,14 @@ function ContentEditorCommentInput({
         <>
             <Box
                 width="96"
-                style={{
-                    minHeight: `${
-                        parseRemLengthNumber(messageInputMinHeight) -
-                        parseRemLengthNumber(spacing["1"])
-                    }rem`,
-                    paddingLeft: addRemLengths(spacing["3"], spacing["0.5"]),
-                    paddingRight: addRemLengths(spacing["3"], spacing["0.5"]),
-                }}
-                paddingY="3"
+                style={{minHeight: messageInputMinHeight}}
+                padding="3"
                 display="flex"
+                gap="3"
                 overflow="hidden"
                 color="grey-text"
                 backgroundColor="grey-0"
-                borderRadius="2xl"
+                borderRadius="lg"
                 boxShadow="elevation-20"
                 className={greyElevated2ClassName}
                 onKeyDown={event => {
@@ -277,40 +250,15 @@ function ContentEditorCommentInput({
                     onConfirmSave: () => setShouldShowConfirmCloseDialog(true),
                 })}
             >
-                <Box display="flex" alignItems="flex-end">
-                    <Box
-                        style={{
-                            paddingTop: accountAvatarPaddingY,
-                            paddingBottom: accountAvatarPaddingY,
-                        }}
-                    >
-                        <AccountAvatar account={currentAccount} size={accountAvatarSize} />
-                    </Box>
-                </Box>
                 <FocusRing isVisibleWhenFocusWithin={true}>
                     <Box
                         flexGrow="1"
-                        overflow="hidden"
-                        marginX="2"
                         backgroundColor="grey-5"
-                        borderRadius={messageViewBubbleBorderRadius}
-                        style={{
-                            minHeight: messageViewBubbleMinHeight,
-                            // Use `box-shadow` for border to not contribute to the element's size.
-                            //
-                            // NOTE(calebmer, 2023-11-27): Added this border to the message input since the
-                            // background alone made the input look too much like any other comment. The
-                            // border helps it stand out more, gives it visual importance. I want to keep
-                            // the background so the appearance of the message input accurately reflects a
-                            // message bubble. Let's make this change and see how I feel using it.
-                            boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
-                        }}
+                        borderRadius="md"
+                        style={{minHeight: messageViewBubbleMinHeight}}
                     >
                         <Box
-                            ref={useScrollbar({
-                                insetY: spacing["1.5"],
-                                insetRight: spacing["0.5"],
-                            })}
+                            ref={useScrollbar()}
                             maxHeight="64"
                             position="relative"
                             overflowX="hidden"
@@ -320,8 +268,8 @@ function ContentEditorCommentInput({
                                 ref={editorRef}
                                 state={commentState}
                                 onChange={setCommentState}
-                                aria-label="New comment"
-                                placeholder="Write a comment"
+                                aria-label="Add comment"
+                                placeholder="Add a comment"
                                 className={sprinkles({
                                     paddingX: messageViewBubblePaddingX,
                                     paddingY: messageViewBubblePaddingY,
@@ -336,26 +284,26 @@ function ContentEditorCommentInput({
                         </Box>
                     </Box>
                 </FocusRing>
-                <Box display="flex" alignItems="flex-end">
-                    <Box
-                        style={{
-                            paddingTop: accountAvatarPaddingY,
-                            paddingBottom: accountAvatarPaddingY,
-                        }}
+                <Box
+                    flexShrink="0"
+                    alignSelf="flex-end"
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    style={{height: messageViewBubbleMinHeight}}
+                >
+                    <IconButton
+                        variant="accent"
+                        description="Save comment"
+                        isDisabled={isSendButtonDisabled}
+                        isPending={isSendButtonPending}
+                        onPress={sendComment}
                     >
-                        <IconButton
-                            variant="accent"
-                            description="Save comment"
-                            isDisabled={isSendButtonDisabled}
-                            isPending={isSendButtonPending}
-                            onPress={sendComment}
-                        >
-                            <ArrowRight
-                                size={spacing["4"]}
-                                weight={!isSendButtonDisabled ? "bold" : undefined}
-                            />
-                        </IconButton>
-                    </Box>
+                        <ArrowRight
+                            size={spacing["4"]}
+                            weight={!isSendButtonDisabled ? "bold" : undefined}
+                        />
+                    </IconButton>
                 </Box>
             </Box>
             {shouldShowConfirmCloseDialog && (

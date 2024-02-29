@@ -77,36 +77,44 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
             <Box
                 height={navigationBarHeight}
                 width="full"
-                paddingX={paddingX}
                 borderBottom="grey-10"
                 display="flex"
+                justifyContent="center"
                 alignItems="center"
-                gap="2"
             >
-                <Box paddingX="0.5">
-                    <AccountAvatarPile
-                        size="6"
-                        previewAccounts={otherChatAccounts.slice(0, 4)}
-                        accountCount={otherChatAccounts.length}
-                        getAllAccounts={() => otherChatAccounts}
-                    />
-                </Box>
-                <h1
-                    className={sprinkles({
-                        fontStyle: "truncate-semi-bold",
-                        fontSize: "200",
-                    })}
+                <Box
+                    width="full"
+                    maxWidth="160"
+                    paddingX={paddingX}
+                    display="flex"
+                    alignItems="center"
+                    gap="2"
                 >
-                    {otherChatAccounts.length === 1 ? (
-                        <AccountFullName account={otherChatAccounts[0]!} />
-                    ) : (
-                        <PrettyConjunctionList
-                            list={otherChatAccounts.map(account => (
-                                <AccountShortName key={account.id} account={account} />
-                            ))}
+                    <Box paddingX="0.5">
+                        <AccountAvatarPile
+                            size="6"
+                            previewAccounts={otherChatAccounts.slice(0, 4)}
+                            accountCount={otherChatAccounts.length}
+                            getAllAccounts={() => otherChatAccounts}
                         />
-                    )}
-                </h1>
+                    </Box>
+                    <h1
+                        className={sprinkles({
+                            fontStyle: "truncate-semi-bold",
+                            fontSize: "200",
+                        })}
+                    >
+                        {otherChatAccounts.length === 1 ? (
+                            <AccountFullName account={otherChatAccounts[0]!} />
+                        ) : (
+                            <PrettyConjunctionList
+                                list={otherChatAccounts.map(account => (
+                                    <AccountShortName key={account.id} account={account} />
+                                ))}
+                            />
+                        )}
+                    </h1>
+                </Box>
             </Box>
         </Box>
     );

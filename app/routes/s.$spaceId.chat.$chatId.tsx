@@ -96,32 +96,15 @@ export default function ChatRoute({withMobileLayout}: {withMobileLayout?: boolea
     );
 
     return (
-        <Box
-            flexGrow="1"
-            width="full"
-            overflow="hidden"
-            padding={!withMobileLayout ? {desktop: "4"} : undefined}
-            display="flex"
-            justifyContent="center"
-        >
-            <Box
-                maxWidth="160"
-                width="full"
-                height="full"
-                overflow="hidden"
-                backgroundColor="grey-0"
-                borderRadius={!withMobileLayout ? {desktop: "md"} : undefined}
-                boxShadow="elevation-5"
-            >
-                <ChatView
-                    // Remount whenever we navigate to a different chat.
-                    key={chat.id}
-                    chat={chat}
-                    initialMessages={initialMessages}
-                    initialOtherReferencedMessages={initialOtherReferencedMessages}
-                    initialScrollToMessageIndex={messageIndex}
-                />
-            </Box>
+        <Box flexGrow="1" width="full" height="full" overflow="hidden">
+            <ChatView
+                // Remount whenever we navigate to a different chat.
+                key={chat.id}
+                chat={chat}
+                initialMessages={initialMessages}
+                initialOtherReferencedMessages={initialOtherReferencedMessages}
+                initialScrollToMessageIndex={messageIndex}
+            />
         </Box>
     );
 }
