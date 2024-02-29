@@ -5,10 +5,16 @@ import {disableMobileWebKitDefaultScroll} from "~/client/helpers/disable_mobile_
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {easeOutCubic, parseBezier} from "~/shared/design/easing.js";
+import {easeOutCubic, parseCubicBezier} from "~/shared/design/easing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+
+export const mobileModalAnimationDurationMs = 250;
+const mobileModalAnimationDurationLongMs = 250 * 1.5;
+export const mobileModalAnimationEasingParsedCubicBezier = parseCubicBezier(
+    easeOutCubic.cubicBezier,
+);
 
 type MobileModalAnimation = "Presenting" | "Dismissing" | null;
 
@@ -83,8 +89,8 @@ export function MobileModal({
                         modalElement,
                         {y: [modalElement.getBoundingClientRect().height, 0]},
                         {
-                            duration: 0.35,
-                            easing: parseBezier(easeOutCubic.cubicBezier),
+                            duration: mobileModalAnimationDurationLongMs / 1000,
+                            easing: mobileModalAnimationEasingParsedCubicBezier,
                             // Make sure we use hardware acceleration for this animation in WebKit. By
                             // default `motion` turns it off.
                             // https://motion.dev/guides/performance#webkits-exceptions
@@ -102,8 +108,8 @@ export function MobileModal({
                         modalElement,
                         {y: [0, modalElement.getBoundingClientRect().height]},
                         {
-                            duration: 0.35,
-                            easing: parseBezier(easeOutCubic.cubicBezier),
+                            duration: mobileModalAnimationDurationLongMs / 1000,
+                            easing: mobileModalAnimationEasingParsedCubicBezier,
                             // Make sure we use hardware acceleration for this animation in WebKit. By
                             // default `motion` turns it off.
                             // https://motion.dev/guides/performance#webkits-exceptions

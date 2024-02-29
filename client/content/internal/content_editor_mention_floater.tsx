@@ -1,10 +1,13 @@
 import {isFocusVisible as getIsFocusVisible} from "@react-aria/interactions";
 import _Fuse from "fuse.js";
+import {animate} from "motion";
 import {MagnifyingGlass, SpinnerGap} from "phosphor-react";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
+    Dispatch,
     RefObject,
+    SetStateAction,
     useEffect,
     useImperativeHandle,
     useLayoutEffect,
@@ -22,15 +25,21 @@ import {
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {
+    mobileModalAnimationDurationMs,
+    mobileModalAnimationEasingParsedCubicBezier,
+} from "~/client/design/mobile_modal.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
@@ -48,6 +57,12 @@ import {
 
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
+
+type ContentEditorMentionFloaterSelectionState = {
+    readonly searchQuery: string;
+    readonly index: number | null;
+    readonly isFocusVisible: boolean;
+};
 
 export function ContentEditorMentionFloater({
     state,
@@ -70,9 +85,7 @@ export function ContentEditorMentionFloater({
     onCloseWithoutAnimation: () => void;
     onCloseWithAnimation: () => void;
 }) {
-    const overlayRef = useRef<OverlayRef>(null);
-    const menuRef = useRef<HTMLDivElement>(null);
-    const mergedMenuRef = useMergedRefs(menuRef, useScrollbar());
+    const isMobile = useIsMobile();
 
     const onCloseWithoutAnimation = useEvent(_onCloseWithoutAnimation);
     const onCloseWithAnimation = useEvent(_onCloseWithAnimation);
@@ -80,17 +93,6 @@ export function ContentEditorMentionFloater({
     useLayoutEffect(() => {
         if (!isFocused) onCloseWithAnimation();
     }, [isFocused, onCloseWithAnimation]);
-
-    useEffect(() => {
-        if (isClosing) {
-            const timeoutId = setTimeout(() => {
-                onCloseWithoutAnimation();
-            }, overlayFadeOutAnimationDurationMs);
-            return () => {
-                clearTimeout(timeoutId);
-            };
-        }
-    }, [isClosing, onCloseWithoutAnimation]);
 
     const accountStore = useAccountClientStore();
     const allAccounts = useExpensivelyLoadAllSpaceAccounts();
@@ -120,15 +122,12 @@ export function ContentEditorMentionFloater({
         return allAccountsFuse.search(searchQuery).map(({item}) => item);
     }, [allAccountDatas, allAccountsFuse, searchQuery]);
 
-    const [_selectionState, setSelectionState] = useState<{
-        searchQuery: string;
-        index: number | null;
-        isFocusVisible: boolean;
-    }>({
-        searchQuery,
-        index: null,
-        isFocusVisible: false,
-    });
+    const [_selectionState, setSelectionState] =
+        useState<ContentEditorMentionFloaterSelectionState>({
+            searchQuery,
+            index: null,
+            isFocusVisible: false,
+        });
 
     const selectionState =
         _selectionState.searchQuery !== searchQuery ||
@@ -312,6 +311,79 @@ export function ContentEditorMentionFloater({
 
     if (isLoading && !shouldShowLoadingIndicatorIfLoading) return null;
 
+    if (isMobile) {
+        return (
+            <ContentEditorMentionFloaterMobile
+                isClosing={isClosing}
+                onCloseWithoutAnimation={onCloseWithoutAnimation}
+            />
+        );
+    } else {
+        return (
+            <ContentEditorMentionFloaterDesktop
+                state={state}
+                viewRef={viewRef}
+                range={range}
+                isClosing={isClosing}
+                onCloseWithoutAnimation={onCloseWithoutAnimation}
+                isLoading={isLoading}
+                wasInitiallyLoading={wasInitiallyLoading}
+                shouldShowLoadingIndicatorIfLoading={shouldShowLoadingIndicatorIfLoading}
+                searchQuery={searchQuery}
+                selectionState={selectionState}
+                setSelectionState={setSelectionState}
+                searchedAccountDatas={searchedAccountDatas}
+                saveMention={saveMention}
+            />
+        );
+    }
+}
+
+function ContentEditorMentionFloaterDesktop({
+    state,
+    viewRef,
+    range,
+    isClosing,
+    onCloseWithoutAnimation,
+    isLoading,
+    wasInitiallyLoading,
+    shouldShowLoadingIndicatorIfLoading,
+    searchQuery,
+    selectionState,
+    setSelectionState,
+    searchedAccountDatas,
+    saveMention,
+}: {
+    state: EditorState;
+    viewRef: RefObject<EditorView | null>;
+    range: {from: number; to: number};
+    isClosing: boolean;
+    onCloseWithoutAnimation: () => void;
+    isLoading: boolean;
+    wasInitiallyLoading: boolean;
+    shouldShowLoadingIndicatorIfLoading: boolean;
+    searchQuery: string;
+    selectionState: ContentEditorMentionFloaterSelectionState;
+    setSelectionState: Dispatch<SetStateAction<ContentEditorMentionFloaterSelectionState>>;
+    searchedAccountDatas: ReadonlyArray<AccountModelData> | null;
+    saveMention: (accountData: AccountModelData) => void;
+}) {
+    const overlayRef = useRef<OverlayRef>(null);
+
+    const menuRef = useRef<HTMLDivElement>(null);
+    const mergedMenuRef = useMergedRefs(menuRef, useScrollbar());
+
+    useEffect(() => {
+        if (isClosing) {
+            const timeoutId = setTimeout(() => {
+                onCloseWithoutAnimation();
+            }, overlayFadeOutAnimationDurationMs);
+            return () => {
+                clearTimeout(timeoutId);
+            };
+        }
+    }, [isClosing, onCloseWithoutAnimation]);
+
     return (
         <OverlayAnimated
             ref={overlayRef}
@@ -406,6 +478,86 @@ export function ContentEditorMentionFloater({
                 onUpdatePosition={() => overlayRef.current?.forceUpdateOverlayPosition()}
             />
         </OverlayAnimated>
+    );
+}
+
+function ContentEditorMentionFloaterMobile({
+    isClosing,
+    onCloseWithoutAnimation,
+}: {
+    isClosing: boolean;
+    onCloseWithoutAnimation: () => void;
+}) {
+    console.log({isClosing});
+
+    const floaterRef = useRef<HTMLDivElement>(null);
+
+    const isOpeningRef = useRef(true);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!isOpeningRef.current) return;
+        isOpeningRef.current = false;
+
+        const floaterElement = assertExists(floaterRef.current);
+
+        animate(
+            floaterElement,
+            {
+                y: [floaterElement.getBoundingClientRect().height, 0],
+            },
+            {
+                duration: mobileModalAnimationDurationMs / 1000,
+                easing: mobileModalAnimationEasingParsedCubicBezier,
+                // Make sure we use hardware acceleration for this animation in WebKit. By
+                // default `motion` turns it off.
+                // https://motion.dev/guides/performance#webkits-exceptions
+                allowWebkitAcceleration: true,
+            },
+        );
+    }, []);
+
+    const isClosingRef = useRef(isClosing);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isClosingRef.current === isClosing) return;
+        isClosingRef.current = isClosing;
+
+        if (!isClosing) return;
+
+        const floaterElement = assertExists(floaterRef.current);
+
+        const animation = animate(
+            floaterElement,
+            {
+                y: [0, floaterElement.getBoundingClientRect().height],
+            },
+            {
+                duration: mobileModalAnimationDurationMs / 1000,
+                easing: mobileModalAnimationEasingParsedCubicBezier,
+                // Make sure we use hardware acceleration for this animation in WebKit. By
+                // default `motion` turns it off.
+                // https://motion.dev/guides/performance#webkits-exceptions
+                allowWebkitAcceleration: true,
+            },
+        );
+
+        animation.finished.finally(onCloseWithoutAnimation);
+    }, [isClosing, onCloseWithoutAnimation]);
+
+    return (
+        <Box
+            ref={floaterRef}
+            position="fixed"
+            left="0"
+            right="0"
+            bottom="0"
+            // Render above everything
+            zIndex="60"
+            backgroundColor="grey-0"
+            borderTopRadius="xl"
+            boxShadow="elevation-40-from-bottom"
+            style={{paddingBottom: "var(--safe-area-inset-bottom, 0px)"}}
+        >
+            <Box height="48"></Box>
+        </Box>
     );
 }
 

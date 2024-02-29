@@ -24,6 +24,7 @@ import {
     ContentEditorMobileKeyboardSubstitute,
     ContentEditorMobileKeyboardSubstituteRef,
 } from "~/client/content/internal/content_editor_mobile_keyboard_substitute.js";
+import {openMentionFloaterMetaKey} from "~/client/content/internal/content_editor_plugin_input_rules.js";
 import {
     areAllNodesListItemType,
     createToggleListItemsCommand,
@@ -46,6 +47,9 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+
+// NOCOMMIT: Haptic feedback when style is selected? This feels like a nice way
+// to reward.
 
 export function ContentEditorMobileKeyboardToolbar({
     state,
@@ -261,7 +265,15 @@ export function ContentEditorMobileKeyboardToolbar({
                         dividerRight
                         isActive={false}
                         onPress={() => {
-                            // NOCOMMIT: Implement
+                            const view = assertExists(viewRef.current);
+                            const {state} = view;
+                            const schema = state.doc.type.schema;
+
+                            view.dispatch(
+                                state.tr
+                                    .replaceSelectionWith(schema.text("@"))
+                                    .setMeta(openMentionFloaterMetaKey, true),
+                            );
                         }}
                     >
                         <At />
