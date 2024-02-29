@@ -14,6 +14,7 @@ import {ReactNode, RefObject, useMemo} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {openMentionFloaterMetaKey} from "~/client/content/internal/content_editor_plugin_input_rules.js";
 import {
     areAllNodesListItemType,
     createToggleListItemsCommand,
@@ -98,7 +99,15 @@ export function MessageInputMobileKeyboardToolbar({
                 label="Mention"
                 isActive={false}
                 onPress={() => {
-                    // NOCOMMIT: Implement
+                    const view = assertExists(editorRef.current)._getInternalView();
+                    const {state} = view;
+                    const schema = state.doc.type.schema;
+
+                    view.dispatch(
+                        state.tr
+                            .replaceSelectionWith(schema.text("@"))
+                            .setMeta(openMentionFloaterMetaKey, true),
+                    );
                 }}
             >
                 <At />

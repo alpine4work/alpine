@@ -7,6 +7,7 @@ import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentView} from "~/client/content/content_view.js";
+import {MessageInputMobileKeyboardToolbar} from "~/client/content/message_input_mobile_keyboard_toolbar.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -21,7 +22,6 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useInboxPeekContext} from "~/client/inbox/inbox_peek_context.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
-import {MessageInputMobileKeyboardToolbar} from "~/client/content/message_input_mobile_keyboard_toolbar.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {
     defaultMessageViewMarginX,
@@ -703,7 +703,9 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                                         }
                                     }}
                                     aria-label={`New ${messageNoun}`}
-                                    placeholder={`Write a ${messageNoun}`}
+                                    placeholder={`${
+                                        messageNoun === "message" ? "Send" : "Add"
+                                    } a ${messageNoun}`}
                                     className={sprinkles({
                                         paddingX: messageViewBubblePaddingX,
                                         paddingY: messageViewBubblePaddingY,
