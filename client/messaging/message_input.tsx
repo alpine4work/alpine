@@ -1,13 +1,6 @@
 import {setInteractionModality, useInteractionModality} from "@react-aria/interactions";
-import {
-    ArrowArcLeft,
-    ArrowBendRightUp,
-    ArrowUp,
-    PaperPlane,
-    PaperPlaneRight,
-    X,
-} from "phosphor-react";
-import {MutableRefObject, useEffect, useId, useMemo, useRef, useState} from "react";
+import {ArrowArcLeft, ArrowRight, ArrowUp, X} from "phosphor-react";
+import {MutableRefObject, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
@@ -20,6 +13,7 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useInboxPeekContext} from "~/client/inbox/inbox_peek_context.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
@@ -32,6 +26,7 @@ import {
     messageViewReplyPreviewOpacity,
 } from "~/client/messaging/message_view.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
@@ -55,12 +50,11 @@ import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_m
 import {
     messageInputMinHeight,
     messageViewBubbleBorderRadius,
-    messageViewBubbleMergedBorderRadius,
     messageViewBubbleMinHeight,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
 } from "~/shared/messaging/messaging_shared_styles.js";
-import {colorSchemeVars, contentViewStyles, sprinkles} from "~/shared/styles/styles.js";
+import {contentViewStyles, sprinkles} from "~/shared/styles/styles.js";
 
 const accountAvatarSize: Spacing = "7";
 const accountAvatarPaddingY: RemLength = `${
@@ -77,7 +71,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     onUpdateMessages,
     createMessage,
     messageEditing,
-    replyingToMessage: _replyingToMessage,
+    replyingToMessage,
     onClearReplyingToMessage,
     onJumpToMessage,
     onShowTypingIndicator,
@@ -110,7 +104,6 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     } | null>;
     marginX?: Spacing;
 }) {
-    const clientInfo = useClientInfo();
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
     const inboxPeekContext = useInboxPeekContext();
@@ -142,26 +135,6 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
         };
     });
 
-    const replyingToMessage = useMemo(() => {
-        if (!_replyingToMessage) return null;
-
-        return {
-            message: _replyingToMessage,
-            truncatedContent: getTruncatedMessageContentForReplyPreview({
-                message: _replyingToMessage,
-                messageStartOfSentenceNoun,
-            }),
-        };
-    }, [_replyingToMessage, messageStartOfSentenceNoun]);
-
-    // Focus the message input whenever the message we're replying to changes.
-    const replyingToMessageIndex = replyingToMessage?.message.index ?? null;
-    useEffect(() => {
-        if (replyingToMessageIndex === null) return;
-        const editor = assertExists(editorRef.current);
-        editor.focus();
-    }, [replyingToMessageIndex]);
-
     const submitMessage = () => {
         if (isMessageCreationDisabled) return;
 
@@ -176,7 +149,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
             createdTime: new Date(),
             payload: {
                 type: "Content",
-                parentMessageIndex: replyingToMessage?.message.index ?? null,
+                parentMessageIndex: replyingToMessage?.index ?? null,
                 content,
                 contentUpdatedTime: null,
             },
@@ -190,18 +163,11 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
         const tryCreatingMessage = () => {
             runPromiseWithoutAwaiting(async () => {
                 try {
-                    // Creating a message in our realtime messaging server should also clear this
-                    // connection's typing state atomically.
-                    if (typingIndicatorStateRef.current.shouldBeShowing) {
-                        typingIndicatorStateRef.current.timeout.clear();
-                        typingIndicatorStateRef.current = {shouldBeShowing: false};
-                    }
-
                     // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
                     // close the page if we haven't finished sending their message. It will
                     // look ok on their machine but might not be on the server.
                     const promise = createMessage({
-                        parentMessageIndex: replyingToMessage?.message.index ?? null,
+                        parentMessageIndex: replyingToMessage?.index ?? null,
                         content: content.doc,
                     });
 
@@ -259,7 +225,145 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     };
 
     const interactionModality = useInteractionModality();
-    const isSendButtonDisabled = isMessageCreationDisabled || isContentEmpty(state.getDoc());
+
+    return (
+        <MessageInputBase
+            editorRef={editorRef}
+            messageNoun={messageNoun}
+            messageStartOfSentenceNoun={messageStartOfSentenceNoun}
+            state={state}
+            onChange={setState}
+            onSend={submitMessage}
+            isSendButtonDisabled={isMessageCreationDisabled}
+            replyingToMessage={replyingToMessage}
+            onClearReplyingToMessage={onClearReplyingToMessage}
+            onJumpToMessage={onJumpToMessage}
+            onShowTypingIndicator={onShowTypingIndicator}
+            onHideTypingIndicator={onHideTypingIndicator}
+            isBottomBar={true}
+            withoutBorderTop={withoutBorderTop}
+            data-testid={dataTestId}
+            marginX={marginX}
+            onFocus={() => {
+                if (restoreStateRef?.current) restoreStateRef.current.isFocused = true;
+            }}
+            onBlur={() => {
+                if (restoreStateRef?.current) restoreStateRef.current.isFocused = false;
+            }}
+            onArrowUp={event => {
+                if (isContentEmpty(state.getDoc())) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    // Look at the last 10 messages. Start editing state for the last one our
+                    // account authored.
+                    for (const message of sliceIterable(
+                        messages.iterateLoadedMessagesFromEnd(),
+                        0,
+                        10,
+                    )) {
+                        if (
+                            message.author.id === currentAccount.id &&
+                            message.payload.type === "Content"
+                        ) {
+                            const previousInteractionModality = interactionModality;
+
+                            messageEditing.dispatch({
+                                type: "StartEditing",
+                                messageRoomKey: message.getRoomKey(),
+                                messageIndex: message.index,
+                                messagePayload: message.payload,
+                                returnFocusAfterEditing: () => {
+                                    // Reset the interaction modality when returning focus to our editor. So if the
+                                    // user pressed enter to save that doesn't give us a keyboard modality if the
+                                    // user wasn't using keyboard navigation before.
+                                    setInteractionModality(previousInteractionModality);
+
+                                    editorRef.current?.focus();
+                                },
+                            });
+                            break;
+                        }
+                    }
+                }
+            }}
+        />
+    );
+}
+
+export function MessageInputBase<RoomKey extends string, Message extends MessageModel<RoomKey>>({
+    editorRef: externalEditorRef,
+    messageNoun = "message",
+    messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
+    state,
+    onChange,
+    onSend: onSendProp,
+    isBottomBar = false,
+    withoutBorderTop = false,
+    withoutAccountAvatar = false,
+    isSendBottomArrowRight,
+    isSendButtonDisabled: isSendButtonDisabledProp,
+    isSendButtonPending,
+    replyingToMessage: replyingToMessageProp,
+    onClearReplyingToMessage,
+    onJumpToMessage,
+    onShowTypingIndicator,
+    onHideTypingIndicator,
+    "data-testid": dataTestId,
+    marginX = defaultMessageViewMarginX,
+    onFocus,
+    onBlur,
+    onArrowUp,
+}: {
+    editorRef?: RefObject<ContentEditorRef<MessageContentWithReferences>>;
+    messageNoun?: string;
+    messageStartOfSentenceNoun?: string;
+    state: ContentEditorState<MessageContentWithReferences>;
+    onChange: (state: ContentEditorState<MessageContentWithReferences>) => void;
+    onSend: () => void;
+    isBottomBar?: boolean;
+    withoutBorderTop?: boolean;
+    withoutAccountAvatar?: boolean;
+    isSendBottomArrowRight?: boolean;
+    isSendButtonDisabled?: boolean;
+    isSendButtonPending?: boolean;
+    replyingToMessage?: Message | null;
+    onClearReplyingToMessage?: () => void;
+    onJumpToMessage?: (message: Message) => void;
+    onShowTypingIndicator?: () => void;
+    onHideTypingIndicator?: () => void;
+    "data-testid"?: string;
+    marginX?: Spacing;
+    onFocus?: () => void;
+    onBlur?: () => void;
+    onArrowUp?: (event: KeyboardEvent) => void;
+}) {
+    const isMobile = useIsMobile();
+    const clientInfo = useClientInfo();
+    const {currentAccount} = useSpaceContext();
+    const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
+
+    const replyingToMessage = useMemo(() => {
+        if (!replyingToMessageProp) return null;
+
+        return {
+            message: replyingToMessageProp,
+            truncatedContent: getTruncatedMessageContentForReplyPreview({
+                message: replyingToMessageProp,
+                messageStartOfSentenceNoun,
+            }),
+        };
+    }, [replyingToMessageProp, messageStartOfSentenceNoun]);
+
+    // Focus the message input whenever the message we're replying to changes.
+    const replyingToMessageIndex = replyingToMessage?.message.index ?? null;
+    useEffect(() => {
+        if (replyingToMessageIndex === null) return;
+        const editor = assertExists(editorRef.current);
+        editor.focus();
+    }, [replyingToMessageIndex]);
+
+    const isSendButtonDisabled = isSendButtonDisabledProp || isContentEmpty(state.getDoc());
 
     const typingIndicatorStateRef = useRef<
         {shouldBeShowing: true; timeout: Timeout} | {shouldBeShowing: false}
@@ -276,7 +380,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
             timeout: createTimeout(hideTypingIndicator, typingIndicatorTimeout),
         };
 
-        if (!shouldAlreadyByShowing) onShowTypingIndicator();
+        if (!shouldAlreadyByShowing) onShowTypingIndicator?.();
     };
 
     // NOTE(calebmer): We don't call `hideTypingIndicator()` after sending a
@@ -286,7 +390,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
         if (typingIndicatorStateRef.current.shouldBeShowing) {
             typingIndicatorStateRef.current.timeout.clear();
             typingIndicatorStateRef.current = {shouldBeShowing: false};
-            onHideTypingIndicator();
+            onHideTypingIndicator?.();
         }
     });
 
@@ -296,6 +400,17 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
             hideTypingIndicator();
         };
     }, [hideTypingIndicator]);
+
+    const onSend = () => {
+        // Creating a message in our realtime messaging server should also clear this
+        // connection's typing state atomically.
+        if (typingIndicatorStateRef.current.shouldBeShowing) {
+            typingIndicatorStateRef.current.timeout.clear();
+            typingIndicatorStateRef.current = {shouldBeShowing: false};
+        }
+
+        onSendProp();
+    };
 
     const id = useId();
 
@@ -307,28 +422,32 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     // message input and the keyboard. To fix this, we just make them message input
     // bigger so it can cover content below while animating. To debug this turn on
     // slow animations in an iOS emulator and open the keyboard.
-    const backgroundSlopBottom = spacing["24"];
+    const bottomBarBackgroundSlopBottom = spacing["24"];
 
     return (
         <Box
             data-testid={dataTestId}
-            id={clientInfo.isNativeMobile ? `nmbb-${id}` : id}
+            id={isBottomBar && clientInfo.isNativeMobile ? `nmbb-${id}` : id}
             flexShrink="0"
             backgroundColor="grey-0"
-            borderTop={!withoutBorderTop ? "grey-10" : undefined}
+            borderTop={isBottomBar && !withoutBorderTop ? "grey-10" : undefined}
             style={{
                 // Remove one pixel so that our layout of the input without the border top is
                 // the same side-by-side with the layout of an input with the border top.
-                minHeight: withoutBorderTop
+                minHeight: !isBottomBar
+                    ? messageInputMinHeight
+                    : !withoutBorderTop
                     ? `calc(${messageInputMinHeight} - 1px + var(--window-safe-area-inset-bottom, 0px))`
                     : `calc(${messageInputMinHeight} + var(--window-safe-area-inset-bottom, 0px))`,
                 // Remove one pixel from top to make space for a border.
-                paddingTop: `calc(${spacing["3"]} - 1px)`,
-                paddingBottom: `calc(${addRemLengths(
-                    spacing["3"],
-                    backgroundSlopBottom,
-                )} + var(--window-safe-area-inset-bottom, 0px))`,
-                marginBottom: `-${backgroundSlopBottom}`,
+                paddingTop: !isBottomBar ? spacing["3"] : `calc(${spacing["3"]} - 1px)`,
+                paddingBottom: !isBottomBar
+                    ? spacing["3"]
+                    : `calc(${addRemLengths(
+                          spacing["3"],
+                          bottomBarBackgroundSlopBottom,
+                      )} + var(--window-safe-area-inset-bottom, 0px))`,
+                marginBottom: isBottomBar ? `-${bottomBarBackgroundSlopBottom}` : undefined,
                 // Our native mobile wrapper looks for compositing layers created from an
                 // element with an ID that starts with `nmbb-` and ties their position to
                 // the tab bar and software keyboard. So we get smooth animations while the
@@ -342,16 +461,17 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                 //
                 // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
                 // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
-                willChange: clientInfo.isNativeMobile ? "transform" : undefined,
+                willChange: isBottomBar && clientInfo.isNativeMobile ? "transform" : undefined,
                 // Set `transform` to its initial value assuming the tab bar is up.
-                transform: clientInfo.isNativeMobile
-                    ? "translateY(calc(var(--window-safe-area-inset-bottom, 0px) - var(--safe-area-inset-bottom, 0px)))"
-                    : undefined,
+                transform:
+                    isBottomBar && clientInfo.isNativeMobile
+                        ? "translateY(calc(var(--window-safe-area-inset-bottom, 0px) - var(--safe-area-inset-bottom, 0px)))"
+                        : undefined,
             }}
             // Suppress React hydration warnings in our native mobile app. The native
             // mobile app sets the `transform` property on this element. Sometimes before
             // React finishes hydrating. This is expected, React can ignore the difference.
-            suppressHydrationWarning={clientInfo.isNativeMobile ? true : undefined}
+            suppressHydrationWarning={isBottomBar && clientInfo.isNativeMobile ? true : undefined}
         >
             <Box width="full" maxWidth="160" style={{margin: "0 auto"}}>
                 {replyingToMessage &&
@@ -433,13 +553,13 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                                                 transformOrigin: "0% 0% 0",
                                             }}
                                             onClick={() =>
-                                                onJumpToMessage(replyingToMessage.message)
+                                                onJumpToMessage?.(replyingToMessage.message)
                                             }
                                             onKeyDown={event => {
                                                 if (event.key === "Enter" || event.key === " ") {
                                                     event.preventDefault();
                                                     event.stopPropagation();
-                                                    onJumpToMessage(replyingToMessage.message);
+                                                    onJumpToMessage?.(replyingToMessage.message);
                                                     return;
                                                 }
                                             }}
@@ -478,17 +598,19 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                         );
                     })()}
                 <Box overflow="hidden" display="flex" paddingX={marginX} gap="2">
-                    <Box display="flex" alignItems="flex-end">
-                        <Box
-                            width={accountAvatarSize}
-                            style={{
-                                paddingTop: accountAvatarPaddingY,
-                                paddingBottom: accountAvatarPaddingY,
-                            }}
-                        >
-                            <AccountAvatar account={currentAccount} size={accountAvatarSize} />
+                    {!isMobile && !withoutAccountAvatar && (
+                        <Box display="flex" alignItems="flex-end">
+                            <Box
+                                width={accountAvatarSize}
+                                style={{
+                                    paddingTop: accountAvatarPaddingY,
+                                    paddingBottom: accountAvatarPaddingY,
+                                }}
+                            >
+                                <AccountAvatar account={currentAccount} size={accountAvatarSize} />
+                            </Box>
                         </Box>
-                    </Box>
+                    )}
                     <FocusRing isVisibleWhenFocusWithin={true}>
                         <Box
                             flexGrow="1"
@@ -505,21 +627,17 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                                 overflowY="auto"
                             >
                                 <ContentEditor
-                                    ref={editorRef}
+                                    ref={useMergedRefs(editorRef, externalEditorRef ?? null)}
                                     state={state}
                                     onChange={(state, transaction) => {
-                                        setState(state);
+                                        onChange(state);
                                         if (transaction.docChanged) showTypingIndicator();
                                     }}
-                                    onFocus={() => {
-                                        if (restoreStateRef?.current)
-                                            restoreStateRef.current.isFocused = true;
-                                    }}
+                                    onFocus={onFocus}
                                     onBlur={() => {
-                                        if (restoreStateRef?.current)
-                                            restoreStateRef.current.isFocused = false;
-
                                         hideTypingIndicator();
+
+                                        onBlur?.();
                                     }}
                                     aria-label={`New ${messageNoun}`}
                                     placeholder={`Write a ${messageNoun}`}
@@ -530,48 +648,9 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                                     onEnterFromPhysicalKeyboard={event => {
                                         event.preventDefault();
                                         event.stopPropagation();
-                                        submitMessage();
+                                        onSend();
                                     }}
-                                    onArrowUp={event => {
-                                        if (isContentEmpty(state.getDoc())) {
-                                            event.preventDefault();
-                                            event.stopPropagation();
-
-                                            // Look at the last 10 messages. Start editing state for the last one our
-                                            // account authored.
-                                            for (const message of sliceIterable(
-                                                messages.iterateLoadedMessagesFromEnd(),
-                                                0,
-                                                10,
-                                            )) {
-                                                if (
-                                                    message.author.id === currentAccount.id &&
-                                                    message.payload.type === "Content"
-                                                ) {
-                                                    const previousInteractionModality =
-                                                        interactionModality;
-
-                                                    messageEditing.dispatch({
-                                                        type: "StartEditing",
-                                                        messageRoomKey: message.getRoomKey(),
-                                                        messageIndex: message.index,
-                                                        messagePayload: message.payload,
-                                                        returnFocusAfterEditing: () => {
-                                                            // Reset the interaction modality when returning focus to our editor. So if the
-                                                            // user pressed enter to save that doesn't give us a keyboard modality if the
-                                                            // user wasn't using keyboard navigation before.
-                                                            setInteractionModality(
-                                                                previousInteractionModality,
-                                                            );
-
-                                                            editorRef.current?.focus();
-                                                        },
-                                                    });
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }}
+                                    onArrowUp={onArrowUp}
                                 />
                             </Box>
                         </Box>
@@ -587,8 +666,9 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                             <IconButton
                                 variant="accent"
                                 description={`Send ${messageNoun}`}
-                                onPress={submitMessage}
+                                onPress={onSend}
                                 isDisabled={isSendButtonDisabled}
+                                isPending={isSendButtonPending}
                                 // The send icon button is not focusable. That's because we don't want to
                                 // remove focus from the message input when the send button is pressed. That
                                 // way on mobile you can keep typing and sending messages because the software
@@ -598,10 +678,17 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                                 // control of the message input.
                                 isFocusable={false}
                             >
-                                <ArrowUp
-                                    size={spacing["4"]}
-                                    weight={!isSendButtonDisabled ? "bold" : undefined}
-                                />
+                                {isSendBottomArrowRight ? (
+                                    <ArrowRight
+                                        size={spacing["4"]}
+                                        weight={!isSendButtonDisabled ? "bold" : undefined}
+                                    />
+                                ) : (
+                                    <ArrowUp
+                                        size={spacing["4"]}
+                                        weight={!isSendButtonDisabled ? "bold" : undefined}
+                                    />
+                                )}
                             </IconButton>
                         </Box>
                     </Box>

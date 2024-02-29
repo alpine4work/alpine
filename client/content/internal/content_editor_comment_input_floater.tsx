@@ -1,8 +1,7 @@
-import {ArrowRight} from "phosphor-react";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useCallback, useEffect, useRef, useState} from "react";
-import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
+import {ContentEditorRef} from "~/client/content/content_editor.js";
 import {
     ContentEditorState,
     createCommentThreadMetaKey,
@@ -10,18 +9,15 @@ import {
 } from "~/client/content/content_editor_state.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {Box} from "~/client/design/box.js";
-import {FocusRing} from "~/client/design/focus_ring.js";
-import {IconButton} from "~/client/design/icon_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
-import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {MessageInputBase} from "~/client/messaging/message_input.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {spacing} from "~/shared/design/spacing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
@@ -30,18 +26,9 @@ import {
     MessageContentWithReferences,
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
-import {
-    messageInputMinHeight,
-    messageViewBubbleMinHeight,
-    messageViewBubblePaddingX,
-    messageViewBubblePaddingY,
-} from "~/shared/messaging/messaging_shared_styles.js";
+import {messageInputMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
-import {
-    greyElevated2ClassName,
-    overlayFadeOutAnimationDurationMs,
-    sprinkles,
-} from "~/shared/styles/styles.js";
+import {greyElevated2ClassName, overlayFadeOutAnimationDurationMs} from "~/shared/styles/styles.js";
 
 export function ContentEditorCommentInputFloater({
     state,
@@ -141,7 +128,6 @@ function ContentEditorCommentInput({
     const [shouldShowConfirmCloseDialog, setShouldShowConfirmCloseDialog] = useState(false);
 
     const [isSendButtonPending, setIsSendButtonPending] = useState(false);
-    const isSendButtonDisabled = isContentEmpty(commentState.getDoc());
 
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
     const shouldFocusNextRenderRef = useRef(true);
@@ -226,9 +212,6 @@ function ContentEditorCommentInput({
             <Box
                 width="96"
                 style={{minHeight: messageInputMinHeight}}
-                padding="3"
-                display="flex"
-                gap="3"
                 overflow="hidden"
                 color="grey-text"
                 backgroundColor="grey-0"
@@ -250,61 +233,16 @@ function ContentEditorCommentInput({
                     onConfirmSave: () => setShouldShowConfirmCloseDialog(true),
                 })}
             >
-                <FocusRing isVisibleWhenFocusWithin={true}>
-                    <Box
-                        flexGrow="1"
-                        backgroundColor="grey-5"
-                        borderRadius="md"
-                        style={{minHeight: messageViewBubbleMinHeight}}
-                    >
-                        <Box
-                            ref={useScrollbar()}
-                            maxHeight="64"
-                            position="relative"
-                            overflowX="hidden"
-                            overflowY="auto"
-                        >
-                            <ContentEditor
-                                ref={editorRef}
-                                state={commentState}
-                                onChange={setCommentState}
-                                aria-label="Add comment"
-                                placeholder="Add a comment"
-                                className={sprinkles({
-                                    paddingX: messageViewBubblePaddingX,
-                                    paddingY: messageViewBubblePaddingY,
-                                })}
-                                onEnterFromPhysicalKeyboard={event => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-
-                                    sendComment();
-                                }}
-                            />
-                        </Box>
-                    </Box>
-                </FocusRing>
-                <Box
-                    flexShrink="0"
-                    alignSelf="flex-end"
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                    style={{height: messageViewBubbleMinHeight}}
-                >
-                    <IconButton
-                        variant="accent"
-                        description="Save comment"
-                        isDisabled={isSendButtonDisabled}
-                        isPending={isSendButtonPending}
-                        onPress={sendComment}
-                    >
-                        <ArrowRight
-                            size={spacing["4"]}
-                            weight={!isSendButtonDisabled ? "bold" : undefined}
-                        />
-                    </IconButton>
-                </Box>
+                <MessageInputBase
+                    editorRef={editorRef}
+                    state={commentState}
+                    onChange={setCommentState}
+                    onSend={sendComment}
+                    marginX="3"
+                    withoutAccountAvatar={true}
+                    isSendBottomArrowRight={true}
+                    isSendButtonPending={isSendButtonPending}
+                />
             </Box>
             {shouldShowConfirmCloseDialog && (
                 <ModalDialog

@@ -20,6 +20,7 @@ import {
     ContentEditorMobileLinkModal,
     ContentEditorMobileLinkModalState,
 } from "~/client/content/content_editor_mobile_link_modal.js";
+import {ContentEditorMobileCommentInputBottomBar} from "~/client/content/internal/content_editor_mobile_comment_input_bottom_bar.js";
 import {
     ContentEditorMobileKeyboardSubstitute,
     ContentEditorMobileKeyboardSubstituteRef,
@@ -60,6 +61,8 @@ export function ContentEditorMobileKeyboardToolbar({
     viewRef: RefObject<EditorView | null>;
     isFocused: boolean;
 }) {
+    const {schema} = state.doc.type;
+
     const isMounted = useIsMounted();
     const {isNativeMobile} = useClientInfo();
 
@@ -68,6 +71,7 @@ export function ContentEditorMobileKeyboardToolbar({
     const id = useId();
 
     const [isSubstituteOpen, setIsSubstituteOpen] = useState(false);
+    const [isCommentInputOpen, setIsCommentInputOpen] = useState(false);
 
     useEffect(() => {
         if (!isFocused && isSubstituteOpen) {
@@ -367,9 +371,7 @@ export function ContentEditorMobileKeyboardToolbar({
                         label="Comment"
                         dividerLeft
                         isActive={false}
-                        onPress={() => {
-                            // NOCOMMIT: Implement
-                        }}
+                        onPress={() => setIsCommentInputOpen(true)}
                     >
                         <ChatCircleText />
                     </ContentEditorMobileKeyboardToolbarButton>
@@ -414,6 +416,9 @@ export function ContentEditorMobileKeyboardToolbar({
                         />
                     )}
                 </MobileModal>
+            )}
+            {schema.marks.comment && isCommentInputOpen && (
+                <ContentEditorMobileCommentInputBottomBar />
             )}
         </>
     );
