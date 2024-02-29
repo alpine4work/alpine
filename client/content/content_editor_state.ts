@@ -245,6 +245,15 @@ export class ContentEditorState<Content extends ContentWithReferences> {
     }
 
     /**
+     * Get the internal ProseMirror editor state object. Prefer the public methods
+     * on this class that provide a constrained, safe, interface. But this escape
+     * hatch is available if necessary.
+     */
+    public _getInternalState(): EditorState & {schema: ContentProsemirrorSchema} {
+        return this._state as EditorState & {schema: ContentProsemirrorSchema};
+    }
+
+    /**
      * The current content rendered in the editor.
      *
      * Our state contains more information than just the content. For instance,

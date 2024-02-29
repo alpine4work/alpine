@@ -156,6 +156,12 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
     blur(): void;
 
     /**
+     * Does the editor contain the provided element? Only checks for children of
+     * the `contenteditable` editor. Doesn't check siblings of the editor.
+     */
+    contains(element: Element): boolean;
+
+    /**
      * Select all content in the editor.
      */
     selectAll(): void;
@@ -172,6 +178,13 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
      * Execute a ProseMirror command against this editor.
      */
     dispatchCommand(command: Command): void;
+
+    /**
+     * Get the internal ProseMirror editor view object. Prefer the public methods
+     * on this ref that provide a constrained, safe, interface. But this escape
+     * hatch is available if necessary.
+     */
+    _getInternalView(): EditorView;
 };
 
 const ContentEditorForwardRef = forwardRef(ContentEditorWrapper) as <
@@ -393,6 +406,11 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
             blur: () => {
                 // Nothing to blur
             },
+            contains: () => {
+                throw new UnimplementedError(
+                    "Content editor contains on initial render is not implemented",
+                );
+            },
             selectAll: () => {
                 throw new UnimplementedError(
                     "Selecting all text in content editor on initial render is not implemented",
@@ -405,7 +423,12 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
             },
             dispatchCommand: () => {
                 throw new UnimplementedError(
-                    "Dispatching a command on initial render is not implemented",
+                    "Dispatching a content editor command on initial render is not implemented",
+                );
+            },
+            _getInternalView: () => {
+                throw new UnimplementedError(
+                    "Getting internal ProseMirror view on initial render is not implemented",
                 );
             },
         }),
@@ -549,6 +572,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                 const view = assertExists(viewRef.current);
                 (view.dom as HTMLDivElement).blur();
             },
+            contains: element => {
+                const view = assertExists(viewRef.current);
+                return view.dom.contains(element);
+            },
             selectAll: () => {
                 const view = assertExists(viewRef.current);
                 view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
@@ -560,6 +587,9 @@ function ContentEditor<Content extends ContentWithReferences>(
             dispatchCommand: command => {
                 const view = assertExists(viewRef.current);
                 command(view.state, view.dispatch.bind(view), view);
+            },
+            _getInternalView: () => {
+                return assertExists(viewRef.current);
             },
         }),
         [],

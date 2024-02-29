@@ -1,4 +1,5 @@
 import {setInteractionModality, useInteractionModality} from "@react-aria/interactions";
+import {animate} from "motion";
 import {ArrowArcLeft, ArrowRight, ArrowUp, X} from "phosphor-react";
 import {MutableRefObject, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
@@ -9,7 +10,10 @@ import {ContentView} from "~/client/content/content_view.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {nativeMobileBottomBarKeyboardToolbarHeight} from "~/client/design/native_mobile_bottom_bar.js";
+import {
+    nativeMobileBottomBarKeyboardToolbarHeight,
+    nativeMobileBottomBarKeyboardToolbarHeightRem,
+} from "~/client/design/native_mobile_bottom_bar.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -17,7 +21,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useInboxPeekContext} from "~/client/inbox/inbox_peek_context.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
-import {MessageInputMobileKeyboardToolbar} from "~/client/messaging/message_input_mobile_keyboard_toolbar.js";
+import {MessageInputMobileKeyboardToolbar} from "~/client/content/message_input_mobile_keyboard_toolbar.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {
     defaultMessageViewMarginX,
@@ -343,6 +347,8 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     const isMobile = useIsMobile();
     const clientInfo = useClientInfo();
     const {currentAccount} = useSpaceContext();
+
+    const containerRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const replyingToMessage = useMemo(() => {
@@ -428,6 +434,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
 
     let node = (
         <Box
+            ref={containerRef}
             data-testid={dataTestId}
             id={isBottomBar && clientInfo.isNativeMobile ? `nmbb-wkt-${id}` : id}
             flexShrink="0"
@@ -478,6 +485,16 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
             // mobile app sets the `transform` property on this element. Sometimes before
             // React finishes hydrating. This is expected, React can ignore the difference.
             suppressHydrationWarning={isBottomBar && clientInfo.isNativeMobile ? true : undefined}
+            onPointerDownCapture={event => {
+                const editor = assertExists(editorRef.current);
+
+                // Tapping anywhere on the message input (excluding the message input editor
+                // itself) shouldn't unfocus the content editor since that will hide the
+                // virtual keyboard on mobile.
+                if (event.target instanceof Element && !editor.contains(event.target)) {
+                    event.preventDefault();
+                }
+            }}
         >
             <Box width="full" maxWidth="160" paddingBottom="3" style={{margin: "0 auto"}}>
                 {replyingToMessage &&
@@ -639,11 +656,51 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                                         onChange(state);
                                         if (transaction.docChanged) showTypingIndicator();
                                     }}
-                                    onFocus={onFocus}
+                                    onFocus={() => {
+                                        onFocus?.();
+
+                                        // On mobile web, animate up the message input to reveal the toolbar when the
+                                        // message input is focused.
+                                        if (!clientInfo.isNativeMobile && isMobile && isBottomBar) {
+                                            const containerElement = assertExists(
+                                                containerRef.current,
+                                            );
+
+                                            animate(
+                                                containerElement,
+                                                {
+                                                    y: [
+                                                        0,
+                                                        `-${nativeMobileBottomBarKeyboardToolbarHeightRem}rem`,
+                                                    ],
+                                                },
+                                                {duration: 0.2},
+                                            );
+                                        }
+                                    }}
                                     onBlur={() => {
                                         hideTypingIndicator();
 
                                         onBlur?.();
+
+                                        // On mobile web, animate up the message input to reveal the toolbar when the
+                                        // message input is focused.
+                                        if (!clientInfo.isNativeMobile && isMobile && isBottomBar) {
+                                            const containerElement = assertExists(
+                                                containerRef.current,
+                                            );
+
+                                            animate(
+                                                containerElement,
+                                                {
+                                                    y: [
+                                                        `-${nativeMobileBottomBarKeyboardToolbarHeightRem}rem`,
+                                                        0,
+                                                    ],
+                                                },
+                                                {duration: 0.2},
+                                            );
+                                        }
                                     }}
                                     aria-label={`New ${messageNoun}`}
                                     placeholder={`Write a ${messageNoun}`}
@@ -703,7 +760,9 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                     </Box>
                 </Box>
             </Box>
-            {isMobile && isBottomBar && <MessageInputMobileKeyboardToolbar />}
+            {isMobile && isBottomBar && (
+                <MessageInputMobileKeyboardToolbar state={state} editorRef={editorRef} />
+            )}
         </Box>
     );
 
