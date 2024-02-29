@@ -62,8 +62,19 @@ import {
 //   writing:
 //   https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/r0jzswspqf11nmy1g0zh3n6y4r
 
+// Allow changing styles for `MessageContent`.
+
 export const paragraphLineHeight = "1.375rem";
-export const paragraphMargin = spacing["2"];
+
+const paragraphMarginVar = createVar("paragraph-margin");
+const listItemOffsetVar = createVar("list-item-offset");
+
+globalStyle(":root", {
+    vars: {
+        [paragraphMarginVar]: spacing["2"],
+        [listItemOffsetVar]: spacing["0"],
+    },
+});
 
 export const docClassName = style({
     minHeight: "100%",
@@ -84,6 +95,17 @@ export const docClassName = style({
     WebkitFontVariantLigatures: "none",
     fontVariantLigatures: "none",
     fontFeatureSettings: '"liga" 0',
+});
+
+export const messageDocClassName = style({
+    vars: {
+        // Slightly smaller paragraph margins in messages while completely
+        // disappearing. This makes bullet points in a message bubble look better.
+        [paragraphMarginVar]: spacing["1.5"],
+        // Pull in list items so they're not so far from the edge of the message
+        // bubble.
+        [listItemOffsetVar]: `-${spacing["2.5"]}`,
+    },
 });
 
 export const docMobileLayoutContainerClassName = style({});
@@ -122,8 +144,8 @@ export const paragraphClassName = style({
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
     minHeight: paragraphFontSize.lineHeight,
-    marginTop: paragraphMargin,
-    marginBottom: paragraphMargin,
+    marginTop: paragraphMarginVar,
+    marginBottom: paragraphMarginVar,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
@@ -205,7 +227,7 @@ export const titleClassName = style({
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
     minHeight: `calc(${desktopTitleFontSize.lineHeight} + ${desktopTitlePaddingTop})`,
-    marginBottom: paragraphMargin,
+    marginBottom: paragraphMarginVar,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
     "@media": {
@@ -236,7 +258,7 @@ export const headingLevel1ClassName = style({
     ...fontStyles["bold"],
     ...desktopHeadingLevel1FontSize,
     marginTop: headingMarginVars.heading1TopMargin,
-    marginBottom: paragraphMargin,
+    marginBottom: paragraphMarginVar,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
     "@media": {
@@ -253,7 +275,7 @@ export const headingLevel2ClassName = style({
     ...fontStyles["bold"],
     ...desktopHeadingLevel2FontSize,
     marginTop: headingMarginVars.heading2TopMargin,
-    marginBottom: paragraphMargin,
+    marginBottom: paragraphMarginVar,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
     "@media": {
@@ -271,7 +293,7 @@ export const headingLevel3ClassName = style({
     ...fontStyles["bold"],
     ...desktopHeadingLevel3FontSize,
     marginTop: headingMarginVars.heading3TopMargin,
-    marginBottom: paragraphMargin,
+    marginBottom: paragraphMarginVar,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
     "@media": {
@@ -327,7 +349,7 @@ const bulletListItemBulletSize = spacing["1.5"];
 export const listItemClassName = style({
     ...blockStyles,
     position: "relative",
-    paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation})`,
+    paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation} + ${listItemOffsetVar})`,
 });
 
 export const bulletListItemClassName = style({
@@ -344,7 +366,7 @@ export const bulletListItemClassName = style({
             left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${
                 parseRemLengthNumber(listItemIndentation) / 2 -
                 parseRemLengthNumber(bulletListItemBulletSize) / 2
-            }rem)`,
+            }rem + ${listItemOffsetVar})`,
         },
     },
 });
@@ -356,7 +378,7 @@ export const orderedListItemClassName = style({
             position: "absolute",
             pointerEvents: "none",
             top: 0,
-            left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]})`,
+            left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]} + ${listItemOffsetVar})`,
             textAlign: "right",
             transform: "translateX(-100%)",
             ...paragraphFontSize,
@@ -389,7 +411,7 @@ export const checkListItemCheckboxContainerClassName = style({
         (parseRemLengthNumber(spacing[checkListItemCheckboxDesktopSize]) +
             parseRemLengthNumber(spacing["1"]) * 2) /
             2
-    }rem)`,
+    }rem + ${listItemOffsetVar})`,
     borderRadius: "100%",
     paddingLeft: spacing["1"],
     paddingRight: spacing["1"],
@@ -407,7 +429,7 @@ export const checkListItemCheckboxContainerClassName = style({
                 (parseRemLengthNumber(spacing[checkListItemCheckboxMobileSize]) +
                     parseRemLengthNumber(spacing["1"]) * 2) /
                     2
-            }rem)`,
+            }rem + ${listItemOffsetVar})`,
         },
     },
 });

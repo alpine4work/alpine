@@ -11,6 +11,7 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
+import {isMessageContentSchema} from "~/shared/content/is_message_content_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
@@ -20,6 +21,7 @@ import {contentSchemaStyles, contentViewStyles} from "~/shared/styles/styles.js"
 
 const {
     docClassName,
+    messageDocClassName,
     linkClassName,
     emptyTitleClassName,
     emptyBodyClassName,
@@ -261,6 +263,9 @@ export function ContentView({
                 ref={ref}
                 className={classNames(
                     docClassName,
+                    isMessageContentSchema(content.doc.type.schema)
+                        ? messageDocClassName
+                        : undefined,
                     className,
                     isTitleEmpty && emptyTitleClassName,
                     isBodyEmpty && emptyBodyClassName,

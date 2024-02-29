@@ -62,6 +62,7 @@ import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensi
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
+import {isMessageContentSchema} from "~/shared/content/is_message_content_schema.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {UnimplementedError} from "~/shared/error/error.js";
@@ -79,6 +80,7 @@ import {colorSchemeVars, contentEditorStyles, contentSchemaStyles} from "~/share
 
 const {
     docClassName,
+    messageDocClassName,
     emptyBodyClassName,
     emptyTitleClassName,
     linkClassName,
@@ -1145,10 +1147,14 @@ function ContentEditor<Content extends ContentWithReferences>(
     // Apply `className`s from our `className` prop. Take care to make sure class
     // names added by ProseMirror or other effects continue to be applied.
     useLayoutEffect(() => {
-        assert(viewRef.current);
-        const viewElement = viewRef.current.dom;
+        const view = assertExists(viewRef.current);
+        const viewElement = view.dom;
 
-        const classList = classNames(docClassName, className).split(" ");
+        const classList = classNames(
+            docClassName,
+            isMessageContentSchema(view.state.doc.type.schema) ? messageDocClassName : undefined,
+            className,
+        ).split(" ");
         viewElement.classList.add(...classList);
 
         return () => {
