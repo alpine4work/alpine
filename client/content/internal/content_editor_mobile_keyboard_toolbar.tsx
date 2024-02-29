@@ -109,6 +109,10 @@ export function ContentEditorMobileKeyboardToolbar({
                 },
                 {
                     duration: 0.2,
+                    // Make sure we use hardware acceleration for this animation in WebKit. By
+                    // default `motion` turns it off.
+                    // https://motion.dev/guides/performance#webkits-exceptions
+                    allowWebkitAcceleration: true,
                 },
             );
         } else {
@@ -119,6 +123,10 @@ export function ContentEditorMobileKeyboardToolbar({
                 },
                 {
                     duration: 0.2,
+                    // Make sure we use hardware acceleration for this animation in WebKit. By
+                    // default `motion` turns it off.
+                    // https://motion.dev/guides/performance#webkits-exceptions
+                    allowWebkitAcceleration: true,
                 },
             );
         }

@@ -657,7 +657,7 @@ function useMobileWebKitKeyboardSupport() {
         const oldKeyboardHeight = window.innerHeight - lastResizedWindowHeightForMobileWebKit;
         const newKeyboardHeight = window.innerHeight - resizedWindowHeightForMobileWebKit;
 
-        const coveredKeyboardHeightDelta = oldKeyboardHeight - newKeyboardHeight;
+        const coveredKeyboardHeightDelta = newKeyboardHeight - oldKeyboardHeight;
 
         emitMobileKeyboardFrameChangeIfNotNativeMobile(
             coveredKeyboardHeightDelta,

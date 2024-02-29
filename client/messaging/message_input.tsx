@@ -10,6 +10,7 @@ import {ContentView} from "~/client/content/content_view.js";
 import {MessageInputMobileKeyboardToolbar} from "~/client/content/message_input_mobile_keyboard_toolbar.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {
     nativeMobileBottomBarKeyboardToolbarHeight,
@@ -451,16 +452,19 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                 // Remove one pixel from top to make space for a border.
                 paddingTop: !isBottomBar ? spacing["3"] : `calc(${spacing["3"]} - 1px)`,
                 paddingBottom: isBottomBar
-                    ? `calc(${bottomBarBackgroundSlopBottom} + var(--window-safe-area-inset-bottom, 0px))`
+                    ? clientInfo.isNativeMobile
+                        ? `calc(${bottomBarBackgroundSlopBottom} + var(--window-safe-area-inset-bottom, 0px))`
+                        : "var(--window-safe-area-inset-bottom, 0px)"
                     : undefined,
-                marginBottom: isBottomBar
-                    ? isMobile
+                marginBottom:
+                    isBottomBar && clientInfo.isNativeMobile
                         ? `-${addRemLengths(
                               bottomBarBackgroundSlopBottom,
                               spacing[nativeMobileBottomBarKeyboardToolbarHeight],
                           )}`
-                        : `-${bottomBarBackgroundSlopBottom}`
-                    : undefined,
+                        : isBottomBar && isMobile
+                        ? `-${spacing[nativeMobileBottomBarKeyboardToolbarHeight]}`
+                        : undefined,
                 // Our native mobile wrapper looks for compositing layers created from an
                 // element with an ID that starts with `nmbb-` and ties their position to
                 // the tab bar and software keyboard. So we get smooth animations while the
@@ -671,10 +675,17 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                                                 {
                                                     y: [
                                                         0,
-                                                        `-${nativeMobileBottomBarKeyboardToolbarHeightRem}rem`,
+                                                        -nativeMobileBottomBarKeyboardToolbarHeightRem *
+                                                            getRemPxWithoutListening(),
                                                     ],
                                                 },
-                                                {duration: 0.2},
+                                                {
+                                                    duration: 0.2,
+                                                    // Make sure we use hardware acceleration for this animation in WebKit. By
+                                                    // default `motion` turns it off.
+                                                    // https://motion.dev/guides/performance#webkits-exceptions
+                                                    allowWebkitAcceleration: true,
+                                                },
                                             );
                                         }
                                     }}
@@ -694,11 +705,18 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                                                 containerElement,
                                                 {
                                                     y: [
-                                                        `-${nativeMobileBottomBarKeyboardToolbarHeightRem}rem`,
+                                                        -nativeMobileBottomBarKeyboardToolbarHeightRem *
+                                                            getRemPxWithoutListening(),
                                                         0,
                                                     ],
                                                 },
-                                                {duration: 0.2},
+                                                {
+                                                    duration: 0.2,
+                                                    // Make sure we use hardware acceleration for this animation in WebKit. By
+                                                    // default `motion` turns it off.
+                                                    // https://motion.dev/guides/performance#webkits-exceptions
+                                                    allowWebkitAcceleration: true,
+                                                },
                                             );
                                         }
                                     }}
@@ -771,7 +789,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     // Cover the keyboard toolbar when it's in safe area.
     if (isMobile && isBottomBar) {
         node = (
-            <Box position="relative">
+            <Box flexShrink="0" position="relative">
                 {node}
                 <Box
                     position="absolute"

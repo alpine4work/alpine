@@ -557,6 +557,11 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     });
 
     useEffect(() => {
+        // TODO(calebmer): There's a bug here in non-native mobile where opening the
+        // message input at the bottom of the view doesn't return you to the same place
+        // when keyboard opens/closes. This is probably because
+        // `coveredKeyboardHeightDelta` is the keyboard height delta but should exclude
+        // the message input?
         return subscribeToMobileKeyboardFrameChange(
             (coveredKeyboardHeightDelta, newKeyboardHeight, oldKeyboardHeight, shouldScroll) => {
                 if (!shouldScroll) return;
