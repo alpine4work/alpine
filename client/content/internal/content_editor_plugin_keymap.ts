@@ -24,7 +24,7 @@ import {
 } from "~/client/content/internal/content_editor_prosemirror_helpers.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
-import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {ContentProsemirrorSchema, maxListItemIndentation} from "~/shared/content/content_schema.js";
 
 type Command = (
     state: EditorState,
