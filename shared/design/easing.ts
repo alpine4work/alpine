@@ -188,10 +188,10 @@ export const easeInOutBounce = (t: number): number => {
 /**
  * Parse `cubic-bezier()` string to its control points.
  */
-export function parseBezier(
-    bezier: `cubic-bezier(${number}, ${number}, ${number}, ${number})`,
+export function parseCubicBezier(
+    cubicBezier: `cubic-bezier(${number}, ${number}, ${number}, ${number})`,
 ): readonly [number, number, number, number] {
-    return bezier
+    return cubicBezier
         .slice(13, -1)
         .split(", ", 4)
         .map(string => parseFloat(string)) as any;

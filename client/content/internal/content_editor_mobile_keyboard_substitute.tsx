@@ -46,6 +46,10 @@ import {
 import {Box, BoxProps} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {
+    mobileModalAnimationDurationMs,
+    mobileModalAnimationEasingParsedCubicBezier,
+} from "~/client/design/mobile_modal.js";
 import {nativeMobileBottomBarKeyboardSubstituteHeight} from "~/client/design/native_mobile_bottom_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
@@ -53,7 +57,6 @@ import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_wit
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
-import {easeOutCubic, parseBezier} from "~/shared/design/easing.js";
 import {HighlightColor, colorByHighlightColor} from "~/shared/design/highlight_color.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -104,8 +107,8 @@ function ContentEditorMobileKeyboardSubstitute(
             substituteElement,
             {y: [0, -substituteElement.getBoundingClientRect().height]},
             {
-                duration: 0.25,
-                easing: parseBezier(easeOutCubic.cubicBezier),
+                duration: mobileModalAnimationDurationMs / 1000,
+                easing: mobileModalAnimationEasingParsedCubicBezier,
                 // Make sure we use hardware acceleration for this animation in WebKit. By
                 // default `motion` turns it off.
                 // https://motion.dev/guides/performance#webkits-exceptions
@@ -126,8 +129,8 @@ function ContentEditorMobileKeyboardSubstitute(
             substituteElement,
             {y: [-substituteElement.getBoundingClientRect().height, 0]},
             {
-                duration: 0.25,
-                easing: parseBezier(easeOutCubic.cubicBezier),
+                duration: mobileModalAnimationDurationMs / 1000,
+                easing: mobileModalAnimationEasingParsedCubicBezier,
                 // Make sure we use hardware acceleration for this animation in WebKit. By
                 // default `motion` turns it off.
                 // https://motion.dev/guides/performance#webkits-exceptions
