@@ -19,6 +19,10 @@ import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {
+    getElementSafeAreaInsetBottomPx,
+    getElementSafeAreaInsetTopPx,
+} from "~/client/design/safe_area_inset.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
@@ -265,20 +269,34 @@ function Overlay(
             // components don't need to re-render after the initial render.
             const remPx = getRemPxWithoutListening();
 
+            const paddingPx = convertRemLengthToPx(spacing["1"], remPx);
+
+            const padding = {
+                top: paddingPx + getElementSafeAreaInsetTopPx(targetElement),
+                bottom: paddingPx + getElementSafeAreaInsetBottomPx(targetElement),
+                left: paddingPx,
+                right: paddingPx,
+            };
+
+            // The Popper library was deprecated and replaced with Floating UI.
+            // Functionality-wise, Popper is still working great for us. The Popper
+            // documentation lives on here:
+            // https://popper.js.org/docs/v2/
             const popper = createPopper(targetElement, overlayElement, {
                 placement: placement === "center" ? "top-start" : placement,
                 modifiers: [
                     {
                         name: "preventOverflow",
                         enabled: preventOverflow,
-                        options: {
-                            padding: convertRemLengthToPx(spacing["1"], remPx),
-                        },
+                        options: {padding},
                     },
                     {
                         name: "flip",
                         enabled: placement !== "center",
-                        options: {fallbackPlacements},
+                        options: {
+                            fallbackPlacements,
+                            padding,
+                        },
                     },
                     // When placing in the center, add a custom offset modifier that positions the
                     // overlay on top of the element underneath.

@@ -22,6 +22,7 @@ import {
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {MenuSize, menuSizeConstants} from "~/client/design/menu_button.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
@@ -31,6 +32,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
@@ -70,6 +72,8 @@ export function ContentEditorMentionFloater({
     onCloseWithoutAnimation: () => void;
     onCloseWithAnimation: () => void;
 }) {
+    const isMobile = useIsMobile();
+
     const overlayRef = useRef<OverlayRef>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const mergedMenuRef = useMergedRefs(menuRef, useScrollbar());
@@ -152,7 +156,10 @@ export function ContentEditorMentionFloater({
 
         const mention: ContentMention = {
             accountId: accountData.id,
-            isShort: !isShortNameAmbiguous,
+            // Only use short name for a non-ambiguous name on desktop. Since on mobile the
+            // quick undo capability doesn't really exist. Instead the user may tap delete
+            // to get a short name.
+            isShort: !isMobile && !isShortNameAmbiguous,
         };
 
         let transaction = updateContentEditorReferences(
@@ -312,6 +319,9 @@ export function ContentEditorMentionFloater({
 
     if (isLoading && !shouldShowLoadingIndicatorIfLoading) return null;
 
+    const menuSize: MenuSize = "lg";
+    const {width} = menuSizeConstants[menuSize][isMobile ? "mobile" : "desktop"];
+
     return (
         <OverlayAnimated
             ref={overlayRef}
@@ -331,8 +341,7 @@ export function ContentEditorMentionFloater({
                     data-testid="ContentEditorMentionFloater"
                     ref={mergedMenuRef}
                     position="relative"
-                    width="48"
-                    maxHeight="64"
+                    width={width}
                     // Hide the scrollbar while animating closed by setting overflow to `hidden`
                     // while animating.
                     overflowX="hidden"
@@ -342,6 +351,11 @@ export function ContentEditorMentionFloater({
                     className={greyElevated2ClassName}
                     backgroundColor="grey-0"
                     boxShadow="elevation-20"
+                    style={{
+                        // On mobile the height needs to be less than half of the available space when
+                        // the keyboard and navigation bar are open.
+                        maxHeight: isMobile ? "10rem" : spacing["64"],
+                    }}
                 >
                     {isLoading && shouldShowLoadingIndicatorIfLoading ? (
                         <Box paddingX="1.5" paddingY="1.5" display="flex" justifyContent="center">

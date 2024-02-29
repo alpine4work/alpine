@@ -16,3 +16,21 @@ export function getElementSafeAreaInsetTopPx(element: Element): number {
 
     throw new InternalError("Unrecognized unit for CSS variable `--safe-area-inset-top`");
 }
+
+/**
+ * Get the value of the `--safe-area-inset-bottom` CSS variable in pixels.
+ */
+export function getElementSafeAreaInsetBottomPx(element: Element): number {
+    const safeAreaInsetBottom = getComputedStyle(element).getPropertyValue(
+        "--safe-area-inset-bottom",
+    );
+    if (!safeAreaInsetBottom) return 0;
+
+    const safeAreaInsetBottomNumber = parseFloat(safeAreaInsetBottom);
+
+    if (safeAreaInsetBottom.endsWith("px")) return safeAreaInsetBottomNumber;
+    if (safeAreaInsetBottom.endsWith("rem"))
+        return safeAreaInsetBottomNumber * getRemPxWithoutListening();
+
+    throw new InternalError("Unrecognized unit for CSS variable `--safe-area-inset-bottom`");
+}

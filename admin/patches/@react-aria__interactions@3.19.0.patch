@@ -1,8 +1,105 @@
 diff --git a/dist/import.mjs b/dist/import.mjs
-index 8304c96402b2f2b285445c005b5078b34993a100..8ac10d2330fdebd9cd5320aee6e8b7bab50f17f9 100644
+index 8304c96402b2f2b285445c005b5078b34993a100..77a8fbbca1682c45f74679ba8c18fe8c5518a47e 100644
 --- a/dist/import.mjs
 +++ b/dist/import.mjs
-@@ -885,7 +885,13 @@ function $a1ea59d68270f0dd$export$f8168d8dd8fd66e6(props) {
+@@ -349,6 +349,49 @@ function $f6c31cce2adf654f$export$45712eceda6fad21(props) {
+                     addGlobalListener(document, "pointermove", onPointerMove, false);
+                     addGlobalListener(document, "pointerup", onPointerUp, false);
+                     addGlobalListener(document, "pointercancel", onPointerCancel, false);
++
++                    // NOTE(calebmer): By default, iOS Safari calls `pointercancel` if a
++                    // scroll starts after `pointerdown`. However if the CSS
++                    // `touch-action: manipulation` is set Safari doesn't seem to send
++                    // `pointercancel` during a scroll. So add scroll event handlers to
++                    // cancel the touch ourselves when a scroll happens. (The `cancel()`
++                    // function is idempotent so if `pointercancel` fires too we'll end up
++                    // in the right state.)
++                    //
++                    // You can use [this Codepen][1] to test the behavior. Observe the
++                    // pointer events when you press then scroll (there should not be
++                    // `pointercancel`). Next try removing `touch-action: manipulation`
++                    // and observe the pointer events again (there should be
++                    // `pointercancel`).
++                    //
++                    // [1]: https://codepen.io/calebmer/pen/RwOwjpe
++                    {
++                        addGlobalListener(window, 'scroll', onScroll, true);
++
++                        // NOTE(calebmer): If any parent element is scrolled, then we want to
++                        // cancel the touch. Not just if we receive a `window` `scroll` event.
++                        // `scroll` is an event that doesn't propagate.
++                        {
++                            let parentElement = e.currentTarget.parentElement;
++                            while (parentElement) {
++                                let {overflowX, overflowY} = getComputedStyle(parentElement);
++                    
++                                if (
++                                    overflowX === 'auto' ||
++                                    overflowX === 'scroll' ||
++                                    overflowY === 'auto' ||
++                                    overflowY === 'scroll'
++                                ) {
++                                   addGlobalListener(parentElement, 'scroll', onScroll, true);      
++                                }
++                    
++                                parentElement =
++                                    parentElement.parentElement !== document.body
++                                        ? parentElement.parentElement
++                                        : null
++                            }
++                        }
++                    }
+                 }
+                 if (shouldStopPropagation) e.stopPropagation();
+             };
+@@ -401,6 +444,15 @@ function $f6c31cce2adf654f$export$45712eceda6fad21(props) {
+             let onPointerCancel = (e)=>{
+                 cancel(e);
+             };
++            let onScroll = (e)=>{
++                if (state.isPressed && e.target.contains(state.target)) cancel({
++                    currentTarget: state.target,
++                    shiftKey: false,
++                    ctrlKey: false,
++                    metaKey: false,
++                    altKey: false
++                });
++            };
+             pressProps.onDragStart = (e)=>{
+                 if (!e.currentTarget.contains(e.target)) return;
+                 // Safari does not call onPointerCancel when a drag starts, whereas Chrome and Firefox do.
+@@ -479,6 +531,30 @@ function $f6c31cce2adf654f$export$45712eceda6fad21(props) {
+                 let shouldStopPropagation = triggerPressStart(e, state.pointerType);
+                 if (shouldStopPropagation) e.stopPropagation();
+                 addGlobalListener(window, "scroll", onScroll, true);
++
++                // NOTE(calebmer): If any parent element is scrolled, then we want to
++                // cancel the touch. Not just if we receive a `window` `scroll` event.
++                // `scroll` is an event that doesn't propagate.
++                {
++                    let parentElement = e.currentTarget.parentElement;
++                    while (parentElement) {
++                        let {overflowX, overflowY} = getComputedStyle(parentElement);
++            
++                        if (
++                            overflowX === 'auto' ||
++                            overflowX === 'scroll' ||
++                            overflowY === 'auto' ||
++                            overflowY === 'scroll'
++                        ) {
++                            addGlobalListener(parentElement, 'scroll', onScroll, true);      
++                        }
++            
++                        parentElement =
++                            parentElement.parentElement !== document.body
++                            ? parentElement.parentElement
++                            : null
++                    }
++                }
+             };
+             pressProps.onTouchMove = (e)=>{
+                 if (!e.currentTarget.contains(e.target)) return;
+@@ -885,7 +961,13 @@ function $a1ea59d68270f0dd$export$f8168d8dd8fd66e6(props) {
  
  
  
@@ -17,7 +114,7 @@ index 8304c96402b2f2b285445c005b5078b34993a100..8ac10d2330fdebd9cd5320aee6e8b7ba
  let $507fabe10e71c6fb$var$changeHandlers = new Set();
  let $507fabe10e71c6fb$var$hasSetupGlobalListeners = false;
  let $507fabe10e71c6fb$var$hasEventBeforeFocus = false;
-@@ -1348,25 +1354,41 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
+@@ -1348,25 +1430,41 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
   * governing permissions and limitations under the License.
   */ function $93925083ecbb358c$export$48d1ea6320830260(handler) {
      if (!handler) return;
@@ -65,11 +162,114 @@ index 8304c96402b2f2b285445c005b5078b34993a100..8ac10d2330fdebd9cd5320aee6e8b7ba
      };
  }
  
+@@ -1708,4 +1806,4 @@ function $8a26561d2877236e$export$c24ed0104d07eab9(props) {
+ 
+ 
+ export {$3b117e43dc0ca95d$export$27c701ed9e449e99 as Pressable, $f1ab8c75478c6f73$export$3351871ee4b288b8 as PressResponder, $f1ab8c75478c6f73$export$cf75428e0b9ed1ea as ClearPressResponder, $a1ea59d68270f0dd$export$f8168d8dd8fd66e6 as useFocus, $507fabe10e71c6fb$export$b9b3dfddab17db27 as isFocusVisible, $507fabe10e71c6fb$export$630ff653c5ada6a9 as getInteractionModality, $507fabe10e71c6fb$export$8397ddfc504fdb9a as setInteractionModality, $507fabe10e71c6fb$export$98e20ec92f614cfe as useInteractionModality, $507fabe10e71c6fb$export$ffd9e5021c1fb2d6 as useFocusVisible, $507fabe10e71c6fb$export$ec71b4b83ac08ec3 as useFocusVisibleListener, $9ab94262bd0047c7$export$420e68273165f4ec as useFocusWithin, $6179b936705e76d3$export$ae780daf29e6d456 as useHover, $e0b6e0b68ec7f50f$export$872b660ac5a1ff98 as useInteractOutside, $46d819fcbaf35654$export$8f71654801c2f7cd as useKeyboard, $e8a7022cf87cba2a$export$36da96379f79f245 as useMove, $f6c31cce2adf654f$export$45712eceda6fad21 as usePress, $7d0a636d7a4dcefd$export$2123ff2b87c81ca as useScrollWheel, $8a26561d2877236e$export$c24ed0104d07eab9 as useLongPress};
+-//# sourceMappingURL=module.js.map
++// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/dist/main.js b/dist/main.js
-index dca2b48e87b91891af244269a71d87c3162a7006..7e8fb16c9243d7a071755b965f5c06f201025c93 100644
+index dca2b48e87b91891af244269a71d87c3162a7006..a994dd968445ff043e3e95d7f9f39f62270b5344 100644
 --- a/dist/main.js
 +++ b/dist/main.js
-@@ -910,7 +910,13 @@ function $5cb73d0ce355b0dc$export$f8168d8dd8fd66e6(props) {
+@@ -374,6 +374,49 @@ function $0294ea432cd92340$export$45712eceda6fad21(props) {
+                     addGlobalListener(document, "pointermove", onPointerMove, false);
+                     addGlobalListener(document, "pointerup", onPointerUp, false);
+                     addGlobalListener(document, "pointercancel", onPointerCancel, false);
++
++                    // NOTE(calebmer): By default, iOS Safari calls `pointercancel` if a
++                    // scroll starts after `pointerdown`. However if the CSS
++                    // `touch-action: manipulation` is set Safari doesn't seem to send
++                    // `pointercancel` during a scroll. So add scroll event handlers to
++                    // cancel the touch ourselves when a scroll happens. (The `cancel()`
++                    // function is idempotent so if `pointercancel` fires too we'll end up
++                    // in the right state.)
++                    //
++                    // You can use [this Codepen][1] to test the behavior. Observe the
++                    // pointer events when you press then scroll (there should not be
++                    // `pointercancel`). Next try removing `touch-action: manipulation`
++                    // and observe the pointer events again (there should be
++                    // `pointercancel`).
++                    //
++                    // [1]: https://codepen.io/calebmer/pen/RwOwjpe
++                    {
++                        addGlobalListener(window, 'scroll', onScroll, true);
++
++                        // NOTE(calebmer): If any parent element is scrolled, then we want to
++                        // cancel the touch. Not just if we receive a `window` `scroll` event.
++                        // `scroll` is an event that doesn't propagate.
++                        {
++                            let parentElement = e.currentTarget.parentElement;
++                            while (parentElement) {
++                                let {overflowX, overflowY} = getComputedStyle(parentElement);
++                    
++                                if (
++                                    overflowX === 'auto' ||
++                                    overflowX === 'scroll' ||
++                                    overflowY === 'auto' ||
++                                    overflowY === 'scroll'
++                                ) {
++                                   addGlobalListener(parentElement, 'scroll', onScroll, true);      
++                                }
++                    
++                                parentElement =
++                                    parentElement.parentElement !== document.body
++                                        ? parentElement.parentElement
++                                        : null
++                            }
++                        }
++                    }
+                 }
+                 if (shouldStopPropagation) e.stopPropagation();
+             };
+@@ -426,6 +469,15 @@ function $0294ea432cd92340$export$45712eceda6fad21(props) {
+             let onPointerCancel = (e)=>{
+                 cancel(e);
+             };
++            let onScroll = (e)=>{
++                if (state.isPressed && e.target.contains(state.target)) cancel({
++                    currentTarget: state.target,
++                    shiftKey: false,
++                    ctrlKey: false,
++                    metaKey: false,
++                    altKey: false
++                });
++            };
+             pressProps.onDragStart = (e)=>{
+                 if (!e.currentTarget.contains(e.target)) return;
+                 // Safari does not call onPointerCancel when a drag starts, whereas Chrome and Firefox do.
+@@ -504,6 +556,30 @@ function $0294ea432cd92340$export$45712eceda6fad21(props) {
+                 let shouldStopPropagation = triggerPressStart(e, state.pointerType);
+                 if (shouldStopPropagation) e.stopPropagation();
+                 addGlobalListener(window, "scroll", onScroll, true);
++
++                // NOTE(calebmer): If any parent element is scrolled, then we want to
++                // cancel the touch. Not just if we receive a `window` `scroll` event.
++                // `scroll` is an event that doesn't propagate.
++                {
++                    let parentElement = e.currentTarget.parentElement;
++                    while (parentElement) {
++                        let {overflowX, overflowY} = getComputedStyle(parentElement);
++            
++                        if (
++                            overflowX === 'auto' ||
++                            overflowX === 'scroll' ||
++                            overflowY === 'auto' ||
++                            overflowY === 'scroll'
++                        ) {
++                            addGlobalListener(parentElement, 'scroll', onScroll, true);      
++                        }
++            
++                        parentElement =
++                            parentElement.parentElement !== document.body
++                            ? parentElement.parentElement
++                            : null
++                    }
++                }
+             };
+             pressProps.onTouchMove = (e)=>{
+                 if (!e.currentTarget.contains(e.target)) return;
+@@ -910,7 +986,13 @@ function $5cb73d0ce355b0dc$export$f8168d8dd8fd66e6(props) {
  
  
  
@@ -84,7 +284,7 @@ index dca2b48e87b91891af244269a71d87c3162a7006..7e8fb16c9243d7a071755b965f5c06f2
  let $e77252a287ef94ab$var$changeHandlers = new Set();
  let $e77252a287ef94ab$var$hasSetupGlobalListeners = false;
  let $e77252a287ef94ab$var$hasEventBeforeFocus = false;
-@@ -1373,25 +1379,41 @@ function $edcfa848c42f94f4$var$isValidEvent(event, ref) {
+@@ -1373,25 +1455,41 @@ function $edcfa848c42f94f4$var$isValidEvent(event, ref) {
   * governing permissions and limitations under the License.
   */ function $951fbcbbca8db6ce$export$48d1ea6320830260(handler) {
      if (!handler) return;
@@ -132,11 +332,114 @@ index dca2b48e87b91891af244269a71d87c3162a7006..7e8fb16c9243d7a071755b965f5c06f2
      };
  }
  
+@@ -1732,4 +1830,4 @@ function $3cd7b5d0eebf0ca9$export$c24ed0104d07eab9(props) {
+ 
+ 
+ 
+-//# sourceMappingURL=main.js.map
++// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/dist/module.js b/dist/module.js
-index 8304c96402b2f2b285445c005b5078b34993a100..492a2341131b88ac838afe622ed535e22fd60ae4 100644
+index 8304c96402b2f2b285445c005b5078b34993a100..441e575fbe4a5011f11d92e96254e02ff789b4b1 100644
 --- a/dist/module.js
 +++ b/dist/module.js
-@@ -885,7 +885,13 @@ function $a1ea59d68270f0dd$export$f8168d8dd8fd66e6(props) {
+@@ -349,6 +349,49 @@ function $f6c31cce2adf654f$export$45712eceda6fad21(props) {
+                     addGlobalListener(document, "pointermove", onPointerMove, false);
+                     addGlobalListener(document, "pointerup", onPointerUp, false);
+                     addGlobalListener(document, "pointercancel", onPointerCancel, false);
++
++                    // NOTE(calebmer): By default, iOS Safari calls `pointercancel` if a
++                    // scroll starts after `pointerdown`. However if the CSS
++                    // `touch-action: manipulation` is set Safari doesn't seem to send
++                    // `pointercancel` during a scroll. So add scroll event handlers to
++                    // cancel the touch ourselves when a scroll happens. (The `cancel()`
++                    // function is idempotent so if `pointercancel` fires too we'll end up
++                    // in the right state.)
++                    //
++                    // You can use [this Codepen][1] to test the behavior. Observe the
++                    // pointer events when you press then scroll (there should not be
++                    // `pointercancel`). Next try removing `touch-action: manipulation`
++                    // and observe the pointer events again (there should be
++                    // `pointercancel`).
++                    //
++                    // [1]: https://codepen.io/calebmer/pen/RwOwjpe
++                    {
++                        addGlobalListener(window, 'scroll', onScroll, true);
++
++                        // NOTE(calebmer): If any parent element is scrolled, then we want to
++                        // cancel the touch. Not just if we receive a `window` `scroll` event.
++                        // `scroll` is an event that doesn't propagate.
++                        {
++                            let parentElement = e.currentTarget.parentElement;
++                            while (parentElement) {
++                                let {overflowX, overflowY} = getComputedStyle(parentElement);
++                    
++                                if (
++                                    overflowX === 'auto' ||
++                                    overflowX === 'scroll' ||
++                                    overflowY === 'auto' ||
++                                    overflowY === 'scroll'
++                                ) {
++                                   addGlobalListener(parentElement, 'scroll', onScroll, true);      
++                                }
++                    
++                                parentElement =
++                                    parentElement.parentElement !== document.body
++                                        ? parentElement.parentElement
++                                        : null
++                            }
++                        }
++                    }
+                 }
+                 if (shouldStopPropagation) e.stopPropagation();
+             };
+@@ -401,6 +444,15 @@ function $f6c31cce2adf654f$export$45712eceda6fad21(props) {
+             let onPointerCancel = (e)=>{
+                 cancel(e);
+             };
++            let onScroll = (e)=>{
++                if (state.isPressed && e.target.contains(state.target)) cancel({
++                    currentTarget: state.target,
++                    shiftKey: false,
++                    ctrlKey: false,
++                    metaKey: false,
++                    altKey: false
++                });
++            };
+             pressProps.onDragStart = (e)=>{
+                 if (!e.currentTarget.contains(e.target)) return;
+                 // Safari does not call onPointerCancel when a drag starts, whereas Chrome and Firefox do.
+@@ -479,6 +531,30 @@ function $f6c31cce2adf654f$export$45712eceda6fad21(props) {
+                 let shouldStopPropagation = triggerPressStart(e, state.pointerType);
+                 if (shouldStopPropagation) e.stopPropagation();
+                 addGlobalListener(window, "scroll", onScroll, true);
++
++                // NOTE(calebmer): If any parent element is scrolled, then we want to
++                // cancel the touch. Not just if we receive a `window` `scroll` event.
++                // `scroll` is an event that doesn't propagate.
++                {
++                    let parentElement = e.currentTarget.parentElement;
++                    while (parentElement) {
++                        let {overflowX, overflowY} = getComputedStyle(parentElement);
++            
++                        if (
++                            overflowX === 'auto' ||
++                            overflowX === 'scroll' ||
++                            overflowY === 'auto' ||
++                            overflowY === 'scroll'
++                        ) {
++                            addGlobalListener(parentElement, 'scroll', onScroll, true);      
++                        }
++            
++                        parentElement =
++                            parentElement.parentElement !== document.body
++                            ? parentElement.parentElement
++                            : null
++                    }
++                }
+             };
+             pressProps.onTouchMove = (e)=>{
+                 if (!e.currentTarget.contains(e.target)) return;
+@@ -885,7 +961,13 @@ function $a1ea59d68270f0dd$export$f8168d8dd8fd66e6(props) {
  
  
  
@@ -151,7 +454,7 @@ index 8304c96402b2f2b285445c005b5078b34993a100..492a2341131b88ac838afe622ed535e2
  let $507fabe10e71c6fb$var$changeHandlers = new Set();
  let $507fabe10e71c6fb$var$hasSetupGlobalListeners = false;
  let $507fabe10e71c6fb$var$hasEventBeforeFocus = false;
-@@ -1348,25 +1354,41 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
+@@ -1348,25 +1430,41 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
   * governing permissions and limitations under the License.
   */ function $93925083ecbb358c$export$48d1ea6320830260(handler) {
      if (!handler) return;
@@ -199,6 +502,12 @@ index 8304c96402b2f2b285445c005b5078b34993a100..492a2341131b88ac838afe622ed535e2
      };
  }
  
+@@ -1708,4 +1806,4 @@ function $8a26561d2877236e$export$c24ed0104d07eab9(props) {
+ 
+ 
+ export {$3b117e43dc0ca95d$export$27c701ed9e449e99 as Pressable, $f1ab8c75478c6f73$export$3351871ee4b288b8 as PressResponder, $f1ab8c75478c6f73$export$cf75428e0b9ed1ea as ClearPressResponder, $a1ea59d68270f0dd$export$f8168d8dd8fd66e6 as useFocus, $507fabe10e71c6fb$export$b9b3dfddab17db27 as isFocusVisible, $507fabe10e71c6fb$export$630ff653c5ada6a9 as getInteractionModality, $507fabe10e71c6fb$export$8397ddfc504fdb9a as setInteractionModality, $507fabe10e71c6fb$export$98e20ec92f614cfe as useInteractionModality, $507fabe10e71c6fb$export$ffd9e5021c1fb2d6 as useFocusVisible, $507fabe10e71c6fb$export$ec71b4b83ac08ec3 as useFocusVisibleListener, $9ab94262bd0047c7$export$420e68273165f4ec as useFocusWithin, $6179b936705e76d3$export$ae780daf29e6d456 as useHover, $e0b6e0b68ec7f50f$export$872b660ac5a1ff98 as useInteractOutside, $46d819fcbaf35654$export$8f71654801c2f7cd as useKeyboard, $e8a7022cf87cba2a$export$36da96379f79f245 as useMove, $f6c31cce2adf654f$export$45712eceda6fad21 as usePress, $7d0a636d7a4dcefd$export$2123ff2b87c81ca as useScrollWheel, $8a26561d2877236e$export$c24ed0104d07eab9 as useLongPress};
+-//# sourceMappingURL=module.js.map
++// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/src/createEventHandler.ts b/src/createEventHandler.ts
 index 5733c7e4221092879a6409ca983e919edff0da87..cb03a60028df9172451768e856dd614baf3a0b05 100644
 --- a/src/createEventHandler.ts
@@ -273,3 +582,107 @@ index 60fd6b5a77f5d9f26ffdb6e750e11a0cab6923e4..db1066703ef1c941ab6ee4c422b98931
  let changeHandlers = new Set<Handler>();
  let hasSetupGlobalListeners = false;
  let hasEventBeforeFocus = false;
+diff --git a/src/usePress.ts b/src/usePress.ts
+index 02a69cb09950093d7612ddd111b12d99a80f34cd..8813bde67c97be246fa94c6087694bae01702a10 100644
+--- a/src/usePress.ts
++++ b/src/usePress.ts
+@@ -413,6 +413,49 @@ export function usePress(props: PressHookProps): PressResult {
+           addGlobalListener(document, 'pointermove', onPointerMove, false);
+           addGlobalListener(document, 'pointerup', onPointerUp, false);
+           addGlobalListener(document, 'pointercancel', onPointerCancel, false);
++
++          // NOTE(calebmer): By default, iOS Safari calls `pointercancel` if a
++          // scroll starts after `pointerdown`. However if the CSS
++          // `touch-action: manipulation` is set Safari doesn't seem to send
++          // `pointercancel` during a scroll. So add scroll event handlers to
++          // cancel the touch ourselves when a scroll happens. (The `cancel()`
++          // function is idempotent so if `pointercancel` fires too we'll end up
++          // in the right state.)
++          //
++          // You can use [this Codepen][1] to test the behavior. Observe the
++          // pointer events when you press then scroll (there should not be
++          // `pointercancel`). Next try removing `touch-action: manipulation`
++          // and observe the pointer events again (there should be
++          // `pointercancel`).
++          //
++          // [1]: https://codepen.io/calebmer/pen/RwOwjpe
++          {
++            addGlobalListener(window, 'scroll', onScroll, true);
++
++            // NOTE(calebmer): If any parent element is scrolled, then we want to
++            // cancel the touch. Not just if we receive a `window` `scroll` event.
++            // `scroll` is an event that doesn't propagate.
++            {
++              let parentElement = e.currentTarget.parentElement;
++              while (parentElement) {
++                let {overflowX, overflowY} = getComputedStyle(parentElement);
++    
++                if (
++                  overflowX === 'auto' ||
++                  overflowX === 'scroll' ||
++                  overflowY === 'auto' ||
++                  overflowY === 'scroll'
++                ) {
++                  addGlobalListener(parentElement, 'scroll', onScroll, true);      
++                }
++    
++                parentElement =
++                  parentElement.parentElement !== document.body
++                    ? parentElement.parentElement
++                    : null
++              }
++            }    
++          }
+         }
+ 
+         if (shouldStopPropagation) {
+@@ -494,6 +537,18 @@ export function usePress(props: PressHookProps): PressResult {
+         cancel(e);
+       };
+ 
++      let onScroll = (e: Event) => {
++        if (state.isPressed && (e.target as Element).contains(state.target)) {
++          cancel({
++            currentTarget: state.target,
++            shiftKey: false,
++            ctrlKey: false,
++            metaKey: false,
++            altKey: false
++          });
++        }
++      };
++
+       pressProps.onDragStart = (e) => {
+         if (!e.currentTarget.contains(e.target as Element)) {
+           return;
+@@ -635,6 +690,30 @@ export function usePress(props: PressHookProps): PressResult {
+         }
+ 
+         addGlobalListener(window, 'scroll', onScroll, true);
++
++        // NOTE(calebmer): If any parent element is scrolled, then we want to
++        // cancel the touch. Not just if we receive a `window` `scroll` event.
++        // `scroll` is an event that doesn't propagate.
++        {
++          let parentElement = e.currentTarget.parentElement;
++          while (parentElement) {
++            let {overflowX, overflowY} = getComputedStyle(parentElement);
++
++            if (
++              overflowX === 'auto' ||
++              overflowX === 'scroll' ||
++              overflowY === 'auto' ||
++              overflowY === 'scroll'
++            ) {
++              addGlobalListener(parentElement, 'scroll', onScroll, true);      
++            }
++
++            parentElement =
++              parentElement.parentElement !== document.body
++                ? parentElement.parentElement
++                : null
++          }
++        }
+       };
+ 
+       pressProps.onTouchMove = (e) => {

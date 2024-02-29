@@ -202,7 +202,7 @@ export const menuSizeConstants: {
             itemPaddingY: "1",
         },
         mobile: {
-            width: "48",
+            width: "64",
             iconSize: "4",
             itemPaddingY: "1.5",
         },
