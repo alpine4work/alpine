@@ -6,7 +6,10 @@ import {renderContentFragmentToHtmlStore} from "~/client/content/render_content_
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
 import {Tooltip} from "~/client/design/tooltip.js";
+import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
+import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
@@ -23,6 +26,7 @@ const {
     docClassName,
     messageDocClassName,
     linkClassName,
+    linkPressedClassName,
     emptyTitleClassName,
     emptyBodyClassName,
     paragraphClassName,
@@ -211,13 +215,97 @@ export function ContentView({
         for (const linkElement of element.getElementsByClassName(linkClassName)) {
             if (!(linkElement instanceof HTMLAnchorElement)) continue;
 
+            let isPointerDownAndOver = false;
+
+            const maybeUpdateStyle = () => {
+                if (isPointerDownAndOver) {
+                    linkElement.classList.add(linkPressedClassName);
+                } else {
+                    linkElement.classList.remove(linkPressedClassName);
+                }
+            };
+
             const handleClick = (event: MouseEvent) => {
+                const isOpenLinkInSeparateTabEvent = isOpenLinkInSeparateTabPointerEvent(
+                    event,
+                    getClientInfoWithoutListening(),
+                );
+
+                // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
+                // modifier. Unless the click was meant to open the link in a separate tab. We
+                // need to implement that manually here given the text is editable.
+                if (
+                    (event.button !== 0 || isModifiedPointerEvent(event)) &&
+                    !isOpenLinkInSeparateTabEvent
+                ) {
+                    return;
+                }
+
+                // Must call prevent default here in addition to `pointerdown` to stop mobile
+                // WebKit from following a link after click.
+                event.preventDefault();
+            };
+
+            const handlePointerDown = (event: MouseEvent) => {
+                isPointerDownAndOver =
+                    event.button === 0 &&
+                    (!isModifiedPointerEvent(event) ||
+                        isOpenLinkInSeparateTabPointerEvent(
+                            event,
+                            getClientInfoWithoutListening(),
+                        ));
+
+                maybeUpdateStyle();
+
+                // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
+                // modifier. Unless the click was meant to open the link in a separate tab. We
+                // need to implement that manually here given the text is editable.
+                if (
+                    (event.button !== 0 || isModifiedPointerEvent(event)) &&
+                    !isOpenLinkInSeparateTabPointerEvent(event, getClientInfoWithoutListening())
+                ) {
+                    return;
+                }
+
+                // This will be a navigation click if the pointer stays over our element. Don't
+                // select the editable text.
+                event.preventDefault();
+            };
+
+            const handlePointerUp = (event: MouseEvent) => {
+                const wasPointerDownAndOver = isPointerDownAndOver;
+                isPointerDownAndOver = false;
+                maybeUpdateStyle();
+
+                // Only process pointer up events that started on our element.
+                if (!wasPointerDownAndOver) {
+                    return;
+                }
+
                 handleContentLinkClick(event, navigate);
             };
 
+            const handlePointerLeave = (event: MouseEvent) => {
+                isPointerDownAndOver = false;
+                maybeUpdateStyle();
+            };
+
+            const handleDragStart = (event: DragEvent) => {
+                isPointerDownAndOver = false;
+                maybeUpdateStyle();
+            };
+
             linkElement.addEventListener("click", handleClick);
+            linkElement.addEventListener("pointerdown", handlePointerDown);
+            linkElement.addEventListener("pointerup", handlePointerUp);
+            linkElement.addEventListener("pointerleave", handlePointerLeave);
+            linkElement.addEventListener("dragstart", handleDragStart);
             cleanupFunctions.push(() => {
                 linkElement.removeEventListener("click", handleClick);
+                linkElement.removeEventListener("pointerdown", handlePointerDown);
+                linkElement.removeEventListener("pointerup", handlePointerUp);
+                linkElement.removeEventListener("pointerleave", handlePointerLeave);
+                linkElement.removeEventListener("dragstart", handleDragStart);
             });
         }
 

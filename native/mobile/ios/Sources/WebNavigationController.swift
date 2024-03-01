@@ -581,6 +581,25 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         return .allow
     }
 
+    func webView(
+        _ webView: WKWebView,
+        createWebViewWith configuration: WKWebViewConfiguration,
+        for navigationAction: WKNavigationAction,
+        windowFeatures: WKWindowFeatures
+    ) -> WKWebView? {
+        let requestUrl = navigationAction.request.url!
+
+        // Respond to `window.open()` calls by opening the URL in Safari (or another
+        // app that handles the URL).
+        //
+        // We should consider opening an in-app browser instead so the user doesn't
+        // have to leave our app. Or maybe we always open in Safari? So if they're
+        // already logged in we can reuse that session state.
+        UIApplication.shared.open(requestUrl)
+
+        return nil
+    }
+
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         logger.info("Started navigation to: \(webView.url?.absoluteString ?? "nil")")
 

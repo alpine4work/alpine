@@ -52,6 +52,27 @@ export function createContentEditorLinkMarkViewConstructor({
             }
         };
 
+        dom.addEventListener("click", event => {
+            const isOpenLinkInSeparateTabEvent = isOpenLinkInSeparateTabPointerEvent(
+                event,
+                getClientInfoWithoutListening(),
+            );
+
+            // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
+            // modifier. Unless the click was meant to open the link in a separate tab. We
+            // need to implement that manually here given the text is editable.
+            if (
+                (event.button !== 0 || isModifiedPointerEvent(event)) &&
+                !isOpenLinkInSeparateTabEvent
+            ) {
+                return;
+            }
+
+            // Must call prevent default here in addition to `pointerdown` to stop mobile
+            // WebKit from following a link after click.
+            event.preventDefault();
+        });
+
         dom.addEventListener("pointerdown", event => {
             isPointerDownAndOver =
                 event.button === 0 &&
@@ -162,6 +183,14 @@ export function createContentEditorLinkMarkViewConstructor({
             if (isInert()) return;
 
             onPointerLeave(mark);
+        });
+
+        dom.addEventListener("dragstart", () => {
+            isPointerDownAndOver = false;
+            maybeUpdateStyle();
+
+            pointerEnterDelayTimeout?.clear();
+            pointerEnterDelayTimeout = null;
         });
 
         return {
