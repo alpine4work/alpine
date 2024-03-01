@@ -36,6 +36,7 @@ import {
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {subscribeToMobileKeyboardFrameChange} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
@@ -557,31 +558,64 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     });
 
     useEffect(() => {
-        // TODO(calebmer): There's a bug here in non-native mobile where opening the
-        // message input at the bottom of the view doesn't return you to the same place
-        // when keyboard opens/closes. This is probably because
-        // `coveredKeyboardHeightDelta` is the keyboard height delta but should exclude
-        // the message input?
         return subscribeToMobileKeyboardFrameChange(
             (coveredKeyboardHeightDelta, newKeyboardHeight, oldKeyboardHeight, shouldScroll) => {
+                const view = assertExists(viewRef.current);
+
                 if (!shouldScroll) return;
 
                 const remPx = getRemPxWithoutListening();
-                const view = assertExists(viewRef.current);
 
                 // The content editor has a keyboard toolbar we need to add to our keyboard
                 // height since we need to move content out of the way of the toolbar too.
-                if (newKeyboardHeight > 0)
+                if (newKeyboardHeight > 0 && !(oldKeyboardHeight > 0)) {
                     coveredKeyboardHeightDelta +=
                         nativeMobileBottomBarKeyboardToolbarHeightRem * remPx;
 
-                if (oldKeyboardHeight > 0)
+                    // So the keyboard toolbar isn't occluding any message content, add some safe
+                    // area but just to the virtualized scroll view.
+                    //
+                    // Note this only works in mobile WebKit where we actually have a virtual
+                    // keyboard. If you try this in desktop Safari (with a small screen size) or
+                    // desktop Chrome (with a small screen size) the message input occludes
+                    // content.
+                    //
+                    // NOTE(calebmer, 2024-03-01): Maybe we should still use pointer toolbars for
+                    // `<ContentEditor>` instead of keyboard toolbars if the primary input device
+                    // can hover?
+                    if (!NativeMobileBridge) {
+                        view.getElement().style.setProperty(
+                            "--safe-area-inset-bottom",
+                            `${nativeMobileBottomBarKeyboardToolbarHeightRem * remPx}px`,
+                        );
+                    }
+                }
+
+                if (oldKeyboardHeight > 0 && !(newKeyboardHeight > 0)) {
                     coveredKeyboardHeightDelta -=
                         nativeMobileBottomBarKeyboardToolbarHeightRem * remPx;
 
-                view.setScrollOffset(view.getScrollOffset() + coveredKeyboardHeightDelta, {
-                    behavior: "smooth",
-                });
+                    if (!NativeMobileBridge) {
+                        view.getElement().style.removeProperty("--safe-area-inset-bottom");
+                    }
+                }
+
+                // NOTE(calebmer, 2024-03-01 1:32PM): On mobile iOS the browser appears to be
+                // sneakily sometimes adjusting scroll offset during the resize event which
+                // triggers this function when the keyboard is closing. So instead of reading
+                // `element.scrollTop`, use our component's internal scroll offset tracker
+                // which has the scroll offset from before this sneaky change.
+                //
+                // NOTE(calebmer, 2024-03-01 1:43PM): I just added the code which sets/removes
+                // `--safe-area-inset-bottom` above. Now if I try `view.getScrollOffset()` it
+                // appears to work. I'm going to leave as-is, though, in case another issue
+                // resurfaces where the browser tries to unexpectedly update the scroll offset.
+                // If you have a reason to switch to `view.getScrollOffset()`, test first but
+                // probably will be safe.
+                const scrollOffset =
+                    view._getInternalLastScrollOffset() + coveredKeyboardHeightDelta;
+
+                view.setScrollOffset(scrollOffset, {behavior: "smooth"});
             },
         );
     }, []);

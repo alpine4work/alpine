@@ -17,8 +17,8 @@ import {
     TextStrikethrough,
     X,
 } from "phosphor-react";
-import {Mark, Node, Slice} from "prosemirror-model";
-import {Command, EditorState, Selection, TextSelection} from "prosemirror-state";
+import {Mark} from "prosemirror-model";
+import {Command, EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
     ReactNode,
@@ -32,14 +32,18 @@ import {
     useState,
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
-import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
-import {ContentEditorMobileLinkModalState} from "~/client/content/internal/content_editor_mobile_link_modal.js";
+import {
+    ContentEditorMobileLinkModalState,
+    getContentEditorMobileLinkModalSelectionSliceText,
+} from "~/client/content/internal/content_editor_mobile_link_modal.js";
 import {areAllNodesBlockType} from "~/client/content/internal/helpers/are_all_nodes_block_type.js";
 import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
 import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/create_toggle_block_type_command.js";
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
 import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
+import {expandEmptySelectionAroundWord} from "~/client/content/internal/helpers/expand_empty_selection_around_word.js";
+import {expandSelectionAroundLinkMark} from "~/client/content/internal/helpers/expand_selection_around_link_mark.js";
 import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpers/get_marks_spanning_across_entire_range.js";
 import {Box, BoxProps} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -52,15 +56,12 @@ import {nativeMobileBottomBarKeyboardSubstituteHeight} from "~/client/design/nat
 import {Spacer} from "~/client/design/spacer.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
-import {ContentReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
-import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {HighlightColor, colorByHighlightColor} from "~/shared/design/highlight_color.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {buttonStyles, colorSchemeVars, contentSchemaStyles} from "~/shared/styles/styles.js";
 
@@ -416,7 +417,7 @@ function ContentEditorMobileKeyboardSubstituteMain({
                     view.dom.blur();
 
                     const {text: selectionText, isEditable: isSelectionEditable} =
-                        getSelectionSliceText(
+                        getContentEditorMobileLinkModalSelectionSliceText(
                             selection.content(),
                             getContentEditorReferences(view.state).references,
                         );
@@ -744,217 +745,4 @@ function ContentEditorMobileKeyboardSubstituteHighlightSelectorButton({
             )}
         </Box>
     );
-}
-
-/**
- * If the selection is empty and inside a word then return a selection that
- * covers that word. If the selection is at the edge of a word or already
- * covers some content, return null.
- */
-export function expandEmptySelectionAroundWord(
-    doc: Node,
-    selection: Selection,
-): TextSelection | null {
-    if (selection.from !== selection.to) return null;
-
-    const nodeBefore = selection.$from.nodeBefore;
-    if (nodeBefore && !nodeBefore.isText) return null;
-
-    const nodeAfter = selection.$from.nodeAfter;
-    if (nodeAfter && !nodeAfter.isText) return null;
-
-    const textBefore = nodeBefore
-        ? iterableFirst(Array.from(findUnicodeDefaultWordBoundarySpans(nodeBefore.text!)).reverse())
-              ?.text ?? ""
-        : "";
-    const textAfter = nodeAfter
-        ? iterableFirst(findUnicodeDefaultWordBoundarySpans(nodeAfter.text!))?.text ?? ""
-        : "";
-
-    const textAround = textBefore + textAfter;
-    if (textAround.length <= 2) return null;
-
-    const textAroundSpans = Array.from(findUnicodeDefaultWordBoundarySpans(textAround));
-    const textAroundSpan =
-        textAroundSpans.length === 1
-            ? textAroundSpans[0]!
-            : textAroundSpans.length === 2
-            ? textAroundSpans[0]!.length > textAroundSpans[1]!.length
-                ? textAroundSpans[0]!
-                : textAroundSpans[1]!
-            : null;
-    if (!textAroundSpan) return null;
-
-    return new TextSelection(
-        doc.resolve(
-            selection.from -
-                (textAroundSpan.length === textAround.length ||
-                textAroundSpan.length === textBefore.length
-                    ? textBefore.length
-                    : 0),
-        ),
-        doc.resolve(
-            selection.from +
-                (textAroundSpan.length === textAround.length ||
-                textAroundSpan.length === textAfter.length
-                    ? textAfter.length
-                    : 0),
-        ),
-    );
-}
-
-/**
- * Expand the editor selection to include all text in the current text block
- * with the same link mark. If there's no link mark covering the selection
- * return null. Allows you to update a link mark all at once.
- */
-export function expandSelectionAroundLinkMark(
-    doc: Node,
-    selection: Selection,
-): {selection: TextSelection; mark: Mark} | null {
-    if (!(selection instanceof TextSelection)) return null;
-
-    const parentNode = selection.$from.parent;
-    if (!parentNode.isTextblock) return null;
-    if (parentNode !== selection.$to.parent) return null;
-
-    let mark: Mark | undefined;
-
-    // 1. Try to find the mark within the selection (if selection is not empty)
-    const selectionSlice = selection.content();
-    let isSelectionNodeMissingMark = false;
-    selectionSlice.content.nodesBetween(0, selectionSlice.content.size, node => {
-        if (!node.isText) return;
-        if (isSelectionNodeMissingMark) return;
-
-        const currentMark = node?.marks.find(mark => mark.type.name === "link");
-        if (!currentMark) {
-            isSelectionNodeMissingMark = true;
-            return;
-        }
-
-        if (!mark) {
-            mark = currentMark;
-        } else if (!mark.eq(currentMark)) {
-            isSelectionNodeMissingMark = true;
-            return;
-        }
-    });
-    if (isSelectionNodeMissingMark) return null;
-
-    const selectionNodeBefore = selection.$from.nodeBefore;
-    if (selectionNodeBefore && !selectionNodeBefore.isText) return null;
-
-    const selectionNodeAfter = selection.$to.nodeAfter;
-    if (selectionNodeAfter && !selectionNodeAfter.isText) return null;
-
-    // 2. Try to find the mark before the selection (if selection isn't
-    //    at start)
-    const selectionNodeBeforeMark = selectionNodeBefore?.marks.find(
-        mark => mark.type.name === "link",
-    );
-    if (selectionNodeBeforeMark) {
-        if (!mark) {
-            mark = selectionNodeBeforeMark;
-        } else if (!mark.eq(selectionNodeBeforeMark)) {
-            return null;
-        }
-    }
-
-    // 3. Try to find the mark after the selection (if selection isn't
-    //    at end)
-    const selectionNodeAfterMark = selectionNodeAfter?.marks.find(
-        mark => mark.type.name === "link",
-    );
-    if (selectionNodeAfterMark) {
-        if (!mark) {
-            mark = selectionNodeAfterMark;
-        } else if (!mark.eq(selectionNodeAfterMark)) {
-            return null;
-        }
-    }
-
-    // If we found no mark, this isn't a link selection.
-    if (!mark) return null;
-
-    let extendFrom = selectionNodeBeforeMark ? selectionNodeBefore?.nodeSize ?? 0 : 0;
-    if (selectionNodeBeforeMark) {
-        // If `textOffset` is 0 then `nodeBefore` will be the full child before the
-        // node `$from` points to.
-        // https://github.com/ProseMirror/prosemirror-model/blob/a37b6b3adeb548dc9822211b680ce9d31be65842/src/resolvedpos.ts#L107-L115
-        const startIndex = selection.$from.index() - (selection.$from.textOffset === 0 ? 2 : 1);
-
-        for (let i = startIndex; i >= 0; i--) {
-            const previousNode = parentNode.child(i);
-            if (previousNode.marks.some(otherMark => otherMark.eq(mark!))) {
-                extendFrom += previousNode.nodeSize;
-            } else {
-                break;
-            }
-        }
-    }
-
-    let extendTo = selectionNodeAfterMark ? selectionNodeAfter?.nodeSize ?? 0 : 0;
-    if (selectionNodeAfterMark) {
-        const startIndex = selection.$to.index() + 1;
-
-        for (let i = startIndex; i < parentNode.childCount; i++) {
-            const nextNode = parentNode.child(i);
-            if (nextNode.marks.some(otherMark => otherMark.eq(mark!))) {
-                extendTo += nextNode.nodeSize;
-            } else {
-                break;
-            }
-        }
-    }
-
-    return {
-        selection: new TextSelection(
-            doc.resolve(selection.from - extendFrom),
-            doc.resolve(selection.to + extendTo),
-        ),
-        mark,
-    };
-}
-
-/**
- * Is the slice (from a selection) editable? Returns a single line of text from
- * the selection regardless of whether it's editable or not. If the text spans
- * multiple nodes then we print a single line of text with
- * `printContentSingleLineTextSnippet()`.
- */
-function getSelectionSliceText(
-    selectionSlice: Slice,
-    references: ContentReferences,
-): {text: string; isEditable: boolean} {
-    if (selectionSlice.content.childCount === 0) return {text: "", isEditable: true};
-
-    const schema = selectionSlice.content.firstChild!.type.schema;
-
-    let textNode =
-        selectionSlice.content.childCount === 1 ? selectionSlice.content.firstChild! : null;
-    if (textNode) {
-        let count = selectionSlice.openStart;
-        while (textNode && count > 0) {
-            count--;
-            textNode = textNode.content.childCount === 1 ? textNode.firstChild! : null;
-        }
-    }
-
-    if (selectionSlice.openStart !== selectionSlice.openEnd || !textNode?.isText) {
-        return {
-            text: printContentSingleLineTextSnippet({
-                // Intentionally calling `create()` and not `createChecked()` since for some
-                // schemas (e.g. documents) our slice may not match the expected schema.
-                doc: schema.topNodeType.create({}, selectionSlice.content.content),
-                references,
-            }),
-            isEditable: false,
-        };
-    }
-
-    return {
-        text: textNode.text!,
-        isEditable: true,
-    };
 }

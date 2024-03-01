@@ -44,6 +44,7 @@ import {getSpace} from "~/server/spaces/spaces_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
@@ -603,24 +604,46 @@ function useMobileWebKitKeyboardSupport() {
         // to improve touch interaction performance.
         if (NativeMobileBridge) return;
 
+        let resizeTimeout: Timeout | null = null;
+
         const handleResize = () => {
+            // We've observed setting `scrollTop` will cause some more resizes to happen in
+            // quick succession that settle down into the same state we started with. To
+            // work around this, throttle our resize handler. We wait at least 0.5s between
+            // resize events then debounce consecutive resize events.
+            if (resizeTimeout === null) {
+                actuallyHandleResize();
+
+                resizeTimeout = createTimeout(() => {
+                    resizeTimeout = null;
+                }, 500);
+            } else {
+                resizeTimeout.clear();
+
+                resizeTimeout = createTimeout(() => {
+                    resizeTimeout = null;
+                    actuallyHandleResize();
+                }, 500);
+            }
+        };
+
+        const actuallyHandleResize = () => {
+            // Since the resize may be a part of an animation, immediately update the
+            // view height.
+            flushSync(() => {
+                setResizedWindowHeightForMobileWebKit(getWindowHeightAfterMobileWebKitKeyboard());
+            });
+        };
+
+        const handleScroll = () => {
             // iOS will scroll the `html` element when the software keyboard opens even
             // though we have `html, body { overflow: hidden }` set. Immediately unset the
             // scroll.
             document.documentElement.scrollTop = 0;
-
-            // Since the resize may be a part of an animation, immediately update the
-            // view height.
-            flushSync(() => {
-                setResizedWindowHeightForMobileWebKit(
-                    // `window.innerHeight` doesn't change even when the keyboard is open. But
-                    // `window.visualViewport?.height` does change.
-                    window.visualViewport?.height ?? window.innerHeight,
-                );
-            });
         };
 
         (window.visualViewport ?? window).addEventListener("resize", handleResize);
+        window.addEventListener("scroll", handleScroll);
 
         // Disable default scroll when the keyboard is open. Opening the keyboard makes the
         // `html` element scrollable even though `overflow: hidden` is set in CSS. This
@@ -629,6 +652,7 @@ function useMobileWebKitKeyboardSupport() {
 
         return () => {
             (window.visualViewport ?? window).removeEventListener("resize", handleResize);
+            window.removeEventListener("scroll", handleScroll);
             enableDefaultScroll();
         };
     }, []);
@@ -640,7 +664,7 @@ function useMobileWebKitKeyboardSupport() {
     useEffect(() => {
         if (lastResizedWindowHeightForMobileWebKitRef.current === null) {
             lastResizedWindowHeightForMobileWebKitRef.current =
-                window.visualViewport?.height ?? window.innerHeight;
+                getWindowHeightAfterMobileWebKitKeyboard();
         }
 
         if (resizedWindowHeightForMobileWebKit === null) return;
@@ -652,10 +676,10 @@ function useMobileWebKitKeyboardSupport() {
         }
         lastResizedWindowHeightForMobileWebKitRef.current = resizedWindowHeightForMobileWebKit;
 
-        // `window.innerHeight` doesn't change even when the keyboard is open. But
-        // `window.visualViewport?.height` does change.
-        const oldKeyboardHeight = window.innerHeight - lastResizedWindowHeightForMobileWebKit;
-        const newKeyboardHeight = window.innerHeight - resizedWindowHeightForMobileWebKit;
+        const windowHeight = getWindowHeightBeforeMobileWebKitKeyboard();
+
+        const oldKeyboardHeight = windowHeight - lastResizedWindowHeightForMobileWebKit;
+        const newKeyboardHeight = windowHeight - resizedWindowHeightForMobileWebKit;
 
         const coveredKeyboardHeightDelta = newKeyboardHeight - oldKeyboardHeight;
 
@@ -668,4 +692,23 @@ function useMobileWebKitKeyboardSupport() {
     }, [resizedWindowHeightForMobileWebKit]);
 
     return {resizedWindowHeightForMobileWebKit};
+}
+
+/**
+ * Get the window height before taking away space for the mobile WebKit
+ * keyboard.
+ */
+function getWindowHeightBeforeMobileWebKitKeyboard() {
+    // NOTE(calebmer): I've observed `window.innerHeight` sometimes giving the
+    // height with the keyboard and sometimes giving the height without the
+    // keyboard. This is consistent, though.
+    return Math.round(document.documentElement.getBoundingClientRect().height);
+}
+
+/**
+ * Get the window height after taking away space for the mobile WebKit
+ * keyboard.
+ */
+function getWindowHeightAfterMobileWebKitKeyboard() {
+    return Math.round(window.visualViewport?.height ?? window.innerHeight);
 }

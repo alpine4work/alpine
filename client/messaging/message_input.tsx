@@ -737,6 +737,9 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                                     // Don't render the default content editor mobile keyboard toolbar. We render
                                     // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
                                     withoutMobileKeyboardToolbar={true}
+                                    // Message input is always editable, never interactive on mobile. So you can't
+                                    // click links among other things.
+                                    withoutMobileDualModality={true}
                                 />
                             </Box>
                         </Box>

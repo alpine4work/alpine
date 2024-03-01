@@ -92,7 +92,7 @@ const {
     containerClassName,
     shiftKeyOrAltKeyDownClassName,
     inlineMentionInputClassName,
-    dualModalityContainerClassName,
+    canNotPrimaryInputHoverContainerClassName,
 } = contentEditorStyles;
 
 // NOTE(calebmer): The following are bugs I'd like to fix in the native mobile
@@ -266,6 +266,14 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * `<MessageInput>` is a component that does this.
      */
     withoutMobileKeyboardToolbar?: boolean;
+
+    /**
+     * Disable dual modality editing on devices that don't have a primary input
+     * that can hover (our mobile apps). The content editor will always be in our
+     * mobile editing state and never our mobile interactive state. e.g. So links
+     * won't be pressable.
+     */
+    withoutMobileDualModality?: boolean;
 
     /**
      * Event fired when the user focuses the content editor.
@@ -472,6 +480,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         className,
         containerClassName: customContainerClassName,
         withoutMobileKeyboardToolbar,
+        withoutMobileDualModality,
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
         onFocus,
@@ -516,7 +525,8 @@ function ContentEditor<Content extends ContentWithReferences>(
     //
     // - On an iPhone, document content editors are `isMobile = true` and
     //   `isDualModality = true`. However, message inputs are `isMobile = true` and
-    //   `isDualModality = false`.
+    //   `isDualModality = false`. Message inputs disable dual modality editing
+    //   with `withoutMobileDualModality = true`.
     //
     // - This isn't implemented yet but on an iPad we should have
     //   `isMobile = false` (since it's big enough for our desktop screen size) and
@@ -524,7 +534,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     //   `isDualModality = false` if there is a hardware keyboard. If the user is
     //   primarily using the iPad via touch it should behave more like an iPhone
     //   than a laptop.
-    const isDualModality = !canPrimaryInputHover;
+    const isDualModality = !canPrimaryInputHover && !withoutMobileDualModality;
 
     // The props for the current React commit. We are integrating with a stateful
     // component (ProseMirror's `EditorView`) so we need to be able to
@@ -538,6 +548,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     // it's safe!
     const propsRef = useRef(props);
     const isMobileRef = useRef(isMobile);
+    const canPrimaryInputHoverRef = useRef(canPrimaryInputHover);
     const isDualModalityRef = useRef(isDualModality);
     const navigateRef = useRef(navigate);
     // Don't get the current account when running in a unit test so we don't need
@@ -549,6 +560,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     useInsertionEffect(() => {
         propsRef.current = props;
         isMobileRef.current = isMobile;
+        canPrimaryInputHoverRef.current = canPrimaryInputHover;
         isDualModalityRef.current = isDualModality;
         navigateRef.current = navigate;
         currentAccountRef.current = currentAccount;
@@ -725,7 +737,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             // `renderContentToHtml()`.
             markViews: {
                 link: createContentEditorLinkMarkViewConstructor({
-                    isDualModality: () => isDualModalityRef.current,
+                    canPrimaryInputHover: () => canPrimaryInputHoverRef.current,
 
                     onPointerEnterAfterDelay: ({mark, range}) => {
                         // We don't want to open floaters on mobile.
@@ -962,11 +974,11 @@ function ContentEditor<Content extends ContentWithReferences>(
             touchTapState?.cancel();
             touchTapState = null;
 
-            // If our view already has focus, we don't need a tap to give it focus.
-            if (view.hasFocus()) return;
-
             // If we're not on mobile the document is always editable.
             if (!isDualModalityRef.current) return;
+
+            // If our view already has focus, we don't need a tap to give it focus.
+            if (view.hasFocus()) return;
 
             // Only support a single touch.
             if (event.touches.length !== 1) return;
@@ -1520,7 +1532,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         <div
             className={classNames(
                 containerClassName,
-                isDualModality ? dualModalityContainerClassName : undefined,
+                !canPrimaryInputHover ? canNotPrimaryInputHoverContainerClassName : undefined,
                 customContainerClassName,
             )}
             onFocus={onFocus}

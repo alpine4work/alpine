@@ -10,23 +10,38 @@ import {
     TextOutdent,
 } from "phosphor-react";
 import {Command} from "prosemirror-state";
-import {ReactNode, RefObject, useMemo} from "react";
+import {EditorView} from "prosemirror-view";
+import {ReactNode, RefObject, useEffect, useMemo, useRef, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {ContentEditorRef} from "~/client/content/content_editor.js";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
-import {openMentionFloaterMetaKey} from "~/client/content/internal/content_editor_plugin_input_rules.js";
 import {
-    areAllNodesListItemType,
-    createToggleListItemsCommand,
-    createToggleMarkCommand,
+    ContentEditorState,
+    getContentEditorReferences,
+} from "~/client/content/content_editor_state.js";
+import {
+    ContentEditorMobileLinkModal,
+    ContentEditorMobileLinkModalState,
+    getContentEditorMobileLinkModalSelectionSliceText,
+} from "~/client/content/internal/content_editor_mobile_link_modal.js";
+import {openMentionFloaterMetaKey} from "~/client/content/internal/content_editor_plugin_input_rules.js";
+import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
+import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
+import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
+import {expandEmptySelectionAroundWord} from "~/client/content/internal/helpers/expand_empty_selection_around_word.js";
+import {expandSelectionAroundLinkMark} from "~/client/content/internal/helpers/expand_selection_around_link_mark.js";
+import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpers/get_marks_spanning_across_entire_range.js";
+import {
     dedentListItemCommand,
-    getMarksSpanningAcrossEntireRange,
     indentListItemCommand,
-} from "~/client/content/internal/content_editor_prosemirror_helpers.js";
+} from "~/client/content/internal/helpers/indent_and_dedent_list_item_commands.js";
 import {Box} from "~/client/design/box.js";
+import {MobileModal} from "~/client/design/mobile_modal.js";
 import {nativeMobileBottomBarKeyboardToolbarHeight} from "~/client/design/native_mobile_bottom_bar.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {wait} from "~/shared/helpers/async/wait.js";
+import {waitMicrotask} from "~/shared/helpers/async/wait_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 
@@ -47,6 +62,15 @@ export function MessageInputMobileKeyboardToolbar({
     editorRef: RefObject<ContentEditorRef<MessageContentWithReferences>>;
 }) {
     const state = stateProp._getInternalState();
+
+    const viewRef: RefObject<EditorView> = useMemo(
+        () => ({
+            get current() {
+                return editorRef.current?._getInternalView() ?? null;
+            },
+        }),
+        [editorRef],
+    );
 
     const {isBoldActive, isItalicActive} = useMemo(() => {
         const marks = getMarksSpanningAcrossEntireRange(state.doc, state.selection);
@@ -92,102 +116,251 @@ export function MessageInputMobileKeyboardToolbar({
         [isOrderedListItemActive, isUnorderedListItemActive, state],
     );
 
-    return (
-        <Box height={nativeMobileBottomBarKeyboardToolbarHeight} paddingX="0.5" display="flex">
-            <MessageInputMobileKeyboardToolbarButton
-                dividerRight
-                label="Mention"
-                isActive={false}
-                onPress={() => {
-                    const view = assertExists(editorRef.current)._getInternalView();
-                    const {state} = view;
-                    const schema = state.doc.type.schema;
+    const linkSelection = useMemo(
+        () => expandSelectionAroundLinkMark(state.doc, state.selection),
+        [state],
+    );
 
-                    view.dispatch(
-                        state.tr
-                            .replaceSelectionWith(schema.text("@"))
-                            .setMeta(openMentionFloaterMetaKey, true),
-                    );
-                }}
-            >
-                <At />
-            </MessageInputMobileKeyboardToolbarButton>
-            <MessageInputMobileKeyboardToolbarButton
-                dividerLeft
-                label="Bold"
-                isActive={isBoldActive}
-                onPress={fromCommand(editorRef, createToggleMarkCommand(state.schema.mark("bold")))}
-            >
-                <TextBolder />
-            </MessageInputMobileKeyboardToolbarButton>
-            <MessageInputMobileKeyboardToolbarButton
-                label="Italic"
-                isActive={isItalicActive}
-                onPress={fromCommand(
-                    editorRef,
-                    createToggleMarkCommand(state.schema.mark("italic")),
-                )}
-            >
-                <TextItalic />
-            </MessageInputMobileKeyboardToolbarButton>
-            <MessageInputMobileKeyboardToolbarButton
-                dividerRight
-                label="Link"
-                isActive={false}
-                onPress={() => {
-                    // NOCOMMIT: Implement
-                }}
-            >
-                <LinkIcon />
-            </MessageInputMobileKeyboardToolbarButton>
-            {!isOrderedListItemActive && (
+    const [linkModalState, setLinkModalState] = useState<ContentEditorMobileLinkModalState | null>(
+        null,
+    );
+
+    const lastLinkModalStateRef = useRef(linkModalState);
+    useEffect(() => {
+        if (lastLinkModalStateRef.current === linkModalState) return;
+        lastLinkModalStateRef.current = linkModalState;
+
+        if (!linkModalState) {
+            // Refocus the content editor after the modal is done closing.
+            if (!NativeMobileBridge) {
+                assertExists(viewRef.current).dom.focus();
+            } else {
+                // Focus after the navigation animation finishes. The keyboard can't open while
+                // the navigation animation is running.
+                NativeMobileBridge.navigation.scheduleAfterAnimation(() => {
+                    assertExists(viewRef.current).dom.focus();
+                });
+            }
+        }
+    }, [linkModalState, viewRef]);
+
+    return (
+        <>
+            <Box height={nativeMobileBottomBarKeyboardToolbarHeight} paddingX="0.5" display="flex">
                 <MessageInputMobileKeyboardToolbarButton
-                    label="Bullet list"
+                    dividerRight
+                    label="Mention"
+                    isActive={false}
+                    onPress={() => {
+                        const view = assertExists(viewRef.current);
+                        const {state} = view;
+                        const schema = state.doc.type.schema;
+
+                        view.dispatch(
+                            state.tr
+                                .replaceSelectionWith(schema.text("@"))
+                                .setMeta(openMentionFloaterMetaKey, true),
+                        );
+                    }}
+                >
+                    <At />
+                </MessageInputMobileKeyboardToolbarButton>
+                <MessageInputMobileKeyboardToolbarButton
                     dividerLeft
-                    isActive={isUnorderedListItemActive}
+                    label="Bold"
+                    isActive={isBoldActive}
                     onPress={fromCommand(
-                        editorRef,
-                        createToggleListItemsCommand(state.schema.nodes.unorderedListItem),
+                        viewRef,
+                        createToggleMarkCommand(state.schema.mark("bold")),
                     )}
                 >
-                    <ListBullets />
+                    <TextBolder />
                 </MessageInputMobileKeyboardToolbarButton>
-            )}
-            {!isUnorderedListItemActive && (
                 <MessageInputMobileKeyboardToolbarButton
-                    label="Number list"
-                    dividerLeft={isOrderedListItemActive}
-                    isActive={isOrderedListItemActive}
+                    label="Italic"
+                    isActive={isItalicActive}
                     onPress={fromCommand(
-                        editorRef,
-                        createToggleListItemsCommand(state.schema.nodes.orderedListItem),
+                        viewRef,
+                        createToggleMarkCommand(state.schema.mark("italic")),
                     )}
                 >
-                    <ListNumbers />
+                    <TextItalic />
                 </MessageInputMobileKeyboardToolbarButton>
-            )}
-            {(isOrderedListItemActive || isUnorderedListItemActive) && (
-                <>
+                <MessageInputMobileKeyboardToolbarButton
+                    dividerRight
+                    label="Link"
+                    isActive={!!linkSelection}
+                    onPress={() => {
+                        const selection =
+                            linkSelection?.selection ??
+                            expandEmptySelectionAroundWord(state.doc, state.selection) ??
+                            state.selection;
+
+                        const view = assertExists(viewRef.current);
+
+                        // In our native mobile app, blur the link modal input before animating the
+                        // modal closed. In our web mobile app, we want to keep focus in a hidden input
+                        // so the keyboard doesn't close.
+                        //
+                        // - In native mobile, even if we maintain focus in the DOM, iOS will do the
+                        //   keyboard open/close animation. We might as well control the timing there.
+                        //
+                        // - In web mobile, the keyboard open/close animation is incredibly janky since
+                        //   we don't have the same level of control as we do in native. So it feels
+                        //   better to keep the keyboard open the whole time.
+                        if (NativeMobileBridge) {
+                            view.dom.blur();
+                        } else {
+                            // Move focus to a temporary, invisible, element so that when we change our
+                            // view's selection the new selection doesn't render. However, we don't want to
+                            // `blur()` since we want to keep the keyboard open while transitioning between
+                            // views. To keep the keyboard open we move focus to another input. The link
+                            // modal will focus its link input after it mounts.
+                            const temporaryElement = document.createElement("input");
+                            temporaryElement.style.width = "0";
+                            temporaryElement.style.height = "0";
+                            temporaryElement.style.margin = "0";
+                            temporaryElement.style.padding = "0";
+                            temporaryElement.style.border = "0";
+                            temporaryElement.style.opacity = "0";
+                            temporaryElement.style.position = "absolute";
+                            temporaryElement.style.top = "0px";
+                            document.body.appendChild(temporaryElement);
+                            temporaryElement.addEventListener("blur", () => {
+                                document.body.removeChild(temporaryElement);
+                            });
+                            temporaryElement.focus();
+                        }
+
+                        const {text: selectionText, isEditable: isSelectionEditable} =
+                            getContentEditorMobileLinkModalSelectionSliceText(
+                                selection.content(),
+                                getContentEditorReferences(view.state).references,
+                            );
+
+                        view.dispatch(view.state.tr.setSelection(selection));
+
+                        // In testing, iOS keyboard open/close animations take 250ms. In our mobile
+                        // app, wait for the keyboard close animation to finish.
+                        (NativeMobileBridge ? wait(250) : waitMicrotask()).finally(() => {
+                            setLinkModalState({
+                                initialText:
+                                    // If selection text is not editable, truncate it so our URL isn't too long.
+                                    !isSelectionEditable && selectionText.length > 80
+                                        ? `${selectionText.slice(0, 80)}…`
+                                        : selectionText,
+                                isTextEditable: isSelectionEditable,
+                                initialUrl: linkSelection?.mark.attrs?.url ?? "",
+                            });
+                        });
+                    }}
+                >
+                    <LinkIcon />
+                </MessageInputMobileKeyboardToolbarButton>
+                {!isOrderedListItemActive && (
                     <MessageInputMobileKeyboardToolbarButton
-                        label="Dedent"
-                        isActive={false}
-                        isDisabled={!isDedentListItemEnabled}
-                        onPress={fromCommand(editorRef, dedentListItemCommand)}
+                        label="Bullet list"
+                        dividerLeft
+                        isActive={isUnorderedListItemActive}
+                        onPress={fromCommand(
+                            viewRef,
+                            createToggleListItemsCommand(state.schema.nodes.unorderedListItem),
+                        )}
                     >
-                        <TextOutdent />
+                        <ListBullets />
                     </MessageInputMobileKeyboardToolbarButton>
+                )}
+                {!isUnorderedListItemActive && (
                     <MessageInputMobileKeyboardToolbarButton
-                        label="Indent"
-                        dividerRight
-                        isActive={false}
-                        isDisabled={!isIndentListItemEnabled}
-                        onPress={fromCommand(editorRef, indentListItemCommand)}
+                        label="Number list"
+                        dividerLeft={isOrderedListItemActive}
+                        isActive={isOrderedListItemActive}
+                        onPress={fromCommand(
+                            viewRef,
+                            createToggleListItemsCommand(state.schema.nodes.orderedListItem),
+                        )}
                     >
-                        <TextIndent />
+                        <ListNumbers />
                     </MessageInputMobileKeyboardToolbarButton>
-                </>
+                )}
+                {(isOrderedListItemActive || isUnorderedListItemActive) && (
+                    <>
+                        <MessageInputMobileKeyboardToolbarButton
+                            label="Dedent"
+                            isActive={false}
+                            isDisabled={!isDedentListItemEnabled}
+                            onPress={fromCommand(viewRef, dedentListItemCommand)}
+                        >
+                            <TextOutdent />
+                        </MessageInputMobileKeyboardToolbarButton>
+                        <MessageInputMobileKeyboardToolbarButton
+                            label="Indent"
+                            dividerRight
+                            isActive={false}
+                            isDisabled={!isIndentListItemEnabled}
+                            onPress={fromCommand(viewRef, indentListItemCommand)}
+                        >
+                            <TextIndent />
+                        </MessageInputMobileKeyboardToolbarButton>
+                    </>
+                )}
+            </Box>
+            {linkModalState && (
+                <MobileModal onClose={() => setLinkModalState(null)}>
+                    {({onCloseWithAnimation}) => (
+                        <ContentEditorMobileLinkModal
+                            viewRef={viewRef}
+                            initialText={linkModalState.initialText}
+                            isTextEditable={linkModalState.isTextEditable}
+                            initialUrl={linkModalState.initialUrl}
+                            onCloseWithAnimation={() => {
+                                // In our native mobile app, blur the link modal input before animating the
+                                // modal closed. In our web mobile app, we want to keep focus in a hidden input
+                                // so the keyboard doesn't close.
+                                //
+                                // - In native mobile, even if we maintain focus in the DOM, iOS will do the
+                                //   keyboard open/close animation. We might as well control the timing there.
+                                //
+                                // - In web mobile, the keyboard open/close animation is incredibly janky since
+                                //   we don't have the same level of control as we do in native. So it feels
+                                //   better to keep the keyboard open the whole time.
+                                if (NativeMobileBridge) {
+                                    if (document.activeElement instanceof HTMLElement) {
+                                        document.activeElement.blur();
+                                    }
+
+                                    wait(250).finally(() => {
+                                        onCloseWithAnimation();
+                                    });
+                                } else {
+                                    // If there's currently an element with focus in the link modal, move focus to
+                                    // a temporary, invisible, element to keep the keyboard open. Once we've
+                                    // finished closing the modal then focus will return to the content editor.
+                                    if (document.activeElement) {
+                                        const temporaryElement = document.createElement("input");
+                                        temporaryElement.style.width = "0";
+                                        temporaryElement.style.height = "0";
+                                        temporaryElement.style.margin = "0";
+                                        temporaryElement.style.padding = "0";
+                                        temporaryElement.style.border = "0";
+                                        temporaryElement.style.opacity = "0";
+                                        temporaryElement.style.position = "absolute";
+                                        temporaryElement.style.top = "0px";
+                                        document.body.appendChild(temporaryElement);
+                                        temporaryElement.addEventListener("blur", () => {
+                                            document.body.removeChild(temporaryElement);
+                                        });
+                                        temporaryElement.focus();
+                                    }
+
+                                    onCloseWithAnimation();
+                                }
+                            }}
+                        />
+                    )}
+                </MobileModal>
             )}
-        </Box>
+        </>
     );
 }
 
@@ -293,12 +466,9 @@ function MessageInputMobileKeyboardToolbarButton({
     );
 }
 
-function fromCommand(
-    editorRef: RefObject<ContentEditorRef<MessageContentWithReferences>>,
-    command: Command,
-): () => void {
+function fromCommand(viewRef: RefObject<EditorView>, command: Command): () => void {
     return () => {
-        const view = assertExists(editorRef.current)._getInternalView();
+        const view = assertExists(viewRef.current);
         command(view.state, view.dispatch.bind(view), view);
     };
 }

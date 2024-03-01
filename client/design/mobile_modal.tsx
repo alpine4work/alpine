@@ -1,11 +1,14 @@
 import {animate} from "motion";
 import {ReactNode, useCallback, useEffect, useInsertionEffect, useRef, useState} from "react";
+import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {disableMobileWebKitDefaultScroll} from "~/client/helpers/disable_mobile_web_kit_default_scroll.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {easeOutCubic, parseCubicBezier} from "~/shared/design/easing.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -43,6 +46,12 @@ export function MobileModal({
     onClose: () => void;
     children?: ReactNode | ((props: {onCloseWithAnimation: () => void}) => ReactNode);
 }) {
+    const isInitialAppRender = useIsInitialAppRender();
+    if (isInitialAppRender)
+        throw new InternalError(
+            "Can't render `<MobileModal>` on initial app render (it can't be server rendered)",
+        );
+
     const isMounted = useIsMounted();
 
     const modalRef = useRef<HTMLDivElement>(null);
@@ -183,7 +192,7 @@ export function MobileModal({
         return disableMobileWebKitDefaultScroll();
     }, []);
 
-    return (
+    return createPortal(
         <Box
             ref={modalRef}
             position="fixed"
@@ -194,6 +203,9 @@ export function MobileModal({
             backgroundColor="grey-0"
         >
             {typeof children === "function" ? children({onCloseWithAnimation}) : children}
-        </Box>
+        </Box>,
+        // Render the mobile modal in `<body>`. So if it's a child of some native
+        // bottom bar it doesn't get any weird positioning.
+        document.body,
     );
 }

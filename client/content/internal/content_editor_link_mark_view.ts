@@ -17,13 +17,13 @@ const {linkPressedClassName} = contentSchemaStyles;
  * optimizing for reading content here over writing.
  */
 export function createContentEditorLinkMarkViewConstructor({
-    isDualModality,
+    canPrimaryInputHover,
     onPointerEnterAfterDelay,
     onPointerEnter,
     onPointerLeave,
     onNavigate,
 }: {
-    isDualModality: () => boolean;
+    canPrimaryInputHover: () => boolean;
     onPointerEnterAfterDelay: (options: {mark: Mark; range: {from: number; to: number}}) => void;
     onPointerEnter: (mark: Mark) => void;
     onPointerLeave: (mark: Mark) => void;
@@ -38,8 +38,8 @@ export function createContentEditorLinkMarkViewConstructor({
         assert(dom instanceof HTMLAnchorElement);
 
         const isInert = (): boolean => {
-            if (!isDualModality()) return false;
-            return view.hasFocus();
+            if (canPrimaryInputHover()) return false;
+            return view.dom.isContentEditable;
         };
 
         let isPointerDownAndOver = false;

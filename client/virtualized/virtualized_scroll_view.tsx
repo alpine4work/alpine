@@ -225,6 +225,21 @@ export type VirtualizedScrollViewRef = {
     getScrollOffset(): number;
 
     /**
+     * Within the `<VirtualizedScrollView>` we have a `lastScrollTopRef` that
+     * tracks the last scroll position our component has seen. We use this in cases
+     * where the browser might have synchronously adjusted the scroll offset but we
+     * haven't received a scroll event yet. In these cases we don't want the
+     * browser's new sneaky scroll offset but rather the scroll offset from the
+     * last scroll event we've seen.
+     *
+     * We expose this value in case you're implementing some behavior that's
+     * plagued by an unexpected browser scroll offset update. If you call this
+     * function you should understand how the internals of our virtualized scroll
+     * view work and document why this is necessary.
+     */
+    _getInternalLastScrollOffset(): number;
+
+    /**
      * Set the scroll offset to a new value.
      */
     setScrollOffset(scrollOffset: number, options?: {behavior?: "instant" | "smooth"}): void;
@@ -1543,8 +1558,10 @@ function VirtualizedScrollView(
                     scrollToIndex(index, options);
                 },
                 getScrollOffset: () => {
-                    const scrollElement = assertExists(scrollRef.current);
-                    return scrollElement.scrollTop;
+                    return assertExists(scrollRef.current).scrollTop;
+                },
+                _getInternalLastScrollOffset: () => {
+                    return lastScrollTopRef.current ?? assertExists(scrollRef.current).scrollTop;
                 },
                 setScrollOffset: (scrollOffset, {behavior = "instant"} = {}) => {
                     const scrollElement = assertExists(scrollRef.current);

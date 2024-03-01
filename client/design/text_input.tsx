@@ -1,8 +1,13 @@
 import classNames from "classnames";
-import {Ref, forwardRef, useId, useState} from "react";
+import {Ref, forwardRef, useId, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 export type TextInputProps = {
@@ -139,7 +144,9 @@ function TextInput(
     ref: Ref<HTMLInputElement>,
 ) {
     const {isAppleDevice} = useClientInfo();
+
     const id = useId();
+    const inputRef = useRef<HTMLInputElement>(null);
 
     const inputType =
         inputMode === "url" || autoComplete === "url"
@@ -147,6 +154,17 @@ function TextInput(
             : inputMode === "email" || autoComplete === "email"
             ? "email"
             : "text";
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const inputElement = assertExists(inputRef.current);
+
+        if (isMobileWebKit) {
+            // NOTE(calebmer): This is a fix for what I consider to be a Safari bug.
+            // There's much written on the topic in `content_editor.tsx` where we have the
+            // same assignment to `caretColor`. Read there for more information.
+            inputElement.style.caretColor = NativeMobileBridge ? "initial" : "-apple-system-blue";
+        }
+    }, []);
 
     return (
         <Box
@@ -176,7 +194,7 @@ function TextInput(
             )}
             <FocusRing offset="border">
                 <input
-                    ref={ref}
+                    ref={useMergedRefs(ref, inputRef)}
                     className={sprinkles({
                         border: "grey-20",
                         borderRadius: "base",

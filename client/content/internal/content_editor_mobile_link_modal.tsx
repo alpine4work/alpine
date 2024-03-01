@@ -7,6 +7,8 @@ import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {ContentReferences} from "~/shared/content/content_references.js";
+import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 // NOTE(calebmer): Apps like Google Docs put a search under the URL input to
@@ -123,8 +125,19 @@ export function ContentEditorMobileLinkModal({
                 display="flex"
                 justifyContent="space-between"
                 alignItems="center"
+                onPointerDownCapture={event => {
+                    // Don't unfocus the input when our cancel or save button is pressed! We want to
+                    // return focus to the underlying content editor without closing the virtual
+                    // keyboard.
+                    event.preventDefault();
+                }}
             >
                 <Button
+                    // Not focusable since we want to return focus to the underlying content editor
+                    // when the button is pressed. The button itself should not be focused. If you
+                    // have a keyboard you can use keyboard shortcuts instead of tabbing into these
+                    // buttons.
+                    isFocusable={false}
                     fontSize="100"
                     pressErrorTitle="Couldn’t go back"
                     onPress={onCloseWithAnimation}
@@ -135,6 +148,11 @@ export function ContentEditorMobileLinkModal({
                     Insert Link
                 </Box>
                 <Button
+                    // Not focusable since we want to return focus to the underlying content editor
+                    // when the button is pressed. The button itself should not be focused. If you
+                    // have a keyboard you can use keyboard shortcuts instead of tabbing into these
+                    // buttons.
+                    isFocusable={false}
                     fontSize="100"
                     isDisabled={!hasTextChanged && !hasUrlChanged}
                     onPress={save}
@@ -169,4 +187,46 @@ export function ContentEditorMobileLinkModal({
             </Box>
         </Box>
     );
+}
+
+/**
+ * Is the slice (from a selection) editable? Returns a single line of text from
+ * the selection regardless of whether it's editable or not. If the text spans
+ * multiple nodes then we print a single line of text with
+ * `printContentSingleLineTextSnippet()`.
+ */
+export function getContentEditorMobileLinkModalSelectionSliceText(
+    selectionSlice: Slice,
+    references: ContentReferences,
+): {text: string; isEditable: boolean} {
+    if (selectionSlice.content.childCount === 0) return {text: "", isEditable: true};
+
+    const schema = selectionSlice.content.firstChild!.type.schema;
+
+    let textNode =
+        selectionSlice.content.childCount === 1 ? selectionSlice.content.firstChild! : null;
+    if (textNode) {
+        let count = selectionSlice.openStart;
+        while (textNode && count > 0) {
+            count--;
+            textNode = textNode.content.childCount === 1 ? textNode.firstChild! : null;
+        }
+    }
+
+    if (selectionSlice.openStart !== selectionSlice.openEnd || !textNode?.isText) {
+        return {
+            text: printContentSingleLineTextSnippet({
+                // Intentionally calling `create()` and not `createChecked()` since for some
+                // schemas (e.g. documents) our slice may not match the expected schema.
+                doc: schema.topNodeType.create({}, selectionSlice.content.content),
+                references,
+            }),
+            isEditable: false,
+        };
+    }
+
+    return {
+        text: textNode.text!,
+        isEditable: true,
+    };
 }
