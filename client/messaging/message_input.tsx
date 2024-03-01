@@ -492,10 +492,16 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
             onPointerDownCapture={event => {
                 const editor = assertExists(editorRef.current);
 
-                // Tapping anywhere on the message input (excluding the message input editor
-                // itself) shouldn't unfocus the content editor since that will hide the
-                // virtual keyboard on mobile.
-                if (event.target instanceof Element && !editor.contains(event.target)) {
+                // Tapping anywhere on the message input shouldn't unfocus the content editor
+                // since that will hide the virtual keyboard on mobile.
+                if (
+                    event.target instanceof Element &&
+                    // Exclude tapping in a portaled element. Like inputs in the link modal.
+                    event.currentTarget.contains(event.target) &&
+                    // Exclude tapping in the message input itself. Tapping there should do
+                    // something.
+                    !editor.contains(event.target)
+                ) {
                     event.preventDefault();
                 }
             }}
