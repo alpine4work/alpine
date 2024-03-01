@@ -33,16 +33,14 @@ import {
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
-import {ContentEditorMobileLinkModalState} from "~/client/content/content_editor_mobile_link_modal.js";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
-import {
-    areAllNodesBlockType,
-    areAllNodesListItemType,
-    createToggleBlockTypeCommand,
-    createToggleListItemsCommand,
-    createToggleMarkCommand,
-    getMarksSpanningAcrossEntireRange,
-} from "~/client/content/internal/content_editor_prosemirror_helpers.js";
+import {ContentEditorMobileLinkModalState} from "~/client/content/internal/content_editor_mobile_link_modal.js";
+import {areAllNodesBlockType} from "~/client/content/internal/helpers/are_all_nodes_block_type.js";
+import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
+import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/create_toggle_block_type_command.js";
+import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
+import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
+import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpers/get_marks_spanning_across_entire_range.js";
 import {Box, BoxProps} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";

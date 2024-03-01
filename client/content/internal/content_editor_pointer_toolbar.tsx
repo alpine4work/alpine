@@ -25,14 +25,12 @@ import {ContentEditorCursorTracker} from "~/client/content/internal/content_edit
 import {ContentEditorHighlightSelector} from "~/client/content/internal/content_editor_highlight_selector.js";
 import {ContentEditorLinkInput} from "~/client/content/internal/content_editor_link_input.js";
 import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_plugin_keymap.js";
-import {
-    areAllNodesBlockType,
-    areAllNodesListItemType,
-    createToggleBlockTypeCommand,
-    createToggleListItemsCommand,
-    createToggleMarkCommand,
-    getMarksSpanningAcrossEntireRange,
-} from "~/client/content/internal/content_editor_prosemirror_helpers.js";
+import {areAllNodesBlockType} from "~/client/content/internal/helpers/are_all_nodes_block_type.js";
+import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
+import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/create_toggle_block_type_command.js";
+import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
+import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
+import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpers/get_marks_spanning_across_entire_range.js";
 import {Box} from "~/client/design/box.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
 import {Overlay, OverlayRef} from "~/client/design/overlay.js";

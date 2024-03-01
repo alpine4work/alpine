@@ -17,11 +17,11 @@ import {Node} from "prosemirror-model";
 import {EditorState, Plugin, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {contentEditorQuickUndoCommand} from "~/client/content/content_editor_state.js";
+import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
 import {
-    createToggleMarkCommand,
     dedentListItemCommand,
     indentListItemCommand,
-} from "~/client/content/internal/content_editor_prosemirror_helpers.js";
+} from "~/client/content/internal/helpers/indent_and_dedent_list_item_commands.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";

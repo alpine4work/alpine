@@ -16,24 +16,24 @@ import {Command, EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {ReactNode, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
-import {
-    ContentEditorMobileLinkModal,
-    ContentEditorMobileLinkModalState,
-} from "~/client/content/content_editor_mobile_link_modal.js";
 import {ContentEditorMobileCommentInputBottomBar} from "~/client/content/internal/content_editor_mobile_comment_input_bottom_bar.js";
 import {
     ContentEditorMobileKeyboardSubstitute,
     ContentEditorMobileKeyboardSubstituteRef,
 } from "~/client/content/internal/content_editor_mobile_keyboard_substitute.js";
-import {openMentionFloaterMetaKey} from "~/client/content/internal/content_editor_plugin_input_rules.js";
 import {
-    areAllNodesListItemType,
-    createToggleListItemsCommand,
-    createToggleMarkCommand,
-    dedentListItemCommand,
-    getMarksSpanningAcrossEntireRange,
+    ContentEditorMobileLinkModal,
+    ContentEditorMobileLinkModalState,
+} from "~/client/content/internal/content_editor_mobile_link_modal.js";
+import {openMentionFloaterMetaKey} from "~/client/content/internal/content_editor_plugin_input_rules.js";
+import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
+import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
+import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
+import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpers/get_marks_spanning_across_entire_range.js";
+import {
     indentListItemCommand,
-} from "~/client/content/internal/content_editor_prosemirror_helpers.js";
+    dedentListItemCommand,
+} from "~/client/content/internal/helpers/indent_and_dedent_list_item_commands.js";
 import {Box} from "~/client/design/box.js";
 import {MobileModal} from "~/client/design/mobile_modal.js";
 import {
