@@ -22,6 +22,11 @@ export function ContentEditorMobileCommentInputBottomBar() {
                 // height to what's visible above the keyboard.
                 bottom: `calc(100svh - var(--space-outlet-height, 100svh))`,
             }}
+            // Bottom bar message input expects to be rendered in a flex context. Or else
+            // some layout bits (like the bottom bar safe area cover) won't work
+            // quite right.
+            display="flex"
+            flexDirection="column"
         >
             <MessageInputBase
                 isBottomBar={true}

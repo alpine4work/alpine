@@ -798,7 +798,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     // Cover the keyboard toolbar when it's in safe area.
     if (isMobile && isBottomBar) {
         node = (
-            <Box flexShrink="0" position="relative">
+            <Box flexShrink="0" position="relative" zIndex="0">
                 {node}
                 <Box
                     position="absolute"
