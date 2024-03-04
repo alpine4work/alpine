@@ -1,7 +1,12 @@
-import {ReactNode, useEffect, useId, useRef} from "react";
+import {useEffect, useId, useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_buttons.js";
+import {useShowToast} from "~/client/design/toast.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -23,7 +28,27 @@ import {sprinkles} from "~/shared/styles/styles.js";
  *
  * [1]: https://spectrum.adobe.com/page/alert-dialog/#Content-standards
  */
-export function ModalDialog({
+// In our native mobile app, we use the platform alert to render
+// `<ModalDialog>`. It's ok to swap out component implementations this way
+// since we should never server-side render `<ModalDialog>`.
+const ActualModalDialog = NativeMobileBridge ? ModalDialogNativeMobile : ModalDialog;
+export {ActualModalDialog as ModalDialog};
+
+export type ModalDialogProps = {
+    title: string;
+    description: string;
+    primaryButtonLabel: string;
+    isPrimaryButtonDisabled?: boolean;
+    primaryButtonPressErrorTitle?: string;
+    onPrimaryButtonPress: () => MaybePromise<void>;
+    cancelButtonLabel?: string;
+    cancelButtonPressErrorTitle?: string;
+    onCancelButtonPress?: () => MaybePromise<void>;
+    shouldHideCancelButton?: boolean;
+    onClose: () => void;
+};
+
+function ModalDialog({
     title,
     description,
     primaryButtonLabel,
@@ -35,19 +60,12 @@ export function ModalDialog({
     onCancelButtonPress,
     shouldHideCancelButton,
     onClose,
-}: {
-    title: string;
-    description: ReactNode;
-    primaryButtonLabel: string;
-    isPrimaryButtonDisabled?: boolean;
-    primaryButtonPressErrorTitle?: string;
-    onPrimaryButtonPress: () => MaybePromise<void>;
-    cancelButtonLabel?: string;
-    cancelButtonPressErrorTitle?: string;
-    onCancelButtonPress?: () => MaybePromise<void>;
-    shouldHideCancelButton?: boolean;
-    onClose: () => void;
-}) {
+}: ModalDialogProps) {
+    // Can't server-render `<ModalDialog>` since in our native mobile app we'll
+    // have a different implementation then on the server.
+    const isInitialAppRender = useIsInitialAppRender();
+    if (isInitialAppRender) throw new InternalError("Can't server render `<ModalDialog>`");
+
     const descriptionId = useId();
     const modalRef = useRef<ModalWithButtonsRef>(null);
 
@@ -114,4 +132,82 @@ export function ModalDialog({
             </Box>
         </ModalWithButtons>
     );
+}
+
+function ModalDialogNativeMobile({
+    title,
+    description,
+    primaryButtonLabel,
+    isPrimaryButtonDisabled,
+    primaryButtonPressErrorTitle,
+    onPrimaryButtonPress,
+    cancelButtonLabel = "Cancel",
+    cancelButtonPressErrorTitle,
+    onCancelButtonPress,
+    shouldHideCancelButton,
+    onClose,
+}: ModalDialogProps) {
+    const showToast = useShowToast();
+
+    const hasInitiallyMountedRef = useRef(false);
+    useEffect(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
+        assert(NativeMobileBridge);
+        NativeMobileBridge.modal.presentDialog({
+            title,
+            description,
+            primaryButtonLabel,
+            isPrimaryButtonDisabled,
+            onPrimaryButtonPress: () => {
+                const promise = onPrimaryButtonPress();
+
+                // We can't show a pending indicator in our native mobile modal dialog so
+                // close immediately.
+                onClose();
+
+                if (promise instanceof Promise) {
+                    assert(
+                        primaryButtonPressErrorTitle,
+                        "If `onPrimaryButtonPress` returns a promise then the `primaryButtonPressErrorTitle` prop is required",
+                    );
+
+                    promise.catch(error => {
+                        showToast({
+                            type: "Error",
+                            title: primaryButtonPressErrorTitle,
+                            error,
+                        });
+                    });
+                }
+            },
+            cancelButtonLabel,
+            onCancelButtonPress: () => {
+                const promise = onCancelButtonPress?.();
+
+                // We can't show a pending indicator in our native mobile modal dialog so
+                // close immediately.
+                onClose();
+
+                if (promise instanceof Promise) {
+                    assert(
+                        cancelButtonPressErrorTitle,
+                        "If `onCancelButtonPress` returns a promise then the `cancelButtonPressErrorTitle` prop is required",
+                    );
+
+                    promise.catch(error => {
+                        showToast({
+                            type: "Error",
+                            title: cancelButtonPressErrorTitle,
+                            error,
+                        });
+                    });
+                }
+            },
+            shouldHideCancelButton,
+        });
+    });
+
+    return null;
 }

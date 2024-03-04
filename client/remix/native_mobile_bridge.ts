@@ -1,3 +1,5 @@
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+
 /**
  * When we are running in a native mobile app, the global `NativeMobileBridge`
  * is injected. This object allows you to communicate with the native app shell
@@ -396,5 +398,31 @@ export const NativeMobileBridge: {
          * input keyboard.
          */
         cleanupAfterSubstitute(): Promise<void>;
+    };
+
+    /**
+     * Functions for rendering modals in native code. It's useful to render modals
+     * in native code because they can cover the tab bar (which is rendered in
+     * native code).
+     *
+     * If you want to render a fullscreen modal sheet with web rendering you use
+     * `navigation.preparePresentModal()` instead.
+     */
+    readonly modal: {
+        /**
+         * Present a confirmation dialog using native UI. Used by the `<ModalDialog>`
+         * component in native mobile apps to render using platform conventions. It has
+         * very similar props to `<ModalDialog>`.
+         */
+        presentDialog(options: {
+            title: string;
+            description: string;
+            primaryButtonLabel: string;
+            isPrimaryButtonDisabled?: boolean;
+            onPrimaryButtonPress: () => MaybePromise<void>;
+            cancelButtonLabel?: string;
+            onCancelButtonPress?: () => MaybePromise<void>;
+            shouldHideCancelButton?: boolean;
+        }): void;
     };
 } | null = typeof window !== "undefined" ? (window as any).__NativeMobileBridge ?? null : null;

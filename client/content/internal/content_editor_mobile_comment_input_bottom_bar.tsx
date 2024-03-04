@@ -13,7 +13,6 @@ import {
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
 
-// NOCOMMIT: Confirmation modal as alert dialog
 // NOCOMMIT: Make sure link editing doesn't trigger confirmation modal
 // NOCOMMIT: Try scrolling when editor content grows
 // NOCOMMIT: Scroll indicator looking broken?
@@ -65,7 +64,6 @@ export function ContentEditorMobileCommentInputBottomBar({onClose}: {onClose: ()
                     // height to what's visible above the keyboard.
                     bottom: `calc(100svh - var(--space-outlet-height, 100svh))`,
                 }}
-                backgroundColor="red-10"
                 // Bottom bar message input expects to be rendered in a flex context. Or else
                 // some layout bits (like the bottom bar safe area cover) won't work
                 // quite right.
@@ -90,22 +88,19 @@ export function ContentEditorMobileCommentInputBottomBar({onClose}: {onClose: ()
                 />
             </Box>
             {shouldShowConfirmCloseDialog && (
+                // Because in our native mobile app `onClose` is never called, the cancel
+                // button has the same effect as closing the modal.
                 <ModalDialog
-                    title="Save comment"
-                    description="Would you like to save your comment?"
+                    title="Discard comment?"
+                    description="Continuing will discard your comment. Use the send button to save your comment."
                     onClose={() => {
                         // Return focus to the editor if the dialog is closed. This acts as a "cancel"
                         // and lets the user continue writing.
                         shouldFocusNextRenderRef.current = true;
                         setShouldShowConfirmCloseDialog(false);
                     }}
-                    primaryButtonLabel="Save"
-                    primaryButtonPressErrorTitle="Can’t save comment"
-                    onPrimaryButtonPress={() => {
-                        // NOCOMMIT: Implement!
-                    }}
-                    cancelButtonLabel="Discard comment"
-                    onCancelButtonPress={onClose}
+                    primaryButtonLabel="Discard"
+                    onPrimaryButtonPress={onClose}
                 />
             )}
         </>

@@ -431,7 +431,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     // message input and the keyboard. To fix this, we just make them message input
     // bigger so it can cover content below while animating. To debug this turn on
     // slow animations in an iOS emulator and open the keyboard.
-    const bottomBarBackgroundSlopBottom = spacing["24"];
+    const bottomBarBackgroundSlopBottom = spacing["96"];
 
     let node = (
         <Box

@@ -1,6 +1,6 @@
 import {useAppContext} from "~/client/context/app_context.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {PrettyNumber} from "~/client/design/pretty_number.js";
+import {usePrettyNumber} from "~/client/design/pretty_number.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {TaskClientStore, TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -23,22 +23,16 @@ export function TaskDeleteConfirmationModalDialog({
     const taskEntry = useStore(taskEntryStore);
     const childTaskCount = taskEntry?.task?.getChildTaskCount() ?? 0;
 
+    const childTaskCountPrettyNumber = usePrettyNumber({number: childTaskCount, label: "subtask"});
+
     return (
         <ModalDialog
             title="Delete task?"
-            description={
-                <>
-                    {childTaskCount === 0 ? (
-                        "The task’s subtasks will also be deleted."
-                    ) : (
-                        <>
-                            The task’s <PrettyNumber number={childTaskCount} label="subtask" /> will
-                            also be deleted.
-                        </>
-                    )}{" "}
-                    To keep a record of finished work you can close tasks instead of deleting them.
-                </>
-            }
+            description={`${
+                childTaskCount === 0
+                    ? "The task’s subtasks will also be deleted."
+                    : `The task’s ${childTaskCountPrettyNumber} will also be deleted.`
+            } To keep a record of finished work you can close tasks instead of deleting them.`}
             primaryButtonLabel="Delete"
             primaryButtonPressErrorTitle="Couldn’t delete task"
             onPrimaryButtonPress={async () => {

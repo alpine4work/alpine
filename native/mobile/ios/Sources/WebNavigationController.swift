@@ -260,7 +260,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         webConfiguration.userContentController.addUserScript(
             WKUserScript(
-                source: bridgeSource,
+                source: webBridgeSource,
                 injectionTime: .atDocumentStart,
                 forMainFrameOnly: true
             )
@@ -605,6 +605,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         cleanupModalPresentedViewController()
 
+        // Dismiss any other presented view controllers (like alerts) on reload.
+        dismiss(animated: false)
+
         webViewHealthState.provisionalNavigation = navigation
     }
 
@@ -872,7 +875,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             webViewHealthState.readyTime = DispatchTime.now()
         } else if messageBody == "health.ping" {
             webViewHealthState.lastPingTime = DispatchTime.now()
-        } else if messageBody.starts(with: "colors.setThemeColors") {
+        } else if messageBody.starts(with: "colors.setThemeColors:") {
             let colorsString = messageBody.suffix(
                 from: messageBody.index(messageBody.startIndex, offsetBy: 22)
             )
@@ -901,6 +904,56 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             //
             // We set it again here so the web view re-renders?
             webView.tintColor = initThemeTintColor()
+        } else if messageBody.starts(with: "modal.presentDialog:") {
+            let optionsString = messageBody.suffix(
+                from: messageBody.index(messageBody.startIndex, offsetBy: 20)
+            )
+
+            let decoder = JSONDecoder()
+            let options = try! decoder.decode(
+                WebBridgeModalPresentDialogOptions.self,
+                from: optionsString.data(using: .utf8)!
+            )
+
+            let alertController = UIAlertController(
+                title: options.title,
+                message: options.description,
+                preferredStyle: .alert
+            )
+
+            if !(options.shouldHideCancelButton ?? false) {
+                alertController.addAction(
+                    UIAlertAction(
+                        title: options.cancelButtonLabel ?? "Cancel",
+                        style: .cancel,
+                        handler: { [self] (_) in
+                            webView.evaluateJavaScript(
+                                "window.__NativeMobileBridge._callCallbackById(\(options.onCancelButtonPressCallbackId))"
+                            )
+                        }
+                    )
+                )
+            }
+
+            let primaryAction = UIAlertAction(
+                title: options.primaryButtonLabel,
+                style: .default,
+                handler: { [self] (_) in
+                    webView.evaluateJavaScript(
+                        "window.__NativeMobileBridge._callCallbackById(\(options.onPrimaryButtonPressCallbackId))"
+                    )
+                }
+            )
+            if options.isPrimaryButtonDisabled ?? false { primaryAction.isEnabled = false }
+            alertController.addAction(primaryAction)
+            alertController.preferredAction = primaryAction
+
+            // TODO(calebmer): What happens in the case of conflicting presented view
+            // controllers? How the presentation system works with multiple `present()`
+            // calls is a little confusing to me. I'd love to create our own presenter
+            // system that can confidentally handle multiple presented view controllers.
+            (modalPresentedViewController ?? topViewController)!
+                .present(alertController, animated: true)
         } else {
             logger.warning("Received unrecognized message from web view: \(messageBody)")
         }
@@ -2206,14 +2259,54 @@ private class WebInputAccessoryObserverView: UIView {
     }
 }
 
-private let bridgeSource = """
+private struct WebBridgeModalPresentDialogOptions: Codable {
+    let title: String
+    let description: String
+    let primaryButtonLabel: String
+    let isPrimaryButtonDisabled: Bool?
+    let onPrimaryButtonPressCallbackId: Int
+    let cancelButtonLabel: String?
+    let onCancelButtonPressCallbackId: Int
+    let shouldHideCancelButton: Bool?
+}
+
+private let webBridgeSource = """
     {
         const navigationExternalPopListeners = new Set();
         const keyboardFrameChangeListeners = new Set();
 
         let scheduledAfterNavigationAnimationCallbacks = [];
 
+        let nextCallbackId = 0;
+        const callbackById = new Map();
+
+        const registerCallback = callback => {
+            if (!callback) return callback;
+
+            const callbackId = nextCallbackId++;
+            callbackById.set(callbackId, callback);
+
+            return callbackId;
+        };
+
+        const unregisterCallback = callbackId => {
+            callbackById.delete(callbackId);
+        };
+
         const NativeMobileBridge = {
+            _callCallbackById: callbackId => {
+                const callback = callbackById.get(callbackId);
+                if (!callback) return;
+
+                const result = callback();
+                if (result instanceof Promise) {
+                    result.catch(error => {
+                        setTimeout(() => {
+                            throw error;
+                        }, 0);
+                    });
+                }
+            },
             health: {
                 ready: () => {
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage("health.ready");
@@ -2327,6 +2420,30 @@ private let bridgeSource = """
                 },
                 cleanupAfterSubstitute: () => {
                     return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.cleanupAfterSubstitute");
+                },
+            },
+            modal: {
+                presentDialog: options => {
+                    const actualOptions = {
+                        title: options.title,
+                        description: options.description,
+                        primaryButtonLabel: options.primaryButtonLabel,
+                        isPrimaryButtonDisabled: options.isPrimaryButtonDisabled,
+                        onPrimaryButtonPressCallbackId: registerCallback(() => {
+                            unregisterCallback(actualOptions.onPrimaryButtonPressCallbackId);
+                            unregisterCallback(actualOptions.onCancelButtonPressCallbackId);
+                            if (options.onPrimaryButtonPress) return options.onPrimaryButtonPress();
+                        }),
+                        cancelButtonLabel: options.cancelButtonLabel,
+                        onCancelButtonPressCallbackId: registerCallback(() => {
+                            unregisterCallback(actualOptions.onPrimaryButtonPressCallbackId);
+                            unregisterCallback(actualOptions.onCancelButtonPressCallbackId);
+                            if (options.onCancelButtonPress) return options.onCancelButtonPress();
+                        }),
+                        shouldHideCancelButton: options.shouldHideCancelButton,
+                    };
+
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`modal.presentDialog:${JSON.stringify(actualOptions)}`);
                 },
             },
         };
