@@ -9,7 +9,6 @@ import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
-import {mobileBottomBarKeyboardToolbarHeightRem} from "~/client/design/mobile_bottom_bar.js";
 import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
@@ -740,24 +739,14 @@ function DocumentContentEditorStateful({
 
     useEffect(() => {
         return subscribeToMobileKeyboardFrameChange(
-            ({newKeyboardHeight, oldKeyboardHeight, shouldScroll}) => {
+            ({newKeyboardHeight, oldKeyboardHeight, shouldScroll, isAnimated}) => {
                 if (!shouldScroll) return;
-
-                const remPx = getRemPxWithoutListening();
-
-                // The content editor has a keyboard toolbar we need to add to our keyboard
-                // height since we need to move content out of the way of the toolbar too.
-                if (newKeyboardHeight > 0)
-                    newKeyboardHeight =
-                        newKeyboardHeight + mobileBottomBarKeyboardToolbarHeightRem * remPx;
-
-                if (oldKeyboardHeight > 0)
-                    oldKeyboardHeight =
-                        oldKeyboardHeight + mobileBottomBarKeyboardToolbarHeightRem * remPx;
 
                 const keyboardHeightDelta = newKeyboardHeight - oldKeyboardHeight;
 
                 if (keyboardHeightDelta <= 0) return;
+
+                const remPx = getRemPxWithoutListening();
 
                 const paragraphLineHeight =
                     parseRemLengthNumber(contentSchemaStyles.paragraphLineHeight) * remPx;
@@ -770,7 +759,7 @@ function DocumentContentEditorStateful({
 
                 const willSelectionBeOffScreen =
                     window.innerHeight - coords.bottom <
-                    keyboardHeightDelta +
+                    newKeyboardHeight +
                         // Some slop. We consider the selection offscreen if there's less than a line
                         // of space between it and the keyboard.
                         paragraphLineHeight;
@@ -788,7 +777,8 @@ function DocumentContentEditorStateful({
 
                 editorContainerElement.scrollTo({
                     top: editorContainerElement.scrollTop + scrollDelta,
-                    behavior: "smooth",
+                    behavior:
+                        scrollDelta > paragraphLineHeight || isAnimated ? "smooth" : "instant",
                 });
             },
         );

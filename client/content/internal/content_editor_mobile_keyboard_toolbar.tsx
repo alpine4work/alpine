@@ -61,6 +61,7 @@ import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
+import {registerMobileBottomBarKeyboardToolbar} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
 
 // NOCOMMIT: Haptic feedback when style is selected? This feels like a nice way
 // to reward.
@@ -111,6 +112,10 @@ export function ContentEditorMobileKeyboardToolbar({
             }
         };
     }, [isSubstituteOpen, isMounted]);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        return registerMobileBottomBarKeyboardToolbar();
+    }, []);
 
     const isFocusedRef = useRef(isFocused);
     useEffect(() => {

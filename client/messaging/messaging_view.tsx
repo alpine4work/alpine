@@ -558,49 +558,61 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     });
 
     useEffect(() => {
+        // TODO(calebmer, 2024-03-04): There's a bug here in iOS where when you focus a
+        // message input at the bottom of a chat, then press return then press delete
+        // the scroll position isn't put back into the right place. If you add some
+        // logs, it would appear that there's a scroll event coming from the browser
+        // itself! I suspect this is due to Safari on iOS not implementing
+        // [`overflow-anchor: none`][1].
+        //
+        // [1]: https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-anchor
         return subscribeToMobileKeyboardFrameChange(
-            ({newKeyboardHeight, oldKeyboardHeight, tabBarHeight, shouldScroll}) => {
+            ({
+                newKeyboardHeight,
+                oldKeyboardHeight,
+                newBottomBarHeight,
+                oldBottomBarHeight,
+                shouldScroll,
+                isAnimated,
+            }) => {
                 const view = assertExists(viewRef.current);
 
                 if (!shouldScroll) return;
 
                 const remPx = getRemPxWithoutListening();
 
-                // Don't include tab bar height in covered height delta since the tab bar is
-                // already "dead space". The newly covered content is the extra space added by
-                // the keyboard.
-                let coveredKeyboardHeightDelta =
-                    Math.max(0, newKeyboardHeight - tabBarHeight) -
-                    Math.max(0, oldKeyboardHeight - tabBarHeight);
+                // Don't include tab bar height or message input height in covered height delta
+                // since they don't overlap with messaging view content.
+                const coveredKeyboardHeightDelta =
+                    Math.max(0, newKeyboardHeight - oldBottomBarHeight) -
+                    Math.max(0, oldKeyboardHeight - oldBottomBarHeight);
 
-                // The content editor has a keyboard toolbar we need to add to our keyboard
-                // height since we need to move content out of the way of the toolbar too.
-                if (newKeyboardHeight > 0 && !(oldKeyboardHeight > 0)) {
-                    coveredKeyboardHeightDelta += mobileBottomBarKeyboardToolbarHeightRem * remPx;
-
-                    // So the keyboard toolbar isn't occluding any message content, add some safe
-                    // area but just to the virtualized scroll view.
-                    //
-                    // Note this only works in mobile WebKit where we actually have a virtual
-                    // keyboard. If you try this in desktop Safari (with a small screen size) or
-                    // desktop Chrome (with a small screen size) the message input occludes
-                    // content.
-                    //
-                    // NOTE(calebmer, 2024-03-01): Maybe we should still use pointer toolbars for
-                    // `<ContentEditor>` instead of keyboard toolbars if the primary input device
-                    // can hover?
-                    if (!NativeMobileBridge) {
+                // So the keyboard toolbar isn't occluding any message content, add some safe
+                // area but just to the virtualized scroll view.
+                //
+                // Note this only works in mobile WebKit where we actually have a virtual
+                // keyboard. If you try this in desktop Safari (with a small screen size) or
+                // desktop Chrome (with a small screen size) the message input occludes
+                // content.
+                //
+                // NOTE(calebmer, 2024-03-01): Maybe we should still use pointer toolbars for
+                // `<ContentEditor>` instead of keyboard toolbars if the primary input device
+                // can hover?
+                if (!NativeMobileBridge) {
+                    if (
+                        newKeyboardHeight > newBottomBarHeight &&
+                        !(oldKeyboardHeight > oldBottomBarHeight)
+                    ) {
                         view.getElement().style.setProperty(
                             "--safe-area-inset-bottom",
                             `${mobileBottomBarKeyboardToolbarHeightRem * remPx}px`,
                         );
                     }
-                }
 
-                if (oldKeyboardHeight > 0 && !(newKeyboardHeight > 0)) {
-                    coveredKeyboardHeightDelta -= mobileBottomBarKeyboardToolbarHeightRem * remPx;
-
-                    if (!NativeMobileBridge) {
+                    if (
+                        oldKeyboardHeight > oldBottomBarHeight &&
+                        !(newKeyboardHeight > newBottomBarHeight)
+                    ) {
                         view.getElement().style.removeProperty("--safe-area-inset-bottom");
                     }
                 }
@@ -620,7 +632,9 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 const scrollOffset =
                     view._getInternalLastScrollOffset() + coveredKeyboardHeightDelta;
 
-                view.setScrollOffset(scrollOffset, {behavior: "smooth"});
+                view.setScrollOffset(scrollOffset, {
+                    behavior: isAnimated ? "smooth" : "instant",
+                });
             },
         );
     }, []);

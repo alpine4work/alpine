@@ -21,6 +21,12 @@ import {useShowToast} from "~/client/design/toast.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {
+    addResizeListenerForElement,
+    addSuppressResizeLoopErrorNotificationForElement,
+    removeResizeListenerForElement,
+    removeSuppressResizeLoopErrorNotificationForElement,
+} from "~/client/helpers/use_resize_observer.js";
 import {useInboxPeekContext} from "~/client/inbox/inbox_peek_context.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
@@ -33,6 +39,7 @@ import {
     messageViewReplyPreviewOpacity,
 } from "~/client/messaging/message_view.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {registerMobileBottomBar} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -44,6 +51,7 @@ import {
     spacing,
 } from "~/shared/design/spacing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
@@ -350,6 +358,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     const {currentAccount} = useSpaceContext();
 
     const containerRef = useRef<HTMLDivElement>(null);
+    const inputContainerRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const replyingToMessage = useMemo(() => {
@@ -421,6 +430,41 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
         onSendProp();
     };
 
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const inputContainerElement = assertExists(inputContainerRef.current);
+
+        let currentHeight: number | null = null;
+        let unregister: (() => void) | null = null;
+
+        const handleResize = () => {
+            const {height} = inputContainerElement.getBoundingClientRect();
+
+            if (currentHeight !== height) {
+                currentHeight = height;
+
+                const oldUnregister = unregister;
+                unregister = registerMobileBottomBar(height, {withKeyboardToolbar: true});
+
+                // Make sure to unregister AFTER registering the new height. That way if the
+                // height didn't change there will be no update notifications.
+                oldUnregister?.();
+            }
+        };
+
+        // We appear to have no visual issues when this resizes. Mainly adding a
+        // resize element listener to this element causes a suppressed warning from
+        // `<VirtualizedScrollView>` to be logged.
+        addSuppressResizeLoopErrorNotificationForElement(inputContainerElement);
+
+        addResizeListenerForElement(inputContainerElement, handleResize);
+
+        return () => {
+            removeResizeListenerForElement(inputContainerElement, handleResize);
+            removeSuppressResizeLoopErrorNotificationForElement(inputContainerElement);
+            unregister?.();
+        };
+    }, []);
+
     const id = useId();
 
     // Extra slop that extends beneath the bottom of the message input. This is
@@ -440,7 +484,6 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
             id={isBottomBar && clientInfo.isNativeMobile ? `nmbb-wkt-${id}` : id}
             flexShrink="0"
             backgroundColor="grey-0"
-            borderTop={isBottomBar && !withoutBorderTop ? "grey-10" : undefined}
             style={{
                 // Remove one pixel so that our layout of the input without the border top is
                 // the same side-by-side with the layout of an input with the border top.
@@ -449,8 +492,6 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                     : !withoutBorderTop
                     ? `calc(${messageInputMinHeight} - 1px + var(--window-safe-area-inset-bottom, 0px))`
                     : `calc(${messageInputMinHeight} + var(--window-safe-area-inset-bottom, 0px))`,
-                // Remove one pixel from top to make space for a border.
-                paddingTop: !isBottomBar ? spacing["3"] : `calc(${spacing["3"]} - 1px)`,
                 paddingBottom: isBottomBar
                     ? clientInfo.isNativeMobile
                         ? `calc(${bottomBarBackgroundSlopBottom} + var(--window-safe-area-inset-bottom, 0px))`
@@ -506,7 +547,18 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                 }
             }}
         >
-            <Box width="full" maxWidth="160" paddingBottom="3" style={{margin: "0 auto"}}>
+            <Box
+                ref={inputContainerRef}
+                width="full"
+                maxWidth="160"
+                paddingBottom="3"
+                borderTop={isBottomBar && !withoutBorderTop ? "grey-10" : undefined}
+                style={{
+                    // Remove one pixel from top to make space for a border.
+                    paddingTop: !isBottomBar ? spacing["3"] : `calc(${spacing["3"]} - 1px)`,
+                    margin: "0 auto",
+                }}
+            >
                 {replyingToMessage &&
                     (() => {
                         const height = addRemLengths(

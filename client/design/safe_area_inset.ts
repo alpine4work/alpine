@@ -34,3 +34,22 @@ export function getElementSafeAreaInsetBottomPx(element: Element): number {
 
     throw new InternalError("Unrecognized unit for CSS variable `--safe-area-inset-bottom`");
 }
+
+/**
+ * Get the value of the `--window-safe-area-inset-bottom` CSS variable in
+ * pixels.
+ */
+export function getElementWindowSafeAreaInsetBottomPx(element: Element): number {
+    const windowSafeAreaInsetBottom = getComputedStyle(element).getPropertyValue(
+        "--window-safe-area-inset-bottom",
+    );
+    if (!windowSafeAreaInsetBottom) return 0;
+
+    const windowSafeAreaInsetBottomNumber = parseFloat(windowSafeAreaInsetBottom);
+
+    if (windowSafeAreaInsetBottom.endsWith("px")) return windowSafeAreaInsetBottomNumber;
+    if (windowSafeAreaInsetBottom.endsWith("rem"))
+        return windowSafeAreaInsetBottomNumber * getRemPxWithoutListening();
+
+    throw new InternalError("Unrecognized unit for CSS variable `--window-safe-area-inset-bottom`");
+}

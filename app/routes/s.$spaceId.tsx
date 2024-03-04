@@ -28,7 +28,7 @@ import {PeekStackContextProvider, PeekStackContextProviderRef} from "~/client/pe
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {emitMobileKeyboardFrameChangeIfNotNativeMobile} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
+import {emitMobileKeyboardWithoutBottomBarsFrameChangeIfNotNative} from "~/client/remix/subscribe_to_mobile_keyboard_without_bottom_bars_frame_change.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {RootNavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
@@ -681,11 +681,11 @@ function useMobileWebKitKeyboardSupport() {
         const oldKeyboardHeight = windowHeight - lastResizedWindowHeightForMobileWebKit;
         const newKeyboardHeight = windowHeight - resizedWindowHeightForMobileWebKit;
 
-        emitMobileKeyboardFrameChangeIfNotNativeMobile({
+        emitMobileKeyboardWithoutBottomBarsFrameChangeIfNotNative({
             newKeyboardHeight,
             oldKeyboardHeight,
-            tabBarHeight: 0,
             shouldScroll: true,
+            isAnimated: true,
         });
     }, [resizedWindowHeightForMobileWebKit]);
 

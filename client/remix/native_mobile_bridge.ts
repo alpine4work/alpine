@@ -307,6 +307,12 @@ export const NativeMobileBridge: {
      */
     readonly navigationBar: {
         /**
+         * The height of the tab bar in pixels. The tab bar is implemented to animate
+         * at the same rate as the navigation bar.
+         */
+        readonly tabBarHeight: number;
+
+        /**
          * When the user is done scrolling, after about a second if the navigation bar
          * (and tab bar) are partially occluded we run an animation to completely hide
          * the navigation bar (and tab bar) or completely hide the navigation bar (and
@@ -366,8 +372,8 @@ export const NativeMobileBridge: {
             listener: (event: {
                 oldKeyboardHeight: number;
                 newKeyboardHeight: number;
-                tabBarHeight: number;
                 shouldScroll: boolean;
+                isAnimated: boolean;
             }) => void,
         ): () => void;
 

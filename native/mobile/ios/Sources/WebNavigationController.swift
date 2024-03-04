@@ -1216,8 +1216,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             alsoCallFrameChangeListeners: (
                 screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y,
                 screen.coordinateSpace.bounds.height - endScreenFrame.origin.y,
-                Double(tabBarController?.tabBar.frame.height ?? 0),
-                shouldDisableScrollFromKeyboardFrameChange == 0
+                shouldDisableScrollFromKeyboardFrameChange == 0,
+                UIView.inheritedAnimationDuration > 0
             )
         )
     }
@@ -1249,8 +1249,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let args = [
             "\(screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y)",
             "\(screen.coordinateSpace.bounds.height - endScreenFrame.origin.y)",
-            "\(tabBarController?.tabBar.frame.height ?? 0)",
             "\(shouldDisableScrollFromKeyboardFrameChange == 0)",
+            "\(UIView.inheritedAnimationDuration > 0)",
         ]
         .joined(separator: ", ")
 
@@ -1361,7 +1361,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     private func updateWebViewSafeAreaInsets(
-        alsoCallFrameChangeListeners: (Double, Double, Double, Bool) = (0, 0, 0, false)
+        alsoCallFrameChangeListeners: (Double, Double, Bool, Bool) = (0, 0, false, false)
     ) {
         let safeAreaInsets = getSafeAreaInsets()
 
@@ -1388,7 +1388,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     styleElement.innerHTML = styleString;
                     document.head.appendChild(styleElement);
                 }
-            \(alsoCallFrameChangeListeners != (0, 0, 0, false) ? "\n    window.__NativeMobileBridge.keyboard._callFrameChangeListeners(\(alsoCallFrameChangeListeners.0), \(alsoCallFrameChangeListeners.1), \(alsoCallFrameChangeListeners.2), \(alsoCallFrameChangeListeners.3));\n" : "")}
+            \(alsoCallFrameChangeListeners != (0, 0, false, false) ? "\n    window.__NativeMobileBridge.keyboard._callFrameChangeListeners(\(alsoCallFrameChangeListeners.0), \(alsoCallFrameChangeListeners.1), \(alsoCallFrameChangeListeners.2), \(alsoCallFrameChangeListeners.3));\n" : "")}
             """
 
         webView.evaluateJavaScript(source)
@@ -2372,6 +2372,7 @@ private let webBridgeSource = """
                 },
             },
             navigationBar: {
+                tabBarHeight: \(UITabBarController().tabBar.frame.height),
                 runScrollDebounceTimeout: () => {
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigationBar.runScrollDebounceTimeout");
                 },
@@ -2383,10 +2384,10 @@ private let webBridgeSource = """
                         keyboardFrameChangeListeners.delete(listener);
                     };
                 },
-                _callFrameChangeListeners: (oldKeyboardHeight, newKeyboardHeight, tabBarHeight, shouldScroll) => {
+                _callFrameChangeListeners: (oldKeyboardHeight, newKeyboardHeight, shouldScroll, isAnimated) => {
                     for (const listener of keyboardFrameChangeListeners) {
                         try {
-                            listener({oldKeyboardHeight, newKeyboardHeight, tabBarHeight, shouldScroll});
+                            listener({oldKeyboardHeight, newKeyboardHeight, shouldScroll, isAnimated});
                         } catch (error) {
                             setTimeout(() => {
                                 throw error;
