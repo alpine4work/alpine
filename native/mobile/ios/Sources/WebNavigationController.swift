@@ -1202,21 +1202,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             didMoveTo: screen.coordinateSpace.bounds.height - endScreenFrame.origin.y
         )
 
-        // Don't include tab bar height in covered height delta since the tab bar is
-        // already "dead space". The newly covered content is the extra space added by
-        // the keyboard.
-        let coveredHeightDelta =
-            max(
-                0,
-                (screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y)
-                    - (tabBarController?.tabBar.frame.height ?? 0)
-            )
-            - max(
-                0,
-                (screen.coordinateSpace.bounds.height - endScreenFrame.origin.y)
-                    - (tabBarController?.tabBar.frame.height ?? 0)
-            )
-
         // While the keyboard is opening:
         //
         // 1. Add extra bottom safe area inset
@@ -1229,8 +1214,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // keyboard open animation is like this.
         updateWebViewSafeAreaInsets(
             alsoCallFrameChangeListeners: (
-                -coveredHeightDelta, screen.coordinateSpace.bounds.height - endScreenFrame.origin.y,
                 screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y,
+                screen.coordinateSpace.bounds.height - endScreenFrame.origin.y,
+                Double(tabBarController?.tabBar.frame.height ?? 0),
                 shouldDisableScrollFromKeyboardFrameChange == 0
             )
         )
@@ -1260,25 +1246,18 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             didMoveTo: screen.coordinateSpace.bounds.height - endScreenFrame.origin.y
         )
 
-        // Don't include tab bar height in covered height delta since the tab bar is
-        // already "dead space". The newly covered content is the extra space added by
-        // the keyboard.
-        let coveredHeightDelta =
-            max(
-                0,
-                (screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y)
-                    - (tabBarController?.tabBar.frame.height ?? 0)
-            )
-            - max(
-                0,
-                (screen.coordinateSpace.bounds.height - endScreenFrame.origin.y)
-                    - (tabBarController?.tabBar.frame.height ?? 0)
-            )
+        let args = [
+            "\(screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y)",
+            "\(screen.coordinateSpace.bounds.height - endScreenFrame.origin.y)",
+            "\(tabBarController?.tabBar.frame.height ?? 0)",
+            "\(shouldDisableScrollFromKeyboardFrameChange == 0)",
+        ]
+        .joined(separator: ", ")
 
         // Start animating the main content down but don't remove safe area insets
         // until the keyboard is fully hidden.
         webView.evaluateJavaScript(
-            "window.__NativeMobileBridge.keyboard._callFrameChangeListeners(\(-coveredHeightDelta), \(screen.coordinateSpace.bounds.height - endScreenFrame.origin.y), \(screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y), \(shouldDisableScrollFromKeyboardFrameChange == 0))"
+            "window.__NativeMobileBridge.keyboard._callFrameChangeListeners(\(args))"
         )
     }
 
@@ -2404,10 +2383,10 @@ private let webBridgeSource = """
                         keyboardFrameChangeListeners.delete(listener);
                     };
                 },
-                _callFrameChangeListeners: (coveredHeightDelta, newHeight, oldHeight, shouldScroll) => {
+                _callFrameChangeListeners: (oldKeyboardHeight, newKeyboardHeight, tabBarHeight, shouldScroll) => {
                     for (const listener of keyboardFrameChangeListeners) {
                         try {
-                            listener(coveredHeightDelta, newHeight, oldHeight, shouldScroll);
+                            listener({oldKeyboardHeight, newKeyboardHeight, tabBarHeight, shouldScroll});
                         } catch (error) {
                             setTimeout(() => {
                                 throw error;

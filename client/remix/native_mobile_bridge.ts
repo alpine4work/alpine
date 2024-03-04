@@ -363,12 +363,12 @@ export const NativeMobileBridge: {
          * mobile app environment.
          */
         subscribeToFrameChange(
-            listener: (
-                coveredHeightDelta: number,
-                newHeight: number,
-                oldHeight: number,
-                shouldNotScroll: boolean,
-            ) => void,
+            listener: (event: {
+                oldKeyboardHeight: number;
+                newKeyboardHeight: number;
+                tabBarHeight: number;
+                shouldScroll: boolean;
+            }) => void,
         ): () => void;
 
         /**

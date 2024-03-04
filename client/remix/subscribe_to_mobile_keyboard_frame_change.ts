@@ -3,9 +3,14 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 
-let mobileKeyboardFrameChangeEmitter: EventEmitter<
-    [coveredHeightDelta: number, newHeight: number, oldHeight: number, shouldScroll: boolean]
-> | null = null;
+export type MobileKeyboardFrameChangeEvent = {
+    readonly oldKeyboardHeight: number;
+    readonly newKeyboardHeight: number;
+    readonly tabBarHeight: number;
+    readonly shouldScroll: boolean;
+};
+
+let mobileKeyboardFrameChangeEmitter: EventEmitter<MobileKeyboardFrameChangeEvent> | null = null;
 
 /**
  * Subscribe to when the keyboard opens/closes. The listener may then scroll
@@ -22,12 +27,7 @@ let mobileKeyboardFrameChangeEmitter: EventEmitter<
  * Does nothing outside of mobile environments.
  */
 export function subscribeToMobileKeyboardFrameChange(
-    listener: (
-        coveredHeightDelta: number,
-        newHeight: number,
-        oldHeight: number,
-        shouldScroll: boolean,
-    ) => void,
+    listener: (event: MobileKeyboardFrameChangeEvent) => void,
 ): () => void {
     // If this isn't mobile WebKit (native app or otherwise) we don't have keyboard
     // frame change events.
@@ -35,10 +35,7 @@ export function subscribeToMobileKeyboardFrameChange(
 
     return NativeMobileBridge
         ? NativeMobileBridge.keyboard.subscribeToFrameChange(listener)
-        : (mobileKeyboardFrameChangeEmitter ??= new EventEmitter()).subscribe(
-              ([coveredHeightDelta, newHeight, oldHeight, shouldScroll]) =>
-                  listener(coveredHeightDelta, newHeight, oldHeight, shouldScroll),
-          );
+        : (mobileKeyboardFrameChangeEmitter ??= new EventEmitter()).subscribe(listener);
 }
 
 /**
@@ -48,10 +45,7 @@ export function subscribeToMobileKeyboardFrameChange(
  * mobile app events come from the native mobile shell.
  */
 export function emitMobileKeyboardFrameChangeIfNotNativeMobile(
-    coveredHeightDelta: number,
-    newHeight: number,
-    oldHeight: number,
-    shouldScroll: boolean,
+    event: MobileKeyboardFrameChangeEvent,
 ) {
     // If this isn't mobile WebKit (native app or otherwise) we don't have keyboard
     // frame change events.
@@ -60,5 +54,5 @@ export function emitMobileKeyboardFrameChangeIfNotNativeMobile(
     assert(!NativeMobileBridge);
 
     mobileKeyboardFrameChangeEmitter ??= new EventEmitter();
-    mobileKeyboardFrameChangeEmitter.emit([coveredHeightDelta, newHeight, oldHeight, shouldScroll]);
+    mobileKeyboardFrameChangeEmitter.emit(event);
 }

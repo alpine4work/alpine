@@ -740,7 +740,7 @@ function DocumentContentEditorStateful({
 
     useEffect(() => {
         return subscribeToMobileKeyboardFrameChange(
-            (coveredKeyboardHeightDelta, newKeyboardHeight, oldKeyboardHeight, shouldScroll) => {
+            ({newKeyboardHeight, oldKeyboardHeight, shouldScroll}) => {
                 if (!shouldScroll) return;
 
                 const remPx = getRemPxWithoutListening();

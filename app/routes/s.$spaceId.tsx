@@ -681,14 +681,12 @@ function useMobileWebKitKeyboardSupport() {
         const oldKeyboardHeight = windowHeight - lastResizedWindowHeightForMobileWebKit;
         const newKeyboardHeight = windowHeight - resizedWindowHeightForMobileWebKit;
 
-        const coveredKeyboardHeightDelta = newKeyboardHeight - oldKeyboardHeight;
-
-        emitMobileKeyboardFrameChangeIfNotNativeMobile(
-            coveredKeyboardHeightDelta,
+        emitMobileKeyboardFrameChangeIfNotNativeMobile({
             newKeyboardHeight,
             oldKeyboardHeight,
-            true,
-        );
+            tabBarHeight: 0,
+            shouldScroll: true,
+        });
     }, [resizedWindowHeightForMobileWebKit]);
 
     return {resizedWindowHeightForMobileWebKit};

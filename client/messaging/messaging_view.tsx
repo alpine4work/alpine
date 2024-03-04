@@ -559,12 +559,19 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
 
     useEffect(() => {
         return subscribeToMobileKeyboardFrameChange(
-            (coveredKeyboardHeightDelta, newKeyboardHeight, oldKeyboardHeight, shouldScroll) => {
+            ({newKeyboardHeight, oldKeyboardHeight, tabBarHeight, shouldScroll}) => {
                 const view = assertExists(viewRef.current);
 
                 if (!shouldScroll) return;
 
                 const remPx = getRemPxWithoutListening();
+
+                // Don't include tab bar height in covered height delta since the tab bar is
+                // already "dead space". The newly covered content is the extra space added by
+                // the keyboard.
+                let coveredKeyboardHeightDelta =
+                    Math.max(0, newKeyboardHeight - tabBarHeight) -
+                    Math.max(0, oldKeyboardHeight - tabBarHeight);
 
                 // The content editor has a keyboard toolbar we need to add to our keyboard
                 // height since we need to move content out of the way of the toolbar too.
