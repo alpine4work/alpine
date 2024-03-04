@@ -9,10 +9,10 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * Keyboard toolbars have a fixed height since we need to animate them in from
  * completely offscreen to the proper position above the keyboard.
  */
-export const nativeMobileBottomBarKeyboardToolbarHeight = "10";
+export const mobileBottomBarKeyboardToolbarHeight = "10";
 
-export const nativeMobileBottomBarKeyboardToolbarHeightRem = parseRemLengthNumber(
-    spacing[nativeMobileBottomBarKeyboardToolbarHeight],
+export const mobileBottomBarKeyboardToolbarHeightRem = parseRemLengthNumber(
+    spacing[mobileBottomBarKeyboardToolbarHeight],
 );
 
 {
@@ -22,11 +22,11 @@ export const nativeMobileBottomBarKeyboardToolbarHeightRem = parseRemLengthNumbe
     // We have an assertion below to make sure this value always equals the
     // bottom bar's pixel height on mobile devices. After converting `Spacing`
     // to an actual value and applying the rem pixel count.
-    const nativeMobileBottomBarKeyboardToolbarHeight = 50;
+    const mobileBottomBarKeyboardToolbarHeight = 50;
 
     assert(
-        nativeMobileBottomBarKeyboardToolbarHeightRem * remPxByPlatform.mobile ===
-            nativeMobileBottomBarKeyboardToolbarHeight,
+        mobileBottomBarKeyboardToolbarHeightRem * remPxByPlatform.mobile ===
+            mobileBottomBarKeyboardToolbarHeight,
     );
 }
 
@@ -40,10 +40,10 @@ export const nativeMobileBottomBarKeyboardToolbarHeightRem = parseRemLengthNumbe
  * have a substitute open. Native expects the substitute to have this height
  * plus the window safe area bottom inset.
  */
-export const nativeMobileBottomBarKeyboardSubstituteHeight = "17rem";
+export const mobileBottomBarKeyboardSubstituteHeight = "17rem";
 
-export const nativeMobileBottomBarKeyboardSubstituteHeightRem = parseRemLengthNumber(
-    nativeMobileBottomBarKeyboardSubstituteHeight,
+export const mobileBottomBarKeyboardSubstituteHeightRem = parseRemLengthNumber(
+    mobileBottomBarKeyboardSubstituteHeight,
 );
 
 {
@@ -53,10 +53,10 @@ export const nativeMobileBottomBarKeyboardSubstituteHeightRem = parseRemLengthNu
     // We have an assertion below to make sure this value always equals the
     // bottom bar's pixel height on mobile devices. After converting `Spacing`
     // to an actual value and applying the rem pixel count.
-    const nativeMobileBottomBarKeyboardSubstituteHeight = 340;
+    const mobileBottomBarKeyboardSubstituteHeight = 340;
 
     assert(
-        nativeMobileBottomBarKeyboardSubstituteHeightRem * remPxByPlatform.mobile ===
-            nativeMobileBottomBarKeyboardSubstituteHeight,
+        mobileBottomBarKeyboardSubstituteHeightRem * remPxByPlatform.mobile ===
+            mobileBottomBarKeyboardSubstituteHeight,
     );
 }

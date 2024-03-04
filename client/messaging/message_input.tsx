@@ -13,9 +13,9 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {
-    nativeMobileBottomBarKeyboardToolbarHeight,
-    nativeMobileBottomBarKeyboardToolbarHeightRem,
-} from "~/client/design/native_mobile_bottom_bar.js";
+    mobileBottomBarKeyboardToolbarHeight,
+    mobileBottomBarKeyboardToolbarHeightRem,
+} from "~/client/design/mobile_bottom_bar.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -460,10 +460,10 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                     isBottomBar && clientInfo.isNativeMobile
                         ? `-${addRemLengths(
                               bottomBarBackgroundSlopBottom,
-                              spacing[nativeMobileBottomBarKeyboardToolbarHeight],
+                              spacing[mobileBottomBarKeyboardToolbarHeight],
                           )}`
                         : isBottomBar && isMobile
-                        ? `-${spacing[nativeMobileBottomBarKeyboardToolbarHeight]}`
+                        ? `-${spacing[mobileBottomBarKeyboardToolbarHeight]}`
                         : undefined,
                 // Our native mobile wrapper looks for compositing layers created from an
                 // element with an ID that starts with `nmbb-` and ties their position to
@@ -681,7 +681,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                                                 {
                                                     y: [
                                                         0,
-                                                        -nativeMobileBottomBarKeyboardToolbarHeightRem *
+                                                        -mobileBottomBarKeyboardToolbarHeightRem *
                                                             getRemPxWithoutListening(),
                                                     ],
                                                 },
@@ -711,7 +711,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                                                 containerElement,
                                                 {
                                                     y: [
-                                                        -nativeMobileBottomBarKeyboardToolbarHeightRem *
+                                                        -mobileBottomBarKeyboardToolbarHeightRem *
                                                             getRemPxWithoutListening(),
                                                         0,
                                                     ],

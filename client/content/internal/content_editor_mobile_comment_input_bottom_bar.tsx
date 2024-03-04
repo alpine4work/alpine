@@ -58,7 +58,7 @@ export function ContentEditorMobileCommentInputBottomBar({onClose}: {onClose: ()
                 left="0"
                 right="0"
                 style={{
-                    // `bottom: "-" + nativeMobileBottomBarKeyboardToolbarHeightRem + "rem"` also
+                    // `bottom: "-" + mobileBottomBarKeyboardToolbarHeightRem + "rem"` also
                     // works except for in our Safari app keyboard support which limits the outlet
                     // height to what's visible above the keyboard.
                     bottom: `calc(100svh - var(--space-outlet-height, 100svh))`,

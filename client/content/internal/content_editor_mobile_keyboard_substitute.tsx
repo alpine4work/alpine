@@ -52,7 +52,7 @@ import {
     mobileModalAnimationDurationMs,
     mobileModalAnimationEasingParsedCubicBezier,
 } from "~/client/design/mobile_modal.js";
-import {nativeMobileBottomBarKeyboardSubstituteHeight} from "~/client/design/native_mobile_bottom_bar.js";
+import {mobileBottomBarKeyboardSubstituteHeight} from "~/client/design/mobile_bottom_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
@@ -221,7 +221,7 @@ function ContentEditorMobileKeyboardSubstitute(
                 display="flex"
                 flexDirection="column"
                 paddingBottom="2"
-                style={{height: nativeMobileBottomBarKeyboardSubstituteHeight}}
+                style={{height: mobileBottomBarKeyboardSubstituteHeight}}
             >
                 <Box position="absolute" top="2" right="2">
                     <IconButton

@@ -36,7 +36,7 @@ import {
 } from "~/client/content/internal/helpers/indent_and_dedent_list_item_commands.js";
 import {Box} from "~/client/design/box.js";
 import {MobileModal} from "~/client/design/mobile_modal.js";
-import {nativeMobileBottomBarKeyboardToolbarHeight} from "~/client/design/native_mobile_bottom_bar.js";
+import {mobileBottomBarKeyboardToolbarHeight} from "~/client/design/mobile_bottom_bar.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {spacing} from "~/shared/design/spacing.js";
@@ -152,7 +152,7 @@ export function MessageInputMobileKeyboardToolbar({
             <Box
                 ref={toolbarRef}
                 id={toolbarId}
-                height={nativeMobileBottomBarKeyboardToolbarHeight}
+                height={mobileBottomBarKeyboardToolbarHeight}
                 paddingX="0.5"
                 display="flex"
                 // Focusable, but not by keyboard. Only by JavaScript.

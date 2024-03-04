@@ -48,9 +48,9 @@ import {
 import {Box} from "~/client/design/box.js";
 import {MobileModal} from "~/client/design/mobile_modal.js";
 import {
-    nativeMobileBottomBarKeyboardToolbarHeight,
-    nativeMobileBottomBarKeyboardToolbarHeightRem,
-} from "~/client/design/native_mobile_bottom_bar.js";
+    mobileBottomBarKeyboardToolbarHeight,
+    mobileBottomBarKeyboardToolbarHeightRem,
+} from "~/client/design/mobile_bottom_bar.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -127,7 +127,7 @@ export function ContentEditorMobileKeyboardToolbar({
             animate(
                 toolbarElement,
                 {
-                    y: [0, `-${nativeMobileBottomBarKeyboardToolbarHeightRem}rem`],
+                    y: [0, `-${mobileBottomBarKeyboardToolbarHeightRem}rem`],
                 },
                 {
                     duration: 0.2,
@@ -141,7 +141,7 @@ export function ContentEditorMobileKeyboardToolbar({
             animate(
                 toolbarElement,
                 {
-                    y: [`-${nativeMobileBottomBarKeyboardToolbarHeightRem}rem`, 0],
+                    y: [`-${mobileBottomBarKeyboardToolbarHeightRem}rem`, 0],
                 },
                 {
                     duration: 0.2,
@@ -282,7 +282,7 @@ export function ContentEditorMobileKeyboardToolbar({
                 left="0"
                 right="0"
                 style={{
-                    // `bottom: "-" + nativeMobileBottomBarKeyboardToolbarHeightRem + "rem"` also
+                    // `bottom: "-" + mobileBottomBarKeyboardToolbarHeightRem + "rem"` also
                     // works except for in our Safari app keyboard support which limits the outlet
                     // height to what's visible above the keyboard.
                     top: `var(--space-outlet-height, 100svh)`,
@@ -320,7 +320,7 @@ export function ContentEditorMobileKeyboardToolbar({
             >
                 <Box
                     pointerEvents="auto"
-                    height={nativeMobileBottomBarKeyboardToolbarHeight}
+                    height={mobileBottomBarKeyboardToolbarHeight}
                     backgroundColor="grey-5"
                     display="flex"
                     paddingX="0.5"

@@ -16,7 +16,7 @@ import {
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
-import {nativeMobileBottomBarKeyboardToolbarHeightRem} from "~/client/design/native_mobile_bottom_bar.js";
+import {mobileBottomBarKeyboardToolbarHeightRem} from "~/client/design/mobile_bottom_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -576,8 +576,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 // The content editor has a keyboard toolbar we need to add to our keyboard
                 // height since we need to move content out of the way of the toolbar too.
                 if (newKeyboardHeight > 0 && !(oldKeyboardHeight > 0)) {
-                    coveredKeyboardHeightDelta +=
-                        nativeMobileBottomBarKeyboardToolbarHeightRem * remPx;
+                    coveredKeyboardHeightDelta += mobileBottomBarKeyboardToolbarHeightRem * remPx;
 
                     // So the keyboard toolbar isn't occluding any message content, add some safe
                     // area but just to the virtualized scroll view.
@@ -593,14 +592,13 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                     if (!NativeMobileBridge) {
                         view.getElement().style.setProperty(
                             "--safe-area-inset-bottom",
-                            `${nativeMobileBottomBarKeyboardToolbarHeightRem * remPx}px`,
+                            `${mobileBottomBarKeyboardToolbarHeightRem * remPx}px`,
                         );
                     }
                 }
 
                 if (oldKeyboardHeight > 0 && !(newKeyboardHeight > 0)) {
-                    coveredKeyboardHeightDelta -=
-                        nativeMobileBottomBarKeyboardToolbarHeightRem * remPx;
+                    coveredKeyboardHeightDelta -= mobileBottomBarKeyboardToolbarHeightRem * remPx;
 
                     if (!NativeMobileBridge) {
                         view.getElement().style.removeProperty("--safe-area-inset-bottom");
