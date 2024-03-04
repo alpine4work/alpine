@@ -1,11 +1,24 @@
-import {keyframes} from "@vanilla-extract/css";
+import {createVar, globalStyle, keyframes} from "@vanilla-extract/css";
 import {spacing} from "~/shared/design/spacing.js";
+import {darkColorSchemeSelector} from "~/shared/styles/internal/color_scheme.css.js";
 
-export const modalUnderlayOpacity = 0.5;
+export const modalUnderlayOpacityVar = createVar("modal-underlay-opacity");
+
+globalStyle(":root", {
+    vars: {
+        [modalUnderlayOpacityVar]: "0.4",
+    },
+});
+
+globalStyle(darkColorSchemeSelector, {
+    vars: {
+        [modalUnderlayOpacityVar]: "0.6",
+    },
+});
 
 const modalUnderlayFadeInKeyframes = keyframes({
     from: {opacity: 0},
-    to: {opacity: modalUnderlayOpacity},
+    to: {opacity: modalUnderlayOpacityVar},
 });
 
 const modalOverlayFadeInKeyframes = keyframes({

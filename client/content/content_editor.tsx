@@ -1596,6 +1596,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     state={unwrap(state)}
                     viewRef={viewRef}
                     isFocused={isFocused}
+                    setDecorationCallbacks={setDecorationCallbacks}
                 />
             )}
         </div>

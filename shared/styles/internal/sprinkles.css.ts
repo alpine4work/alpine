@@ -348,6 +348,7 @@ const colorProperties = defineProperties({
         },
         opacity: {
             "0": 0,
+            "10": 0.1,
             "20": 0.2,
             "40": 0.4,
             "60": 0.6,

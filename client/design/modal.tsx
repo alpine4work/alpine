@@ -172,7 +172,7 @@ export function Modal({
                     zIndex="-10"
                     backgroundColor="grey-dark"
                     style={{
-                        opacity: modalStyles.modalUnderlayOpacity,
+                        opacity: modalStyles.modalUnderlayOpacityVar,
                         animation: !withoutOpenAnimation
                             ? modalStyles.modalUnderlayFadeInAnimation
                             : undefined,

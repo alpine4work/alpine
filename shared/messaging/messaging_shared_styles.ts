@@ -12,7 +12,6 @@ export const messageViewBubblePaddingX: Spacing = "1";
 export const messageViewBubblePaddingY: Spacing = "2";
 export const messageViewMergedMarginY: Spacing = "0.5";
 
-// NOCOMMIT: I think I will be killing message bubbles from the product's design
 export const messageViewBubbleMinHeight: RemLength = addRemLengths(
     spacing[messageViewBubblePaddingY],
     contentSchemaStyles.paragraphLineHeight,

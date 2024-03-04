@@ -1,42 +1,113 @@
-import {useState} from "react";
+import {useRef, useState} from "react";
+import {ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {Box} from "~/client/design/box.js";
+import {ModalDialog} from "~/client/design/modal_dialog.js";
+import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageInputBase} from "~/client/messaging/message_input.js";
-import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
+import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {
+    MessageContentWithReferences,
+    emptyMessageContentWithReferences,
+} from "~/shared/messaging/message_content_schema.js";
 
-export function ContentEditorMobileCommentInputBottomBar() {
+// NOCOMMIT: Confirmation modal as alert dialog
+// NOCOMMIT: Make sure link editing doesn't trigger confirmation modal
+// NOCOMMIT: Try scrolling when editor content grows
+// NOCOMMIT: Scroll indicator looking broken?
+// NOCOMMIT: "Add comment" in edit menu?
+
+export function ContentEditorMobileCommentInputBottomBar({onClose}: {onClose: () => void}) {
+    const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
+
     const [state, setState] = useState(() =>
         ContentEditorState.create(emptyMessageContentWithReferences),
     );
+    const [shouldShowConfirmCloseDialog, setShouldShowConfirmCloseDialog] = useState(false);
+
+    const shouldFocusNextRenderRef = useRef(true);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        // If the close confirmation dialog is open, we can't focus our editor.
+        if (shouldShowConfirmCloseDialog) return;
+
+        if (!shouldFocusNextRenderRef.current) return;
+        shouldFocusNextRenderRef.current = false;
+
+        const editor = assertExists(editorRef.current);
+        editor.focus({preventScroll: true});
+    }, [shouldShowConfirmCloseDialog]);
 
     return (
-        <Box
-            position="fixed"
-            // Render above everything on the page including toolbar.
-            zIndex="70"
-            left="0"
-            right="0"
-            style={{
-                // `bottom: "-" + nativeMobileBottomBarKeyboardToolbarHeightRem + "rem"` also
-                // works except for in our Safari app keyboard support which limits the outlet
-                // height to what's visible above the keyboard.
-                bottom: `calc(100svh - var(--space-outlet-height, 100svh))`,
-            }}
-            // Bottom bar message input expects to be rendered in a flex context. Or else
-            // some layout bits (like the bottom bar safe area cover) won't work
-            // quite right.
-            display="flex"
-            flexDirection="column"
-        >
-            <MessageInputBase
-                isBottomBar={true}
-                marginX="3"
-                state={state}
-                onChange={setState}
-                onSend={() => {
-                    // NOCOMMIT: Implement!
-                }}
+        <>
+            <Box
+                position="fixed"
+                // Render above everything on the page including toolbar.
+                zIndex="70"
+                inset="0"
+                backgroundColor="grey-dark"
+                opacity={{light: "10", dark: "40"}}
+                // Render a cover over the document so the user knows they can't interact and
+                // should focus on their comment. If they tap on the cover the comment input
+                // will be dismissed.
             />
-        </Box>
+            <Box
+                position="fixed"
+                // Render above the tap cover.
+                zIndex="80"
+                left="0"
+                right="0"
+                style={{
+                    // `bottom: "-" + nativeMobileBottomBarKeyboardToolbarHeightRem + "rem"` also
+                    // works except for in our Safari app keyboard support which limits the outlet
+                    // height to what's visible above the keyboard.
+                    bottom: `calc(100svh - var(--space-outlet-height, 100svh))`,
+                }}
+                backgroundColor="red-10"
+                // Bottom bar message input expects to be rendered in a flex context. Or else
+                // some layout bits (like the bottom bar safe area cover) won't work
+                // quite right.
+                display="flex"
+                flexDirection="column"
+                ref={useConfirmSaveAfterLosingFocus({
+                    shouldConfirmSave: !isContentEmpty(state.getDoc()),
+                    isConfirmingSave: shouldShowConfirmCloseDialog,
+                    onCancelSave: onClose,
+                    onConfirmSave: () => setShouldShowConfirmCloseDialog(true),
+                })}
+            >
+                <MessageInputBase
+                    editorRef={editorRef}
+                    isBottomBar={true}
+                    marginX="3"
+                    state={state}
+                    onChange={setState}
+                    onSend={() => {
+                        // NOCOMMIT: Implement!
+                    }}
+                />
+            </Box>
+            {shouldShowConfirmCloseDialog && (
+                <ModalDialog
+                    title="Save comment"
+                    description="Would you like to save your comment?"
+                    onClose={() => {
+                        // Return focus to the editor if the dialog is closed. This acts as a "cancel"
+                        // and lets the user continue writing.
+                        shouldFocusNextRenderRef.current = true;
+                        setShouldShowConfirmCloseDialog(false);
+                    }}
+                    primaryButtonLabel="Save"
+                    primaryButtonPressErrorTitle="Can’t save comment"
+                    onPrimaryButtonPress={() => {
+                        // NOCOMMIT: Implement!
+                    }}
+                    cancelButtonLabel="Discard comment"
+                    onCancelButtonPress={onClose}
+                />
+            )}
+        </>
     );
 }
