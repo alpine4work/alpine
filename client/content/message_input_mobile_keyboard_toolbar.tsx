@@ -11,7 +11,7 @@ import {
 } from "phosphor-react";
 import {Command} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {ReactNode, RefObject, useEffect, useMemo, useRef, useState} from "react";
+import {ReactNode, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {ContentEditorRef} from "~/client/content/content_editor.js";
 import {
@@ -61,6 +61,9 @@ export function MessageInputMobileKeyboardToolbar({
     state: ContentEditorState<MessageContentWithReferences>;
     editorRef: RefObject<ContentEditorRef<MessageContentWithReferences>>;
 }) {
+    const toolbarRef = useRef<HTMLDivElement>(null);
+    const toolbarId = useId();
+
     const state = stateProp._getInternalState();
 
     const viewRef: RefObject<EditorView> = useMemo(
@@ -146,7 +149,15 @@ export function MessageInputMobileKeyboardToolbar({
 
     return (
         <>
-            <Box height={nativeMobileBottomBarKeyboardToolbarHeight} paddingX="0.5" display="flex">
+            <Box
+                ref={toolbarRef}
+                id={toolbarId}
+                height={nativeMobileBottomBarKeyboardToolbarHeight}
+                paddingX="0.5"
+                display="flex"
+                // Focusable, but not by keyboard. Only by JavaScript.
+                tabIndex={-1}
+            >
                 <MessageInputMobileKeyboardToolbarButton
                     dividerRight
                     label="Mention"
@@ -197,6 +208,7 @@ export function MessageInputMobileKeyboardToolbar({
                             state.selection;
 
                         const view = assertExists(viewRef.current);
+                        const toolbarElement = assertExists(toolbarRef.current);
 
                         // In our native mobile app, blur the link modal input before animating the
                         // modal closed. In our web mobile app, we want to keep focus in a hidden input
@@ -209,7 +221,11 @@ export function MessageInputMobileKeyboardToolbar({
                         //   we don't have the same level of control as we do in native. So it feels
                         //   better to keep the keyboard open the whole time.
                         if (NativeMobileBridge) {
-                            view.dom.blur();
+                            // Instead of calling `view.dom.blur()` which moves focus to `document.body`,
+                            // we put focus on the toolbar element. That way
+                            // `useConfirmSaveAfterLosingFocus()` (used for document comment editing) sees
+                            // that focus stays inside the toolbar.
+                            toolbarElement.focus();
                         } else {
                             // Move focus to a temporary, invisible, element so that when we change our
                             // view's selection the new selection doesn't render. However, we don't want to
@@ -223,11 +239,11 @@ export function MessageInputMobileKeyboardToolbar({
                             temporaryElement.style.padding = "0";
                             temporaryElement.style.border = "0";
                             temporaryElement.style.opacity = "0";
-                            temporaryElement.style.position = "absolute";
+                            temporaryElement.style.position = "fixed";
                             temporaryElement.style.top = "0px";
-                            document.body.appendChild(temporaryElement);
+                            toolbarElement.appendChild(temporaryElement);
                             temporaryElement.addEventListener("blur", () => {
-                                document.body.removeChild(temporaryElement);
+                                toolbarElement.removeChild(temporaryElement);
                             });
                             temporaryElement.focus();
                         }
@@ -306,7 +322,13 @@ export function MessageInputMobileKeyboardToolbar({
                 )}
             </Box>
             {linkModalState && (
-                <MobileModal onClose={() => setLinkModalState(null)}>
+                <MobileModal
+                    // Important: Tells `useConfirmSaveAfterLosingFocus()` (used by document comment
+                    // input) that when focus is within the link modal we're still actually editing
+                    // the comment input.
+                    data-ownedby={toolbarId}
+                    onClose={() => setLinkModalState(null)}
+                >
                     {({onCloseWithAnimation}) => (
                         <ContentEditorMobileLinkModal
                             viewRef={viewRef}
@@ -314,6 +336,8 @@ export function MessageInputMobileKeyboardToolbar({
                             isTextEditable={linkModalState.isTextEditable}
                             initialUrl={linkModalState.initialUrl}
                             onCloseWithAnimation={() => {
+                                const toolbarElement = assertExists(toolbarRef.current);
+
                                 // In our native mobile app, blur the link modal input before animating the
                                 // modal closed. In our web mobile app, we want to keep focus in a hidden input
                                 // so the keyboard doesn't close.
@@ -325,9 +349,11 @@ export function MessageInputMobileKeyboardToolbar({
                                 //   we don't have the same level of control as we do in native. So it feels
                                 //   better to keep the keyboard open the whole time.
                                 if (NativeMobileBridge) {
-                                    if (document.activeElement instanceof HTMLElement) {
-                                        document.activeElement.blur();
-                                    }
+                                    // Instead of blurring the link modal input, focus the toolbar element (which
+                                    // has the same effect). That way `useConfirmSaveAfterLosingFocus()` (which we
+                                    // use for document comment editing) sees that focus stays within the message
+                                    // input.
+                                    toolbarElement.focus();
 
                                     wait(250).finally(() => {
                                         onCloseWithAnimation();
@@ -346,9 +372,9 @@ export function MessageInputMobileKeyboardToolbar({
                                         temporaryElement.style.opacity = "0";
                                         temporaryElement.style.position = "absolute";
                                         temporaryElement.style.top = "0px";
-                                        document.body.appendChild(temporaryElement);
+                                        toolbarElement.appendChild(temporaryElement);
                                         temporaryElement.addEventListener("blur", () => {
-                                            document.body.removeChild(temporaryElement);
+                                            toolbarElement.removeChild(temporaryElement);
                                         });
                                         temporaryElement.focus();
                                     }

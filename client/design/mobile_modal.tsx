@@ -1,5 +1,6 @@
 import {animate} from "motion";
 import {ReactNode, useCallback, useEffect, useInsertionEffect, useRef, useState} from "react";
+import {FocusScope} from "react-aria";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {disableMobileWebKitDefaultScroll} from "~/client/helpers/disable_mobile_web_kit_default_scroll.js";
@@ -42,9 +43,11 @@ type MobileModalAnimation = "Presenting" | "Dismissing" | null;
 export function MobileModal({
     onClose,
     children,
+    "data-ownedby": dataOwnedBy,
 }: {
     onClose: () => void;
     children?: ReactNode | ((props: {onCloseWithAnimation: () => void}) => ReactNode);
+    "data-ownedby"?: string;
 }) {
     const isInitialAppRender = useIsInitialAppRender();
     if (isInitialAppRender)
@@ -193,17 +196,25 @@ export function MobileModal({
     }, []);
 
     return createPortal(
-        <Box
-            ref={modalRef}
-            position="fixed"
-            inset="0"
-            // Render above everything on the page including keyboard substitute and
-            // navigation bar.
-            zIndex="90"
-            backgroundColor="grey-0"
-        >
-            {typeof children === "function" ? children({onCloseWithAnimation}) : children}
-        </Box>,
+        <FocusScope contain>
+            <Box
+                ref={modalRef}
+                position="fixed"
+                inset="0"
+                // Render above everything on the page including keyboard substitute and
+                // navigation bar.
+                zIndex="90"
+                backgroundColor="grey-0"
+                // Focusable but not in tab order so `<FocusScope>` can put focus here if
+                // nothing else is focused.
+                tabIndex={-1}
+                // Can set this so `isElementOwnedBy()` considers children of this modal to be
+                // owned by some other element on the page.
+                data-ownedby={dataOwnedBy}
+            >
+                {typeof children === "function" ? children({onCloseWithAnimation}) : children}
+            </Box>
+        </FocusScope>,
         // Render the mobile modal in `<body>`. So if it's a child of some native
         // bottom bar it doesn't get any weird positioning.
         document.body,
