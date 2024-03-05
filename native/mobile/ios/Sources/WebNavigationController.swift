@@ -59,7 +59,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var webViewTreeObserver: UIViewTreeObserver?
     private var hasInitialWebViewNavigationCommit = false
     private var windowSafeAreaInsets: UIEdgeInsets = .zero
-    private var webScrollViews = [UIScrollView: UIScrollViewDelegateForwarder]()
     private var webMaskedViews = [UIView: CALayerMasker]()
 
     private var webViewHealthState = WebViewHealthState(
@@ -93,6 +92,22 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     private var webViewHealthTimer: Timer?
+
+    fileprivate struct WebViewHealthState {
+        var readyTime: DispatchTime?
+        var lastPingTime: DispatchTime?
+        var provisionalNavigation: WKNavigation?
+        var isHealthy: Bool
+
+        var isLoading: Bool { self.provisionalNavigation != nil || self.readyTime == nil }
+    }
+
+    private var webScrollViews = [UIScrollView: WebScrollViewState]()
+
+    private struct WebScrollViewState {
+        var isMain: Bool
+        let delegateForwarder: UIScrollViewDelegateForwarder
+    }
 
     /// Bottom bars are HTML elements which we optimistially translate in native
     /// code along with native UI like the tab bar or software keyboard for fluid
@@ -1007,14 +1022,16 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         // Don't include `webView.scrollView` in `webScrollViews`.
         if let webScrollView = webSubview as? UIScrollView, webScrollView !== webView.scrollView {
-            webScrollViews[webScrollView] = UIScrollViewDelegateForwarder(
-                scrollView: webScrollView,
-                delegate: self
+            webScrollViews[webScrollView] = WebScrollViewState(
+                // Can't know whether this is a main scroll view until after `schedule`.
+                isMain: false,
+                delegateForwarder: UIScrollViewDelegateForwarder(
+                    scrollView: webScrollView,
+                    delegate: self
+                )
             )
 
             schedule { [self] in
-                setWebScrollViewScrollIndicatorInsets(webScrollView)
-
                 // There may be other scroll views on our web page but we need to decide what
                 // the "main" scroll view is so that as it scrolls we can show/hide the tab
                 // bar, dismiss the keyboard, and more.
@@ -1029,6 +1046,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 let isMain =
                     webScrollView.frame.width >= view.frame.width * 0.5
                     && webScrollView.frame.height >= view.frame.height * 0.5
+
+                webScrollViews[webScrollView]!.isMain = isMain
+
+                if isMain { setMainWebScrollViewScrollIndicatorInsets(webScrollView) }
 
                 // The main scrollbar pushes the keyboard down when it scrolls.
                 if isMain { webScrollView.keyboardDismissMode = .interactive }
@@ -1094,7 +1115,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     webBottomBarViews[webBottomBarView] = webBottomBarViewState
 
                     updateWebBottomBarFrame(webBottomBarView, webBottomBarViewState)
-                    setAllWebScrollViewScrollIndicatorInsets()
+                    setAllMainWebScrollViewScrollIndicatorInsets()
                 }
             }
         }
@@ -1161,6 +1182,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     let webBottomBarViewState = webBottomBarViews.removeValue(forKey: webSubview)
                     webBottomBarViewState?.reconcileTimer?.invalidate()
                     webBottomBarViewState?.reconcileTimer = nil
+
+                    setAllMainWebScrollViewScrollIndicatorInsets()
                 }
             }
         }
@@ -1182,7 +1205,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // `keyboardOffset` (which this function call uses) is updated in
         // `webInputAccessoryObserverView(_:didMoveTo:)`. This method happens to run
         // after that method.
-        setAllWebScrollViewScrollIndicatorInsets()
+        setAllMainWebScrollViewScrollIndicatorInsets()
 
         let screen = notification.object as! UIScreen
         let beginScreenFrame =
@@ -1226,7 +1249,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // `keyboardOffset` (which this function call uses) is updated in
         // `webInputAccessoryObserverView(_:didMoveTo:)`. This method happens to run
         // after that method.
-        setAllWebScrollViewScrollIndicatorInsets()
+        setAllMainWebScrollViewScrollIndicatorInsets()
 
         let screen = notification.object as! UIScreen
         let beginScreenFrame =
@@ -1340,7 +1363,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         // Scroll indicator insets and masked view masks change when window safe
         // area changes.
-        setAllWebScrollViewScrollIndicatorInsets()
+        setAllMainWebScrollViewScrollIndicatorInsets()
         updateAllWebMaskedViewMasks()
     }
 
@@ -1394,15 +1417,17 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         webView.evaluateJavaScript(source)
     }
 
-    private func setAllWebScrollViewScrollIndicatorInsets() {
-        setWebScrollViewScrollIndicatorInsets(webView.scrollView)
+    private func setAllMainWebScrollViewScrollIndicatorInsets() {
+        setMainWebScrollViewScrollIndicatorInsets(webView.scrollView)
 
-        for webScrollView in webScrollViews.keys {
-            setWebScrollViewScrollIndicatorInsets(webScrollView)
+        for (webScrollView, webScrollViewState) in webScrollViews {
+            if webScrollViewState.isMain {
+                setMainWebScrollViewScrollIndicatorInsets(webScrollView)
+            }
         }
     }
 
-    private func setWebScrollViewScrollIndicatorInsets(_ webScrollView: UIScrollView) {
+    private func setMainWebScrollViewScrollIndicatorInsets(_ webScrollView: UIScrollView) {
         let safeAreaInsets = getSafeAreaInsets(
             // Normally, we preserve the old keyboard offset in our safe area inset when a
             // keyboard substitute is open so we don't shift layout when switching between
@@ -1794,15 +1819,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 }
 
-private struct WebViewHealthState {
-    var readyTime: DispatchTime?
-    var lastPingTime: DispatchTime?
-    var provisionalNavigation: WKNavigation?
-    var isHealthy: Bool
-
-    var isLoading: Bool { self.provisionalNavigation != nil || self.readyTime == nil }
-}
-
 private class WebNavigationEntryController: UIViewController {
     var url: URL
     private weak var webNavigationController: WebNavigationController?
@@ -1827,7 +1843,7 @@ private class WebNavigationEntryController: UIViewController {
         url: URL,
         webNavigationController: WebNavigationController,
         webView: WKWebView,
-        healthState: WebViewHealthState
+        healthState: WebNavigationController.WebViewHealthState
     ) {
         self.url = url
         self.webNavigationController = webNavigationController
@@ -1848,7 +1864,7 @@ private class WebNavigationEntryController: UIViewController {
 
     func moveWebViewIntoIfHealthyOrElseReplaceWithSnapshotView(
         _ webView: WKWebView,
-        healthState: WebViewHealthState
+        healthState: WebNavigationController.WebViewHealthState
     ) {
         // We may become unhealthy while loading as WebKit stops executing JavaScript.
         // So if `isLoading` is true then don't show the unhealthy alert.

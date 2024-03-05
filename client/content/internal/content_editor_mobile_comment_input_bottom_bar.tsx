@@ -13,7 +13,6 @@ import {
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
 
-// NOCOMMIT: Scroll indicator looking broken?
 // NOCOMMIT: "Add comment" in edit menu?
 
 export function ContentEditorMobileCommentInputBottomBar({onClose}: {onClose: () => void}) {
