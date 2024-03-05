@@ -173,6 +173,31 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         webNavigationController.setTabBarScrollOffset(0, navigationBarScrollOffset: 0)
 
         mainScrollView = scrollView
+
+        // Reset tab bar offset when we get a new main scroll view.
+        do {
+            let navigationBarScrollOffset = max(
+                0,
+                min(scrollOffset - lastNavigationBarTopOffset, navigationBarHeight)
+            )
+
+            // Convert from navigation bar offset to tab bar offset. We want the native tab
+            // bar to disappear at the same rate as the web navigation bar.
+            let tabBarScrollOffset =
+                ((tabBar.frame.height / navigationBarHeight) * navigationBarScrollOffset)
+
+            let tabBarFrameOriginY = (view.frame.height - tabBar.frame.height) + tabBarScrollOffset
+
+            tabBar.frame.origin.y = tabBarFrameOriginY
+            webNavigationController.setTabBarScrollOffset(
+                tabBarScrollOffset,
+                navigationBarScrollOffset: navigationBarScrollOffset
+            )
+
+            // Mark the tab bar as hidden if the navigation bar is fully scrolled.
+            tabBar.isHidden =
+                isKeyboardWebSubstituteOpen || navigationBarScrollOffset >= navigationBarHeight
+        }
     }
 
     func webNavigationController(
