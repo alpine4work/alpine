@@ -272,7 +272,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         }
     }
     private var isAfterKeyboardAnimationCallbackScheduled = false
-    private var waitForKeyboardAnimationTimer: Timer? = nil
 
     /// The navigation entry we've presented modally or null if we haven't
     /// presented a navigation entry modally.
@@ -1266,8 +1265,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     @objc private func keyboardWillShow(notification: NSNotification) {
         isKeyboardAnimating = true
-        waitForKeyboardAnimationTimer?.invalidate()
-        waitForKeyboardAnimationTimer = nil
 
         // `keyboardOffset` (which this function call uses) is updated in
         // `webInputAccessoryObserverView(_:didMoveTo:)`. This method happens to run
@@ -1325,8 +1322,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     @objc private func keyboardWillHide(notification: NSNotification) {
         isKeyboardAnimating = true
-        waitForKeyboardAnimationTimer?.invalidate()
-        waitForKeyboardAnimationTimer = nil
 
         // `keyboardOffset` (which this function call uses) is updated in
         // `webInputAccessoryObserverView(_:didMoveTo:)`. This method happens to run

@@ -154,6 +154,14 @@ function ModalDialogNativeMobile({
         if (hasInitiallyMountedRef.current) return;
         hasInitiallyMountedRef.current = true;
 
+        // If we were rendering our custom `<ModalDialog>` (instead of the native one)
+        // then our focus would move into the `<ModalDialog>` component. Make sure even
+        // with our native modal dialog we still remove focus from whatever's presently
+        // focused.
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+        }
+
         assert(NativeMobileBridge);
         NativeMobileBridge.modal.presentDialog({
             title,
