@@ -609,6 +609,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
             id={isBottomBar && clientInfo.isNativeMobile ? `nmbb-wkt-${id}` : id}
             flexShrink="0"
             backgroundColor="grey-0"
+            borderTop={isBottomBar && !withoutBorderTop ? "grey-10" : undefined}
             style={{
                 // Remove one pixel so that our layout of the input without the border top is
                 // the same side-by-side with the layout of an input with the border top.
@@ -677,7 +678,6 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                 width="full"
                 maxWidth="160"
                 paddingBottom="3"
-                borderTop={isBottomBar && !withoutBorderTop ? "grey-10" : undefined}
                 style={{
                     // Remove one pixel from top to make space for a border.
                     paddingTop: !isBottomBar ? spacing["3"] : `calc(${spacing["3"]} - 1px)`,
