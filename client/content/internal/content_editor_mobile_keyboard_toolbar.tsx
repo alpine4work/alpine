@@ -62,6 +62,7 @@ import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 import {registerMobileBottomBarKeyboardToolbar} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
+import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
 
 // NOCOMMIT: Haptic feedback when style is selected? This feels like a nice way
 // to reward.
@@ -113,9 +114,12 @@ export function ContentEditorMobileKeyboardToolbar({
         };
     }, [isSubstituteOpen, isMounted]);
 
+    const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
+
     useLayoutEffectWithoutServerSideWarning(() => {
+        if (isInertNativeMobileRoute) return;
         return registerMobileBottomBarKeyboardToolbar();
-    }, []);
+    }, [isInertNativeMobileRoute]);
 
     const isFocusedRef = useRef(isFocused);
     useEffect(() => {

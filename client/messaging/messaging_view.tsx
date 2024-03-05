@@ -13,6 +13,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
@@ -557,7 +558,11 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         ),
     });
 
+    const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
+
     useEffect(() => {
+        if (isInertNativeMobileRoute) return;
+
         // TODO(calebmer, 2024-03-04): There's a bug here in iOS where when you focus a
         // message input at the bottom of a chat, then press return then press delete
         // the scroll position isn't put back into the right place. If you add some
@@ -637,7 +642,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 });
             },
         );
-    }, []);
+    }, [isInertNativeMobileRoute]);
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {

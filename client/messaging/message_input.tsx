@@ -2,6 +2,7 @@ import {setInteractionModality, useInteractionModality} from "@react-aria/intera
 import {animate} from "motion";
 import {ArrowArcLeft, ArrowRight, ArrowUp, X} from "phosphor-react";
 import {MutableRefObject, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
+import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
@@ -555,7 +556,11 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
         }
     };
 
+    const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
+
     useLayoutEffectWithoutServerSideWarning(() => {
+        if (isInertNativeMobileRoute) return;
+
         const inputContainerElement = assertExists(inputContainerRef.current);
 
         let currentHeight: number | null = null;
@@ -588,7 +593,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
             removeSuppressResizeLoopErrorNotificationForElement(inputContainerElement);
             unregister?.();
         };
-    }, []);
+    }, [isInertNativeMobileRoute]);
 
     const id = useId();
 

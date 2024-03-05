@@ -56,7 +56,9 @@ export function NativeMobileOutlet({
 
             const currentRouter = currentDataRouterContext.router;
 
-            const router: Router = {
+            const router: Router & {_isInert: boolean} = {
+                _isInert: true,
+
                 initialize: () => router,
                 dispose: () => {},
 
@@ -142,11 +144,11 @@ export function NativeMobileOutlet({
                 },
                 _internalFetchControllers: new Map(),
                 _internalActiveDeferreds: new Map(),
-                _internalUnsafelyRestoreNavigation: () => {
+                unstable_unsafelyRestoreNavigation: async () => {
                     tracer.logUncaughtException(
                         "Inert route activity",
                         new InternalError(
-                            "Can't call `_internalUnsafelyRestoreNavigation` in an inert route",
+                            "Can't call `unstable_unsafelyRestoreNavigation` in an inert route",
                         ),
                     );
                 },
@@ -306,4 +308,14 @@ export function NativeMobileOutlet({
             </DataRouterContext.Provider>
         </div>
     );
+}
+
+/**
+ * Is this an inert native mobile route? If so we should disable some effects.
+ * For example disable scrolling in response to the keyboard frame changing.
+ */
+export function useIsInertNativeMobileRoute(): boolean {
+    const router: (Router & {_isInert?: boolean}) | undefined =
+        useContext(DataRouterContext)?.router;
+    return router?._isInert ?? false;
 }

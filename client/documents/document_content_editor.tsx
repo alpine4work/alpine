@@ -2,6 +2,7 @@ import {AnimationControls, spring, timeline} from "motion";
 import {CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
 import {redo, undo} from "prosemirror-history";
 import {Memo, Ref, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
+import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {createCommentThreadMetaKey} from "~/client/content/content_editor_state.js";
 import {Box} from "~/client/design/box.js";
@@ -737,7 +738,11 @@ function DocumentContentEditorStateful({
      *                           Native Mobile Keyboard                           *
     \* ========================================================================== */
 
+    const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
+
     useEffect(() => {
+        if (isInertNativeMobileRoute) return;
+
         return subscribeToMobileKeyboardFrameChange(
             ({newKeyboardHeight, oldKeyboardHeight, shouldScroll, isAnimated}) => {
                 if (!shouldScroll) return;
@@ -782,7 +787,7 @@ function DocumentContentEditorStateful({
                 });
             },
         );
-    }, []);
+    }, [isInertNativeMobileRoute]);
 
     /* ========================================================================== *\
      *                               Navigation Bar                               *
