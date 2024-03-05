@@ -201,7 +201,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             // editing a document it'll be good they can't accidentally navigate back with
             // a gesture.
             interactivePopGestureRecognizer?.isEnabled =
-                !(isKeyboardAnimating || keyboardOffsetWithoutToolbar > 0)
+                !(keyboardAnimationState != nil || keyboardOffsetWithoutToolbar > 0)
         }
     }
 
@@ -264,14 +264,19 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var isNavigationAnimating = false
     private var isAfterNavigationAnimationCallbackScheduled = false
 
-    private var isKeyboardAnimating = false {
+    private var keyboardAnimationState: KeyboardAnimationState? = nil {
         didSet {
             // See comment in `keyboardOffsetWithoutToolbar` `didSet` callback.
             interactivePopGestureRecognizer?.isEnabled =
-                !(isKeyboardAnimating || keyboardOffsetWithoutToolbar > 0)
+                !(keyboardAnimationState != nil || keyboardOffsetWithoutToolbar > 0)
         }
     }
     private var isAfterKeyboardAnimationCallbackScheduled = false
+
+    private struct KeyboardAnimationState {
+        let animationCurve: UInt
+        let animationDuration: Double
+    }
 
     /// The navigation entry we've presented modally or null if we haven't
     /// presented a navigation entry modally.
@@ -932,7 +937,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             // `scheduleAfterNextBrowserPaint()`. since I've observed WebKit doesn't start
             // hiding the keyboard until the paint following the `blur` event.
 
-            if !isKeyboardAnimating {
+            if keyboardAnimationState == nil {
                 isAfterKeyboardAnimationCallbackScheduled = false
                 webView.evaluateJavaScript(
                     "window.__NativeMobileBridge.keyboard._callScheduledAfterAnimationCallbacks()"
@@ -1025,6 +1030,17 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             // system that can confidentally handle multiple presented view controllers.
             (modalPresentedViewController ?? topViewController)!
                 .present(alertController, animated: true)
+        } else if messageBody == "editMenu.enableAddCommentAction" {
+            setSwizzledWKWebViewAddCommentEditMenuAction(
+                webView,
+                action: { [self] in
+                    webView.evaluateJavaScript(
+                        "window.__NativeMobileBridge.editMenu._callAddCommentActionListeners()"
+                    )
+                }
+            )
+        } else if messageBody == "editMenu.disableAddCommentAction" {
+            setSwizzledWKWebViewAddCommentEditMenuAction(webView, action: nil)
         } else {
             logger.warning("Received unrecognized message from web view: \(messageBody)")
         }
@@ -1264,8 +1280,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     @objc private func keyboardWillShow(notification: NSNotification) {
-        isKeyboardAnimating = true
-
         // `keyboardOffset` (which this function call uses) is updated in
         // `webInputAccessoryObserverView(_:didMoveTo:)`. This method happens to run
         // after that method.
@@ -1278,6 +1292,15 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let endScreenFrame =
             (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
             .cgRectValue
+        let animationCurve =
+            (notification.userInfo![UIResponder.keyboardAnimationCurveUserInfoKey] as! UInt)
+        let animationDuration =
+            (notification.userInfo![UIResponder.keyboardAnimationDurationUserInfoKey] as! Double)
+
+        keyboardAnimationState = KeyboardAnimationState(
+            animationCurve: animationCurve,
+            animationDuration: animationDuration
+        )
 
         // As a backup, call our delegate method when the keyboard opens/closes. While
         // the observer view should call `webInputAccessoryObserverView(_:didMoveTo:)`
@@ -1310,7 +1333,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     @objc private func keyboardDidShow(notification: NSNotification) {
-        isKeyboardAnimating = false
+        keyboardAnimationState = nil
 
         if isAfterKeyboardAnimationCallbackScheduled {
             isAfterKeyboardAnimationCallbackScheduled = false
@@ -1321,8 +1344,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     @objc private func keyboardWillHide(notification: NSNotification) {
-        isKeyboardAnimating = true
-
         // `keyboardOffset` (which this function call uses) is updated in
         // `webInputAccessoryObserverView(_:didMoveTo:)`. This method happens to run
         // after that method.
@@ -1335,6 +1356,15 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let endScreenFrame =
             (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
             .cgRectValue
+        let animationCurve =
+            (notification.userInfo![UIResponder.keyboardAnimationCurveUserInfoKey] as! UInt)
+        let animationDuration =
+            (notification.userInfo![UIResponder.keyboardAnimationDurationUserInfoKey] as! Double)
+
+        keyboardAnimationState = KeyboardAnimationState(
+            animationCurve: animationCurve,
+            animationDuration: animationDuration
+        )
 
         // As a backup, call our delegate method when the keyboard opens/closes. While
         // the observer view should call `webInputAccessoryObserverView(_:didMoveTo:)`
@@ -1363,7 +1393,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     @objc private func keyboardDidHide(notification: NSNotification) {
         var shouldCallScheduledAfterKeyboardAnimationCallbacks = false
-        isKeyboardAnimating = false
+        keyboardAnimationState = nil
 
         if isAfterKeyboardAnimationCallbackScheduled {
             isAfterKeyboardAnimationCallbackScheduled = false
@@ -1710,6 +1740,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     func setTabBarScrollOffset(_ tabBarScrollOffset: Double, navigationBarScrollOffset: Double) {
+        let tabBarHeight = tabBarController?.tabBar.frame.height ?? 0
+
         let lastTabBarScrollOffset = self.tabBarScrollOffset
         self.tabBarScrollOffset = tabBarScrollOffset
         let lastNavigationBarScrollOffset = self.navigationBarScrollOffset
@@ -1717,7 +1749,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         // Optimization: If tab bar scroll offset didn't change then don't update our
         // bottom frames.
-        if lastTabBarScrollOffset != tabBarScrollOffset {
+        //
+        // Optimization: If the keyboard is open, we don't need to update bottom bar
+        // frames since bottom bar position will be dominated by the keyboard.
+        if lastTabBarScrollOffset != tabBarScrollOffset
+            && keyboardOffsetWithoutToolbar < tabBarHeight
+        {
             // This may be called in the context of a `UIView.animate()` which will cause
             // our frame change to update as well.
             updateAllWebBottomBarFrames()
@@ -1760,10 +1797,35 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 )
             }
 
-        webBottomBarViewState.withLock {
-            webBottomBarView.layer.transform = CATransform3DMakeAffineTransform(
-                CGAffineTransform(translationX: 0, y: translateY)
-            )
+        webBottomBarViewState.withLock { [self] in
+            // If we update the bottom bar position while the keyboard is animating
+            // (`keyboardAnimationState` is non-null) but are not inheriting an animation
+            // (`UIView.inheritedAnimationDuration` is 0) then animate with the same
+            // properties as the keyboard animation. This happens when you select some text
+            // in a content editor (without going into edit mode) and selecting "Add
+            // Comment" from the edit menu. The bottom bar `WKCompositingView` is
+            // discovered in a way that doesn't automatically inherit the keyboard
+            // animation.
+            if let keyboardAnimationState = keyboardAnimationState,
+                keyboardAnimationState.animationDuration != 0
+                    && UIView.inheritedAnimationDuration == 0
+            {
+                UIView.animate(
+                    withDuration: keyboardAnimationState.animationDuration,
+                    delay: 0,
+                    options: UIView.AnimationOptions(
+                        rawValue: keyboardAnimationState.animationCurve << 16
+                    )
+                ) {
+                    webBottomBarView.layer.transform = CATransform3DMakeAffineTransform(
+                        CGAffineTransform(translationX: 0, y: translateY)
+                    )
+                }
+            } else {
+                webBottomBarView.layer.transform = CATransform3DMakeAffineTransform(
+                    CGAffineTransform(translationX: 0, y: translateY)
+                )
+            }
         }
 
         webBottomBarViewState.reconcileTimer?.invalidate()
@@ -1787,7 +1849,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             // If we are not in a `UIView.animate` block then
             // `UIView.inheritedAnimationDuration` will be 0. In that case we want to
             // debounce with a duration of 100ms.
-            timeInterval: max(0.1, UIView.inheritedAnimationDuration),
+            timeInterval: max(
+                0.1,
+                UIView.inheritedAnimationDuration != 0
+                    ? UIView.inheritedAnimationDuration
+                    : keyboardAnimationState?.animationDuration ?? 0
+            ),
             repeats: false
         ) { [self] (_) in
             // To avoid race conditions, if JavaScript hasn't returned yet we don't want to
@@ -2380,6 +2447,7 @@ private let webBridgeSource = """
     {
         const navigationExternalPopListeners = new Set();
         const keyboardFrameChangeListeners = new Set();
+        const addCommentEditMenuListeners = new Set();
 
         let scheduledAfterNavigationAnimationCallbacks = [];
         let scheduledAfterKeyboardAnimationCallbacks = [];
@@ -2577,6 +2645,31 @@ private let webBridgeSource = """
                     };
 
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage(`modal.presentDialog:${JSON.stringify(actualOptions)}`);
+                },
+            },
+            editMenu: {
+                enableAddCommentAction: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("editMenu.enableAddCommentAction");
+                },
+                disableAddCommentAction: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("editMenu.disableAddCommentAction");
+                },
+                subscribeToAddCommentAction: listener => {
+                    addCommentEditMenuListeners.add(listener);
+                    return () => {
+                        addCommentEditMenuListeners.delete(listener);
+                    };
+                },
+                _callAddCommentActionListeners: () => {
+                    for (const listener of addCommentEditMenuListeners) {
+                        try {
+                            listener();
+                        } catch (error) {
+                            setTimeout(() => {
+                                throw error;
+                            }, 0);
+                        }
+                    }
                 },
             },
         };

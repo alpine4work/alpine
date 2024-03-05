@@ -42,7 +42,10 @@ import {ContentEditorDomParser} from "~/client/content/internal/content_editor_d
 import {ContentEditorFloater} from "~/client/content/internal/content_editor_floater.js";
 import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
 import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view.js";
-import {ContentEditorMobileKeyboardToolbar} from "~/client/content/internal/content_editor_mobile_keyboard_toolbar.js";
+import {
+    ContentEditorMobileKeyboardToolbar,
+    ContentEditorMobileKeyboardToolbarRef,
+} from "~/client/content/internal/content_editor_mobile_keyboard_toolbar.js";
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view.js";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
@@ -180,6 +183,13 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
      * Execute a ProseMirror command against this editor.
      */
     dispatchCommand(command: Command): void;
+
+    /**
+     * If we're in a mobile environment and `withoutMobileKeyboardToolbar` is false
+     * then calling this function opens the comment input for the current
+     * selection. If the selection is empty nothing happens.
+     */
+    openMobileKeyboardToolbarCommentInputIfPossible(): void;
 
     /**
      * Get the internal ProseMirror editor view object. Prefer the public methods
@@ -436,6 +446,11 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                     "Dispatching a content editor command on initial render is not implemented",
                 );
             },
+            openMobileKeyboardToolbarCommentInputIfPossible: () => {
+                throw new UnimplementedError(
+                    "Opening the content editor's mobile keyboard toolbar comment input on initial render is not implemented",
+                );
+            },
             _getInternalView: () => {
                 throw new UnimplementedError(
                     "Getting internal ProseMirror view on initial render is not implemented",
@@ -567,6 +582,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     });
 
     const viewRef = useRef<EditorView | null>(null);
+    const mobileKeyboardToolbarRef = useRef<ContentEditorMobileKeyboardToolbarRef | null>(null);
 
     useImperativeHandle(
         editorRef,
@@ -601,6 +617,9 @@ function ContentEditor<Content extends ContentWithReferences>(
             dispatchCommand: command => {
                 const view = assertExists(viewRef.current);
                 command(view.state, view.dispatch.bind(view), view);
+            },
+            openMobileKeyboardToolbarCommentInputIfPossible: () => {
+                mobileKeyboardToolbarRef.current?.openCommentInput();
             },
             _getInternalView: () => {
                 return assertExists(viewRef.current);
@@ -1593,6 +1612,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             ))}
             {isMobile && !withoutMobileKeyboardToolbar && (
                 <ContentEditorMobileKeyboardToolbar
+                    ref={mobileKeyboardToolbarRef}
                     state={unwrap(state)}
                     viewRef={viewRef}
                     isFocused={isFocused}

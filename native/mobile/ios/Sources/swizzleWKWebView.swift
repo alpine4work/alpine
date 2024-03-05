@@ -3,6 +3,7 @@ import WebKit
 
 private var customInputAccessoryViewAssociatedObjectKey: UInt8 = 0
 private var customInputViewAssociatedObjectKey: UInt8 = 0
+private var addCommentEditMenuActionAssociatedObjectKey: UInt8 = 0
 
 /// Swizzle `WKWebView` to modify WebKit functionality. Swizzling changes the
 /// class of the provided object with a custom class we've built that
@@ -116,6 +117,28 @@ func reloadSwizzledWKWebViewInputView(_ webView: WKWebView, inputView: UIView?) 
     )
 
     targetView.reloadInputViews()
+}
+
+/// Enable the "Add comment" edit menu option. The provided action will be
+/// called when "Add comment" is selected. To disable the edit menu option
+/// pass nil.
+func setSwizzledWKWebViewAddCommentEditMenuAction(_ webView: WKWebView, action: (() -> Void)?) {
+    var targetView: UIView?
+
+    for view in webView.scrollView.subviews {
+        if type(of: view).description() == "WKContentView_Custom" { targetView = view }
+    }
+
+    guard let targetView = targetView else { fatalError("`WKWebView` is not swizzled") }
+
+    objc_setAssociatedObject(
+        targetView,
+        // The `&` is important. We want a unique pointer. We don't care about the
+        // variable's value.
+        &addCommentEditMenuActionAssociatedObjectKey,
+        action,
+        objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC
+    )
 }
 
 private func addOverridingMethod(
@@ -280,8 +303,31 @@ private func addNonOverridingMethod(
     @objc func editMenu(forTextRange textRange: UITextRange, suggestedActions: [UIMenuElement])
         -> UIMenu?
     {
+        var actions = suggestedActions
+
+        let addCommentEditMenuAction =
+            objc_getAssociatedObject(self, &addCommentEditMenuActionAssociatedObjectKey)
+            as! (() -> Void)?
+
+        if let addCommentEditMenuAction = addCommentEditMenuAction {
+            let newAction = UIAction(title: "Add Comment") { (_) in addCommentEditMenuAction() }
+
+            var index = 0
+            for action in actions {
+                if let menuAction = action as? UIMenu,
+                    menuAction.identifier == .edit || menuAction.identifier == .standardEdit
+                {
+                    index += 1
+                } else {
+                    break
+                }
+            }
+
+            actions.insert(newAction, at: index)
+        }
+
         // Not currently changing the edit menu but we could if we wanted to.
-        return UIMenu(children: suggestedActions)
+        return UIMenu(children: actions)
     }
 
     @objc override func _elementDidFocus(

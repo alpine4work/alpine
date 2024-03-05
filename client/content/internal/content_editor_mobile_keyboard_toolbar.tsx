@@ -17,15 +17,19 @@ import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {
     Dispatch,
     ReactNode,
+    Ref,
     RefObject,
     SetStateAction,
+    forwardRef,
     useEffect,
     useId,
+    useImperativeHandle,
     useMemo,
     useRef,
     useState,
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
+import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
 import {ContentEditorMobileCommentInputBottomBar} from "~/client/content/internal/content_editor_mobile_comment_input_bottom_bar.js";
 import {
     ContentEditorMobileKeyboardSubstitute,
@@ -46,42 +50,51 @@ import {
     indentListItemCommand,
 } from "~/client/content/internal/helpers/indent_and_dedent_list_item_commands.js";
 import {Box} from "~/client/design/box.js";
-import {MobileModal} from "~/client/design/mobile_modal.js";
 import {
     mobileBottomBarKeyboardToolbarHeight,
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
+import {MobileModal} from "~/client/design/mobile_modal.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {registerMobileBottomBarKeyboardToolbar} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
-import {registerMobileBottomBarKeyboardToolbar} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
-import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
 
 // NOCOMMIT: Haptic feedback when style is selected? This feels like a nice way
 // to reward.
 
-export function ContentEditorMobileKeyboardToolbar({
-    state,
-    viewRef,
-    isFocused,
-    setDecorationCallbacks,
-}: {
-    state: EditorState & {schema: ContentProsemirrorSchema};
-    viewRef: RefObject<EditorView | null>;
-    isFocused: boolean;
-    setDecorationCallbacks: Dispatch<
-        SetStateAction<
-            ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
-        >
-    >;
-}) {
+export type ContentEditorMobileKeyboardToolbarRef = {
+    openCommentInput(): void;
+};
+
+const ContentEditorMobileKeyboardToolbarForwardRef = forwardRef(ContentEditorMobileKeyboardToolbar);
+export {ContentEditorMobileKeyboardToolbarForwardRef as ContentEditorMobileKeyboardToolbar};
+
+function ContentEditorMobileKeyboardToolbar(
+    {
+        state,
+        viewRef,
+        isFocused,
+        setDecorationCallbacks,
+    }: {
+        state: EditorState & {schema: ContentProsemirrorSchema};
+        viewRef: RefObject<EditorView | null>;
+        isFocused: boolean;
+        setDecorationCallbacks: Dispatch<
+            SetStateAction<
+                ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
+            >
+        >;
+    },
+    ref: Ref<ContentEditorMobileKeyboardToolbarRef>,
+) {
     const {schema} = state.doc.type;
 
     const isMounted = useIsMounted();
@@ -95,6 +108,20 @@ export function ContentEditorMobileKeyboardToolbar({
     const [isCommentInputOpen, setIsCommentInputOpen] = useState(false);
     const [linkModalState, setLinkModalState] = useState<ContentEditorMobileLinkModalState | null>(
         null,
+    );
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            openCommentInput: () => {
+                const view = assertExists(viewRef.current);
+
+                if (view.state.selection.from !== view.state.selection.to) {
+                    setIsCommentInputOpen(true);
+                }
+            },
+        }),
+        [viewRef],
     );
 
     useEffect(() => {

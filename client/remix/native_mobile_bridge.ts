@@ -438,4 +438,34 @@ export const NativeMobileBridge: {
             shouldHideCancelButton?: boolean;
         }): void;
     };
+
+    /**
+     * When the user makes a text selection, native platforms like iOS show a menu
+     * of options above the selection including options like "Copy" and "Paste".
+     * This is called the edit menu.
+     *
+     * You may use these functions to configure the edit menu.
+     */
+    readonly editMenu: {
+        /**
+         * Enable an "Add comment" option in the edit menu. Used by documents to
+         * provide convenient access to commenting even when the document isn't
+         * editable.
+         *
+         * If the option is already enabled, this is a noop.
+         */
+        enableAddCommentAction(): void;
+
+        /**
+         * Disable the "Add comment" option. If the option is already disabled, this is
+         * a noop.
+         */
+        disableAddCommentAction(): void;
+
+        /**
+         * If the user selects the "Add comment" option from the edit menu this
+         * function is fired.
+         */
+        subscribeToAddCommentAction(listener: () => void): () => void;
+    };
 } | null = typeof window !== "undefined" ? (window as any).__NativeMobileBridge ?? null : null;

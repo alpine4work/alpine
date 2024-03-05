@@ -42,6 +42,7 @@ import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {subscribeToMobileKeyboardFrameChange} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
@@ -735,7 +736,7 @@ function DocumentContentEditorStateful({
     }
 
     /* ========================================================================== *\
-     *                           Native Mobile Keyboard                           *
+     *                               Native Mobile                                *
     \* ========================================================================== */
 
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
@@ -788,6 +789,66 @@ function DocumentContentEditorStateful({
             },
         );
     }, [isInertNativeMobileRoute]);
+
+    useEffect(() => {
+        if (!NativeMobileBridge) return;
+        if (isInitialAppRender) return;
+        if (isInertNativeMobileRoute) return;
+
+        const editor = assertExists(editorRef.current);
+
+        const getIsAddCommentEditMenuOptionVisible = () => {
+            return (
+                !document.activeElement ||
+                document.activeElement === document.body ||
+                editor.isFocused()
+            );
+        };
+
+        let lastIsAddCommentEditMenuOptionVisible: boolean | null = null;
+
+        const handleFocusChange = () => {
+            const isAddCommentEditMenuOptionVisible = getIsAddCommentEditMenuOptionVisible();
+
+            // Noop if there was no change.
+            if (lastIsAddCommentEditMenuOptionVisible === isAddCommentEditMenuOptionVisible) return;
+
+            lastIsAddCommentEditMenuOptionVisible = isAddCommentEditMenuOptionVisible;
+
+            if (isAddCommentEditMenuOptionVisible) {
+                NativeMobileBridge!.editMenu.enableAddCommentAction();
+            } else {
+                NativeMobileBridge!.editMenu.disableAddCommentAction();
+            }
+        };
+
+        document.addEventListener("focusin", handleFocusChange);
+        document.addEventListener("focusout", handleFocusChange);
+
+        // We've observed that iOS Safari doesn't emit `focusin`/`focusout` events when
+        // a focused element is removed from the DOM. So we listen for
+        // `selectionchange` events as well as a fallback which should fire before the
+        // edit menu opens.
+        document.addEventListener("selectionchange", handleFocusChange);
+
+        const unsubscribe = NativeMobileBridge.editMenu.subscribeToAddCommentAction(() => {
+            editor.openMobileKeyboardToolbarCommentInputIfPossible();
+        });
+
+        handleFocusChange();
+
+        return () => {
+            if (lastIsAddCommentEditMenuOptionVisible) {
+                NativeMobileBridge!.editMenu.disableAddCommentAction();
+            }
+
+            unsubscribe();
+
+            document.removeEventListener("focusin", handleFocusChange);
+            document.removeEventListener("focusout", handleFocusChange);
+            document.removeEventListener("selectionchange", handleFocusChange);
+        };
+    }, [isInertNativeMobileRoute, isInitialAppRender]);
 
     /* ========================================================================== *\
      *                               Navigation Bar                               *

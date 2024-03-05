@@ -1,4 +1,4 @@
-import {useRef, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {Box} from "~/client/design/box.js";
@@ -12,8 +12,6 @@ import {
     MessageContentWithReferences,
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
-
-// NOCOMMIT: "Add comment" in edit menu?
 
 export function ContentEditorMobileCommentInputBottomBar({onClose}: {onClose: () => void}) {
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
@@ -36,6 +34,11 @@ export function ContentEditorMobileCommentInputBottomBar({onClose}: {onClose: ()
         editor.focus({preventScroll: true});
     }, [shouldShowConfirmCloseDialog]);
 
+    const [isInitialRender, setIsInitialRender] = useState(true);
+    useEffect(() => {
+        setIsInitialRender(false);
+    }, []);
+
     return (
         <>
             <Box
@@ -44,10 +47,11 @@ export function ContentEditorMobileCommentInputBottomBar({onClose}: {onClose: ()
                 zIndex="70"
                 inset="0"
                 backgroundColor="grey-dark"
-                opacity={{light: "10", dark: "40"}}
+                opacity={isInitialRender ? "0" : {light: "10", dark: "40"}}
                 // Render a cover over the document so the user knows they can't interact and
                 // should focus on their comment. If they tap on the cover the comment input
                 // will be dismissed.
+                style={{transition: "opacity 240ms ease-out"}}
             />
             <Box
                 position="fixed"
