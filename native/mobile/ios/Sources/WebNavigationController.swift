@@ -11,7 +11,8 @@ private let logger = Logger(
     @objc optional func webNavigationController(
         _ webNavigationController: WebNavigationController,
         didAddWebScrollView webScrollView: UIScrollView,
-        isMain: Bool
+        isMain: Bool,
+        isAnimated: Bool
     )
     @objc optional func webNavigationController(
         _ webNavigationController: WebNavigationController,
@@ -185,7 +186,24 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     private var tabBarScrollOffset = 0.0
     private var navigationBarScrollOffset = 0.0
-    private var keyboardOffsetWithoutToolbar = 0.0
+    private var keyboardOffsetWithoutToolbar = 0.0 {
+        didSet {
+            // Don't allow popping view controllers while the keyboard is open. You must
+            // first close the keyboard before you're allowed to pop. This will disable the
+            // native drag from left to pop interaction when the keyboard is open.
+            //
+            // We primarily do this because our snapshot navigation animation technique
+            // won't work when the keyboard is open. Since dragging to pop will close the
+            // keyboard we end up taking a snapshot while the keyboard is animating to a
+            // closed position which looks broken.
+            //
+            // However, there are some user experience benefits. If the user is focused on
+            // editing a document it'll be good they can't accidentally navigate back with
+            // a gesture.
+            interactivePopGestureRecognizer?.isEnabled =
+                !(isKeyboardAnimating || keyboardOffsetWithoutToolbar > 0)
+        }
+    }
 
     private var keyboardOffset: Double {
         keyboardOffsetWithoutToolbar
@@ -245,6 +263,16 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     private var isNavigationAnimating = false
     private var isAfterNavigationAnimationCallbackScheduled = false
+
+    private var isKeyboardAnimating = false {
+        didSet {
+            // See comment in `keyboardOffsetWithoutToolbar` `didSet` callback.
+            interactivePopGestureRecognizer?.isEnabled =
+                !(isKeyboardAnimating || keyboardOffsetWithoutToolbar > 0)
+        }
+    }
+    private var isAfterKeyboardAnimationCallbackScheduled = false
+    private var waitForKeyboardAnimationTimer: Timer? = nil
 
     /// The navigation entry we've presented modally or null if we haven't
     /// presented a navigation entry modally.
@@ -335,6 +363,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         )
         NotificationCenter.default.addObserver(
             self,
+            selector: #selector(keyboardDidShow(notification:)),
+            name: UIResponder.keyboardDidShowNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
             selector: #selector(keyboardWillHide(notification:)),
             name: UIResponder.keyboardWillHideNotification,
             object: nil
@@ -384,6 +418,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         NotificationCenter.default.removeObserver(
             self,
             name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIResponder.keyboardDidShowNotification,
             object: nil
         )
         NotificationCenter.default.removeObserver(
@@ -758,6 +797,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 isNavigationAnimating = false
 
                 if isAfterNavigationAnimationCallbackScheduled {
+                    isAfterNavigationAnimationCallbackScheduled = false
                     webView.evaluateJavaScript(
                         "window.__NativeMobileBridge.navigation._callScheduledAfterAnimationCallbacks()"
                     )
@@ -792,6 +832,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 isNavigationAnimating = false
 
                 if isAfterNavigationAnimationCallbackScheduled {
+                    isAfterNavigationAnimationCallbackScheduled = false
                     webView.evaluateJavaScript(
                         "window.__NativeMobileBridge.navigation._callScheduledAfterAnimationCallbacks()"
                     )
@@ -857,6 +898,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 isNavigationAnimating = false
 
                 if isAfterNavigationAnimationCallbackScheduled {
+                    isAfterNavigationAnimationCallbackScheduled = false
                     webView.evaluateJavaScript(
                         "window.__NativeMobileBridge.navigation._callScheduledAfterAnimationCallbacks()"
                     )
@@ -870,6 +912,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     isNavigationAnimating = false
 
                     if isAfterNavigationAnimationCallbackScheduled {
+                        isAfterNavigationAnimationCallbackScheduled = false
                         webView.evaluateJavaScript(
                             "window.__NativeMobileBridge.navigation._callScheduledAfterAnimationCallbacks()"
                         )
@@ -878,11 +921,25 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             }
         } else if messageBody == "navigation.scheduleAfterAnimation" {
             if !isNavigationAnimating {
+                isAfterNavigationAnimationCallbackScheduled = false
                 webView.evaluateJavaScript(
                     "window.__NativeMobileBridge.navigation._callScheduledAfterAnimationCallbacks()"
                 )
             } else {
                 isAfterNavigationAnimationCallbackScheduled = true
+            }
+        } else if messageBody == "keyboard.scheduleAfterAnimation" {
+            // NOTE(calebmer): This function is called after an inlined
+            // `scheduleAfterNextBrowserPaint()`. since I've observed WebKit doesn't start
+            // hiding the keyboard until the paint following the `blur` event.
+
+            if !isKeyboardAnimating {
+                isAfterKeyboardAnimationCallbackScheduled = false
+                webView.evaluateJavaScript(
+                    "window.__NativeMobileBridge.keyboard._callScheduledAfterAnimationCallbacks()"
+                )
+            } else {
+                isAfterKeyboardAnimationCallbackScheduled = true
             }
         } else if messageBody == "navigationBar.runScrollDebounceTimeout" {
             webDelegate?.webNavigationController?(runScrollDebounceTimeout: self)
@@ -1022,6 +1079,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         // Don't include `webView.scrollView` in `webScrollViews`.
         if let webScrollView = webSubview as? UIScrollView, webScrollView !== webView.scrollView {
+            let isAnimated = isNavigationAnimating || transitionCoordinator != nil
+
             webScrollViews[webScrollView] = WebScrollViewState(
                 // Can't know whether this is a main scroll view until after `schedule`.
                 isMain: false,
@@ -1032,6 +1091,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             )
 
             schedule { [self] in
+                // Make sure scroll view wasn't removed.
+                guard webScrollViews[webScrollView] != nil else { return }
+
                 // There may be other scroll views on our web page but we need to decide what
                 // the "main" scroll view is so that as it scrolls we can show/hide the tab
                 // bar, dismiss the keyboard, and more.
@@ -1057,7 +1119,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 webDelegate?.webNavigationController?(
                     self,
                     didAddWebScrollView: webScrollView,
-                    isMain: isMain
+                    isMain: isMain,
+                    isAnimated: isAnimated
                 )
             }
         }
@@ -1202,6 +1265,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     @objc private func keyboardWillShow(notification: NSNotification) {
+        isKeyboardAnimating = true
+        waitForKeyboardAnimationTimer?.invalidate()
+        waitForKeyboardAnimationTimer = nil
+
         // `keyboardOffset` (which this function call uses) is updated in
         // `webInputAccessoryObserverView(_:didMoveTo:)`. This method happens to run
         // after that method.
@@ -1245,7 +1312,22 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         )
     }
 
+    @objc private func keyboardDidShow(notification: NSNotification) {
+        isKeyboardAnimating = false
+
+        if isAfterKeyboardAnimationCallbackScheduled {
+            isAfterKeyboardAnimationCallbackScheduled = false
+            webView.evaluateJavaScript(
+                "window.__NativeMobileBridge.keyboard._callScheduledAfterAnimationCallbacks()"
+            )
+        }
+    }
+
     @objc private func keyboardWillHide(notification: NSNotification) {
+        isKeyboardAnimating = true
+        waitForKeyboardAnimationTimer?.invalidate()
+        waitForKeyboardAnimationTimer = nil
+
         // `keyboardOffset` (which this function call uses) is updated in
         // `webInputAccessoryObserverView(_:didMoveTo:)`. This method happens to run
         // after that method.
@@ -1285,9 +1367,25 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     @objc private func keyboardDidHide(notification: NSNotification) {
+        var shouldCallScheduledAfterKeyboardAnimationCallbacks = false
+        isKeyboardAnimating = false
+
+        if isAfterKeyboardAnimationCallbackScheduled {
+            isAfterKeyboardAnimationCallbackScheduled = false
+            shouldCallScheduledAfterKeyboardAnimationCallbacks = true
+        }
+
         // Once the keyboard is fully hidden, now we update safe area insets so they
         // don't include space for the keyboard anymore.
-        updateWebViewSafeAreaInsets()
+        updateWebViewSafeAreaInsets(
+            alsoCallFrameChangeListeners: nil,
+            completion: shouldCallScheduledAfterKeyboardAnimationCallbacks
+                ? { [self] in
+                    webView.evaluateJavaScript(
+                        "window.__NativeMobileBridge.keyboard._callScheduledAfterAnimationCallbacks()"
+                    )
+                } : nil
+        )
     }
 
     fileprivate func webInputAccessoryObserverView(
@@ -1384,7 +1482,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     private func updateWebViewSafeAreaInsets(
-        alsoCallFrameChangeListeners: (Double, Double, Bool, Bool) = (0, 0, false, false)
+        alsoCallFrameChangeListeners: (Double, Double, Bool, Bool)? = nil,
+        completion: (() -> Void)? = nil
     ) {
         let safeAreaInsets = getSafeAreaInsets()
 
@@ -1397,6 +1496,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 --window-safe-area-inset-bottom: \(windowSafeAreaInsets.bottom)px;
             }
             """
+
+        let alsoCallFromChangeListenersSource =
+            if let alsoCallFrameChangeListeners = alsoCallFrameChangeListeners {
+                "\n    window.__NativeMobileBridge.keyboard._callFrameChangeListeners(\(alsoCallFrameChangeListeners.0), \(alsoCallFrameChangeListeners.1), \(alsoCallFrameChangeListeners.2), \(alsoCallFrameChangeListeners.3));\n"
+            } else { "" }
 
         let source = """
             {
@@ -1411,10 +1515,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     styleElement.innerHTML = styleString;
                     document.head.appendChild(styleElement);
                 }
-            \(alsoCallFrameChangeListeners != (0, 0, false, false) ? "\n    window.__NativeMobileBridge.keyboard._callFrameChangeListeners(\(alsoCallFrameChangeListeners.0), \(alsoCallFrameChangeListeners.1), \(alsoCallFrameChangeListeners.2), \(alsoCallFrameChangeListeners.3));\n" : "")}
+            \(alsoCallFromChangeListenersSource)}
             """
 
-        webView.evaluateJavaScript(source)
+        let completionHandler: ((Any?, Error?) -> Void)? =
+            if let completion = completion { { (_, _) in completion() } } else { nil }
+
+        webView.evaluateJavaScript(source, completionHandler: completionHandler)
     }
 
     private func setAllMainWebScrollViewScrollIndicatorInsets() {
@@ -1825,6 +1932,7 @@ private class WebNavigationEntryController: UIViewController {
     private var loadingIndicatorTimer: Timer?
     private var loadingIndicatorTimerGeneration: Int = 0
     private var hasViewAppeared: Bool = false
+    private var willViewDisappear: Bool = false
     private var shouldPresentLoadingIndicator = false
 
     // Presentation style needs to be over fullscreen because:
@@ -1983,6 +2091,7 @@ private class WebNavigationEntryController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         hasViewAppeared = true
+        willViewDisappear = false
 
         if shouldPresentLoadingIndicator {
             shouldPresentLoadingIndicator = false
@@ -1993,9 +2102,16 @@ private class WebNavigationEntryController: UIViewController {
         }
     }
 
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        willViewDisappear = true
+        clearLoadingIndicatorTimer()
+    }
+
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         hasViewAppeared = false
+        willViewDisappear = false
         clearLoadingIndicatorTimer()
 
         shouldPresentLoadingIndicator = presentedViewController is WebLoadingIndicatorController
@@ -2027,10 +2143,10 @@ private class WebNavigationEntryController: UIViewController {
         if hasWebView { return }
 
         // Don't show loading indicator if our entry isn't visible.
-        if !hasViewAppeared { return }
+        if !hasViewAppeared || willViewDisappear { return }
 
-        // If there's a modal view controller (that's not ourselves), don't show
-        // loading indicator. It's like our view is hidden.
+        // If there's a modal view controller (that's not ourself), don't show
+        // loading indicator. Since our view is hidden under the modal.
         if let modalPresentedViewController = webNavigationController?.modalPresentedViewController,
             modalPresentedViewController != self
         {
@@ -2082,7 +2198,7 @@ private class WebNavigationEntryController: UIViewController {
     }
 
     private func presentLoadingIndicator() {
-        if !hasViewAppeared {
+        if !hasViewAppeared || willViewDisappear {
             shouldPresentLoadingIndicator = true
             return
         }
@@ -2271,6 +2387,7 @@ private let webBridgeSource = """
         const keyboardFrameChangeListeners = new Set();
 
         let scheduledAfterNavigationAnimationCallbacks = [];
+        let scheduledAfterKeyboardAnimationCallbacks = [];
 
         let nextCallbackId = 0;
         const callbackById = new Map();
@@ -2416,6 +2533,31 @@ private let webBridgeSource = """
                 },
                 cleanupAfterSubstitute: () => {
                     return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.cleanupAfterSubstitute");
+                },
+                scheduleAfterAnimation: action => {
+                    if (scheduledAfterKeyboardAnimationCallbacks.length === 0) {
+                        const channel = new MessageChannel();
+                        channel.port1.onmessage = () => {
+                            window.webkit.messageHandlers.NativeMobileBridge.postMessage("keyboard.scheduleAfterAnimation");
+                        };
+                        channel.port2.postMessage(undefined);
+                    }
+
+                    scheduledAfterKeyboardAnimationCallbacks.push(action);
+                },
+                _callScheduledAfterAnimationCallbacks: () => {
+                    const callbacks = scheduledAfterKeyboardAnimationCallbacks;
+                    scheduledAfterKeyboardAnimationCallbacks = [];
+
+                    for (const callback of callbacks) {
+                        try {
+                            callback();
+                        } catch (error) {
+                            setTimeout(() => {
+                                throw error;
+                            }, 0);
+                        }
+                    }
                 },
             },
             modal: {

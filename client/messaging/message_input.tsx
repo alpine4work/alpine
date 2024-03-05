@@ -39,6 +39,7 @@ import {
     messageViewReplyPreviewOpacity,
 } from "~/client/messaging/message_view.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {registerMobileBottomBar} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -51,7 +52,6 @@ import {
     spacing,
 } from "~/shared/design/spacing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
@@ -361,6 +361,11 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     const inputContainerRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
+    const [isKeyboardToolbarVisible, setIsKeyboardToolbarVisible] = useState(false);
+    if (isKeyboardToolbarVisible && !(isMobile && isBottomBar)) setIsKeyboardToolbarVisible(false);
+
+    const cancelFocusOrBlurRef = useRef<(() => void) | null>(null);
+
     const replyingToMessage = useMemo(() => {
         if (!replyingToMessageProp) return null;
 
@@ -430,6 +435,126 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
         onSendProp();
     };
 
+    const handleFocus = () => {
+        cancelFocusOrBlurRef.current?.();
+        cancelFocusOrBlurRef.current = null;
+
+        onFocus?.();
+
+        // 1. On mobile, make sure our keyboard toolbar is visible when focused
+        // 2. On mobile web, animate so our toolbar is visible. In our native app, the
+        //    shell manages animating the toolbar so it's visible
+        if (isMobile && isBottomBar) {
+            setIsKeyboardToolbarVisible(true);
+
+            if (NativeMobileBridge) {
+                // Our native mobile app will animate the keyboard toolbar onscreen.
+            } else {
+                const containerElement = assertExists(containerRef.current);
+
+                const animation = animate(
+                    containerElement,
+                    {
+                        y: [
+                            0,
+                            -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening(),
+                        ],
+                    },
+                    {
+                        duration: 0.2,
+                        // Make sure we use hardware acceleration for this animation in WebKit. By
+                        // default `motion` turns it off.
+                        // https://motion.dev/guides/performance#webkits-exceptions
+                        allowWebkitAcceleration: true,
+                    },
+                );
+
+                const cancel = () => {
+                    animation.cancel();
+                };
+
+                cancelFocusOrBlurRef.current = cancel;
+                animation.finished.finally(() => {
+                    if (cancelFocusOrBlurRef.current === cancel)
+                        cancelFocusOrBlurRef.current = null;
+                });
+            }
+        }
+    };
+
+    const handleBlur = () => {
+        cancelFocusOrBlurRef.current?.();
+        cancelFocusOrBlurRef.current = null;
+
+        hideTypingIndicator();
+
+        onBlur?.();
+
+        // 1. On mobile, make sure our keyboard toolbar is visible when focused
+        // 2. On mobile web, animate so our toolbar is visible. In our native app, the
+        //    shell manages animating the toolbar so it's visible
+        if (isMobile && isBottomBar) {
+            if (NativeMobileBridge) {
+                // Our native mobile app will animate the keyboard toolbar offscreen. Remove
+                // the keyboard toolbar from the DOM once the animation completes.
+
+                let isCancelled = false;
+
+                NativeMobileBridge.keyboard.scheduleAfterAnimation(() => {
+                    if (isCancelled) return;
+
+                    if (cancelFocusOrBlurRef.current === cancel)
+                        cancelFocusOrBlurRef.current = null;
+
+                    setIsKeyboardToolbarVisible(false);
+                });
+
+                const cancel = () => {
+                    isCancelled = true;
+                    setIsKeyboardToolbarVisible(false);
+                };
+                cancelFocusOrBlurRef.current = cancel;
+            } else {
+                const containerElement = assertExists(containerRef.current);
+
+                const animation = animate(
+                    containerElement,
+                    {
+                        y: [
+                            -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening(),
+                            0,
+                        ],
+                    },
+                    {
+                        duration: 0.2,
+                        // Make sure we use hardware acceleration for this animation in WebKit. By
+                        // default `motion` turns it off.
+                        // https://motion.dev/guides/performance#webkits-exceptions
+                        allowWebkitAcceleration: true,
+                    },
+                );
+
+                let isCancelled = false;
+
+                const cancel = () => {
+                    isCancelled = true;
+                    animation.cancel();
+                    setIsKeyboardToolbarVisible(false);
+                };
+
+                cancelFocusOrBlurRef.current = cancel;
+                animation.finished.finally(() => {
+                    if (isCancelled) return;
+
+                    if (cancelFocusOrBlurRef.current === cancel)
+                        cancelFocusOrBlurRef.current = null;
+
+                    setIsKeyboardToolbarVisible(false);
+                });
+            }
+        }
+    };
+
     useLayoutEffectWithoutServerSideWarning(() => {
         const inputContainerElement = assertExists(inputContainerRef.current);
 
@@ -477,7 +602,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     // slow animations in an iOS emulator and open the keyboard.
     const bottomBarBackgroundSlopBottom = spacing["96"];
 
-    let node = (
+    return (
         <Box
             ref={containerRef}
             data-testid={dataTestId}
@@ -718,66 +843,8 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                                         onChange(state);
                                         if (transaction.docChanged) showTypingIndicator();
                                     }}
-                                    onFocus={() => {
-                                        onFocus?.();
-
-                                        // On mobile web, animate up the message input to reveal the toolbar when the
-                                        // message input is focused.
-                                        if (!clientInfo.isNativeMobile && isMobile && isBottomBar) {
-                                            const containerElement = assertExists(
-                                                containerRef.current,
-                                            );
-
-                                            animate(
-                                                containerElement,
-                                                {
-                                                    y: [
-                                                        0,
-                                                        -mobileBottomBarKeyboardToolbarHeightRem *
-                                                            getRemPxWithoutListening(),
-                                                    ],
-                                                },
-                                                {
-                                                    duration: 0.2,
-                                                    // Make sure we use hardware acceleration for this animation in WebKit. By
-                                                    // default `motion` turns it off.
-                                                    // https://motion.dev/guides/performance#webkits-exceptions
-                                                    allowWebkitAcceleration: true,
-                                                },
-                                            );
-                                        }
-                                    }}
-                                    onBlur={() => {
-                                        hideTypingIndicator();
-
-                                        onBlur?.();
-
-                                        // On mobile web, animate up the message input to reveal the toolbar when the
-                                        // message input is focused.
-                                        if (!clientInfo.isNativeMobile && isMobile && isBottomBar) {
-                                            const containerElement = assertExists(
-                                                containerRef.current,
-                                            );
-
-                                            animate(
-                                                containerElement,
-                                                {
-                                                    y: [
-                                                        -mobileBottomBarKeyboardToolbarHeightRem *
-                                                            getRemPxWithoutListening(),
-                                                        0,
-                                                    ],
-                                                },
-                                                {
-                                                    duration: 0.2,
-                                                    // Make sure we use hardware acceleration for this animation in WebKit. By
-                                                    // default `motion` turns it off.
-                                                    // https://motion.dev/guides/performance#webkits-exceptions
-                                                    allowWebkitAcceleration: true,
-                                                },
-                                            );
-                                        }
-                                    }}
+                                    onFocus={handleFocus}
+                                    onBlur={handleBlur}
                                     aria-label={`New ${messageNoun}`}
                                     placeholder={`${
                                         messageNoun === "message" ? "Send" : "Add"
@@ -841,29 +908,13 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                     </Box>
                 </Box>
             </Box>
-            {isMobile && isBottomBar && (
-                <MessageInputMobileKeyboardToolbar state={state} editorRef={editorRef} />
-            )}
+            {isMobile &&
+                isBottomBar &&
+                (isKeyboardToolbarVisible ? (
+                    <MessageInputMobileKeyboardToolbar state={state} editorRef={editorRef} />
+                ) : (
+                    <Box height={mobileBottomBarKeyboardToolbarHeight} />
+                ))}
         </Box>
     );
-
-    // Cover the keyboard toolbar when it's in safe area.
-    if (isMobile && isBottomBar) {
-        node = (
-            <Box flexShrink="0" position="relative" zIndex="0">
-                {node}
-                <Box
-                    position="absolute"
-                    zIndex="10"
-                    left="0"
-                    right="0"
-                    bottom="0"
-                    style={{height: "var(--window-safe-area-inset-bottom, 0px)"}}
-                    backgroundColor="grey-0"
-                />
-            </Box>
-        );
-    }
-
-    return node;
 }

@@ -14,7 +14,7 @@ index 7b1f3993bdb062c299f985dd356a54613af0762d..9cdf2c6d8fda748d6fff37d28f33c4ff
  /**
   * Memory history stores the current location in memory. It is designed for use
 diff --git a/dist/router.cjs.js b/dist/router.cjs.js
-index 9630bd035315468d4b232f05842383fe1047b8f4..312596114d01575763fb6cf14eb2e03b330f7298 100644
+index 9630bd035315468d4b232f05842383fe1047b8f4..1582e033903b83ef17bd5baa8b0ff8bb2642b400 100644
 --- a/dist/router.cjs.js
 +++ b/dist/router.cjs.js
 @@ -122,6 +122,9 @@ function createMemoryHistory(options) {
@@ -44,7 +44,7 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..312596114d01575763fb6cf14eb2e03b
  };
  class AbortedDeferredError extends Error {}
  class DeferredData {
-@@ -1865,6 +1874,50 @@ function createRouter(init) {
+@@ -1865,6 +1874,73 @@ function createRouter(init) {
      cancelledFetcherLoads = [];
    }
  
@@ -55,9 +55,32 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..312596114d01575763fb6cf14eb2e03b
 +  //
 +  // This function is unsafe since the caller is responsible to make sure
 +  // `location`, `matches`, `loaderData`, and everything else all line up.
-+  function unsafelyRestoreNavigation(newState) {
++  async function unsafelyRestoreNavigation(newState) {
 +    pendingNavigationController && pendingNavigationController.abort();
 +    pendingNavigationController = null;
++
++    // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++    // before navigation state is updated. Make sure the navigation can be
++    // cancelled if another navigation starts while we wait.
++    if (init.unstable_onWillCompleteNavigation) {
++      let navigationController = new AbortController();
++      pendingNavigationController = navigationController;
++
++      try {
++        const result = init.unstable_onWillCompleteNavigation();
++        if (result instanceof Promise) await result;
++      } catch (error) {
++        setTimeout(() => {
++          throw error;
++        }, 0);
++      }
++
++      if (navigationController.signal.aborted) {
++        return;
++      }
++
++      pendingNavigationController = null;
++    }
 +
 +    // On a successful navigation we can assume we got through all blockers
 +    // so we can start fresh
@@ -95,7 +118,7 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..312596114d01575763fb6cf14eb2e03b
    // Trigger a navigation event, which can either be a numerical POP or a PUSH
    // replace with an optional submission
    async function navigate(to, opts) {
-@@ -1935,7 +1988,8 @@ function createRouter(init) {
+@@ -1935,7 +2011,8 @@ function createRouter(init) {
        // render at the right error boundary after we match routes
        pendingError: error,
        preventScrollReset,
@@ -105,7 +128,38 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..312596114d01575763fb6cf14eb2e03b
      });
    }
  
-@@ -2019,7 +2073,10 @@ function createRouter(init) {
+@@ -2003,6 +2080,30 @@ function createRouter(init) {
+       } = getShortCircuitMatches(routesToUse);
+       // Cancel all pending deferred on 404s since we don't keep any routes
+       cancelActiveDeferreds();
++
++      // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++      // before navigation state is updated. Make sure the navigation can be
++      // cancelled if another navigation starts while we wait.
++      if (init.unstable_onWillCompleteNavigation) {
++        let navigationController = new AbortController();
++        pendingNavigationController = navigationController;
++
++        try {
++          const result = init.unstable_onWillCompleteNavigation();
++          if (result instanceof Promise) await result;
++        } catch (error) {
++          setTimeout(() => {
++            throw error;
++          }, 0);
++        }
++
++        if (navigationController.signal.aborted) {
++          return;
++        }
++
++        pendingNavigationController = null;
++      }
++
+       completeNavigation(location, {
+         matches: notFoundMatches,
+         loaderData: {},
+@@ -2019,7 +2120,33 @@ function createRouter(init) {
      // Ignore on initial page loads because since the initial load will always
      // be "same hash".  For example, on /page#hash and submit a <Form method="post">
      // which will default to a navigation to /page
@@ -114,20 +168,125 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..312596114d01575763fb6cf14eb2e03b
 +    // NOTE(calebmer): Add an `unstable_shouldRevalidate` option to allow
 +    // developers to stop revalidation at navigation function call-sites.
 +    if (state.initialized && !isRevalidationRequired && (isHashChangeOnly(state.location, location) || (opts && opts.unstable_shouldRevalidate === false)) && !(opts && opts.submission && isMutationMethod(opts.submission.formMethod))) {
++      // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++      // before navigation state is updated. Make sure the navigation can be
++      // cancelled if another navigation starts while we wait.
++      if (init.unstable_onWillCompleteNavigation) {
++        let navigationController = new AbortController();
++        pendingNavigationController = navigationController;
++
++        try {
++          const result = init.unstable_onWillCompleteNavigation();
++          if (result instanceof Promise) await result;
++        } catch (error) {
++          setTimeout(() => {
++            throw error;
++          }, 0);
++        }
++
++        if (navigationController.signal.aborted) {
++          return;
++        }
++
++        pendingNavigationController = null;
++      }
++
        completeNavigation(location, {
          matches
        });
-@@ -2911,7 +2968,8 @@ function createRouter(init) {
+@@ -2067,6 +2194,24 @@ function createRouter(init) {
+       return;
+     }
+ 
++    // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++    // before navigation state is updated. Make sure the navigation can be
++    // cancelled if another navigation starts while we wait.
++    if (init.unstable_onWillCompleteNavigation) {
++      try {
++        const result = init.unstable_onWillCompleteNavigation();
++        if (result instanceof Promise) await result;
++      } catch (error) {
++        setTimeout(() => {
++          throw error;
++        }, 0);
++      }
++
++      if (request.signal.aborted) {
++        return;
++      }
++    }
++
+     // Clean up now that the action/loaders have completed.  Don't clean up if
+     // we short circuited because pendingNavigationController will have already
+     // been assigned to a new controller for the next navigation
+@@ -2184,6 +2329,24 @@ function createRouter(init) {
+ 
+     // Short circuit if we have no loaders to run
+     if (matchesToLoad.length === 0 && revalidatingFetchers.length === 0) {
++      // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++      // before navigation state is updated. Make sure the navigation can be
++      // cancelled if another navigation starts while we wait.
++      if (init.unstable_onWillCompleteNavigation) {
++        try {
++          const result = init.unstable_onWillCompleteNavigation();
++          if (result instanceof Promise) await result;
++        } catch (error) {
++          setTimeout(() => {
++            throw error;
++          }, 0);
++        }
++
++        if (request.signal.aborted) {
++          return { shortCircuited: true };
++        }
++      }
++
+       let updatedFetchers = markFetchRedirectsDone();
+       completeNavigation(location, _extends({
+         matches,
+@@ -2474,6 +2637,31 @@ function createRouter(init) {
+     if (state.navigation.state === "loading" && loadId > pendingNavigationLoadId) {
+       invariant(pendingAction, "Expected pending action");
+       pendingNavigationController && pendingNavigationController.abort();
++      pendingNavigationController = null;
++
++      // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++      // before navigation state is updated. Make sure the navigation can be
++      // cancelled if another navigation starts while we wait.
++      if (init.unstable_onWillCompleteNavigation) {
++        let navigationController = new AbortController();
++        pendingNavigationController = navigationController;
++
++        try {
++          const result = init.unstable_onWillCompleteNavigation();
++          if (result instanceof Promise) await result;
++        } catch (error) {
++          setTimeout(() => {
++            throw error;
++          }, 0);
++        }
++
++        if (navigationController.signal.aborted) {
++          return;
++        }
++
++        pendingNavigationController = null;
++      }
++
+       completeNavigation(state.navigation.location, {
+         matches,
+         loaderData,
+@@ -2911,7 +3099,8 @@ function createRouter(init) {
      _internalActiveDeferreds: activeDeferreds,
      // TODO: Remove setRoutes, it's temporary to avoid dealing with
      // updating the tree while validating the update algorithm.
 -    _internalSetRoutes
 +    _internalSetRoutes,
-+    _internalUnsafelyRestoreNavigation: unsafelyRestoreNavigation
++    unstable_unsafelyRestoreNavigation: unsafelyRestoreNavigation
    };
    return router;
  }
-@@ -3829,7 +3887,10 @@ async function callLoaderOrAction(type, request, match, matches, manifest, mapRo
+@@ -3829,7 +4018,10 @@ async function callLoaderOrAction(type, request, match, matches, manifest, mapRo
      // Check between word boundaries instead of startsWith() due to the last
      // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
      if (contentType && /\bapplication\/json\b/.test(contentType)) {
@@ -139,14 +298,14 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..312596114d01575763fb6cf14eb2e03b
      } else {
        data = await result.text();
      }
-@@ -4442,4 +4503,4 @@ exports.redirect = redirect;
+@@ -4442,4 +4634,4 @@ exports.redirect = redirect;
  exports.resolvePath = resolvePath;
  exports.resolveTo = resolveTo;
  exports.stripBasename = stripBasename;
 -//# sourceMappingURL=router.cjs.js.map
 +// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/dist/router.d.ts b/dist/router.d.ts
-index 05966cddc95fd6d6563b1cc80a28f37e48869649..3e10de08bf95e58010184b0325bacb2b3ea004f2 100644
+index 05966cddc95fd6d6563b1cc80a28f37e48869649..b3fa81d08462721126c152c324a5d0f57a950989 100644
 --- a/dist/router.d.ts
 +++ b/dist/router.d.ts
 @@ -168,6 +168,19 @@ export interface Router {
@@ -160,16 +319,28 @@ index 05966cddc95fd6d6563b1cc80a28f37e48869649..3e10de08bf95e58010184b0325bacb2b
 +    //
 +    // This function is unsafe since the caller is responsible to make sure
 +    // `location`, `matches`, `loaderData`, and everything else all line up.
-+    _internalUnsafelyRestoreNavigation(
++    unstable_unsafelyRestoreNavigation(
 +        newState: Omit<
 +            RouterState,
 +            "initialized" | "navigation" | "revalidation" | "blockers"
 +        >,
-+    ): void;    
++    ): Promise<void>;    
  }
  /**
   * State maintained internally by the router.  During a navigation, all states
-@@ -322,6 +335,9 @@ type BaseNavigateOptions = BaseNavigateOrFetchOptions & {
+@@ -257,6 +270,11 @@ export interface RouterInit {
+     future?: Partial<FutureConfig>;
+     hydrationData?: HydrationState;
+     window?: Window;
++    // NOTE(calebmer): Add a callback that lets our code wait after loaders have
++    // finished but before router state is updated. Useful for doing things like
++    // making sure "close" animations (e.g. keyboard close) have finished on the
++    // current route before navigating to the next route.
++    unstable_onWillCompleteNavigation?: () => Promise<void> | void;
+ }
+ /**
+  * State returned from a server-side query() call
+@@ -322,6 +340,9 @@ type BaseNavigateOptions = BaseNavigateOrFetchOptions & {
      replace?: boolean;
      state?: any;
      fromRouteId?: string;
@@ -180,7 +351,7 @@ index 05966cddc95fd6d6563b1cc80a28f37e48869649..3e10de08bf95e58010184b0325bacb2b
  type BaseSubmissionOptions = {
      formMethod?: HTMLFormMethod;
 diff --git a/dist/router.js b/dist/router.js
-index 476e375a5387243e5e206d0b62ba9c3670a69664..77998ccaff0623b2f6838d509f825a37162da229 100644
+index 476e375a5387243e5e206d0b62ba9c3670a69664..0abe16ed72321e98cdfc644dd86ac021c4c4c910 100644
 --- a/dist/router.js
 +++ b/dist/router.js
 @@ -91,6 +91,9 @@ function createMemoryHistory(options) {
@@ -210,7 +381,7 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..77998ccaff0623b2f6838d509f825a37
  };
  class AbortedDeferredError extends Error {}
  class DeferredData {
-@@ -1510,6 +1519,49 @@ function createRouter(init) {
+@@ -1510,6 +1519,72 @@ function createRouter(init) {
      cancelledDeferredRoutes = [];
      cancelledFetcherLoads = [];
    }
@@ -221,9 +392,32 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..77998ccaff0623b2f6838d509f825a37
 +  //
 +  // This function is unsafe since the caller is responsible to make sure
 +  // `location`, `matches`, `loaderData`, and everything else all line up.
-+  function unsafelyRestoreNavigation(newState) {
++  async function unsafelyRestoreNavigation(newState) {
 +    pendingNavigationController && pendingNavigationController.abort();
 +    pendingNavigationController = null;
++
++    // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++    // before navigation state is updated. Make sure the navigation can be
++    // cancelled if another navigation starts while we wait.
++    if (init.unstable_onWillCompleteNavigation) {
++      let navigationController = new AbortController();
++      pendingNavigationController = navigationController;
++
++      try {
++        const result = init.unstable_onWillCompleteNavigation();
++        if (result instanceof Promise) await result;
++      } catch (error) {
++        setTimeout(() => {
++          throw error;
++        }, 0);
++      }
++
++      if (navigationController.signal.aborted) {
++        return;
++      }
++
++      pendingNavigationController = null;
++    }
 +
 +    // On a successful navigation we can assume we got through all blockers
 +    // so we can start fresh
@@ -260,7 +454,7 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..77998ccaff0623b2f6838d509f825a37
    // Trigger a navigation event, which can either be a numerical POP or a PUSH
    // replace with an optional submission
    async function navigate(to, opts) {
-@@ -1579,7 +1631,8 @@ function createRouter(init) {
+@@ -1579,7 +1654,8 @@ function createRouter(init) {
        // render at the right error boundary after we match routes
        pendingError: error,
        preventScrollReset,
@@ -270,7 +464,38 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..77998ccaff0623b2f6838d509f825a37
      });
    }
    // Revalidate all current loaders.  If a navigation is in progress or if this
-@@ -1655,7 +1708,10 @@ function createRouter(init) {
+@@ -1640,6 +1716,30 @@ function createRouter(init) {
+       } = getShortCircuitMatches(routesToUse);
+       // Cancel all pending deferred on 404s since we don't keep any routes
+       cancelActiveDeferreds();
++
++      // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++      // before navigation state is updated. Make sure the navigation can be
++      // cancelled if another navigation starts while we wait.
++      if (init.unstable_onWillCompleteNavigation) {
++        let navigationController = new AbortController();
++        pendingNavigationController = navigationController;
++
++        try {
++          const result = init.unstable_onWillCompleteNavigation();
++          if (result instanceof Promise) await result;
++        } catch (error) {
++          setTimeout(() => {
++            throw error;
++          }, 0);
++        }
++
++        if (navigationController.signal.aborted) {
++          return;
++        }
++
++        pendingNavigationController = null;
++      }
++
+       completeNavigation(location, {
+         matches: notFoundMatches,
+         loaderData: {},
+@@ -1655,7 +1755,33 @@ function createRouter(init) {
      // Ignore on initial page loads because since the initial load will always
      // be "same hash".  For example, on /page#hash and submit a <Form method="post">
      // which will default to a navigation to /page
@@ -279,20 +504,126 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..77998ccaff0623b2f6838d509f825a37
 +    // NOTE(calebmer): Add an `unstable_shouldRevalidate` option to allow
 +    // developers to stop revalidation at navigation function call-sites.
 +    if (state.initialized && !isRevalidationRequired && (isHashChangeOnly(state.location, location) || (opts && opts.unstable_shouldRevalidate === false)) && !(opts && opts.submission && isMutationMethod(opts.submission.formMethod))) {
++      // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++      // before navigation state is updated. Make sure the navigation can be
++      // cancelled if another navigation starts while we wait.
++      if (init.unstable_onWillCompleteNavigation) {
++        let navigationController = new AbortController();
++        pendingNavigationController = navigationController;
++
++        try {
++          const result = init.unstable_onWillCompleteNavigation();
++          if (result instanceof Promise) await result;
++        } catch (error) {
++          setTimeout(() => {
++            throw error;
++          }, 0);
++        }
++
++        if (navigationController.signal.aborted) {
++          return;
++        }
++
++        pendingNavigationController = null;
++      }
++      
        completeNavigation(location, {
          matches
        });
-@@ -2499,7 +2555,8 @@ function createRouter(init) {
+@@ -1699,6 +1825,25 @@ function createRouter(init) {
+     if (shortCircuited) {
+       return;
+     }
++
++    // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++    // before navigation state is updated. Make sure the navigation can be
++    // cancelled if another navigation starts while we wait.
++    if (init.unstable_onWillCompleteNavigation) {
++      try {
++        const result = init.unstable_onWillCompleteNavigation();
++        if (result instanceof Promise) await result;
++      } catch (error) {
++        setTimeout(() => {
++          throw error;
++        }, 0);
++      }
++
++      if (request.signal.aborted) {
++        return;
++      }
++    }
++
+     // Clean up now that the action/loaders have completed.  Don't clean up if
+     // we short circuited because pendingNavigationController will have already
+     // been assigned to a new controller for the next navigation
+@@ -1808,6 +1953,24 @@ function createRouter(init) {
+     cancelActiveDeferreds(routeId => !(matches && matches.some(m => m.route.id === routeId)) || matchesToLoad && matchesToLoad.some(m => m.route.id === routeId));
+     // Short circuit if we have no loaders to run
+     if (matchesToLoad.length === 0 && revalidatingFetchers.length === 0) {
++      // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++      // before navigation state is updated. Make sure the navigation can be
++      // cancelled if another navigation starts while we wait.
++      if (init.unstable_onWillCompleteNavigation) {
++        try {
++          const result = init.unstable_onWillCompleteNavigation();
++          if (result instanceof Promise) await result;
++        } catch (error) {
++          setTimeout(() => {
++            throw error;
++          }, 0);
++        }
++
++        if (request.signal.aborted) {
++          return { shortCircuited: true };
++        }
++      }
++
+       let updatedFetchers = markFetchRedirectsDone();
+       completeNavigation(location, _extends({
+         matches,
+@@ -2081,6 +2244,31 @@ function createRouter(init) {
+     if (state.navigation.state === "loading" && loadId > pendingNavigationLoadId) {
+       invariant(pendingAction, "Expected pending action");
+       pendingNavigationController && pendingNavigationController.abort();
++      pendingNavigationController = null;
++
++      // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++      // before navigation state is updated. Make sure the navigation can be
++      // cancelled if another navigation starts while we wait.
++      if (init.unstable_onWillCompleteNavigation) {
++        let navigationController = new AbortController();
++        pendingNavigationController = navigationController;
++
++        try {
++          const result = init.unstable_onWillCompleteNavigation();
++          if (result instanceof Promise) await result;
++        } catch (error) {
++          setTimeout(() => {
++            throw error;
++          }, 0);
++        }
++
++        if (navigationController.signal.aborted) {
++          return;
++        }
++
++        pendingNavigationController = null;
++      }
++
+       completeNavigation(state.navigation.location, {
+         matches,
+         loaderData,
+@@ -2499,7 +2687,8 @@ function createRouter(init) {
      _internalActiveDeferreds: activeDeferreds,
      // TODO: Remove setRoutes, it's temporary to avoid dealing with
      // updating the tree while validating the update algorithm.
 -    _internalSetRoutes
 +    _internalSetRoutes,
-+    _internalUnsafelyRestoreNavigation: unsafelyRestoreNavigation,
++    unstable_unsafelyRestoreNavigation: unsafelyRestoreNavigation,
    };
    return router;
  }
-@@ -3375,7 +3432,10 @@ async function callLoaderOrAction(type, request, match, matches, manifest, mapRo
+@@ -3375,7 +3564,10 @@ async function callLoaderOrAction(type, request, match, matches, manifest, mapRo
      // Check between word boundaries instead of startsWith() due to the last
      // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
      if (contentType && /\bapplication\/json\b/.test(contentType)) {
@@ -304,7 +635,7 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..77998ccaff0623b2f6838d509f825a37
      } else {
        data = await result.text();
      }
-@@ -3943,4 +4003,4 @@ function getDoneFetcher(data) {
+@@ -3943,4 +4135,4 @@ function getDoneFetcher(data) {
  //#endregion
  
  export { AbortedDeferredError, Action, ErrorResponse, IDLE_BLOCKER, IDLE_FETCHER, IDLE_NAVIGATION, UNSAFE_DEFERRED_SYMBOL, DeferredData as UNSAFE_DeferredData, convertRoutesToDataRoutes as UNSAFE_convertRoutesToDataRoutes, getPathContributingMatches as UNSAFE_getPathContributingMatches, invariant as UNSAFE_invariant, warning as UNSAFE_warning, createBrowserHistory, createHashHistory, createMemoryHistory, createPath, createRouter, createStaticHandler, defer, generatePath, getStaticContextFromError, getToPathname, isDeferredData, isRouteErrorResponse, joinPaths, json, matchPath, matchRoutes, normalizePathname, parsePath, redirect, resolvePath, resolveTo, stripBasename };
@@ -376,7 +707,7 @@ index 5a796fd48dadee89f0b71fcc3991364788a4b6f2..40acea9336f2d997929119dd35fc2637
    "types": "./dist/index.d.ts",
    "files": [
 diff --git a/router.ts b/router.ts
-index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..c9a1ef8b22029f72f1dbb970fff3a1e53e2511ec 100644
+index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..0f0db3d7aa87b966af30ce1647bc66f4fa7b924f 100644
 --- a/router.ts
 +++ b/router.ts
 @@ -246,6 +246,20 @@ export interface Router {
@@ -391,16 +722,28 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..c9a1ef8b22029f72f1dbb970fff3a1e5
 +  //
 +  // This function is unsafe since the caller is responsible to make sure
 +  // `location`, `matches`, `loaderData`, and everything else all line up.
-+  _internalUnsafelyRestoreNavigation(
++  unstable_unsafelyRestoreNavigation(
 +    newState: Omit<
 +      RouterState,
 +      "initialized" | "navigation" | "revalidation" | "blockers"
 +    >,
-+  ): void;
++  ): Promise<void>;
  }
  
  /**
-@@ -430,6 +444,9 @@ type BaseNavigateOptions = BaseNavigateOrFetchOptions & {
+@@ -353,6 +367,11 @@ export interface RouterInit {
+   future?: Partial<FutureConfig>;
+   hydrationData?: HydrationState;
+   window?: Window;
++  // NOTE(calebmer): Add a callback that lets our code wait after loaders have
++  // finished but before router state is updated. Useful for doing things like
++  // making sure "close" animations (e.g. keyboard close) have finished on the
++  // current route before navigating to the next route.
++  unstable_onWillCompleteNavigation?: () => Promise<void> | void;
+ }
+ 
+ /**
+@@ -430,6 +449,9 @@ type BaseNavigateOptions = BaseNavigateOrFetchOptions & {
    replace?: boolean;
    state?: any;
    fromRouteId?: string;
@@ -410,7 +753,7 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..c9a1ef8b22029f72f1dbb970fff3a1e5
  };
  
  // Only allowed for submission navigations
-@@ -1078,6 +1095,55 @@ export function createRouter(init: RouterInit): Router {
+@@ -1078,6 +1100,78 @@ export function createRouter(init: RouterInit): Router {
      cancelledFetcherLoads = [];
    }
  
@@ -421,7 +764,7 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..c9a1ef8b22029f72f1dbb970fff3a1e5
 +  //
 +  // This function is unsafe since the caller is responsible to make sure
 +  // `location`, `matches`, `loaderData`, and everything else all line up.
-+  function unsafelyRestoreNavigation(
++  async function unsafelyRestoreNavigation(
 +    newState: Omit<
 +      RouterState,
 +      "initialized" | "navigation" | "revalidation" | "blockers"
@@ -429,6 +772,29 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..c9a1ef8b22029f72f1dbb970fff3a1e5
 +  ) {
 +    pendingNavigationController && pendingNavigationController.abort();
 +    pendingNavigationController = null;
++
++    // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++    // before navigation state is updated. Make sure the navigation can be
++    // cancelled if another navigation starts while we wait.
++    if (init.unstable_onWillCompleteNavigation) {
++      let navigationController = new AbortController();
++      pendingNavigationController = navigationController;
++
++      try {
++        const result = init.unstable_onWillCompleteNavigation();
++        if (result instanceof Promise) await result;
++      } catch (error) {
++        setTimeout(() => {
++          throw error;
++        }, 0);
++      }
++
++      if (navigationController.signal.aborted) {
++        return;
++      }
++
++      pendingNavigationController = null;
++    }
 +
 +    // On a successful navigation we can assume we got through all blockers
 +    // so we can start fresh
@@ -466,7 +832,7 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..c9a1ef8b22029f72f1dbb970fff3a1e5
    // Trigger a navigation event, which can either be a numerical POP or a PUSH
    // replace with an optional submission
    async function navigate(
-@@ -1180,6 +1246,7 @@ export function createRouter(init: RouterInit): Router {
+@@ -1180,6 +1274,7 @@ export function createRouter(init: RouterInit): Router {
        pendingError: error,
        preventScrollReset,
        replace: opts && opts.replace,
@@ -474,7 +840,7 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..c9a1ef8b22029f72f1dbb970fff3a1e5
      });
    }
  
-@@ -1230,6 +1297,7 @@ export function createRouter(init: RouterInit): Router {
+@@ -1230,6 +1325,7 @@ export function createRouter(init: RouterInit): Router {
        startUninterruptedRevalidation?: boolean;
        preventScrollReset?: boolean;
        replace?: boolean;
@@ -482,7 +848,38 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..c9a1ef8b22029f72f1dbb970fff3a1e5
      }
    ): Promise<void> {
      // Abort any in-progress navigations and start a new one. Unset any ongoing
-@@ -1276,7 +1344,7 @@ export function createRouter(init: RouterInit): Router {
+@@ -1257,6 +1353,30 @@ export function createRouter(init: RouterInit): Router {
+         getShortCircuitMatches(routesToUse);
+       // Cancel all pending deferred on 404s since we don't keep any routes
+       cancelActiveDeferreds();
++
++      // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++      // before navigation state is updated. Make sure the navigation can be
++      // cancelled if another navigation starts while we wait.
++      if (init.unstable_onWillCompleteNavigation) {
++        let navigationController = new AbortController();
++        pendingNavigationController = navigationController;
++
++        try {
++          const result = init.unstable_onWillCompleteNavigation();
++          if (result instanceof Promise) await result;
++        } catch (error) {
++          setTimeout(() => {
++            throw error;
++          }, 0);
++        }
++
++        if (navigationController.signal.aborted) {
++          return;
++        }
++
++        pendingNavigationController = null;
++      }
++
+       completeNavigation(location, {
+         matches: notFoundMatches,
+         loaderData: {},
+@@ -1276,9 +1396,32 @@ export function createRouter(init: RouterInit): Router {
      if (
        state.initialized &&
        !isRevalidationRequired &&
@@ -490,16 +887,122 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..c9a1ef8b22029f72f1dbb970fff3a1e5
 +      (isHashChangeOnly(state.location, location) || (opts && opts.unstable_shouldRevalidate === false)) &&
        !(opts && opts.submission && isMutationMethod(opts.submission.formMethod))
      ) {
++      // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++      // before navigation state is updated. Make sure the navigation can be
++      // cancelled if another navigation starts while we wait.
++      if (init.unstable_onWillCompleteNavigation) {
++        let navigationController = new AbortController();
++        pendingNavigationController = navigationController;
++
++        try {
++          const result = init.unstable_onWillCompleteNavigation();
++          if (result instanceof Promise) await result;
++        } catch (error) {
++          setTimeout(() => {
++            throw error;
++          }, 0);
++        }
++
++        if (navigationController.signal.aborted) {
++          return;
++        }
++
++        pendingNavigationController = null;
++      }
++
        completeNavigation(location, { matches });
-@@ -2486,6 +2554,7 @@ export function createRouter(init: RouterInit): Router {
+       return;
+     }
+@@ -1345,6 +1488,24 @@ export function createRouter(init: RouterInit): Router {
+       return;
+     }
+ 
++    // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++    // before navigation state is updated. Make sure the navigation can be
++    // cancelled if another navigation starts while we wait.
++    if (init.unstable_onWillCompleteNavigation) {
++      try {
++        const result = init.unstable_onWillCompleteNavigation();
++        if (result instanceof Promise) await result;
++      } catch (error) {
++        setTimeout(() => {
++          throw error;
++        }, 0);
++      }
++
++      if (request.signal.aborted) {
++        return;
++      }
++    }
++
+     // Clean up now that the action/loaders have completed.  Don't clean up if
+     // we short circuited because pendingNavigationController will have already
+     // been assigned to a new controller for the next navigation
+@@ -1499,6 +1660,24 @@ export function createRouter(init: RouterInit): Router {
+ 
+     // Short circuit if we have no loaders to run
+     if (matchesToLoad.length === 0 && revalidatingFetchers.length === 0) {
++      // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++      // before navigation state is updated. Make sure the navigation can be
++      // cancelled if another navigation starts while we wait.
++      if (init.unstable_onWillCompleteNavigation) {
++        try {
++          const result = init.unstable_onWillCompleteNavigation();
++          if (result instanceof Promise) await result;
++        } catch (error) {
++          setTimeout(() => {
++            throw error;
++          }, 0);
++        }
++
++        if (request.signal.aborted) {
++          return { shortCircuited: true };
++        }
++      }
++
+       let updatedFetchers = markFetchRedirectsDone();
+       completeNavigation(location, {
+         matches,
+@@ -1905,6 +2084,30 @@ export function createRouter(init: RouterInit): Router {
+     ) {
+       invariant(pendingAction, "Expected pending action");
+       pendingNavigationController && pendingNavigationController.abort();
++      pendingNavigationController = null;
++
++      // NOTE(calebmer): Allow our code to add a delay after data has loaded but
++      // before navigation state is updated. Make sure the navigation can be
++      // cancelled if another navigation starts while we wait.
++      if (init.unstable_onWillCompleteNavigation) {
++        let navigationController = new AbortController();
++        pendingNavigationController = navigationController;
++
++        try {
++          const result = init.unstable_onWillCompleteNavigation();
++          if (result instanceof Promise) await result;
++        } catch (error) {
++          setTimeout(() => {
++            throw error;
++          }, 0);
++        }
++
++        if (navigationController.signal.aborted) {
++          return;
++        }
++
++        pendingNavigationController = null;
++      }
+ 
+       completeNavigation(state.navigation.location, {
+         matches,
+@@ -2486,6 +2689,7 @@ export function createRouter(init: RouterInit): Router {
      // TODO: Remove setRoutes, it's temporary to avoid dealing with
      // updating the tree while validating the update algorithm.
      _internalSetRoutes,
-+    _internalUnsafelyRestoreNavigation: unsafelyRestoreNavigation
++    unstable_unsafelyRestoreNavigation: unsafelyRestoreNavigation
    };
  
    return router;
-@@ -3705,7 +3774,10 @@ async function callLoaderOrAction(
+@@ -3705,7 +3909,10 @@ async function callLoaderOrAction(
      // Check between word boundaries instead of startsWith() due to the last
      // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
      if (contentType && /\bapplication\/json\b/.test(contentType)) {

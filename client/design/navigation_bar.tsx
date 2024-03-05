@@ -965,6 +965,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                             size="base"
                                             description="Go back"
                                             withoutTooltip={true}
+                                            pressErrorTitle="Couldn’t go back"
                                             onPress={() => navigate(-1)}
                                         >
                                             <ArrowLeft />

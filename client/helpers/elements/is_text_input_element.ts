@@ -22,7 +22,7 @@ const textInputTypes = new Set([
  *
  * Supports `null` so it can be used with `document.activeElement`.
  */
-export function isTextInputElement(element: Element | null): boolean {
+export function isTextInputElement(element: Element | null): element is HTMLElement {
     return (
         element !== null &&
         ((element instanceof HTMLElement && element.isContentEditable) ||

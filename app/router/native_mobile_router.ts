@@ -15,6 +15,7 @@ import {
 import {FutureConfig, UNSAFE_mapRouteProperties as mapRouteProperties} from "react-router";
 import {RouteObject} from "react-router-dom";
 import {createStaticRouter} from "react-router-dom/server.js";
+import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -65,6 +66,7 @@ export function createNativeMobileRouter(
     assert(NativeMobileBridge);
 
     const history = new NativeMobileMemoryHistory();
+    let waitForKeyboardAnimationPromise: Promise<void> | undefined;
 
     const routerBase = createRouter({
         basename: opts?.basename,
@@ -76,6 +78,8 @@ export function createNativeMobileRouter(
         hydrationData: opts?.hydrationData,
         routes,
         mapRouteProperties,
+        // Wait for the keyboard animation to finish before completing our navigation.
+        unstable_onWillCompleteNavigation: () => waitForKeyboardAnimationPromise,
     });
 
     history.initializeRouter(routerBase);
@@ -120,7 +124,25 @@ export function createNativeMobileRouter(
             });
         },
         enableScrollRestoration: routerBase.enableScrollRestoration.bind(routerBase),
-        navigate: routerBase.navigate.bind(routerBase),
+        navigate: (...args) => {
+            // When a navigation is performed and we have a focused text input element,
+            // blur it. We want to wait for the virtual keyboard to close before navigating
+            // so we don't end up with snapshots of partially animated bottom bar elements.
+            if (isTextInputElement(document.activeElement)) {
+                document.activeElement.blur();
+            }
+
+            if (!waitForKeyboardAnimationPromise) {
+                waitForKeyboardAnimationPromise = new Promise<void>(resolve =>
+                    NativeMobileBridge!.keyboard.scheduleAfterAnimation(resolve),
+                );
+                waitForKeyboardAnimationPromise.finally(() => {
+                    waitForKeyboardAnimationPromise = undefined;
+                });
+            }
+
+            return (routerBase as any).navigate(...args);
+        },
         fetch: routerBase.fetch.bind(routerBase),
         revalidate: routerBase.revalidate.bind(routerBase),
         createHref: routerBase.createHref.bind(routerBase),
@@ -132,8 +154,8 @@ export function createNativeMobileRouter(
         _internalSetRoutes: routerBase._internalSetRoutes.bind(routerBase),
         _internalFetchControllers: routerBase._internalFetchControllers,
         _internalActiveDeferreds: routerBase._internalActiveDeferreds,
-        _internalUnsafelyRestoreNavigation:
-            routerBase._internalUnsafelyRestoreNavigation.bind(routerBase),
+        unstable_unsafelyRestoreNavigation:
+            routerBase.unstable_unsafelyRestoreNavigation.bind(routerBase),
 
         initialize: () => {
             // When native initiates a pop navigation, we need to execute the pop
@@ -216,10 +238,10 @@ export function createNativeMobileStaticRouter(
         _internalSetRoutes: routerBase._internalSetRoutes.bind(routerBase),
         _internalFetchControllers: routerBase._internalFetchControllers,
         _internalActiveDeferreds: routerBase._internalActiveDeferreds,
-        _internalUnsafelyRestoreNavigation:
+        unstable_unsafelyRestoreNavigation:
             // NOTE(calebmer): Optional because we don't patch `react-router-dom` to
             // implement a throwing version of `_internalUnsafelyRestoreNavigation`.
-            routerBase._internalUnsafelyRestoreNavigation?.bind(routerBase),
+            routerBase.unstable_unsafelyRestoreNavigation?.bind(routerBase),
 
         initialize: routerBase.initialize.bind(routerBase),
         dispose: routerBase.dispose.bind(routerBase),
@@ -481,7 +503,7 @@ class NativeMobileMemoryHistory implements History {
         // asynchronous navigations.
         //
         // [1]: https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/router/history.ts#L319-L321
-        this._router!._internalUnsafelyRestoreNavigation({
+        void this._router!.unstable_unsafelyRestoreNavigation({
             historyAction: Action.Pop,
             // Use `this._currentEntryLocation` instead of `routerState.location` since we
             // may modify the state of `this._currentEntryLocation`. They should be the

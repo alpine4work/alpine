@@ -404,6 +404,13 @@ export const NativeMobileBridge: {
          * input keyboard.
          */
         cleanupAfterSubstitute(): Promise<void>;
+
+        /**
+         * Schedule a callback to run after keyboard show/hide animations complete. If
+         * no keyboard animation is running then the callback will be fired
+         * immediately.
+         */
+        scheduleAfterAnimation(action: () => void): void;
     };
 
     /**
