@@ -3161,7 +3161,7 @@ async function getDocumentCommentThreadItem(
         commentThreadId,
         consistency,
     });
-    if (!item) throw new NotFoundError("Could not find document comment thread");
+    if (!item) throw new NotFoundError("Couldn't find document comment thread");
     return item;
 }
 
@@ -3695,7 +3695,7 @@ export function deleteDocumentComment(
 /**
  * Get a document comment thread and some initial comments for that thread.
  */
-export async function getDocumentCommentThreadAndInitialComments(
+export async function getDocumentCommentThreadAndInitialCommentsIfExists(
     context: ServerActionContext,
     {
         documentId,
@@ -3707,7 +3707,7 @@ export async function getDocumentCommentThreadAndInitialComments(
         limit: number;
     },
 ): Promise<{
-    commentThread: DocumentCommentThreadModel;
+    commentThread: DocumentCommentThreadModel | null;
     initialComments: Array<DocumentCommentModel>;
     initialOtherReferencedComments: Array<DocumentCommentModel>;
 }> {
@@ -3716,10 +3716,11 @@ export async function getDocumentCommentThreadAndInitialComments(
     const [, commentThread, {comments, otherReferencedComments}] = await runAllPromises([
         documentAuthorizationPromise,
         (async () => {
-            const commentThreadItem = await getDocumentCommentThreadItem(context, {
+            const commentThreadItem = await getDocumentCommentThreadItemIfExists(context, {
                 documentId,
                 commentThreadId,
             });
+            if (!commentThreadItem) return null;
 
             const {spaceId} = await documentAuthorizationPromise;
             return createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
@@ -3733,6 +3734,16 @@ export async function getDocumentCommentThreadAndInitialComments(
             beforeCommentIndex: null,
         }),
     ]);
+
+    if (!commentThread) {
+        return {
+            commentThread: null,
+            // Return empty comment arrays even if we got `comments` and
+            // `otherReferencedComments` since we haven't authorized the user has access.
+            initialComments: [],
+            initialOtherReferencedComments: [],
+        };
+    }
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
 
@@ -3748,6 +3759,29 @@ export async function getDocumentCommentThreadAndInitialComments(
         initialComments: comments,
         initialOtherReferencedComments: otherReferencedComments,
     };
+}
+
+/**
+ * Get a document comment thread and some initial comments for that thread.
+ */
+export async function getDocumentCommentThreadAndInitialComments(
+    context: ServerActionContext,
+    input: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        limit: number;
+    },
+): Promise<{
+    commentThread: DocumentCommentThreadModel;
+    initialComments: Array<DocumentCommentModel>;
+    initialOtherReferencedComments: Array<DocumentCommentModel>;
+}> {
+    const {commentThread, initialComments, initialOtherReferencedComments} =
+        await getDocumentCommentThreadAndInitialCommentsIfExists(context, input);
+
+    if (!commentThread) throw new NotFoundError("Couldn't find document comment thread");
+
+    return {commentThread, initialComments, initialOtherReferencedComments};
 }
 
 /**

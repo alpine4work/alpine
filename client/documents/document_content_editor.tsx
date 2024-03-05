@@ -5,6 +5,7 @@ import {Memo, Ref, useCallback, useEffect, useId, useMemo, useRef, useState} fro
 import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {createCommentThreadMetaKey} from "~/client/content/content_editor_state.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
@@ -62,6 +63,7 @@ import {
     DocumentModel,
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
+import {InternalError} from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -138,12 +140,12 @@ type DocumentContentEditorSidebarState =
           readonly animationState: "Opening" | "Closing" | null;
           readonly transition: DocumentContentEditorSidebarTransition | null;
           readonly commentThreadId: DocumentCommentThreadId;
-          readonly dataPromise: PromiseImmediate<DocumentContentEditorSidebarData>;
+          readonly dataPromise: PromiseImmediate<DocumentContentEditorSidebarData | null>;
       };
 
 type DocumentContentEditorSidebarTransition = {
     readonly commentThreadId: DocumentCommentThreadId;
-    readonly dataPromise: PromiseImmediate<DocumentContentEditorSidebarData>;
+    readonly dataPromise: PromiseImmediate<DocumentContentEditorSidebarData | null>;
     // Promise that resolves when the transition finishes. This may happen before
     // the data promise resolves! Or if another transition starts cancelling our
     // previous transition.
@@ -180,6 +182,7 @@ function DocumentContentEditorStateful({
 }) {
     const {id: documentId, spaceId} = initialDocument;
 
+    const context = useAppContext();
     const isInitialAppRender = useIsInitialAppRender();
     const {isAppleDevice} = useClientInfo();
     const isMobile = useIsMobile();
@@ -440,16 +443,20 @@ function DocumentContentEditorStateful({
         }
 
         const dataPromise = procedures
-            .getCommentThreadAndInitialComments({
+            .getCommentThreadAndInitialCommentsIfExists({
                 commentThreadId,
                 limit: getInitialLoadMessageCount(getClientInfoWithoutListening()),
             })
-            .then(
-                (data): DocumentContentEditorSidebarData => ({
-                    ...data,
+            .then((data): DocumentContentEditorSidebarData | null => {
+                if (data.commentThread === null) return null;
+
+                return {
+                    commentThread: data.commentThread,
+                    initialComments: data.initialComments,
+                    initialOtherReferencedComments: data.initialOtherReferencedComments,
                     initialOptimisticComments: [],
-                }),
-            );
+                };
+            });
 
         const pendingPromiseResolver = createPromiseResolver();
 
@@ -505,7 +512,28 @@ function DocumentContentEditorStateful({
         //
         // - Our data promise resolves
         // - Our loading indicator delay finishes
-        transition.dataPromise.then(acceptTransition, acceptTransition);
+        transition.dataPromise.then(data => {
+            if (isCancelled) return;
+            if (isAccepted) return;
+
+            if (!data) {
+                context.tracer
+                    .getRoot()
+                    .logUncaughtException(
+                        "Selected document comment thread couldn't be opened",
+                        new InternalError("Couldn't find document comment thread"),
+                    );
+
+                // Comment thread not found so cancel the transition.
+                setSidebarState({
+                    isOpen: false,
+                    transition: null,
+                });
+            } else {
+                acceptTransition();
+            }
+        }, acceptTransition);
+
         const timeout = createTimeout(
             acceptTransition,
             delayScreenTransitionLoadingIndicatorLimitMs,
@@ -516,7 +544,7 @@ function DocumentContentEditorStateful({
             timeout.clear();
             transition.pendingPromiseResolver.resolve();
         };
-    }, [sidebarState.transition]);
+    }, [context.tracer, sidebarState.transition]);
 
     /* ========================================================================== *\
      *                        Comment decoration collection                       *
@@ -1167,7 +1195,7 @@ function DocumentContentEditorSidebar({
     content: DocumentContentWithReferences;
     commentThreadId: DocumentCommentThreadId;
     onCommentThreadSnippetPress: Memo<(commentThreadId: DocumentCommentThreadId) => void>;
-    initialDataPromise: PromiseImmediate<DocumentContentEditorSidebarData>;
+    initialDataPromise: PromiseImmediate<DocumentContentEditorSidebarData | null>;
     isConnected: boolean;
     procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
@@ -1176,12 +1204,32 @@ function DocumentContentEditorSidebar({
     onClose: () => void;
     openCommentThread: (commentThreadId: DocumentCommentThreadId) => Promise<void>;
 }) {
+    const context = useAppContext();
     const {isAppleDevice} = useClientInfo();
 
     const previousCommentThreadButtonRef = useRef<HTMLElement>(null);
     const nextCommentThreadButtonRef = useRef<HTMLElement>(null);
 
     const initialDataResult = usePromise(initialDataPromise);
+
+    // If the comment thread finishes loading but there's no data then close the
+    // comment thread.
+    const initialDataResultRef = useRef<typeof initialDataResult | null>(null);
+    useEffect(() => {
+        if (initialDataResultRef.current === initialDataResult) return;
+        initialDataResultRef.current = initialDataResult;
+
+        if (!initialDataResult.isPending && !initialDataResult.value) {
+            context.tracer
+                .getRoot()
+                .logUncaughtException(
+                    "Selected document comment thread couldn't be opened",
+                    new InternalError("Couldn't find document comment thread"),
+                );
+
+            onClose();
+        }
+    }, [context.tracer, initialDataResult, onClose]);
 
     const {previousCommentThreadId, nextCommentThreadId} = useMemo(() => {
         let previousCommentThreadId: DocumentCommentThreadId | null = null;
@@ -1288,7 +1336,7 @@ function DocumentContentEditorSidebar({
                 </Box>
                 {useMemo(
                     () =>
-                        initialDataResult.isPending ? (
+                        initialDataResult.isPending || !initialDataResult.value ? (
                             <Box
                                 flexGrow="1"
                                 display="flex"

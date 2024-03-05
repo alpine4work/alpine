@@ -435,6 +435,17 @@ class SpaceAccountsCache {
 
                 this._entryBySpaceId.clear();
             });
+
+            // We may have some `afterEach()` callbacks that run after our `afterEach()`
+            // above adding back entries to our space accounts cache. So have a backup
+            // `afterAll()` that runs after all `afterEach()` callbacks.
+            afterAll(() => {
+                for (const {timeout} of this._entryBySpaceId.values()) {
+                    timeout.clear();
+                }
+
+                this._entryBySpaceId.clear();
+            });
         }
     }
 

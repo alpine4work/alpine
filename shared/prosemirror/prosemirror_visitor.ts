@@ -45,6 +45,9 @@ export function visitProsemirrorNode(rootNode: Node, visitor: ProsemirrorVisitor
 
 /**
  * Call the visitor for all relevant objects in the provided step.
+ *
+ * If the step removes a mark we don't visit the mark since the mark is not
+ * present in the content.
  */
 export function visitProsemirrorStep(rootStep: Step, visitor: ProsemirrorVisitor) {
     const step = rootStep as ExhaustiveStep;
@@ -53,12 +56,16 @@ export function visitProsemirrorStep(rootStep: Step, visitor: ProsemirrorVisitor
             break;
         }
         case "addMark":
-        case "removeMark":
         case "addNodeMark":
-        case "removeNodeMark":
-        case "removeAllMarks":
         case "addMarksAfterRemoveAll": {
             visitor.visitMark?.(step.mark);
+            break;
+        }
+        case "removeMark":
+        case "removeNodeMark":
+        case "removeAllMarks": {
+            // We don't visit marks that are removed. Removed marks don't contribute a new
+            // reference to the content.
             break;
         }
         case "replace":

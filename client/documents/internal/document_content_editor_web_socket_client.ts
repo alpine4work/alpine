@@ -38,7 +38,7 @@ export type DocumentContentEditorWebSocketClientProcedures = Pick<
     | "deleteComment"
     | "startTypingInCommentInput"
     | "stopTypingInCommentInput"
-    | "getCommentThreadAndInitialComments"
+    | "getCommentThreadAndInitialCommentsIfExists"
     | "getCommentsFromStart"
     | "getCommentsFromEnd"
 >;
@@ -107,7 +107,7 @@ export class DocumentContentEditorWebSocketClient {
             "deleteComment",
             "startTypingInCommentInput",
             "stopTypingInCommentInput",
-            "getCommentThreadAndInitialComments",
+            "getCommentThreadAndInitialCommentsIfExists",
             "getCommentsFromStart",
             "getCommentsFromEnd",
         ]);
@@ -236,7 +236,10 @@ export class DocumentContentEditorWebSocketClient {
                     // If we don't have an editor state then our document is loading so there should
                     // be no updates from this client and we should always update the presence
                     // state.
-                    if (event.clientId !== this._state.getSnapshot().editorState.getClientId()) {
+                    if (
+                        event.clientId !== this._state.getSnapshot().editorState.getClientId() &&
+                        event.updateOtherPresenceState
+                    ) {
                         actions.push({
                             type: "Extra",
                             extra: {

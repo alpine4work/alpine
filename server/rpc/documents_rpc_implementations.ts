@@ -8,7 +8,7 @@ import {
     createDocumentComment,
     deleteDocumentComment,
     getDocument,
-    getDocumentCommentThreadAndInitialComments,
+    getDocumentCommentThreadAndInitialCommentsIfExists,
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
     getDocumentContentSteps,
@@ -95,10 +95,13 @@ implementRpc(
 );
 
 implementRpc(
-    definition.getDocumentCommentThreadAndInitialComments,
+    definition.getDocumentCommentThreadAndInitialCommentsIfExists,
     {visibility: ["DocumentCollaborationService"]},
     (context, input) => {
-        return getDocumentCommentThreadAndInitialComments(context.actor.authorizeSession(), input);
+        return getDocumentCommentThreadAndInitialCommentsIfExists(
+            context.actor.authorizeSession(),
+            input,
+        );
     },
 );
 

@@ -104,15 +104,15 @@ export const getDocumentContentReferences = defineRpc({
     },
 });
 
-export const getDocumentCommentThreadAndInitialComments = defineRpc({
-    name: "getDocumentCommentThreadAndInitialComments",
+export const getDocumentCommentThreadAndInitialCommentsIfExists = defineRpc({
+    name: "getDocumentCommentThreadAndInitialCommentsIfExists",
     input: {
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
         limit: Schema.integer,
     },
     output: {
-        commentThread: DocumentCommentThreadModel.schema(),
+        commentThread: DocumentCommentThreadModel.schema().nullable(),
         initialComments: Schema.array(DocumentCommentModel.schema()),
         initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
     },

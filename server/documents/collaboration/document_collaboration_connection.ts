@@ -40,7 +40,7 @@ import {
     backfillDocumentComments,
     createDocumentComment,
     deleteDocumentComment,
-    getDocumentCommentThreadAndInitialComments,
+    getDocumentCommentThreadAndInitialCommentsIfExists,
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
     getDocumentPreviewIfExists,
@@ -190,7 +190,7 @@ export class DocumentCollaborationConnection {
                             version,
                         );
 
-                        const stepsContentReferences =
+                        const {references: stepsContentReferences} =
                             await this._contentManager.getContentReferencesForSteps(
                                 context,
                                 steps.map(({step}) => step),
@@ -360,7 +360,7 @@ export class DocumentCollaborationConnection {
             return connection.stopTypingInMessageInput(context, input);
         },
 
-        getCommentThreadAndInitialComments: async (context, input) => {
+        getCommentThreadAndInitialCommentsIfExists: async (context, input) => {
             // Wait for any pending messages related to document comments before handling
             // comment messages. This way if we are processing an `UpdateContent` that
             // creates the comment thread we are trying to access we will wait until it
@@ -375,7 +375,7 @@ export class DocumentCollaborationConnection {
             );
 
             if (!optimisticCommentThread) {
-                return getDocumentCommentThreadAndInitialComments(context, {
+                return getDocumentCommentThreadAndInitialCommentsIfExists(context, {
                     documentId: this._contentManager.id,
                     ...input,
                 });

@@ -33,10 +33,12 @@ import {
 } from "~/shared/documents/document_model.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {wait} from "~/shared/helpers/async/wait.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
 import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
+import {RemoveAllMarksStep} from "~/shared/prosemirror/remove_all_marks_step.js";
 
 const context = createTestWorkerContext();
 const {connectForTest} = DocumentCollaborationDurableObject.test(context);
@@ -901,18 +903,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
             type: "UpdateContentWithoutPersistence",
             newVersion: 3,
             steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
-            stepsContentReferences: {
-                ...emptyDocumentContentReferences,
-                commentThreadById: new Map([
-                    [
-                        commentThreadId,
-                        {
-                            commentCount: 2,
-                            commentAuthors: [session1.account, session3.account],
-                        },
-                    ],
-                ]),
-            },
+            stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
         },
@@ -977,18 +968,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
             type: "UpdateContentWithoutPersistence",
             newVersion: 3,
             steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
-            stepsContentReferences: {
-                ...emptyDocumentContentReferences,
-                commentThreadById: new Map([
-                    [
-                        commentThreadId,
-                        {
-                            commentCount: 2,
-                            commentAuthors: [session1.account, session3.account],
-                        },
-                    ],
-                ]),
-            },
+            stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
         },
@@ -1898,15 +1878,17 @@ test("while comment thread is persisting we will respond to comment load request
         },
     ]);
 
-    const {
-        commentThread: {createdTime},
-    } = await connection1.procedures.getCommentThreadAndInitialComments({
-        commentThreadId,
-        limit: 100,
-    });
+    const {commentThread} = await connection1.procedures.getCommentThreadAndInitialCommentsIfExists(
+        {
+            commentThreadId,
+            limit: 100,
+        },
+    );
+
+    const {createdTime} = assertExists(commentThread);
 
     expect(
-        await connection1.procedures.getCommentThreadAndInitialComments({
+        await connection1.procedures.getCommentThreadAndInitialCommentsIfExists({
             commentThreadId,
             limit: 100,
         }),
@@ -1941,7 +1923,7 @@ test("while comment thread is persisting we will respond to comment load request
     });
 
     expect(
-        await connection2.procedures.getCommentThreadAndInitialComments({
+        await connection2.procedures.getCommentThreadAndInitialCommentsIfExists({
             commentThreadId,
             limit: 100,
         }),
@@ -1976,7 +1958,7 @@ test("while comment thread is persisting we will respond to comment load request
     });
 
     expect(
-        await connection1.procedures.getCommentThreadAndInitialComments({
+        await connection1.procedures.getCommentThreadAndInitialCommentsIfExists({
             commentThreadId,
             limit: 0,
         }),
@@ -1994,7 +1976,7 @@ test("while comment thread is persisting we will respond to comment load request
     });
 
     expect(
-        await connection2.procedures.getCommentThreadAndInitialComments({
+        await connection2.procedures.getCommentThreadAndInitialCommentsIfExists({
             commentThreadId,
             limit: 0,
         }),
@@ -2268,7 +2250,7 @@ test("while comment thread is persisting we will respond to comment load request
     ]);
 
     expect(
-        await connection1.procedures.getCommentThreadAndInitialComments({
+        await connection1.procedures.getCommentThreadAndInitialCommentsIfExists({
             commentThreadId,
             limit: 100,
         }),
@@ -2303,7 +2285,7 @@ test("while comment thread is persisting we will respond to comment load request
     });
 
     expect(
-        await connection2.procedures.getCommentThreadAndInitialComments({
+        await connection2.procedures.getCommentThreadAndInitialCommentsIfExists({
             commentThreadId,
             limit: 100,
         }),
@@ -2338,7 +2320,7 @@ test("while comment thread is persisting we will respond to comment load request
     });
 
     expect(
-        await connection1.procedures.getCommentThreadAndInitialComments({
+        await connection1.procedures.getCommentThreadAndInitialCommentsIfExists({
             commentThreadId,
             limit: 0,
         }),
@@ -2356,7 +2338,7 @@ test("while comment thread is persisting we will respond to comment load request
     });
 
     expect(
-        await connection2.procedures.getCommentThreadAndInitialComments({
+        await connection2.procedures.getCommentThreadAndInitialCommentsIfExists({
             commentThreadId,
             limit: 0,
         }),
@@ -2608,4 +2590,622 @@ test("while comment thread is persisting we will respond to comment load request
         otherReferencedComments: [],
         lastCommentChangeTime: null,
     });
+});
+
+test("will cleanup comment thread marks if from a different document", async () => {
+    const document1 = await createDocument(context.action(session1), {
+        spaceId: space.id,
+        content: emptyDocumentContent,
+    });
+
+    const document2 = await createDocument(context.action(session1), {
+        spaceId: space.id,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocumentContent(context.action(session1), {
+        id: document1.id,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+        clientId: generateId(),
+    });
+
+    const commentThreadId = generateId<DocumentCommentThreadId>();
+
+    const client1Id = generateId<ContentEditorClientId>();
+    const connection1 = await connectForTest(context.action(session1), document1.id);
+    const connection2 = await connectForTest(context.action(session2), document1.id);
+    const connection3 = await connectForTest(context.action(session1), document2.id);
+    const connection4 = await connectForTest(context.action(session2), document2.id);
+
+    await connection1.procedures.backfill({
+        version: 0,
+    });
+
+    await connection2.procedures.backfill({
+        version: 0,
+    });
+
+    await connection3.procedures.backfill({
+        version: 0,
+    });
+
+    await connection4.procedures.backfill({
+        version: 0,
+    });
+
+    await connection1.procedures.updateContent({
+        version: 1,
+        steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+        clientId: client1Id,
+        createCommentThreads: [
+            {
+                commentThreadId,
+                initialCommentContent: createSimpleMessageContent("Test message content 1"),
+            },
+        ],
+        updateOurPresenceState: {state: null},
+    });
+
+    await waitForPersistance(connection1, 2);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 2,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 2,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThreadId,
+                        {
+                            commentCount: 1,
+                            commentAuthors: [session1.account],
+                        },
+                    ],
+                ]),
+            },
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 2,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 2,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThreadId,
+                        {
+                            commentCount: 1,
+                            commentAuthors: [session1.account],
+                        },
+                    ],
+                ]),
+            },
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+        },
+    ]);
+
+    await connection1.procedures.updateContent({
+        version: 2,
+        steps: [
+            new ReplaceStep(
+                16,
+                16,
+                new Slice(
+                    Fragment.from([
+                        schema.text(" "),
+                        schema.text("Some new text", [schema.mark("comment", {commentThreadId})]),
+                    ]),
+                    0,
+                    0,
+                ),
+            ),
+        ],
+        clientId: client1Id,
+        createCommentThreads: [],
+        updateOurPresenceState: {state: null},
+    });
+
+    await waitForPersistance(connection1, 3);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 3,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 3,
+            steps: [
+                new ReplaceStep(
+                    16,
+                    16,
+                    new Slice(
+                        Fragment.from([
+                            schema.text(" "),
+                            schema.text("Some new text", [
+                                schema.mark("comment", {commentThreadId}),
+                            ]),
+                        ]),
+                        0,
+                        0,
+                    ),
+                ),
+            ],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThreadId,
+                        {
+                            commentCount: 1,
+                            commentAuthors: [session1.account],
+                        },
+                    ],
+                ]),
+            },
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 3,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 3,
+            steps: [
+                new ReplaceStep(
+                    16,
+                    16,
+                    new Slice(
+                        Fragment.from([
+                            schema.text(" "),
+                            schema.text("Some new text", [
+                                schema.mark("comment", {commentThreadId}),
+                            ]),
+                        ]),
+                        0,
+                        0,
+                    ),
+                ),
+            ],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThreadId,
+                        {
+                            commentCount: 1,
+                            commentAuthors: [session1.account],
+                        },
+                    ],
+                ]),
+            },
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+        },
+    ]);
+
+    await connection3.procedures.updateContent({
+        version: 0,
+        steps: [
+            new ReplaceStep(
+                3,
+                3,
+                new Slice(
+                    Fragment.from([
+                        schema.text("Some new text", [schema.mark("comment", {commentThreadId})]),
+                    ]),
+                    0,
+                    0,
+                ),
+            ),
+        ],
+        clientId: client1Id,
+        createCommentThreads: [],
+        updateOurPresenceState: {state: null},
+    });
+
+    await waitForPersistance(connection3, 2);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection3
+            .takeEvents()
+            .sort(
+                (a, b) =>
+                    defaultCompareStrings(a.type, b.type) ||
+                    ((a as any).newVersion ?? Infinity) - ((b as any).newVersion ?? Infinity),
+            ),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 1,
+        },
+        {
+            type: "PersistedContent",
+            newVersion: 2,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 1,
+            steps: [
+                new ReplaceStep(
+                    3,
+                    3,
+                    new Slice(
+                        Fragment.from([
+                            schema.text("Some new text", [
+                                schema.mark("comment", {commentThreadId}),
+                            ]),
+                        ]),
+                        0,
+                        0,
+                    ),
+                ),
+            ],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection3.id, state: null},
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 2,
+            steps: [new RemoveAllMarksStep(schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: expect.not.stringMatching(client1Id),
+            updateOtherPresenceState: null,
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection4
+            .takeEvents()
+            .sort(
+                (a, b) =>
+                    defaultCompareStrings(a.type, b.type) ||
+                    ((a as any).newVersion ?? Infinity) - ((b as any).newVersion ?? Infinity),
+            ),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 1,
+        },
+        {
+            type: "PersistedContent",
+            newVersion: 2,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 1,
+            steps: [
+                new ReplaceStep(
+                    3,
+                    3,
+                    new Slice(
+                        Fragment.from([
+                            schema.text("Some new text", [
+                                schema.mark("comment", {commentThreadId}),
+                            ]),
+                        ]),
+                        0,
+                        0,
+                    ),
+                ),
+            ],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection3.id, state: null},
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 2,
+            steps: [new RemoveAllMarksStep(schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: expect.not.stringMatching(client1Id),
+            updateOtherPresenceState: null,
+        },
+    ]);
+});
+
+test("can add comment thread marks back to document after they've been removed", async () => {
+    const document = await createDocument(context.action(session1), {
+        spaceId: space.id,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocumentContent(context.action(session1), {
+        id: document.id,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+        clientId: generateId(),
+    });
+
+    const commentThreadId = generateId<DocumentCommentThreadId>();
+
+    const client1Id = generateId<ContentEditorClientId>();
+    const connection1 = await connectForTest(context.action(session1), document.id);
+    const connection2 = await connectForTest(context.action(session2), document.id);
+
+    await connection1.procedures.backfill({
+        version: 0,
+    });
+
+    await connection2.procedures.backfill({
+        version: 0,
+    });
+
+    await connection1.procedures.updateContent({
+        version: 1,
+        steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+        clientId: client1Id,
+        createCommentThreads: [
+            {
+                commentThreadId,
+                initialCommentContent: createSimpleMessageContent("Test message content 1"),
+            },
+        ],
+        updateOurPresenceState: {state: null},
+    });
+
+    await waitForPersistance(connection1, 2);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 2,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 2,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThreadId,
+                        {
+                            commentCount: 1,
+                            commentAuthors: [session1.account],
+                        },
+                    ],
+                ]),
+            },
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 2,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 2,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThreadId,
+                        {
+                            commentCount: 1,
+                            commentAuthors: [session1.account],
+                        },
+                    ],
+                ]),
+            },
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+        },
+    ]);
+
+    await connection1.procedures.updateContent({
+        version: 2,
+        steps: [new ReplaceStep(3, 16, textSlice(""))],
+        clientId: client1Id,
+        createCommentThreads: [],
+        updateOurPresenceState: {state: null},
+    });
+
+    await waitForPersistance(connection1, 3);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 3,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 3,
+            steps: [new ReplaceStep(3, 16, textSlice(""))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 3,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 3,
+            steps: [new ReplaceStep(3, 16, textSlice(""))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+        },
+    ]);
+
+    await connection1.procedures.updateContent({
+        version: 3,
+        steps: [
+            new ReplaceStep(
+                3,
+                3,
+                new Slice(
+                    Fragment.from([
+                        schema.text("Hello, "),
+                        schema.text("world", [schema.mark("comment", {commentThreadId})]),
+                        schema.text("!"),
+                    ]),
+                    0,
+                    0,
+                ),
+            ),
+        ],
+        clientId: client1Id,
+        createCommentThreads: [],
+        updateOurPresenceState: {state: null},
+    });
+
+    await waitForPersistance(connection1, 4);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 4,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 4,
+            steps: [
+                new ReplaceStep(
+                    3,
+                    3,
+                    new Slice(
+                        Fragment.from([
+                            schema.text("Hello, "),
+                            schema.text("world", [schema.mark("comment", {commentThreadId})]),
+                            schema.text("!"),
+                        ]),
+                        0,
+                        0,
+                    ),
+                ),
+            ],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThreadId,
+                        {
+                            commentCount: 1,
+                            commentAuthors: [session1.account],
+                        },
+                    ],
+                ]),
+            },
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 4,
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 4,
+            steps: [
+                new ReplaceStep(
+                    3,
+                    3,
+                    new Slice(
+                        Fragment.from([
+                            schema.text("Hello, "),
+                            schema.text("world", [schema.mark("comment", {commentThreadId})]),
+                            schema.text("!"),
+                        ]),
+                        0,
+                        0,
+                    ),
+                ),
+            ],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThreadId,
+                        {
+                            commentCount: 1,
+                            commentAuthors: [session1.account],
+                        },
+                    ],
+                ]),
+            },
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+        },
+    ]);
 });

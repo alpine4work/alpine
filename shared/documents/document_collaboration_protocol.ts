@@ -187,13 +187,13 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
          * an optimistic comment thread created in the durable object that hasn't been
          * persisted yet.
          */
-        getCommentThreadAndInitialComments: {
+        getCommentThreadAndInitialCommentsIfExists: {
             input: {
                 commentThreadId: Schema.id<DocumentCommentThreadId>(),
                 limit: Schema.integer,
             },
             output: {
-                commentThread: DocumentCommentThreadModel.schema(),
+                commentThread: DocumentCommentThreadModel.schema().nullable(),
                 initialComments: Schema.array(DocumentCommentModel.schema()),
                 initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
             },
@@ -269,11 +269,13 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
             /**
              * Atomically update this other presence state in the same action as we update
              * content.
+             *
+             * If null then we aren't updating any presence state.
              */
             updateOtherPresenceState: Schema.object({
                 connectionId: Schema.id<WebSocketConnectionId>(),
                 state: DocumentCollaborationPresenceStateSchema.nullable(),
-            }),
+            }).nullable(),
         }),
 
         /**
