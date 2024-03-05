@@ -6,6 +6,7 @@ import {
     MobileKeyboardFrameChangeEvent,
     subscribeToMobileKeyboardWithoutBottomBarsFrameChange,
 } from "~/client/remix/subscribe_to_mobile_keyboard_without_bottom_bars_frame_change.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 
 let currentKeyboardHeight = 0;
@@ -36,11 +37,20 @@ export function registerMobileBottomBar(
     (bottomBars ??= new Set()).add(mobileBottomBarMeasurement);
 
     const oldBottomBarHeight = currentBottomBarHeight;
-    currentBottomBarHeight = getMobileBottomBarHeight(currentKeyboardHeight > 0);
-    if (oldBottomBarHeight !== currentBottomBarHeight) {
-        (bottomBarsChangeEmitter ??= new EventEmitter()).emit({
-            oldBottomBarHeight,
-            newBottomBarHeight: currentBottomBarHeight,
+    const newBottomBarHeight = getMobileBottomBarHeight(currentKeyboardHeight > 0);
+    if (oldBottomBarHeight !== newBottomBarHeight) {
+        // Emit change after a microtask so it doesn't run as part of React's
+        // mounting phase which will be setting up refs that may be used by event
+        // emitter listeners.
+        scheduleMicrotask(() => {
+            const oldBottomBarHeight = currentBottomBarHeight;
+            currentBottomBarHeight = getMobileBottomBarHeight(currentKeyboardHeight > 0);
+            if (oldBottomBarHeight !== currentBottomBarHeight) {
+                (bottomBarsChangeEmitter ??= new EventEmitter()).emit({
+                    oldBottomBarHeight,
+                    newBottomBarHeight: currentBottomBarHeight,
+                });
+            }
         });
     }
 
@@ -48,11 +58,20 @@ export function registerMobileBottomBar(
         (bottomBars ??= new Set()).delete(mobileBottomBarMeasurement);
 
         const oldBottomBarHeight = currentBottomBarHeight;
-        currentBottomBarHeight = getMobileBottomBarHeight(currentKeyboardHeight > 0);
-        if (oldBottomBarHeight !== currentBottomBarHeight) {
-            (bottomBarsChangeEmitter ??= new EventEmitter()).emit({
-                oldBottomBarHeight,
-                newBottomBarHeight: currentBottomBarHeight,
+        const newBottomBarHeight = getMobileBottomBarHeight(currentKeyboardHeight > 0);
+        if (oldBottomBarHeight !== newBottomBarHeight) {
+            // Emit change after a microtask so it doesn't run as part of React's
+            // unmounting phase which will be clearing out refs that may be used by event
+            // emitter listeners.
+            scheduleMicrotask(() => {
+                const oldBottomBarHeight = currentBottomBarHeight;
+                currentBottomBarHeight = getMobileBottomBarHeight(currentKeyboardHeight > 0);
+                if (oldBottomBarHeight !== currentBottomBarHeight) {
+                    (bottomBarsChangeEmitter ??= new EventEmitter()).emit({
+                        oldBottomBarHeight,
+                        newBottomBarHeight: currentBottomBarHeight,
+                    });
+                }
             });
         }
     };
