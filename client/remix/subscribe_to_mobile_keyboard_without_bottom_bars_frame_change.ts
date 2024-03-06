@@ -34,8 +34,11 @@ let mobileKeyboardFrameChangeEmitter: EventEmitter<MobileKeyboardFrameChangeEven
 export function subscribeToMobileKeyboardWithoutBottomBarsFrameChange(
     listener: (event: MobileKeyboardFrameChangeEvent) => void,
 ): () => void {
-    // If this isn't mobile WebKit (native app or otherwise) we don't have keyboard
-    // frame change events.
+    // If this isn't mobile WebKit (native app or otherwise) we don't have virtual
+    // keyboard frame change events.
+    //
+    // TODO(calebmer): This should probably expand to mobile Android too. Platforms
+    // with virtual keyboards.
     if (!isMobileWebKit) return () => {};
 
     return NativeMobileBridge
@@ -55,6 +58,9 @@ export function emitMobileKeyboardWithoutBottomBarsFrameChangeIfNotNative(
 ) {
     // If this isn't mobile WebKit (native app or otherwise) we don't have keyboard
     // frame change events.
+    //
+    // TODO(calebmer): This should probably expand to mobile Android too. Platforms
+    // with virtual keyboards.
     if (!isMobileWebKit) return;
 
     assert(!NativeMobileBridge);

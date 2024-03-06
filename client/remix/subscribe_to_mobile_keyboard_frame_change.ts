@@ -1,6 +1,7 @@
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {mobileBottomBarKeyboardToolbarHeightRem} from "~/client/design/mobile_bottom_bar.js";
 import {getElementWindowSafeAreaInsetBottomPx} from "~/client/design/safe_area_inset.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {
     MobileKeyboardFrameChangeEvent,
@@ -32,6 +33,13 @@ export function registerMobileBottomBar(
     height: number,
     {withKeyboardToolbar = false}: {withKeyboardToolbar?: boolean} = {},
 ): () => void {
+    // If this isn't mobile WebKit (native app or otherwise) we don't have virtual
+    // keyboard frame change events.
+    //
+    // TODO(calebmer): This should probably expand to mobile Android too. Platforms
+    // with virtual keyboards.
+    if (!isMobileWebKit) return () => {};
+
     const mobileBottomBarMeasurement = {height, withKeyboardToolbar};
 
     (bottomBars ??= new Set()).add(mobileBottomBarMeasurement);
@@ -140,6 +148,13 @@ export function subscribeToMobileKeyboardFrameChange(
         },
     ) => void,
 ): () => void {
+    // If this isn't mobile WebKit (native app or otherwise) we don't have virtual
+    // keyboard frame change events.
+    //
+    // TODO(calebmer): This should probably expand to mobile Android too. Platforms
+    // with virtual keyboards.
+    if (!isMobileWebKit) return () => {};
+
     const unsubscribe1 = subscribeToMobileKeyboardWithoutBottomBarsFrameChange(
         ({oldKeyboardHeight, newKeyboardHeight, shouldScroll, isAnimated}) => {
             const oldBottomBarHeight = getMobileBottomBarHeight(oldKeyboardHeight > 0);
