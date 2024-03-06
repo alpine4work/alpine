@@ -73,7 +73,7 @@ import {
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
 } from "~/shared/messaging/messaging_shared_styles.js";
-import {contentViewStyles, sprinkles} from "~/shared/styles/styles.js";
+import {colorSchemeVars, contentViewStyles, sprinkles} from "~/shared/styles/styles.js";
 
 const accountAvatarSize: Spacing = "7";
 const accountAvatarPaddingY: RemLength = `${
@@ -854,10 +854,11 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                         <Box
                             flexGrow="1"
                             overflow="hidden"
-                            backgroundColor="grey-5"
-                            borderRadius="md"
+                            backgroundColor="grey-0"
+                            borderRadius={messageViewBubbleBorderRadius}
                             style={{
                                 minHeight: messageViewBubbleMinHeight,
+                                boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                             }}
                         >
                             <Box
