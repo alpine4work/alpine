@@ -6,10 +6,7 @@ import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
-import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view.js";
-import {InboxViewTopBarModeToggleButton} from "~/client/inbox/inbox_view_top_bar_mode_toggle_button.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -19,7 +16,9 @@ import {
     unarchiveInboxEntry,
 } from "~/shared/rpc/notifications_rpc_definitions.js";
 
-export function InboxViewTopBar({
+export const inboxViewPeekContentTopBarHeight = "10";
+
+export function InboxViewPeekContentTopBar({
     filter,
     activeEntry,
     nextEntry,
@@ -37,102 +36,67 @@ export function InboxViewTopBar({
         options: {withAnimation: boolean},
     ) => void;
 }) {
-    const navigate = useNavigate();
-    const {space} = useSpaceContext();
-
     return (
         <Box
-            flexShrink="0"
-            height="10"
-            backgroundColor="grey-0"
-            borderBottom="grey-10"
-            position="relative"
-            zIndex="10"
+            position="absolute"
+            // Render over overlays at `zIndex="50"`
+            zIndex="60"
+            top="0"
+            left="0"
+            right="0"
+            height={inboxViewPeekContentTopBarHeight}
             display="flex"
+            justifyContent="space-between"
+            alignItems="center"
         >
-            <Box
-                flexShrink="0"
-                height="full"
-                width={inboxEntryWidth}
-                display="flex"
-                alignItems="center"
-            >
-                <Box flexGrow="1" paddingLeft="2" fontSize="200" fontStyle="semi-bold">
-                    Inbox
-                </Box>
-                <Box flexShrink="0" paddingRight="2">
-                    <InboxViewTopBarModeToggleButton
-                        filter={filter}
-                        onNewPress={async () => {
-                            if (filter === "New") return;
-                            await navigate(`/s/${space.id}/inbox`);
+            <Box>
+                <Box flexShrink="0" paddingX="3" display="flex" gap="1">
+                    <IconButton
+                        size="xs"
+                        description="Previous notification"
+                        keyboardShortcutHint="↑"
+                        isDisabled={!previousEntry}
+                        pressErrorTitle="Can’t go to previous notification"
+                        onPress={async () => {
+                            if (!previousEntry) return;
+                            await selectEntry(previousEntry);
                         }}
-                        onArchivePress={async () => {
-                            if (filter === "Archive") return;
-                            await navigate(`/s/${space.id}/inbox?tab=old`);
+                    >
+                        <CaretUp />
+                    </IconButton>
+                    <IconButton
+                        size="xs"
+                        description="Next notification"
+                        keyboardShortcutHint="↓"
+                        isDisabled={!nextEntry}
+                        pressErrorTitle="Can’t go to next notification"
+                        onPress={async () => {
+                            if (!nextEntry) return;
+                            await selectEntry(nextEntry);
                         }}
-                    />
-                </Box>
-                <Box flexShrink="0" height="full" paddingY="2">
-                    <Box height="full" borderRight="grey-5" />
+                    >
+                        <CaretDown />
+                    </IconButton>
                 </Box>
             </Box>
-            <Box
-                flexGrow="1"
-                height="full"
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-            >
-                <Box>
-                    <Box flexShrink="0" paddingX="3" display="flex" gap="1">
-                        <IconButton
-                            size="xs"
-                            description="Previous notification"
-                            keyboardShortcutHint="↑"
-                            isDisabled={!previousEntry}
-                            pressErrorTitle="Can’t go to previous notification"
-                            onPress={async () => {
-                                if (!previousEntry) return;
-                                await selectEntry(previousEntry);
-                            }}
-                        >
-                            <CaretUp />
-                        </IconButton>
-                        <IconButton
-                            size="xs"
-                            description="Next notification"
-                            keyboardShortcutHint="↓"
-                            isDisabled={!nextEntry}
-                            pressErrorTitle="Can’t go to next notification"
-                            onPress={async () => {
-                                if (!nextEntry) return;
-                                await selectEntry(nextEntry);
-                            }}
-                        >
-                            <CaretDown />
-                        </IconButton>
-                    </Box>
-                </Box>
-                <Box paddingX="2">
-                    {filter === "New" ? (
-                        <InboxViewTopBarArchiveButton
-                            activeEntry={activeEntry}
-                            nextEntry={nextEntry}
-                            previousEntry={previousEntry}
-                            selectEntry={selectEntry}
-                            deleteActiveEntryOptimistically={deleteActiveEntryOptimistically}
-                        />
-                    ) : (
-                        <InboxViewTopBarUnarchiveButton
-                            activeEntry={activeEntry}
-                            nextEntry={nextEntry}
-                            previousEntry={previousEntry}
-                            selectEntry={selectEntry}
-                            deleteActiveEntryOptimistically={deleteActiveEntryOptimistically}
-                        />
-                    )}
-                </Box>
+            <Box paddingX="2">
+                {filter === "New" ? (
+                    <InboxViewTopBarArchiveButton
+                        activeEntry={activeEntry}
+                        nextEntry={nextEntry}
+                        previousEntry={previousEntry}
+                        selectEntry={selectEntry}
+                        deleteActiveEntryOptimistically={deleteActiveEntryOptimistically}
+                    />
+                ) : (
+                    <InboxViewTopBarUnarchiveButton
+                        activeEntry={activeEntry}
+                        nextEntry={nextEntry}
+                        previousEntry={previousEntry}
+                        selectEntry={selectEntry}
+                        deleteActiveEntryOptimistically={deleteActiveEntryOptimistically}
+                    />
+                )}
             </Box>
         </Box>
     );

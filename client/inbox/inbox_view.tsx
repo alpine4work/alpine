@@ -21,7 +21,11 @@ import {
 } from "~/client/inbox/inbox_entry_view.js";
 import {InboxPeekContextProvider} from "~/client/inbox/inbox_peek_context.js";
 import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js";
-import {InboxViewTopBar} from "~/client/inbox/inbox_view_top_bar.js";
+import {InboxViewEntriesTopBar} from "~/client/inbox/inbox_view_entries_top_bar.js";
+import {
+    InboxViewPeekContentTopBar,
+    inboxViewPeekContentTopBarHeight,
+} from "~/client/inbox/inbox_view_peek_content_top_bar.js";
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
 import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
 import {
@@ -252,17 +256,6 @@ export function InboxView({
                 }
             }}
         >
-            <InboxViewTopBar
-                filter={filter}
-                activeEntry={activeEntry?.item ?? null}
-                nextEntry={nextEntry}
-                previousEntry={previousEntry}
-                selectEntry={selectEntry}
-                deleteActiveEntryOptimistically={(promise, {withAnimation}) => {
-                    if (!activeEntry) return;
-                    deleteEntryOptimistically({promise, entry: activeEntry.item, withAnimation});
-                }}
-            />
             <Box flexGrow="1" overflow="hidden" display="flex">
                 <Box
                     flexShrink="0"
@@ -270,7 +263,10 @@ export function InboxView({
                     overflow="hidden"
                     backgroundColor="grey-0"
                     borderRight="grey-10"
+                    display="flex"
+                    flexDirection="column"
                 >
+                    <InboxViewEntriesTopBar filter={filter} />
                     {query.getItemCount() === 0 ? (
                         <InboxViewEntriesEmpty filter={filter} />
                     ) : (
@@ -295,12 +291,23 @@ export function InboxView({
                                     filter={filter}
                                     peek={activePeek}
                                     entry={activeEntry?.item ?? null}
+                                    nextEntry={nextEntry}
+                                    previousEntry={previousEntry}
+                                    selectEntry={selectEntry}
                                     deleteEntryOptimistically={deleteEntryOptimistically}
                                 />
                             )}
                         </Box>
                     ),
-                    [activeEntry?.item, activePeek, deleteEntryOptimistically, filter],
+                    [
+                        activeEntry?.item,
+                        activePeek,
+                        deleteEntryOptimistically,
+                        filter,
+                        nextEntry,
+                        previousEntry,
+                        selectEntry,
+                    ],
                 )}
             </Box>
         </GlobalKeyDownEvent>
@@ -519,6 +526,7 @@ function InboxViewEntries({
         <FocusRing offset="inset">
             <Box
                 ref={entriesSizeRef}
+                flexGrow="1"
                 // Our notification inbox implements the `listbox` ARIA role. So the inbox
                 // receives focus and you use arrow keys to navigate through notifications.
                 // https://www.w3.org/WAI/ARIA/apg/patterns/listbox
@@ -531,7 +539,6 @@ function InboxViewEntries({
                 tabIndex={0}
                 aria-label="Inbox"
                 width="full"
-                height="full"
                 overflow="hidden"
             >
                 <VirtualizedScrollView
@@ -682,11 +689,17 @@ function InboxViewPeekContent({
     filter,
     peek,
     entry,
+    nextEntry,
+    previousEntry,
+    selectEntry,
     deleteEntryOptimistically,
 }: {
     filter: "New" | "Archive";
     peek: PeekSwitcherStatePeek<{key: DynamoItemKey | null}>;
     entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    selectEntry: Memo<(entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null) => Promise<void>>;
     deleteEntryOptimistically: Memo<
         ({
             promise,
@@ -735,7 +748,34 @@ function InboxViewPeekContent({
     });
 
     return (
-        <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
+        <Box
+            position="relative"
+            width="full"
+            height="full"
+            overflow="hidden"
+            display="flex"
+            flexDirection="column"
+            style={{
+                // @ts-expect-error: This sets the CSS variable but TypeScript doesn't
+                // like it.
+                "--safe-area-inset-top": spacing[inboxViewPeekContentTopBarHeight],
+            }}
+        >
+            <InboxViewPeekContentTopBar
+                filter={filter}
+                activeEntry={entry}
+                nextEntry={nextEntry}
+                previousEntry={previousEntry}
+                selectEntry={selectEntry}
+                deleteActiveEntryOptimistically={(promise, {withAnimation}) => {
+                    if (!entry) return;
+                    deleteEntryOptimistically({
+                        promise,
+                        entry,
+                        withAnimation,
+                    });
+                }}
+            />
             {!routerResult.isPending ? (
                 <InboxPeekContextProvider
                     onCreateMessageOptimistically={onCreateMessageOptimistically}
