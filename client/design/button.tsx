@@ -436,7 +436,9 @@ function Button(
                     style: {
                         // Use a box-shadow for drawing the border so it doesn't affect layout.
                         boxShadow: isOutlineVariant
-                            ? `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`
+                            ? `inset 0 0 0 1px ${
+                                  colorSchemeVars[isPressed ? "grey-20" : "grey-10"]
+                              }`
                             : undefined,
                     },
                     tabIndex: isFocusable ? (!isTabbable ? -1 : buttonProps.tabIndex) : undefined,

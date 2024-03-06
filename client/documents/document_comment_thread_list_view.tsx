@@ -10,6 +10,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {
     documentCommentInputMinHeight,
@@ -20,6 +21,10 @@ import {
 } from "~/client/documents/document_shared_styles.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/client/documents/internal/create_document_comment_thread_snippet_collector.js";
 import {DocumentCommentInput} from "~/client/documents/internal/document_comment_input.js";
+import {
+    DocumentCommentThreadActions,
+    documentCommentThreadActionsHeight,
+} from "~/client/documents/internal/document_comment_thread_actions.js";
 import {DocumentCommentThreadPreview} from "~/client/documents/internal/document_comment_thread_preview.js";
 import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client.js";
 import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/use_document_content_editor_web_socket.js";
@@ -90,12 +95,12 @@ export type DocumentCommentThreadListViewRef = {
 };
 
 type DocumentCommentThreadTreeItem =
-    | DocumentCommentThreadTreeCommentThreadPreviewItem
+    | DocumentCommentThreadTreeCommentThreadHeaderItem
     | DocumentCommentThreadTreeCommentItem
     | DocumentCommentThreadTreeCommentInputItem;
 
-type DocumentCommentThreadTreeCommentThreadPreviewItem = {
-    readonly type: "DocumentCommentThreadPreview";
+type DocumentCommentThreadTreeCommentThreadHeaderItem = {
+    readonly type: "DocumentCommentThreadHeader";
     readonly commentThread: DocumentCommentThreadModel;
     readonly comments: MessageList<DocumentCommentModel>;
     // The index of the `DocumentCommentInput` item in our `VirtualizedTree`.
@@ -117,8 +122,8 @@ type DocumentCommentThreadTreeCommentInputItem = {
     readonly type: "DocumentCommentInput";
     readonly commentThread: DocumentCommentThreadModel;
     readonly comments: MessageList<DocumentCommentModel>;
-    // The index of the `DocumentCommentThreadPreview` item in our `VirtualizedTree`.
-    readonly previewItemIndex: number;
+    // The index of the `DocumentCommentThreadHeader` item in our `VirtualizedTree`.
+    readonly headerItemIndex: number;
 };
 
 type DocumentCommentThreadTree = VirtualizedTree<
@@ -137,7 +142,7 @@ function createEmptyDocumentCommentThreadTree(): DocumentCommentThreadTree {
         getNodeItem: (node, index, startItemIndex): DocumentCommentThreadTreeItem => {
             if (index === 0) {
                 return {
-                    type: "DocumentCommentThreadPreview",
+                    type: "DocumentCommentThreadHeader",
                     commentThread: node.commentThread,
                     comments: node.comments,
                     commentInputItemIndex: startItemIndex + node.comments.getItemCount() + 1,
@@ -164,7 +169,7 @@ function createEmptyDocumentCommentThreadTree(): DocumentCommentThreadTree {
                     type: "DocumentCommentInput",
                     commentThread: node.commentThread,
                     comments: node.comments,
-                    previewItemIndex: startItemIndex,
+                    headerItemIndex: startItemIndex,
                 };
             }
 
@@ -197,8 +202,8 @@ function DocumentCommentThreadListView(
         isConnected,
         procedures,
         subscribeToCommentThreadEvents,
-        withMobileLayout: _withMobileLayout = false,
-        paddingX: _paddingX,
+        withMobileLayout: withMobileLayoutProp = false,
+        paddingX: paddingXProp,
     }: {
         documentId: DocumentId;
         content: DocumentContentWithReferences;
@@ -237,9 +242,9 @@ function DocumentCommentThreadListView(
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
     const isMobile = useIsMobile();
-    const withMobileLayout = isMobile || _withMobileLayout;
+    const withMobileLayout = isMobile || withMobileLayoutProp;
 
-    const paddingX: Spacing = _paddingX ?? (isMobile ? "3" : "5");
+    const paddingX: Spacing = paddingXProp ?? (isMobile ? "3" : "5");
 
     const {space} = useSpaceContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -549,13 +554,23 @@ function DocumentCommentThreadListView(
         index => {
             const item = tree.getItem(index);
             switch (item.type) {
-                case "DocumentCommentThreadPreview": {
+                case "DocumentCommentThreadHeader": {
                     // All comment threads should be in the same document.
                     assert(item.commentThread.documentId === documentId);
 
+                    const paddingY = "3";
+
+                    const height = addRemLengths(
+                        spacing[paddingY],
+                        spacing[documentCommentThreadActionsHeight],
+                        spacing[paddingY],
+                        documentCommentThreadPreviewHeight,
+                        spacing[paddingY],
+                    );
+
                     return {
-                        key: `DocumentCommentThreadPreview:${item.commentThread.id}`,
-                        minHeight: documentCommentThreadPreviewHeight,
+                        key: `DocumentCommentThreadHeader:${item.commentThread.id}`,
+                        minHeight: height,
                         renderAdditionalItemIndexes:
                             !isSingleMobileLayoutCommentThreadWithPinnedCommentInput
                                 ? [item.commentInputItemIndex]
@@ -575,17 +590,24 @@ function DocumentCommentThreadListView(
                                                 : "0"
                                             : documentCommentThreadListViewMarginTop,
                                 })}
+                                style={{height}}
                             >
                                 <div
                                     className={sprinkles({
                                         width: "full",
                                         maxWidth: documentCommentThreadListViewMaxWidth,
+                                        paddingX,
+                                        paddingY,
                                         backgroundColor: "grey-0",
                                         borderTopRadius: !withMobileLayout ? "md" : undefined,
                                         boxShadow: "elevation-5",
                                         overflow: "hidden",
                                     })}
                                 >
+                                    <DocumentCommentThreadActions
+                                        commentThread={item.commentThread}
+                                    />
+                                    <Spacer space={paddingY} />
                                     <DocumentCommentThreadPreview
                                         commentThread={item.commentThread}
                                         contentSnippet={
@@ -612,6 +634,7 @@ function DocumentCommentThreadListView(
                         groupKey: item.commentThread.id,
                         index: item.commentItemIndex,
                         item: item.commentItem,
+                        roomDisplayedCreatedTime: item.commentThread.createdTime,
                         randomSeedForShimmer: item.commentThread.id,
                         messageEditing,
                         shouldHighlightRef:
@@ -774,10 +797,10 @@ function DocumentCommentThreadListView(
                             shouldRenderWithRelativePositioning,
                             getPositionByIndex,
                         }) => {
-                            const previewPosition = getPositionByIndex(item.previewItemIndex);
+                            const headerPosition = getPositionByIndex(item.headerItemIndex);
 
-                            const previewOffsetEnd =
-                                previewPosition.offset + previewPosition.height - 1;
+                            const headerOffsetEnd =
+                                headerPosition.offset + headerPosition.height - 1;
 
                             return (
                                 <>
@@ -836,10 +859,10 @@ function DocumentCommentThreadListView(
                                             ...(!shouldRenderWithRelativePositioning
                                                 ? {
                                                       position: "absolute",
-                                                      top: previewOffsetEnd,
+                                                      top: headerOffsetEnd,
                                                       left: "0",
                                                       right: "0",
-                                                      height: offset - previewOffsetEnd + height,
+                                                      height: offset - headerOffsetEnd + height,
                                                   }
                                                 : {
                                                       position: "relative",
@@ -934,11 +957,9 @@ function DocumentCommentThreadListView(
                                                 })}
                                                 style={{
                                                     top: `calc(${
-                                                        previewOffsetEnd -
-                                                        previewPosition.height +
-                                                        1
+                                                        headerOffsetEnd - headerPosition.height + 1
                                                     }px + ${
-                                                        item.previewItemIndex === 0
+                                                        item.headerItemIndex === 0
                                                             ? spacing[
                                                                   documentCommentThreadListViewMarginY
                                                               ]
@@ -948,10 +969,10 @@ function DocumentCommentThreadListView(
                                                     })`,
                                                     height: `calc(${
                                                         offset -
-                                                        previewOffsetEnd +
-                                                        previewPosition.height
+                                                        headerOffsetEnd +
+                                                        headerPosition.height
                                                     }px - ${
-                                                        item.previewItemIndex === 0
+                                                        item.headerItemIndex === 0
                                                             ? spacing[
                                                                   documentCommentThreadListViewMarginY
                                                               ]
@@ -977,10 +998,10 @@ function DocumentCommentThreadListView(
                                             <div
                                                 style={{
                                                     position: "absolute",
-                                                    top: previewOffsetEnd,
+                                                    top: headerOffsetEnd,
                                                     left: "0",
                                                     right: "0",
-                                                    height: offset - previewOffsetEnd + height + 1,
+                                                    height: offset - headerOffsetEnd + height + 1,
                                                     pointerEvents: "none",
                                                     display: "flex",
                                                     justifyContent: "center",

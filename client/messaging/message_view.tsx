@@ -35,6 +35,7 @@ import {
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {
     MessageContentProsemirrorSchema,
@@ -602,23 +603,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                   minMessageViewTimestampDividerElapsedMinutes;
         if (!shouldShowTimestampBeforeMessage) return null;
 
-        const isCurrentYear = currentTime.getFullYear() === message.createdTime.getFullYear();
-
-        const formatter = new Intl.DateTimeFormat(locale, {
+        const formattedDate = formatMessageViewTimestampDividerDate(message.createdTime, {
+            currentTime,
+            locale,
             timeZone,
-            calendar: "iso8601",
-            year: !isCurrentYear ? "numeric" : undefined,
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
         });
-
-        const formattedDate = formatter
-            .format(message.createdTime)
-            .replace(/, (\d+:\d+)/, " at $1")
-            .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
 
         return (
             <div
@@ -924,4 +913,27 @@ export function getTruncatedMessageContentForReplyPreview({
         default:
             throw exhaustive(message.payload);
     }
+}
+
+export function formatMessageViewTimestampDividerDate(
+    time: Date,
+    {currentTime, locale, timeZone}: {currentTime: Date; locale: string; timeZone: TimeZone},
+) {
+    const isCurrentYear = currentTime.getFullYear() === time.getFullYear();
+
+    const formatter = new Intl.DateTimeFormat(locale, {
+        timeZone,
+        calendar: "iso8601",
+        year: !isCurrentYear ? "numeric" : undefined,
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+    });
+
+    return formatter
+        .format(time)
+        .replace(/, (\d+:\d+)/, " at $1")
+        .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
 }

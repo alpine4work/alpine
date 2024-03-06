@@ -30,6 +30,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     Sprinkles,
     buttonStyles,
+    colorSchemeVars,
     spinAnimationClassName,
     sprinkles,
 } from "~/shared/styles/styles.js";
@@ -41,7 +42,8 @@ export type IconButtonVariant =
     | "accent"
     | "quiet"
     | "quiet-above-grey-5-background"
-    | "quiet-above-grey-5-dark-background";
+    | "quiet-above-grey-5-dark-background"
+    | "outline";
 
 export type IconButtonSize = "lg" | "base" | "md" | "sm" | "xs";
 
@@ -116,6 +118,12 @@ function IconButton(
          * put into a pending state and you don't need to pass in this prop.
          */
         isPending?: boolean;
+
+        /**
+         * Should we show the pressed style even if the button isn't currently pressed?
+         * Useful if there's some secondary press target for this icon button.
+         */
+        isPressed?: boolean;
 
         /**
          * The border radius of the icon button. Defaults to `full`.
@@ -208,6 +216,7 @@ function IconButton(
         size = "base",
         keyboardShortcutHint,
         isPending: isPendingFromProps,
+        isPressed: isPressedFromProps,
         borderRadius = "full",
         children,
         isDisabled = false,
@@ -229,7 +238,7 @@ function IconButton(
     const [isPendingFromPress, setIsPendingFromPress] = useState(false);
     const isPending = isPendingFromProps || isPendingFromPress;
 
-    const {buttonProps, isPressed} = useButton(
+    const {buttonProps, isPressed: isPressedFromButton} = useButton(
         {
             ...props,
             elementType: isFocusable ? "button" : "div",
@@ -280,6 +289,9 @@ function IconButton(
         },
         localRef,
     );
+
+    const isPressed = isPressedFromButton || isPressedFromProps;
+
     const {hoverProps, isHovered} = useHover({
         onHoverStart,
         onHoverEnd,
@@ -348,6 +360,15 @@ function IconButton(
                   backgroundColor: undefined,
                   color: "grey-30",
               },
+        outline: !isDisabled
+            ? {
+                  backgroundColor: isPressed ? "grey-10" : undefined,
+                  color: "grey-text",
+              }
+            : {
+                  backgroundColor: undefined,
+                  color: "grey-30",
+              },
     };
 
     const {buttonSize, iconSize} = (
@@ -365,6 +386,15 @@ function IconButton(
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
     const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
+
+    const isQuietVariant =
+        variant === "quiet" ||
+        variant === "quiet-above-grey-5-background" ||
+        variant === "quiet-above-grey-5-dark-background";
+
+    const isOutlineVariant = variant === "outline";
+
+    const willDarkenWithOverlayOnPress = !isQuietVariant && !isOutlineVariant;
 
     return (
         <Tooltip
@@ -393,7 +423,7 @@ function IconButton(
             isDisabled={isDisabled || withoutTooltip || isPending}
             isVisibleWhenFocused={isTooltipVisibleWhenFocused}
         >
-            <FocusRing>
+            <FocusRing offset={isQuietVariant ? "0" : "0.5"}>
                 {createElement(
                     isFocusable ? "button" : "div",
                     {
@@ -439,8 +469,16 @@ function IconButton(
                             zIndex: "0",
                             ...stylesByVariant[variant],
                         })}
+                        style={{
+                            // Use a box-shadow for drawing the border so it doesn't affect layout.
+                            boxShadow: isOutlineVariant
+                                ? `inset 0 0 0 1px ${
+                                      colorSchemeVars[isPressed ? "grey-20" : "grey-10"]
+                                  }`
+                                : undefined,
+                        }}
                     >
-                        {isPressed && variant === "accent" && (
+                        {isPressed && willDarkenWithOverlayOnPress && (
                             // For accent buttons, instead of choosing a darker background color shade when
                             // pressed we add a black overlay at a lowered opacity. We accomplish this with
                             // an overlay element since such a color is not in our color scheme.

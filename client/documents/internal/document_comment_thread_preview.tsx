@@ -88,64 +88,63 @@ export function DocumentCommentThreadPreview({
     );
 
     return (
-        <Box>
-            <FocusRing offset="inset">
-                <Box
-                    ref={buttonRef}
-                    display="block"
-                    position="relative"
-                    zIndex="0"
-                    // Use pointer cursor because otherwise the preview has a weak clickable
-                    // affordance. It's not clear that the preview is clickable unlike a button.
-                    cursor="pointer"
-                    borderBottom="grey-10"
-                    style={{height: documentCommentThreadPreviewHeight}}
-                    {...(buttonProps as any)}
-                >
-                    {isPressed && (
-                        <Box
-                            position="absolute"
-                            inset="0"
-                            zIndex="50"
-                            pointerEvents="none"
-                            className={pressOpacityOverlayClassName}
-                        />
-                    )}
-                    <Box ref={previewRef} overflow="hidden" height="full">
-                        <Box
-                            ref={previewContentRef}
-                            pointerEvents="none"
-                            paddingX="1.5"
-                            style={{
-                                width: `${(1 / scale) * 100}%`,
-                                transformOrigin: "0 0",
-                                transform: `scale(${scale})`,
-                            }}
-                        >
-                            {content && (
-                                // Don't render the snippet on initial app render because we need a layout
-                                // effect to correctly position the content. Flashing content from invisible
-                                // to visible is better than flashing content with the wrong scroll position
-                                // to the right scroll position.
-                                <ContentView
-                                    content={content}
-                                    // Don't allow interacting with the content at all. (Like clicking links.)
-                                    // Clicking on the preview opens it in the document.
-                                    isInert={true}
-                                    shouldHighlightComment={shouldHighlightComment}
-                                />
-                            )}
-                        </Box>
-                        <ScriptBeforeAppInitialRender
-                            script={safe`var previewContentElement = document.currentScript.previousElementSibling; var previewElement = previewContentElement.parentElement; var commentElement = previewContentElement.querySelector('[data-comment="${safeAlphanumericString(
-                                commentThread.id,
-                            )}"]'); if (commentElement) { var previewRect = previewElement.getBoundingClientRect(); var commentRect = commentElement.getBoundingClientRect(); previewElement.scrollTop = commentRect.y - (previewRect.y - previewElement.scrollTop) - ${safeNumber(
-                                commentOffset,
-                            )}; }`}
-                        />
+        <FocusRing offset="border">
+            <Box
+                ref={buttonRef}
+                display="block"
+                position="relative"
+                zIndex="0"
+                // Use pointer cursor because otherwise the preview has a weak clickable
+                // affordance. It's not clear that the preview is clickable unlike a button.
+                cursor="pointer"
+                boxShadow="elevation-5-with-grey-10-border"
+                borderRadius="md"
+                style={{height: documentCommentThreadPreviewHeight}}
+                {...(buttonProps as any)}
+            >
+                {isPressed && (
+                    <Box
+                        position="absolute"
+                        inset="0"
+                        zIndex="50"
+                        pointerEvents="none"
+                        className={pressOpacityOverlayClassName}
+                    />
+                )}
+                <Box ref={previewRef} overflow="hidden" height="full">
+                    <Box
+                        ref={previewContentRef}
+                        pointerEvents="none"
+                        paddingX="1.5"
+                        style={{
+                            width: `${(1 / scale) * 100}%`,
+                            transformOrigin: "0 0",
+                            transform: `scale(${scale})`,
+                        }}
+                    >
+                        {content && (
+                            // Don't render the snippet on initial app render because we need a layout
+                            // effect to correctly position the content. Flashing content from invisible
+                            // to visible is better than flashing content with the wrong scroll position
+                            // to the right scroll position.
+                            <ContentView
+                                content={content}
+                                // Don't allow interacting with the content at all. (Like clicking links.)
+                                // Clicking on the preview opens it in the document.
+                                isInert={true}
+                                shouldHighlightComment={shouldHighlightComment}
+                            />
+                        )}
                     </Box>
+                    <ScriptBeforeAppInitialRender
+                        script={safe`var previewContentElement = document.currentScript.previousElementSibling; var previewElement = previewContentElement.parentElement; var commentElement = previewContentElement.querySelector('[data-comment="${safeAlphanumericString(
+                            commentThread.id,
+                        )}"]'); if (commentElement) { var previewRect = previewElement.getBoundingClientRect(); var commentRect = commentElement.getBoundingClientRect(); previewElement.scrollTop = commentRect.y - (previewRect.y - previewElement.scrollTop) - ${safeNumber(
+                            commentOffset,
+                        )}; }`}
+                    />
                 </Box>
-            </FocusRing>
-        </Box>
+            </Box>
+        </FocusRing>
     );
 }
