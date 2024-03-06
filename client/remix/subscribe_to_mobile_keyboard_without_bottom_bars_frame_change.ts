@@ -13,6 +13,14 @@ export type MobileKeyboardFrameChangeEvent = {
 let mobileKeyboardFrameChangeEmitter: EventEmitter<MobileKeyboardFrameChangeEvent> | null = null;
 
 /**
+ * If this isn't mobile WebKit (native app or otherwise) we don't have virtual
+ * keyboard frame change events.
+ */
+// TODO(calebmer): This should probably expand to mobile Android too. Platforms
+// with virtual keyboards.
+export const isMobileKeyboardWithoutBottomBarsFrameChangeEnabled = isMobileWebKit;
+
+/**
  * Subscribe to when the keyboard opens/closes. The listener may then scroll
  * content to make sure it's still in view now that the mobile software
  * keyboard is open.
@@ -34,12 +42,7 @@ let mobileKeyboardFrameChangeEmitter: EventEmitter<MobileKeyboardFrameChangeEven
 export function subscribeToMobileKeyboardWithoutBottomBarsFrameChange(
     listener: (event: MobileKeyboardFrameChangeEvent) => void,
 ): () => void {
-    // If this isn't mobile WebKit (native app or otherwise) we don't have virtual
-    // keyboard frame change events.
-    //
-    // TODO(calebmer): This should probably expand to mobile Android too. Platforms
-    // with virtual keyboards.
-    if (!isMobileWebKit) return () => {};
+    if (!isMobileKeyboardWithoutBottomBarsFrameChangeEnabled) return () => {};
 
     return NativeMobileBridge
         ? NativeMobileBridge.keyboard.subscribeToFrameChange(listener)
@@ -56,12 +59,7 @@ export function subscribeToMobileKeyboardWithoutBottomBarsFrameChange(
 export function emitMobileKeyboardWithoutBottomBarsFrameChangeIfNotNative(
     event: MobileKeyboardFrameChangeEvent,
 ) {
-    // If this isn't mobile WebKit (native app or otherwise) we don't have keyboard
-    // frame change events.
-    //
-    // TODO(calebmer): This should probably expand to mobile Android too. Platforms
-    // with virtual keyboards.
-    if (!isMobileWebKit) return;
+    if (!isMobileKeyboardWithoutBottomBarsFrameChangeEnabled) return;
 
     assert(!NativeMobileBridge);
 

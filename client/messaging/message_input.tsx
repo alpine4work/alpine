@@ -41,7 +41,10 @@ import {
 } from "~/client/messaging/message_view.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {registerMobileBottomBar} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
+import {
+    isMobileKeyboardFrameChangeEnabled,
+    registerMobileBottomBar,
+} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -569,6 +572,10 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
 
     useLayoutEffectWithoutServerSideWarning(() => {
+        // If `registerMobileBottomBar()` does nothing then don't bother adding resize
+        // event listeners.
+        if (!isMobileKeyboardFrameChangeEnabled) return;
+
         if (isInertNativeMobileRoute) return;
 
         const inputContainerElement = assertExists(inputContainerRef.current);
