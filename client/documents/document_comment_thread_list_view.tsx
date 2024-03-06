@@ -66,7 +66,7 @@ import {Schema} from "~/shared/schema/schema.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 export const documentCommentThreadListViewMaxWidth: Spacing = "160";
-const documentCommentThreadListViewMarginY: Spacing = "20";
+const documentCommentThreadListViewMarginY: Spacing = "16";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
