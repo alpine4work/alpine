@@ -1,13 +1,15 @@
 import {ArrowArcLeft, DotsThree} from "phosphor-react";
-import {useState} from "react";
+import {useRef, useState} from "react";
 import {useFocusVisible, useFocusWithin} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
+import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {MessageContentPayloadModel, MessageModel} from "~/shared/messaging/message_model.js";
 
 export function MessageViewActions<RoomKey extends string>({
@@ -38,6 +40,7 @@ export function MessageViewActions<RoomKey extends string>({
         onFocusWithinChange: setIsFocusWithinActions,
     });
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+    const setIsMoreMenuOpenTimeoutRef = useRef<Timeout | null>(null);
     const [showDeleteConfirmationDialog, setShowDeleteConfirmationDialog] = useState(false);
 
     const isShowingActions =
@@ -89,7 +92,22 @@ export function MessageViewActions<RoomKey extends string>({
             {actions.length > 0 && (
                 <MenuButton
                     actions={actions}
-                    onStateChange={state => setIsMoreMenuOpen(state.isExpanded)}
+                    onStateChange={state => {
+                        setIsMoreMenuOpenTimeoutRef.current?.clear();
+                        setIsMoreMenuOpenTimeoutRef.current = null;
+
+                        const nextIsMoreMenuOpen = state.isExpanded || state.isFadingOut;
+                        if (isMoreMenuOpen && !nextIsMoreMenuOpen) {
+                            // Wait a bit before setting `isMoreMenuOpen` to false so `isHovered` state can
+                            // become true and actions don't temporarily blink out of existence.
+                            setIsMoreMenuOpenTimeoutRef.current = createTimeout(() => {
+                                setIsMoreMenuOpenTimeoutRef.current = null;
+                                setIsMoreMenuOpen(nextIsMoreMenuOpen);
+                            }, perceivedAsInstantLimitMs);
+                        } else {
+                            setIsMoreMenuOpen(nextIsMoreMenuOpen);
+                        }
+                    }}
                 >
                     <IconButton description="More" size="sm">
                         <DotsThree />
