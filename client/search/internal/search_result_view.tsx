@@ -106,26 +106,32 @@ export function SearchResultView({
             onDoubleClick={onDoubleClick}
         >
             <Box
-                position="relative"
                 paddingX="4"
+                position="relative"
+                zIndex="0"
                 borderRadius="md"
                 backgroundColor={isSelected ? "grey-5" : undefined}
-                style={{
-                    // Add an extra pixel of padding so the background color covers the
-                    // border rendered with `boxShadow`.
-                    paddingBottom: 1,
-                    marginBottom: -1,
-                }}
             >
+                {isSelected && (
+                    <Box
+                        position="absolute"
+                        inset="0"
+                        zIndex="-10"
+                        borderRadius="md"
+                        backgroundColor="grey-5"
+                        style={{
+                            // Make sure background covers border of the entry below.
+                            bottom: -1,
+                        }}
+                    />
+                )}
                 <Box
                     paddingY={paddingY}
                     style={{
                         // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
                         // 1px to layout. Layout needs to be precise since this is rendered in a
                         // virtualized list.
-                        boxShadow: !isLastEntry
-                            ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}`
-                            : undefined,
+                        boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
                     }}
                 >
                     <Box display="flex" gap="3" alignItems="center">
