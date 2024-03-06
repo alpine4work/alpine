@@ -4,11 +4,12 @@ import {
     messageViewMinHeight,
 } from "~/shared/messaging/messaging_shared_styles.js";
 
-export const documentCommentThreadPreviewHeight = spacing["32"];
+export const documentCommentThreadPreviewHeight = spacing["48"];
 export const documentCommentInputMinHeight = messageInputMinHeight;
 
 // We want our Y margin to be the same as our X margin. We want to give items
 // some margin top and some margin bottom so that the shadows don't overflow.
+// NOCOMMIT: Delete?
 export const documentCommentThreadListViewMarginTop: Spacing = "2";
 export const documentCommentThreadListViewMarginBottom: Spacing = "2";
 export const documentCommentThreadListViewMarginY: Spacing = "4";

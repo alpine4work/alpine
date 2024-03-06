@@ -32,6 +32,7 @@ export function DocumentCommentInput({
     procedures,
     subscribeToCommentThreadEvents,
     marginX,
+    withMobileLayout,
     isStickyPositioned,
 }: {
     viewRef: RefObject<VirtualizedScrollViewRef>;
@@ -48,6 +49,7 @@ export function DocumentCommentInput({
     procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
     marginX?: Spacing;
+    withMobileLayout?: boolean;
     isStickyPositioned?: boolean;
 }) {
     const context = useAppContext();
@@ -147,6 +149,7 @@ export function DocumentCommentInput({
                     );
             }}
             marginX={marginX}
+            withMobileLayout={withMobileLayout}
             withoutBorderTop={isStickyPositioned}
         />
     );

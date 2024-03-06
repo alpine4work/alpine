@@ -758,7 +758,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         );
                 }}
                 restoreStateRef={inputRestoreStateRef}
-                marginX={isMobile ? "3" : paddingX}
+                marginX={paddingX}
             />
         </div>
     );

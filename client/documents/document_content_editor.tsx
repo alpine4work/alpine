@@ -1,5 +1,5 @@
 import {AnimationControls, spring, timeline} from "motion";
-import {CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
+import {ArrowDown, ArrowUp, CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
 import {redo, undo} from "prosemirror-history";
 import {Memo, Ref, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
@@ -545,6 +545,13 @@ function DocumentContentEditorStateful({
             transition.pendingPromiseResolver.resolve();
         };
     }, [context.tracer, sidebarState.transition]);
+
+    const onSidebarClose = useCallback(() => {
+        setSidebarState(sidebarState => {
+            if (!sidebarState.isOpen) return sidebarState;
+            return {...sidebarState, animationState: "Closing" as const};
+        });
+    }, []);
 
     /* ========================================================================== *\
      *                        Comment decoration collection                       *
@@ -1096,12 +1103,7 @@ function DocumentContentEditorStateful({
                             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
                             decorations={decorations}
                             commentThreadListViewRef={commentThreadListViewRef}
-                            onClose={() => {
-                                setSidebarState(sidebarState => {
-                                    if (!sidebarState.isOpen) return sidebarState;
-                                    return {...sidebarState, animationState: "Closing" as const};
-                                });
-                            }}
+                            onClose={onSidebarClose}
                             openCommentThread={openCommentThread}
                         />
                     </Box>
@@ -1201,8 +1203,8 @@ function DocumentContentEditorSidebar({
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
     decorations: ReadonlyArray<DocumentContentEditorSideDecoration>;
     commentThreadListViewRef: Ref<DocumentCommentThreadListViewRef>;
-    onClose: () => void;
-    openCommentThread: (commentThreadId: DocumentCommentThreadId) => Promise<void>;
+    onClose: Memo<() => void>;
+    openCommentThread: Memo<(commentThreadId: DocumentCommentThreadId) => Promise<void>>;
 }) {
     const context = useAppContext();
     const {isAppleDevice} = useClientInfo();
@@ -1248,49 +1250,18 @@ function DocumentContentEditorSidebar({
         return {previousCommentThreadId, nextCommentThreadId: null};
     }, [commentThreadId, decorations]);
 
-    return (
-        <GlobalKeyDownEvent
-            onGlobalKeyDown={event => {
-                if (event.key === "Escape") {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onClose();
-                }
+    const header = useMemo(() => {
+        const height = "8";
 
-                if (
-                    event.key === "," &&
-                    event.shiftKey &&
-                    (isAppleDevice ? event.metaKey : event.ctrlKey)
-                ) {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    // Programmatically click the button instead of calling `openCommentThread()`
-                    // directly to correctly handle loading and error states.
-                    assertExists(previousCommentThreadButtonRef.current).click();
-                }
-
-                if (
-                    event.key === "." &&
-                    event.shiftKey &&
-                    (isAppleDevice ? event.metaKey : event.ctrlKey)
-                ) {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    // Programmatically click the button instead of calling `openCommentThread()`
-                    // directly to correctly handle loading and error states.
-                    assertExists(nextCommentThreadButtonRef.current).click();
-                }
-            }}
-        >
-            <Box height="full" width="full" overflow="hidden" display="flex" flexDirection="column">
+        return {
+            minHeight: spacing[height],
+            node: (
                 <Box
                     flexShrink="0"
-                    height="8"
-                    borderBottom="grey-10"
+                    height={height}
                     display="flex"
                     alignItems="center"
+                    backgroundColor="grey-0"
                 >
                     <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
                         <IconButton
@@ -1334,21 +1305,65 @@ function DocumentContentEditorSidebar({
                         </IconButton>
                     </Box>
                 </Box>
+            ),
+        };
+    }, [isAppleDevice, nextCommentThreadId, onClose, openCommentThread, previousCommentThreadId]);
+
+    return (
+        <GlobalKeyDownEvent
+            onGlobalKeyDown={event => {
+                if (event.key === "Escape") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onClose();
+                }
+
+                if (
+                    event.key === "," &&
+                    event.shiftKey &&
+                    (isAppleDevice ? event.metaKey : event.ctrlKey)
+                ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    // Programmatically click the button instead of calling `openCommentThread()`
+                    // directly to correctly handle loading and error states.
+                    assertExists(previousCommentThreadButtonRef.current).click();
+                }
+
+                if (
+                    event.key === "." &&
+                    event.shiftKey &&
+                    (isAppleDevice ? event.metaKey : event.ctrlKey)
+                ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    // Programmatically click the button instead of calling `openCommentThread()`
+                    // directly to correctly handle loading and error states.
+                    assertExists(nextCommentThreadButtonRef.current).click();
+                }
+            }}
+        >
+            <Box height="full" width="full" overflow="hidden" display="flex" flexDirection="column">
                 {useMemo(
                     () =>
                         initialDataResult.isPending || !initialDataResult.value ? (
-                            <Box
-                                flexGrow="1"
-                                display="flex"
-                                justifyContent="center"
-                                alignItems="center"
-                            >
-                                <SpinnerGap
-                                    className={spinAnimationClassName}
-                                    color={colorSchemeVars["grey-70"]}
-                                    size={spacing["6"]}
-                                />
-                            </Box>
+                            <>
+                                {header.node}
+                                <Box
+                                    flexGrow="1"
+                                    display="flex"
+                                    justifyContent="center"
+                                    alignItems="center"
+                                >
+                                    <SpinnerGap
+                                        className={spinAnimationClassName}
+                                        color={colorSchemeVars["grey-70"]}
+                                        size={spacing["6"]}
+                                    />
+                                </Box>
+                            </>
                         ) : (
                             <DocumentCommentThreadListView
                                 key={commentThreadId}
@@ -1373,6 +1388,7 @@ function DocumentContentEditorSidebar({
                                 // Slightly reduce the amount of margin on messages in a comment thread
                                 // because we have less space.
                                 paddingX="4"
+                                header={header}
                             />
                         ),
                     [
@@ -1380,7 +1396,9 @@ function DocumentContentEditorSidebar({
                         commentThreadListViewRef,
                         content,
                         documentId,
-                        initialDataResult,
+                        header,
+                        initialDataResult.isPending,
+                        initialDataResult.value,
                         isConnected,
                         onCommentThreadSnippetPress,
                         procedures,

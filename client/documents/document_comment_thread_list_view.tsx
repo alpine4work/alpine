@@ -1,6 +1,7 @@
 import {
     Memo,
     MutableRefObject,
+    ReactNode,
     Ref,
     forwardRef,
     useCallback,
@@ -10,13 +11,11 @@ import {
     useRef,
     useState,
 } from "react";
+import {NavigationBarResult} from "~/client/design/navigation_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {
     documentCommentInputMinHeight,
-    documentCommentThreadListViewMarginBottom,
-    documentCommentThreadListViewMarginTop,
-    documentCommentThreadListViewMarginY,
     documentCommentThreadPreviewHeight,
 } from "~/client/documents/document_shared_styles.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/client/documents/internal/create_document_comment_thread_snippet_collector.js";
@@ -45,7 +44,7 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {UncheckedDocumentContentSchema} from "~/shared/documents/document_content_schema.js";
 import {
@@ -66,8 +65,8 @@ import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
-const documentCommentThreadListViewMarginX: Spacing = "4";
-const documentCommentThreadListViewMaxWidth: Spacing = "128";
+export const documentCommentThreadListViewMaxWidth: Spacing = "160";
+const documentCommentThreadListViewMarginY: Spacing = "20";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -204,6 +203,8 @@ function DocumentCommentThreadListView(
         subscribeToCommentThreadEvents,
         withMobileLayout: withMobileLayoutProp = false,
         paddingX: paddingXProp,
+        header,
+        navigationBar,
     }: {
         documentId: DocumentId;
         content: DocumentContentWithReferences;
@@ -238,6 +239,21 @@ function DocumentCommentThreadListView(
          * Customize the amount of margin on messages.
          */
         paddingX?: Spacing;
+
+        /**
+         * A header to render as the first item in the virtualized scroll view.
+         */
+        header?: Memo<{
+            minHeight: RemLength | number;
+            node: ReactNode;
+        }>;
+
+        /**
+         * If you want to include a navigation bar in this list view you may pass in
+         * the result of `useNavigationBar()` here and the virtualized scroll view will
+         * be properly configured.
+         */
+        navigationBar?: NavigationBarResult;
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
@@ -344,6 +360,21 @@ function DocumentCommentThreadListView(
                 renderedRange: {startIndex: number; endIndex: number} | null,
             ): {isLoading: false} | {isLoading: true; promise: Promise<void>} {
                 if (!renderedRange) return {isLoading: false};
+
+                // Adjust rendered range if we have a header item so the indexes are relative
+                // to our `tree` data structure.
+                if (header) {
+                    renderedRange = {
+                        startIndex: Math.max(0, renderedRange.startIndex - 1),
+                        endIndex: Math.max(0, renderedRange.endIndex - 1),
+                    };
+                    if (
+                        renderedRange.startIndex >= tree.getItemCount() ||
+                        renderedRange.endIndex >= tree.getItemCount()
+                    ) {
+                        return {isLoading: false};
+                    }
+                }
 
                 const view = assertExists(viewRef.current);
 
@@ -552,16 +583,30 @@ function DocumentCommentThreadListView(
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
+            if (header) {
+                if (index === 0) {
+                    return {
+                        key: "Header",
+                        minHeight: header.minHeight,
+                        node: header.node,
+                    };
+                }
+
+                // Adjust index so it's relative to `tree` data structure for the rest of
+                // this function.
+                index -= 1;
+            }
+
             const item = tree.getItem(index);
             switch (item.type) {
                 case "DocumentCommentThreadHeader": {
                     // All comment threads should be in the same document.
                     assert(item.commentThread.documentId === documentId);
 
-                    const paddingY = "3";
+                    const paddingY = "5";
 
                     const height = addRemLengths(
-                        spacing[paddingY],
+                        spacing[index !== 0 ? documentCommentThreadListViewMarginY : paddingY],
                         spacing[documentCommentThreadActionsHeight],
                         spacing[paddingY],
                         documentCommentThreadPreviewHeight,
@@ -578,17 +623,12 @@ function DocumentCommentThreadListView(
                         node: (
                             <div
                                 className={sprinkles({
+                                    position: "relative",
                                     display: "flex",
-                                    justifyContent: "center",
-                                    paddingX: !withMobileLayout
-                                        ? documentCommentThreadListViewMarginX
-                                        : undefined,
+                                    flexDirection: "column",
+                                    alignItems: "center",
                                     paddingTop:
-                                        index === 0
-                                            ? !withMobileLayout
-                                                ? documentCommentThreadListViewMarginY
-                                                : "0"
-                                            : documentCommentThreadListViewMarginTop,
+                                        index !== 0 ? documentCommentThreadListViewMarginY : "0",
                                 })}
                                 style={{height}}
                             >
@@ -597,10 +637,8 @@ function DocumentCommentThreadListView(
                                         width: "full",
                                         maxWidth: documentCommentThreadListViewMaxWidth,
                                         paddingX,
-                                        paddingY,
-                                        backgroundColor: "grey-0",
-                                        borderTopRadius: !withMobileLayout ? "md" : undefined,
-                                        boxShadow: "elevation-5",
+                                        paddingTop: index !== 0 ? "0" : paddingY,
+                                        paddingBottom: paddingY,
                                         overflow: "hidden",
                                     })}
                                 >
@@ -678,17 +716,12 @@ function DocumentCommentThreadListView(
                                     display: "flex",
                                     justifyContent: "center",
                                     overflow: "hidden",
-                                    paddingX: !withMobileLayout
-                                        ? documentCommentThreadListViewMarginX
-                                        : undefined,
                                 })}
                             >
                                 <div
                                     className={sprinkles({
                                         width: "full",
                                         maxWidth: documentCommentThreadListViewMaxWidth,
-                                        backgroundColor: "grey-0",
-                                        boxShadow: "elevation-5",
                                     })}
                                 >
                                     {node}
@@ -771,16 +804,12 @@ function DocumentCommentThreadListView(
                             procedures={procedures}
                             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
                             marginX={paddingX}
+                            withMobileLayout={withMobileLayout}
                             isStickyPositioned={true}
                         />
                     );
 
-                    const marginBottom =
-                        index === tree.getItemCount() - 1
-                            ? !withMobileLayout
-                                ? documentCommentThreadListViewMarginY
-                                : "0"
-                            : documentCommentThreadListViewMarginBottom;
+                    const marginBottom = "0";
 
                     return {
                         key: `DocumentCommentInput:${item.commentThread.id}`,
@@ -797,7 +826,9 @@ function DocumentCommentThreadListView(
                             shouldRenderWithRelativePositioning,
                             getPositionByIndex,
                         }) => {
-                            const headerPosition = getPositionByIndex(item.headerItemIndex);
+                            const headerPosition = getPositionByIndex(
+                                item.headerItemIndex + (header ? 1 : 0),
+                            );
 
                             const headerOffsetEnd =
                                 headerPosition.offset + headerPosition.height - 1;
@@ -818,10 +849,6 @@ function DocumentCommentThreadListView(
                                                     display: "flex",
                                                     justifyContent: "center",
                                                     overflow: "hidden",
-                                                    paddingX: !withMobileLayout
-                                                        ? documentCommentThreadListViewMarginX
-                                                        : undefined,
-                                                    paddingBottom: marginBottom,
                                                 })}
                                                 style={{height}}
                                             >
@@ -832,11 +859,6 @@ function DocumentCommentThreadListView(
                                                         maxWidth:
                                                             documentCommentThreadListViewMaxWidth,
                                                         paddingX: paddingX,
-                                                        backgroundColor: "grey-0",
-                                                        borderBottomRadius: !withMobileLayout
-                                                            ? "md"
-                                                            : undefined,
-                                                        boxShadow: "elevation-5",
                                                     })}
                                                 >
                                                     <div
@@ -882,9 +904,6 @@ function DocumentCommentThreadListView(
                                                 display: "flex",
                                                 justifyContent: "center",
                                                 overflow: "hidden",
-                                                paddingX: !withMobileLayout
-                                                    ? documentCommentThreadListViewMarginX
-                                                    : undefined,
                                                 paddingBottom: marginBottom,
                                             })}
                                         >
@@ -895,15 +914,6 @@ function DocumentCommentThreadListView(
                                                     position: "relative",
                                                     display: "flex",
                                                     pointerEvents: "auto",
-                                                    ...(shouldRenderWithRelativePositioning && {
-                                                        // When absolutely positioned we render an element underneath this one at the
-                                                        // end of the post so that while sticky scrolling we don't have double shadows.
-                                                        backgroundColor: "grey-0",
-                                                        borderBottomRadius: !withMobileLayout
-                                                            ? "md"
-                                                            : undefined,
-                                                        boxShadow: "elevation-5",
-                                                    }),
                                                 })}
                                                 style={{
                                                     // Allow full-width top border to be visible until it slides under.
@@ -940,62 +950,6 @@ function DocumentCommentThreadListView(
                                     {!shouldRenderWithRelativePositioning && (
                                         <>
                                             <div
-                                                // Render a white backdrop below the entire post so that when the user is jump
-                                                // scrolling we don't have the pinned comment input and the wash
-                                                // background color.
-                                                className={sprinkles({
-                                                    position: "absolute",
-                                                    left: "0",
-                                                    right: "0",
-                                                    display: "flex",
-                                                    justifyContent: "center",
-                                                    zIndex: "-10",
-                                                    paddingX: !withMobileLayout
-                                                        ? documentCommentThreadListViewMarginX
-                                                        : undefined,
-                                                    overflow: "hidden",
-                                                })}
-                                                style={{
-                                                    top: `calc(${
-                                                        headerOffsetEnd - headerPosition.height + 1
-                                                    }px + ${
-                                                        item.headerItemIndex === 0
-                                                            ? spacing[
-                                                                  documentCommentThreadListViewMarginY
-                                                              ]
-                                                            : spacing[
-                                                                  documentCommentThreadListViewMarginTop
-                                                              ]
-                                                    })`,
-                                                    height: `calc(${
-                                                        offset -
-                                                        headerOffsetEnd +
-                                                        headerPosition.height
-                                                    }px - ${
-                                                        item.headerItemIndex === 0
-                                                            ? spacing[
-                                                                  documentCommentThreadListViewMarginY
-                                                              ]
-                                                            : spacing[
-                                                                  documentCommentThreadListViewMarginTop
-                                                              ]
-                                                    })`,
-                                                }}
-                                            >
-                                                <div
-                                                    className={sprinkles({
-                                                        width: "full",
-                                                        height: "full",
-                                                        maxWidth:
-                                                            documentCommentThreadListViewMaxWidth,
-                                                        backgroundColor: "grey-0",
-                                                        borderTopRadius: !withMobileLayout
-                                                            ? "md"
-                                                            : undefined,
-                                                    })}
-                                                />
-                                            </div>
-                                            <div
                                                 style={{
                                                     position: "absolute",
                                                     top: headerOffsetEnd,
@@ -1020,9 +974,6 @@ function DocumentCommentThreadListView(
                                                         display: "flex",
                                                         justifyContent: "center",
                                                         paddingBottom: marginBottom,
-                                                        paddingX: !withMobileLayout
-                                                            ? documentCommentThreadListViewMarginX
-                                                            : undefined,
                                                         overflow: "hidden",
                                                     })}
                                                 >
@@ -1031,9 +982,18 @@ function DocumentCommentThreadListView(
                                                             width: "full",
                                                             maxWidth:
                                                                 documentCommentThreadListViewMaxWidth,
-                                                            borderTop: "grey-10",
+                                                            paddingX: withMobileLayout
+                                                                ? "0"
+                                                                : paddingX,
                                                         })}
-                                                    />
+                                                    >
+                                                        <div
+                                                            className={sprinkles({
+                                                                width: "full",
+                                                                borderTop: "grey-10",
+                                                            })}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </>
@@ -1048,17 +1008,18 @@ function DocumentCommentThreadListView(
             }
         },
         [
+            header,
             tree,
             documentId,
             isSingleMobileLayoutCommentThreadWithPinnedCommentInput,
             withMobileLayout,
+            paddingX,
             contentSnippetByCommentThreadId,
             content.references,
             onCommentThreadSnippetPress,
             messageEditing,
             highlightComment,
             handleJumpToComment,
-            paddingX,
             procedures,
             space.id,
             replyingToCommentIndexByCommentThreadId,
@@ -1078,22 +1039,23 @@ function DocumentCommentThreadListView(
                     position: "relative",
                     display: "flex",
                     flexDirection: "column",
-                    backgroundColor: isSingleMobileLayoutCommentThreadWithPinnedCommentInput
-                        ? "grey-0"
-                        : "grey-wash",
                 })}
             >
                 <VirtualizedScrollView
                     ref={viewRef}
+                    elementRef={navigationBar?.scrollViewRef}
+                    scrollbarInsetTop={navigationBar?.scrollbarInsetTop}
                     bufferedItemHeight={bufferedMessageViewHeight}
                     itemCount={
+                        (header ? 1 : 0) +
+                        tree.getItemCount() -
                         // Don't render the comment input (which should be the last item) if we are
                         // pinning the comment input to the bottom of the view.
-                        tree.getItemCount() -
                         (isSingleMobileLayoutCommentThreadWithPinnedCommentInput ? 1 : 0)
                     }
                     renderItem={renderItem}
                     onRenderedRangeChange={tryLoadingMoreData}
+                    extraChildren={navigationBar?.navigationBar}
                 />
                 {isSingleMobileLayoutCommentThreadWithPinnedCommentInput &&
                     (() => {
@@ -1141,6 +1103,7 @@ function DocumentCommentThreadListView(
                                 procedures={procedures}
                                 subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
                                 marginX={paddingX}
+                                withMobileLayout={withMobileLayout}
                             />
                         );
                     })()}

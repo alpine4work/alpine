@@ -7,6 +7,7 @@ export function InboxViewEntriesEmpty({filter}: {filter: "New" | "Archive"}) {
         <Box
             flexGrow="1"
             width="full"
+            height="full"
             display="flex"
             flexDirection="column"
             justifyContent="center"

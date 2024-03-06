@@ -76,7 +76,7 @@ export function DocumentCommentThreadPreview({
     // it has the same text layout as the main content editor leads to text so
     // small that it's unreadable.
     const scale =
-        fontSizesByPlatform["50"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
+        fontSizesByPlatform["75"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
 
     const buttonRef = useRef<HTMLDivElement>(null);
     const {buttonProps, isPressed} = useButton(
@@ -99,6 +99,7 @@ export function DocumentCommentThreadPreview({
                 cursor="pointer"
                 boxShadow="elevation-5-with-grey-10-border"
                 borderRadius="md"
+                overflow="hidden"
                 style={{height: documentCommentThreadPreviewHeight}}
                 {...(buttonProps as any)}
             >

@@ -1,10 +1,17 @@
+import {useMemo} from "react";
+import {Box} from "~/client/design/box.js";
+import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {useShowToast} from "~/client/design/toast.js";
-import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view.js";
+import {
+    DocumentCommentThreadListView,
+    documentCommentThreadListViewMaxWidth,
+} from "~/client/documents/document_comment_thread_list_view.js";
 import {documentCommentThreadCountAgainstLimit} from "~/client/documents/document_shared_styles.js";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
@@ -13,10 +20,12 @@ import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/document
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
+    getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
@@ -74,10 +83,11 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) =
 });
 
 export default function DocumentCommentThreadRoute({
-    withMobileLayout,
+    withMobileLayout = false,
 }: {
     withMobileLayout?: boolean;
 }) {
+    const isMobile = useIsMobile();
     const rootNavigate = useRootNavigate();
     const showToast = useShowToast();
 
@@ -95,6 +105,26 @@ export default function DocumentCommentThreadRoute({
     // back to the document. Since the comment thread is discussing the document,
     // the document is likely an artifact you care about.
     useSearchEntityAffinityViewInteraction(`Document:${initialDocument.id}`);
+
+    const content = editorState.getContent();
+    const title = useMemo(() => getDocumentContentTitle(content.doc), [content.doc]);
+
+    const navigationBar = useNavigationBar({
+        withMobileLayout,
+        title,
+        withoutDisappearingTitle: true,
+        subtitle: "New comments",
+        desktopTitleMaxWidth: documentCommentThreadListViewMaxWidth,
+        desktopTitleFontSize: "200",
+        menuActions: [
+            {
+                label: "Open document",
+                pressErrorTitle: "Can’t open document",
+                onPress: () =>
+                    rootNavigate(`/s/${initialDocument.spaceId}/documents/${initialDocument.id}`),
+            },
+        ],
+    });
 
     return (
         <DocumentCommentThreadListView
@@ -129,6 +159,27 @@ export default function DocumentCommentThreadRoute({
                 },
             ]}
             withMobileLayout={withMobileLayout}
+            navigationBar={navigationBar}
+            header={useMemo(() => {
+                const paddingBottom = "4";
+
+                return {
+                    minHeight: addRemLengths(
+                        spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
+                        spacing[paddingBottom],
+                    ),
+                    node: (
+                        <Box
+                            style={{
+                                paddingTop: "var(--safe-area-inset-top, 0px)",
+                                paddingBottom: spacing[paddingBottom],
+                            }}
+                        >
+                            <Box height={navigationBarHeight} />
+                        </Box>
+                    ),
+                };
+            }, [isMobile])}
         />
     );
 }

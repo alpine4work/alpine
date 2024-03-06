@@ -52,7 +52,7 @@ export function SpaceLayoutSideBarInboxOverlay({
                 borderBottom="grey-10"
                 display="flex"
                 alignItems="center"
-                paddingLeft="3"
+                paddingLeft="2.5"
                 paddingRight="1.5"
             >
                 <Box flexGrow="1" fontSize="100" fontStyle="semi-bold">

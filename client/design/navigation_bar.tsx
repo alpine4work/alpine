@@ -175,6 +175,51 @@ const mobileNavigationBarScrollbarInsetTop: ScrollbarInsetDynamic = [
 // navigation bar behavior. We have consistent scroll events across web code
 // and native code so we can use that. Touch events are more dicey.
 
+export type NavigationBarResult = {
+    /**
+     * (Required) Attach this ref to the scroll view the navigation bar renders
+     * on top of.
+     */
+    scrollViewRef: RefCallback<HTMLElement>;
+
+    /**
+     * (Required) This element should be rendered inside a `position: relative`
+     * container of all content in the scroll view. It can't be rendered as a
+     * direct child of the scroll view.
+     *
+     * For example, this works:
+     *
+     * ```
+     * <div ref={scrollViewRef} style={{overflowY: "auto"}}>
+     *     <div style={{position: "relative"}}>
+     *         {navigationBar}
+     *         {/* Other children... *\/}
+     *     </div>
+     * </div>
+     * ```
+     *
+     * This does not work!
+     *
+     * ```
+     * <div ref={scrollViewRef} style={{overflowY: "auto", position: "relative"}}>
+     *     {navigationBar}
+     *     {/* Other children... *\/}
+     * </div>
+     * ```
+     *
+     * `navigationBar` needs to be 100% height of scrollable content. Not 100%
+     * height of the scrollable window.
+     */
+    navigationBar: ReactNode;
+
+    /**
+     * (Required) The `insetTop` value to pass to `useScrollbar()`. Otherwise the
+     * custom scrollbar may sometimes overlap the header which looks weird. You are
+     * expected to pass this to `useScrollbar()`.
+     */
+    scrollbarInsetTop?: ScrollbarInsetDynamic;
+};
+
 /**
  * Most content in our product comes with a navigation bar. The navigation bar
  * is a sticky bar at the top of the view which disappears when the user
@@ -200,6 +245,8 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     withMobileLayout,
     title = null,
     titleBoundaryRef,
+    withoutDisappearingTitle = false,
+    subtitle,
     menuActions = [],
     shareButton,
     desktopControls = null,
@@ -230,6 +277,18 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
      * crossing this boundary the title animates in/out.
      */
     titleBoundaryRef?: RefObject<TitleBoundaryElement>;
+
+    /**
+     * Don't let the title disappear when the navigation bar is scrolled to the
+     * top. This can lead to some cleaner designs.
+     */
+    withoutDisappearingTitle?: boolean;
+
+    /**
+     * A secondary title we render under the main title at a smaller size. Used to
+     * add a bit of extra detail.
+     */
+    subtitle?: string;
 
     /**
      * Actions that are made available to the user in a menu button at the right of
@@ -275,50 +334,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
      * Font weight to use for the title on desktop.
      */
     desktopTitleFontWeight?: "semi-bold" | "bold";
-}): {
-    /**
-     * (Required) Attach this ref to the scroll view the navigation bar renders
-     * on top of.
-     */
-    scrollViewRef: RefCallback<HTMLElement>;
-
-    /**
-     * (Required) This element should be rendered inside a `position: relative`
-     * container of all content in the scroll view. It can't be rendered as a
-     * direct child of the scroll view.
-     *
-     * For example, this works:
-     *
-     * ```
-     * <div ref={scrollViewRef} style={{overflowY: "auto"}}>
-     *     <div style={{position: "relative"}}>
-     *         {navigationBar}
-     *         {/* Other children... *\/}
-     *     </div>
-     * </div>
-     * ```
-     *
-     * This does not work!
-     *
-     * ```
-     * <div ref={scrollViewRef} style={{overflowY: "auto", position: "relative"}}>
-     *     {navigationBar}
-     *     {/* Other children... *\/}
-     * </div>
-     * ```
-     *
-     * `navigationBar` needs to be 100% height of scrollable content. Not 100%
-     * height of the scrollable window.
-     */
-    navigationBar: ReactNode;
-
-    /**
-     * (Required) The `insetTop` value to pass to `useScrollbar()`. Otherwise the
-     * custom scrollbar may sometimes overlap the header which looks weird. You are
-     * expected to pass this to `useScrollbar()`.
-     */
-    scrollbarInsetTop?: ScrollbarInsetDynamic;
-} {
+}): NavigationBarResult {
     const isMobile = useIsMobile();
 
     const navigationBarRef = useRef<{
@@ -373,6 +389,8 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             scrollViewSize={scrollViewSize}
             title={title}
             titleBoundaryRef={titleBoundaryRef}
+            withoutDisappearingTitle={withoutDisappearingTitle}
+            subtitle={subtitle}
             menuActions={menuActions}
             shareButton={shareButton}
             desktopControls={desktopControls}
@@ -398,6 +416,8 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     scrollViewSize,
     title,
     titleBoundaryRef,
+    withoutDisappearingTitle,
+    subtitle,
     menuActions,
     shareButton,
     desktopControls,
@@ -414,6 +434,8 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     scrollViewSize: {width: number; height: number} | null;
     title: ReactNode;
     titleBoundaryRef: RefObject<TitleBoundaryElement> | undefined;
+    withoutDisappearingTitle: boolean;
+    subtitle: string | undefined;
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
     shareButton: {} | undefined;
     desktopControls: ReactNode;
@@ -599,7 +621,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
                         // Compute the title boundary scroll offset...
                         let titleBoundaryOffset: number | null = null;
-                        if (titleBoundaryRef?.current) {
+                        if (!withoutDisappearingTitle && titleBoundaryRef?.current) {
                             let titleBoundaryParentElement: HTMLElement = titleBoundaryRef.current;
 
                             titleBoundaryOffset =
@@ -635,11 +657,12 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                         }
 
                         const isNavigationBarTitleVisible =
-                            isNavigationBarOpaque &&
-                            (titleBoundaryOffset === null ||
-                                scrollOffset >= titleBoundaryOffset - navigationBarHeight) &&
-                            (navigationBarScrollOffset >= navigationBarHeight ||
-                                lastIsNavigationBarTitleVisible);
+                            withoutDisappearingTitle ||
+                            (isNavigationBarOpaque &&
+                                (titleBoundaryOffset === null ||
+                                    scrollOffset >= titleBoundaryOffset - navigationBarHeight) &&
+                                (navigationBarScrollOffset >= navigationBarHeight ||
+                                    lastIsNavigationBarTitleVisible));
 
                         lastIsNavigationBarOpaqueRef.current = isNavigationBarOpaque;
                         lastIsNavigationBarTitleVisibleRef.current = isNavigationBarTitleVisible;
@@ -798,7 +821,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 },
             };
         },
-        [navigationBarHeightRem, titleBoundaryRef],
+        [navigationBarHeightRem, titleBoundaryRef, withoutDisappearingTitle],
     );
 
     const lastAnimatedScrollDirectionStateRef = useRef(scrollDirectionState);
@@ -1010,18 +1033,26 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                     )}
                                     <Box
                                         ref={navigationBarTitleRef}
-                                        // We have less space on mobile so use a smaller font size.
-                                        fontSize={isMobile ? "100" : desktopTitleFontSize}
-                                        fontStyle={
-                                            isMobile
-                                                ? "truncate-semi-bold"
-                                                : `truncate-${desktopTitleFontWeight}`
-                                        }
-                                        userSelect={!isMobile ? "text" : undefined}
                                         // Initial opacity is 0. Our code will update the opacity.
-                                        opacity="0"
+                                        opacity={!withoutDisappearingTitle ? "0" : undefined}
                                     >
-                                        {title}
+                                        <Box
+                                            // We have less space on mobile so use a smaller font size.
+                                            fontSize={isMobile ? "100" : desktopTitleFontSize}
+                                            fontStyle={
+                                                isMobile
+                                                    ? "truncate-semi-bold"
+                                                    : `truncate-${desktopTitleFontWeight}`
+                                            }
+                                            userSelect={!isMobile ? "text" : undefined}
+                                        >
+                                            {title}
+                                        </Box>
+                                        {subtitle && (
+                                            <Box fontSize="50" color="grey-50" fontStyle="truncate">
+                                                {subtitle}
+                                            </Box>
+                                        )}
                                     </Box>
                                 </Box>
                                 <Box

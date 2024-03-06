@@ -1,9 +1,16 @@
+import {useMemo} from "react";
+import {Box} from "~/client/design/box.js";
+import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {useShowToast} from "~/client/design/toast.js";
-import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view.js";
+import {
+    DocumentCommentThreadListView,
+    documentCommentThreadListViewMaxWidth,
+} from "~/client/documents/document_comment_thread_list_view.js";
 import {documentCommentThreadCountAgainstLimit} from "~/client/documents/document_shared_styles.js";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
@@ -11,10 +18,12 @@ import {useSearchEntityAffinityViewInteraction} from "~/client/search/use_search
 import {getInboxDocumentNewCommentThreadsEntryCommentThreads} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
+    getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -83,10 +92,11 @@ export async function loader({params, context}: LoaderArgs) {
 export const meta = () => [{title: `New document comment threads notification${metaTitlePostfix}`}];
 
 export default function DocumentNewCommentThreadsRoute({
-    withMobileLayout,
+    withMobileLayout = false,
 }: {
     withMobileLayout?: boolean;
 }) {
+    const isMobile = useIsMobile();
     const rootNavigate = useRootNavigate();
     const showToast = useShowToast();
 
@@ -104,10 +114,30 @@ export default function DocumentNewCommentThreadsRoute({
     // the document is likely an artifact you care about.
     useSearchEntityAffinityViewInteraction(`Document:${initialDocument.id}`);
 
+    const content = editorState.getContent();
+    const title = useMemo(() => getDocumentContentTitle(content.doc), [content.doc]);
+
+    const navigationBar = useNavigationBar({
+        withMobileLayout,
+        title,
+        withoutDisappearingTitle: true,
+        subtitle: "New comments",
+        desktopTitleMaxWidth: documentCommentThreadListViewMaxWidth,
+        desktopTitleFontSize: "200",
+        menuActions: [
+            {
+                label: "Open document",
+                pressErrorTitle: "Can’t open document",
+                onPress: () =>
+                    rootNavigate(`/s/${initialDocument.spaceId}/documents/${initialDocument.id}`),
+            },
+        ],
+    });
+
     return (
         <DocumentCommentThreadListView
             documentId={initialDocument.id}
-            content={editorState.getContent()}
+            content={content}
             isConnected={isConnected}
             procedures={procedures}
             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
@@ -137,6 +167,27 @@ export default function DocumentNewCommentThreadsRoute({
                 optimisticComments: [],
             }))}
             withMobileLayout={withMobileLayout}
+            navigationBar={navigationBar}
+            header={useMemo(() => {
+                const paddingBottom = "4";
+
+                return {
+                    minHeight: addRemLengths(
+                        spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
+                        spacing[paddingBottom],
+                    ),
+                    node: (
+                        <Box
+                            style={{
+                                paddingTop: "var(--safe-area-inset-top, 0px)",
+                                paddingBottom: spacing[paddingBottom],
+                            }}
+                        >
+                            <Box height={navigationBarHeight} />
+                        </Box>
+                    ),
+                };
+            }, [isMobile])}
         />
     );
 }

@@ -81,7 +81,8 @@ const accountAvatarPaddingY: RemLength = `${
 
 export function MessageInput<RoomKey extends string, Message extends MessageModel<RoomKey>>({
     messageNoun = "message",
-    messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
+    messageStartOfSentenceNoun,
+    placeholder,
     messages,
     isMessageCreationDisabled,
     onUpdateMessages,
@@ -96,9 +97,11 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     "data-testid": dataTestId,
     restoreStateRef,
     marginX = defaultMessageViewMarginX,
+    withMobileLayout,
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
+    placeholder?: string;
     messages: MessageList<Message>;
     isMessageCreationDisabled?: boolean;
     onUpdateMessages: (update: (messages: MessageList<Message>) => MessageList<Message>) => void;
@@ -119,6 +122,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
         isFocused: boolean;
     } | null>;
     marginX?: Spacing;
+    withMobileLayout?: boolean;
 }) {
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
@@ -247,6 +251,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
             editorRef={editorRef}
             messageNoun={messageNoun}
             messageStartOfSentenceNoun={messageStartOfSentenceNoun}
+            placeholder={placeholder}
             state={state}
             onChange={setState}
             onSend={submitMessage}
@@ -260,6 +265,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
             withoutBorderTop={withoutBorderTop}
             data-testid={dataTestId}
             marginX={marginX}
+            withMobileLayout={withMobileLayout}
             onFocus={() => {
                 if (restoreStateRef?.current) restoreStateRef.current.isFocused = true;
             }}
@@ -311,12 +317,13 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     editorRef: externalEditorRef,
     messageNoun = "message",
     messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
+    placeholder = `${messageNoun === "message" ? "Send" : "Add"} a ${messageNoun}`,
     state,
     onChange,
     onSend: onSendProp,
     isBottomBar = false,
     withoutBorderTop = false,
-    withoutAccountAvatar = false,
+    withMobileLayout: withMobileLayoutProp,
     isSendBottomArrowRight,
     isSendButtonDisabled: isSendButtonDisabledProp,
     isSendButtonPending,
@@ -334,12 +341,13 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     editorRef?: RefObject<ContentEditorRef<MessageContentWithReferences>>;
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
+    placeholder?: string;
     state: ContentEditorState<MessageContentWithReferences>;
     onChange: (state: ContentEditorState<MessageContentWithReferences>) => void;
     onSend: () => void;
     isBottomBar?: boolean;
     withoutBorderTop?: boolean;
-    withoutAccountAvatar?: boolean;
+    withMobileLayout?: boolean;
     isSendBottomArrowRight?: boolean;
     isSendButtonDisabled?: boolean;
     isSendButtonPending?: boolean;
@@ -357,6 +365,8 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     const isMobile = useIsMobile();
     const clientInfo = useClientInfo();
     const {currentAccount} = useSpaceContext();
+
+    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const containerRef = useRef<HTMLDivElement>(null);
     const inputContainerRef = useRef<HTMLDivElement>(null);
@@ -706,9 +716,11 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                         return (
                             <Box
                                 position="relative"
-                                paddingBottom="3"
+                                paddingBottom="4"
                                 style={{
-                                    paddingLeft: getMessageBubbleMarginLeft(marginX),
+                                    paddingLeft: withMobileLayout
+                                        ? spacing["3"]
+                                        : getMessageBubbleMarginLeft(marginX),
                                     paddingRight: addRemLengths(
                                         spacing["2"],
                                         spacing["7"],
@@ -799,7 +811,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                                         </Box>
                                     </FocusRing>
                                 </Box>
-                                <Box position="absolute" top="0" right="5">
+                                <Box position="absolute" top="0" right="3">
                                     <IconButton
                                         size="xs"
                                         description="Cancel reply"
@@ -812,8 +824,13 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                             </Box>
                         );
                     })()}
-                <Box overflow="hidden" display="flex" paddingX={marginX} gap="2">
-                    {!isMobile && !withoutAccountAvatar && (
+                <Box
+                    overflow="hidden"
+                    display="flex"
+                    paddingX={withMobileLayout ? "3" : marginX}
+                    gap="2"
+                >
+                    {!withMobileLayout && (
                         <Box display="flex" alignItems="flex-end">
                             <Box
                                 width={accountAvatarSize}
@@ -832,7 +849,9 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                             overflow="hidden"
                             backgroundColor="grey-5"
                             borderRadius="md"
-                            style={{minHeight: messageViewBubbleMinHeight}}
+                            style={{
+                                minHeight: messageViewBubbleMinHeight,
+                            }}
                         >
                             <Box
                                 ref={useScrollbar()}
@@ -851,9 +870,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                                     onFocus={handleFocus}
                                     onBlur={handleBlur}
                                     aria-label={`New ${messageNoun}`}
-                                    placeholder={`${
-                                        messageNoun === "message" ? "Send" : "Add"
-                                    } a ${messageNoun}`}
+                                    placeholder={placeholder}
                                     className={sprinkles({
                                         paddingX: messageViewBubblePaddingX,
                                         paddingY: messageViewBubblePaddingY,

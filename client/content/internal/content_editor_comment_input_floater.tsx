@@ -238,10 +238,9 @@ function ContentEditorCommentInput({
                     state={commentState}
                     onChange={setCommentState}
                     onSend={sendComment}
-                    marginX="3"
-                    withoutAccountAvatar={true}
                     isSendBottomArrowRight={true}
                     isSendButtonPending={isSendButtonPending}
+                    withMobileLayout={true}
                 />
             </Box>
             {shouldShowConfirmCloseDialog && (

@@ -80,7 +80,7 @@ export function ContentEditorMobileCommentInputBottomBar({onClose}: {onClose: ()
                 <MessageInputBase
                     editorRef={editorRef}
                     isBottomBar={true}
-                    marginX="3"
+                    withMobileLayout={true}
                     state={state}
                     onChange={setState}
                     onSend={() => {

@@ -112,7 +112,6 @@ const properties = defineProperties({
             text: {userSelect: "text", cursor: "auto"},
         },
         textAlign: {left: "left", center: "center", right: "right", justify: "justify"},
-        fontSize: fontSizes,
         fontStyle: fontStyles,
     },
 });
@@ -248,6 +247,7 @@ const responsiveProperties = defineProperties({
             thick: {selectors: {"&&&&": {borderWidth: 2}}},
         },
         boxShadow: elevationVars,
+        fontSize: fontSizes,
     },
     shorthands: {
         inset: ["top", "bottom", "left", "right"],

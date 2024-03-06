@@ -53,7 +53,7 @@ export function createDocumentCommentThreadSnippetCollector(
         return new Map(
             mapIterable(resolvedPosByCommentThreadId, ([commentThreadId, resolvedPos]) => [
                 commentThreadId,
-                getContentSnippet(resolvedPos, {linesAbove: 2, linesBelow: 6}),
+                getContentSnippet(resolvedPos, {linesAbove: 2, linesBelow: 8}),
             ]),
         );
     };
