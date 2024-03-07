@@ -59,6 +59,7 @@ import {
 } from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {generateId} from "~/shared/id/id.js";
 import {
@@ -5287,6 +5288,263 @@ describe("Comments", () => {
                 commentThreadIds: [commentThreadId1, commentThreadId2, generateId()],
             }),
         ).rejects.toThrow(NotFoundError);
+    });
+
+    test("comment thread update lock version stays the same when moving across referenced and archived items", async () => {
+        const DocumentsTable = getDocumentsTableForTest();
+
+        const document = await createDocument(context.action(session1), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 1,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                },
+            ],
+        });
+
+        expect(
+            assertExists(
+                await DocumentsTable.getItemIfExists(context, {
+                    partitionType: "Document",
+                    sortRangeType: "ReferencedCommentThread",
+                    documentId: document.id,
+                    commentThreadId,
+                }),
+            ).updateLockVersion,
+        ).toBe(undefined);
+
+        expect(
+            await DocumentsTable.getItemIfExists(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        await createDocumentComment(context.action(session1), {
+            documentId: document.id,
+            commentThreadId,
+            parentCommentIndex: 0,
+            content: createSimpleMessageContent("Test message content 2"),
+        });
+
+        expect(
+            assertExists(
+                await DocumentsTable.getItemIfExists(context, {
+                    partitionType: "Document",
+                    sortRangeType: "ReferencedCommentThread",
+                    documentId: document.id,
+                    commentThreadId,
+                }),
+            ).updateLockVersion,
+        ).toBe(1);
+
+        expect(
+            await DocumentsTable.getItemIfExists(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        await createDocumentComment(context.action(session1), {
+            documentId: document.id,
+            commentThreadId,
+            parentCommentIndex: 0,
+            content: createSimpleMessageContent("Test message content 3"),
+        });
+
+        expect(
+            assertExists(
+                await DocumentsTable.getItemIfExists(context, {
+                    partitionType: "Document",
+                    sortRangeType: "ReferencedCommentThread",
+                    documentId: document.id,
+                    commentThreadId,
+                }),
+            ).updateLockVersion,
+        ).toBe(2);
+
+        expect(
+            await DocumentsTable.getItemIfExists(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 2,
+            steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        expect(
+            assertExists(
+                await DocumentsTable.getItemIfExists(context, {
+                    partitionType: "Document",
+                    sortRangeType: "ReferencedCommentThread",
+                    documentId: document.id,
+                    commentThreadId,
+                }),
+            ).updateLockVersion,
+        ).toBe(2);
+
+        expect(
+            await DocumentsTable.getItemIfExists(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        await updateDocumentSnapshotForTest(context.action(session1), document.id);
+
+        expect(
+            await DocumentsTable.getItemIfExists(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            assertExists(
+                await DocumentsTable.getItemIfExists(context, {
+                    partitionType: "Document",
+                    sortRangeType: "ArchivedCommentThread",
+                    documentId: document.id,
+                    commentThreadId,
+                }),
+            ).updateLockVersion,
+        ).toBe(2);
+
+        await createDocumentComment(context.action(session1), {
+            documentId: document.id,
+            commentThreadId,
+            parentCommentIndex: 0,
+            content: createSimpleMessageContent("Test message content 4"),
+        });
+
+        expect(
+            await DocumentsTable.getItemIfExists(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            assertExists(
+                await DocumentsTable.getItemIfExists(context, {
+                    partitionType: "Document",
+                    sortRangeType: "ArchivedCommentThread",
+                    documentId: document.id,
+                    commentThreadId,
+                }),
+            ).updateLockVersion,
+        ).toBe(3);
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 3,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        expect(
+            await DocumentsTable.getItemIfExists(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            assertExists(
+                await DocumentsTable.getItemIfExists(context, {
+                    partitionType: "Document",
+                    sortRangeType: "ArchivedCommentThread",
+                    documentId: document.id,
+                    commentThreadId,
+                }),
+            ).updateLockVersion,
+        ).toBe(3);
+
+        await updateDocumentSnapshotForTest(context.action(session1), document.id);
+
+        expect(
+            assertExists(
+                await DocumentsTable.getItemIfExists(context, {
+                    partitionType: "Document",
+                    sortRangeType: "ReferencedCommentThread",
+                    documentId: document.id,
+                    commentThreadId,
+                }),
+            ).updateLockVersion,
+        ).toBe(3);
+
+        expect(
+            await DocumentsTable.getItemIfExists(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        await createDocumentComment(context.action(session1), {
+            documentId: document.id,
+            commentThreadId,
+            parentCommentIndex: 0,
+            content: createSimpleMessageContent("Test message content 5"),
+        });
+
+        expect(
+            assertExists(
+                await DocumentsTable.getItemIfExists(context, {
+                    partitionType: "Document",
+                    sortRangeType: "ReferencedCommentThread",
+                    documentId: document.id,
+                    commentThreadId,
+                }),
+            ).updateLockVersion,
+        ).toBe(4);
+
+        expect(
+            await DocumentsTable.getItemIfExists(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
     });
 
     describe("Notification subscribers", () => {
