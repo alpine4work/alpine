@@ -105,9 +105,26 @@ export function ErrorBoundary() {
     // identity to determine whether we need to log the error.
     const error = useStableValue(ErrorSchema, useRouteError());
 
+    const withMobileLayout = usePeekContext()?.withMobileLayout ?? false;
+
     return (
-        <Box display="flex" justifyContent="center">
-            <Box width="full" maxWidth="128" paddingX="8" paddingTop="10" paddingBottom="8">
+        <Box
+            display="flex"
+            justifyContent="center"
+            style={{
+                paddingTop: "var(--safe-area-inset-top, 0px)",
+                paddingBottom: "var(--safe-area-inset-bottom, 0px)",
+                paddingLeft: "var(--safe-area-inset-left, 0px)",
+                paddingRight: "var(--safe-area-inset-right, 0px)",
+            }}
+        >
+            <Box
+                width="full"
+                maxWidth="128"
+                paddingX="8"
+                paddingTop={withMobileLayout ? "16" : "32"}
+                paddingBottom="8"
+            >
                 <ErrorBodyRenderer title="Couldn’t show content" error={error} />
             </Box>
         </Box>
