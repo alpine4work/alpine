@@ -1091,6 +1091,9 @@ function DocumentContentEditorStateful({
                         backgroundColor="grey-0"
                         style={{
                             width: addRemLengths(documentContentEditorSidebarWidth, spacing["4"]),
+                            // Let the browser know we'll be basically immediately animating in the sidebar
+                            // so it can prepare a compositing layer.
+                            willChange: "transform",
                         }}
                     >
                         <DocumentContentEditorSidebar
