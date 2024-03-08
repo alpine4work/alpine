@@ -932,7 +932,7 @@ export async function getSessionActorAccountSpaces(context: ServerSessionActionC
         spaceIds,
         getConditionCheckTransactionEntry: () =>
             spacesItem
-                ? SpacesTable.transactionItemUpdateLockVersionConditionCheck(
+                ? SpacesTable.transactionUpdateLockVersionConditionCheck(
                       {
                           partitionType: "Account",
                           sortRangeType: "Spaces",

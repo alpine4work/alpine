@@ -1,4 +1,3 @@
-import {ChatCircleText} from "phosphor-react";
 import {useMemo} from "react";
 import {usePress} from "react-aria";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
@@ -10,7 +9,7 @@ import {convertRemLengthToPx} from "~/shared/design/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
-import {colorSchemeVars, contentSchemaStyles} from "~/shared/styles/styles.js";
+import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 export type DocumentContentEditorSideDecoration = {
     readonly markTop: number;
@@ -132,7 +131,7 @@ function DocumentContentEditorCommentThreadSideDecoration({
             position="absolute"
             display="flex"
             alignItems="center"
-            gap="2"
+            gap="1.5"
             paddingRight="0.5"
             borderRadius="md"
             style={{
@@ -143,18 +142,28 @@ function DocumentContentEditorCommentThreadSideDecoration({
             }}
             {...pressProps}
         >
-            <Box display="flex" alignItems="center" gap="0.5" color="grey-40">
-                <ChatCircleText size="0.825rem" color={colorSchemeVars["grey-30"]} />
-                {commentCount <= 99 ? commentCount : "99+"}
-            </Box>
             {shouldRenderCommentAvatars && (
                 <AccountAvatarPile
-                    size="4"
+                    size="5"
                     previewAccounts={commentAuthors.slice(0, 3)}
                     accountCount={commentAuthors.length}
                     getAllAccounts={() => commentAuthors}
                 />
             )}
+            <Box
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+                width="5"
+                height="5"
+                color="grey-70"
+                backgroundColor="grey-5"
+                borderRadius="full"
+                borderBottomRightRadius="none"
+                fontSize="50"
+            >
+                {commentCount <= 99 ? commentCount : "99+"}
+            </Box>
         </Box>
     );
 }

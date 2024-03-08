@@ -1,5 +1,5 @@
 import {AnimationControls, spring, timeline} from "motion";
-import {ArrowDown, ArrowUp, CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
+import {CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
 import {redo, undo} from "prosemirror-history";
 import {Memo, Ref, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
@@ -204,6 +204,7 @@ function DocumentContentEditorStateful({
         toggleShouldConnect,
         procedures,
         subscribeToCommentThreadEvents,
+        unpersistedResolutionStateByCommentThreadId,
     } = useDocumentContentEditorWebSocket(initialDocument);
 
     const phantomSelections = useDocumentContentEditorPhantomSelections({
@@ -1101,6 +1102,9 @@ function DocumentContentEditorStateful({
                             isConnected={isConnected}
                             procedures={procedures}
                             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
+                            unpersistedResolutionStateByCommentThreadId={
+                                unpersistedResolutionStateByCommentThreadId
+                            }
                             decorations={decorations}
                             commentThreadListViewRef={commentThreadListViewRef}
                             onClose={onSidebarClose}
@@ -1188,6 +1192,7 @@ function DocumentContentEditorSidebar({
     isConnected,
     procedures,
     subscribeToCommentThreadEvents,
+    unpersistedResolutionStateByCommentThreadId,
     decorations,
     commentThreadListViewRef,
     onClose,
@@ -1201,6 +1206,10 @@ function DocumentContentEditorSidebar({
     isConnected: boolean;
     procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
+    unpersistedResolutionStateByCommentThreadId: ReadonlyMap<
+        DocumentCommentThreadId,
+        {readonly isResolved: boolean; readonly version: number}
+    >;
     decorations: ReadonlyArray<DocumentContentEditorSideDecoration>;
     commentThreadListViewRef: Ref<DocumentCommentThreadListViewRef>;
     onClose: Memo<() => void>;
@@ -1233,6 +1242,9 @@ function DocumentContentEditorSidebar({
         }
     }, [context.tracer, initialDataResult, onClose]);
 
+    // NOCOMMIT: When the comment thread is resolved, can we remember what the
+    // previous/next comments were? To support workflows where the user is going
+    // through threads one by one.
     const {previousCommentThreadId, nextCommentThreadId} = useMemo(() => {
         let previousCommentThreadId: DocumentCommentThreadId | null = null;
         let hasFoundCommentThread = false;
@@ -1251,58 +1263,62 @@ function DocumentContentEditorSidebar({
     }, [commentThreadId, decorations]);
 
     const header = useMemo(() => {
+        // We have a smaller actual height to let the margins of the comment thread
+        // header bleed into our controls header for better visual balance.
+        const actualHeight = "7";
         const height = "8";
 
         return {
-            minHeight: spacing[height],
+            minHeight: spacing[actualHeight],
             node: (
-                <Box
-                    flexShrink="0"
-                    height={height}
-                    display="flex"
-                    alignItems="center"
-                    backgroundColor="grey-0"
-                >
-                    <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
-                        <IconButton
-                            ref={previousCommentThreadButtonRef}
-                            size="xs"
-                            description="Previous thread"
-                            keyboardShortcutHint={isAppleDevice ? "⌘+Shift+," : "Ctrl+Shift+,"}
-                            isDisabled={!previousCommentThreadId}
-                            pressErrorTitle="Can’t go to previous thread"
-                            onPress={async () => {
-                                if (!previousCommentThreadId) return;
-                                await openCommentThread(previousCommentThreadId);
-                            }}
-                        >
-                            <CaretUp />
-                        </IconButton>
-                        <IconButton
-                            ref={nextCommentThreadButtonRef}
-                            size="xs"
-                            description="Next thread"
-                            keyboardShortcutHint={isAppleDevice ? "⌘+Shift+." : "Ctrl+Shift+."}
-                            isDisabled={!nextCommentThreadId}
-                            pressErrorTitle="Can’t go to next thread"
-                            onPress={async () => {
-                                if (!nextCommentThreadId) return;
-                                await openCommentThread(nextCommentThreadId);
-                            }}
-                        >
-                            <CaretDown />
-                        </IconButton>
-                    </Box>
-                    <Box flexGrow="1" height="full" />
-                    <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
-                        <IconButton
-                            size="xs"
-                            description="Close"
-                            keyboardShortcutHint="esc"
-                            onPress={onClose}
-                        >
-                            <X />
-                        </IconButton>
+                <Box height={actualHeight}>
+                    <Box
+                        height={height}
+                        display="flex"
+                        alignItems="center"
+                        backgroundColor="grey-0"
+                    >
+                        <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                            <IconButton
+                                ref={previousCommentThreadButtonRef}
+                                size="xs"
+                                description="Previous thread"
+                                keyboardShortcutHint={isAppleDevice ? "⌘+Shift+," : "Ctrl+Shift+,"}
+                                isDisabled={!previousCommentThreadId}
+                                pressErrorTitle="Can’t go to previous thread"
+                                onPress={async () => {
+                                    if (!previousCommentThreadId) return;
+                                    await openCommentThread(previousCommentThreadId);
+                                }}
+                            >
+                                <CaretUp />
+                            </IconButton>
+                            <IconButton
+                                ref={nextCommentThreadButtonRef}
+                                size="xs"
+                                description="Next thread"
+                                keyboardShortcutHint={isAppleDevice ? "⌘+Shift+." : "Ctrl+Shift+."}
+                                isDisabled={!nextCommentThreadId}
+                                pressErrorTitle="Can’t go to next thread"
+                                onPress={async () => {
+                                    if (!nextCommentThreadId) return;
+                                    await openCommentThread(nextCommentThreadId);
+                                }}
+                            >
+                                <CaretDown />
+                            </IconButton>
+                        </Box>
+                        <Box flexGrow="1" height="full" />
+                        <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                            <IconButton
+                                size="xs"
+                                description="Close"
+                                keyboardShortcutHint="esc"
+                                onPress={onClose}
+                            >
+                                <X />
+                            </IconButton>
+                        </Box>
                     </Box>
                 </Box>
             ),
@@ -1384,6 +1400,9 @@ function DocumentContentEditorSidebar({
                                 isConnected={isConnected}
                                 procedures={procedures}
                                 subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
+                                unpersistedResolutionStateByCommentThreadId={
+                                    unpersistedResolutionStateByCommentThreadId
+                                }
                                 withMobileLayout={true}
                                 // Slightly reduce the amount of margin on messages in a comment thread
                                 // because we have less space.
@@ -1403,6 +1422,7 @@ function DocumentContentEditorSidebar({
                         onCommentThreadSnippetPress,
                         procedures,
                         subscribeToCommentThreadEvents,
+                        unpersistedResolutionStateByCommentThreadId,
                     ],
                 )}
             </Box>

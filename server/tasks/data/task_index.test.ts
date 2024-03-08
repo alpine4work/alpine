@@ -641,8 +641,8 @@ test("processing account name update action only updates one space", async () =>
     await space1.addAccount(account);
     await space2.addAccount(account);
 
-    const session1 = await TestSpaceSession.createForSpace(space1, account);
-    const session2 = await TestSpaceSession.createForSpace(space2, account);
+    const session1 = await space1.createSession(account);
+    const session2 = await space2.createSession(account);
 
     const [task1, task2, task3, task4] = await runAllPromises([
         TestTask.create(session1),

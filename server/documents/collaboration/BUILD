@@ -4,6 +4,7 @@ ts_project(
     name = "collaboration",
     test_deps = [
         "//server/cloudflare/test_helpers",
+        "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
     ],
     visibility = ["//server/edge:__subpackages__"],

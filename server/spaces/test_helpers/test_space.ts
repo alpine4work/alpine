@@ -66,7 +66,7 @@ export class TestSpace {
         }
 
         const [session] = await runAllPromises([
-            TestSpaceSession.createForSpace(this, account),
+            TestSpaceSession._create(this, account),
             this.addAccount(account),
         ]);
 

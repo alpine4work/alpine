@@ -1,25 +1,36 @@
-import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {
     messageInputMinHeight,
     messageViewMinHeight,
 } from "~/shared/messaging/messaging_shared_styles.js";
 
-export const documentCommentThreadPreviewHeight = spacing["48"];
+export const documentCommentThreadPreviewMinHeight = spacing["48"];
 export const documentCommentInputMinHeight = messageInputMinHeight;
 
 // We want our Y margin to be the same as our X margin. We want to give items
 // some margin top and some margin bottom so that the shadows don't overflow.
 // NOCOMMIT: Delete?
-export const documentCommentThreadListViewMarginTop: Spacing = "2";
-export const documentCommentThreadListViewMarginBottom: Spacing = "2";
-export const documentCommentThreadListViewMarginY: Spacing = "4";
+export const documentCommentThreadListViewMarginTop = "2";
+export const documentCommentThreadListViewMarginBottom = "2";
+export const documentCommentThreadListViewMarginY = "4";
 
-const documentCommentThreadHeightWithoutComments = addRemLengths(
-    documentCommentThreadPreviewHeight,
-    documentCommentInputMinHeight,
-    spacing[documentCommentThreadListViewMarginY],
+export const documentCommentThreadActionsHeight = "7";
+
+export const documentCommentThreadHeaderPaddingY = "5";
+
+export const documentCommentThreadHeaderMinHeightWithoutPaddingTop = addRemLengths(
+    spacing[documentCommentThreadActionsHeight],
+    spacing[documentCommentThreadHeaderPaddingY],
+    documentCommentThreadPreviewMinHeight,
+    spacing[documentCommentThreadHeaderPaddingY],
+);
+
+export const documentCommentThreadHeaderMinHeight = addRemLengths(
+    spacing[documentCommentThreadHeaderPaddingY],
+    documentCommentThreadHeaderMinHeightWithoutPaddingTop,
 );
 
 export const documentCommentThreadCountAgainstLimit =
-    parseRemLengthNumber(documentCommentThreadHeightWithoutComments) /
-    parseRemLengthNumber(messageViewMinHeight);
+    parseRemLengthNumber(
+        addRemLengths(documentCommentThreadHeaderMinHeight, messageInputMinHeight),
+    ) / parseRemLengthNumber(messageViewMinHeight);

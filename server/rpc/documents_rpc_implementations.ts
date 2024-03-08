@@ -5,6 +5,7 @@ import {
 import {
     authorizeDocumentAccess,
     backfillDocumentComments,
+    batchGetDocumentCommentThreadReferencesIfExists,
     createDocumentComment,
     deleteDocumentComment,
     getDocument,
@@ -13,10 +14,10 @@ import {
     getDocumentCommentsFromStart,
     getDocumentContentSteps,
     getDocumentPreviewIfExists,
+    getResolvedDocumentCommentThreadRanges,
     updateDocumentCommentContent,
     updateDocumentContent,
 } from "~/server/documents/data/documents_table.js";
-import {getDocumentContentReferences} from "~/server/documents/data/get_document_content_references.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {DocumentCommentModel} from "~/shared/documents/document_model.js";
@@ -70,27 +71,44 @@ implementRpc(
     definition.updateDocumentContent,
     {visibility: ["DocumentCollaborationService"]},
     async (context, input) => {
-        const {conflictingSteps} = await updateDocumentContent(context.actor.authorizeSession(), {
-            id: input.documentId,
-            version: input.version,
-            steps: input.steps,
-            clientId: input.clientId,
-            createCommentThreads: input.createCommentThreads,
-        });
-        return {conflictingSteps};
+        const {conflictingSteps, updatedCommentThreads} = await updateDocumentContent(
+            context.actor.authorizeSession(),
+            {
+                id: input.documentId,
+                version: input.version,
+                steps: input.steps,
+                clientId: input.clientId,
+                createCommentThreads: input.createCommentThreads,
+                resolveCommentThreadIds: input.resolveCommentThreadIds,
+                unresolveCommentThreadIds: input.unresolveCommentThreadIds,
+            },
+        );
+        return {conflictingSteps, updatedCommentThreads};
     },
 );
 
 implementRpc(
     definition.getDocumentContentReferences,
     {visibility: ["DocumentCollaborationService"]},
-    async (context, input) => {
-        const references = await getDocumentContentReferences(
-            context.actor.authorizeSession(),
-            input.documentId,
-            input.referencedIds,
-        );
-        return {references};
+    async (context, {documentId, referencedIds}) => {
+        const {spaceId} = await authorizeDocumentAccess(context, documentId);
+
+        const [references, commentThreadById] = await runAllPromises([
+            getContentReferences(context, spaceId, referencedIds),
+            referencedIds.commentThreadIds.size > 0
+                ? batchGetDocumentCommentThreadReferencesIfExists(context, {
+                      documentId,
+                      commentThreadIds: referencedIds.commentThreadIds,
+                  })
+                : new Map(),
+        ]);
+
+        return {
+            references: {
+                ...references,
+                commentThreadById,
+            },
+        };
     },
 );
 
@@ -197,5 +215,13 @@ implementRpc(
         ]);
 
         return {author, contentReferences};
+    },
+);
+
+implementRpc(
+    definition.getResolvedDocumentCommentThreadRanges,
+    {visibility: ["DocumentCollaborationService"]},
+    (context, input) => {
+        return getResolvedDocumentCommentThreadRanges(context, input);
     },
 );

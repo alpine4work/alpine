@@ -16,7 +16,11 @@ import {
 } from "~/client/web_socket/web_socket_client.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
-import {DocumentCommentModel, DocumentModel} from "~/shared/documents/document_model.js";
+import {
+    DocumentCommentModel,
+    DocumentCommentThreadModel,
+    DocumentModel,
+} from "~/shared/documents/document_model.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -41,6 +45,8 @@ export type DocumentContentEditorWebSocketClientProcedures = Pick<
     | "getCommentThreadAndInitialCommentsIfExists"
     | "getCommentsFromStart"
     | "getCommentsFromEnd"
+    | "resolveCommentThread"
+    | "unresolveCommentThread"
 >;
 
 /**
@@ -110,6 +116,8 @@ export class DocumentContentEditorWebSocketClient {
             "getCommentThreadAndInitialCommentsIfExists",
             "getCommentsFromStart",
             "getCommentsFromEnd",
+            "resolveCommentThread",
+            "unresolveCommentThread",
         ]);
     }
 
@@ -178,6 +186,10 @@ export class DocumentContentEditorWebSocketClient {
                                     newVersion: output.newVersion,
                                     steps: output.steps,
                                     stepsContentReferences: output.stepsContentReferences,
+                                },
+                                {
+                                    type: "Persisted",
+                                    newVersion: output.persistedVersion,
                                 },
 
                                 // Unconditionally run this action even if we have no new remembered steps
@@ -250,6 +262,21 @@ export class DocumentContentEditorWebSocketClient {
                         });
                     }
 
+                    if (
+                        event.resolveCommentThreadIds.length > 0 ||
+                        event.unresolveCommentThreadIds.length > 0
+                    ) {
+                        actions.push({
+                            type: "Extra",
+                            extra: {
+                                type: "UpdateCommentThreadResolutionStates",
+                                newVersion: event.newVersion,
+                                resolveCommentThreadIds: event.resolveCommentThreadIds,
+                                unresolveCommentThreadIds: event.unresolveCommentThreadIds,
+                            },
+                        });
+                    }
+
                     this._dispatchBatch(actions);
                     break;
                 }
@@ -260,6 +287,7 @@ export class DocumentContentEditorWebSocketClient {
                     // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
                     // close the page if we haven't finished saving their document. It will
                     // look ok on their machine but might not be on the server.
+                    this._dispatch({type: "Persisted", newVersion: event.newVersion});
                     break;
                 }
                 case "UpdateOtherPresenceState": {
@@ -294,7 +322,7 @@ export class DocumentContentEditorWebSocketClient {
                         this._dispatch({
                             type: "Extra",
                             extra: {
-                                type: "UpdateCommentThread",
+                                type: "UpdateCommentThreadReference",
                                 commentThreadId: event.commentThreadId,
                                 commentCount: event.event.message.index + 1,
                                 addCommentAuthor: event.event.message.author,
@@ -435,11 +463,24 @@ export class DocumentContentEditorWebSocketClient {
 
     public subscribeToCommentThreadEvents(
         commentThreadId: DocumentCommentThreadId,
-        subscriber: (message: MessagingRealtimeEvent<DocumentCommentModel>) => void,
+        subscriber: (
+            message:
+                | MessagingRealtimeEvent<DocumentCommentModel>
+                | {type: "PersistedContent"; updatedCommentThread: DocumentCommentThreadModel},
+        ) => void,
     ) {
         return this._client.subscribeToEvents(event => {
             if (event.type === "Comments" && event.commentThreadId === commentThreadId) {
                 subscriber(event.event);
+            }
+
+            if (event.type === "PersistedContent") {
+                const commentThread = event.updatedCommentThreads.find(
+                    commentThread => commentThread.id === commentThreadId,
+                );
+                if (commentThread) {
+                    subscriber({type: "PersistedContent", updatedCommentThread: commentThread});
+                }
             }
         });
     }

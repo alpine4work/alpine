@@ -52,6 +52,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
             },
             output: {
                 newVersion: Schema.integer,
+                persistedVersion: Schema.integer,
                 steps: Schema.array(
                     Schema.object({
                         step: DocumentContentStepSchema,
@@ -115,6 +116,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                 newCommentLimit: Schema.integer,
             },
             output: {
+                commentThread: DocumentCommentThreadModel.schema(),
                 commentCount: Schema.integer,
                 lastCommentChangeTime: Schema.date.nullable(),
                 newComments: Schema.array(DocumentCommentModel.schema()),
@@ -242,6 +244,30 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                 lastCommentChangeTime: Schema.date.nullable(),
             },
         },
+
+        /**
+         * Marks a document comment thread as resolved and removes any instances of the
+         * comment mark in the document. If the comment thread is already resolved then
+         * this does nothing.
+         */
+        resolveCommentThread: {
+            input: {
+                commentThreadId: Schema.id<DocumentCommentThreadId>(),
+            },
+            output: {},
+        },
+
+        /**
+         * Marks a document comment thread as unresolved. Adds the comment mark back to
+         * the document everywhere it was previously. If the comment thread is already
+         * unresolved then this does nothing.
+         */
+        unresolveCommentThread: {
+            input: {
+                commentThreadId: Schema.id<DocumentCommentThreadId>(),
+            },
+            output: {},
+        },
     },
     events: {
         /**
@@ -266,6 +292,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
             steps: Schema.array(DocumentContentStepSchema),
             stepsContentReferences: DocumentContentReferencesSchema,
             clientId: Schema.id<ContentEditorClientId>(),
+
             /**
              * Atomically update this other presence state in the same action as we update
              * content.
@@ -276,15 +303,37 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                 connectionId: Schema.id<WebSocketConnectionId>(),
                 state: DocumentCollaborationPresenceStateSchema.nullable(),
             }).nullable(),
+
+            /**
+             * Comment threads that were resolved at the same time as these steps were
+             * applied. Remember that when you receive this event we may not have persisted
+             * the resolve state yet! You'll get the newly persisted
+             * `DocumentCommentThreadModel` object with `PersistedContent`.
+             */
+            resolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()),
+
+            /**
+             * Comment threads that were unresolved at the same time as these steps were
+             * applied. Remember that when you receive this event we may not have persisted
+             * the resolve state yet! You'll get the newly persisted
+             * `DocumentCommentThreadModel` object with `PersistedContent`.
+             */
+            unresolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()),
         }),
 
         /**
          * Tells the client that we've successfully persisted all changes at this
          * version and if the client disconnects the changes will still be there.
+         *
+         * You may get a `PersistedContent` event before a
+         * `UpdateContentWithoutPersistence` with the steps for this version. That's
+         * because we need to load references from the database before we can send
+         * `UpdateContentWithoutPersistence` and persistence may happen before that.
          */
         PersistedContent: Schema.object({
             type: Schema.value("PersistedContent"),
             newVersion: Schema.integer,
+            updatedCommentThreads: Schema.array(DocumentCommentThreadModel.schema()),
         }),
 
         UpdateOtherPresenceState: Schema.object({

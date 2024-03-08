@@ -2379,7 +2379,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionItemUpdateLockVersionConditionCheck(
+    public transactionUpdateLockVersionConditionCheck(
         key: Types["ItemKey"],
         updateLockVersion: number | undefined,
     ): DynamoTransactionEntry {

@@ -127,7 +127,9 @@ const constantColors = Object.fromEntries(
     ]),
 ) as {[C in keyof typeof colorsWithShade as `${C}-const`]: string};
 
-const translucentColorSchemeVars = createGlobalTheme(
+const translucentColorSchemeVars: {
+    [C in ThemeColor as `${C}-60-opacity-60` | `${C}-70-opacity-60`]: CssVarFunction;
+} = createGlobalTheme(
     ":root",
     Object.fromEntries(
         themeColors.flatMap(color => [

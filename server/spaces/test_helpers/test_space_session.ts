@@ -17,7 +17,9 @@ export class TestSpaceSession extends TestSession {
         this.space = space;
     }
 
-    public static async createForSpace(space: TestSpace, account: TestAccount) {
+    // Starts with an underscore since you should prefer calling
+    // `space.createSession()` instead of `TestSpaceSession._create()`.
+    public static async _create(space: TestSpace, account: TestAccount) {
         assert(space.context === account.context);
 
         const id = generateId<SessionId>();

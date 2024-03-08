@@ -12,7 +12,11 @@ import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
-import {DocumentCommentModel, DocumentModel} from "~/shared/documents/document_model.js";
+import {
+    DocumentCommentModel,
+    DocumentCommentThreadModel,
+    DocumentModel,
+} from "~/shared/documents/document_model.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {DocumentCommentThreadId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
@@ -21,7 +25,11 @@ import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_prot
 export type SubscribeToCommentThreadEventsFunction = Memo<
     (
         commentThreadId: DocumentCommentThreadId,
-        subscriber: (event: MessagingRealtimeEvent<DocumentCommentModel>) => void,
+        subscriber: (
+            event:
+                | MessagingRealtimeEvent<DocumentCommentModel>
+                | {type: "PersistedContent"; updatedCommentThread: DocumentCommentThreadModel},
+        ) => void,
     ) => () => void
 >;
 
@@ -46,6 +54,13 @@ export function useDocumentContentEditorWebSocket(initialDocument: DocumentModel
         readonly contentBeforeStep: Lazy<DocumentContent>;
         readonly contentAfterStep: Lazy<DocumentContent>;
     }>;
+    unpersistedResolutionStateByCommentThreadId: ReadonlyMap<
+        DocumentCommentThreadId,
+        {
+            readonly isResolved: boolean;
+            readonly version: number;
+        }
+    >;
     toggleShouldConnect: Memo<() => void>;
     procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
@@ -102,6 +117,8 @@ export function useDocumentContentEditorWebSocket(initialDocument: DocumentModel
         ),
         otherPresenceStateByConnectionId: state.extra.otherPresenceStateByConnectionId,
         rememberedSteps: state.extra.rememberedSteps,
+        unpersistedResolutionStateByCommentThreadId:
+            state.extra.unpersistedResolutionStateByCommentThreadId,
         toggleShouldConnect,
         procedures: client.procedures as MemoObject<DocumentContentEditorWebSocketClientProcedures>,
         subscribeToCommentThreadEvents: useCallback(

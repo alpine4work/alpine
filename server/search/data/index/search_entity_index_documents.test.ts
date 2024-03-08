@@ -214,7 +214,7 @@ test("will only index a document once if update happened within timeout even acr
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
 
-    await document.type(session, " This is the title", {cacheOverride: otherCache});
+    await document.type(session, " This is the title", {cacheOverrideForTest: otherCache});
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -237,7 +237,7 @@ test("will only index a document once if update happened within timeout even acr
 
     await ProcessContextModule.waitForTestTasks();
 
-    await document.type(session, " Horseman hosted by the", {cacheOverride: otherCache});
+    await document.type(session, " Horseman hosted by the", {cacheOverrideForTest: otherCache});
 
     await ProcessContextModule.waitForTestTasks();
 

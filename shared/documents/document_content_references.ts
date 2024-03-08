@@ -5,11 +5,23 @@ import {
     emptyContentReferences,
     isEmptyContentReferences,
 } from "~/shared/content/content_references.js";
-import {DocumentContentSchema} from "~/shared/documents/document_content_schema.js";
+import {
+    DocumentContentSchema,
+    UncheckedDocumentContentSchema,
+} from "~/shared/documents/document_content_schema.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+
+export type DocumentCommentThreadReference = SchemaType<
+    typeof DocumentCommentThreadReferenceSchema
+>;
+
+export const DocumentCommentThreadReferenceSchema = Schema.object({
+    commentCount: Schema.integer,
+    commentAuthors: Schema.array(AccountModel.schema),
+});
 
 export type DocumentContentReferences = SchemaType<typeof DocumentContentReferencesSchema>;
 
@@ -26,11 +38,7 @@ export const DocumentContentReferencesSchema = ContentReferencesSchema.merge(
          */
         commentThreadById: Schema.map(
             Schema.id<DocumentCommentThreadId>(),
-            // A subset of the full `DocumentCommentThreadModel`.
-            Schema.object({
-                commentCount: Schema.integer,
-                commentAuthors: Schema.array(AccountModel.schema),
-            }),
+            DocumentCommentThreadReferenceSchema,
         ),
     }),
 );
@@ -94,5 +102,14 @@ export type DocumentContentWithReferences = SchemaType<typeof DocumentContentWit
 
 export const DocumentContentWithReferencesSchema = Schema.object({
     doc: DocumentContentSchema,
+    references: DocumentContentReferencesSchema,
+});
+
+export type UncheckedDocumentContentWithReferences = SchemaType<
+    typeof UncheckedDocumentContentWithReferencesSchema
+>;
+
+export const UncheckedDocumentContentWithReferencesSchema = Schema.object({
+    doc: UncheckedDocumentContentSchema,
     references: DocumentContentReferencesSchema,
 });

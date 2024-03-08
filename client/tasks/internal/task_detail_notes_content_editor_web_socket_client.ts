@@ -154,12 +154,19 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                             if (connectionState !== ourConnectionState) return;
 
                             if (output.result.type === "Available") {
-                                this._dispatch({
-                                    type: "ReceiveSteps",
-                                    newVersion: output.result.newVersion,
-                                    steps: output.result.steps,
-                                    stepsContentReferences: output.result.stepsContentReferences,
-                                });
+                                this._dispatchBatch([
+                                    {
+                                        type: "ReceiveSteps",
+                                        newVersion: output.result.newVersion,
+                                        steps: output.result.steps,
+                                        stepsContentReferences:
+                                            output.result.stepsContentReferences,
+                                    },
+                                    {
+                                        type: "Persisted",
+                                        newVersion: output.persistedVersion,
+                                    },
+                                ]);
                             } else {
                                 const state = this._state.getSnapshot();
 
@@ -230,6 +237,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                     // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
                     // close the page if we haven't finished saving their notes. It will
                     // look ok on their machine but might not be on the server.
+                    this._dispatch({type: "Persisted", newVersion: event.newVersion});
                     break;
                 }
                 default:

@@ -1,8 +1,10 @@
 import {RefObject, useCallback} from "react";
+import {flushSync} from "react-dom";
 import {useAppContext} from "~/client/context/app_context.js";
 import {documentCommentInputMinHeight} from "~/client/documents/document_shared_styles.js";
 import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client.js";
 import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/use_document_content_editor_web_socket.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageInput} from "~/client/messaging/message_input.js";
@@ -23,7 +25,7 @@ export function DocumentCommentInput({
     viewRef,
     commentThread,
     comments,
-    onUpdateComments,
+    onUpdateCommentThread,
     messageEditing,
     replyingToComment,
     onClearReplyingToComment,
@@ -38,8 +40,14 @@ export function DocumentCommentInput({
     viewRef: RefObject<VirtualizedScrollViewRef>;
     commentThread: DocumentCommentThreadModel;
     comments: MessageList<DocumentCommentModel>;
-    onUpdateComments: (
-        update: (comments: MessageList<DocumentCommentModel>) => MessageList<DocumentCommentModel>,
+    onUpdateCommentThread: (
+        update: (state: {
+            commentThread: DocumentCommentThreadModel;
+            comments: MessageList<DocumentCommentModel>;
+        }) => {
+            commentThread: DocumentCommentThreadModel;
+            comments: MessageList<DocumentCommentModel>;
+        },
     ) => void;
     messageEditing: MessageEditing<DocumentCommentRoomKey>;
     replyingToComment: DocumentCommentModel | null;
@@ -54,11 +62,31 @@ export function DocumentCommentInput({
 }) {
     const context = useAppContext();
 
+    const handlePersistedContentEvent = useEvent(
+        (updatedCommentThread: DocumentCommentThreadModel) => {
+            onUpdateCommentThread(({commentThread, comments}) => ({
+                commentThread:
+                    updatedCommentThread.version >= commentThread.version
+                        ? updatedCommentThread
+                        : commentThread,
+                comments,
+            }));
+        },
+    );
+
     // We connect to realtime in our `<DocumentCommentInput>` component. This
     // component is always mounted for a document comment thread.
     useMessagingRealtime({
         messages: comments,
-        onUpdateMessages: onUpdateComments,
+        onUpdateMessages: (update, extra) => {
+            onUpdateCommentThread(({commentThread, comments}) => ({
+                commentThread:
+                    extra?.commentThread && extra.commentThread.version >= commentThread.version
+                        ? extra.commentThread
+                        : commentThread,
+                comments: update(comments),
+            }));
+        },
         isConnected,
         backfillMessages: useCallback(
             async ({
@@ -67,6 +95,7 @@ export function DocumentCommentInput({
                 newMessageLimit: newCommentLimit,
             }) => {
                 const {
+                    commentThread: newCommentThread,
                     commentCount,
                     lastCommentChangeTime,
                     newComments,
@@ -79,6 +108,7 @@ export function DocumentCommentInput({
                     clientLastCommentChangeTime,
                     newCommentLimit,
                 });
+
                 return {
                     messageCount: commentCount,
                     lastMessageChangeTime: lastCommentChangeTime,
@@ -86,14 +116,36 @@ export function DocumentCommentInput({
                     newOtherReferencedMessages: newOtherReferencedComments,
                     messageChangesResult: commentChangesResult,
                     typingStateByConnectionId,
+                    extra: {commentThread: newCommentThread},
                 };
             },
             [commentThread.id, procedures],
         ),
         subscribeToEvents: useCallback(
-            (subscriber: (message: MessagingRealtimeEvent<DocumentCommentModel>) => void) =>
-                subscribeToCommentThreadEvents(commentThread.id, subscriber),
-            [commentThread.id, subscribeToCommentThreadEvents],
+            (subscriber: (event: MessagingRealtimeEvent<DocumentCommentModel>) => void) =>
+                subscribeToCommentThreadEvents(commentThread.id, event => {
+                    if (event.type === "PersistedContent") {
+                        // Synchronously flush since we want the React updates made here to be applied
+                        // in the same render as our WebSocket client's state `ValueStore` updates in
+                        // response to this event.
+                        //
+                        // We want these state updates to happen at the same time since we're replacing
+                        // the optimistic "unpersisted" resolution state from our state store with a
+                        // more permanent update to the `commentThread` object. If these renders don't
+                        // happen at the same time the user may see the resolve button briefly flash
+                        // into an incorrect state.
+                        //
+                        // Given our WebSocket client's state `ValueStore` is subscribed to using
+                        // `useSyncExternalStore()` we'll already be synchronously rendering so it's ok
+                        // to again synchronously render here.
+                        flushSync(() => {
+                            handlePersistedContentEvent(event.updatedCommentThread);
+                        });
+                    } else {
+                        subscriber(event);
+                    }
+                }),
+            [commentThread.id, handlePersistedContentEvent, subscribeToCommentThreadEvents],
         ),
     });
 
@@ -112,7 +164,12 @@ export function DocumentCommentInput({
         <MessageInput
             messageNoun="comment"
             messages={comments}
-            onUpdateMessages={onUpdateComments}
+            onUpdateMessages={update =>
+                onUpdateCommentThread(({commentThread, comments}) => ({
+                    commentThread,
+                    comments: update(comments),
+                }))
+            }
             createMessage={async input => {
                 await procedures.createComment({
                     commentThreadId: commentThread.id,

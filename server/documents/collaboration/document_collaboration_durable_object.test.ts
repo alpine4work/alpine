@@ -16,8 +16,10 @@ import {
     getDocumentComment,
     updateDocumentContent,
 } from "~/server/documents/data/documents_table.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {WebSocketServerTestConnection} from "~/server/web_socket/web_socket_server.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
@@ -38,7 +40,10 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {generateId} from "~/shared/id/id.js";
 import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
-import {RemoveAllMarksStep} from "~/shared/prosemirror/remove_all_marks_step.js";
+import {
+    AddMarksAfterRemoveAllStep,
+    RemoveAllMarksStep,
+} from "~/shared/prosemirror/remove_all_marks_step.js";
 
 const context = createTestWorkerContext();
 const {connectForTest} = DocumentCollaborationDurableObject.test(context);
@@ -254,6 +259,8 @@ test("will optimistically update the document and then persist later", async () 
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -262,6 +269,8 @@ test("will optimistically update the document and then persist later", async () 
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -270,6 +279,8 @@ test("will optimistically update the document and then persist later", async () 
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -297,10 +308,12 @@ test("will optimistically update the document and then persist later", async () 
         {
             type: "PersistedContent",
             newVersion: 1,
+            updatedCommentThreads: [],
         },
         {
             type: "PersistedContent",
             newVersion: 3,
+            updatedCommentThreads: [],
         },
     ]);
 });
@@ -362,6 +375,8 @@ test("will not batch updates from different accounts when persisting", async () 
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -370,6 +385,8 @@ test("will not batch updates from different accounts when persisting", async () 
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -378,6 +395,8 @@ test("will not batch updates from different accounts when persisting", async () 
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client3Id,
             updateOtherPresenceState: {connectionId: connection3.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -405,14 +424,17 @@ test("will not batch updates from different accounts when persisting", async () 
         {
             type: "PersistedContent",
             newVersion: 1,
+            updatedCommentThreads: [],
         },
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
         {
             type: "PersistedContent",
             newVersion: 3,
+            updatedCommentThreads: [],
         },
     ]);
 });
@@ -481,6 +503,8 @@ test("will respond optimistically with a comment thread even if it has not been 
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -503,6 +527,8 @@ test("will respond optimistically with a comment thread even if it has not been 
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -529,6 +555,7 @@ test("will respond optimistically with a comment thread even if it has not been 
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
     ]);
 
@@ -536,6 +563,7 @@ test("will respond optimistically with a comment thread even if it has not been 
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
     ]);
 });
@@ -599,6 +627,8 @@ test("will respond optimistically to backfills with a comment thread even if it 
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -610,6 +640,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
         }),
     ).toEqual({
         newVersion: 2,
+        persistedVersion: 1,
         steps: [
             {
                 clientId: client1Id,
@@ -658,6 +689,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
     ]);
 
@@ -665,6 +697,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
     ]);
 });
@@ -741,6 +774,7 @@ test("when comment threads are added back to the document they will be loaded", 
         {
             type: "PersistedContent",
             newVersion: 4,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -760,6 +794,8 @@ test("when comment threads are added back to the document they will be loaded", 
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -771,6 +807,7 @@ test("when comment threads are added back to the document they will be loaded", 
         {
             type: "PersistedContent",
             newVersion: 4,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -790,6 +827,8 @@ test("when comment threads are added back to the document they will be loaded", 
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 });
@@ -871,14 +910,17 @@ test("comment thread can be optimistic at first and then loaded from the databas
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
         {
             type: "PersistedContent",
             newVersion: 3,
+            updatedCommentThreads: [],
         },
         {
             type: "PersistedContent",
             newVersion: 4,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -898,6 +940,8 @@ test("comment thread can be optimistic at first and then loaded from the databas
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -906,6 +950,8 @@ test("comment thread can be optimistic at first and then loaded from the databas
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -925,6 +971,8 @@ test("comment thread can be optimistic at first and then loaded from the databas
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -936,14 +984,17 @@ test("comment thread can be optimistic at first and then loaded from the databas
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
         {
             type: "PersistedContent",
             newVersion: 3,
+            updatedCommentThreads: [],
         },
         {
             type: "PersistedContent",
             newVersion: 4,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -963,6 +1014,8 @@ test("comment thread can be optimistic at first and then loaded from the databas
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -971,6 +1024,8 @@ test("comment thread can be optimistic at first and then loaded from the databas
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -990,6 +1045,8 @@ test("comment thread can be optimistic at first and then loaded from the databas
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 });
@@ -1052,6 +1109,7 @@ test("can create comments in comment threads", async () => {
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -1071,6 +1129,8 @@ test("can create comments in comment threads", async () => {
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -1082,6 +1142,7 @@ test("can create comments in comment threads", async () => {
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -1101,6 +1162,8 @@ test("can create comments in comment threads", async () => {
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -1172,6 +1235,17 @@ test("can create comments in comment threads", async () => {
             newCommentLimit: 100,
         }),
     ).toEqual({
+        commentThread: new DocumentCommentThreadModel({
+            id: commentThreadId,
+            documentId: document.id,
+            createdTime: expect.any(Date),
+            version: 1,
+            fallbackContentSnippet: null,
+            isResolved: false,
+            commentCount: 2,
+            lastCommentChangeTime: null,
+            firstCommentAuthor: session1.account,
+        }),
         commentCount: 2,
         lastCommentChangeTime: null,
         newComments: [
@@ -1205,6 +1279,17 @@ test("can create comments in comment threads", async () => {
             newCommentLimit: 100,
         }),
     ).toEqual({
+        commentThread: new DocumentCommentThreadModel({
+            id: commentThreadId,
+            documentId: document.id,
+            createdTime: expect.any(Date),
+            version: 1,
+            fallbackContentSnippet: null,
+            isResolved: false,
+            commentCount: 2,
+            lastCommentChangeTime: null,
+            firstCommentAuthor: session1.account,
+        }),
         commentCount: 2,
         lastCommentChangeTime: null,
         newComments: [
@@ -1383,6 +1468,8 @@ test("if comment thread is persisting we will wait to create messages but respon
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -1405,6 +1492,8 @@ test("if comment thread is persisting we will wait to create messages but respon
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -1425,6 +1514,17 @@ test("if comment thread is persisting we will wait to create messages but respon
             newCommentLimit: 100,
         }),
     ).toEqual({
+        commentThread: new DocumentCommentThreadModel({
+            id: commentThreadId,
+            documentId: document.id,
+            createdTime: expect.any(Date),
+            version: 0,
+            fallbackContentSnippet: null,
+            isResolved: false,
+            commentCount: 1,
+            lastCommentChangeTime: null,
+            firstCommentAuthor: session1.account,
+        }),
         commentCount: 1,
         lastCommentChangeTime: null,
         newComments: [],
@@ -1441,6 +1541,17 @@ test("if comment thread is persisting we will wait to create messages but respon
             newCommentLimit: 100,
         }),
     ).toEqual({
+        commentThread: new DocumentCommentThreadModel({
+            id: commentThreadId,
+            documentId: document.id,
+            createdTime: expect.any(Date),
+            version: 0,
+            fallbackContentSnippet: null,
+            isResolved: false,
+            commentCount: 1,
+            lastCommentChangeTime: null,
+            firstCommentAuthor: session1.account,
+        }),
         commentCount: 1,
         lastCommentChangeTime: null,
         newComments: [
@@ -1476,6 +1587,7 @@ test("if comment thread is persisting we will wait to create messages but respon
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
         {
             type: "Comments",
@@ -1507,6 +1619,7 @@ test("if comment thread is persisting we will wait to create messages but respon
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
         {
             type: "Comments",
@@ -1634,6 +1747,8 @@ test("if comment thread update message hasn't been processed we will wait to res
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -1656,10 +1771,23 @@ test("if comment thread update message hasn't been processed we will wait to res
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
     expect(await backfillMessagePromise).toEqual({
+        commentThread: new DocumentCommentThreadModel({
+            id: commentThreadId,
+            documentId: document.id,
+            createdTime: expect.any(Date),
+            version: 0,
+            fallbackContentSnippet: null,
+            isResolved: false,
+            commentCount: 1,
+            lastCommentChangeTime: null,
+            firstCommentAuthor: session1.account,
+        }),
         commentCount: 1,
         lastCommentChangeTime: null,
         newComments: [],
@@ -1681,6 +1809,17 @@ test("if comment thread update message hasn't been processed we will wait to res
             newCommentLimit: 100,
         }),
     ).toEqual({
+        commentThread: new DocumentCommentThreadModel({
+            id: commentThreadId,
+            documentId: document.id,
+            createdTime: expect.any(Date),
+            version: 0,
+            fallbackContentSnippet: null,
+            isResolved: false,
+            commentCount: 1,
+            lastCommentChangeTime: null,
+            firstCommentAuthor: session1.account,
+        }),
         commentCount: 1,
         lastCommentChangeTime: null,
         newComments: [
@@ -1722,6 +1861,7 @@ test("if comment thread update message hasn't been processed we will wait to res
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
         {
             type: "Comments",
@@ -1753,6 +1893,7 @@ test("if comment thread update message hasn't been processed we will wait to res
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
         {
             type: "Comments",
@@ -1853,6 +1994,8 @@ test("while comment thread is persisting we will respond to comment load request
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -1875,6 +2018,8 @@ test("while comment thread is persisting we will respond to comment load request
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -1897,9 +2042,12 @@ test("while comment thread is persisting we will respond to comment load request
             id: commentThreadId,
             documentId: document.id,
             createdTime,
+            version: 0,
+            fallbackContentSnippet: null,
+            isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            commentAuthors: [session1.account],
+            firstCommentAuthor: session1.account,
         }),
         initialComments: [
             new DocumentCommentModel({
@@ -1932,9 +2080,12 @@ test("while comment thread is persisting we will respond to comment load request
             id: commentThreadId,
             documentId: document.id,
             createdTime,
+            version: 0,
+            fallbackContentSnippet: null,
+            isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            commentAuthors: [session1.account],
+            firstCommentAuthor: session1.account,
         }),
         initialComments: [
             new DocumentCommentModel({
@@ -1967,9 +2118,12 @@ test("while comment thread is persisting we will respond to comment load request
             id: commentThreadId,
             documentId: document.id,
             createdTime,
+            version: 0,
+            fallbackContentSnippet: null,
+            isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            commentAuthors: [session1.account],
+            firstCommentAuthor: session1.account,
         }),
         initialComments: [],
         initialOtherReferencedComments: [],
@@ -1985,9 +2139,12 @@ test("while comment thread is persisting we will respond to comment load request
             id: commentThreadId,
             documentId: document.id,
             createdTime,
+            version: 0,
+            fallbackContentSnippet: null,
+            isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            commentAuthors: [session1.account],
+            firstCommentAuthor: session1.account,
         }),
         initialComments: [],
         initialOtherReferencedComments: [],
@@ -2239,6 +2396,7 @@ test("while comment thread is persisting we will respond to comment load request
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
     ]);
 
@@ -2246,6 +2404,7 @@ test("while comment thread is persisting we will respond to comment load request
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
     ]);
 
@@ -2259,9 +2418,12 @@ test("while comment thread is persisting we will respond to comment load request
             id: commentThreadId,
             documentId: document.id,
             createdTime,
+            version: 0,
+            fallbackContentSnippet: null,
+            isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            commentAuthors: [session1.account],
+            firstCommentAuthor: session1.account,
         }),
         initialComments: [
             new DocumentCommentModel({
@@ -2294,9 +2456,12 @@ test("while comment thread is persisting we will respond to comment load request
             id: commentThreadId,
             documentId: document.id,
             createdTime,
+            version: 0,
+            fallbackContentSnippet: null,
+            isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            commentAuthors: [session1.account],
+            firstCommentAuthor: session1.account,
         }),
         initialComments: [
             new DocumentCommentModel({
@@ -2329,9 +2494,12 @@ test("while comment thread is persisting we will respond to comment load request
             id: commentThreadId,
             documentId: document.id,
             createdTime,
+            version: 0,
+            fallbackContentSnippet: null,
+            isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            commentAuthors: [session1.account],
+            firstCommentAuthor: session1.account,
         }),
         initialComments: [],
         initialOtherReferencedComments: [],
@@ -2347,9 +2515,12 @@ test("while comment thread is persisting we will respond to comment load request
             id: commentThreadId,
             documentId: document.id,
             createdTime,
+            version: 0,
+            fallbackContentSnippet: null,
+            isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            commentAuthors: [session1.account],
+            firstCommentAuthor: session1.account,
         }),
         initialComments: [],
         initialOtherReferencedComments: [],
@@ -2657,6 +2828,7 @@ test("will cleanup comment thread marks if from a different document", async () 
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -2676,6 +2848,8 @@ test("will cleanup comment thread marks if from a different document", async () 
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -2687,6 +2861,7 @@ test("will cleanup comment thread marks if from a different document", async () 
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -2706,6 +2881,8 @@ test("will cleanup comment thread marks if from a different document", async () 
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -2740,6 +2917,7 @@ test("will cleanup comment thread marks if from a different document", async () 
         {
             type: "PersistedContent",
             newVersion: 3,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -2774,6 +2952,8 @@ test("will cleanup comment thread marks if from a different document", async () 
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -2785,6 +2965,7 @@ test("will cleanup comment thread marks if from a different document", async () 
         {
             type: "PersistedContent",
             newVersion: 3,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -2819,6 +3000,8 @@ test("will cleanup comment thread marks if from a different document", async () 
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -2858,10 +3041,12 @@ test("will cleanup comment thread marks if from a different document", async () 
         {
             type: "PersistedContent",
             newVersion: 1,
+            updatedCommentThreads: [],
         },
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -2884,6 +3069,8 @@ test("will cleanup comment thread marks if from a different document", async () 
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection3.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -2892,6 +3079,8 @@ test("will cleanup comment thread marks if from a different document", async () 
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: expect.not.stringMatching(client1Id),
             updateOtherPresenceState: null,
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -2909,10 +3098,12 @@ test("will cleanup comment thread marks if from a different document", async () 
         {
             type: "PersistedContent",
             newVersion: 1,
+            updatedCommentThreads: [],
         },
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -2935,6 +3126,8 @@ test("will cleanup comment thread marks if from a different document", async () 
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection3.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -2943,6 +3136,8 @@ test("will cleanup comment thread marks if from a different document", async () 
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: expect.not.stringMatching(client1Id),
             updateOtherPresenceState: null,
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 });
@@ -2997,6 +3192,7 @@ test("can add comment thread marks back to document after they've been removed",
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -3016,6 +3212,8 @@ test("can add comment thread marks back to document after they've been removed",
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -3027,6 +3225,7 @@ test("can add comment thread marks back to document after they've been removed",
         {
             type: "PersistedContent",
             newVersion: 2,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -3046,6 +3245,8 @@ test("can add comment thread marks back to document after they've been removed",
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -3067,6 +3268,7 @@ test("can add comment thread marks back to document after they've been removed",
         {
             type: "PersistedContent",
             newVersion: 3,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -3075,6 +3277,8 @@ test("can add comment thread marks back to document after they've been removed",
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -3086,6 +3290,7 @@ test("can add comment thread marks back to document after they've been removed",
         {
             type: "PersistedContent",
             newVersion: 3,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -3094,6 +3299,8 @@ test("can add comment thread marks back to document after they've been removed",
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -3129,6 +3336,7 @@ test("can add comment thread marks back to document after they've been removed",
         {
             type: "PersistedContent",
             newVersion: 4,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -3162,6 +3370,8 @@ test("can add comment thread marks back to document after they've been removed",
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
     ]);
 
@@ -3173,6 +3383,7 @@ test("can add comment thread marks back to document after they've been removed",
         {
             type: "PersistedContent",
             newVersion: 4,
+            updatedCommentThreads: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -3206,6 +3417,232 @@ test("can add comment thread marks back to document after they've been removed",
             },
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+});
+
+test("can resolve a comment thread", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const document = await TestDocument.create(session1);
+
+    const {range} = await document.type(session1, "Hello");
+    await document.type(session1, ", world!");
+
+    const commentThread = await document.createCommentThread(session1, range, "test1");
+
+    const connection1 = await connectForTest(context.action(session1), document.id);
+    const connection2 = await connectForTest(context.action(session2), document.id);
+
+    await connection1.procedures.backfill({
+        version: 0,
+    });
+
+    await connection2.procedures.backfill({
+        version: 0,
+    });
+
+    await connection1.procedures.resolveCommentThread({commentThreadId: commentThread.id});
+
+    await waitForPersistance(connection1, 4);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 4,
+            updatedCommentThreads: [
+                new DocumentCommentThreadModel({
+                    id: commentThread.id,
+                    documentId: document.id,
+                    createdTime: expect.any(Date),
+                    version: 1,
+                    fallbackContentSnippet: expect.any(Object),
+                    isResolved: true,
+                    commentCount: 1,
+                    lastCommentChangeTime: null,
+                    firstCommentAuthor: await session1.account.get(),
+                }),
+            ],
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 4,
+            steps: [
+                new RemoveAllMarksStep(schema.mark("comment", {commentThreadId: commentThread.id})),
+            ],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: expect.any(String),
+            updateOtherPresenceState: null,
+            resolveCommentThreadIds: [commentThread.id],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 4,
+            updatedCommentThreads: [
+                new DocumentCommentThreadModel({
+                    id: commentThread.id,
+                    documentId: document.id,
+                    createdTime: expect.any(Date),
+                    version: 1,
+                    fallbackContentSnippet: expect.any(Object),
+                    isResolved: true,
+                    commentCount: 1,
+                    lastCommentChangeTime: null,
+                    firstCommentAuthor: await session1.account.get(),
+                }),
+            ],
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 4,
+            steps: [
+                new RemoveAllMarksStep(schema.mark("comment", {commentThreadId: commentThread.id})),
+            ],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: expect.any(String),
+            updateOtherPresenceState: null,
+            resolveCommentThreadIds: [commentThread.id],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+});
+
+test("can unresolve a comment thread", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const document = await TestDocument.create(session1);
+
+    const {range} = await document.type(session1, "Hello");
+    await document.type(session1, ", world!");
+
+    const commentThread = await document.createCommentThread(session1, range, "test1");
+
+    await commentThread.resolve(session1);
+
+    const connection1 = await connectForTest(context.action(session1), document.id);
+    const connection2 = await connectForTest(context.action(session2), document.id);
+
+    await connection1.procedures.backfill({
+        version: 0,
+    });
+
+    await connection2.procedures.backfill({
+        version: 0,
+    });
+
+    await connection1.procedures.unresolveCommentThread({commentThreadId: commentThread.id});
+
+    await waitForPersistance(connection1, 5);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 5,
+            updatedCommentThreads: [
+                new DocumentCommentThreadModel({
+                    id: commentThread.id,
+                    documentId: document.id,
+                    createdTime: expect.any(Date),
+                    version: 2,
+                    fallbackContentSnippet: expect.any(Object),
+                    isResolved: false,
+                    commentCount: 1,
+                    lastCommentChangeTime: null,
+                    firstCommentAuthor: await session1.account.get(),
+                }),
+            ],
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 5,
+            steps: [
+                new AddMarksAfterRemoveAllStep(
+                    schema.mark("comment", {commentThreadId: commentThread.id}),
+                    [{from: 3, to: 8}],
+                ),
+            ],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThread.id,
+                        {commentCount: 1, commentAuthors: [await session1.account.get()]},
+                    ],
+                ]),
+            },
+            clientId: expect.any(String),
+            updateOtherPresenceState: null,
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [commentThread.id],
+        },
+    ]);
+
+    expect(
+        // Message order is not deterministic. We do not delay persistence on loading
+        // data necessary from the database.
+        connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+    ).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 5,
+            updatedCommentThreads: [
+                new DocumentCommentThreadModel({
+                    id: commentThread.id,
+                    documentId: document.id,
+                    createdTime: expect.any(Date),
+                    version: 2,
+                    fallbackContentSnippet: expect.any(Object),
+                    isResolved: false,
+                    commentCount: 1,
+                    lastCommentChangeTime: null,
+                    firstCommentAuthor: await session1.account.get(),
+                }),
+            ],
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 5,
+            steps: [
+                new AddMarksAfterRemoveAllStep(
+                    schema.mark("comment", {commentThreadId: commentThread.id}),
+                    [{from: 3, to: 8}],
+                ),
+            ],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThread.id,
+                        {commentCount: 1, commentAuthors: [await session1.account.get()]},
+                    ],
+                ]),
+            },
+            clientId: expect.any(String),
+            updateOtherPresenceState: null,
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [commentThread.id],
         },
     ]);
 });

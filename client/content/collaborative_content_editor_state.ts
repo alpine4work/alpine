@@ -39,6 +39,13 @@ export type CollaborativeContentEditorState<Content extends ContentWithReference
     } | null;
 
     /**
+     * The version that's been persisted in the database. The steps we receive
+     * from the document collaboration service may be a bit ahead of what's durably
+     * persisted in the database.
+     */
+    readonly persistedVersion: number;
+
+    /**
      * Is there an error from our WebSocket?
      */
     readonly errorState:
@@ -54,6 +61,7 @@ export type CollaborativeContentEditorState<Content extends ContentWithReference
 export type CollaborativeContentEditorAction<Content extends ContentWithReferences, ExtraAction> =
     | CollaborativeContentEditorEditAction<Content>
     | CollaborativeContentEditorReceiveStepsAction<Content>
+    | CollaborativeContentEditorPersistedAction
     | CollaborativeContentEditorErrorAction
     | CollaborativeContentEditorExtraAction<ExtraAction>;
 
@@ -67,6 +75,11 @@ export type CollaborativeContentEditorReceiveStepsAction<Content extends Content
     readonly newVersion: number;
     readonly steps: ReadonlyArray<{readonly step: Step; readonly clientId: ContentEditorClientId}>;
     readonly stepsContentReferences: Content["references"];
+};
+
+export type CollaborativeContentEditorPersistedAction = {
+    readonly type: "Persisted";
+    readonly newVersion: number;
 };
 
 export type CollaborativeContentEditorErrorAction = {
@@ -109,6 +122,7 @@ export function getInitialCollaborativeContentEditorState<
         pendingActions: [],
         editorState,
         pendingSendableSteps: null,
+        persistedVersion: initialVersion,
         errorState: {hasError: false},
         extra,
     };
@@ -279,6 +293,16 @@ function actuallyReduceCollaborativeContentEditorState<
                     steps,
                     stepsContentReferences: action.stepsContentReferences,
                 },
+                oldState,
+            );
+        }
+        case "Persisted": {
+            return reduce(
+                {
+                    ...oldState,
+                    persistedVersion: action.newVersion,
+                },
+                action,
                 oldState,
             );
         }

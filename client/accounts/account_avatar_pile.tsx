@@ -16,7 +16,7 @@ import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_with
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {backgroundColorVar, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
-export type AccountAvatarPileSize = "3" | "4" | "6" | "12";
+export type AccountAvatarPileSize = "3" | "4" | "5" | "6" | "12";
 
 export function AccountAvatarPile({
     size = "6",
@@ -47,6 +47,12 @@ export function AccountAvatarPile({
                 avatarSize: "4",
                 avatarOverlapWidth: "3",
                 borderWidth: 1.5,
+                overflowFontSize: "50",
+            },
+            "5": {
+                avatarSize: "5",
+                avatarOverlapWidth: "4",
+                borderWidth: 2,
                 overflowFontSize: "50",
             },
             "6": {

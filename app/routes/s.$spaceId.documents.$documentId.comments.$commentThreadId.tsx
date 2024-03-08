@@ -67,7 +67,7 @@ export async function loader({params, context}: LoaderArgs) {
 }
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) => {
-    if (commentThread.commentAuthors.length === 0) {
+    if (!commentThread.firstCommentAuthor) {
         return [{title: `Document comment thread${metaTitlePostfix}`}];
     }
 
@@ -76,7 +76,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) =
             // Account name in title won't update when account changes without reload
             // because we're using `initialData`.
             title: `Document comment thread by ${getAccountShortNameWithoutFullNameTooltip(
-                commentThread.commentAuthors[0]!.initialData,
+                commentThread.firstCommentAuthor.initialData,
             )}${metaTitlePostfix}`,
         },
     ];
@@ -98,8 +98,13 @@ export default function DocumentCommentThreadRoute({
         initialOtherReferencedComments,
     } = useLoaderDataWithSchema(LoaderSchema);
 
-    const {isConnected, editorState, procedures, subscribeToCommentThreadEvents} =
-        useDocumentContentEditorWebSocket(initialDocument);
+    const {
+        isConnected,
+        editorState,
+        procedures,
+        subscribeToCommentThreadEvents,
+        unpersistedResolutionStateByCommentThreadId,
+    } = useDocumentContentEditorWebSocket(initialDocument);
 
     // Spending time with a document comment thread contributes affinity points
     // back to the document. Since the comment thread is discussing the document,
@@ -133,6 +138,9 @@ export default function DocumentCommentThreadRoute({
             isConnected={isConnected}
             procedures={procedures}
             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
+            unpersistedResolutionStateByCommentThreadId={
+                unpersistedResolutionStateByCommentThreadId
+            }
             onCommentThreadSnippetPress={useEvent(commentThreadId => {
                 // Navigate the root of our app so we don't:
                 //

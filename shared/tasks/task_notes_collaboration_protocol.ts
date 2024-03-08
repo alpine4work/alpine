@@ -37,6 +37,7 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
                     Available: Schema.object({
                         type: Schema.value("Available"),
                         newVersion: Schema.integer,
+                        persistedVersion: Schema.integer,
                         steps: Schema.array(
                             Schema.object({
                                 step: TaskNotesContentStepSchema,
@@ -91,6 +92,11 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
         /**
          * Tells the client that we've successfully persisted all changes at this
          * version and if the client disconnects the changes will still be there.
+         *
+         * You may get a `PersistedContent` event before a
+         * `UpdateContentWithoutPersistence` with the steps for this version. That's
+         * because we need to load references from the database before we can send
+         * `UpdateContentWithoutPersistence` and persistence may happen before that.
          */
         PersistedContent: Schema.object({
             type: Schema.value("PersistedContent"),

@@ -12,19 +12,14 @@ import {
     useState,
 } from "react";
 import {NavigationBarResult} from "~/client/design/navigation_bar.js";
-import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {
     documentCommentInputMinHeight,
-    documentCommentThreadPreviewHeight,
+    documentCommentThreadHeaderMinHeightWithoutPaddingTop,
+    documentCommentThreadHeaderPaddingY,
 } from "~/client/documents/document_shared_styles.js";
-import {createDocumentCommentThreadSnippetCollector} from "~/client/documents/internal/create_document_comment_thread_snippet_collector.js";
 import {DocumentCommentInput} from "~/client/documents/internal/document_comment_input.js";
-import {
-    DocumentCommentThreadActions,
-    documentCommentThreadActionsHeight,
-} from "~/client/documents/internal/document_comment_thread_actions.js";
-import {DocumentCommentThreadPreview} from "~/client/documents/internal/document_comment_thread_preview.js";
+import {DocumentCommentThreadHeader} from "~/client/documents/internal/document_comment_thread_header.js";
 import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client.js";
 import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/use_document_content_editor_web_socket.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -45,6 +40,7 @@ import {
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {UncheckedDocumentContentSchema} from "~/shared/documents/document_content_schema.js";
 import {
@@ -182,6 +178,11 @@ const ContentSnippetByCommentThreadIdSchema = Schema.map(
     UncheckedDocumentContentSchema,
 );
 
+const UnpersistedIsResolvedByCommentThreadIdSchema = Schema.map(
+    Schema.id<DocumentCommentThreadId>(),
+    Schema.boolean,
+);
+
 /**
  * Renders a virtualized list of posts which can expand their comments inline.
  *
@@ -201,6 +202,7 @@ function DocumentCommentThreadListView(
         isConnected,
         procedures,
         subscribeToCommentThreadEvents,
+        unpersistedResolutionStateByCommentThreadId: allUnpersistedResolutionStateByCommentThreadId,
         withMobileLayout: withMobileLayoutProp = false,
         paddingX: paddingXProp,
         header,
@@ -225,6 +227,10 @@ function DocumentCommentThreadListView(
         isConnected: boolean;
         procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
         subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
+        unpersistedResolutionStateByCommentThreadId: ReadonlyMap<
+            DocumentCommentThreadId,
+            {readonly isResolved: boolean; readonly version: number}
+        >;
 
         /**
          * Use the mobile layout for a document comment thread list view even
@@ -318,6 +324,28 @@ function DocumentCommentThreadListView(
             () => collectCommentThreadSnippets(content.doc),
             [collectCommentThreadSnippets, content.doc],
         ),
+    );
+
+    const unpersistedIsResolvedByCommentThreadId = useStableValue(
+        UnpersistedIsResolvedByCommentThreadIdSchema,
+        useMemo(() => {
+            const unpersistedIsResolvedByCommentThreadId = new Map<
+                DocumentCommentThreadId,
+                boolean
+            >();
+
+            for (const commentThreadId of commentThreadIds) {
+                const resolutionState =
+                    allUnpersistedResolutionStateByCommentThreadId.get(commentThreadId);
+                if (!resolutionState) continue;
+                unpersistedIsResolvedByCommentThreadId.set(
+                    commentThreadId,
+                    resolutionState.isResolved,
+                );
+            }
+
+            return unpersistedIsResolvedByCommentThreadId;
+        }, [allUnpersistedResolutionStateByCommentThreadId, commentThreadIds]),
     );
 
     // Always pin the comment input to the bottom of the list view on mobile
@@ -603,19 +631,18 @@ function DocumentCommentThreadListView(
                     // All comment threads should be in the same document.
                     assert(item.commentThread.documentId === documentId);
 
-                    const paddingY = "5";
-
-                    const height = addRemLengths(
-                        spacing[index !== 0 ? documentCommentThreadListViewMarginY : paddingY],
-                        spacing[documentCommentThreadActionsHeight],
-                        spacing[paddingY],
-                        documentCommentThreadPreviewHeight,
-                        spacing[paddingY],
+                    const minHeight = addRemLengths(
+                        spacing[
+                            index !== 0
+                                ? documentCommentThreadListViewMarginY
+                                : documentCommentThreadHeaderPaddingY
+                        ],
+                        documentCommentThreadHeaderMinHeightWithoutPaddingTop,
                     );
 
                     return {
                         key: `DocumentCommentThreadHeader:${item.commentThread.id}`,
-                        minHeight: height,
+                        minHeight,
                         renderAdditionalItemIndexes:
                             !isSingleMobileLayoutCommentThreadWithPinnedCommentInput
                                 ? [item.commentInputItemIndex]
@@ -630,24 +657,35 @@ function DocumentCommentThreadListView(
                                     paddingTop:
                                         index !== 0 ? documentCommentThreadListViewMarginY : "0",
                                 })}
-                                style={{height}}
                             >
                                 <div
                                     className={sprinkles({
                                         width: "full",
                                         maxWidth: documentCommentThreadListViewMaxWidth,
                                         paddingX,
-                                        paddingTop: index !== 0 ? "0" : paddingY,
-                                        paddingBottom: paddingY,
+                                        paddingTop:
+                                            index !== 0 ? "0" : documentCommentThreadHeaderPaddingY,
+                                        paddingBottom: documentCommentThreadHeaderPaddingY,
                                         overflow: "hidden",
                                     })}
                                 >
-                                    <DocumentCommentThreadActions
+                                    <DocumentCommentThreadHeader
                                         commentThread={item.commentThread}
-                                    />
-                                    <Spacer space={paddingY} />
-                                    <DocumentCommentThreadPreview
-                                        commentThread={item.commentThread}
+                                        unpersistedIsResolved={
+                                            unpersistedIsResolvedByCommentThreadId.get(
+                                                item.commentThread.id,
+                                            ) ?? null
+                                        }
+                                        resolveCommentThread={async () => {
+                                            await procedures.resolveCommentThread({
+                                                commentThreadId: item.commentThread.id,
+                                            });
+                                        }}
+                                        unresolveCommentThread={async () => {
+                                            await procedures.unresolveCommentThread({
+                                                commentThreadId: item.commentThread.id,
+                                            });
+                                        }}
                                         contentSnippet={
                                             contentSnippetByCommentThreadId.get(
                                                 item.commentThread.id,
@@ -775,12 +813,26 @@ function DocumentCommentThreadListView(
                             viewRef={viewRef}
                             commentThread={item.commentThread}
                             comments={item.comments}
-                            onUpdateComments={update =>
+                            onUpdateCommentThread={update =>
                                 setTree(tree =>
                                     tree.updateNode(item.commentThread.id, node => {
-                                        const newComments = update(node.comments);
-                                        if (newComments === node.comments) return node;
-                                        return {...node, comments: newComments};
+                                        const {
+                                            commentThread: newCommentThread,
+                                            comments: newComments,
+                                        } = update(node);
+
+                                        if (
+                                            newCommentThread === node.commentThread &&
+                                            newComments === node.comments
+                                        ) {
+                                            return node;
+                                        }
+
+                                        return {
+                                            ...node,
+                                            commentThread: newCommentThread,
+                                            comments: newComments,
+                                        };
                                     }),
                                 )
                             }
@@ -1012,19 +1064,20 @@ function DocumentCommentThreadListView(
             tree,
             documentId,
             isSingleMobileLayoutCommentThreadWithPinnedCommentInput,
-            withMobileLayout,
             paddingX,
+            unpersistedIsResolvedByCommentThreadId,
             contentSnippetByCommentThreadId,
             content.references,
             onCommentThreadSnippetPress,
+            procedures,
             messageEditing,
             highlightComment,
             handleJumpToComment,
-            procedures,
             space.id,
             replyingToCommentIndexByCommentThreadId,
             isConnected,
             subscribeToCommentThreadEvents,
+            withMobileLayout,
         ],
     );
 
@@ -1075,12 +1128,26 @@ function DocumentCommentThreadListView(
                                 viewRef={viewRef}
                                 commentThread={item.commentThread}
                                 comments={item.comments}
-                                onUpdateComments={update =>
+                                onUpdateCommentThread={update =>
                                     setTree(tree =>
                                         tree.updateNode(item.commentThread.id, node => {
-                                            const newComments = update(node.comments);
-                                            if (newComments === node.comments) return node;
-                                            return {...node, comments: newComments};
+                                            const {
+                                                commentThread: newCommentThread,
+                                                comments: newComments,
+                                            } = update(node);
+
+                                            if (
+                                                newCommentThread === node.commentThread &&
+                                                newComments === node.comments
+                                            ) {
+                                                return node;
+                                            }
+
+                                            return {
+                                                ...node,
+                                                commentThread: newCommentThread,
+                                                comments: newComments,
+                                            };
                                         }),
                                     )
                                 }

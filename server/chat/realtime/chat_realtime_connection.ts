@@ -116,10 +116,12 @@ const backfillMessages: BackfillMessagesFunction<ChatId, ChatMessageModel> = asy
     context,
     {roomKey: chatId, clientMessageCount, clientLastMessageChangeTime, newMessageLimit},
 ) => {
-    return backfillChatMessages(context, {
+    const result = await backfillChatMessages(context, {
         chatId,
         clientMessageCount,
         clientLastMessageChangeTime,
         newMessageLimit,
     });
+
+    return {...result, extra: null};
 };

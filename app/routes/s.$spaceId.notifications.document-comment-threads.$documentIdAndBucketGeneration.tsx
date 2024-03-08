@@ -106,8 +106,13 @@ export default function DocumentNewCommentThreadsRoute({
         initialCommentsByCommentThreadId,
     } = useLoaderDataWithSchema(LoaderSchema);
 
-    const {isConnected, editorState, procedures, subscribeToCommentThreadEvents} =
-        useDocumentContentEditorWebSocket(initialDocument);
+    const {
+        isConnected,
+        editorState,
+        procedures,
+        subscribeToCommentThreadEvents,
+        unpersistedResolutionStateByCommentThreadId,
+    } = useDocumentContentEditorWebSocket(initialDocument);
 
     // Spending time with document comment threads contributes affinity points
     // to the document. Since the comment thread is discussing the document,
@@ -141,6 +146,9 @@ export default function DocumentNewCommentThreadsRoute({
             isConnected={isConnected}
             procedures={procedures}
             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
+            unpersistedResolutionStateByCommentThreadId={
+                unpersistedResolutionStateByCommentThreadId
+            }
             onCommentThreadSnippetPress={useEvent(commentThreadId => {
                 // Navigate the root of our app so we don't:
                 //

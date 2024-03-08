@@ -71,6 +71,7 @@ export type DeleteMessageFunction<RoomKey extends string> = (
 export type BackfillMessagesFunction<
     RoomKey extends string,
     Message extends MessageModel<RoomKey>,
+    BackfillMessagesExtra = null,
 > = (
     context: WorkerSessionActionContext,
     options: {
@@ -92,6 +93,7 @@ export type BackfillMessagesFunction<
         | {
               type: "Unavailable";
           };
+    extra: BackfillMessagesExtra;
 }>;
 
 export const messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint =
@@ -103,6 +105,7 @@ export const messagingRealtimeCreateMessageBeforeSendTestCheckpoint =
 export class MessagingRealtimeConnection<
     RoomKey extends string,
     Message extends MessageModel<RoomKey>,
+    BackfillMessagesExtra = null,
 > {
     private readonly _connectionId: WebSocketConnectionId;
     private readonly _spaceId: SpaceId;
@@ -116,12 +119,16 @@ export class MessagingRealtimeConnection<
         event: MessagingRealtimeEvent<Message>,
     ) => void;
     private readonly _iterateOtherConnections: () => Iterable<
-        MessagingRealtimeConnection<RoomKey, Message>
+        MessagingRealtimeConnection<RoomKey, Message, BackfillMessagesExtra>
     >;
     private readonly _createMessage: CreateMessageFunction<RoomKey, Message>;
     private readonly _updateMessageContent: UpdateMessageContentFunction<RoomKey>;
     private readonly _deleteMessage: DeleteMessageFunction<RoomKey>;
-    private readonly _backfillMessages: BackfillMessagesFunction<RoomKey, Message>;
+    private readonly _backfillMessages: BackfillMessagesFunction<
+        RoomKey,
+        Message,
+        BackfillMessagesExtra
+    >;
 
     /**
      * True while we are backfilling messages.
@@ -176,11 +183,13 @@ export class MessagingRealtimeConnection<
             context: WorkerProcessContext,
             event: MessagingRealtimeEvent<Message>,
         ) => void;
-        iterateOtherConnections: () => Iterable<MessagingRealtimeConnection<RoomKey, Message>>;
+        iterateOtherConnections: () => Iterable<
+            MessagingRealtimeConnection<RoomKey, Message, BackfillMessagesExtra>
+        >;
         createMessage: CreateMessageFunction<RoomKey, Message>;
         updateMessageContent: UpdateMessageContentFunction<RoomKey>;
         deleteMessage: DeleteMessageFunction<RoomKey>;
-        backfillMessages: BackfillMessagesFunction<RoomKey, Message>;
+        backfillMessages: BackfillMessagesFunction<RoomKey, Message, BackfillMessagesExtra>;
     }) {
         this._connectionId = connectionId;
         this._spaceId = spaceId;
@@ -197,10 +206,11 @@ export class MessagingRealtimeConnection<
     private static _sendNewMessageAndClearTypingState<
         RoomKey extends string,
         Message extends MessageModel<RoomKey>,
+        BackfillMessagesExtra,
     >(
         context: WorkerActionContext,
-        fromConnection: MessagingRealtimeConnection<RoomKey, Message>,
-        toConnection: MessagingRealtimeConnection<RoomKey, Message>,
+        fromConnection: MessagingRealtimeConnection<RoomKey, Message, BackfillMessagesExtra>,
+        toConnection: MessagingRealtimeConnection<RoomKey, Message, BackfillMessagesExtra>,
         message: Message,
         oldFromConnectionTypingState: MessagingTypingState | null,
     ) {
@@ -336,6 +346,7 @@ export class MessagingRealtimeConnection<
                   readonly type: "Unavailable";
               };
         typingStateByConnectionId: ReadonlyMap<WebSocketConnectionId, MessagingTypingState>;
+        extra: BackfillMessagesExtra;
     }> {
         // Execute our backfills sequentially so that our internal state is left in a
         // good state.
@@ -351,6 +362,7 @@ export class MessagingRealtimeConnection<
                 newMessages,
                 newOtherReferencedMessages,
                 messageChangesResult,
+                extra,
             } = await this._backfillMessages(context, {
                 roomKey: this.roomKey,
                 clientMessageCount,
@@ -407,6 +419,7 @@ export class MessagingRealtimeConnection<
                         return [connection._connectionId, typingState];
                     }),
                 ),
+                extra,
             };
         });
     }

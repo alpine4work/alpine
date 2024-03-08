@@ -7,7 +7,6 @@ import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
-    BackfillMessagesProcedure,
     BackfillMessagesProcedureOutput,
     MessagingRealtimeEvent,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
@@ -19,6 +18,7 @@ import {
 export function useMessagingRealtime<
     RoomKey extends string,
     Message extends MessageModel<RoomKey>,
+    BackfillMessagesExtra = null,
 >({
     messages,
     onUpdateMessages,
@@ -28,10 +28,17 @@ export function useMessagingRealtime<
 }: {
     messages: MessageList<Message>;
     onUpdateMessages: (
-        update: (postComments: MessageList<Message>) => MessageList<Message>,
+        update: (messages: MessageList<Message>) => MessageList<Message>,
+        extra: BackfillMessagesExtra | null,
     ) => void;
     isConnected: boolean;
-    backfillMessages: Memo<BackfillMessagesProcedure<Message>>;
+    backfillMessages: Memo<
+        (input: {
+            clientMessageCount: number;
+            clientLastMessageChangeTime: Date | null;
+            newMessageLimit: number;
+        }) => Promise<BackfillMessagesProcedureOutput<Message> & {extra?: BackfillMessagesExtra}>
+    >;
     subscribeToEvents: Memo<
         (subscriber: (event: MessagingRealtimeEvent<Message>) => void) => () => void
     >;
@@ -61,22 +68,23 @@ export function useMessagingRealtime<
                     }
 
                     return messages;
-                });
+                }, null);
                 break;
             }
             case "ChangeMessage": {
                 // Ignore until the backfill has finished
                 if (!hasBackfillFinishedRef.current) break;
 
-                onUpdateMessages(messages => messages.changeLoadedMessage(event.change));
+                onUpdateMessages(messages => messages.changeLoadedMessage(event.change), null);
                 break;
             }
             case "UpdateOtherTypingState": {
                 // Ignore until the backfill has finished
                 if (!hasBackfillFinishedRef.current) break;
 
-                onUpdateMessages(messages =>
-                    messages.updateTypingState(event.connectionId, event.typingState),
+                onUpdateMessages(
+                    messages => messages.updateTypingState(event.connectionId, event.typingState),
+                    null,
                 );
                 break;
             }
@@ -97,38 +105,40 @@ export function useMessagingRealtime<
 
     // Important that this is in a `useEvent()` so we have access to the latest
     // `onUpdateMessages()` reference.
-    const handleBackfillResponse = useEvent((output: BackfillMessagesProcedureOutput<Message>) => {
-        hasBackfillFinishedRef.current = true;
+    const handleBackfillResponse = useEvent(
+        (output: BackfillMessagesProcedureOutput<Message> & {extra?: BackfillMessagesExtra}) => {
+            hasBackfillFinishedRef.current = true;
 
-        onUpdateMessages(messages => {
-            switch (output.messageChangesResult.type) {
-                case "Available": {
-                    return messages.backfillMessages({
-                        messageCount: output.messageCount,
-                        lastMessageChangeTime: output.lastMessageChangeTime,
-                        newMessages: output.newMessages,
-                        newOtherReferencedMessages: output.newOtherReferencedMessages,
-                        messageChanges: output.messageChangesResult.changes,
-                        typingStateByConnectionId: output.typingStateByConnectionId,
-                    });
-                }
+            onUpdateMessages(messages => {
+                switch (output.messageChangesResult.type) {
+                    case "Available": {
+                        return messages.backfillMessages({
+                            messageCount: output.messageCount,
+                            lastMessageChangeTime: output.lastMessageChangeTime,
+                            newMessages: output.newMessages,
+                            newOtherReferencedMessages: output.newOtherReferencedMessages,
+                            messageChanges: output.messageChangesResult.changes,
+                            typingStateByConnectionId: output.typingStateByConnectionId,
+                        });
+                    }
 
-                // If message changes are unavailable then fully reset the message list since
-                // we don't know if any loaded comments are correct. `<MessagingView>` should
-                // then be able to see we have rendered unloaded messages and kick off a new
-                // network request.
-                case "Unavailable": {
-                    return MessageList.new({
-                        messageCount: output.messageCount,
-                        lastMessageChangeTime: output.lastMessageChangeTime,
-                        typingStateByConnectionId: output.typingStateByConnectionId,
-                    });
+                    // If message changes are unavailable then fully reset the message list since
+                    // we don't know if any loaded comments are correct. `<MessagingView>` should
+                    // then be able to see we have rendered unloaded messages and kick off a new
+                    // network request.
+                    case "Unavailable": {
+                        return MessageList.new({
+                            messageCount: output.messageCount,
+                            lastMessageChangeTime: output.lastMessageChangeTime,
+                            typingStateByConnectionId: output.typingStateByConnectionId,
+                        });
+                    }
+                    default:
+                        throw exhaustive(output.messageChangesResult);
                 }
-                default:
-                    throw exhaustive(output.messageChangesResult);
-            }
-        });
-    });
+            }, output.extra ?? null);
+        },
+    );
 
     // Whenever we connect to the WebSocket, request a message backfill. If the
     // visits another browser tab this will disconnect the WebSocket then when the

@@ -1,8 +1,11 @@
 import {createVar, globalStyle, keyframes} from "@vanilla-extract/css";
 import {spacing} from "~/shared/design/spacing.js";
-import {darkColorSchemeSelector} from "~/shared/styles/internal/color_scheme.css.js";
+import {
+    CssVarFunction,
+    darkColorSchemeSelector,
+} from "~/shared/styles/internal/color_scheme.css.js";
 
-export const modalUnderlayOpacityVar = createVar("modal-underlay-opacity");
+export const modalUnderlayOpacityVar: CssVarFunction = createVar("modal-underlay-opacity");
 
 globalStyle(":root", {
     vars: {

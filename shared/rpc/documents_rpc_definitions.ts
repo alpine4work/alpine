@@ -82,6 +82,8 @@ export const updateDocumentContent = defineRpc({
                 createdTime: Schema.date.optional(),
             }),
         ),
+        resolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()).optional(),
+        unresolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()).optional(),
     },
     output: {
         conflictingSteps: Schema.array(
@@ -90,6 +92,7 @@ export const updateDocumentContent = defineRpc({
                 clientId: Schema.id<ContentEditorClientId>(),
             }),
         ),
+        updatedCommentThreads: Schema.array(DocumentCommentThreadModel.schema()),
     },
 });
 
@@ -201,6 +204,7 @@ export const backfillDocumentComments = defineRpc({
         newCommentLimit: Schema.integer,
     },
     output: {
+        commentThread: DocumentCommentThreadModel.schema(),
         commentCount: Schema.integer,
         lastCommentChangeTime: Schema.date.nullable(),
         newComments: Schema.array(DocumentCommentModel.schema()),
@@ -234,5 +238,22 @@ export const getOptimisticDocumentCommentReferences = defineRpc({
     output: {
         author: AccountModel.schema,
         contentReferences: ContentReferencesSchema,
+    },
+});
+
+export const getResolvedDocumentCommentThreadRanges = defineRpc({
+    name: "getResolvedDocumentCommentThreadRanges",
+    input: {
+        documentId: Schema.id<DocumentId>(),
+        commentThreadId: Schema.id<DocumentCommentThreadId>(),
+    },
+    output: {
+        version: Schema.integer,
+        ranges: Schema.array(
+            Schema.object({
+                from: Schema.integer,
+                to: Schema.integer,
+            }),
+        ),
     },
 });

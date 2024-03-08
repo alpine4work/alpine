@@ -244,6 +244,8 @@ export class DocumentCollaborationContentManager {
                 commentThreadId: DocumentCommentThreadId;
                 initialCommentContent: MessageContent;
             }>;
+            resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
+            unresolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             updateOurPresenceState: {state: DocumentCollaborationPresenceState | null};
         },
     ): Promise<{
@@ -270,6 +272,21 @@ export class DocumentCollaborationContentManager {
                     throw new FailedPreconditionError(
                         "Document comment thread ID has already been used",
                     );
+            }
+
+            const hasSameClientIdAsNextPersistenceState =
+                this._persistenceState?.next?.clientId === update.clientId;
+
+            // Make sure if we're resolving comment threads the client ID is unique so we
+            // don't end up batching the update.
+            if (hasSameClientIdAsNextPersistenceState) {
+                if ((update.resolveCommentThreadIds?.length ?? 0) > 0) {
+                    throw new InternalError("Can't batch updates that resolve comment threads");
+                }
+
+                if ((update.unresolveCommentThreadIds?.length ?? 0) > 0) {
+                    throw new InternalError("Can't batch updates that unresolve comment threads");
+                }
             }
 
             const oldVersion = stateRef.current.version;
@@ -348,16 +365,21 @@ export class DocumentCollaborationContentManager {
             //
             // We batch together steps from the same client id while we're waiting on a
             // persistence request to finish.
-            if (this._persistenceState?.next?.clientId === update.clientId) {
+            if (this._persistenceState?.next && hasSameClientIdAsNextPersistenceState) {
                 for (const step of steps) {
                     this._persistenceState.next.steps.push(step);
                 }
+
                 for (const createCommentThread of update.createCommentThreads) {
                     this._persistenceState.next.createCommentThreads.push({
                         ...createCommentThread,
                         createdTime: commentThreadCreatedTime,
                     });
                 }
+
+                // We should have already thrown an error if `update.resolveCommentThreadIds`
+                // or `update.unresolveCommentThreadIds` are non-empty. Not allowed to batch
+                // updates that resolve comment threads.
             } else {
                 const lastPersistenceStatePromise = this._persistenceState?.promise;
                 const nextSteps = Array.from(steps);
@@ -368,6 +390,8 @@ export class DocumentCollaborationContentManager {
                         createdTime: commentThreadCreatedTime,
                     }),
                 );
+                const nextResolveCommentThreadIds = update.resolveCommentThreadIds ?? [];
+                const nextUnresolveCommentThreadIds = update.unresolveCommentThreadIds ?? [];
 
                 this._persistenceState = {
                     next: {
@@ -397,16 +421,17 @@ export class DocumentCollaborationContentManager {
                                         this.id,
                                     );
 
-                                    const {conflictingSteps} = await updateDocumentContent(
-                                        context,
-                                        {
+                                    const {conflictingSteps, updatedCommentThreads} =
+                                        await updateDocumentContent(context, {
                                             documentId: this.id,
                                             version: oldVersion,
                                             steps: nextSteps,
                                             clientId: update.clientId,
                                             createCommentThreads: nextCreateCommentThreads,
-                                        },
-                                    );
+                                            resolveCommentThreadIds: nextResolveCommentThreadIds,
+                                            unresolveCommentThreadIds:
+                                                nextUnresolveCommentThreadIds,
+                                        });
 
                                     // The document collaboration durable object should be the only process writing
                                     // to a document! If some other process is writing to a document, weird
@@ -438,6 +463,7 @@ export class DocumentCollaborationContentManager {
                                     this._sendEventToAll(context, {
                                         type: "PersistedContent",
                                         newVersion: oldVersion + nextSteps.length,
+                                        updatedCommentThreads,
                                     });
                                 } catch (unknownError) {
                                     // Upgrade the severity to internal since the client has already seen the update.
@@ -471,7 +497,12 @@ export class DocumentCollaborationContentManager {
                 context.process.waitUntil(this._persistenceState.promise);
             }
 
-            return {oldVersion, steps, presenceState};
+            return {
+                oldVersion,
+                steps,
+                presenceState,
+                persistencePromise: this._persistenceState.promise,
+            };
         });
 
         if (steps.length === 0) return {presenceState, hasSentPresenceState: false};
@@ -495,6 +526,13 @@ export class DocumentCollaborationContentManager {
             stepsContentReferences,
             clientId: update.clientId,
             updateOtherPresenceState: connectionId ? {connectionId, state: presenceState} : null,
+            // Let the client know if this update also resolves or un-resolves comments.
+            // Remember that if you receive this comment resolution hasn't been persisted
+            // yet! So if you try to read a new `DocumentCommentThreadModel` it might not
+            // have been updated. You'll get new `DocumentCommentThreadModel`s with the
+            // `PersistedContent` event.
+            resolveCommentThreadIds: update.resolveCommentThreadIds ?? [],
+            unresolveCommentThreadIds: update.unresolveCommentThreadIds ?? [],
         });
 
         // If the user tried to insert comment threads into the document we can't find
@@ -510,6 +548,12 @@ export class DocumentCollaborationContentManager {
         // `data-documentid` to comment `<mark>` elements so the clipboard DOM parser
         // can throwaway comment marks from other documents when a paste happens. Then
         // this server logic will serve as a fallback.
+        //
+        // TODO(calebmer): I'd also like to remove marks for resolved comments that
+        // appear back in the document. For example, you copy some text, resolve a
+        // comment in that text, then paste the text. However, that's a little tricky
+        // to do here since the persisted resolution state may be out-of-sync with our
+        // content manager's view of the marks in the document.
         {
             const invalidCommentThreadIds = new Set<DocumentCommentThreadId>();
 

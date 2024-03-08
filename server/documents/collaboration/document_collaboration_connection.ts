@@ -17,6 +17,7 @@ import {
     DocumentCollaborationPresenceState,
     DocumentCollaborationProtocol,
 } from "~/shared/documents/document_collaboration_protocol.js";
+import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {
     DocumentCommentModel,
     DocumentCommentRoomKey,
@@ -30,11 +31,16 @@ import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_al
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
+import {generateId} from "~/shared/id/id.js";
 import {
     DocumentCommentThreadId,
     DocumentId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
+import {
+    AddMarksAfterRemoveAllStep,
+    RemoveAllMarksStep,
+} from "~/shared/prosemirror/remove_all_marks_step.js";
 import {
     authorizeDocumentAccess,
     backfillDocumentComments,
@@ -45,6 +51,7 @@ import {
     getDocumentCommentsFromStart,
     getDocumentPreviewIfExists,
     getOptimisticDocumentCommentReferences,
+    getResolvedDocumentCommentThreadRanges,
     updateDocumentCommentContent,
 } from "~/shared/rpc/documents_rpc_definitions.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -126,6 +133,7 @@ export class DocumentCollaborationConnection {
             // The client mostly sends messages in sequence anyway.
             this._state.withLock(async () => {
                 const version = this._contentManager.getCurrentVersion();
+                const persistedVersion = this._contentManager.getPersistedVersion();
 
                 let smallestPresenceStateVersion: number | null = null;
 
@@ -213,6 +221,7 @@ export class DocumentCollaborationConnection {
 
                 return {
                     newVersion: version,
+                    persistedVersion,
                     steps,
                     stepsContentReferences,
                     presenceStates,
@@ -313,6 +322,7 @@ export class DocumentCollaborationConnection {
                 newOtherReferencedMessages: newOtherReferencedComments,
                 messageChangesResult: commentChangesResult,
                 typingStateByConnectionId,
+                extra: {commentThread},
             } = await connection.backfillMessages(context, {
                 clientMessageCount,
                 clientLastMessageChangeTime,
@@ -320,6 +330,7 @@ export class DocumentCollaborationConnection {
             });
 
             return {
+                commentThread,
                 commentCount,
                 lastCommentChangeTime,
                 newComments,
@@ -381,21 +392,14 @@ export class DocumentCollaborationConnection {
                 });
             }
 
-            const comment = await this._getOptimisticCommentThreadComment(
+            const {commentThread, comment} = await this._getOptimisticCommentThread(
                 context,
                 input.commentThreadId,
                 optimisticCommentThread,
             );
 
             return {
-                commentThread: new DocumentCommentThreadModel({
-                    id: input.commentThreadId,
-                    documentId: this._contentManager.id,
-                    createdTime: optimisticCommentThread.createdTime,
-                    commentCount: 1,
-                    lastCommentChangeTime: null,
-                    commentAuthors: [comment.author],
-                }),
+                commentThread,
                 initialComments: input.limit > 0 ? [comment] : [],
                 initialOtherReferencedComments: [],
             };
@@ -480,6 +484,95 @@ export class DocumentCollaborationConnection {
                 lastCommentChangeTime: null,
             };
         },
+
+        resolveCommentThread: async (context, {commentThreadId}) => {
+            // Wait for any pending messages related to document comments before handling
+            // comment messages. This way if we are processing an `UpdateContent` that
+            // creates the comment thread we are trying to access we will wait until it
+            // is ready.
+            //
+            // However, we do not want to block other document content messages with our
+            // comments processing! Which is why we don't use `withLock()`.
+            await this._state.waitForUnlock();
+
+            // We use a `null` `connectionId` and generate a new `clientId` because the
+            // client doesn't know about these update steps. It needs to apply the realtime
+            // update for the `RemoveAllMarksStep` along with all other clients. We also
+            // don't update the client's presence state along with these updates.
+            await this._contentManager.update(context, null, {
+                version: this._contentManager.getCurrentVersion(),
+                steps: [
+                    new RemoveAllMarksStep(
+                        DocumentContentProsemirrorSchema.marks.comment.create({
+                            commentThreadId,
+                        }),
+                    ),
+                ],
+                clientId: generateId(),
+                createCommentThreads: [],
+                resolveCommentThreadIds: [commentThreadId],
+                updateOurPresenceState: {state: null},
+            });
+
+            return {};
+        },
+
+        unresolveCommentThread: async (context, {commentThreadId}) => {
+            // Wait for any pending messages related to document comments before handling
+            // comment messages. This way if we are processing an `UpdateContent` that
+            // creates the comment thread we are trying to access we will wait until it
+            // is ready.
+            //
+            // However, we do not want to block other document content messages with our
+            // comments processing! Which is why we don't use `withLock()`.
+            await this._state.waitForUnlock();
+
+            // NOTE(calebmer): Warning! Calling an RPC here creates a network waterfall
+            // which can be slow. The network flow is:
+            //
+            // 1. RPC `getResolvedDocumentCommentThreadRanges`
+            //    - Cloudflare `DocumentCollaborationService` → AWS `AppService`
+            //    - AWS `AppService` → Cloudflare `DocumentCollaborationService`
+            // 2. RPC `updateDocumentContent`
+            //    - Cloudflare `DocumentCollaborationService` → AWS `AppService`
+            //    - AWS `AppService` → Cloudflare `DocumentCollaborationService`
+            //
+            // Given this Durable Object runs on the edge this doubles the network latency
+            // penalty from Cloudflare to AWS. Ideally we'd only make one network request
+            // to app service per procedure.
+            //
+            // Since this procedure is relatively uncommon and our document collaboration
+            // service needs to know which steps to commit before calling back to app
+            // service, we tolerate this.
+            const {version, ranges} = await getResolvedDocumentCommentThreadRanges(context, {
+                documentId: this._contentManager.id,
+                commentThreadId,
+            });
+
+            // We use a `null` `connectionId` and generate a new `clientId` because the
+            // client doesn't know about these update steps. It needs to apply the realtime
+            // update for the `AddMarksAfterRemoveAllStep` along with all other clients. We
+            // also don't update the client's presence state along with these updates.
+            await this._contentManager.update(context, null, {
+                // This update runs at an old version. The ranges will need to be rebased with
+                // all updates that have happened since that old version.
+                version,
+                steps: [
+                    new AddMarksAfterRemoveAllStep(
+                        DocumentContentProsemirrorSchema.marks.comment.create({
+                            commentThreadId,
+                        }),
+                        ranges,
+                    ),
+                ],
+                clientId: generateId(),
+                createCommentThreads: [],
+                unresolveCommentThreadIds: [commentThreadId],
+                updateOurPresenceState: {state: null},
+            });
+
+            return {};
+        },
     };
 
     public handleClose(context: WorkerProcessContext) {
@@ -543,7 +636,11 @@ export class DocumentCollaborationConnection {
 
     private readonly _commentThreadConnectionById: DefaultMap<
         DocumentCommentThreadId,
-        MessagingRealtimeConnection<DocumentCommentRoomKey, DocumentCommentModel>
+        MessagingRealtimeConnection<
+            DocumentCommentRoomKey,
+            DocumentCommentModel,
+            {commentThread: DocumentCommentThreadModel}
+        >
     > = new DefaultMap(commentThreadId => {
         return new MessagingRealtimeConnection({
             connectionId: this.connectionId,
@@ -643,27 +740,27 @@ export class DocumentCollaborationConnection {
                     return context.tracer.withSpan(
                         "Comment thread hasn't persisted so returning optimistic backfill",
                         async context => {
+                            const {commentThread, comment} = await this._getOptimisticCommentThread(
+                                context,
+                                commentThreadId,
+                                optimisticCommentThread,
+                            );
+
                             return {
                                 messageCount: 1,
                                 lastMessageChangeTime: null,
                                 newMessages:
-                                    clientCommentCount < 1 && newCommentLimit > 0
-                                        ? [
-                                              await this._getOptimisticCommentThreadComment(
-                                                  context,
-                                                  commentThreadId,
-                                                  optimisticCommentThread,
-                                              ),
-                                          ]
-                                        : [],
+                                    clientCommentCount < 1 && newCommentLimit > 0 ? [comment] : [],
                                 newOtherReferencedMessages: [],
                                 messageChangesResult: {type: "Available", changes: []},
+                                extra: {commentThread},
                             };
                         },
                     );
                 }
 
                 const {
+                    commentThread,
                     commentCount,
                     lastCommentChangeTime,
                     newComments,
@@ -683,6 +780,7 @@ export class DocumentCollaborationConnection {
                     newMessages: newComments,
                     newOtherReferencedMessages: newOtherReferencedComments,
                     messageChangesResult: commentChangesResult,
+                    extra: {commentThread},
                 };
             },
         });
@@ -717,5 +815,32 @@ export class DocumentCollaborationConnection {
                 contentUpdatedTime: null,
             },
         });
+    }
+
+    private async _getOptimisticCommentThread(
+        context: WorkerActionContext,
+        commentThreadId: DocumentCommentThreadId,
+        optimisticCommentThread: DocumentCollaborationContentManagerOptimisticCommentThread,
+    ) {
+        const comment = await this._getOptimisticCommentThreadComment(
+            context,
+            commentThreadId,
+            optimisticCommentThread,
+        );
+
+        return {
+            comment,
+            commentThread: new DocumentCommentThreadModel({
+                id: commentThreadId,
+                documentId: this._contentManager.id,
+                createdTime: optimisticCommentThread.createdTime,
+                version: 0,
+                fallbackContentSnippet: null,
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: comment.author,
+            }),
+        };
     }
 }

@@ -30,13 +30,17 @@ import {
     getAccount,
     isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_table.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
+import {DocumentCommentThreadReference} from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,
     DocumentContentSchema,
     DocumentContentStepSchema,
+    UncheckedDocumentContentSchema,
     isDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {
@@ -46,6 +50,7 @@ import {
     DocumentPreviewModel,
     getDocumentContentTitleWithoutFallback,
 } from "~/shared/documents/document_model.js";
+import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -65,6 +70,7 @@ import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
@@ -95,12 +101,35 @@ import {
     visitProsemirrorNode,
     visitProsemirrorStep,
 } from "~/shared/prosemirror/prosemirror_visitor.js";
+import {
+    AddMarksAfterRemoveAllStep,
+    RemoveAllMarksStep,
+} from "~/shared/prosemirror/remove_all_marks_step.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 const DocumentCommentThreadAttributesSchema = Schema.object({
     /** The time at which the thread was created. */
     createdTime: Schema.date,
+
+    /**
+     * When all instances of a comment thread's mark are removed from a document
+     * we save a content snippet to the comment thread object so we know what the
+     * comment thread was about even after it has been deleted.
+     *
+     * Saving a content snippet is best effort. While very unlikely there may be a
+     * case where you have an archived comment thread with no content snippet. You
+     * may also have a referenced comment thread with a content snippet. In that
+     * case, use a snippet from the current document instead of the snippet saved
+     * in the comment thread object.
+     */
+    fallbackContentSnippet: Schema.object({
+        version: Schema.integer,
+        // Unchecked since our snippet may not include a document title node.
+        node: UncheckedDocumentContentSchema,
+    })
+        .nullable()
+        .default(null),
 
     /**
      * Information regarding the comment thread. Nested in an object so we can
@@ -145,6 +174,42 @@ const DocumentCommentThreadAttributesSchema = Schema.object({
             Schema.id<ContentMentionAccountId>(),
             Schema.integer.min(0),
         ).default(new Map()),
+    }),
+
+    /**
+     * Whether this comment thread is in a resolved or unresolved state. Comment
+     * threads all start in an unresolved state. Comment resolution state is
+     * controlled by the user and is a convenient way to dismiss a comment from a
+     * document once the comment's contents have been addressed.
+     *
+     * Resolved comment threads include the ranges of text that had this comment's
+     * mark when the thread was unresolved. This way if the user wants to unresolve
+     * a comment we can place the marks back in the document where they originally
+     * were. We may need to rebase the ranges in case content shifted around.
+     *
+     * Comment thread resolved/unresolved state is not to be confused with comment
+     * referenced/archived state. Referenced means there's a comment mark in the
+     * document referencing this comment thread. Archived means there is no comment
+     * mark referencing this comment thread. An unresolved comment may either be
+     * referenced or archived. Same with a resolved comment. Though usually
+     * resolved comments are archived and unresolved comments are referenced.
+     */
+    resolutionState: Schema.union({
+        Unresolved: Schema.object({
+            type: Schema.value("Unresolved"),
+        }),
+        Resolved: Schema.object({
+            type: Schema.value("Resolved"),
+            version: Schema.integer,
+            ranges: Schema.array(
+                Schema.object({
+                    from: Schema.integer,
+                    to: Schema.integer,
+                }),
+            ),
+        }),
+    }).default({
+        type: "Unresolved",
     }),
 });
 
@@ -563,6 +628,10 @@ type DocumentStepTransactionItem =
     | DocumentStepTransactionBeforeSnapshotItem;
 
 type DocumentSnapshotItem = DynamoTableItemType<typeof DocumentsTable, "Document", "Snapshot">;
+
+type DocumentCommentThreadItem =
+    | DocumentReferencedCommentThreadItem
+    | DocumentArchivedCommentThreadItem;
 
 type DocumentReferencedCommentThreadItem = DynamoTableItemType<
     typeof DocumentsTable,
@@ -1105,7 +1174,7 @@ export async function getDocumentAndCommentThreads(
 
         const getCommentThread = async (
             commentThreadId: DocumentCommentThreadId,
-        ): Promise<[DocumentCommentThreadId, DocumentCommentThreadModel] | null> => {
+        ): Promise<[DocumentCommentThreadId, DocumentCommentThreadItem] | null> => {
             const commentThread =
                 staleReferencedCommentThreadById.get(commentThreadId) ??
                 // If our query didn't find the comment thread, it must be because our snapshot
@@ -1122,14 +1191,7 @@ export async function getDocumentAndCommentThreads(
 
             if (!commentThread) return null;
 
-            return [
-                commentThread.commentThreadId,
-                await createDocumentCommentThreadModelFromItem(
-                    context,
-                    attributes.spaceId,
-                    commentThread,
-                ),
-            ];
+            return [commentThread.commentThreadId, commentThread];
         };
 
         const [
@@ -1166,21 +1228,41 @@ export async function getDocumentAndCommentThreads(
             })(),
         ]);
 
-        const requestedCommentThreads: Array<DocumentCommentThreadModel> = [];
+        const [actualReferencedCommentThreadById, actualRequestedCommentThreads] =
+            await runAllPromises([
+                runAllPromises(
+                    mapIterable(
+                        referencedCommentThreadById,
+                        async ([commentThreadId, commentThread]) => {
+                            return [
+                                commentThreadId,
+                                await createDocumentCommentThreadReferenceFromItem(
+                                    context,
+                                    attributes.spaceId,
+                                    commentThread,
+                                ),
+                            ] as const;
+                        },
+                    ),
+                ),
+                runAllPromises(
+                    mapIterable(requestedCommentThreadIds, commentThreadId => {
+                        const commentThread =
+                            referencedCommentThreadById.get(commentThreadId) ??
+                            archivedCommentThreadById.get(commentThreadId);
 
-        // Double check that all the comment threads that were requested are returned
-        // in one of our two comment thread maps.
-        for (const requestedCommentThreadId of requestedCommentThreadIds) {
-            const commentThread =
-                referencedCommentThreadById.get(requestedCommentThreadId) ??
-                archivedCommentThreadById.get(requestedCommentThreadId);
+                        if (!commentThread) {
+                            throw new NotFoundError("Comment thread does not exist");
+                        }
 
-            if (!commentThread) {
-                throw new NotFoundError("Comment thread does not exist");
-            }
-
-            requestedCommentThreads.push(commentThread);
-        }
+                        return createDocumentCommentThreadModelFromItem(
+                            context,
+                            attributes.spaceId,
+                            commentThread,
+                        );
+                    }),
+                ),
+            ]);
 
         return {
             document: new DocumentModel({
@@ -1192,11 +1274,11 @@ export async function getDocumentAndCommentThreads(
                     doc: content,
                     references: {
                         ...contentReferences,
-                        commentThreadById: referencedCommentThreadById,
+                        commentThreadById: new Map(actualReferencedCommentThreadById),
                     },
                 },
             }),
-            commentThreads: requestedCommentThreads,
+            commentThreads: actualRequestedCommentThreads,
         };
     } catch (error) {
         spaceIdPromiseResolver?.reject(error);
@@ -1245,6 +1327,27 @@ export async function getDocumentContent(
 }
 
 /**
+ * Get a single document comment thread model object.
+ */
+export async function getDocumentCommentThread(
+    context: ServerActionContext,
+    {
+        documentId,
+        commentThreadId,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+    },
+): Promise<DocumentCommentThreadModel> {
+    const [{spaceId}, commentThreadItem] = await runAllPromises([
+        authorizeDocumentAccess(context, documentId),
+        getDocumentCommentThreadItem(context, {documentId, commentThreadId}),
+    ]);
+
+    return createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
+}
+
+/**
  * Find all the `DocumentCommentThreadId`s currently referenced in the
  * provided `DocumentContent`.
  */
@@ -1262,29 +1365,82 @@ function getReferencedDocumentCommentThreadIds(content: Node): Set<DocumentComme
     return commentThreadIds;
 }
 
+/**
+ * `DocumentCommentThreadModel` is used to render a full comment thread.
+ * Including a comment preview, its resolved state, and all the individual
+ * comments underneath the thread.
+ */
 async function createDocumentCommentThreadModelFromItem(
     context: ServerActionContext,
     spaceId: SpaceId,
-    item: DocumentReferencedCommentThreadItem | DocumentArchivedCommentThreadItem,
-) {
-    const commentAuthors = await runAllPromises(
-        mapIterable(item.commentsSummary.commentCountByAuthorId.keys(), accountId =>
-            getAccount(context, spaceId, accountId),
-        ),
-    );
+    item: DocumentCommentThreadItem,
+): Promise<DocumentCommentThreadModel> {
+    const firstCommentAuthorId = iterableFirst(item.commentsSummary.commentCountByAuthorId.keys());
+
+    const fallbackContentSnippetNode = item.fallbackContentSnippet
+        ? stripDocumentContentCommentMarks(item.fallbackContentSnippet.node, {
+              exceptCommentThreadIds: new Set([item.commentThreadId]),
+          })
+        : null;
+
+    const [firstCommentAuthor, fallbackContentSnippetReferences] = await runAllPromises([
+        firstCommentAuthorId ? getAccount(context, spaceId, firstCommentAuthorId) : null,
+        fallbackContentSnippetNode
+            ? getContentReferencesForNode(context, spaceId, fallbackContentSnippetNode)
+            : null,
+    ]);
 
     return new DocumentCommentThreadModel({
         id: item.commentThreadId,
         documentId: item.documentId,
         createdTime: item.createdTime,
+        version: item.updateLockVersion ?? 0,
+        fallbackContentSnippet: fallbackContentSnippetNode
+            ? {
+                  doc: fallbackContentSnippetNode,
+                  references: {
+                      ...(fallbackContentSnippetReferences ?? emptyContentReferences),
+                      // We strip all comment thread marks except for our own it's
+                      // redundant to include a comment thread reference object for ourselves.
+                      commentThreadById: new Map(),
+                  },
+              }
+            : null,
+        isResolved: item.resolutionState.type === "Resolved",
         commentCount: reduceIterable(
             item.commentsSummary.commentCountByAuthorId.values(),
             (commentCount, authorCommentCount) => commentCount + authorCommentCount,
             0,
         ),
         lastCommentChangeTime: item.commentsSummary.lastChangeTime,
-        commentAuthors,
+        firstCommentAuthor,
     });
+}
+
+/**
+ * `DocumentCommentThreadReference` is used to render a comment thread in the
+ * besides a document. It shows the number of comments and some comment
+ * authors.
+ */
+async function createDocumentCommentThreadReferenceFromItem(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    item: DocumentCommentThreadItem,
+): Promise<DocumentCommentThreadReference> {
+    const commentAuthors = await runAllPromises(
+        mapIterable(item.commentsSummary.commentCountByAuthorId.keys(), accountId =>
+            getAccount(context, spaceId, accountId),
+        ),
+    );
+
+    return {
+        commentCount: reduceIterable(
+            item.commentsSummary.commentCountByAuthorId.values(),
+            (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+            0,
+        ),
+        commentAuthors,
+    };
 }
 
 /**
@@ -1293,7 +1449,7 @@ async function createDocumentCommentThreadModelFromItem(
  * This is not the most efficient of functions. We need to load each comment
  * thread separately. Use it sparingly.
  */
-export async function batchGetDocumentCommentThreadsIfExists(
+export async function batchGetDocumentCommentThreadReferencesIfExists(
     context: ServerActionContext,
     {
         documentId,
@@ -1302,7 +1458,7 @@ export async function batchGetDocumentCommentThreadsIfExists(
         documentId: DocumentId;
         commentThreadIds: Iterable<DocumentCommentThreadId>;
     },
-): Promise<Array<DocumentCommentThreadModel | null>> {
+): Promise<Map<DocumentCommentThreadId, DocumentCommentThreadReference>> {
     const {spaceId} = await authorizeDocumentAccess(context, documentId);
 
     const commentThreadItems = await runAllPromises(
@@ -1313,11 +1469,18 @@ export async function batchGetDocumentCommentThreadsIfExists(
             });
             if (!commentThreadItem) return null;
 
-            return createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
+            return [
+                commentThreadItem.commentThreadId,
+                await createDocumentCommentThreadReferenceFromItem(
+                    context,
+                    spaceId,
+                    commentThreadItem,
+                ),
+            ] as const;
         }),
     );
 
-    return commentThreadItems;
+    return new Map(filterIterable(commentThreadItems, isNonNullable));
 }
 
 /**
@@ -1869,6 +2032,8 @@ export async function updateDocumentContent(
         steps: clientSteps,
         clientId,
         createCommentThreads = [],
+        resolveCommentThreadIds = [],
+        unresolveCommentThreadIds = [],
         cacheOverrideForTest,
     }: {
         id: DocumentId;
@@ -1885,6 +2050,8 @@ export async function updateDocumentContent(
              */
             createdTime?: Date;
         }>;
+        resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
+        unresolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
         cacheOverrideForTest?: DocumentContentCacheForUpdate;
     },
 ): Promise<{
@@ -1895,6 +2062,7 @@ export async function updateDocumentContent(
      * `version + steps.length`.
      */
     newVersion: number;
+
     /**
      * The `steps` array we passed in but transformed with a rebase against
      * `conflictingSteps`.
@@ -1902,10 +2070,12 @@ export async function updateDocumentContent(
      * These steps were applied after `conflictingSteps`.
      */
     newSteps: ReadonlyArray<Step>;
+
     /**
      * The inverted steps of the returned `newSteps`.
      */
     newInvertedSteps: ReadonlyArray<Step>;
+
     /**
      * If the client passed in a `version` that was not equal to the actual version
      * of the document, then this function will have loaded steps between the
@@ -1918,6 +2088,16 @@ export async function updateDocumentContent(
      * `clientId` is included.
      */
     conflictingSteps: ReadonlyArray<{step: Step; clientId: ContentEditorClientId}>;
+
+    /**
+     * Comment thread model objects for threads that were updated during this
+     * content update. So comments updated with `resolveCommentThreadIds` or
+     * `unresolveCommentThreadIds`.
+     *
+     * Doesn't include comments created with `createCommentThreads` since those
+     * comments were created not updated.
+     */
+    updatedCommentThreads: ReadonlyArray<DocumentCommentThreadModel>;
 }> {
     const result = await context.dynamo.retryTransaction(async context => {
         if (!Number.isSafeInteger(clientVersion) || clientVersion < 0)
@@ -1971,6 +2151,45 @@ export async function updateDocumentContent(
                         "When creating a comment thread `createdTime` should be within 20 minutes of the current time",
                     );
                 }
+            }
+        }
+
+        for (const commentThreadId of resolveCommentThreadIds) {
+            const removeAllMarksStep = clientSteps.find(
+                step =>
+                    step instanceof RemoveAllMarksStep &&
+                    step.mark.type.name === "comment" &&
+                    step.mark.attrs.commentThreadId === commentThreadId,
+            );
+
+            if (!removeAllMarksStep) {
+                throw new InvalidArgumentError(
+                    "When resolving a comment thread there must be a `removeAllMarks` step for the comment thread",
+                );
+            }
+
+            // Important: We depend on positions being the same at the start and end of
+            // this update when resolving comment threads. So we can only allow steps that
+            // don't move positions. e.g. `RemoveAllMarksStep` or `AddMarkStep`.
+            if (!clientSteps.every(step => step instanceof RemoveAllMarksStep)) {
+                throw new InvalidArgumentError(
+                    "Can only update with `removeAllMarks` steps when resolving a comment thread",
+                );
+            }
+        }
+
+        for (const commentThreadId of unresolveCommentThreadIds) {
+            const removeAllMarksStep = clientSteps.find(
+                step =>
+                    step instanceof AddMarksAfterRemoveAllStep &&
+                    step.mark.type.name === "comment" &&
+                    step.mark.attrs.commentThreadId === commentThreadId,
+            );
+
+            if (!removeAllMarksStep) {
+                throw new InvalidArgumentError(
+                    "When resolving a comment thread there must be a `removeAllMarks` step for the comment thread",
+                );
             }
         }
 
@@ -2030,6 +2249,138 @@ export async function updateDocumentContent(
             });
 
         assert(isDocumentContent(newContent));
+
+        const commentThreadItemPromiseById = new Map<
+            DocumentCommentThreadId,
+            Promise<DocumentCommentThreadItem | null>
+        >();
+
+        // When a comment mark is being removed from a document, if that's the last
+        // instance of the comment mark then we want to save a snippet of content
+        // around that mark at the time it was removed that we can render alongside the
+        // comment thread in a preview so the user doesn't lose context about what the
+        // comment thread was about.
+        //
+        // Cases when a comment thread could be completely removed from a document:
+        //
+        // - The user is resolving a comment thread and so updating the document with
+        //   a `removeAllMarks` step.
+        //
+        // - The user deleted content including the only reference to a comment.
+        //
+        // We do all of this before actually updating the document in the database.
+        // This means we may save content snippets for referenced comment threads. We
+        // don't include these updates in our document update transaction since many
+        // comment threads can be deleted from the document at once.
+        {
+            const removedCommentThreadIds = new Set<DocumentCommentThreadId>();
+
+            // 1. Find all comment marks removed from the document this update by checking
+            //    if an inverted step would add the mark back.
+            for (const invertedStep of invertedSteps) {
+                visitProsemirrorStep(invertedStep, {
+                    visitMark: mark => {
+                        if (mark.type.name === "comment") {
+                            removedCommentThreadIds.add(mark.attrs.commentThreadId);
+                        }
+                    },
+                });
+            }
+
+            // 2. Check if any removed comment marks appear somewhere else in the document.
+            //    If the mark doesn't appear elsewhere then we consider the comment thread
+            //    to be totally removed.
+            if (removedCommentThreadIds.size > 0) {
+                visitProsemirrorNode(newContent, {
+                    visitMark: mark => {
+                        if (mark.type.name === "comment") {
+                            removedCommentThreadIds.delete(mark.attrs.commentThreadId);
+                        }
+                    },
+                });
+            }
+
+            // 3. For any totally removed comments, save a content snippet from our old
+            //    document content with the comment thread.
+            if (removedCommentThreadIds.size > 0) {
+                // Get content snippets for our removed comment threads from the old document
+                // content. Snippets won't exist in the new document content.
+                const contentSnippetByCommentThreadId = createDocumentCommentThreadSnippetCollector(
+                    removedCommentThreadIds,
+                )(internalDocument.content);
+
+                await runAllPromises(
+                    Array.from(removedCommentThreadIds, async commentThreadId => {
+                        const contentSnippet = contentSnippetByCommentThreadId.get(commentThreadId);
+                        if (!contentSnippet) return;
+
+                        const commentThreadItem = await getOrSetDefaultMapValue(
+                            commentThreadItemPromiseById,
+                            commentThreadId,
+                            () =>
+                                getDocumentCommentThreadItemIfExists(context, {
+                                    documentId: id,
+                                    commentThreadId,
+                                    // Unresolved comments are likely to be referenced.
+                                    shouldTryArchiveFirst: false,
+                                }),
+                        );
+
+                        // Comment may have been copied from a different document.
+                        if (!commentThreadItem) return;
+
+                        // If the comment thread already has a content snippet then only update if our
+                        // snippet is from a newer version.
+                        if (
+                            !commentThreadItem.fallbackContentSnippet ||
+                            commentThreadItem.fallbackContentSnippet.version <
+                                internalDocument.version
+                        ) {
+                            const newCommentThreadItem: DocumentCommentThreadItem = {
+                                ...commentThreadItem,
+                                fallbackContentSnippet: {
+                                    version: internalDocument.version,
+                                    node: contentSnippet,
+                                },
+                            };
+
+                            // If we are going to resolve or unresolve this comment thread in this update,
+                            // let's save some capacity units and not make a second write here.
+                            //
+                            // We need to update `commentThreadItemPromiseById` so that later if we need to
+                            // read the comment thread again the updated item is what's in the cache.
+                            if (
+                                !resolveCommentThreadIds.includes(
+                                    commentThreadItem.commentThreadId,
+                                ) &&
+                                !unresolveCommentThreadIds.includes(
+                                    commentThreadItem.commentThreadId,
+                                )
+                            ) {
+                                await DocumentsTable.directlyUpdateItem(
+                                    context,
+                                    newCommentThreadItem,
+                                );
+
+                                commentThreadItemPromiseById.set(
+                                    commentThreadId,
+                                    Promise.resolve({
+                                        ...newCommentThreadItem,
+                                        updateLockVersion:
+                                            (newCommentThreadItem.updateLockVersion ?? 0) + 1,
+                                    }),
+                                );
+                            } else {
+                                commentThreadItemPromiseById.set(
+                                    commentThreadId,
+                                    Promise.resolve(newCommentThreadItem),
+                                );
+                            }
+                        }
+                    }),
+                );
+            }
+        }
 
         // This checkpoint allows us to write a test against our transaction's
         // condition.
@@ -2200,6 +2551,7 @@ export async function updateDocumentContent(
                     documentId: id,
                     commentThreadId: createCommentThread.commentThreadId,
                     createdTime,
+                    fallbackContentSnippet: null,
                     commentsSummary: {
                         nextCommentIndex: 1,
                         lastChangeTime: null,
@@ -2207,6 +2559,9 @@ export async function updateDocumentContent(
                         mentionCountByAccountId: getMentionCountByAccountIdInContent(
                             createCommentThread.initialCommentContent,
                         ),
+                    },
+                    resolutionState: {
+                        type: "Unresolved",
                     },
                 }),
                 // Make sure an archive comment thread item also does not exist.
@@ -2294,21 +2649,160 @@ export async function updateDocumentContent(
             );
         }
 
-        if (transaction.length > 0) {
-            await DynamoTableSchema.executeTransaction(context, transaction);
+        const updatedCommentThreadItems: Array<DocumentCommentThreadItem> = [];
+
+        if (resolveCommentThreadIds.length > 0) {
+            await runAllPromises(
+                resolveCommentThreadIds.map(async commentThreadId => {
+                    const ranges: Array<{from: number; to: number}> = [];
+
+                    for (const invertedStep of invertedSteps) {
+                        if (
+                            invertedStep instanceof AddMarksAfterRemoveAllStep &&
+                            invertedStep.mark.type.name === "comment" &&
+                            invertedStep.mark.attrs.commentThreadId === commentThreadId
+                        ) {
+                            for (const range of invertedStep.ranges) {
+                                ranges.push(range);
+                            }
+                        }
+                    }
+
+                    const commentThreadItem = await getOrSetDefaultMapValue(
+                        commentThreadItemPromiseById,
+                        commentThreadId,
+                        () =>
+                            getDocumentCommentThreadItem(context, {
+                                documentId: id,
+                                commentThreadId,
+                                // Unresolved comments are likely to be referenced.
+                                shouldTryArchiveFirst: false,
+                            }),
+                    );
+                    if (!commentThreadItem)
+                        throw new NotFoundError("Couldn't find document comment thread");
+
+                    // If the comment thread is already resolved, then we don't want to remove the
+                    // `ranges` in the resolution state. So leave the comment thread alone. We do
+                    // need a condition check to avoid concurrent update issues.
+                    if (commentThreadItem.resolutionState.type === "Resolved") {
+                        transaction.push(
+                            DocumentsTable.transactionUpdateLockVersionConditionCheck(
+                                commentThreadItem,
+                                commentThreadItem.updateLockVersion,
+                            ),
+                        );
+
+                        updatedCommentThreadItems.push(commentThreadItem);
+                    } else {
+                        const newCommentThreadItem: DocumentCommentThreadItem = {
+                            ...commentThreadItem,
+                            resolutionState: {
+                                type: "Resolved",
+                                // Because we only allow `RemoveAllMarksStep` steps (or other steps that don't
+                                // affect positions) when resolving comments we know our `ranges` are valid for
+                                // this version since positions in the document will be the same at the start
+                                // and end of this update.
+                                version: internalDocument.version + steps.length,
+                                ranges,
+                            },
+                        };
+
+                        transaction.push(
+                            DocumentsTable.transactionDirectlyUpdateItem(newCommentThreadItem),
+                        );
+
+                        updatedCommentThreadItems.push({
+                            ...newCommentThreadItem,
+                            updateLockVersion: (newCommentThreadItem.updateLockVersion ?? 0) + 1,
+                        });
+                    }
+                }),
+            );
         }
 
-        if (steps.length > 0) {
-            // Update our cache so that the next update from this process doesn't need to
-            // read content from the database.
-            await internalDocument.updateCache({
-                newContent,
-                newSteps: steps,
-                newInvertedSteps: invertedSteps,
-                newLastIndexSearchEntityJob,
-                newStepCountByAccountId,
-                clientId,
-            });
+        if (unresolveCommentThreadIds.length > 0) {
+            await runAllPromises(
+                unresolveCommentThreadIds.map(async commentThreadId => {
+                    const commentThreadItem = await getOrSetDefaultMapValue(
+                        commentThreadItemPromiseById,
+                        commentThreadId,
+                        () =>
+                            getDocumentCommentThreadItem(context, {
+                                documentId: id,
+                                commentThreadId,
+                                // Unresolved comments are likely to be referenced.
+                                shouldTryArchiveFirst: true,
+                            }),
+                    );
+                    if (!commentThreadItem)
+                        throw new NotFoundError("Couldn't find document comment thread");
+
+                    if (commentThreadItem.resolutionState.type === "Unresolved") {
+                        transaction.push(
+                            DocumentsTable.transactionUpdateLockVersionConditionCheck(
+                                commentThreadItem,
+                                commentThreadItem.updateLockVersion,
+                            ),
+                        );
+
+                        updatedCommentThreadItems.push(commentThreadItem);
+                    } else {
+                        const newCommentThreadItem: DocumentCommentThreadItem = {
+                            ...commentThreadItem,
+                            resolutionState: {
+                                type: "Unresolved",
+                            },
+                        };
+
+                        transaction.push(
+                            DocumentsTable.transactionDirectlyUpdateItem(newCommentThreadItem),
+                        );
+
+                        updatedCommentThreadItems.push({
+                            ...newCommentThreadItem,
+                            updateLockVersion: (newCommentThreadItem.updateLockVersion ?? 0) + 1,
+                        });
+                    }
+                }),
+            );
+        }
+
+        const execute = async () => {
+            if (transaction.length > 0) {
+                await DynamoTableSchema.executeTransaction(context, transaction);
+            }
+
+            if (steps.length > 0) {
+                // Update our cache so that the next update from this process doesn't need to
+                // read content from the database.
+                await internalDocument.updateCache({
+                    newContent,
+                    newSteps: steps,
+                    newInvertedSteps: invertedSteps,
+                    newLastIndexSearchEntityJob,
+                    newStepCountByAccountId,
+                    clientId,
+                });
+            }
+        };
+
+        let updatedCommentThreads: Array<DocumentCommentThreadModel> = [];
+        if (updatedCommentThreadItems.length === 0) {
+            await execute();
+        } else {
+            [, updatedCommentThreads] = await runAllPromises([
+                execute(),
+                runAllPromises(
+                    updatedCommentThreadItems.map(commentThreadItem =>
+                        createDocumentCommentThreadModelFromItem(
+                            context,
+                            internalDocument.spaceId,
+                            commentThreadItem,
+                        ),
+                    ),
+                ),
+            ]);
         }
 
         return {
@@ -2318,11 +2812,19 @@ export async function updateDocumentContent(
             newSteps: steps,
             newInvertedSteps: invertedSteps,
             conflictingSteps,
+            updatedCommentThreads,
         };
     });
 
-    const {oldVersion, newVersion, newContent, newSteps, newInvertedSteps, conflictingSteps} =
-        result;
+    const {
+        oldVersion,
+        newVersion,
+        newContent,
+        newSteps,
+        newInvertedSteps,
+        conflictingSteps,
+        updatedCommentThreads,
+    } = result;
 
     const lastVersionToTriggerSnapshot =
         Math.floor(newVersion / updateDocumentSnapshotAfterStepCount) *
@@ -2345,6 +2847,7 @@ export async function updateDocumentContent(
         newSteps,
         newInvertedSteps,
         conflictingSteps,
+        updatedCommentThreads,
     };
 }
 
@@ -3089,7 +3592,7 @@ async function getDocumentCommentThreadItemIfExists(
         shouldTryArchiveFirst?: boolean;
         consistency?: DynamoReadConsistency;
     },
-): Promise<DocumentReferencedCommentThreadItem | DocumentArchivedCommentThreadItem | null> {
+): Promise<DocumentCommentThreadItem | null> {
     {
         const commentThreadItem = await DocumentsTable.getItemIfExists(context, {
             partitionType: "Document",
@@ -3149,16 +3652,19 @@ async function getDocumentCommentThreadItem(
     {
         documentId,
         commentThreadId,
+        shouldTryArchiveFirst,
         consistency = "Eventual",
     }: {
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
+        shouldTryArchiveFirst?: boolean;
         consistency?: DynamoReadConsistency;
     },
 ) {
     const item = await getDocumentCommentThreadItemIfExists(context, {
         documentId,
         commentThreadId,
+        shouldTryArchiveFirst,
         consistency,
     });
     if (!item) throw new NotFoundError("Couldn't find document comment thread");
@@ -4313,6 +4819,12 @@ export async function backfillDocumentComments(
         newCommentLimit: number;
     },
 ): Promise<{
+    // We also backfill the full comment thread object in case it changed. Other
+    // messaging backfill implementations don't do this. It's important here
+    // because we need to know whether the comment thread is resolved and the
+    // latest fallback content snippet.
+    commentThread: DocumentCommentThreadModel;
+
     commentCount: number;
     lastCommentChangeTime: Date | null;
     newComments: Array<DocumentCommentModel>;
@@ -4324,27 +4836,40 @@ export async function backfillDocumentComments(
     const commentThreadItemPromise = getDocumentCommentThreadItem(context, {
         documentId,
         commentThreadId,
+        // We're also backfilling the comment thread object. So we need to read it with
+        // strong consistency.
+        consistency: "Strong",
     });
 
-    const [, commentThreadItem, {comments, otherReferencedComments}, commentChangesResult] =
-        await runAllPromises([
-            documentAuthorizationPromise,
-            commentThreadItemPromise,
-            getDocumentCommentsFromStartAssumingAuthorizedCommentThread(context, {
-                documentId,
-                commentThreadId,
-                getSpaceId: () => documentAuthorizationPromise.then(({spaceId}) => spaceId),
-                limit: newCommentLimit,
-                afterCommentIndex: clientCommentCount - 1,
-                beforeCommentIndex: null,
-                // Use a strong read consistency when backfilling. This guarantees the caller
-                // will observe all realtime events before this function call. Realtime events
-                // that happen during the function call may be missed. You should be subscribed
-                // to new realtime events before starting to backfill.
-                consistency: "Strong",
-            }),
-            runAllPromises([documentAuthorizationPromise, commentThreadItemPromise]).then(
-                ([documentPreview, commentThreadItem]) =>
+    const [
+        ,
+        commentThreadItem,
+        {comments, otherReferencedComments},
+        [commentThread, commentChangesResult],
+    ] = await runAllPromises([
+        documentAuthorizationPromise,
+        commentThreadItemPromise,
+        getDocumentCommentsFromStartAssumingAuthorizedCommentThread(context, {
+            documentId,
+            commentThreadId,
+            getSpaceId: () => documentAuthorizationPromise.then(({spaceId}) => spaceId),
+            limit: newCommentLimit,
+            afterCommentIndex: clientCommentCount - 1,
+            beforeCommentIndex: null,
+            // Use a strong read consistency when backfilling. This guarantees the caller
+            // will observe all realtime events before this function call. Realtime events
+            // that happen during the function call may be missed. You should be subscribed
+            // to new realtime events before starting to backfill.
+            consistency: "Strong",
+        }),
+        runAllPromises([documentAuthorizationPromise, commentThreadItemPromise]).then(
+            ([documentPreview, commentThreadItem]) =>
+                runAllPromises([
+                    createDocumentCommentThreadModelFromItem(
+                        context,
+                        documentPreview.spaceId,
+                        commentThreadItem,
+                    ),
                     queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThread(context, {
                         spaceId: documentPreview.spaceId,
                         commentThreadItem,
@@ -4355,8 +4880,9 @@ export async function backfillDocumentComments(
                         // to new realtime events before starting to backfill.
                         consistency: "Strong",
                     }),
-            ),
-        ]);
+                ]),
+        ),
+    ]);
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
 
@@ -4368,6 +4894,7 @@ export async function backfillDocumentComments(
             : null;
 
     return {
+        commentThread,
         commentCount: Math.max(
             reduceIterable(
                 commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
@@ -4401,7 +4928,7 @@ async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThr
         consistency,
     }: {
         spaceId: SpaceId;
-        commentThreadItem: DocumentReferencedCommentThreadItem | DocumentArchivedCommentThreadItem;
+        commentThreadItem: DocumentCommentThreadItem;
         lastCommentChangeTime: Date | null;
         consistency?: DynamoReadConsistency;
     },
@@ -4540,4 +5067,59 @@ export async function getDocumentCommentThreadNotificationSubscribers(
     );
 
     return {accountIds};
+}
+
+/**
+ * For a resolved comment thread, get the ranges of text the comment was
+ * highlighting so we can add the comment back to the document.
+ *
+ * This function is partially strongly consistent. If a comment thread was
+ * recently marked as resolved you'll get the ranges back with strong
+ * consistency. If a comment thread was recently marked as unresolved this
+ * function may still report it as resolved.
+ */
+export async function getResolvedDocumentCommentThreadRanges(
+    context: ServerActionContext,
+    {
+        documentId,
+        commentThreadId,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+    },
+): Promise<{
+    version: number;
+    ranges: ReadonlyArray<{from: number; to: number}>;
+}> {
+    let [, commentThreadItem] = await runAllPromises([
+        authorizeDocumentAccess(context, documentId),
+        getDocumentCommentThreadItem(context, {
+            documentId,
+            commentThreadId,
+            // Since this is a resolved comment thread, we should try reading from the
+            // archive since the comment shouldn't be referenced in the document.
+            shouldTryArchiveFirst: true,
+        }),
+    ]);
+
+    // This function pre-supposes the comment thread is resolved. So if we don't
+    // read a resolved comment thread that may be because we read with eventual
+    // consistency. Try again with strong consistency before throwing an error.
+    if (commentThreadItem.resolutionState.type !== "Resolved") {
+        commentThreadItem = await getDocumentCommentThreadItem(context, {
+            documentId,
+            commentThreadId,
+            consistency: "Strong",
+            shouldTryArchiveFirst: true,
+        });
+    }
+
+    if (commentThreadItem.resolutionState.type !== "Resolved") {
+        throw new FailedPreconditionError("Document comment thread is not resolved");
+    }
+
+    return {
+        version: commentThreadItem.resolutionState.version,
+        ranges: commentThreadItem.resolutionState.ranges,
+    };
 }

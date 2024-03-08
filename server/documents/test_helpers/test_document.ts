@@ -1,10 +1,14 @@
-import {Fragment, Slice} from "prosemirror-model";
-import {ReplaceStep, Step} from "prosemirror-transform";
+import {Fragment, Mark, Slice} from "prosemirror-model";
+import {AddMarkStep, ReplaceStep, Step} from "prosemirror-transform";
 import {
     DocumentContentCacheForUpdate,
+    backfillDocumentComments,
     createDocument,
+    getDocumentAndCommentThreads,
+    getDocumentCommentThread,
     updateDocumentContent,
 } from "~/server/documents/data/documents_table.js";
+import {TestDocumentCommentThread} from "~/server/documents/test_helpers/test_document_comment_thread.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -15,7 +19,8 @@ import {
 } from "~/shared/documents/document_content_schema.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const schema = DocumentContentProsemirrorSchema;
 
@@ -104,21 +109,25 @@ export class TestDocument {
         session: TestSpaceSession,
         text: string,
         {
-            cacheOverride,
+            cacheOverrideForTest,
             secondText,
         }: {
-            cacheOverride?: DocumentContentCacheForUpdate;
+            cacheOverrideForTest?: DocumentContentCacheForUpdate;
             secondText?: string;
         } = {},
-    ) {
+    ): Promise<
+        Awaited<ReturnType<typeof updateDocumentContent>> & {range: {from: number; to: number}}
+    > {
         return this._state.withLock(async stateRef => {
+            const {lastUpdatePos} = stateRef.current;
+
             const result = await updateDocumentContent(session.action(), {
                 id: this.id,
                 version: stateRef.current.lastVersion,
                 steps: [
                     new ReplaceStep(
-                        stateRef.current.lastUpdatePos,
-                        stateRef.current.lastUpdatePos,
+                        lastUpdatePos,
+                        lastUpdatePos,
                         text.length !== 0
                             ? new Slice(Fragment.from(schema.text(text)), 0, 0)
                             : Slice.empty,
@@ -126,8 +135,8 @@ export class TestDocument {
                     ...(secondText !== undefined
                         ? [
                               new ReplaceStep(
-                                  stateRef.current.lastUpdatePos + text.length,
-                                  stateRef.current.lastUpdatePos + text.length,
+                                  lastUpdatePos + text.length,
+                                  lastUpdatePos + text.length,
                                   secondText.length !== 0
                                       ? new Slice(Fragment.from(schema.text(secondText)), 0, 0)
                                       : Slice.empty,
@@ -136,14 +145,19 @@ export class TestDocument {
                         : []),
                 ],
                 clientId: generateId(),
-                cacheOverrideForTest: cacheOverride,
+                cacheOverrideForTest,
             });
 
             stateRef.current.lastVersion += 1 + (secondText !== undefined ? 1 : 0);
             stateRef.current.lastUpdatePos +=
                 text.length + (secondText !== undefined ? secondText.length : 0);
 
-            return result;
+            return Object.assign(result, {
+                range: {
+                    from: lastUpdatePos,
+                    to: stateRef.current.lastUpdatePos,
+                },
+            });
         });
     }
 
@@ -153,11 +167,22 @@ export class TestDocument {
      * Does not use the current update cursor in this test document class's
      * state and does not update the cursor.
      */
-    public async update(session: TestSpaceSession, steps: ReadonlyArray<Step>) {
+    public async update(
+        session: TestSpaceSession,
+        steps: ReadonlyArray<Step>,
+        {
+            versionOverride,
+            ...options
+        }: Omit<
+            Parameters<typeof updateDocumentContent>[1],
+            "id" | "version" | "steps" | "clientId"
+        > & {versionOverride?: number} = {},
+    ) {
         return this._state.withLock(async stateRef => {
             const result = await updateDocumentContent(session.action(), {
+                ...options,
                 id: this.id,
-                version: stateRef.current.lastVersion,
+                version: versionOverride ?? stateRef.current.lastVersion,
                 steps,
                 clientId: generateId(),
             });
@@ -166,5 +191,16 @@ export class TestDocument {
 
             return result;
         });
+    }
+
+    /**
+     * Create a comment thread at the specified range.
+     */
+    public createCommentThread(
+        session: TestSpaceSession,
+        range: {from: number; to: number},
+        content: string | MessageContent,
+    ) {
+        return TestDocumentCommentThread._create(this, session, range, content);
     }
 }

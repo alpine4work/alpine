@@ -170,11 +170,13 @@ const backfillMessages: BackfillMessagesFunction<PostId, PostCommentModel> = asy
         clientLastCommentChangeTime,
         newCommentLimit,
     });
+
     return {
         messageCount: commentCount,
         lastMessageChangeTime: lastCommentChangeTime,
         newMessages: newComments,
         newOtherReferencedMessages: newOtherReferencedComments,
         messageChangesResult: commentChangesResult,
+        extra: null,
     };
 };

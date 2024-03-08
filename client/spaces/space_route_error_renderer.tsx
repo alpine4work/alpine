@@ -13,6 +13,7 @@ export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
 
     return (
         <Box
+            width="full"
             display="flex"
             justifyContent="center"
             style={{

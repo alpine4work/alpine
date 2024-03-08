@@ -74,13 +74,14 @@ export class TaskNotesCollaborationConnection {
         WorkerSessionActionContextModules,
         typeof TaskNotesCollaborationProtocol
     > = {
-        backfill: (context, input, span) =>
+        backfill: (context, input) =>
             // Handle procedures for this connection in sequence as a defense against
             // race conditions.
             //
             // Though the client mostly sends messages in sequence anyway.
             this._mutex.withLock(async () => {
                 const version = this._contentManager.getCurrentVersion();
+                const persistedVersion = this._contentManager.getPersistedVersion();
                 const clientVersion = input.version;
 
                 // If the client has a future version it's trying to backfill then reset the
@@ -138,6 +139,7 @@ export class TaskNotesCollaborationConnection {
                         result: {
                             type: "Available",
                             newVersion: version,
+                            persistedVersion,
                             steps: stepsResult.steps.map(({step, clientId}) => ({step, clientId})),
                             stepsContentReferences,
                         },

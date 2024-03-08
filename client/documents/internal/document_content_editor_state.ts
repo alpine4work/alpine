@@ -23,6 +23,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {DocumentCommentThreadId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {
@@ -83,6 +84,21 @@ type DocumentContentEditorExtraState = {
         WebSocketConnectionId,
         DocumentCollaborationPresenceState
     >;
+
+    /**
+     * If we are notified a comment thread was resolved/unresolved by
+     * `UpdateContentWithoutPersistence` then we want to optimistically update our
+     * UI so it matches the document which will have marks removed/added. But then
+     * once content has finished persisting we'll receive a `PersistedContent`
+     * event with new comment thread objects which are the source of truth.
+     *
+     * This map will override whatever is in comment thread objects while we have
+     * unpersisted resolution state changes.
+     */
+    readonly unpersistedResolutionStateByCommentThreadId: ReadonlyMap<
+        DocumentCommentThreadId,
+        {readonly isResolved: boolean; readonly version: number}
+    >;
 };
 
 export function getInitialDocumentContentEditorState(
@@ -97,6 +113,7 @@ export function getInitialDocumentContentEditorState(
             rememberedSteps: [],
             ourPresenceState: null,
             otherPresenceStateByConnectionId: ImmutableMap.empty(),
+            unpersistedResolutionStateByCommentThreadId: new Map(),
         },
     });
 }
@@ -110,7 +127,8 @@ type DocumentContentEditorExtraAction =
     | DocumentContentEditorAugmentRememberedStepsAction
     | DocumentContentEditorSetAllOtherPresenceStatesAction
     | DocumentContentEditorUpdateOtherPresenceStateAction
-    | DocumentContentEditorUpdateCommentThreadAction;
+    | DocumentContentEditorUpdateCommentThreadReferenceAction
+    | DocumentContentEditorUpdateCommentThreadResolutionStatesAction;
 
 type DocumentContentEditorAugmentRememberedStepsAction = {
     readonly type: "AugmentRememberedSteps";
@@ -133,11 +151,18 @@ type DocumentContentEditorUpdateOtherPresenceStateAction = {
     readonly state: DocumentCollaborationPresenceState | null;
 };
 
-type DocumentContentEditorUpdateCommentThreadAction = {
-    readonly type: "UpdateCommentThread";
+type DocumentContentEditorUpdateCommentThreadReferenceAction = {
+    readonly type: "UpdateCommentThreadReference";
     readonly commentThreadId: DocumentCommentThreadId;
     readonly commentCount: number;
     readonly addCommentAuthor: AccountModel | null;
+};
+
+type DocumentContentEditorUpdateCommentThreadResolutionStatesAction = {
+    readonly type: "UpdateCommentThreadResolutionStates";
+    readonly newVersion: number;
+    readonly resolveCommentThreadIds: ReadonlyArray<DocumentCommentThreadId>;
+    readonly unresolveCommentThreadIds: ReadonlyArray<DocumentCommentThreadId>;
 };
 
 export function reduceDocumentContentEditorState(
@@ -283,6 +308,22 @@ const baseReduceDocumentContentEditorState = createCollaborativeContentEditorSta
         };
     }
 
+    if (action.type === "Persisted") {
+        // Clean out unpersisted resolution states when we get a persisted
+        // content action.
+        const unpersistedResolutionStateByCommentThreadId = new Map(
+            filterIterable(
+                state.extra.unpersistedResolutionStateByCommentThreadId,
+                ([, resolutionState]) => resolutionState.version > action.newVersion,
+            ),
+        );
+
+        return {
+            ...state,
+            extra: {...state.extra, unpersistedResolutionStateByCommentThreadId},
+        };
+    }
+
     if (action.type === "Error") return state;
 
     switch (action.extra.type) {
@@ -362,7 +403,7 @@ const baseReduceDocumentContentEditorState = createCollaborativeContentEditorSta
                 },
             };
         }
-        case "UpdateCommentThread": {
+        case "UpdateCommentThreadReference": {
             return {
                 ...state,
                 editorState: state.editorState.updateReferences({
@@ -371,6 +412,55 @@ const baseReduceDocumentContentEditorState = createCollaborativeContentEditorSta
                     commentCount: action.extra.commentCount,
                     addCommentAuthor: action.extra.addCommentAuthor,
                 }),
+            };
+        }
+        case "UpdateCommentThreadResolutionStates": {
+            // Ignore action if our persisted version is past this action's version.
+            if (action.extra.newVersion <= oldState.persistedVersion) {
+                return state;
+            }
+
+            if (
+                action.extra.resolveCommentThreadIds.length === 0 &&
+                action.extra.unresolveCommentThreadIds.length === 0
+            ) {
+                return state;
+            }
+
+            const unpersistedResolutionStateByCommentThreadId = new Map(
+                state.extra.unpersistedResolutionStateByCommentThreadId,
+            );
+
+            for (const commentThreadId of action.extra.resolveCommentThreadIds) {
+                const oldResolutionState =
+                    unpersistedResolutionStateByCommentThreadId.get(commentThreadId);
+
+                if (!oldResolutionState || action.extra.newVersion >= oldResolutionState.version) {
+                    unpersistedResolutionStateByCommentThreadId.set(commentThreadId, {
+                        isResolved: true,
+                        version: action.extra.newVersion,
+                    });
+                }
+            }
+
+            for (const commentThreadId of action.extra.unresolveCommentThreadIds) {
+                const oldResolutionState =
+                    unpersistedResolutionStateByCommentThreadId.get(commentThreadId);
+
+                if (!oldResolutionState || action.extra.newVersion >= oldResolutionState.version) {
+                    unpersistedResolutionStateByCommentThreadId.set(commentThreadId, {
+                        isResolved: false,
+                        version: action.extra.newVersion,
+                    });
+                }
+            }
+
+            return {
+                ...state,
+                extra: {
+                    ...state.extra,
+                    unpersistedResolutionStateByCommentThreadId,
+                },
             };
         }
         default:

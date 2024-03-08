@@ -53,6 +53,7 @@ export function createDocumentCommentThreadSnippetCollector(
         return new Map(
             mapIterable(resolvedPosByCommentThreadId, ([commentThreadId, resolvedPos]) => [
                 commentThreadId,
+                // Enough lines to fill a document comment thread preview component.
                 getContentSnippet(resolvedPos, {linesAbove: 2, linesBelow: 8}),
             ]),
         );

@@ -1,6 +1,12 @@
 import {AccountModel} from "~/shared/accounts/account_model.js";
-import {DocumentContentWithReferencesSchema} from "~/shared/documents/document_content_references.js";
-import {DocumentContent} from "~/shared/documents/document_content_schema.js";
+import {
+    DocumentContentWithReferencesSchema,
+    UncheckedDocumentContentWithReferencesSchema,
+} from "~/shared/documents/document_content_references.js";
+import {
+    DocumentContent,
+    UncheckedDocumentContentSchema,
+} from "~/shared/documents/document_content_schema.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isId} from "~/shared/id/id.js";
@@ -15,29 +21,49 @@ import {Schema} from "~/shared/schema/schema.js";
 export class DocumentCommentThreadModel extends Model(
     Schema.object({
         id: Schema.id<DocumentCommentThreadId>(),
+
         /**
          * The document this comment thread is for.
          */
         documentId: Schema.id<DocumentId>(),
+
         /**
          * The time at which this comment thread was created.
          */
         createdTime: Schema.date,
+
+        /**
+         * The version of this comment thread model object. Useful for resolving
+         * conflicting updates. From `updateLockVersion` in DynamoDB.
+         */
+        version: Schema.integer,
+
+        /**
+         * When the comment is no longer referenced in the document you can render this
+         * content snippet in the comment thread's preview component.
+         */
+        fallbackContentSnippet: UncheckedDocumentContentWithReferencesSchema.nullable(),
+
+        /**
+         * Is the document comment thread resolved?
+         */
+        isResolved: Schema.boolean,
+
         /**
          * The total number of comments in the thread.
          */
         commentCount: Schema.integer,
+
         /**
          * The last time a comment in this thread changed.
          */
         lastCommentChangeTime: Schema.date.nullable(),
+
         /**
-         * All of the authors who commented on this thread.
-         *
-         * We include all authors instead of a limited preview so the list can update
-         * in realtime without needing to load the thread.
+         * The author of the first comment on the thread. The thread creator. There's
+         * a whole list of comment authors in document content references.
          */
-        commentAuthors: Schema.array(AccountModel.schema),
+        firstCommentAuthor: AccountModel.schema.nullable(),
     }),
 ) {}
 
