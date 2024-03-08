@@ -96,7 +96,6 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     onJumpToMessage,
     onShowTypingIndicator,
     onHideTypingIndicator,
-    withoutBorderTop = false,
     "data-testid": dataTestId,
     restoreStateRef,
     marginX = defaultMessageViewMarginX,
@@ -118,7 +117,6 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     onJumpToMessage: (message: Message) => void;
     onShowTypingIndicator: () => void;
     onHideTypingIndicator: () => void;
-    withoutBorderTop?: boolean;
     "data-testid"?: string;
     restoreStateRef?: MutableRefObject<{
         state: ContentEditorState<MessageContentWithReferences>;
@@ -265,7 +263,6 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
             onShowTypingIndicator={onShowTypingIndicator}
             onHideTypingIndicator={onHideTypingIndicator}
             isBottomBar={true}
-            withoutBorderTop={withoutBorderTop}
             data-testid={dataTestId}
             marginX={marginX}
             withMobileLayout={withMobileLayout}
@@ -325,7 +322,6 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     onChange,
     onSend: onSendProp,
     isBottomBar = false,
-    withoutBorderTop = false,
     withMobileLayout: withMobileLayoutProp,
     isSendBottomArrowRight,
     isSendButtonDisabled: isSendButtonDisabledProp,
@@ -349,7 +345,6 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     onChange: (state: ContentEditorState<MessageContentWithReferences>) => void;
     onSend: () => void;
     isBottomBar?: boolean;
-    withoutBorderTop?: boolean;
     withMobileLayout?: boolean;
     isSendBottomArrowRight?: boolean;
     isSendButtonDisabled?: boolean;
@@ -631,14 +626,9 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
             id={isBottomBar && clientInfo.isNativeMobile ? `nmbb-wkt-${id}` : id}
             flexShrink="0"
             backgroundColor="grey-0"
-            borderTop={isBottomBar && !withoutBorderTop ? "grey-10" : undefined}
             style={{
-                // Remove one pixel so that our layout of the input without the border top is
-                // the same side-by-side with the layout of an input with the border top.
                 minHeight: !isBottomBar
                     ? messageInputMinHeight
-                    : !withoutBorderTop
-                    ? `calc(${messageInputMinHeight} - 1px + var(--window-safe-area-inset-bottom, 0px))`
                     : `calc(${messageInputMinHeight} + var(--window-safe-area-inset-bottom, 0px))`,
                 paddingBottom: isBottomBar
                     ? clientInfo.isNativeMobile

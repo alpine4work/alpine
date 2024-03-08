@@ -183,7 +183,6 @@ export function PostCommentInput({
                             .logUncaughtException("Couldn't update typing indicator", error),
                     );
             }}
-            withoutBorderTop={isStickyPositioned}
         />
     );
 }

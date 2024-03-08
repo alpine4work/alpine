@@ -207,7 +207,6 @@ export function DocumentCommentInput({
             }}
             marginX={marginX}
             withMobileLayout={withMobileLayout}
-            withoutBorderTop={isStickyPositioned}
         />
     );
 }

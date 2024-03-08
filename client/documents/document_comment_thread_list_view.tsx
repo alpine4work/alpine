@@ -39,7 +39,13 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {
+    RemLength,
+    Spacing,
+    addRemLengths,
+    parseRemLengthNumber,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {UncheckedDocumentContentSchema} from "~/shared/documents/document_content_schema.js";
@@ -62,7 +68,7 @@ import {Schema} from "~/shared/schema/schema.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 export const documentCommentThreadListViewMaxWidth: Spacing = "160";
-const documentCommentThreadListViewMarginY: Spacing = "16";
+const documentCommentThreadListViewMarginY: Spacing = "20";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -654,12 +660,41 @@ function DocumentCommentThreadListView(
                                     display: "flex",
                                     flexDirection: "column",
                                     alignItems: "center",
-                                    paddingTop:
-                                        index !== 0 ? documentCommentThreadListViewMarginY : "0",
                                 })}
                             >
+                                {index !== 0 && (
+                                    <div
+                                        className={sprinkles({
+                                            position: "relative",
+                                            width: "full",
+                                            height: documentCommentThreadListViewMarginY,
+                                            maxWidth: documentCommentThreadListViewMaxWidth,
+                                            paddingX,
+                                        })}
+                                    >
+                                        <div
+                                            className={sprinkles({
+                                                width: "full",
+                                                height: "1/2",
+                                                borderBottom: "grey-5",
+                                            })}
+                                            style={{
+                                                height: `${
+                                                    parseRemLengthNumber(
+                                                        spacing[
+                                                            documentCommentThreadListViewMarginY
+                                                        ],
+                                                    ) /
+                                                        2 -
+                                                    0.125
+                                                }rem`,
+                                            }}
+                                        />
+                                    </div>
+                                )}
                                 <div
                                     className={sprinkles({
+                                        position: "relative",
                                         width: "full",
                                         maxWidth: documentCommentThreadListViewMaxWidth,
                                         paddingX,
@@ -861,14 +896,9 @@ function DocumentCommentThreadListView(
                         />
                     );
 
-                    const marginBottom = "0";
-
                     return {
                         key: `DocumentCommentInput:${item.commentThread.id}`,
-                        minHeight: addRemLengths(
-                            documentCommentInputMinHeight,
-                            spacing[marginBottom],
-                        ),
+                        minHeight: documentCommentInputMinHeight,
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({
@@ -886,171 +916,53 @@ function DocumentCommentThreadListView(
                                 headerPosition.offset + headerPosition.height - 1;
 
                             return (
-                                <>
-                                    {!shouldRenderWithRelativePositioning && (
-                                        <div
-                                            style={{
-                                                position: "absolute",
-                                                top: offset,
-                                                left: 0,
-                                                right: 0,
-                                            }}
-                                        >
-                                            <div
-                                                className={sprinkles({
-                                                    display: "flex",
-                                                    justifyContent: "center",
-                                                    overflow: "hidden",
-                                                })}
-                                                style={{height}}
-                                            >
-                                                <div
-                                                    className={sprinkles({
-                                                        width: "full",
-                                                        height: "full",
-                                                        maxWidth:
-                                                            documentCommentThreadListViewMaxWidth,
-                                                        paddingX: paddingX,
-                                                    })}
-                                                >
-                                                    <div
-                                                        className={sprinkles({
-                                                            width: "full",
-                                                            borderTop: "grey-5",
-                                                        })}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
+                                <div
+                                    style={{
+                                        pointerEvents: "none",
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        alignItems: "flex-end",
+                                        zIndex: "20",
+                                        ...(!shouldRenderWithRelativePositioning
+                                            ? {
+                                                  position: "absolute",
+                                                  top: headerOffsetEnd,
+                                                  left: "0",
+                                                  right: "0",
+                                                  height: offset - headerOffsetEnd + height,
+                                              }
+                                            : {
+                                                  position: "relative",
+                                              }),
+                                    }}
+                                >
                                     <div
+                                        ref={ref}
                                         style={{
-                                            pointerEvents: "none",
+                                            ...(!shouldRenderWithRelativePositioning && {
+                                                position: "sticky",
+                                                bottom: "0",
+                                            }),
+                                        }}
+                                        className={sprinkles({
+                                            width: "full",
                                             display: "flex",
                                             justifyContent: "center",
-                                            alignItems: "flex-end",
-                                            zIndex: "20",
-                                            ...(!shouldRenderWithRelativePositioning
-                                                ? {
-                                                      position: "absolute",
-                                                      top: headerOffsetEnd,
-                                                      left: "0",
-                                                      right: "0",
-                                                      height: offset - headerOffsetEnd + height,
-                                                  }
-                                                : {
-                                                      position: "relative",
-                                                  }),
-                                        }}
+                                            overflow: "hidden",
+                                        })}
                                     >
                                         <div
-                                            ref={ref}
-                                            style={{
-                                                ...(!shouldRenderWithRelativePositioning && {
-                                                    position: "sticky",
-                                                    bottom: `-${spacing[marginBottom]}`,
-                                                }),
-                                            }}
                                             className={sprinkles({
                                                 width: "full",
-                                                display: "flex",
-                                                justifyContent: "center",
-                                                overflow: "hidden",
-                                                paddingBottom: marginBottom,
+                                                maxWidth: documentCommentThreadListViewMaxWidth,
+                                                position: "relative",
+                                                pointerEvents: "auto",
                                             })}
                                         >
-                                            <div
-                                                className={sprinkles({
-                                                    width: "full",
-                                                    maxWidth: documentCommentThreadListViewMaxWidth,
-                                                    position: "relative",
-                                                    display: "flex",
-                                                    pointerEvents: "auto",
-                                                })}
-                                                style={{
-                                                    // Allow full-width top border to be visible until it slides under.
-                                                    paddingTop: 1,
-                                                }}
-                                            >
-                                                {shouldRenderWithRelativePositioning && (
-                                                    <div
-                                                        className={sprinkles({
-                                                            position: "absolute",
-                                                            top: "0",
-                                                            left: paddingX,
-                                                            right: paddingX,
-                                                            borderTop: "grey-5",
-                                                        })}
-                                                    />
-                                                )}
-                                                <div
-                                                    className={sprinkles({
-                                                        flexGrow: "1",
-                                                        overflow: "hidden",
-                                                        // Full-width border will be hidden under this background.
-                                                        backgroundColor: "grey-0",
-                                                        borderBottomRadius: !withMobileLayout
-                                                            ? "md"
-                                                            : undefined,
-                                                    })}
-                                                >
-                                                    {inputNode}
-                                                </div>
-                                            </div>
+                                            {inputNode}
                                         </div>
                                     </div>
-                                    {!shouldRenderWithRelativePositioning && (
-                                        <>
-                                            <div
-                                                style={{
-                                                    position: "absolute",
-                                                    top: headerOffsetEnd,
-                                                    left: "0",
-                                                    right: "0",
-                                                    height: offset - headerOffsetEnd + height + 1,
-                                                    pointerEvents: "none",
-                                                    display: "flex",
-                                                    justifyContent: "center",
-                                                    alignItems: "flex-end",
-                                                    zIndex: "10",
-                                                }}
-                                            >
-                                                <div
-                                                    style={{
-                                                        position: "sticky",
-                                                        bottom: `-${spacing[marginBottom]}`,
-                                                        height,
-                                                    }}
-                                                    className={sprinkles({
-                                                        width: "full",
-                                                        display: "flex",
-                                                        justifyContent: "center",
-                                                        paddingBottom: marginBottom,
-                                                        overflow: "hidden",
-                                                    })}
-                                                >
-                                                    <div
-                                                        className={sprinkles({
-                                                            width: "full",
-                                                            maxWidth:
-                                                                documentCommentThreadListViewMaxWidth,
-                                                            paddingX: withMobileLayout
-                                                                ? "0"
-                                                                : paddingX,
-                                                        })}
-                                                    >
-                                                        <div
-                                                            className={sprinkles({
-                                                                width: "full",
-                                                                borderTop: "grey-10",
-                                                            })}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </>
-                                    )}
-                                </>
+                                </div>
                             );
                         },
                     };
