@@ -1242,16 +1242,18 @@ function DocumentContentEditorSidebar({
         }
     }, [context.tracer, initialDataResult, onClose]);
 
-    // NOCOMMIT: When the comment thread is resolved, can we remember what the
-    // previous/next comments were? To support workflows where the user is going
-    // through threads one by one.
-    const {previousCommentThreadId, nextCommentThreadId} = useMemo(() => {
+    const currentAdjacentCommentThreads = useMemo(() => {
         let previousCommentThreadId: DocumentCommentThreadId | null = null;
         let hasFoundCommentThread = false;
+
         for (const decoration of decorations) {
             for (const otherCommentThreadId of decoration.commentThreadIds) {
                 if (hasFoundCommentThread) {
-                    return {previousCommentThreadId, nextCommentThreadId: otherCommentThreadId};
+                    return {
+                        hasFoundCommentThread,
+                        previousCommentThreadId,
+                        nextCommentThreadId: otherCommentThreadId,
+                    };
                 } else if (otherCommentThreadId === commentThreadId) {
                     hasFoundCommentThread = true;
                 } else {
@@ -1259,8 +1261,32 @@ function DocumentContentEditorSidebar({
                 }
             }
         }
-        return {previousCommentThreadId, nextCommentThreadId: null};
+
+        return {
+            hasFoundCommentThread,
+            previousCommentThreadId,
+            nextCommentThreadId: null,
+        };
     }, [commentThreadId, decorations]);
+
+    // If we had previous/next comment threads and then the comment was removed
+    // from the document (e.g. comment thread was resolved) then we want to keep
+    // the last previous/next comment threads we've seen. This way a user can go
+    // through comments in a document, resolving them one by one without losing
+    // their place after resolving.
+    const [originalAdjacentCommentThreads, setAdjacentCommentThreads] = useState(
+        currentAdjacentCommentThreads,
+    );
+    let adjacentCommentThreads = originalAdjacentCommentThreads;
+    if (
+        currentAdjacentCommentThreads !== adjacentCommentThreads &&
+        currentAdjacentCommentThreads.hasFoundCommentThread
+    ) {
+        setAdjacentCommentThreads(currentAdjacentCommentThreads);
+        adjacentCommentThreads = currentAdjacentCommentThreads;
+    }
+
+    const {previousCommentThreadId, nextCommentThreadId} = adjacentCommentThreads;
 
     const header = useMemo(() => {
         // We have a smaller actual height to let the margins of the comment thread

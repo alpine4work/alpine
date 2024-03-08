@@ -23,6 +23,8 @@ import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 //
 // - Make sure snippet survives (including after reload)
 // - Make sure it updates in realtime
+// - After resolving you can still hit the next button to go to the
+//   next comment
 
 export function DocumentCommentThreadHeader({
     commentThread,
