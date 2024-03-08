@@ -29,6 +29,7 @@ import {
     useState,
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
+import {createPortal} from "react-dom";
 import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
 import {ContentEditorMobileCommentInputBottomBar} from "~/client/content/internal/content_editor_mobile_comment_input_bottom_bar.js";
 import {
@@ -55,7 +56,9 @@ import {
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
 import {MobileModal} from "~/client/design/mobile_modal.js";
+import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
@@ -64,6 +67,7 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {registerMobileBottomBarKeyboardToolbar} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
@@ -99,6 +103,10 @@ function ContentEditorMobileKeyboardToolbar(
 
     const isMounted = useIsMounted();
     const {isNativeMobile} = useClientInfo();
+    const rootPortalElement = assertExists(
+        useOverlayRootPortalElement(),
+        "Can't server render `<ContentEditorMobileKeyboardToolbar>`",
+    );
 
     const toolbarRef = useRef<HTMLDivElement>(null);
     const substituteRef = useRef<ContentEditorMobileKeyboardSubstituteRef>(null);
@@ -285,226 +293,238 @@ function ContentEditorMobileKeyboardToolbar(
 
     return (
         <>
-            <Box
-                ref={toolbarRef}
-                id={isNativeMobile ? `nmbb-kt-${id}` : id}
-                // NOTE(calebmer): This is a little strange, we have a wrapper `<div>` with
-                // `spacing["2"]` padding height on our keyboard toolbar. I've observed this
-                // makes the animation when the iOS keyboard opens more consistent. Before
-                // adding this slop sometimes when animating the keyboard open the toolbar
-                // wouldn't be visible until half way through the animation then pop in. This
-                // looks janky. You can observe it in [this video][1] ([backup link][2]) if you
-                // go frame by frame either time the keyboard opens. The toolbar pops in during
-                // the animation. This doesn't happen all the time. It's sporadic, mostly
-                // happening when the keyboard opens without needing to scroll the view.
-                //
-                // My theory is that somewhere iOS or Safari is un-rendering the element while
-                // it's offscreen and since we start the animation through non-traditional
-                // means (directly writing to Safari's `CALayer` transform property in native
-                // code) it gets rendered during the animation not before it. I've found adding
-                // this slop fixes the bug and makes the animation much more consistent. I
-                // don't have a proven reason as to why but my theory is the slop tricks iOS or
-                // Safari into thinking the toolbar is visible onscreen so needs to always be
-                // rendered.
-                //
-                // [1]: https://gist.github.com/assets/8282507/3e2c58e3-d489-4e10-85d1-b0a7c4209e55
-                // [2]: https://gist.github.com/calebmer/76c991e6e7c51459aaae1702306b0fa4
-                pointerEvents="none"
-                paddingTop="2"
-                marginTop="-2"
-                position="fixed"
-                // Render above everything on the page
-                zIndex="60"
-                left="0"
-                right="0"
-                style={{
-                    // `bottom: "-" + mobileBottomBarKeyboardToolbarHeightRem + "rem"` also
-                    // works except for in our Safari app keyboard support which limits the outlet
-                    // height to what's visible above the keyboard.
-                    top: `var(--space-outlet-height, 100svh)`,
-                    transition:
-                        // Animate after `--space-outlet-height` changes when the keyboard opens in
-                        // mobile Safari (not our native app). This is a little hacky. Ideally we'd run
-                        // the animation in our effect again but this is simple and we don't care too
-                        // much about mobile Safari (we care a lot about our native app).
-                        isFocused && isMobileWebKit && !isNativeMobile
-                            ? `top 400ms ease`
-                            : undefined,
-                    // Our native mobile wrapper looks for compositing layers created from an
-                    // element with an ID that starts with `nmbb-` and ties their position to
-                    // the tab bar and software keyboard. So we get smooth animations while the
-                    // keyboard opens or the tab bar shifts offscreen. To create a compositing
-                    // layer we need to set `will-change: transform`. It's not specified that
-                    // `will-change: transform` MUST create a compositing layer, instead some
-                    // browser engines implement this hint themselves as an optimization.
-                    //
-                    // It so happens that WebKit is one of those browsers. Here's the code in
-                    // WebKit that does this: [part 1][1], [part 2][2].
-                    //
-                    // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
-                    // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
-                    willChange: isNativeMobile ? "transform" : undefined,
-                    // Set `transform` to its initial value assuming the tab bar is up. Since this
-                    // is a keyboard toolbar (configured with `kt-` in the ID) it doesn't move with
-                    // the tab bar.
-                    transform: isNativeMobile ? "translateY(0px)" : undefined,
-                }}
-                // Suppress React hydration warnings in our native mobile app. The native
-                // mobile app sets the `transform` property on this element. Sometimes before
-                // React finishes hydrating. This is expected, React can ignore the difference.
-                suppressHydrationWarning={isNativeMobile ? true : undefined}
-            >
+            {createPortal(
                 <Box
-                    pointerEvents="auto"
-                    height={mobileBottomBarKeyboardToolbarHeight}
-                    backgroundColor="grey-5"
-                    display="flex"
-                    paddingX="0.5"
-                    onPointerDownCapture={event => {
-                        // Tapping on the toolbar shouldn't unfocus the content editor since that will
-                        // remove the selection and hide the keyboard.
-                        event.preventDefault();
+                    ref={toolbarRef}
+                    id={isNativeMobile ? `nmbb-kt-${id}` : id}
+                    // NOTE(calebmer): This is a little strange, we have a wrapper `<div>` with
+                    // `spacing["2"]` padding height on our keyboard toolbar. I've observed this
+                    // makes the animation when the iOS keyboard opens more consistent. Before
+                    // adding this slop sometimes when animating the keyboard open the toolbar
+                    // wouldn't be visible until half way through the animation then pop in. This
+                    // looks janky. You can observe it in [this video][1] ([backup link][2]) if you
+                    // go frame by frame either time the keyboard opens. The toolbar pops in during
+                    // the animation. This doesn't happen all the time. It's sporadic, mostly
+                    // happening when the keyboard opens without needing to scroll the view.
+                    //
+                    // My theory is that somewhere iOS or Safari is un-rendering the element while
+                    // it's offscreen and since we start the animation through non-traditional
+                    // means (directly writing to Safari's `CALayer` transform property in native
+                    // code) it gets rendered during the animation not before it. I've found adding
+                    // this slop fixes the bug and makes the animation much more consistent. I
+                    // don't have a proven reason as to why but my theory is the slop tricks iOS or
+                    // Safari into thinking the toolbar is visible onscreen so needs to always be
+                    // rendered.
+                    //
+                    // [1]: https://gist.github.com/assets/8282507/3e2c58e3-d489-4e10-85d1-b0a7c4209e55
+                    // [2]: https://gist.github.com/calebmer/76c991e6e7c51459aaae1702306b0fa4
+                    pointerEvents="none"
+                    paddingTop="2"
+                    marginTop="-2"
+                    position="fixed"
+                    // Render above everything on the page
+                    zIndex="60"
+                    left="0"
+                    right="0"
+                    style={{
+                        // `bottom: "-" + mobileBottomBarKeyboardToolbarHeightRem + "rem"` also
+                        // works except for in our Safari app keyboard support which limits the outlet
+                        // height to what's visible above the keyboard.
+                        top: `var(--space-outlet-height, 100svh)`,
+                        transition:
+                            // Animate after `--space-outlet-height` changes when the keyboard opens in
+                            // mobile Safari (not our native app). This is a little hacky. Ideally we'd run
+                            // the animation in our effect again but this is simple and we don't care too
+                            // much about mobile Safari (we care a lot about our native app).
+                            isFocused && isMobileWebKit && !isNativeMobile
+                                ? `top 400ms ease`
+                                : undefined,
+                        // Our native mobile wrapper looks for compositing layers created from an
+                        // element with an ID that starts with `nmbb-` and ties their position to
+                        // the tab bar and software keyboard. So we get smooth animations while the
+                        // keyboard opens or the tab bar shifts offscreen. To create a compositing
+                        // layer we need to set `will-change: transform`. It's not specified that
+                        // `will-change: transform` MUST create a compositing layer, instead some
+                        // browser engines implement this hint themselves as an optimization.
+                        //
+                        // It so happens that WebKit is one of those browsers. Here's the code in
+                        // WebKit that does this: [part 1][1], [part 2][2].
+                        //
+                        // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
+                        // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
+                        willChange: isNativeMobile ? "transform" : undefined,
+                        // Set `transform` to its initial value assuming the tab bar is up. Since this
+                        // is a keyboard toolbar (configured with `kt-` in the ID) it doesn't move with
+                        // the tab bar.
+                        transform: isNativeMobile ? "translateY(0px)" : undefined,
                     }}
+                    // Suppress React hydration warnings in our native mobile app. The native
+                    // mobile app sets the `transform` property on this element. Sometimes before
+                    // React finishes hydrating. This is expected, React can ignore the difference.
+                    suppressHydrationWarning={isNativeMobile ? true : undefined}
                 >
-                    <ContentEditorMobileKeyboardToolbarButton
-                        label="Mention"
-                        dividerRight
-                        isActive={false}
-                        onPress={() => {
-                            const view = assertExists(viewRef.current);
-                            const {state} = view;
-                            const schema = state.doc.type.schema;
-
-                            view.dispatch(
-                                state.tr
-                                    .replaceSelectionWith(schema.text("@"))
-                                    .setMeta(openMentionFloaterMetaKey, true),
-                            );
+                    <Box
+                        pointerEvents="auto"
+                        height={mobileBottomBarKeyboardToolbarHeight}
+                        backgroundColor="grey-5"
+                        display="flex"
+                        paddingX="0.5"
+                        onPointerDownCapture={event => {
+                            // Tapping on the toolbar shouldn't unfocus the content editor since that will
+                            // remove the selection and hide the keyboard.
+                            event.preventDefault();
                         }}
                     >
-                        <At />
-                    </ContentEditorMobileKeyboardToolbarButton>
-                    <ContentEditorMobileKeyboardToolbarButton
-                        label="Bold"
-                        dividerLeft
-                        isActive={isBoldActive}
-                        onPress={fromCommand(
-                            viewRef,
-                            createToggleMarkCommand(state.schema.mark("bold")),
-                        )}
-                    >
-                        <TextBolder />
-                    </ContentEditorMobileKeyboardToolbarButton>
-                    <ContentEditorMobileKeyboardToolbarButton
-                        label="Italic"
-                        dividerRight
-                        isActive={isItalicActive}
-                        onPress={fromCommand(
-                            viewRef,
-                            createToggleMarkCommand(state.schema.mark("italic")),
-                        )}
-                    >
-                        <TextItalic />
-                    </ContentEditorMobileKeyboardToolbarButton>
-                    {!isOrderedListItemActive && !isCheckListItemActive && (
                         <ContentEditorMobileKeyboardToolbarButton
-                            label="Bullet list"
+                            label="Mention"
+                            dividerRight
+                            isActive={false}
+                            onPress={() => {
+                                const view = assertExists(viewRef.current);
+                                const {state} = view;
+                                const schema = state.doc.type.schema;
+
+                                view.dispatch(
+                                    state.tr
+                                        .replaceSelectionWith(schema.text("@"))
+                                        .setMeta(openMentionFloaterMetaKey, true),
+                                );
+                            }}
+                        >
+                            <At />
+                        </ContentEditorMobileKeyboardToolbarButton>
+                        <ContentEditorMobileKeyboardToolbarButton
+                            label="Bold"
                             dividerLeft
-                            isActive={isUnorderedListItemActive}
+                            isActive={isBoldActive}
                             onPress={fromCommand(
                                 viewRef,
-                                createToggleListItemsCommand(state.schema.nodes.unorderedListItem),
+                                createToggleMarkCommand(state.schema.mark("bold")),
                             )}
                         >
-                            <ListBullets />
+                            <TextBolder />
                         </ContentEditorMobileKeyboardToolbarButton>
-                    )}
-                    {!isUnorderedListItemActive && !isCheckListItemActive && (
                         <ContentEditorMobileKeyboardToolbarButton
-                            label="Number list"
-                            dividerLeft={isOrderedListItemActive}
-                            dividerRight={!isOrderedListItemActive}
-                            isActive={isOrderedListItemActive}
+                            label="Italic"
+                            dividerRight
+                            isActive={isItalicActive}
                             onPress={fromCommand(
                                 viewRef,
-                                createToggleListItemsCommand(state.schema.nodes.orderedListItem),
+                                createToggleMarkCommand(state.schema.mark("italic")),
                             )}
                         >
-                            <ListNumbers />
+                            <TextItalic />
                         </ContentEditorMobileKeyboardToolbarButton>
-                    )}
-                    {state.schema.nodes.checkListItem && isCheckListItemActive && (
+                        {!isOrderedListItemActive && !isCheckListItemActive && (
+                            <ContentEditorMobileKeyboardToolbarButton
+                                label="Bullet list"
+                                dividerLeft
+                                isActive={isUnorderedListItemActive}
+                                onPress={fromCommand(
+                                    viewRef,
+                                    createToggleListItemsCommand(
+                                        state.schema.nodes.unorderedListItem,
+                                    ),
+                                )}
+                            >
+                                <ListBullets />
+                            </ContentEditorMobileKeyboardToolbarButton>
+                        )}
+                        {!isUnorderedListItemActive && !isCheckListItemActive && (
+                            <ContentEditorMobileKeyboardToolbarButton
+                                label="Number list"
+                                dividerLeft={isOrderedListItemActive}
+                                dividerRight={!isOrderedListItemActive}
+                                isActive={isOrderedListItemActive}
+                                onPress={fromCommand(
+                                    viewRef,
+                                    createToggleListItemsCommand(
+                                        state.schema.nodes.orderedListItem,
+                                    ),
+                                )}
+                            >
+                                <ListNumbers />
+                            </ContentEditorMobileKeyboardToolbarButton>
+                        )}
+                        {state.schema.nodes.checkListItem && isCheckListItemActive && (
+                            <ContentEditorMobileKeyboardToolbarButton
+                                label="Check list"
+                                dividerLeft
+                                isActive={isCheckListItemActive}
+                                onPress={fromCommand(
+                                    viewRef,
+                                    createToggleListItemsCommand(state.schema.nodes.checkListItem),
+                                )}
+                            >
+                                <ListChecks />
+                            </ContentEditorMobileKeyboardToolbarButton>
+                        )}
+                        {(isOrderedListItemActive ||
+                            isUnorderedListItemActive ||
+                            isCheckListItemActive) && (
+                            <>
+                                <ContentEditorMobileKeyboardToolbarButton
+                                    label="Dedent"
+                                    isActive={false}
+                                    isDisabled={!isDedentListItemEnabled}
+                                    onPress={fromCommand(viewRef, dedentListItemCommand)}
+                                >
+                                    <TextOutdent />
+                                </ContentEditorMobileKeyboardToolbarButton>
+                                <ContentEditorMobileKeyboardToolbarButton
+                                    label="Indent"
+                                    dividerRight
+                                    isActive={false}
+                                    isDisabled={!isIndentListItemEnabled}
+                                    onPress={fromCommand(viewRef, indentListItemCommand)}
+                                >
+                                    <TextIndent />
+                                </ContentEditorMobileKeyboardToolbarButton>
+                            </>
+                        )}
                         <ContentEditorMobileKeyboardToolbarButton
-                            label="Check list"
+                            label="Comment"
                             dividerLeft
-                            isActive={isCheckListItemActive}
-                            onPress={fromCommand(
-                                viewRef,
-                                createToggleListItemsCommand(state.schema.nodes.checkListItem),
-                            )}
-                        >
-                            <ListChecks />
-                        </ContentEditorMobileKeyboardToolbarButton>
-                    )}
-                    {(isOrderedListItemActive ||
-                        isUnorderedListItemActive ||
-                        isCheckListItemActive) && (
-                        <>
-                            <ContentEditorMobileKeyboardToolbarButton
-                                label="Dedent"
-                                isActive={false}
-                                isDisabled={!isDedentListItemEnabled}
-                                onPress={fromCommand(viewRef, dedentListItemCommand)}
-                            >
-                                <TextOutdent />
-                            </ContentEditorMobileKeyboardToolbarButton>
-                            <ContentEditorMobileKeyboardToolbarButton
-                                label="Indent"
-                                dividerRight
-                                isActive={false}
-                                isDisabled={!isIndentListItemEnabled}
-                                onPress={fromCommand(viewRef, indentListItemCommand)}
-                            >
-                                <TextIndent />
-                            </ContentEditorMobileKeyboardToolbarButton>
-                        </>
-                    )}
-                    <ContentEditorMobileKeyboardToolbarButton
-                        label="Comment"
-                        dividerLeft
-                        isActive={false}
-                        isDisabled={
-                            state.selection.from === state.selection.to && !wordSelectionIfEmpty
-                        }
-                        onPress={() => {
-                            // Set the selection after the comment input opens so the mobile selection
-                            // renderer doesn't flash in/out.
-                            if (wordSelectionIfEmpty) {
-                                setSelectionAfterCommentInputOpenRef.current = wordSelectionIfEmpty;
+                            isActive={false}
+                            isDisabled={
+                                state.selection.from === state.selection.to && !wordSelectionIfEmpty
                             }
+                            onPress={() => {
+                                // Set the selection after the comment input opens so the mobile selection
+                                // renderer doesn't flash in/out.
+                                if (wordSelectionIfEmpty) {
+                                    setSelectionAfterCommentInputOpenRef.current =
+                                        wordSelectionIfEmpty;
+                                }
 
-                            setIsCommentInputOpen(true);
-                        }}
-                    >
-                        <ChatCircleText />
-                    </ContentEditorMobileKeyboardToolbarButton>
-                    <ContentEditorMobileKeyboardToolbarButton
-                        label="More"
-                        isActive={false}
-                        onPress={() => {
-                            if (!NativeMobileBridge) {
-                                setIsSubstituteOpen(true);
-                            } else {
-                                NativeMobileBridge.keyboard.prepareForSubstitute().finally(() => {
+                                setIsCommentInputOpen(true);
+                            }}
+                        >
+                            <ChatCircleText />
+                        </ContentEditorMobileKeyboardToolbarButton>
+                        <ContentEditorMobileKeyboardToolbarButton
+                            label="More"
+                            isActive={false}
+                            onPress={() => {
+                                if (!NativeMobileBridge) {
                                     setIsSubstituteOpen(true);
-                                });
-                            }
-                        }}
-                    >
-                        <DotsThreeVertical />
-                    </ContentEditorMobileKeyboardToolbarButton>
-                </Box>
-            </Box>
+                                } else {
+                                    NativeMobileBridge.keyboard
+                                        .prepareForSubstitute()
+                                        .finally(() => {
+                                            setIsSubstituteOpen(true);
+                                        });
+                                }
+                            }}
+                        >
+                            <DotsThreeVertical />
+                        </ContentEditorMobileKeyboardToolbarButton>
+                    </Box>
+                </Box>,
+                // Portal into the root element so we aren't affected by whatever scroll view
+                // this is rendered in.
+                rootPortalElement,
+            )}
             {isSubstituteOpen && (
                 <ContentEditorMobileKeyboardSubstitute
                     ref={substituteRef}

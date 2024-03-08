@@ -3,13 +3,12 @@ import {ReactNode, useCallback, useEffect, useInsertionEffect, useRef, useState}
 import {FocusScope} from "react-aria";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box.js";
+import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
 import {disableMobileWebKitDefaultScroll} from "~/client/helpers/disable_mobile_web_kit_default_scroll.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {easeOutCubic, parseCubicBezier} from "~/shared/design/easing.js";
-import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -49,11 +48,10 @@ export function MobileModal({
     children?: ReactNode | ((props: {onCloseWithAnimation: () => void}) => ReactNode);
     "data-ownedby"?: string;
 }) {
-    const isInitialAppRender = useIsInitialAppRender();
-    if (isInitialAppRender)
-        throw new InternalError(
-            "Can't render `<MobileModal>` on initial app render (it can't be server rendered)",
-        );
+    const portalElement = assertExists(
+        useOverlayRootPortalElement(),
+        "Can not render modal before portal element is available",
+    );
 
     const isMounted = useIsMounted();
 
@@ -217,6 +215,6 @@ export function MobileModal({
         </FocusScope>,
         // Render the mobile modal in `<body>`. So if it's a child of some native
         // bottom bar it doesn't get any weird positioning.
-        document.body,
+        portalElement,
     );
 }

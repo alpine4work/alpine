@@ -35,8 +35,8 @@ import {
     indentListItemCommand,
 } from "~/client/content/internal/helpers/indent_and_dedent_list_item_commands.js";
 import {Box} from "~/client/design/box.js";
-import {MobileModal} from "~/client/design/mobile_modal.js";
 import {mobileBottomBarKeyboardToolbarHeight} from "~/client/design/mobile_bottom_bar.js";
+import {MobileModal} from "~/client/design/mobile_modal.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {spacing} from "~/shared/design/spacing.js";
@@ -57,9 +57,11 @@ import {MessageContentWithReferences} from "~/shared/messaging/message_content_s
 export function MessageInputMobileKeyboardToolbar({
     state: stateProp,
     editorRef,
+    isVisible,
 }: {
     state: ContentEditorState<MessageContentWithReferences>;
     editorRef: RefObject<ContentEditorRef<MessageContentWithReferences>>;
+    isVisible: boolean;
 }) {
     const toolbarRef = useRef<HTMLDivElement>(null);
     const toolbarId = useId();
@@ -157,6 +159,10 @@ export function MessageInputMobileKeyboardToolbar({
                 display="flex"
                 // Focusable, but not by keyboard. Only by JavaScript.
                 tabIndex={-1}
+                style={{
+                    opacity: !isVisible ? "0" : undefined,
+                    pointerEvents: !isVisible ? "none" : undefined,
+                }}
             >
                 <MessageInputMobileKeyboardToolbarButton
                     dividerRight

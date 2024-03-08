@@ -157,6 +157,8 @@ export function Modal({
     return createPortal(
         <Box
             position="fixed"
+            // Render over other overlays.
+            zIndex="80"
             inset="0"
             display="flex"
             justifyContent="center"

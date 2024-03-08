@@ -64,6 +64,8 @@ import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {buttonStyles, colorSchemeVars, contentSchemaStyles} from "~/shared/styles/styles.js";
+import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
+import {createPortal} from "react-dom";
 
 export type ContentEditorMobileKeyboardSubstituteRef = {
     closeWithAnimation(): void;
@@ -91,6 +93,11 @@ function ContentEditorMobileKeyboardSubstitute(
     },
     ref: Ref<ContentEditorMobileKeyboardSubstituteRef>,
 ) {
+    const rootPortalElement = assertExists(
+        useOverlayRootPortalElement(),
+        "Can't server render `<ContentEditorMobileKeyboardSubstitute>`",
+    );
+
     const substituteRef = useRef<HTMLDivElement>(null);
 
     const [isClosing, setIsClosing] = useState(false);
@@ -195,7 +202,7 @@ function ContentEditorMobileKeyboardSubstitute(
         }
     };
 
-    return (
+    return createPortal(
         <Box
             ref={substituteRef}
             position="fixed"
@@ -268,7 +275,10 @@ function ContentEditorMobileKeyboardSubstitute(
                     />
                 )}
             </Box>
-        </Box>
+        </Box>,
+        // Portal into the root element so we aren't affected by whatever scroll view
+        // this is rendered in.
+        rootPortalElement,
     );
 }
 

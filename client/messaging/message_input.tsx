@@ -928,13 +928,13 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                     </Box>
                 </Box>
             </Box>
-            {isMobile &&
-                isBottomBar &&
-                (isKeyboardToolbarVisible ? (
-                    <MessageInputMobileKeyboardToolbar state={state} editorRef={editorRef} />
-                ) : (
-                    <Box height={mobileBottomBarKeyboardToolbarHeight} />
-                ))}
+            {isMobile && isBottomBar && (
+                <MessageInputMobileKeyboardToolbar
+                    state={state}
+                    editorRef={editorRef}
+                    isVisible={isKeyboardToolbarVisible}
+                />
+            )}
         </Box>
     );
 }
