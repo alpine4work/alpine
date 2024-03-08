@@ -31,7 +31,13 @@ import {
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
-import {RemLength, Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {
+    RemLength,
+    Spacing,
+    convertRemLengthToPx,
+    parseRemLengthNumber,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -274,8 +280,16 @@ function Overlay(
             const padding = {
                 top: paddingPx + getElementSafeAreaInsetTopPx(targetElement),
                 bottom: paddingPx + getElementSafeAreaInsetBottomPx(targetElement),
-                left: paddingPx,
-                right: paddingPx,
+                left:
+                    paddingPx +
+                    (typeof overlaySink.insetLeft === "string"
+                        ? parseRemLengthNumber(overlaySink.insetLeft) * remPx
+                        : overlaySink.insetLeft ?? 0),
+                right:
+                    paddingPx +
+                    (typeof overlaySink.insetRight === "string"
+                        ? parseRemLengthNumber(overlaySink.insetRight) * remPx
+                        : overlaySink.insetRight ?? 0),
             };
 
             // The Popper library was deprecated and replaced with Floating UI.
@@ -438,6 +452,8 @@ function Overlay(
         [
             isVisible,
             portalElement,
+            overlaySink.insetLeft,
+            overlaySink.insetRight,
             placement,
             preventOverflow,
             fallbackPlacements,
@@ -503,6 +519,8 @@ const OverlaySinkContext = createContext<{
     rootPortalRef: RefObject<HTMLDivElement>;
     rootBlockingPortalRef: RefObject<HTMLDivElement>;
     portalRef: RefObject<HTMLDivElement>;
+    insetLeft: RemLength | number | null;
+    insetRight: RemLength | number | null;
 } | null>(null);
 
 /**
@@ -512,7 +530,15 @@ const OverlaySinkContext = createContext<{
  * That way the overlays naturally scroll with the element and can't render
  * outside the element.
  */
-export function OverlayScopeContextProvider({children}: {children: ReactNode}) {
+export function OverlayScopeContextProvider({
+    children,
+    insetLeft,
+    insetRight,
+}: {
+    children: ReactNode;
+    insetLeft?: RemLength | number;
+    insetRight?: RemLength | number;
+}) {
     const parentOverlaySink = useContext(OverlaySinkContext);
     const portalRef = useRef<HTMLDivElement>(null);
     const blockingPortalRef = useRef<HTMLDivElement>(null);
@@ -525,8 +551,10 @@ export function OverlayScopeContextProvider({children}: {children: ReactNode}) {
                     rootBlockingPortalRef:
                         parentOverlaySink?.rootBlockingPortalRef ?? blockingPortalRef,
                     portalRef,
+                    insetLeft: insetLeft ?? null,
+                    insetRight: insetRight ?? null,
                 }),
-                [parentOverlaySink],
+                [insetLeft, insetRight, parentOverlaySink],
             )}
         >
             {children}
@@ -574,6 +602,8 @@ function BlockingOverlayScopeContextProvider({children}: {children: ReactNode}) 
                     rootPortalRef: parentOverlaySink.rootBlockingPortalRef,
                     rootBlockingPortalRef: parentOverlaySink.rootBlockingPortalRef,
                     portalRef: parentOverlaySink.rootBlockingPortalRef,
+                    insetLeft: null,
+                    insetRight: null,
                 }),
                 [parentOverlaySink],
             )}
@@ -626,6 +656,8 @@ const overlaySinkContextForTest = import.meta.jest
               rootPortalRef: portalRef,
               rootBlockingPortalRef: blockingPortalRef,
               portalRef,
+              insetLeft: null,
+              insetRight: null,
           };
       })()
     : null;
