@@ -1288,18 +1288,19 @@ function DocumentContentEditorSidebar({
 
     const {previousCommentThreadId, nextCommentThreadId} = adjacentCommentThreads;
 
+    const headerHeight = "8";
+
     const header = useMemo(() => {
         // We have a smaller actual height to let the margins of the comment thread
         // header bleed into our controls header for better visual balance.
         const actualHeight = "7";
-        const height = "8";
 
         return {
             minHeight: spacing[actualHeight],
             node: (
                 <Box height={actualHeight}>
                     <Box
-                        height={height}
+                        height={headerHeight}
                         display="flex"
                         alignItems="center"
                         backgroundColor="grey-0"
@@ -1434,6 +1435,8 @@ function DocumentContentEditorSidebar({
                                 // because we have less space.
                                 paddingX="4"
                                 header={header}
+                                // Inset scrollbar by the header height.
+                                scrollbarInsetTop={spacing[headerHeight]}
                             />
                         ),
                     [

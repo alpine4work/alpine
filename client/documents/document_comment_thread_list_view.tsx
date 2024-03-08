@@ -12,6 +12,7 @@ import {
     useState,
 } from "react";
 import {NavigationBarResult} from "~/client/design/navigation_bar.js";
+import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {
     documentCommentInputMinHeight,
@@ -213,6 +214,7 @@ function DocumentCommentThreadListView(
         paddingX: paddingXProp,
         header,
         navigationBar,
+        scrollbarInsetTop,
     }: {
         documentId: DocumentId;
         content: DocumentContentWithReferences;
@@ -266,6 +268,11 @@ function DocumentCommentThreadListView(
          * be properly configured.
          */
         navigationBar?: NavigationBarResult;
+
+        /**
+         * Inset the scrollbar by this much. Passed to the underlying scroll view.
+         */
+        scrollbarInsetTop?: ScrollbarInsetDynamic;
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
@@ -1009,7 +1016,7 @@ function DocumentCommentThreadListView(
                 <VirtualizedScrollView
                     ref={viewRef}
                     elementRef={navigationBar?.scrollViewRef}
-                    scrollbarInsetTop={navigationBar?.scrollbarInsetTop}
+                    scrollbarInsetTop={scrollbarInsetTop ?? navigationBar?.scrollbarInsetTop}
                     bufferedItemHeight={bufferedMessageViewHeight}
                     itemCount={
                         (header ? 1 : 0) +

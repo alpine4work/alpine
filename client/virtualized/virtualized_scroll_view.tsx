@@ -554,8 +554,9 @@ function VirtualizedScrollView(
         scrollbarInsetTopItemIndex?: number;
 
         /**
-         * Inset the scrollbar by this many pixels. If both `insetScrollbarItemIndex`
-         * and `scrollbarInsetTop` are set then `scrollbarInsetTop` wins.
+         * Inset the scrollbar by this many pixels. If both
+         * `scrollbarInsetTopItemIndex` and `scrollbarInsetTop` are set then
+         * `scrollbarInsetTop` wins.
          */
         scrollbarInsetTop?: ScrollbarInsetDynamic;
 
