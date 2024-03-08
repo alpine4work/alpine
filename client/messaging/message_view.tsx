@@ -713,6 +713,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             : messageViewMergedMarginY,
                         overflow: "hidden",
                     })}
+                    style={{
+                        // The width of the element should fit its content, not extend to 100% of the
+                        // parent width. This way the hover target will just be the message, its
+                        // actions, and some padding. Moving your mouse around in empty space won't
+                        // cause a bunch of message actions to appear/disappear.
+                        width: "fit-content",
+                    }}
                 >
                     {useMemo(
                         () => (
