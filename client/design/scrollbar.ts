@@ -5,7 +5,9 @@ import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {
     addResizeListenerForElement,
+    addSuppressResizeLoopErrorNotificationForElement,
     removeResizeListenerForElement,
+    removeSuppressResizeLoopErrorNotificationForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -990,6 +992,10 @@ export function initializeScrollbar(
     element.appendChild(scrollbarElement);
 
     elementsWithInitializedScrollbarForDev?.add(element);
+
+    // `handleResize` shouldn't cause resize observer issues so suppress error
+    // notifications.
+    addSuppressResizeLoopErrorNotificationForElement(element);
     addResizeListenerForElement(element, handleResize);
     element.addEventListener("scroll", handleScroll);
 
@@ -1000,6 +1006,9 @@ export function initializeScrollbar(
         // Ignore our scrollbar element.
         if (childNode === scrollbarElement) continue;
 
+        // `handleResize` shouldn't cause resize observer issues so suppress error
+        // notifications.
+        addSuppressResizeLoopErrorNotificationForElement(childNode);
         addResizeListenerForElement(childNode, handleResize);
         listeningToChildElementResizes.add(childNode);
     }
@@ -1025,6 +1034,7 @@ export function initializeScrollbar(
 
                         // Adding a resize listener will make an initial call to `handleResize()`.
                         // We don't need to make an additional call.
+                        addSuppressResizeLoopErrorNotificationForElement(addedNode);
                         addResizeListenerForElement(addedNode, handleResize);
                         listeningToChildElementResizes.add(addedNode);
                     }
@@ -1040,6 +1050,7 @@ export function initializeScrollbar(
                         // Ignore our scrollbar element.
                         if (removedNode === scrollbarElement) continue;
 
+                        removeSuppressResizeLoopErrorNotificationForElement(removedNode);
                         removeResizeListenerForElement(removedNode, handleResize);
                         listeningToChildElementResizes.delete(removedNode);
                     }
@@ -1059,12 +1070,15 @@ export function initializeScrollbar(
 
         mutationObserver.disconnect();
 
-        for (const element of listeningToChildElementResizes)
+        for (const element of listeningToChildElementResizes) {
+            removeSuppressResizeLoopErrorNotificationForElement(element);
             removeResizeListenerForElement(element, handleResize);
+        }
 
         listeningToChildElementResizes.clear();
 
         element.removeEventListener("scroll", handleScroll);
+        removeSuppressResizeLoopErrorNotificationForElement(element);
         removeResizeListenerForElement(element, handleResize);
         elementsWithInitializedScrollbarForDev?.delete(element);
 
