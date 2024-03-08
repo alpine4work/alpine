@@ -1033,10 +1033,12 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                     )}
                                     <Box
                                         ref={navigationBarTitleRef}
+                                        overflow="hidden"
                                         // Initial opacity is 0. Our code will update the opacity.
                                         opacity={!withoutDisappearingTitle ? "0" : undefined}
                                     >
                                         <Box
+                                            overflow="hidden"
                                             // We have less space on mobile so use a smaller font size.
                                             fontSize={isMobile ? "100" : desktopTitleFontSize}
                                             fontStyle={
