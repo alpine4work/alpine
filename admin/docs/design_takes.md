@@ -9,6 +9,17 @@ takes and go a different direction in a surface you design. However, it must not
 overall feeling of consistency across the product’s design. By knowing why a pattern was established
 you can more carefully adapt or break the pattern.
 
+<!--
+TODO(calebmer, 2024-03-08): Add a take on color. The interface is mostly monochromatic and color
+should come from the user.
+-->
+
+<!--
+TODO(calebmer, 2024-03-08): I created this document while playing with removing `<MessageInput>`
+borders. I like the design but I want to come up with some kind of philosophy on when to use
+borders vs not.
+-->
+
 ## Avoid hover states
 
 We, as much as possible, avoid changing the appearance of elements on hover or showing essential
