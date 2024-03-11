@@ -23,7 +23,7 @@ private let logger = Logger(
     )
     @objc optional func webNavigationController(
         _ webNavigationController: WebNavigationController,
-        didKeyboardSubstituteOpenChange isKeyboardSubstituteOpen: Bool
+        didHideTabBarChange hideTabBar: Bool
     )
 }
 
@@ -223,24 +223,33 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var theme50Color = UIColor(named: "indigo-50")!
     private var theme60Color = UIColor(named: "indigo-60")!
 
+    private var hideTabBarCount = 0 {
+        didSet {
+            let oldHideTabBar = oldValue > 0
+            let newHideTabBar = hideTabBarCount > 0
+
+            if oldHideTabBar != newHideTabBar {
+                logger.info(
+                    "Hide tab bar count updated: \(self.hideTabBarCount) (\(self.hideTabBarCount > 0 ? "hiding" : "showing"))"
+                )
+            }
+
+            if oldHideTabBar != newHideTabBar {
+                webDelegate?.webNavigationController?(self, didHideTabBarChange: newHideTabBar)
+            }
+        }
+    }
+
     private var keyboardWebSubstituteState = KeyboardWebSubstituteState.closed {
         didSet {
             if case .closed = oldValue {
                 if case .closed = keyboardWebSubstituteState {
                     // noop
                 } else {
-                    webDelegate?.webNavigationController?(
-                        self,
-                        didKeyboardSubstituteOpenChange: true
-                    )
+                    hideTabBarCount += 1
                 }
             } else {
-                if case .closed = keyboardWebSubstituteState {
-                    webDelegate?.webNavigationController?(
-                        self,
-                        didKeyboardSubstituteOpenChange: false
-                    )
-                }
+                if case .closed = keyboardWebSubstituteState { hideTabBarCount -= 1 }
             }
         }
     }
@@ -691,6 +700,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // If we finished a new navigation then web code won't know it needs to
         // reset the substitute opened by the previous web process. Reset it here.
         cleanupAfterKeyboardWebSubstitute()
+
+        // Reset any `hideTabBar()` calls after we finish loading.
+        hideTabBarCount = 0
     }
 
     func webView(
@@ -1041,6 +1053,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             )
         } else if messageBody == "editMenu.disableAddCommentAction" {
             setSwizzledWKWebViewAddCommentEditMenuAction(webView, action: nil)
+        } else if messageBody == "navigationBar.hideTabBar" {
+            hideTabBarCount += 1
+        } else if messageBody == "navigationBar.showTabBar" {
+            hideTabBarCount -= 1
         } else {
             logger.warning("Received unrecognized message from web view: \(messageBody)")
         }
@@ -1122,7 +1138,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 // view shouldn't be scrollable.
                 let isMain =
                     webScrollView.frame.width >= view.frame.width * 0.5
-                    && webScrollView.frame.height >= view.frame.height * 0.5
+                    // 200px is selected to exclude the document comment thread bottom sheet that
+                    // opens when you tap a comment.
+                    && webScrollView.frame.height >= view.frame.height - 200
 
                 webScrollViews[webScrollView]!.isMain = isMain
 
@@ -1743,9 +1761,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let tabBarHeight = tabBarController?.tabBar.frame.height ?? 0
 
         let lastTabBarScrollOffset = self.tabBarScrollOffset
-        self.tabBarScrollOffset = tabBarScrollOffset
+        self.tabBarScrollOffset = hideTabBarCount > 0 ? tabBarHeight : tabBarScrollOffset
         let lastNavigationBarScrollOffset = self.navigationBarScrollOffset
-        self.navigationBarScrollOffset = navigationBarScrollOffset
+        self.navigationBarScrollOffset =
+            hideTabBarCount > 0 ? navigationBarHeight : navigationBarScrollOffset
 
         // Optimization: If tab bar scroll offset didn't change then don't update our
         // bottom frames.
@@ -1861,7 +1880,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             // update `layer.transform`.
             webBottomBarViewState.withLock { [self] (completionHandler) in
                 webView.evaluateJavaScript(
-                    #"document.getElementById("\#(webBottomBarViewState.id)").style.transform = "translateY(\#(translateY)px)""#,
+                    #"const element = document.getElementById("\#(webBottomBarViewState.id)"); if (element) element.style.transform = "translateY(\#(translateY)px)""#,
                     completionHandler: { (_, _) in completionHandler() }
                 )
             }
@@ -2571,6 +2590,12 @@ private let webBridgeSource = """
                 tabBarHeight: \(UITabBarController().tabBar.frame.height),
                 runScrollDebounceTimeout: () => {
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigationBar.runScrollDebounceTimeout");
+                },
+                hideTabBar: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigationBar.hideTabBar");
+                },
+                showTabBar: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigationBar.showTabBar");
                 },
             },
             keyboard: {

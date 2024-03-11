@@ -31,6 +31,7 @@ export function DocumentCommentThreadHeader({
     unpersistedIsResolved,
     resolveCommentThread,
     unresolveCommentThread,
+    withoutCommentThreadPreview,
     contentSnippet,
     contentReferences,
     onCommentThreadSnippetPress,
@@ -39,6 +40,7 @@ export function DocumentCommentThreadHeader({
     unpersistedIsResolved: boolean | null;
     resolveCommentThread: () => Promise<void>;
     unresolveCommentThread: () => Promise<void>;
+    withoutCommentThreadPreview: boolean;
     contentSnippet: Node | null;
     contentReferences: DocumentContentReferences;
     onCommentThreadSnippetPress: (commentThreadId: DocumentCommentThreadId) => void;
@@ -113,27 +115,32 @@ export function DocumentCommentThreadHeader({
                         {isResolved ? "Resolved" : "Mark as resolved"}
                     </Box>
                 </Box>
-                <Box fontSize="50" fontStyle="truncate" color="grey-50">
-                    {useMemo(
-                        () =>
-                            formatMessageViewTimestampDividerDate(commentThread.createdTime, {
+                {useMemo(
+                    () => (
+                        <Box fontSize="50" fontStyle="truncate" color="grey-50">
+                            {formatMessageViewTimestampDividerDate(commentThread.createdTime, {
                                 currentTime,
                                 locale,
                                 timeZone,
-                            }),
-                        [commentThread.createdTime, currentTime, locale, timeZone],
-                    )}
-                </Box>
+                            })}
+                        </Box>
+                    ),
+                    [commentThread.createdTime, currentTime, locale, timeZone],
+                )}
             </Box>
-            <Spacer space={documentCommentThreadHeaderPaddingY} />
-            <DocumentCommentThreadPreview
-                commentThread={commentThread}
-                unpersistedIsResolved={unpersistedIsResolved}
-                contentSnippet={contentSnippet}
-                contentReferences={contentReferences}
-                onCommentThreadSnippetPress={onCommentThreadSnippetPress}
-                isResolveButtonPending={isPending}
-            />
+            {!withoutCommentThreadPreview && (
+                <>
+                    <Spacer space={documentCommentThreadHeaderPaddingY} />
+                    <DocumentCommentThreadPreview
+                        commentThread={commentThread}
+                        unpersistedIsResolved={unpersistedIsResolved}
+                        contentSnippet={contentSnippet}
+                        contentReferences={contentReferences}
+                        onCommentThreadSnippetPress={onCommentThreadSnippetPress}
+                        isResolveButtonPending={isPending}
+                    />
+                </>
+            )}
         </>
     );
 }

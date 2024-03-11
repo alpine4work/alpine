@@ -1,5 +1,6 @@
 import {globalStyle, style} from "@vanilla-extract/css";
 import {
+    commentClassName,
     docClassName,
     linkClassName,
     mentionClassName,
@@ -101,3 +102,13 @@ globalStyle(
         color: "inherit",
     },
 );
+
+export const withMobileLayoutClassName = style({});
+
+globalStyle(`${withMobileLayoutClassName} ${commentClassName}`, {
+    cursor: "pointer",
+});
+
+globalStyle(`${withMobileLayoutClassName} ${shiftKeyOrAltKeyDownClassName} ${commentClassName}`, {
+    cursor: "inherit",
+});

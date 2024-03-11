@@ -1,5 +1,6 @@
 import {DOMSerializer} from "prosemirror-model";
 import {MarkViewConstructor} from "prosemirror-view";
+import {onParentScrollWhenPointerDownAndOverInteractiveMarkSymbol} from "~/client/content/internal/content_editor_link_mark_view.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -7,9 +8,13 @@ import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 export function createContentEditorCommentMarkViewConstructor({
+    withMobileLayout,
+    canPrimaryInputHover,
     openCommentThread,
     onCommentThreadPressedChange,
 }: {
+    withMobileLayout: () => boolean;
+    canPrimaryInputHover: () => boolean;
     openCommentThread: (commentThreadId: DocumentCommentThreadId) => Promise<void>;
     onCommentThreadPressedChange: (
         commentThreadId: DocumentCommentThreadId,
@@ -25,6 +30,11 @@ export function createContentEditorCommentMarkViewConstructor({
         );
 
         assert(dom instanceof HTMLElement);
+
+        const isInert = (): boolean => {
+            if (canPrimaryInputHover()) return false;
+            return view.dom.isContentEditable;
+        };
 
         function isChildOfOurCommentMarkWithoutOverridingParentCommentMark(targetNode: Node) {
             let node: Node | null = targetNode;
@@ -73,7 +83,16 @@ export function createContentEditorCommentMarkViewConstructor({
             }
         };
 
-        dom.addEventListener("pointerdown", event => {
+        // We need to call `event.preventDefault()` in `click` in addition to
+        // `pointerdown` in case the browser has some default `click` handling.
+        dom.addEventListener("click", event => {
+            // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
+            // modifier. Unless the click was meant to open the link in a separate tab. We
+            // need to implement that manually here given the text is editable.
+            if (event.button !== 0 || isModifiedPointerEvent(event)) {
+                return;
+            }
+
             // If we have overlapping comment marks only one should activate.
             if (
                 !(event.target instanceof Node) ||
@@ -82,9 +101,50 @@ export function createContentEditorCommentMarkViewConstructor({
                 return;
             }
 
+            // If we're inert, pressing on the comment mark does nothing.
+            if (isInert()) {
+                return;
+            }
+
+            // In mobile layouts (e.g. mobile device or peek), prevent default since
+            // clicking a comment opens the comment thread but does not select the text.
+            // (Unless you hold shift.)
+            if (withMobileLayout()) {
+                event.preventDefault();
+            }
+        });
+
+        dom.addEventListener("pointerdown", event => {
+            // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
+            // modifier. Unless the click was meant to open the link in a separate tab. We
+            // need to implement that manually here given the text is editable.
+            if (event.button !== 0 || isModifiedPointerEvent(event)) {
+                return;
+            }
+
+            // If we have overlapping comment marks only one should activate.
+            if (
+                !(event.target instanceof Node) ||
+                !isChildOfOurCommentMarkWithoutOverridingParentCommentMark(event.target)
+            ) {
+                return;
+            }
+
+            // If we're inert, pressing on the comment mark does nothing.
+            if (isInert()) {
+                return;
+            }
+
             isPointerDownAndOver = true;
 
             maybeUpdatePressed();
+
+            // In mobile layouts (e.g. mobile device or peek), prevent default since
+            // clicking a comment opens the comment thread but does not select the text.
+            // (Unless you hold shift.)
+            if (withMobileLayout()) {
+                event.preventDefault();
+            }
         });
 
         dom.addEventListener("pointerup", event => {
@@ -114,6 +174,13 @@ export function createContentEditorCommentMarkViewConstructor({
                 return;
             }
 
+            // If we're inert (e.g. on mobile when the editor is focused), don't open the
+            // comment thread when pressed.
+            if (isInert()) {
+                maybeUpdatePressed();
+                return;
+            }
+
             // If we are currently navigating, don't navigate again...
             if (!isNavigationPending) {
                 // TODO(calebmer, #global-loading-indicator): Some kind of loading indicator
@@ -128,6 +195,13 @@ export function createContentEditorCommentMarkViewConstructor({
             }
 
             maybeUpdatePressed();
+
+            // In mobile layouts (e.g. mobile device or peek), prevent default since
+            // clicking a comment opens the comment thread but does not select the text.
+            // (Unless you hold shift.)
+            if (withMobileLayout()) {
+                event.preventDefault();
+            }
         });
 
         dom.addEventListener("pointerleave", () => {
@@ -135,6 +209,21 @@ export function createContentEditorCommentMarkViewConstructor({
 
             maybeUpdatePressed();
         });
+
+        dom.addEventListener("pointercancel", () => {
+            isPointerDownAndOver = false;
+            maybeUpdatePressed();
+        });
+
+        dom.addEventListener("dragstart", () => {
+            isPointerDownAndOver = false;
+            maybeUpdatePressed();
+        });
+
+        (dom as any)[onParentScrollWhenPointerDownAndOverInteractiveMarkSymbol] = () => {
+            isPointerDownAndOver = false;
+            maybeUpdatePressed();
+        };
 
         return {
             dom,

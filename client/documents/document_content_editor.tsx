@@ -1,5 +1,5 @@
-import {AnimationControls, spring, timeline} from "motion";
-import {CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
+import {AnimationControls, animate, spring, timeline} from "motion";
+import {CaretDown, CaretLeft, CaretRight, CaretUp, SpinnerGap, X} from "phosphor-react";
 import {redo, undo} from "prosemirror-history";
 import {Memo, Ref, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
@@ -11,10 +11,15 @@ import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
-import {useNavigationBar} from "~/client/design/navigation_bar.js";
+import {
+    mobileModalAnimationDurationLongMs,
+    mobileModalAnimationEasingParsedCubicBezier,
+} from "~/client/design/mobile_modal.js";
+import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
+import {Spacer} from "~/client/design/spacer.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {
@@ -34,6 +39,7 @@ import {
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -72,7 +78,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
+import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {assertId} from "~/shared/id/id.js";
@@ -160,7 +166,7 @@ type DocumentContentEditorSidebarData = {
 };
 
 function DocumentContentEditorStateful({
-    withMobileLayout,
+    withMobileLayout: withMobileLayoutProp,
     initialDocument,
     initialCommentThreadResult,
     initialScrollToCommentIndex,
@@ -186,6 +192,7 @@ function DocumentContentEditorStateful({
     const isInitialAppRender = useIsInitialAppRender();
     const {isAppleDevice} = useClientInfo();
     const isMobile = useIsMobile();
+    const isMounted = useIsMounted();
     const editorRef = useRef<ContentEditorRef<DocumentContentWithReferences>>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
@@ -193,6 +200,7 @@ function DocumentContentEditorStateful({
     const editorContainerId = useId();
     const [containerResizeRef, containerSize] = useResizeObserver();
 
+    const withMobileLayout = isMobile || withMobileLayoutProp;
     const paddingX = isMobile ? mobileDocumentPaddingX : desktopDocumentPaddingX;
 
     const {
@@ -272,39 +280,70 @@ function DocumentContentEditorStateful({
         // Already animating in...
         if (sidebarAnimationInRef.current) return;
 
+        const finish = () => {
+            setSidebarState(sidebarState => {
+                if (!sidebarState.isOpen || sidebarState.animationState !== "Opening")
+                    return sidebarState;
+
+                return {...sidebarState, animationState: null};
+            });
+        };
+
         const editorContainerElement = assertExists(editorContainerRef.current);
         const sidebarElement = assertExists(sidebarRef.current);
 
-        const remPx = getRemPxWithoutListening();
-        const blockMaxWidth = convertRemLengthToPx(contentSchemaStyles.blockMaxWidth, remPx);
-        const paddingXPx = convertRemLengthToPx(spacing[paddingX], remPx) * 2;
-        const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
-        const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
+        let animation: AnimationControls;
 
-        const oldContentOffset = Math.max(
-            0,
-            (editorContainerElement.clientWidth - paddingXPx + sidebarWidth - blockMaxWidth) / 2,
-        );
-        const newContentOffset = Math.max(
-            0,
-            (editorContainerElement.clientWidth - paddingXPx - blockMaxWidth) / 2,
-        );
-
-        const animation = timeline(
-            [
-                [sidebarElement, {x: [sidebarWidth + sidebarOffscreenBufferWidth, 0]}],
-                [editorContainerElement, {x: [oldContentOffset - newContentOffset, 0]}, {at: 0}],
-            ],
-            {
-                defaultOptions: {
-                    easing: spring({
-                        stiffness: 300,
-                        damping: 31,
-                    }),
+        if (withMobileLayout) {
+            animation = animate(
+                sidebarElement,
+                {y: [sidebarElement.getBoundingClientRect().height, 0]},
+                {
+                    duration: mobileModalAnimationDurationLongMs / 1000,
+                    easing: mobileModalAnimationEasingParsedCubicBezier,
+                    // Make sure we use hardware acceleration for this animation in WebKit. By
+                    // default `motion` turns it off.
+                    // https://motion.dev/guides/performance#webkits-exceptions
+                    allowWebkitAcceleration: true,
                 },
-                delay: 0.002,
-            },
-        );
+            );
+        } else {
+            const remPx = getRemPxWithoutListening();
+            const blockMaxWidth = convertRemLengthToPx(contentSchemaStyles.blockMaxWidth, remPx);
+            const paddingXPx = convertRemLengthToPx(spacing[paddingX], remPx) * 2;
+            const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
+            const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
+
+            const oldContentOffset = Math.max(
+                0,
+                (editorContainerElement.clientWidth - paddingXPx + sidebarWidth - blockMaxWidth) /
+                    2,
+            );
+            const newContentOffset = Math.max(
+                0,
+                (editorContainerElement.clientWidth - paddingXPx - blockMaxWidth) / 2,
+            );
+
+            animation = timeline(
+                [
+                    [sidebarElement, {x: [sidebarWidth + sidebarOffscreenBufferWidth, 0]}],
+                    [
+                        editorContainerElement,
+                        {x: [oldContentOffset - newContentOffset, 0]},
+                        {at: 0},
+                    ],
+                ],
+                {
+                    defaultOptions: {
+                        easing: spring({
+                            stiffness: 300,
+                            damping: 31,
+                        }),
+                    },
+                    delay: 0.002,
+                },
+            );
+        }
 
         // Wait for React to finish rendering before playing our animation. We need to
         // start our animation in a layout effect to apply the initial transform in the
@@ -316,17 +355,10 @@ function DocumentContentEditorStateful({
             animation.play();
         });
 
-        animation.finished.finally(() => {
-            setSidebarState(sidebarState => {
-                if (!sidebarState.isOpen || sidebarState.animationState !== "Opening")
-                    return sidebarState;
-
-                return {...sidebarState, animationState: null};
-            });
-        });
+        animation.finished.finally(finish);
 
         sidebarAnimationInRef.current = animation;
-    }, [paddingX, sidebarState]);
+    }, [paddingX, sidebarState, withMobileLayout]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!(sidebarState.isOpen && sidebarState.animationState === "Closing")) {
@@ -338,38 +370,87 @@ function DocumentContentEditorStateful({
         // Already animating in...
         if (sidebarAnimationOutRef.current) return;
 
+        const finish = () => {
+            setSidebarState(sidebarState => {
+                if (!sidebarState.isOpen || sidebarState.animationState !== "Closing")
+                    return sidebarState;
+
+                return {isOpen: false, transition: null};
+            });
+        };
+
         const editorContainerElement = assertExists(editorContainerRef.current);
         const sidebarElement = assertExists(sidebarRef.current);
 
-        const remPx = getRemPxWithoutListening();
-        const blockMaxWidth = convertRemLengthToPx(contentSchemaStyles.blockMaxWidth, remPx);
-        const paddingXPx = convertRemLengthToPx(spacing[paddingX], remPx) * 2;
-        const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
-        const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
+        let animation: AnimationControls;
 
-        const oldContentOffset = Math.max(
-            0,
-            (editorContainerElement.clientWidth - paddingXPx - sidebarWidth - blockMaxWidth) / 2,
-        );
-        const newContentOffset = Math.max(
-            0,
-            (editorContainerElement.clientWidth - paddingXPx - blockMaxWidth) / 2,
-        );
+        if (withMobileLayout) {
+            const sidebarHeight = sidebarElement.getBoundingClientRect().height;
 
-        const animation = timeline(
-            [
-                [sidebarElement, {x: [0, sidebarWidth + sidebarOffscreenBufferWidth]}],
-                [editorContainerElement, {x: [oldContentOffset - newContentOffset, 0]}, {at: 0}],
-            ],
-            {
-                defaultOptions: {
-                    easing: spring({
-                        stiffness: 420,
-                        damping: 35,
-                    }),
+            const scrollBottom =
+                editorContainerElement.scrollHeight -
+                (editorContainerElement.scrollTop + editorContainerElement.clientHeight);
+
+            // After our sidebar is done closing we'll remove the safe area we added to the
+            // bottom of the document. If we've scrolled to the bottom of the document this
+            // will cause the document to jump back into place. This is jarring so instead
+            // animate a scroll along with our close animation to get us back to the right
+            // place before the document size changes.
+            if (scrollBottom < sidebarHeight) {
+                editorContainerElement.scrollTo({
+                    top: editorContainerElement.scrollTop - (sidebarHeight - scrollBottom),
+                    behavior: "smooth",
+                });
+            }
+
+            animation = animate(
+                sidebarElement,
+                {y: [0, sidebarHeight]},
+                {
+                    duration: mobileModalAnimationDurationLongMs / 1000,
+                    easing: mobileModalAnimationEasingParsedCubicBezier,
+                    // Make sure we use hardware acceleration for this animation in WebKit. By
+                    // default `motion` turns it off.
+                    // https://motion.dev/guides/performance#webkits-exceptions
+                    allowWebkitAcceleration: true,
                 },
-            },
-        );
+            );
+        } else {
+            const remPx = getRemPxWithoutListening();
+            const blockMaxWidth = convertRemLengthToPx(contentSchemaStyles.blockMaxWidth, remPx);
+            const paddingXPx = convertRemLengthToPx(spacing[paddingX], remPx) * 2;
+            const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
+            const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
+
+            const oldContentOffset = Math.max(
+                0,
+                (editorContainerElement.clientWidth - paddingXPx - sidebarWidth - blockMaxWidth) /
+                    2,
+            );
+            const newContentOffset = Math.max(
+                0,
+                (editorContainerElement.clientWidth - paddingXPx - blockMaxWidth) / 2,
+            );
+
+            animation = timeline(
+                [
+                    [sidebarElement, {x: [0, sidebarWidth + sidebarOffscreenBufferWidth]}],
+                    [
+                        editorContainerElement,
+                        {x: [oldContentOffset - newContentOffset, 0]},
+                        {at: 0},
+                    ],
+                ],
+                {
+                    defaultOptions: {
+                        easing: spring({
+                            stiffness: 420,
+                            damping: 35,
+                        }),
+                    },
+                },
+            );
+        }
 
         // Wait for React to finish rendering before playing our animation. We need to
         // start our animation in a layout effect to apply the initial transform in the
@@ -381,17 +462,35 @@ function DocumentContentEditorStateful({
             animation.play();
         });
 
-        animation.finished.finally(() => {
-            setSidebarState(sidebarState => {
-                if (!sidebarState.isOpen || sidebarState.animationState !== "Closing")
-                    return sidebarState;
-
-                return {isOpen: false, transition: null};
-            });
-        });
+        animation.finished.finally(finish);
 
         sidebarAnimationOutRef.current = animation;
-    }, [paddingX, sidebarState]);
+    }, [paddingX, sidebarState, withMobileLayout]);
+
+    // When the sidebar opens on mobile:
+    //
+    // 1. Add safe area to the bottom of the document of the same height as the
+    //    sidebar (sidebar is positioned as a bottom sheet on mobile)
+    // 2. Make sure the content editor is blurred
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const editorContainerElement = assertExists(editorContainerRef.current);
+
+        if (!withMobileLayout || !sidebarState.isOpen) {
+            editorContainerElement.style.removeProperty("--safe-area-inset-bottom");
+            return;
+        }
+
+        const editor = assertExists(editorRef.current);
+        editor.blur();
+
+        const sidebarElement = assertExists(sidebarRef.current);
+        const sidebarRect = sidebarElement.getBoundingClientRect();
+
+        editorContainerElement.style.setProperty(
+            "--safe-area-inset-bottom",
+            `${sidebarRect.height}px`,
+        );
+    }, [sidebarState.isOpen, withMobileLayout]);
 
     const [pressedCommentThreadId, setPressedCommentThreadId] =
         useState<DocumentCommentThreadId | null>(null);
@@ -574,9 +673,6 @@ function DocumentContentEditorStateful({
         // `coordsAtPos()`.
         if (isInitialAppRender) return;
 
-        // We don't show side decorations on mobile.
-        if (isMobile) return;
-
         // Recompute our decorations whenever the editor width changes.
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         editorContainerWidth;
@@ -584,6 +680,9 @@ function DocumentContentEditorStateful({
         const editorContainerElement = assertExists(editorContainerRef.current);
         const editor = assertExists(editorRef.current);
 
+        // We still collect decorations on mobile even though we don't render them
+        // because we need them for the next/previous buttons on an opened comment
+        // thread.
         const {decorationByMarkTop} = collectDecorationByMarkTop(
             {
                 editorContainerElement,
@@ -612,15 +711,24 @@ function DocumentContentEditorStateful({
         isMobile,
     ]);
 
-    const decorations = useMemo(
-        () =>
-            Array.from(decorationByMarkTop, ([markTop, decoration]) => ({
+    const {totalDecoratedCommentThreads, decorations} = useMemo(() => {
+        let totalDecoratedCommentThreads = 0;
+
+        const decorations = Array.from(decorationByMarkTop, ([markTop, decoration]) => {
+            totalDecoratedCommentThreads += decoration.commentThreadIds.size;
+
+            return {
                 markTop,
                 markHeight: decoration.markHeight,
                 commentThreadIds: decoration.commentThreadIds,
-            })).sort((a, b) => a.markTop - b.markTop),
-        [decorationByMarkTop],
-    );
+            };
+        }).sort((a, b) => a.markTop - b.markTop);
+
+        return {
+            totalDecoratedCommentThreads,
+            decorations,
+        };
+    }, [decorationByMarkTop]);
 
     /* ========================================================================== *\
      *                       Initial render comment scroll                        *
@@ -649,27 +757,44 @@ function DocumentContentEditorStateful({
      *                       Scroll to comment in document                        *
     \* ========================================================================== */
 
-    const scrollToEditorRect = useEvent((rect: DOMRect) => {
+    const scrollToEditorRect = useEvent((rect: DOMRect, {behavior}: {behavior: ScrollBehavior}) => {
+        const navigationBar = assertExists(navigationBarRef.current);
         const editorContainerElement = assertExists(editorContainerRef.current);
+        const sidebarElement = sidebarState.isOpen ? assertExists(sidebarRef.current) : null;
+
+        const navigationBarMaxVisibleHeight = navigationBar.getMaxVisibleHeight();
         const editorContainerRect = editorContainerElement.getBoundingClientRect();
 
-        const commentMarkTop =
-            editorContainerElement.scrollTop + rect.top - editorContainerRect.top;
-        const commentMarkBottom =
-            editorContainerElement.scrollTop + rect.bottom - editorContainerRect.top;
+        // Can't use `sidebarElement.getBoundingClientRect()` since that may be
+        // influenced by our animation's CSS `transform`.
+        const sidebarHeight = sidebarElement?.offsetHeight ?? 0;
+
+        const visibleRect = {
+            top: editorContainerRect.top + navigationBarMaxVisibleHeight,
+            bottom:
+                editorContainerRect.bottom -
+                // When using mobile layout the sidebar takes up visible space.
+                (withMobileLayout ? sidebarHeight : 0),
+        };
+        visibleRect.bottom = Math.max(visibleRect.bottom, visibleRect.top);
+
+        const visibleHeight = visibleRect.bottom - visibleRect.top;
+
+        const commentMarkTop = editorContainerElement.scrollTop + rect.top - visibleRect.top;
+        const commentMarkBottom = editorContainerElement.scrollTop + rect.bottom - visibleRect.top;
 
         // Try scrolling the element 20% from the top of the screen...
         const candidateScrollTop1 = clamp(
             0,
-            commentMarkTop - editorContainerRect.height / 5,
-            editorContainerElement.scrollHeight - editorContainerRect.height,
+            commentMarkTop - visibleHeight / 5,
+            editorContainerElement.scrollHeight - visibleHeight,
         );
 
         // Try scrolling the element 20% from the bottom of the screen...
         const candidateScrollTop2 = clamp(
             0,
-            commentMarkBottom + editorContainerRect.height / 5 - editorContainerRect.height,
-            editorContainerElement.scrollHeight - editorContainerRect.height,
+            commentMarkBottom + visibleHeight / 5 - visibleHeight,
+            editorContainerElement.scrollHeight - visibleHeight,
         );
 
         const candidateScrollTop1Distance = Math.abs(
@@ -682,9 +807,9 @@ function DocumentContentEditorStateful({
         // Pick the scroll offset that moves our window the least. That way there are
         // no big disorienting jumps.
         if (candidateScrollTop2Distance < candidateScrollTop1Distance) {
-            editorContainerElement.scrollTop = candidateScrollTop2;
+            editorContainerElement.scrollTo({top: candidateScrollTop2, behavior});
         } else {
-            editorContainerElement.scrollTop = candidateScrollTop1;
+            editorContainerElement.scrollTo({top: candidateScrollTop1, behavior});
         }
     });
 
@@ -695,7 +820,7 @@ function DocumentContentEditorStateful({
         );
         if (!firstCommentMarkElement) return;
 
-        scrollToEditorRect(firstCommentMarkElement.getBoundingClientRect());
+        scrollToEditorRect(firstCommentMarkElement.getBoundingClientRect(), {behavior: "instant"});
     });
 
     {
@@ -711,11 +836,6 @@ function DocumentContentEditorStateful({
             const lastSidebarState = lastSidebarStateRef.current;
             lastSidebarStateRef.current = sidebarState;
 
-            const lastCommentThreadId =
-                lastSidebarState.isOpen && lastSidebarState.animationState !== "Closing"
-                    ? lastSidebarState.commentThreadId
-                    : null;
-
             const commentThreadId =
                 sidebarState.isOpen && sidebarState.animationState !== "Closing"
                     ? sidebarState.commentThreadId
@@ -723,23 +843,34 @@ function DocumentContentEditorStateful({
 
             // When the sidebar comment thread changes, scroll to the comment in
             // the document. Or when the component initially mounts.
-            if (
-                !commentThreadId ||
-                (!isInitialRender &&
-                    (lastCommentThreadId === commentThreadId || !lastSidebarState.isOpen))
-            ) {
-                return;
-            }
+            if (!commentThreadId) return;
 
+            const navigationBar = assertExists(navigationBarRef.current);
             const editorContainerElement = assertExists(editorContainerRef.current);
+            const sidebarElement = sidebarState.isOpen ? assertExists(sidebarRef.current) : null;
+
             const commentMarkElements = editorContainerElement.querySelectorAll(
                 `[data-comment="${commentThreadId}"]`,
             );
 
-            const editorContainerRect = editorContainerElement.getBoundingClientRect();
-
             // Comment thread doesn't exist in the document anymore
             if (commentMarkElements.length === 0) return;
+
+            const navigationBarVisibleHeight = navigationBar.getVisibleHeight();
+            const editorContainerRect = editorContainerElement.getBoundingClientRect();
+
+            // Can't use `sidebarElement.getBoundingClientRect()` since that may be
+            // influenced by our animation's CSS `transform`.
+            const sidebarHeight = sidebarElement?.offsetHeight ?? 0;
+
+            const visibleRect = {
+                top: editorContainerRect.top + navigationBarVisibleHeight,
+                bottom:
+                    editorContainerRect.bottom -
+                    // When using mobile layout the sidebar takes up visible space.
+                    (withMobileLayout ? sidebarHeight : 0),
+            };
+            visibleRect.bottom = Math.max(visibleRect.bottom, visibleRect.top);
 
             let firstCommentMarkRect: DOMRect | undefined;
             let isSomeCommentMarkVisible = false;
@@ -749,9 +880,9 @@ function DocumentContentEditorStateful({
                 if (!firstCommentMarkRect) firstCommentMarkRect = commentMarkRect;
 
                 if (
-                    areRangesOverlapping(
-                        editorContainerRect.top,
-                        editorContainerRect.bottom,
+                    isRangeContained(
+                        visibleRect.top,
+                        visibleRect.bottom,
                         commentMarkRect.top,
                         commentMarkRect.bottom,
                     )
@@ -767,8 +898,22 @@ function DocumentContentEditorStateful({
             if (isSomeCommentMarkVisible) return;
 
             assert(firstCommentMarkRect);
-            scrollToEditorRect(firstCommentMarkRect);
-        }, [isInitialAppRender, scrollToEditorRect, sidebarState]);
+            scrollToEditorRect(firstCommentMarkRect, {
+                behavior:
+                    // Don't animate scroll if:
+                    //
+                    // 1. This is the initial render; OR
+                    // 2. We're opening the sidebar in our desktop layout
+                    //
+                    // In case 1 we should open immediately to the comment (e.g. if the user is
+                    // navigating here from somewhere). In case 2 we need to scroll because of a
+                    // layout shift when we made the document content narrower so it would be weird
+                    // to animate.
+                    isInitialRender || (!lastSidebarState.isOpen && !withMobileLayout)
+                        ? "instant"
+                        : "smooth",
+            });
+        }, [isInitialAppRender, scrollToEditorRect, sidebarState, withMobileLayout]);
     }
 
     /* ========================================================================== *\
@@ -779,6 +924,9 @@ function DocumentContentEditorStateful({
 
     useEffect(() => {
         if (isInertNativeMobileRoute) return;
+
+        // `coordsAtPos()` won't work on initial render.
+        if (isInitialAppRender) return;
 
         return subscribeToMobileKeyboardFrameChange(
             ({newKeyboardHeight, oldKeyboardHeight, shouldScroll, isAnimated}) => {
@@ -824,7 +972,7 @@ function DocumentContentEditorStateful({
                 });
             },
         );
-    }, [isInertNativeMobileRoute]);
+    }, [isInertNativeMobileRoute, isInitialAppRender]);
 
     useEffect(() => {
         if (!NativeMobileBridge) return;
@@ -886,6 +1034,36 @@ function DocumentContentEditorStateful({
         };
     }, [isInertNativeMobileRoute, isInitialAppRender]);
 
+    // Hide the tab bar when the sidebar is open. Sidebar is render as a bottom
+    // sheet on mobile.
+    const hasHiddenNativeMobileTabBarRef = useRef(false);
+    useEffect(() => {
+        if (!NativeMobileBridge) return;
+
+        if (isInertNativeMobileRoute || !withMobileLayout || !sidebarState.isOpen) {
+            if (hasHiddenNativeMobileTabBarRef.current) {
+                hasHiddenNativeMobileTabBarRef.current = false;
+                NativeMobileBridge.navigationBar.showTabBar();
+            }
+            return;
+        }
+
+        if (!hasHiddenNativeMobileTabBarRef.current) {
+            hasHiddenNativeMobileTabBarRef.current = true;
+            NativeMobileBridge.navigationBar.hideTabBar();
+        }
+
+        return () => {
+            // If the component unmounts, we need to show the tab bar.
+            if (!isMounted()) {
+                if (hasHiddenNativeMobileTabBarRef.current) {
+                    hasHiddenNativeMobileTabBarRef.current = false;
+                    NativeMobileBridge!.navigationBar.showTabBar();
+                }
+            }
+        };
+    }, [isInertNativeMobileRoute, isMounted, sidebarState.isOpen, withMobileLayout]);
+
     /* ========================================================================== *\
      *                               Navigation Bar                               *
     \* ========================================================================== */
@@ -907,6 +1085,7 @@ function DocumentContentEditorStateful({
         ],
     ];
 
+    const navigationBarRef = useRef<NavigationBarRef>(null);
     const titleBoundaryRef = useRef<HTMLElement | null>(null);
 
     const queryTitleBoundaryRef = useLifecycleRef(
@@ -932,6 +1111,7 @@ function DocumentContentEditorStateful({
     );
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
+        ref: navigationBarRef,
         withMobileLayout,
         title: getDocumentContentTitle(content.doc),
         titleBoundaryRef,
@@ -994,7 +1174,9 @@ function DocumentContentEditorStateful({
                     overflowY="auto"
                     style={{
                         width:
-                            sidebarState.isOpen && sidebarState.animationState !== "Closing"
+                            !withMobileLayout &&
+                            sidebarState.isOpen &&
+                            sidebarState.animationState !== "Closing"
                                 ? `calc(100% - ${documentContentEditorSidebarWidth})`
                                 : "100%",
                     }}
@@ -1034,6 +1216,7 @@ function DocumentContentEditorStateful({
                                 }}
                                 aria-label="Document"
                                 placeholder="Share your ideas…"
+                                withMobileLayout={withMobileLayout}
                                 className={documentContentClassName}
                                 phantomSelections={phantomSelections}
                                 openCommentThread={openCommentThread}
@@ -1079,41 +1262,76 @@ function DocumentContentEditorStateful({
                     </OverlayScopeContextProvider>
                 </Box>
                 {sidebarState.isOpen && (
-                    <Box
-                        ref={sidebarRef}
-                        position="absolute"
-                        top="0"
-                        bottom="0"
-                        // A bit of grace room at the end for a spring bounce.
-                        right="-4"
-                        paddingRight="4"
-                        borderLeft="grey-10"
-                        backgroundColor="grey-0"
-                        style={{
-                            width: addRemLengths(documentContentEditorSidebarWidth, spacing["4"]),
-                            // Let the browser know we'll be basically immediately animating in the sidebar
-                            // so it can prepare a compositing layer.
-                            willChange: "transform",
-                        }}
-                    >
-                        <DocumentContentEditorSidebar
-                            documentId={documentId}
-                            content={content}
-                            onCommentThreadSnippetPress={handleCommentThreadSnippetPress}
-                            commentThreadId={sidebarState.commentThreadId}
-                            initialDataPromise={sidebarState.dataPromise}
-                            isConnected={isConnected}
-                            procedures={procedures}
-                            subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
-                            unpersistedResolutionStateByCommentThreadId={
-                                unpersistedResolutionStateByCommentThreadId
-                            }
-                            decorations={decorations}
-                            commentThreadListViewRef={commentThreadListViewRef}
-                            onClose={onSidebarClose}
-                            openCommentThread={openCommentThread}
-                        />
-                    </Box>
+                    <>
+                        {withMobileLayout && (
+                            <Box
+                                // While the mobile comment thread overlay is open render a cover to prevent
+                                // the user from interacting with the underlying document. Tapping the cover
+                                // will close the comment thread.
+                                position="absolute"
+                                zIndex="10"
+                                inset="0"
+                                onPointerDown={onSidebarClose}
+                            />
+                        )}
+                        <Box
+                            position="absolute"
+                            zIndex="20"
+                            top={!withMobileLayout ? "0" : undefined}
+                            bottom="0"
+                            right={!withMobileLayout ? "-4" : "0"}
+                            left={!withMobileLayout ? undefined : "0"}
+                            paddingRight={!withMobileLayout ? "4" : undefined}
+                            style={{
+                                width: !withMobileLayout
+                                    ? // The `spacing["4"]` is a bit of grace room at the end for a spring bounce.
+                                      addRemLengths(documentContentEditorSidebarWidth, spacing["4"])
+                                    : "100%",
+                                height: !withMobileLayout
+                                    ? undefined
+                                    : `calc(100% - (${spacing["48"]} + var(--safe-area-inset-top, 0px)))`,
+                            }}
+                        >
+                            <Box
+                                ref={sidebarRef}
+                                width="full"
+                                height="full"
+                                borderLeft={!withMobileLayout ? "grey-10" : undefined}
+                                backgroundColor="grey-0"
+                                borderTopRadius={!withMobileLayout ? undefined : "xl"}
+                                boxShadow={
+                                    !withMobileLayout ? undefined : "elevation-40-from-bottom"
+                                }
+                                overflow="hidden"
+                                style={{
+                                    // Let the browser know we'll be basically immediately animating in the sidebar
+                                    // so it can prepare a compositing layer.
+                                    willChange: "transform",
+                                }}
+                            >
+                                <DocumentContentEditorSidebar
+                                    documentId={documentId}
+                                    content={content}
+                                    isMobile={isMobile}
+                                    withMobileLayout={withMobileLayout}
+                                    onCommentThreadSnippetPress={handleCommentThreadSnippetPress}
+                                    commentThreadId={sidebarState.commentThreadId}
+                                    initialDataPromise={sidebarState.dataPromise}
+                                    isConnected={isConnected}
+                                    procedures={procedures}
+                                    subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
+                                    unpersistedResolutionStateByCommentThreadId={
+                                        unpersistedResolutionStateByCommentThreadId
+                                    }
+                                    totalDecoratedCommentThreads={totalDecoratedCommentThreads}
+                                    decorations={decorations}
+                                    commentThreadListViewRef={commentThreadListViewRef}
+                                    onClose={onSidebarClose}
+                                    openCommentThread={openCommentThread}
+                                />
+                            </Box>
+                        </Box>
+                    </>
                 )}
                 {useMemo(
                     // We style hovered and active comments with a `<style>` element containing
@@ -1189,6 +1407,8 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
 function DocumentContentEditorSidebar({
     documentId,
     content,
+    isMobile,
+    withMobileLayout,
     commentThreadId,
     onCommentThreadSnippetPress,
     initialDataPromise,
@@ -1196,6 +1416,7 @@ function DocumentContentEditorSidebar({
     procedures,
     subscribeToCommentThreadEvents,
     unpersistedResolutionStateByCommentThreadId,
+    totalDecoratedCommentThreads,
     decorations,
     commentThreadListViewRef,
     onClose,
@@ -1203,6 +1424,8 @@ function DocumentContentEditorSidebar({
 }: {
     documentId: DocumentId;
     content: DocumentContentWithReferences;
+    isMobile: boolean;
+    withMobileLayout: boolean;
     commentThreadId: DocumentCommentThreadId;
     onCommentThreadSnippetPress: Memo<(commentThreadId: DocumentCommentThreadId) => void>;
     initialDataPromise: PromiseImmediate<DocumentContentEditorSidebarData | null>;
@@ -1213,6 +1436,7 @@ function DocumentContentEditorSidebar({
         DocumentCommentThreadId,
         {readonly isResolved: boolean; readonly version: number}
     >;
+    totalDecoratedCommentThreads: number;
     decorations: ReadonlyArray<DocumentContentEditorSideDecoration>;
     commentThreadListViewRef: Ref<DocumentCommentThreadListViewRef>;
     onClose: Memo<() => void>;
@@ -1246,6 +1470,7 @@ function DocumentContentEditorSidebar({
     }, [context.tracer, initialDataResult, onClose]);
 
     const currentAdjacentCommentThreads = useMemo(() => {
+        let decoratedCommentThreadIndex = 0;
         let previousCommentThreadId: DocumentCommentThreadId | null = null;
         let hasFoundCommentThread = false;
 
@@ -1254,6 +1479,8 @@ function DocumentContentEditorSidebar({
                 if (hasFoundCommentThread) {
                     return {
                         hasFoundCommentThread,
+                        decoratedCommentThreadIndex: decoratedCommentThreadIndex - 1,
+                        totalDecoratedCommentThreads,
                         previousCommentThreadId,
                         nextCommentThreadId: otherCommentThreadId,
                     };
@@ -1262,15 +1489,21 @@ function DocumentContentEditorSidebar({
                 } else {
                     previousCommentThreadId = otherCommentThreadId;
                 }
+
+                decoratedCommentThreadIndex++;
             }
         }
 
         return {
             hasFoundCommentThread,
+            decoratedCommentThreadIndex: hasFoundCommentThread
+                ? decoratedCommentThreadIndex - 1
+                : null,
+            totalDecoratedCommentThreads,
             previousCommentThreadId,
             nextCommentThreadId: null,
         };
-    }, [commentThreadId, decorations]);
+    }, [commentThreadId, decorations, totalDecoratedCommentThreads]);
 
     // If we had previous/next comment threads and then the comment was removed
     // from the document (e.g. comment thread was resolved) then we want to keep
@@ -1289,71 +1522,90 @@ function DocumentContentEditorSidebar({
         adjacentCommentThreads = currentAdjacentCommentThreads;
     }
 
-    const {previousCommentThreadId, nextCommentThreadId} = adjacentCommentThreads;
+    const {
+        decoratedCommentThreadIndex,
+        totalDecoratedCommentThreads: lastTotalDecoratedCommentThreads,
+        previousCommentThreadId,
+        nextCommentThreadId,
+    } = adjacentCommentThreads;
 
-    const headerHeight = "8";
-
-    const header = useMemo(() => {
-        // We have a smaller actual height to let the margins of the comment thread
-        // header bleed into our controls header for better visual balance.
-        const actualHeight = "7";
-
-        return {
-            minHeight: spacing[actualHeight],
-            node: (
-                <Box height={actualHeight}>
+    const header = (
+        <Box
+            flexShrink="0"
+            height={isMobile ? "9" : "8"}
+            display="flex"
+            alignItems="center"
+            backgroundColor="grey-0"
+        >
+            {withMobileLayout && (
+                <>
+                    <Spacer space={isMobile ? "9" : "7"} />
+                    <Box flexGrow="1" height="full" />
+                </>
+            )}
+            <Box flexShrink="0" paddingX="1.5" display="flex" alignItems="center" gap="1">
+                <IconButton
+                    ref={previousCommentThreadButtonRef}
+                    size={isMobile ? "md" : "xs"}
+                    description="Previous thread"
+                    keyboardShortcutHint={isAppleDevice ? "⌘+Shift+," : "Ctrl+Shift+,"}
+                    isDisabled={!previousCommentThreadId}
+                    pressErrorTitle="Can’t go to previous thread"
+                    onPress={async () => {
+                        if (!previousCommentThreadId) return;
+                        await openCommentThread(previousCommentThreadId);
+                    }}
+                >
+                    {!withMobileLayout ? <CaretUp /> : <CaretLeft />}
+                </IconButton>
+                {withMobileLayout && (
                     <Box
-                        height={headerHeight}
-                        display="flex"
-                        alignItems="center"
-                        backgroundColor="grey-0"
+                        minWidth="12"
+                        paddingX={isMobile ? "1.5" : "1"}
+                        color="grey-70"
+                        textAlign="center"
                     >
-                        <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
-                            <IconButton
-                                ref={previousCommentThreadButtonRef}
-                                size="xs"
-                                description="Previous thread"
-                                keyboardShortcutHint={isAppleDevice ? "⌘+Shift+," : "Ctrl+Shift+,"}
-                                isDisabled={!previousCommentThreadId}
-                                pressErrorTitle="Can’t go to previous thread"
-                                onPress={async () => {
-                                    if (!previousCommentThreadId) return;
-                                    await openCommentThread(previousCommentThreadId);
-                                }}
-                            >
-                                <CaretUp />
-                            </IconButton>
-                            <IconButton
-                                ref={nextCommentThreadButtonRef}
-                                size="xs"
-                                description="Next thread"
-                                keyboardShortcutHint={isAppleDevice ? "⌘+Shift+." : "Ctrl+Shift+."}
-                                isDisabled={!nextCommentThreadId}
-                                pressErrorTitle="Can’t go to next thread"
-                                onPress={async () => {
-                                    if (!nextCommentThreadId) return;
-                                    await openCommentThread(nextCommentThreadId);
-                                }}
-                            >
-                                <CaretDown />
-                            </IconButton>
-                        </Box>
-                        <Box flexGrow="1" height="full" />
-                        <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
-                            <IconButton
-                                size="xs"
-                                description="Close"
-                                keyboardShortcutHint="esc"
-                                onPress={onClose}
-                            >
-                                <X />
-                            </IconButton>
-                        </Box>
+                        {decoratedCommentThreadIndex !== null && (
+                            <>
+                                {decoratedCommentThreadIndex + 1} of{" "}
+                                {lastTotalDecoratedCommentThreads}
+                            </>
+                        )}
                     </Box>
-                </Box>
-            ),
-        };
-    }, [isAppleDevice, nextCommentThreadId, onClose, openCommentThread, previousCommentThreadId]);
+                )}
+                <IconButton
+                    ref={nextCommentThreadButtonRef}
+                    size={isMobile ? "md" : "xs"}
+                    description="Next thread"
+                    keyboardShortcutHint={isAppleDevice ? "⌘+Shift+." : "Ctrl+Shift+."}
+                    isDisabled={!nextCommentThreadId}
+                    pressErrorTitle="Can’t go to next thread"
+                    onPress={async () => {
+                        if (!nextCommentThreadId) return;
+                        await openCommentThread(nextCommentThreadId);
+                    }}
+                >
+                    {!withMobileLayout ? <CaretDown /> : <CaretRight />}
+                </IconButton>
+                {!withMobileLayout && decoratedCommentThreadIndex !== null && (
+                    <Box paddingX="1.5" color="grey-70">
+                        {decoratedCommentThreadIndex + 1} of {lastTotalDecoratedCommentThreads}
+                    </Box>
+                )}
+            </Box>
+            <Box flexGrow="1" height="full" />
+            <Box flexShrink="0" paddingX="1.5" display="flex" gap="1" width={isMobile ? "9" : "7"}>
+                <IconButton
+                    size={isMobile ? "md" : "xs"}
+                    description="Close"
+                    keyboardShortcutHint="esc"
+                    onPress={onClose}
+                >
+                    <X />
+                </IconButton>
+            </Box>
+        </Box>
+    );
 
     return (
         <GlobalKeyDownEvent
@@ -1392,24 +1644,22 @@ function DocumentContentEditorSidebar({
             }}
         >
             <Box height="full" width="full" overflow="hidden" display="flex" flexDirection="column">
+                {header}
                 {useMemo(
                     () =>
                         initialDataResult.isPending || !initialDataResult.value ? (
-                            <>
-                                {header.node}
-                                <Box
-                                    flexGrow="1"
-                                    display="flex"
-                                    justifyContent="center"
-                                    alignItems="center"
-                                >
-                                    <SpinnerGap
-                                        className={spinAnimationClassName}
-                                        color={colorSchemeVars["grey-70"]}
-                                        size={spacing["6"]}
-                                    />
-                                </Box>
-                            </>
+                            <Box
+                                flexGrow="1"
+                                display="flex"
+                                justifyContent="center"
+                                alignItems="center"
+                            >
+                                <SpinnerGap
+                                    className={spinAnimationClassName}
+                                    color={colorSchemeVars["grey-70"]}
+                                    size={spacing["6"]}
+                                />
+                            </Box>
                         ) : (
                             <DocumentCommentThreadListView
                                 key={commentThreadId}
@@ -1433,13 +1683,12 @@ function DocumentContentEditorSidebar({
                                 unpersistedResolutionStateByCommentThreadId={
                                     unpersistedResolutionStateByCommentThreadId
                                 }
+                                // Always use mobile layout when rendered in sidebar.
                                 withMobileLayout={true}
+                                withoutCommentThreadPreview={withMobileLayout}
                                 // Slightly reduce the amount of margin on messages in a comment thread
                                 // because we have less space.
                                 paddingX="4"
-                                header={header}
-                                // Inset scrollbar by the header height.
-                                scrollbarInsetTop={spacing[headerHeight]}
                             />
                         ),
                     [
@@ -1447,7 +1696,6 @@ function DocumentContentEditorSidebar({
                         commentThreadListViewRef,
                         content,
                         documentId,
-                        header,
                         initialDataResult.isPending,
                         initialDataResult.value,
                         isConnected,
@@ -1455,6 +1703,7 @@ function DocumentContentEditorSidebar({
                         procedures,
                         subscribeToCommentThreadEvents,
                         unpersistedResolutionStateByCommentThreadId,
+                        withMobileLayout,
                     ],
                 )}
             </Box>

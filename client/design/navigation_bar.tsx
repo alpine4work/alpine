@@ -3,6 +3,7 @@ import {ArrowLeft, DotsThreeVertical} from "phosphor-react";
 import {
     MutableRefObject,
     ReactNode,
+    Ref,
     RefCallback,
     RefObject,
     useCallback,
@@ -15,6 +16,7 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {
     ScrollbarInsetDynamic,
     scrollbarVisibleAfterScrollDurationMs,
@@ -175,6 +177,19 @@ const mobileNavigationBarScrollbarInsetTop: ScrollbarInsetDynamic = [
 // navigation bar behavior. We have consistent scroll events across web code
 // and native code so we can use that. Touch events are more dicey.
 
+export type NavigationBarRef = {
+    /**
+     * Get the number of visible pixels for this navigation bar. Includes top safe
+     * area inset since the navigation bar is always visible in the safe area.
+     */
+    getVisibleHeight(): number;
+
+    /**
+     * Get the number of visible pixels when this navigation bar is fully expanded.
+     */
+    getMaxVisibleHeight(): number;
+};
+
 export type NavigationBarResult = {
     /**
      * (Required) Attach this ref to the scroll view the navigation bar renders
@@ -242,6 +257,7 @@ export type NavigationBarResult = {
  * web code navigation bar. As the user scrolls down, the tab bar disappears.
  */
 export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
+    ref,
     withMobileLayout,
     title = null,
     titleBoundaryRef,
@@ -254,6 +270,11 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontSize = "200",
     desktopTitleFontWeight = "semi-bold",
 }: {
+    /**
+     * A ref for interacting with the navigation bar when mounted.
+     */
+    ref?: Ref<NavigationBarRef>;
+
     /**
      * Should the navigation bar use a mobile layout even while on desktop? This is
      * typically set to true in peeks. Peeks are visible on desktop but need a
@@ -387,6 +408,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             withMobileLayout={withMobileLayout || isMobile}
             handleRef={navigationBarRef}
             scrollViewSize={scrollViewSize}
+            navigationBarRef={ref}
             title={title}
             titleBoundaryRef={titleBoundaryRef}
             withoutDisappearingTitle={withoutDisappearingTitle}
@@ -414,6 +436,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     withMobileLayout,
     handleRef,
     scrollViewSize,
+    navigationBarRef: externalNavigationBarRef,
     title,
     titleBoundaryRef,
     withoutDisappearingTitle,
@@ -432,6 +455,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
         onScroll: (element: HTMLElement) => void;
     } | null>;
     scrollViewSize: {width: number; height: number} | null;
+    navigationBarRef: Ref<NavigationBarRef> | undefined;
     title: ReactNode;
     titleBoundaryRef: RefObject<TitleBoundaryElement> | undefined;
     withoutDisappearingTitle: boolean;
@@ -466,6 +490,41 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     const lastNavigationBarTopOffsetRef = useRef(scrollDirectionState.navigationBarTopOffset);
     const lastIsNavigationBarOpaqueRef = useRef(false);
     const lastIsNavigationBarTitleVisibleRef = useRef(false);
+
+    useImperativeHandle(
+        externalNavigationBarRef,
+        () => ({
+            getVisibleHeight: () => {
+                const navigationBarElement = assertExists(navigationBarRef.current);
+
+                const remPx = getRemPxWithoutListening();
+                const navigationBarHeight = navigationBarHeightRem * remPx;
+
+                const lastNavigationBarScrollOffset = Math.max(
+                    0,
+                    Math.min(
+                        lastScrollOffsetRef.current - lastNavigationBarTopOffsetRef.current,
+                        navigationBarHeight,
+                    ),
+                );
+
+                return (
+                    navigationBarHeight -
+                    lastNavigationBarScrollOffset +
+                    getElementSafeAreaInsetTopPx(navigationBarElement)
+                );
+            },
+            getMaxVisibleHeight: () => {
+                const navigationBarElement = assertExists(navigationBarRef.current);
+
+                const remPx = getRemPxWithoutListening();
+                const navigationBarHeight = navigationBarHeightRem * remPx;
+
+                return navigationBarHeight + getElementSafeAreaInsetTopPx(navigationBarElement);
+            },
+        }),
+        [navigationBarHeightRem],
+    );
 
     const animationControlsRef = useRef<Set<AnimationControls> | null>(null);
 

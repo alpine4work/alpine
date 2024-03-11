@@ -40,7 +40,10 @@ import {createContentEditorCommentMarkViewConstructor} from "~/client/content/in
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {ContentEditorFloater} from "~/client/content/internal/content_editor_floater.js";
-import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
+import {
+    createContentEditorLinkMarkViewConstructor,
+    onParentScrollWhenPointerDownAndOverInteractiveMarkSymbol,
+} from "~/client/content/internal/content_editor_link_mark_view.js";
 import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view.js";
 import {
     ContentEditorMobileKeyboardToolbar,
@@ -87,6 +90,7 @@ const {
     emptyBodyClassName,
     emptyTitleClassName,
     linkClassName,
+    commentClassName,
     phantomSelectionClassName,
     emojiClassName,
 } = contentSchemaStyles;
@@ -96,6 +100,7 @@ const {
     shiftKeyOrAltKeyDownClassName,
     inlineMentionInputClassName,
     canNotPrimaryInputHoverContainerClassName,
+    withMobileLayoutClassName,
 } = contentEditorStyles;
 
 // NOTE(calebmer): The following are bugs I'd like to fix in the native mobile
@@ -269,6 +274,16 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * component.
      */
     containerClassName?: string;
+
+    /**
+     * Whether the content editor should use a mobile layout without actually being
+     * on a mobile device. This is true for some peeks on desktop.
+     *
+     * Not all mobile behaviors are enabled by this flag. For instance, mobile
+     * keyboard toolbars are reserved for mobile devices. You still get floaters if
+     * `withMobileLayout` is true on desktop.
+     */
+    withMobileLayout?: boolean;
 
     /**
      * Don't render the mobile keyboard toolbar with this content editor. Use this
@@ -494,6 +509,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         placeholder,
         className,
         containerClassName: customContainerClassName,
+        withMobileLayout: withMobileLayoutProp = false,
         withoutMobileKeyboardToolbar,
         withoutMobileDualModality,
         "aria-label": ariaLabel,
@@ -505,6 +521,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     const navigate = useNavigate();
     const isMobile = useIsMobile();
+    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const [canPrimaryInputHover, setCanPrimaryInputHover] = useState(
         () => !window.matchMedia("(hover: none)").matches,
@@ -563,6 +580,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     // it's safe!
     const propsRef = useRef(props);
     const isMobileRef = useRef(isMobile);
+    const withMobileLayoutRef = useRef(withMobileLayout);
     const canPrimaryInputHoverRef = useRef(canPrimaryInputHover);
     const isDualModalityRef = useRef(isDualModality);
     const navigateRef = useRef(navigate);
@@ -575,6 +593,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     useInsertionEffect(() => {
         propsRef.current = props;
         isMobileRef.current = isMobile;
+        withMobileLayoutRef.current = withMobileLayout;
         canPrimaryInputHoverRef.current = canPrimaryInputHover;
         isDualModalityRef.current = isDualModality;
         navigateRef.current = navigate;
@@ -808,6 +827,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // We don't have a `<ContentView>` implementation of this yet. Unclear how we
                 // should support comments in `<ContentView>` at this moment.
                 comment: createContentEditorCommentMarkViewConstructor({
+                    withMobileLayout: () => withMobileLayoutRef.current,
+                    canPrimaryInputHover: () => canPrimaryInputHoverRef.current,
+
                     openCommentThread: async commentThreadId => {
                         await propsRef.current.openCommentThread?.(commentThreadId);
                     },
@@ -1012,7 +1034,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                 let element: HTMLElement | null = event.target;
 
                 while (element !== null && element !== view.dom) {
-                    if (element.classList.contains(linkClassName)) {
+                    if (
+                        element.classList.contains(linkClassName) ||
+                        element.classList.contains(commentClassName)
+                    ) {
                         isTargetInteractive = true;
                         break;
                     }
@@ -1543,6 +1568,116 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
     }, [floaterState]);
 
+    // Watch all parent elements of our content editor for scroll events. When a
+    // scroll event occurs we want to call `onParentScrollSymbol` on link mark
+    // elements and comment mark elements.
+    //
+    // This replicates the behavior in `@react-aria/interactions` where a press is
+    // cancelled when a parent element scrolls. This behavior is important for
+    // mobile since the user must press somewhere on the screen to scroll. Normally
+    // `pointercancel` should be dispatched when the user scrolls while pressing on
+    // some element but when the CSS `touch-action: manipulation` is set the press
+    // is not cancelled.
+    //
+    // We can't add listeners to parent scroll elements in our link/mark view code
+    // because ProseMirror does not offer us a cleanup hook for mark views! So we
+    // add listeners at this level and call into `onParentScrollSymbol`.
+    useLayoutEffect(() => {
+        const view = assertExists(viewRef.current);
+
+        let isPointerDownAndOverInteractiveMark = false;
+
+        const handlePointerDown = (event: PointerEvent) => {
+            let hasInteractiveMarkParent = false;
+
+            {
+                let parentElement: HTMLElement | null = event.target as HTMLElement;
+                while (parentElement) {
+                    if (
+                        parentElement.classList.contains(linkClassName) ||
+                        parentElement.classList.contains(commentClassName)
+                    ) {
+                        hasInteractiveMarkParent = true;
+                        break;
+                    }
+
+                    parentElement =
+                        parentElement.parentElement !== view.dom
+                            ? parentElement.parentElement
+                            : null;
+                }
+            }
+
+            isPointerDownAndOverInteractiveMark = hasInteractiveMarkParent;
+        };
+
+        const handlePointerUp = () => {
+            isPointerDownAndOverInteractiveMark = false;
+        };
+
+        const handlePointerLeave = () => {
+            isPointerDownAndOverInteractiveMark = false;
+        };
+
+        const handlePointerCancel = () => {
+            isPointerDownAndOverInteractiveMark = false;
+        };
+
+        view.dom.addEventListener("pointerdown", handlePointerDown);
+        view.dom.addEventListener("pointerup", handlePointerUp);
+        view.dom.addEventListener("pointerleave", handlePointerLeave);
+        view.dom.addEventListener("pointercancel", handlePointerCancel);
+
+        const handleScroll = () => {
+            if (!isPointerDownAndOverInteractiveMark) return;
+            isPointerDownAndOverInteractiveMark = false;
+
+            for (const element of view.dom.querySelectorAll(
+                `.${linkClassName}, .${commentClassName}`,
+            )) {
+                (element as any)[onParentScrollWhenPointerDownAndOverInteractiveMarkSymbol]?.();
+            }
+        };
+
+        const scrollEventTargets: Array<EventTarget> = [window];
+
+        {
+            let parentElement = view.dom.parentElement;
+            while (parentElement) {
+                const {overflowX, overflowY} = getComputedStyle(parentElement);
+
+                if (
+                    overflowX === "auto" ||
+                    overflowX === "scroll" ||
+                    overflowY === "auto" ||
+                    overflowY === "scroll"
+                ) {
+                    scrollEventTargets.push(parentElement);
+                }
+
+                parentElement =
+                    parentElement.parentElement !== document.body
+                        ? parentElement.parentElement
+                        : null;
+            }
+        }
+
+        for (const scrollEventTarget of scrollEventTargets) {
+            scrollEventTarget.addEventListener("scroll", handleScroll, true);
+        }
+
+        return () => {
+            view.dom.removeEventListener("pointerdown", handlePointerDown);
+            view.dom.removeEventListener("pointerup", handlePointerUp);
+            view.dom.removeEventListener("pointerleave", handlePointerLeave);
+            view.dom.removeEventListener("pointercancel", handlePointerCancel);
+
+            for (const scrollEventTarget of scrollEventTargets) {
+                scrollEventTarget.removeEventListener("scroll", handleScroll, true);
+            }
+        };
+    }, []);
+
     useContentEditorDebugTools(viewRef);
 
     const maintainInteractionModalityRef = useRef<Modality | null>(null);
@@ -1552,6 +1687,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             className={classNames(
                 containerClassName,
                 !canPrimaryInputHover ? canNotPrimaryInputHoverContainerClassName : undefined,
+                withMobileLayout ? withMobileLayoutClassName : undefined,
                 customContainerClassName,
             )}
             onFocus={onFocus}

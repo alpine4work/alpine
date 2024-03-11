@@ -14,7 +14,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export const mobileModalAnimationDurationMs = 250;
-const mobileModalAnimationDurationLongMs = 250 * 1.5;
+export const mobileModalAnimationDurationLongMs = 250 * 1.5;
 export const mobileModalAnimationEasingParsedCubicBezier = parseCubicBezier(
     easeOutCubic.cubicBezier,
 );

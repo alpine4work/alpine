@@ -331,6 +331,21 @@ export const NativeMobileBridge: {
          * bar. So reduce cross process chatter by only having web call native.
          */
         runScrollDebounceTimeout(): void;
+
+        /**
+         * Hide the tab bar. The tab bar will only be show again once `showTabBar()`
+         * is called. If there are multiple calls to `hideTabBar()` you need that many
+         * calls to `showTabBar()` to reveal the tab bar again.
+         *
+         * This function is dangerous! You must remember to call `showTabBar()` or else
+         * the app will feel broken as the user won't be able to access the tab bar.
+         */
+        hideTabBar(): void;
+
+        /**
+         * Show the tab bar after it was hidden by `hideTabBar()`.
+         */
+        showTabBar(): void;
     };
 
     /**

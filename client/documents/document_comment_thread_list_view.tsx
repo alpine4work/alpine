@@ -16,6 +16,7 @@ import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {
     documentCommentInputMinHeight,
+    documentCommentThreadActionsHeight,
     documentCommentThreadHeaderMinHeightWithoutPaddingTop,
     documentCommentThreadHeaderPaddingY,
 } from "~/client/documents/document_shared_styles.js";
@@ -211,6 +212,7 @@ function DocumentCommentThreadListView(
         subscribeToCommentThreadEvents,
         unpersistedResolutionStateByCommentThreadId: allUnpersistedResolutionStateByCommentThreadId,
         withMobileLayout: withMobileLayoutProp = false,
+        withoutCommentThreadPreview = false,
         paddingX: paddingXProp,
         header,
         navigationBar,
@@ -248,6 +250,13 @@ function DocumentCommentThreadListView(
          * single comment threads to the bottom of the screen.
          */
         withMobileLayout?: boolean;
+
+        /**
+         * If we should disable rendering of the comment thread preview. Used when
+         * rendering a comment thread in document in mobile layouts since the document
+         * text is displayed above.
+         */
+        withoutCommentThreadPreview?: boolean;
 
         /**
          * Customize the amount of margin on messages.
@@ -327,8 +336,13 @@ function DocumentCommentThreadListView(
     );
 
     const collectCommentThreadSnippets = useMemo(
-        () => createDocumentCommentThreadSnippetCollector(commentThreadIds),
-        [commentThreadIds],
+        () =>
+            // Optimization: If we aren't rendering comment thread previews, don't
+            // collect snippets.
+            !withoutCommentThreadPreview
+                ? createDocumentCommentThreadSnippetCollector(commentThreadIds)
+                : () => new Map(),
+        [commentThreadIds, withoutCommentThreadPreview],
     );
 
     const contentSnippetByCommentThreadId = useStableValue(
@@ -650,7 +664,9 @@ function DocumentCommentThreadListView(
                                 ? documentCommentThreadListViewMarginY
                                 : documentCommentThreadHeaderPaddingY
                         ],
-                        documentCommentThreadHeaderMinHeightWithoutPaddingTop,
+                        !withoutCommentThreadPreview
+                            ? documentCommentThreadHeaderMinHeightWithoutPaddingTop
+                            : spacing[documentCommentThreadActionsHeight],
                     );
 
                     return {
@@ -728,6 +744,7 @@ function DocumentCommentThreadListView(
                                                 commentThreadId: item.commentThread.id,
                                             });
                                         }}
+                                        withoutCommentThreadPreview={withoutCommentThreadPreview}
                                         contentSnippet={
                                             contentSnippetByCommentThreadId.get(
                                                 item.commentThread.id,
@@ -985,6 +1002,7 @@ function DocumentCommentThreadListView(
             isSingleMobileLayoutCommentThreadWithPinnedCommentInput,
             paddingX,
             unpersistedIsResolvedByCommentThreadId,
+            withoutCommentThreadPreview,
             contentSnippetByCommentThreadId,
             content.references,
             onCommentThreadSnippetPress,

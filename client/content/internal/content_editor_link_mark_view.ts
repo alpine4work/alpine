@@ -10,7 +10,13 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
+// NOCOMMIT: Open comment from toolbar or edit menu?
+
 const {linkPressedClassName} = contentSchemaStyles;
+
+export const onParentScrollWhenPointerDownAndOverInteractiveMarkSymbol = Symbol(
+    "onParentScrollWhenPointerDownAndOverInteractiveMark",
+);
 
 /**
  * Opens the link when the node is clicked instead of selecting text. We're
@@ -185,6 +191,14 @@ export function createContentEditorLinkMarkViewConstructor({
             onPointerLeave(mark);
         });
 
+        dom.addEventListener("pointercancel", () => {
+            isPointerDownAndOver = false;
+            maybeUpdateStyle();
+
+            pointerEnterDelayTimeout?.clear();
+            pointerEnterDelayTimeout = null;
+        });
+
         dom.addEventListener("dragstart", () => {
             isPointerDownAndOver = false;
             maybeUpdateStyle();
@@ -192,6 +206,14 @@ export function createContentEditorLinkMarkViewConstructor({
             pointerEnterDelayTimeout?.clear();
             pointerEnterDelayTimeout = null;
         });
+
+        (dom as any)[onParentScrollWhenPointerDownAndOverInteractiveMarkSymbol] = () => {
+            isPointerDownAndOver = false;
+            maybeUpdateStyle();
+
+            pointerEnterDelayTimeout?.clear();
+            pointerEnterDelayTimeout = null;
+        };
 
         return {
             dom,
