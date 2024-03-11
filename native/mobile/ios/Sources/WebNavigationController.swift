@@ -1223,9 +1223,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 // view shouldn't be scrollable.
                 let isMain =
                     webScrollView.frame.width >= view.frame.width * 0.5
-                    // 200px is selected to exclude the document comment thread bottom sheet that
-                    // opens when you tap a comment.
-                    && webScrollView.frame.height >= view.frame.height - 200
+                    // 250px is selected to exclude the document comment thread bottom sheet that
+                    // opens when you tap a comment but include chat views.
+                    && webScrollView.frame.height >= view.frame.height - 250
 
                 webScrollViews[webScrollView]!.isMain = isMain
 
@@ -1849,9 +1849,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let tabBarHeight = tabBarController?.tabBar.frame.height ?? 0
 
         let lastTabBarScrollOffset = self.tabBarScrollOffset
-        self.tabBarScrollOffset = tabBarHeight
+        self.tabBarScrollOffset = tabBarScrollOffset
         let lastNavigationBarScrollOffset = self.navigationBarScrollOffset
-        self.navigationBarScrollOffset = navigationBarHeight
+        self.navigationBarScrollOffset = navigationBarScrollOffset
 
         // Optimization: If tab bar scroll offset didn't change then don't update our
         // bottom frames.
