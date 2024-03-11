@@ -136,8 +136,10 @@ export function AppRouterProvider({
             // own span.
             NativeMobileBridge?.navigation.preparePush();
         } else if (state.historyAction === "POP") {
+            const url = new URL(router.createHref(state.location), window.location.href);
+
             if (state.location.state?.isNotFromExternal) {
-                NativeMobileBridge?.navigation.preparePop();
+                NativeMobileBridge?.navigation.preparePop(url);
             }
         }
     }, [state.historyAction, state.location.key]);

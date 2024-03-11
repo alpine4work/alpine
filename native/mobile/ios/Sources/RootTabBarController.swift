@@ -8,13 +8,14 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     let webNavigationController: WebNavigationController
 
     private weak var mainScrollView: UIScrollView?
+    private weak var mainNavigationEntry: WebNavigationEntry?
     private var lastScrollOffset = 0.0
     private var lastScrollHeight = 0.0
     private var lastScrollDirection = ScrollDirection.down
     private var lastNavigationBarTopOffset = 0.0
     private var scrollDebounceTimeout: Timer?
 
-    private enum ScrollDirection {
+    enum ScrollDirection {
         case up
         case down
     }
@@ -151,32 +152,79 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     func webNavigationController(
         _ navigationController: WebNavigationController,
         didAddWebScrollView scrollView: UIScrollView,
+        navigationEntry: WebNavigationEntry,
         isMain: Bool,
         isAnimated: Bool
     ) {
         // Only the main scroll view may push the tab bar down when scrolled.
         guard isMain else { return }
 
+        resetTabBar(
+            scrollView: scrollView,
+            navigationEntry: navigationEntry,
+            isAnimated: isAnimated
+        )
+    }
+
+    func webNavigationController(
+        _ navigationController: WebNavigationController,
+        didNavigate navigationEntry: WebNavigationEntry,
+        hasScrollView: Bool
+    ) {
+        if !hasScrollView {
+            resetTabBar(scrollView: nil, navigationEntry: navigationEntry, isAnimated: true)
+        }
+    }
+
+    private func resetTabBar(
+        scrollView: UIScrollView?,
+        navigationEntry: WebNavigationEntry,
+        isAnimated: Bool
+    ) {
         // Defense in case this method is called with the same scroll view twice.
-        if scrollView == mainScrollView { return }
+        if let scrollView = scrollView, scrollView == mainScrollView { return }
 
         // See the comment on the same statement in
         // `webNavigationController(didScroll:)` for more information on why we call
         // `max()` and `round()`.
-        let scrollOffset = max(0, round(scrollView.contentOffset.y))
-        let scrollHeight = round(scrollView.contentSize.height)
+        var scrollOffset: Double = 0
+        var scrollHeight: Double = 0
+        if let scrollView = scrollView {
+            scrollOffset = max(0, round(scrollView.contentOffset.y))
+            scrollHeight = round(scrollView.contentSize.height)
+        }
+
+        let restoredTabBarState = navigationEntry.tabBarState
+
+        let restoredNavigationBarScrollOffset: Double? =
+            if let restoredTabBarState = restoredTabBarState {
+                max(
+                    0,
+                    min(
+                        restoredTabBarState.lastScrollOffset
+                            - restoredTabBarState.lastNavigationBarTopOffset,
+                        navigationBarHeight
+                    )
+                )
+            } else { nil }
+
+        mainNavigationEntry?.tabBarState = WebNavigationEntry.TabBarState(
+            lastScrollOffset: lastScrollOffset,
+            lastScrollHeight: lastScrollHeight,
+            lastScrollDirection: lastScrollDirection,
+            lastNavigationBarTopOffset: lastNavigationBarTopOffset
+        )
 
         lastScrollOffset = scrollOffset
         lastScrollHeight = scrollHeight
-        lastScrollDirection = .down
-        lastNavigationBarTopOffset = scrollOffset
+        lastScrollDirection = restoredTabBarState?.lastScrollDirection ?? .down
+        lastNavigationBarTopOffset = scrollOffset - (restoredNavigationBarScrollOffset ?? 0)
 
         scrollDebounceTimeout?.invalidate()
         scrollDebounceTimeout = nil
 
-        webNavigationController.setTabBarScrollOffset(0, navigationBarScrollOffset: 0)
-
         mainScrollView = scrollView
+        mainNavigationEntry = navigationEntry
 
         // Reset tab bar offset when we get a new main scroll view. This happens:
         //
@@ -195,52 +243,61 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
             let tabBarFrameOriginY = (view.frame.height - tabBar.frame.height) + tabBarScrollOffset
 
-            // Immediately finish any current animations.
-            tabBar.layer.removeAllAnimations()
+            if tabBar.frame.origin.y != tabBarFrameOriginY {
+                // Immediately finish any current animations.
+                tabBar.layer.removeAllAnimations()
 
-            if !isAnimated {
-                tabBar.frame.origin.y = tabBarFrameOriginY
-                webNavigationController.setTabBarScrollOffset(
-                    tabBarScrollOffset,
-                    navigationBarScrollOffset: navigationBarScrollOffset
-                )
-
-                // Mark the tab bar as hidden if the navigation bar is fully scrolled.
-                tabBar.isHidden =
-                    isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight
-            } else {
-                // Make sure tab bar is not hidden for the animation.
-                tabBar.isHidden =
-                    tabBar.isHidden
-                    && (isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight)
-
-                UIView.animate(
-                    withDuration: navigationBarRevealOrHideAnimationDurationSeconds,
-                    delay: 0,
-                    options: .curveEaseIn,
-                    animations: { [self] in
-                        tabBar.frame.origin.y = tabBarFrameOriginY
+                if !isAnimated {
+                    tabBar.frame.origin.y = tabBarFrameOriginY
+                    if !isWebHidingTabBar {
                         webNavigationController.setTabBarScrollOffset(
                             tabBarScrollOffset,
                             navigationBarScrollOffset: navigationBarScrollOffset
                         )
-                    },
-                    completion: { [self] (finished) in
-                        // Make sure even if the animation was cancelled we set the correct
-                        // position.
-                        if !finished {
-                            tabBar.frame.origin.y = tabBarFrameOriginY
-                            webNavigationController.setTabBarScrollOffset(
-                                tabBarScrollOffset,
-                                navigationBarScrollOffset: navigationBarScrollOffset
-                            )
-                        }
-
-                        // Mark the tab bar as hidden if the navigation bar is fully scrolled.
-                        tabBar.isHidden =
-                            isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight
                     }
-                )
+
+                    // Mark the tab bar as hidden if the navigation bar is fully scrolled.
+                    tabBar.isHidden =
+                        isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight
+                } else {
+                    // Make sure tab bar is not hidden for the animation.
+                    tabBar.isHidden =
+                        tabBar.isHidden
+                        && (isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight)
+
+                    UIView.animate(
+                        withDuration: navigationBarRevealOrHideAnimationDurationSeconds,
+                        delay: 0,
+                        options: .curveEaseIn,
+                        animations: { [self] in
+                            tabBar.frame.origin.y = tabBarFrameOriginY
+                            if !isWebHidingTabBar {
+                                webNavigationController.setTabBarScrollOffset(
+                                    tabBarScrollOffset,
+                                    navigationBarScrollOffset: navigationBarScrollOffset
+                                )
+                            }
+                        },
+                        completion: { [self] (finished) in
+                            // Make sure even if the animation was cancelled we set the correct
+                            // position.
+                            if !finished {
+                                tabBar.frame.origin.y = tabBarFrameOriginY
+                                if !isWebHidingTabBar {
+                                    webNavigationController.setTabBarScrollOffset(
+                                        tabBarScrollOffset,
+                                        navigationBarScrollOffset: navigationBarScrollOffset
+                                    )
+                                }
+                            }
+
+                            // Mark the tab bar as hidden if the navigation bar is fully scrolled.
+                            tabBar.isHidden =
+                                isWebHidingTabBar
+                                || navigationBarScrollOffset >= navigationBarHeight
+                        }
+                    )
+                }
             }
         }
     }
@@ -349,10 +406,12 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                 ((tabBar.frame.height / navigationBarHeight) * navigationBarScrollOffset)
 
             tabBar.frame.origin.y = (view.frame.height - tabBar.frame.height) + tabBarScrollOffset
-            webNavigationController.setTabBarScrollOffset(
-                tabBarScrollOffset,
-                navigationBarScrollOffset: navigationBarScrollOffset
-            )
+            if !isWebHidingTabBar {
+                webNavigationController.setTabBarScrollOffset(
+                    tabBarScrollOffset,
+                    navigationBarScrollOffset: navigationBarScrollOffset
+                )
+            }
 
             // Mark the tab bar as hidden if the navigation bar is fully scrolled.
             tabBar.isHidden = isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight
@@ -438,20 +497,24 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                         options: .curveEaseIn,
                         animations: { [self] in
                             tabBar.frame.origin.y = tabBarFrameOriginY
-                            webNavigationController.setTabBarScrollOffset(
-                                tabBarScrollOffset,
-                                navigationBarScrollOffset: navigationBarScrollOffset
-                            )
+                            if !isWebHidingTabBar {
+                                webNavigationController.setTabBarScrollOffset(
+                                    tabBarScrollOffset,
+                                    navigationBarScrollOffset: navigationBarScrollOffset
+                                )
+                            }
                         },
                         completion: { [self] (finished) in
                             // Make sure even if the animation was cancelled we set the correct
                             // position.
                             if !finished {
                                 tabBar.frame.origin.y = tabBarFrameOriginY
-                                webNavigationController.setTabBarScrollOffset(
-                                    tabBarScrollOffset,
-                                    navigationBarScrollOffset: navigationBarScrollOffset
-                                )
+                                if !isWebHidingTabBar {
+                                    webNavigationController.setTabBarScrollOffset(
+                                        tabBarScrollOffset,
+                                        navigationBarScrollOffset: navigationBarScrollOffset
+                                    )
+                                }
                             }
 
                             // Mark the tab bar as hidden if the navigation bar is fully scrolled.
@@ -489,7 +552,8 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
     func webNavigationController(
         _ navigationController: WebNavigationController,
-        didHideTabBarChange isWebHidingTabBar: Bool
+        didHideTabBarChange isWebHidingTabBar: Bool,
+        isAnimated: Bool
     ) {
         self.isWebHidingTabBar = isWebHidingTabBar
 
@@ -502,8 +566,6 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
         let nextIsHidden = isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight
 
-        tabBar.isHidden = nextIsHidden
-
         // If the keyboard substitute closes and the tab bar should be visible (because
         // the navigation bar is visible) then animate the tab bar into the right
         // position.
@@ -513,9 +575,6 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             // Immediately finish any current animations.
             tabBar.layer.removeAllAnimations()
 
-            // 1. Start the animation offscreen
-            tabBar.frame.origin.y = (view.frame.height - tabBar.frame.height) + tabBar.frame.height
-
             // Convert from navigation bar offset to tab bar offset. We want the native tab
             // bar to disappear at the same rate as the web navigation bar.
             let tabBarScrollOffset =
@@ -523,47 +582,106 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
             let tabBarFrameOriginY = (view.frame.height - tabBar.frame.height) + tabBarScrollOffset
 
-            UIView.animate(
-                withDuration: navigationBarRevealOrHideAnimationDurationSeconds,
-                delay: 0,
-                options: .curveEaseIn,
-                animations: { [self] in
-                    // 2. Animate to the tab bar's current position
-                    tabBar.frame.origin.y = tabBarFrameOriginY
-                    webNavigationController.setTabBarScrollOffset(
-                        tabBarScrollOffset,
-                        navigationBarScrollOffset: navigationBarScrollOffset
-                    )
-                },
-                completion: { [self] (finished) in
-                    // Make sure even if the animation was cancelled we set the correct
-                    // position.
-                    if !finished {
+            if !isAnimated {
+                tabBar.frame.origin.y = tabBarFrameOriginY
+                webNavigationController.setTabBarScrollOffset(
+                    tabBarScrollOffset,
+                    navigationBarScrollOffset: navigationBarScrollOffset
+                )
+
+                tabBar.isHidden =
+                    isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight
+            } else {
+                // 1. Start the animation offscreen
+                tabBar.frame.origin.y =
+                    (view.frame.height - tabBar.frame.height) + tabBar.frame.height
+
+                // Make sure the tab bar is visible during the animation.
+                tabBar.isHidden = false
+
+                UIView.animate(
+                    withDuration: navigationBarRevealOrHideAnimationDurationSeconds,
+                    delay: 0,
+                    options: .curveEaseIn,
+                    animations: { [self] in
+                        // 2. Animate to the tab bar's current position
                         tabBar.frame.origin.y = tabBarFrameOriginY
                         webNavigationController.setTabBarScrollOffset(
                             tabBarScrollOffset,
                             navigationBarScrollOffset: navigationBarScrollOffset
                         )
-                    }
+                    },
+                    completion: { [self] (finished) in
+                        // Make sure even if the animation was cancelled we set the correct
+                        // position.
+                        if !finished {
+                            tabBar.frame.origin.y = tabBarFrameOriginY
+                            webNavigationController.setTabBarScrollOffset(
+                                tabBarScrollOffset,
+                                navigationBarScrollOffset: navigationBarScrollOffset
+                            )
+                        }
 
-                    // Mark the tab bar as hidden if the navigation bar is fully scrolled.
-                    tabBar.isHidden =
-                        isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight
-                }
-            )
+                        // Mark the tab bar as hidden if the navigation bar is fully scrolled.
+                        tabBar.isHidden =
+                            isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight
+                    }
+                )
+            }
         }
 
-        // Call `setTabBarScrollOffset()` when the hidden state changes for
-        // consistency. Our web navigation controller needs to update offsets
-        // internally when the tab bar hide state changes.
         if !previousIsHidden && nextIsHidden {
-            let tabBarScrollOffset =
-                ((tabBar.frame.height / navigationBarHeight) * navigationBarScrollOffset)
+            let nextNavigationBarScrollOffset = navigationBarHeight
 
-            webNavigationController.setTabBarScrollOffset(
-                tabBarScrollOffset,
-                navigationBarScrollOffset: navigationBarScrollOffset
-            )
+            // Convert from navigation bar offset to tab bar offset. We want the native tab
+            // bar to disappear at the same rate as the web navigation bar.
+            let nextTabBarScrollOffset = tabBar.frame.height
+
+            let nextTabBarFrameOriginY =
+                (view.frame.height - tabBar.frame.height) + nextTabBarScrollOffset
+
+            if !isAnimated {
+                tabBar.frame.origin.y = nextTabBarFrameOriginY
+                webNavigationController.setTabBarScrollOffset(
+                    nextTabBarScrollOffset,
+                    navigationBarScrollOffset: nextNavigationBarScrollOffset
+                )
+
+                tabBar.isHidden =
+                    isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight
+            } else {
+                // Immediately finish any current animations.
+                tabBar.layer.removeAllAnimations()
+
+                UIView.animate(
+                    withDuration: navigationBarRevealOrHideAnimationDurationSeconds,
+                    delay: 0,
+                    options: .curveEaseIn,
+                    animations: { [self] in
+                        // Animate to the tab bar's current position
+                        tabBar.frame.origin.y = nextTabBarFrameOriginY
+                        webNavigationController.setTabBarScrollOffset(
+                            nextTabBarScrollOffset,
+                            navigationBarScrollOffset: nextNavigationBarScrollOffset
+                        )
+                    },
+                    completion: { [self] (finished) in
+                        // Make sure even if the animation was cancelled we set the correct
+                        // position.
+                        if !finished {
+                            tabBar.frame.origin.y = nextTabBarFrameOriginY
+                            webNavigationController.setTabBarScrollOffset(
+                                nextTabBarScrollOffset,
+                                navigationBarScrollOffset: nextNavigationBarScrollOffset
+                            )
+                        }
+
+                        // Mark the tab bar as hidden if the navigation bar is fully scrolled.
+                        tabBar.isHidden =
+                            isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight
+                    }
+                )
+            }
         }
     }
 }

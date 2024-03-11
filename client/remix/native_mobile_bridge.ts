@@ -245,7 +245,7 @@ export const NativeMobileBridge: {
          * Otherwise the app will appear frozen as we only show a snapshot view and not
          * the underlying web view.
          */
-        preparePop(): void;
+        preparePop(url: URL): void;
 
         /**
          * Actually performs the pop navigation animation. Follows basically the same
