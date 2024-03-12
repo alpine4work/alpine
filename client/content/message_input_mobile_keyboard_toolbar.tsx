@@ -160,6 +160,7 @@ export function MessageInputMobileKeyboardToolbar({
                 // Focusable, but not by keyboard. Only by JavaScript.
                 tabIndex={-1}
                 style={{
+                    transition: "opacity 200ms ease",
                     opacity: !isVisible ? "0" : undefined,
                     pointerEvents: !isVisible ? "none" : undefined,
                 }}

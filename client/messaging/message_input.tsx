@@ -503,26 +503,11 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
         // 2. On mobile web, animate so our toolbar is visible. In our native app, the
         //    shell manages animating the toolbar so it's visible
         if (isMobile && isBottomBar) {
+            setIsKeyboardToolbarVisible(false);
+
             if (NativeMobileBridge) {
-                // Our native mobile app will animate the keyboard toolbar offscreen. Remove
-                // the keyboard toolbar from the DOM once the animation completes.
-
-                let isCancelled = false;
-
-                NativeMobileBridge.keyboard.scheduleAfterAnimation(() => {
-                    if (isCancelled) return;
-
-                    if (cancelFocusOrBlurRef.current === cancel)
-                        cancelFocusOrBlurRef.current = null;
-
-                    setIsKeyboardToolbarVisible(false);
-                });
-
-                const cancel = () => {
-                    isCancelled = true;
-                    setIsKeyboardToolbarVisible(false);
-                };
-                cancelFocusOrBlurRef.current = cancel;
+                // Our native mobile app will animate the keyboard toolbar offscreen. We just
+                // need to hide the keyboard toolbar which will be visible in safe areas.
             } else {
                 const containerElement = assertExists(containerRef.current);
 
@@ -543,22 +528,14 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                     },
                 );
 
-                let isCancelled = false;
-
                 const cancel = () => {
-                    isCancelled = true;
                     animation.cancel();
-                    setIsKeyboardToolbarVisible(false);
                 };
 
                 cancelFocusOrBlurRef.current = cancel;
                 animation.finished.finally(() => {
-                    if (isCancelled) return;
-
                     if (cancelFocusOrBlurRef.current === cancel)
                         cancelFocusOrBlurRef.current = null;
-
-                    setIsKeyboardToolbarVisible(false);
                 });
             }
         }
