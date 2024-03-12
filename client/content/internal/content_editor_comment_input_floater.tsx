@@ -234,6 +234,7 @@ function ContentEditorCommentInput({
                 })}
             >
                 <MessageInputBase
+                    messageNoun="comment"
                     editorRef={editorRef}
                     state={commentState}
                     onChange={setCommentState}

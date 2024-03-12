@@ -58,16 +58,14 @@ import {
 import {MobileModal} from "~/client/design/mobile_modal.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {registerMobileBottomBarKeyboardToolbar} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
+import {registerMobileBottomBarKeyboardToolbarFrame} from "~/client/remix/subscribe_to_mobile_bottom_bar_frame_change.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
@@ -153,7 +151,7 @@ function ContentEditorMobileKeyboardToolbar(
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (isInertNativeMobileRoute) return;
-        return registerMobileBottomBarKeyboardToolbar();
+        return registerMobileBottomBarKeyboardToolbarFrame();
     }, [isInertNativeMobileRoute]);
 
     const isFocusedRef = useRef(isFocused);

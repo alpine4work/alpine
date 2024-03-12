@@ -23,7 +23,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     /// We want to hide the tab bar while the keyboard web substitute is open. Since
     /// the tab bar renders on top of the web view and we don't want it to cover the
     /// keyboard substitute.
-    private var isWebHidingTabBar = false
+    private var isWebDisablingTabBar = false
 
     init(spaceId: String, session: String) {
         self.spaceId = spaceId
@@ -249,7 +249,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
                 if !isAnimated {
                     tabBar.frame.origin.y = tabBarFrameOriginY
-                    if !isWebHidingTabBar {
+                    if !isWebDisablingTabBar {
                         webNavigationController.setTabBarScrollOffset(
                             tabBarScrollOffset,
                             navigationBarScrollOffset: navigationBarScrollOffset
@@ -258,12 +258,13 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
                     // Mark the tab bar as hidden if the navigation bar is fully scrolled.
                     tabBar.isHidden =
-                        isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight
+                        isWebDisablingTabBar || navigationBarScrollOffset >= navigationBarHeight
                 } else {
                     // Make sure tab bar is not hidden for the animation.
                     tabBar.isHidden =
                         tabBar.isHidden
-                        && (isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight)
+                        && (isWebDisablingTabBar
+                            || navigationBarScrollOffset >= navigationBarHeight)
 
                     UIView.animate(
                         withDuration: navigationBarRevealOrHideAnimationDurationSeconds,
@@ -271,7 +272,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                         options: .curveEaseIn,
                         animations: { [self] in
                             tabBar.frame.origin.y = tabBarFrameOriginY
-                            if !isWebHidingTabBar {
+                            if !isWebDisablingTabBar {
                                 webNavigationController.setTabBarScrollOffset(
                                     tabBarScrollOffset,
                                     navigationBarScrollOffset: navigationBarScrollOffset
@@ -283,7 +284,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                             // position.
                             if !finished {
                                 tabBar.frame.origin.y = tabBarFrameOriginY
-                                if !isWebHidingTabBar {
+                                if !isWebDisablingTabBar {
                                     webNavigationController.setTabBarScrollOffset(
                                         tabBarScrollOffset,
                                         navigationBarScrollOffset: navigationBarScrollOffset
@@ -293,7 +294,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
                             // Mark the tab bar as hidden if the navigation bar is fully scrolled.
                             tabBar.isHidden =
-                                isWebHidingTabBar
+                                isWebDisablingTabBar
                                 || navigationBarScrollOffset >= navigationBarHeight
                         }
                     )
@@ -406,7 +407,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                 ((tabBar.frame.height / navigationBarHeight) * navigationBarScrollOffset)
 
             tabBar.frame.origin.y = (view.frame.height - tabBar.frame.height) + tabBarScrollOffset
-            if !isWebHidingTabBar {
+            if !isWebDisablingTabBar {
                 webNavigationController.setTabBarScrollOffset(
                     tabBarScrollOffset,
                     navigationBarScrollOffset: navigationBarScrollOffset
@@ -414,7 +415,8 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             }
 
             // Mark the tab bar as hidden if the navigation bar is fully scrolled.
-            tabBar.isHidden = isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight
+            tabBar.isHidden =
+                isWebDisablingTabBar || navigationBarScrollOffset >= navigationBarHeight
         }
 
         self.scrollDebounceTimeout?.invalidate()
@@ -497,7 +499,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                         options: .curveEaseIn,
                         animations: { [self] in
                             tabBar.frame.origin.y = tabBarFrameOriginY
-                            if !isWebHidingTabBar {
+                            if !isWebDisablingTabBar {
                                 webNavigationController.setTabBarScrollOffset(
                                     tabBarScrollOffset,
                                     navigationBarScrollOffset: navigationBarScrollOffset
@@ -509,7 +511,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                             // position.
                             if !finished {
                                 tabBar.frame.origin.y = tabBarFrameOriginY
-                                if !isWebHidingTabBar {
+                                if !isWebDisablingTabBar {
                                     webNavigationController.setTabBarScrollOffset(
                                         tabBarScrollOffset,
                                         navigationBarScrollOffset: navigationBarScrollOffset
@@ -519,7 +521,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
                             // Mark the tab bar as hidden if the navigation bar is fully scrolled.
                             tabBar.isHidden =
-                                isWebHidingTabBar
+                                isWebDisablingTabBar
                                 || navigationBarScrollOffset >= navigationBarHeight
                         }
                     )
@@ -552,10 +554,10 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
     func webNavigationController(
         _ navigationController: WebNavigationController,
-        didHideTabBarChange isWebHidingTabBar: Bool,
+        didDisableTabBarChange isWebDisablingTabBar: Bool,
         isAnimated: Bool
     ) {
-        self.isWebHidingTabBar = isWebHidingTabBar
+        self.isWebDisablingTabBar = isWebDisablingTabBar
 
         let navigationBarScrollOffset = max(
             0,
@@ -564,7 +566,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
         let previousIsHidden = tabBar.isHidden
 
-        let nextIsHidden = isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight
+        let nextIsHidden = isWebDisablingTabBar || navigationBarScrollOffset >= navigationBarHeight
 
         // If the keyboard substitute closes and the tab bar should be visible (because
         // the navigation bar is visible) then animate the tab bar into the right
@@ -590,7 +592,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                 )
 
                 tabBar.isHidden =
-                    isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight
+                    isWebDisablingTabBar || navigationBarScrollOffset >= navigationBarHeight
             } else {
                 // 1. Start the animation offscreen
                 tabBar.frame.origin.y =
@@ -624,7 +626,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
                         // Mark the tab bar as hidden if the navigation bar is fully scrolled.
                         tabBar.isHidden =
-                            isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight
+                            isWebDisablingTabBar || navigationBarScrollOffset >= navigationBarHeight
                     }
                 )
             }
@@ -648,7 +650,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                 )
 
                 tabBar.isHidden =
-                    isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight
+                    isWebDisablingTabBar || navigationBarScrollOffset >= navigationBarHeight
             } else {
                 // Immediately finish any current animations.
                 tabBar.layer.removeAllAnimations()
@@ -678,7 +680,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
                         // Mark the tab bar as hidden if the navigation bar is fully scrolled.
                         tabBar.isHidden =
-                            isWebHidingTabBar || navigationBarScrollOffset >= navigationBarHeight
+                            isWebDisablingTabBar || navigationBarScrollOffset >= navigationBarHeight
                     }
                 )
             }

@@ -28,6 +28,7 @@ import {
     useState,
 } from "react";
 import {flushSync} from "react-dom";
+import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
 import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
 import {
     ContentEditorState,
@@ -521,6 +522,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     const navigate = useNavigate();
     const isMobile = useIsMobile();
+    const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const [canPrimaryInputHover, setCanPrimaryInputHover] = useState(
@@ -1746,7 +1748,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     phantomSelection={phantomSelection}
                 />
             ))}
-            {isMobile && !withoutMobileKeyboardToolbar && (
+            {isMobile && !isInertNativeMobileRoute && !withoutMobileKeyboardToolbar && (
                 <ContentEditorMobileKeyboardToolbar
                     ref={mobileKeyboardToolbarRef}
                     state={unwrap(state)}

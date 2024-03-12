@@ -1,6 +1,7 @@
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {mobileMaxScreenWidth, mobilePlatformMediaQuery} from "~/shared/design/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -26,6 +27,17 @@ export function useIsMobile(): boolean {
     }
 
     return isMobile;
+}
+
+/**
+ * Is this a mobile context? Doesn't listen for changes. Prefer `useIsMobile()`
+ * when possible. Definitely don't use this in React render methods.
+ *
+ * May also return a different value then what's in React context on the
+ * initial server-side render.
+ */
+export function getIsMobileWithoutListening(): boolean {
+    return !!NativeMobileBridge || window.matchMedia(mobilePlatformMediaQuery).matches;
 }
 
 export function IsMobileContextProvider({children}: {children?: ReactNode}) {

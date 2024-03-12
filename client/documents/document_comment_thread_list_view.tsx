@@ -11,9 +11,13 @@ import {
     useRef,
     useState,
 } from "react";
+import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {mobileBottomBarKeyboardToolbarHeightRem} from "~/client/design/mobile_bottom_bar.js";
 import {NavigationBarResult} from "~/client/design/navigation_bar.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useScrollToAvoidMobileKeyboard} from "~/client/design/use_scroll_to_avoid_mobile_keyboard.js";
 import {
     documentCommentInputMinHeight,
     documentCommentThreadActionsHeight,
@@ -33,6 +37,8 @@ import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
 import {renderMessageListItem} from "~/client/messaging/messaging_view.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {subscribeToMobileBottomBarFrameChange} from "~/client/remix/subscribe_to_mobile_bottom_bar_frame_change.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {VirtualizedTree} from "~/client/virtualized/helpers/virtualized_tree.js";
@@ -636,6 +642,16 @@ function DocumentCommentThreadListView(
 
     useImperativeHandle(ref, () => ({jumpToCommentIndex}), [jumpToCommentIndex]);
 
+    // Make sure the bottom of the scroll view stays visible when the keyboard
+    // opens and closes.
+    useScrollToAvoidMobileKeyboard(viewRef, {
+        isPinned: true,
+        getAnchorPosition: useCallback(
+            oldVisibleRect => ({top: oldVisibleRect.bottom, height: 0}),
+            [],
+        ),
+    });
+
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             if (header) {
@@ -807,6 +823,11 @@ function DocumentCommentThreadListView(
                             );
                         },
                         marginX: paddingX,
+                        shouldAddMarginBottom:
+                            isSingleMobileLayoutCommentThreadWithPinnedCommentInput &&
+                            index === tree.getItemCount() - 2
+                                ? "calc(var(--keyboard-safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px))"
+                                : undefined,
                         render: node => (
                             <div
                                 className={sprinkles({

@@ -42,9 +42,9 @@ import {
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {
-    isMobileKeyboardFrameChangeEnabled,
-    registerMobileBottomBar,
-} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
+    isMobileBottomBarFrameChangeEnabled,
+    registerMobileBottomBarFrame,
+} from "~/client/remix/subscribe_to_mobile_bottom_bar_frame_change.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -569,7 +569,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     useLayoutEffectWithoutServerSideWarning(() => {
         // If `registerMobileBottomBar()` does nothing then don't bother adding resize
         // event listeners.
-        if (!isMobileKeyboardFrameChangeEnabled) return;
+        if (!isMobileBottomBarFrameChangeEnabled) return;
 
         if (isInertNativeMobileRoute) return;
 
@@ -585,7 +585,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                 currentHeight = height;
 
                 const oldUnregister = unregister;
-                unregister = registerMobileBottomBar(height, {withKeyboardToolbar: true});
+                unregister = registerMobileBottomBarFrame(height, {withKeyboardToolbar: true});
 
                 // Make sure to unregister AFTER registering the new height. That way if the
                 // height didn't change there will be no update notifications.

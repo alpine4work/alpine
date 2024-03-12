@@ -30,7 +30,7 @@ export function MessagingTypingIndicators({
     typingStateByConnectionId: ImmutableMap<WebSocketConnectionId, MessagingTypingState>;
     marginX?: Spacing;
     shouldAddMarginTop?: boolean;
-    shouldAddMarginBottom?: boolean;
+    shouldAddMarginBottom?: boolean | string;
 }) {
     // Only select one typing state per account and sort typing states by their
     // start time so they appear in the order users started typing.
@@ -55,7 +55,11 @@ export function MessagingTypingIndicators({
             style={{
                 minHeight: messagingTypingIndicatorsMinHeight,
                 paddingTop: shouldAddMarginTop ? messageViewMarginY : undefined,
-                paddingBottom: shouldAddMarginBottom ? messagingViewMarginBottom : undefined,
+                paddingBottom: shouldAddMarginBottom
+                    ? typeof shouldAddMarginBottom === "string"
+                        ? shouldAddMarginBottom
+                        : messagingViewMarginBottom
+                    : undefined,
             }}
         >
             {typingStates.map(typingState => (

@@ -307,12 +307,6 @@ export const NativeMobileBridge: {
      */
     readonly navigationBar: {
         /**
-         * The height of the tab bar in pixels. The tab bar is implemented to animate
-         * at the same rate as the navigation bar.
-         */
-        readonly tabBarHeight: number;
-
-        /**
          * When the user is done scrolling, after about a second if the navigation bar
          * (and tab bar) are partially occluded we run an animation to completely hide
          * the navigation bar (and tab bar) or completely hide the navigation bar (and
@@ -331,21 +325,54 @@ export const NativeMobileBridge: {
          * bar. So reduce cross process chatter by only having web call native.
          */
         runScrollDebounceTimeout(): void;
+    };
+
+    /**
+     * Functions for synchronizing the native code tab bar with web code.
+     */
+    readonly tabBar: {
+        /**
+         * The height of the tab bar in pixels. The tab bar is implemented to animate
+         * at the same rate as the navigation bar.
+         */
+        readonly height: number;
 
         /**
-         * Hide the tab bar. The tab bar will only be show again once `showTabBar()`
-         * is called. If there are multiple calls to `hideTabBar()` you need that many
-         * calls to `showTabBar()` to reveal the tab bar again.
+         * That tab bar's current scroll offset. This is not updated synchronously with
+         * the tab bar but rather reconciled every ~100ms or so. Which is why
+         * "deferred" is in the name (name comes from [React's
+         * `useDeferredValue()`][1]). Useful if you need to know whether the tab bar is
+         * visible for some layout calculation just beware that you might get a stale
+         * value.
          *
-         * This function is dangerous! You must remember to call `showTabBar()` or else
-         * the app will feel broken as the user won't be able to access the tab bar.
+         * [1]: https://react.dev/reference/react/useDeferredValue
          */
-        hideTabBar(): void;
+        getDeferredScrollOffset(): number;
 
         /**
-         * Show the tab bar after it was hidden by `hideTabBar()`.
+         * Is the tab bar disabled by web code? So either `tabBar.disable()`
+         * was called or `keyboard.prepareForSubstitute()` was called.
+         *
+         * Will return true otherwise. So the tab bar may be hidden if the user has
+         * scrolled down but this function won't report that.
          */
-        showTabBar(): void;
+        isDisabled(): boolean;
+
+        /**
+         * Hide the tab bar. The tab bar will only be show again once `enable()`
+         * is called. If there are multiple calls to `disable()` you need that
+         * many calls to `enable()` to reveal the tab bar again.
+         *
+         * This function is dangerous! You must remember to call `enable()` or
+         * else the app will feel broken as the user won't be able to access the tab
+         * bar.
+         */
+        disable(): void;
+
+        /**
+         * Show the tab bar after it was hidden by `disable()`.
+         */
+        enable(): void;
     };
 
     /**

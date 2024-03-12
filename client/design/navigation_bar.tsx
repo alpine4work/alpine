@@ -31,7 +31,7 @@ import {
 } from "~/client/helpers/use_resize_observer.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {getIsMobileWithoutListening, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
     RemLength,
@@ -68,6 +68,18 @@ export const desktopNavigationBarHeightRem = parseRemLengthNumber(
 export const mobileNavigationBarHeightRem = parseRemLengthNumber(
     spacing[mobileNavigationBarHeight],
 );
+
+export function getNavigationBarHeightRemWithoutListening(): number {
+    if (getIsMobileWithoutListening()) {
+        return mobileNavigationBarHeightRem;
+    } else {
+        return desktopNavigationBarHeightRem;
+    }
+}
+
+export function getNavigationBarHeightPxWithoutListening(): number {
+    return getNavigationBarHeightRemWithoutListening() * getRemPxWithoutListening();
+}
 
 {
     // IMPORTANT: If you change this value, you must also change

@@ -1,5 +1,5 @@
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {mobilePlatformMediaQuery, remPxByPlatform} from "~/shared/design/spacing.js";
+import {getIsMobileWithoutListening, useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {remPxByPlatform} from "~/shared/design/spacing.js";
 
 /**
  * Get the number of pixels in 1rem.
@@ -19,7 +19,5 @@ export function useRemPx(): number {
  * screen size changes your component will re-render.
  */
 export function getRemPxWithoutListening(): number {
-    return window.matchMedia(mobilePlatformMediaQuery).matches
-        ? remPxByPlatform.mobile
-        : remPxByPlatform.desktop;
+    return getIsMobileWithoutListening() ? remPxByPlatform.mobile : remPxByPlatform.desktop;
 }

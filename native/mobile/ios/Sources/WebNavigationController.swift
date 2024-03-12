@@ -24,7 +24,7 @@ private let logger = Logger(
     )
     @objc optional func webNavigationController(
         _ webNavigationController: WebNavigationController,
-        didHideTabBarChange hideTabBar: Bool,
+        didDisableTabBarChange disableTabBar: Bool,
         isAnimated: Bool
     )
     @objc optional func webNavigationController(
@@ -192,6 +192,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     private var tabBarScrollOffset = 0.0
     private var navigationBarScrollOffset = 0.0
+    private var tabBarScrollOffsetReconcileTimer: Timer?
+
     private var keyboardOffsetWithoutToolbar = 0.0 {
         didSet {
             // Don't allow popping view controllers while the keyboard is open. You must
@@ -214,12 +216,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var keyboardOffset: Double {
         keyboardOffsetWithoutToolbar
             // If there's a keyboard toolbar then it "covers" the visible rectangle.
-            + (webBottomBarViews.contains(where: { (webBottomBarView, webBottomBarViewState) in
-                switch webBottomBarViewState.type {
-                case .normal(let withKeyboardToolbar): withKeyboardToolbar
-                case .keyboardToolbar: true
-                }
-            }) ? bottomBarKeyboardToolbarHeight : 0)
+            + (keyboardOffsetWithoutToolbar > 0
+                && webBottomBarViews.contains(where: { (webBottomBarView, webBottomBarViewState) in
+                    switch webBottomBarViewState.type {
+                    case .normal(let withKeyboardToolbar): withKeyboardToolbar
+                    case .keyboardToolbar: true
+                    }
+                }) ? bottomBarKeyboardToolbarHeight : 0)
     }
 
     private var lastApplicationDidBecomeActiveNotificationTime: DispatchTime?
@@ -229,21 +232,21 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var theme50Color = UIColor(named: "indigo-50")!
     private var theme60Color = UIColor(named: "indigo-60")!
 
-    private var hideTabBarCount = 0 {
+    private var disableTabBarCount = 0 {
         didSet {
-            let oldHideTabBar = oldValue > 0
-            let newHideTabBar = hideTabBarCount > 0
+            let oldDisableTabBar = oldValue > 0
+            let newDisableTabBar = disableTabBarCount > 0
 
-            if oldHideTabBar != newHideTabBar {
+            if oldDisableTabBar != newDisableTabBar {
                 logger.info(
-                    "Hide tab bar count updated: \(self.hideTabBarCount) (\(self.hideTabBarCount > 0 ? "hiding" : "showing"))"
+                    "Hide tab bar count updated: \(self.disableTabBarCount) (\(self.disableTabBarCount > 0 ? "hiding" : "showing"))"
                 )
             }
 
-            if oldHideTabBar != newHideTabBar {
+            if oldDisableTabBar != newDisableTabBar {
                 webDelegate?.webNavigationController?(
                     self,
-                    didHideTabBarChange: newHideTabBar,
+                    didDisableTabBarChange: newDisableTabBar,
                     isAnimated: isNavigationAnimating || transitionCoordinator != nil
                 )
             }
@@ -256,10 +259,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 if case .closed = keyboardWebSubstituteState {
                     // noop
                 } else {
-                    hideTabBarCount += 1
+                    disableTabBarCount += 1
                 }
             } else {
-                if case .closed = keyboardWebSubstituteState { hideTabBarCount -= 1 }
+                if case .closed = keyboardWebSubstituteState { disableTabBarCount -= 1 }
             }
         }
     }
@@ -715,8 +718,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // reset the substitute opened by the previous web process. Reset it here.
         cleanupAfterKeyboardWebSubstitute()
 
-        // Reset any `hideTabBar()` calls after we finish loading.
-        hideTabBarCount = 0
+        // Clear tab bar state for view controllers since after a reload each route
+        // doesn't remember its scroll state.
+        for viewController in viewControllers {
+            (viewController as! WebNavigationEntryController).entry.tabBarState = nil
+        }
+
+        // Reset any `disableTabBar()` calls after we finish loading.
+        disableTabBarCount = 0
     }
 
     func webView(
@@ -1136,10 +1145,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             )
         } else if messageBody == "editMenu.disableAddCommentAction" {
             setSwizzledWKWebViewAddCommentEditMenuAction(webView, action: nil)
-        } else if messageBody == "navigationBar.hideTabBar" {
-            hideTabBarCount += 1
-        } else if messageBody == "navigationBar.showTabBar" {
-            hideTabBarCount -= 1
+        } else if messageBody == "tabBar.disable" {
+            disableTabBarCount += 1
+        } else if messageBody == "tabBar.enable" {
+            disableTabBarCount -= 1
         } else {
             logger.warning("Received unrecognized message from web view: \(messageBody)")
         }
@@ -1622,6 +1631,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 --safe-area-inset-left: \(safeAreaInsets.left)px;
                 --safe-area-inset-right: \(safeAreaInsets.right)px;
                 --window-safe-area-inset-bottom: \(windowSafeAreaInsets.bottom)px;
+                --keyboard-safe-area-inset-bottom: \(max(keyboardOffset, windowSafeAreaInsets.bottom))px;
             }
             """
 
@@ -1871,6 +1881,39 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         if lastNavigationBarScrollOffset != navigationBarScrollOffset {
             updateAllWebMaskedViewMasks()
         }
+
+        tabBarScrollOffsetReconcileTimer?.invalidate()
+        tabBarScrollOffsetReconcileTimer = nil
+
+        let reconcileTimer = Timer(
+            // If we are in a `UIView.animate` block (e.g. when the tab bar is
+            // fully opening/closing) then `UIView.inheritedAnimationDuration` will be the
+            // duration of that animation block. We shouldn't reconcile until the end of
+            // the animation block.
+            //
+            // If we are not in a `UIView.animate` block then
+            // `UIView.inheritedAnimationDuration` will be 0. In that case we want to
+            // debounce with a duration of 100ms.
+            timeInterval: max(0.1, UIView.inheritedAnimationDuration),
+            repeats: false
+        ) { [self] (_) in
+            webView.evaluateJavaScript(
+                "window.__NativeMobileBridge.tabBar._scrollOffset = \(tabBarScrollOffset)"
+            )
+        }
+
+        // Add some tolerance to reduce timer energy impact.
+        reconcileTimer.tolerance = 0.05
+
+        // We need to add our timer to the common run loop mode so it can execute
+        // even while a gesture is occuring.
+        //
+        // For more information about run loops:
+        // https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/Multithreading/RunLoopManagement/RunLoopManagement.html
+        RunLoop.current.add(reconcileTimer, forMode: .common)
+
+        tabBarScrollOffsetReconcileTimer = reconcileTimer
+
     }
 
     private func updateAllWebBottomBarFrames() {
@@ -2588,6 +2631,9 @@ private let webBridgeSource = """
         let scheduledAfterNavigationAnimationCallbacks = [];
         let scheduledAfterKeyboardAnimationCallbacks = [];
 
+        let disableTabBarCount = 0;
+        let isKeyboardSubstituteOpen = false;
+
         let nextCallbackId = 0;
         const callbackById = new Map();
 
@@ -2704,15 +2750,26 @@ private let webBridgeSource = """
                 },
             },
             navigationBar: {
-                tabBarHeight: \(UITabBarController().tabBar.frame.height),
                 runScrollDebounceTimeout: () => {
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigationBar.runScrollDebounceTimeout");
                 },
-                hideTabBar: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigationBar.hideTabBar");
+            },
+            tabBar: {
+                height: \(UITabBarController().tabBar.frame.height),
+                _scrollOffset: 0,
+                getDeferredScrollOffset: () => {
+                    return NativeMobileBridge.tabBar._scrollOffset;
                 },
-                showTabBar: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigationBar.showTabBar");
+                isDisabled: () => {
+                    return disableTabBarCount > 0;
+                },
+                disable: () => {
+                    disableTabBarCount += 1;
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("tabBar.disable");
+                },
+                enable: () => {
+                    disableTabBarCount -= 1;
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("tabBar.enable");
                 },
             },
             keyboard: {
@@ -2734,9 +2791,19 @@ private let webBridgeSource = """
                     }
                 },
                 prepareForSubstitute: () => {
+                    if (!isKeyboardSubstituteOpen) {
+                        disableTabBarCount += 1;
+                    }
+                    isKeyboardSubstituteOpen = true;
+
                     return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.prepareForSubstitute");
                 },
                 cleanupAfterSubstitute: () => {
+                    if (isKeyboardSubstituteOpen) {
+                        disableTabBarCount -= 1;
+                    }
+                    isKeyboardSubstituteOpen = false;
+
                     return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.cleanupAfterSubstitute");
                 },
                 scheduleAfterAnimation: action => {

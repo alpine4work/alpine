@@ -17,10 +17,10 @@ import {
 } from "~/client/design/mobile_modal.js";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
-import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useScrollToAvoidMobileKeyboard} from "~/client/design/use_scroll_to_avoid_mobile_keyboard.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {
     DocumentCommentThreadListView,
@@ -50,14 +50,8 @@ import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js"
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {subscribeToMobileKeyboardFrameChange} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {
-    addRemLengths,
-    convertRemLengthToPx,
-    parseRemLengthNumber,
-    spacing,
-} from "~/shared/design/spacing.js";
+import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,
@@ -922,57 +916,32 @@ function DocumentContentEditorStateful({
 
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
 
-    useEffect(() => {
-        if (isInertNativeMobileRoute) return;
+    useScrollToAvoidMobileKeyboard(editorContainerRef, {
+        // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on
+        //   initial render.
+        // - Disable on `sidebarState.isOpen` since the comment view should be
+        //   scrolling not the document.
+        isDisabled: isInitialAppRender || sidebarState.isOpen,
+        getAnchorPosition: useCallback(() => {
+            const editor = assertExists(editorRef.current);
+            const editorState = editor.getState();
 
-        // `coordsAtPos()` won't work on initial render.
-        if (isInitialAppRender) return;
+            const coords = editor.coordsAtPos(editorState.getSelection().from);
 
-        return subscribeToMobileKeyboardFrameChange(
-            ({newKeyboardHeight, oldKeyboardHeight, shouldScroll, isAnimated}) => {
-                if (!shouldScroll) return;
+            const paragraphLineHeight = convertRemLengthToPx(
+                contentSchemaStyles.paragraphLineHeight,
+                getRemPxWithoutListening(),
+            );
 
-                const keyboardHeightDelta = newKeyboardHeight - oldKeyboardHeight;
-
-                if (keyboardHeightDelta <= 0) return;
-
-                const remPx = getRemPxWithoutListening();
-
-                const paragraphLineHeight =
-                    parseRemLengthNumber(contentSchemaStyles.paragraphLineHeight) * remPx;
-
-                const editorContainerElement = assertExists(editorContainerRef.current);
-                const editor = assertExists(editorRef.current);
-                const editorState = editor.getState();
-
-                const coords = editor.coordsAtPos(editorState.getSelection().from);
-
-                const willSelectionBeOffScreen =
-                    window.innerHeight - coords.bottom <
-                    newKeyboardHeight +
-                        // Some slop. We consider the selection offscreen if there's less than a line
-                        // of space between it and the keyboard.
-                        paragraphLineHeight;
-
-                if (!willSelectionBeOffScreen) return;
-
-                const insetTop = getElementSafeAreaInsetTopPx(editorContainerElement);
-                const insetBottom = newKeyboardHeight;
-
-                const idealTop =
-                    insetTop +
-                    (window.innerHeight - insetBottom - insetTop) / 2 -
-                    paragraphLineHeight;
-                const scrollDelta = coords.top - idealTop;
-
-                editorContainerElement.scrollTo({
-                    top: editorContainerElement.scrollTop + scrollDelta,
-                    behavior:
-                        scrollDelta > paragraphLineHeight || isAnimated ? "smooth" : "instant",
-                });
-            },
-        );
-    }, [isInertNativeMobileRoute, isInitialAppRender]);
+            // Add a paragraph line height in either direction as slop. We consider the
+            // selection offscreen if there's less than a line of space between it and the
+            // keyboard.
+            return {
+                top: coords.top - paragraphLineHeight,
+                height: coords.bottom - coords.top + paragraphLineHeight * 2,
+            };
+        }, []),
+    });
 
     useEffect(() => {
         if (!NativeMobileBridge) return;
@@ -1036,29 +1005,29 @@ function DocumentContentEditorStateful({
 
     // Hide the tab bar when the sidebar is open. Sidebar is render as a bottom
     // sheet on mobile.
-    const hasHiddenNativeMobileTabBarRef = useRef(false);
+    const hasDisabledNativeMobileTabBarRef = useRef(false);
     useEffect(() => {
         if (!NativeMobileBridge) return;
 
         if (isInertNativeMobileRoute || !withMobileLayout || !sidebarState.isOpen) {
-            if (hasHiddenNativeMobileTabBarRef.current) {
-                hasHiddenNativeMobileTabBarRef.current = false;
-                NativeMobileBridge.navigationBar.showTabBar();
+            if (hasDisabledNativeMobileTabBarRef.current) {
+                hasDisabledNativeMobileTabBarRef.current = false;
+                NativeMobileBridge.tabBar.enable();
             }
             return;
         }
 
-        if (!hasHiddenNativeMobileTabBarRef.current) {
-            hasHiddenNativeMobileTabBarRef.current = true;
-            NativeMobileBridge.navigationBar.hideTabBar();
+        if (!hasDisabledNativeMobileTabBarRef.current) {
+            hasDisabledNativeMobileTabBarRef.current = true;
+            NativeMobileBridge.tabBar.disable();
         }
 
         return () => {
-            // If the component unmounts, we need to show the tab bar.
+            // If the component unmounts, we need to enable the tab bar.
             if (!isMounted()) {
-                if (hasHiddenNativeMobileTabBarRef.current) {
-                    hasHiddenNativeMobileTabBarRef.current = false;
-                    NativeMobileBridge!.navigationBar.showTabBar();
+                if (hasDisabledNativeMobileTabBarRef.current) {
+                    hasDisabledNativeMobileTabBarRef.current = false;
+                    NativeMobileBridge!.tabBar.enable();
                 }
             }
         };
@@ -1217,6 +1186,9 @@ function DocumentContentEditorStateful({
                                 aria-label="Document"
                                 placeholder="Share your ideas…"
                                 withMobileLayout={withMobileLayout}
+                                // While the sidebar is open, don't render our document toolbar. It would be
+                                // weird for it to pop up when writing a comment.
+                                withoutMobileKeyboardToolbar={sidebarState.isOpen}
                                 className={documentContentClassName}
                                 phantomSelections={phantomSelections}
                                 openCommentThread={openCommentThread}

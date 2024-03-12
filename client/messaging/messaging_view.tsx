@@ -13,13 +13,11 @@ import {
     useRef,
     useState,
 } from "react";
-import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {useAppContext} from "~/client/context/app_context.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
-import {mobileBottomBarKeyboardToolbarHeightRem} from "~/client/design/mobile_bottom_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useScrollToAvoidMobileKeyboard} from "~/client/design/use_scroll_to_avoid_mobile_keyboard.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {MessageEditing, useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageInput} from "~/client/messaging/message_input.js";
@@ -37,8 +35,6 @@ import {
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
-import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {subscribeToMobileKeyboardFrameChange} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
     VirtualizedScrollView,
@@ -558,91 +554,15 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         ),
     });
 
-    const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
-
-    useEffect(() => {
-        if (isInertNativeMobileRoute) return;
-
-        // TODO(calebmer, 2024-03-04): There's a bug here in iOS where when you focus a
-        // message input at the bottom of a chat, then press return then press delete
-        // the scroll position isn't put back into the right place. If you add some
-        // logs, it would appear that there's a scroll event coming from the browser
-        // itself! I suspect this is due to Safari on iOS not implementing
-        // [`overflow-anchor: none`][1].
-        //
-        // [1]: https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-anchor
-        return subscribeToMobileKeyboardFrameChange(
-            ({
-                newKeyboardHeight,
-                oldKeyboardHeight,
-                newBottomBarHeight,
-                oldBottomBarHeight,
-                shouldScroll,
-                isAnimated,
-            }) => {
-                const view = assertExists(viewRef.current);
-
-                if (!shouldScroll) return;
-
-                const remPx = getRemPxWithoutListening();
-
-                // Don't include tab bar height or message input height in covered height delta
-                // since they don't overlap with messaging view content.
-                const coveredKeyboardHeightDelta =
-                    Math.max(0, newKeyboardHeight - oldBottomBarHeight) -
-                    Math.max(0, oldKeyboardHeight - oldBottomBarHeight);
-
-                // So the keyboard toolbar isn't occluding any message content, add some safe
-                // area but just to the virtualized scroll view.
-                //
-                // Note this only works in mobile WebKit where we actually have a virtual
-                // keyboard. If you try this in desktop Safari (with a small screen size) or
-                // desktop Chrome (with a small screen size) the message input occludes
-                // content.
-                //
-                // NOTE(calebmer, 2024-03-01): Maybe we should still use pointer toolbars for
-                // `<ContentEditor>` instead of keyboard toolbars if the primary input device
-                // can hover?
-                if (!NativeMobileBridge) {
-                    if (
-                        newKeyboardHeight > newBottomBarHeight &&
-                        !(oldKeyboardHeight > oldBottomBarHeight)
-                    ) {
-                        view.getElement().style.setProperty(
-                            "--safe-area-inset-bottom",
-                            `${mobileBottomBarKeyboardToolbarHeightRem * remPx}px`,
-                        );
-                    }
-
-                    if (
-                        oldKeyboardHeight > oldBottomBarHeight &&
-                        !(newKeyboardHeight > newBottomBarHeight)
-                    ) {
-                        view.getElement().style.removeProperty("--safe-area-inset-bottom");
-                    }
-                }
-
-                // NOTE(calebmer, 2024-03-01 1:32PM): On mobile iOS the browser appears to be
-                // sneakily sometimes adjusting scroll offset during the resize event which
-                // triggers this function when the keyboard is closing. So instead of reading
-                // `element.scrollTop`, use our component's internal scroll offset tracker
-                // which has the scroll offset from before this sneaky change.
-                //
-                // NOTE(calebmer, 2024-03-01 1:43PM): I just added the code which sets/removes
-                // `--safe-area-inset-bottom` above. Now if I try `view.getScrollOffset()` it
-                // appears to work. I'm going to leave as-is, though, in case another issue
-                // resurfaces where the browser tries to unexpectedly update the scroll offset.
-                // If you have a reason to switch to `view.getScrollOffset()`, test first but
-                // probably will be safe.
-                const scrollOffset =
-                    view._getInternalLastScrollOffset() + coveredKeyboardHeightDelta;
-
-                view.setScrollOffset(scrollOffset, {
-                    behavior: isAnimated ? "smooth" : "instant",
-                });
-            },
-        );
-    }, [isInertNativeMobileRoute]);
+    // Make sure the bottom of the scroll view stays visible when the keyboard
+    // opens and closes.
+    useScrollToAvoidMobileKeyboard(viewRef, {
+        isPinned: true,
+        getAnchorPosition: useCallback(
+            oldVisibleRect => ({top: oldVisibleRect.bottom, height: 0}),
+            [],
+        ),
+    });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
@@ -810,7 +730,7 @@ export function renderMessageListItem<
     getMessageUrl: (messageIndex: number) => URL;
     roomDisplayedCreatedTime?: Date | undefined;
     shouldAddMarginTop?: boolean;
-    shouldAddMarginBottom?: boolean;
+    shouldAddMarginBottom?: boolean | string;
     marginX?: Spacing;
     render?: (node: ReactNode) => ReactElement;
 }): VirtualizedScrollViewItem {
@@ -927,7 +847,14 @@ export function renderMessageListItem<
                                 {shouldAddMarginTop && <Spacer space={messageViewMarginY} />}
                                 {render(isScrolling)}
                                 {shouldAddMarginBottom && (
-                                    <div style={{height: messagingViewMarginBottom}} />
+                                    <div
+                                        style={{
+                                            height:
+                                                typeof shouldAddMarginBottom === "string"
+                                                    ? shouldAddMarginBottom
+                                                    : messagingViewMarginBottom,
+                                        }}
+                                    />
                                 )}
                             </div>
                         );
@@ -937,7 +864,14 @@ export function renderMessageListItem<
                                 {shouldAddMarginTop && <Spacer space={messageViewMarginY} />}
                                 {render(isScrolling)}
                                 {shouldAddMarginBottom && (
-                                    <div style={{height: messagingViewMarginBottom}} />
+                                    <div
+                                        style={{
+                                            height:
+                                                typeof shouldAddMarginBottom === "string"
+                                                    ? shouldAddMarginBottom
+                                                    : messagingViewMarginBottom,
+                                        }}
+                                    />
                                 )}
                             </>,
                         );

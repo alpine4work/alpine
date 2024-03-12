@@ -86,6 +86,7 @@ export function ContentEditorMobileCommentInputBottomBar({onClose}: {onClose: ()
                     })}
                 >
                     <MessageInputBase
+                        messageNoun="comment"
                         editorRef={editorRef}
                         isBottomBar={true}
                         withMobileLayout={true}
