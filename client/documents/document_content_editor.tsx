@@ -25,6 +25,7 @@ import {
     mobileModalAnimationDurationMs,
     mobileModalAnimationEasingParsedCubicBezier,
 } from "~/client/design/mobile_modal.js";
+import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
@@ -47,7 +48,7 @@ import {
     useDocumentContentEditorWebSocket,
 } from "~/client/documents/use_document_content_editor_web_socket.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -108,9 +109,6 @@ import {
     inputPlaceholderStyles,
     spinAnimationClassName,
 } from "~/shared/styles/styles.js";
-
-// NOCOMMIT: Ask user to confirm before collapsing comment thread when they
-// have some content in message input?
 
 export const documentContentEditorSidebarWidth = spacing["96"];
 const documentContentEditorMobileSidebarInsetTop = "48";
@@ -904,43 +902,91 @@ function DocumentContentEditorStateful({
         };
     }, [context.tracer, sidebarState.transition]);
 
-    const onSidebarClose = useCallback(() => {
-        setSidebarState(sidebarState => {
-            if (!sidebarState.isOpen) return sidebarState;
-            return {...sidebarState, animationState: "Closing" as const};
-        });
-    }, []);
+    const [
+        mobileDiscardSidebarCommentInputModalState,
+        setMobileDiscardSidebarCommentInputModalState,
+    ] = useState<{onDiscard: () => void} | null>(null);
 
-    const onSidebarMobileFullScreenExpand = useCallback(
-        ({shouldFocusCommentInput}: {shouldFocusCommentInput: boolean}) => {
-            setSidebarState(sidebarState => {
-                if (!sidebarState.isOpen) return sidebarState;
-                if (sidebarState.mobileState.isFullScreen) return sidebarState;
-
-                return {
-                    ...sidebarState,
-                    mobileState: {
-                        isFullScreen: true,
-                        animationState: "Expanding",
-                        shouldFocusCommentInputRef: {current: shouldFocusCommentInput},
-                    },
+    const {onSidebarClose, onSidebarMobileFullScreenExpand, onSidebarMobileFullScreenContract} =
+        useEvents({
+            onSidebarClose: () => {
+                const run = () => {
+                    setSidebarState(sidebarState => {
+                        if (!sidebarState.isOpen) return sidebarState;
+                        return {...sidebarState, animationState: "Closing" as const};
+                    });
                 };
-            });
-        },
-        [],
-    );
 
-    const onSidebarMobileFullScreenContract = useCallback(() => {
-        setSidebarState(sidebarState => {
-            if (!sidebarState.isOpen) return sidebarState;
-            if (!sidebarState.mobileState.isFullScreen) return sidebarState;
+                // If the user is in a fullscreen comment thread, warn if they try to exit
+                // without sending a comment they've typed in.
+                //
+                // We do this mostly since the fake comment input rendered when the comment
+                // thread is open but not fullscreen will always be empty. So when returning to
+                // that state we want to actually empty out the underlying comment input.
+                if (
+                    sidebarState.isOpen &&
+                    sidebarState.mobileState.isFullScreen &&
+                    !pinnedCommentInputRef.current?.isEmpty()
+                ) {
+                    setMobileDiscardSidebarCommentInputModalState({onDiscard: run});
+                    return;
+                }
 
-            return {
-                ...sidebarState,
-                mobileState: {...sidebarState.mobileState, animationState: "Contracting"},
-            };
+                run();
+            },
+            onSidebarMobileFullScreenExpand: ({
+                shouldFocusCommentInput,
+            }: {
+                shouldFocusCommentInput: boolean;
+            }) => {
+                setSidebarState(sidebarState => {
+                    if (!sidebarState.isOpen) return sidebarState;
+                    if (sidebarState.mobileState.isFullScreen) return sidebarState;
+
+                    return {
+                        ...sidebarState,
+                        mobileState: {
+                            isFullScreen: true,
+                            animationState: "Expanding",
+                            shouldFocusCommentInputRef: {current: shouldFocusCommentInput},
+                        },
+                    };
+                });
+            },
+            onSidebarMobileFullScreenContract: () => {
+                const run = () => {
+                    setSidebarState(sidebarState => {
+                        if (!sidebarState.isOpen) return sidebarState;
+                        if (!sidebarState.mobileState.isFullScreen) return sidebarState;
+
+                        return {
+                            ...sidebarState,
+                            mobileState: {
+                                ...sidebarState.mobileState,
+                                animationState: "Contracting",
+                            },
+                        };
+                    });
+                };
+
+                // If the user is in a fullscreen comment thread, warn if they try to exit
+                // without sending a comment they've typed in.
+                //
+                // We do this mostly since the fake comment input rendered when the comment
+                // thread is open but not fullscreen will always be empty. So when returning to
+                // that state we want to actually empty out the underlying comment input.
+                if (
+                    sidebarState.isOpen &&
+                    sidebarState.mobileState.isFullScreen &&
+                    !pinnedCommentInputRef.current?.isEmpty()
+                ) {
+                    setMobileDiscardSidebarCommentInputModalState({onDiscard: run});
+                    return;
+                }
+
+                run();
+            },
         });
-    }, []);
 
     /* ========================================================================== *\
      *                        Comment decoration collection                       *
@@ -1772,6 +1818,18 @@ function DocumentContentEditorStateful({
                                 </>
                             )}
                     </>
+                )}
+                {mobileDiscardSidebarCommentInputModalState && (
+                    <ModalDialog
+                        title="Discard comment?"
+                        description="Continuing will discard your comment. Use the send button to save your comment."
+                        primaryButtonLabel="Discard"
+                        onClose={() => setMobileDiscardSidebarCommentInputModalState(null)}
+                        onPrimaryButtonPress={() => {
+                            pinnedCommentInputRef.current?.clear();
+                            mobileDiscardSidebarCommentInputModalState.onDiscard();
+                        }}
+                    />
                 )}
                 {useMemo(
                     // We style hovered and active comments with a `<style>` element containing

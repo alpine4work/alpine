@@ -128,6 +128,8 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
 
 export type MessageInputRef = {
     focus(): void;
+    isEmpty(): boolean;
+    clear(): void;
 };
 
 const MessageInputForwardRef = forwardRef(MessageInput) as <
@@ -175,6 +177,13 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         () => ({
             focus: () => {
                 assertExists(editorRef.current).focus();
+            },
+            isEmpty: () => {
+                const editor = assertExists(editorRef.current);
+                return isContentEmpty(editor.getState().getDoc());
+            },
+            clear: () => {
+                setState(ContentEditorState.create(emptyMessageContentWithReferences));
             },
         }),
         [],
