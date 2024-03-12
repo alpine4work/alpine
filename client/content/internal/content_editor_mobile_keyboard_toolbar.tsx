@@ -571,6 +571,8 @@ function ContentEditorMobileKeyboardToolbar(
             )}
             {schema.marks.comment && isCommentInputOpen && (
                 <ContentEditorMobileCommentInputBottomBar
+                    state={state}
+                    viewRef={viewRef}
                     onClose={() => setIsCommentInputOpen(false)}
                 />
             )}

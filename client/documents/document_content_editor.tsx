@@ -1517,13 +1517,15 @@ function DocumentContentEditorStateful({
                                     const createCommentThread: {
                                         commentThreadId: DocumentCommentThreadId;
                                         initialCommentContent: MessageContentWithReferences;
-                                        openCommentThreadPromiseRef: {
+                                        openCommentThreadPromiseRef?: {
                                             current: Promise<void> | null;
                                         };
                                     } | null =
                                         transaction.getMeta(createCommentThreadMetaKey) ?? null;
+
                                     if (
                                         createCommentThread &&
+                                        createCommentThread.openCommentThreadPromiseRef &&
                                         sidebarState.isOpen &&
                                         sidebarState.animationState !== "Closing"
                                     ) {

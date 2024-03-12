@@ -1,25 +1,45 @@
-import {useEffect, useRef, useState} from "react";
+import {EditorState} from "prosemirror-state";
+import {EditorView} from "prosemirror-view";
+import {RefObject, useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import {ContentEditorRef} from "~/client/content/content_editor.js";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {
+    ContentEditorState,
+    createCommentThreadMetaKey,
+    updateContentEditorReferences,
+} from "~/client/content/content_editor_state.js";
 import {Box} from "~/client/design/box.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageInputBase} from "~/client/messaging/message_input.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {generateId} from "~/shared/id/id.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentWithReferences,
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
+import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 
-export function ContentEditorMobileCommentInputBottomBar({onClose}: {onClose: () => void}) {
+export function ContentEditorMobileCommentInputBottomBar({
+    state: documentState,
+    viewRef: documentViewRef,
+    onClose,
+}: {
+    state: EditorState;
+    viewRef: RefObject<EditorView | null>;
+    onClose: () => void;
+}) {
     const rootPortalElement = assertExists(
         useOverlayRootPortalElement(),
         "Can't server render `<ContentEditorMobileCommentInputBottomBar>`",
     );
+
+    const {currentAccount} = useSpaceContext();
 
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
@@ -45,6 +65,41 @@ export function ContentEditorMobileCommentInputBottomBar({onClose}: {onClose: ()
     useEffect(() => {
         setIsInitialRender(false);
     }, []);
+
+    const sendComment = () => {
+        const content = state.getContent();
+        if (isContentEmpty(content.doc)) return;
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+        const trimmedDocumentRange = trimSpacesFromProsemirrorRange(
+            documentState.doc,
+            documentState.selection,
+        );
+
+        assertExists(documentViewRef.current).dispatch(
+            updateContentEditorReferences(
+                documentState.tr
+                    .addMark(
+                        trimmedDocumentRange.from,
+                        trimmedDocumentRange.to,
+                        documentState.schema.mark("comment", {commentThreadId}),
+                    )
+                    .setMeta(createCommentThreadMetaKey, {
+                        commentThreadId,
+                        initialCommentContent: content,
+                    })
+                    .scrollIntoView(),
+                {
+                    type: "UpdateDocumentCommentThread",
+                    commentThreadId,
+                    commentCount: 1,
+                    addCommentAuthor: currentAccount,
+                },
+            ),
+        );
+
+        onClose();
+    };
 
     return (
         <>
@@ -92,9 +147,7 @@ export function ContentEditorMobileCommentInputBottomBar({onClose}: {onClose: ()
                         withMobileLayout={true}
                         state={state}
                         onChange={setState}
-                        onSend={() => {
-                            // NOCOMMIT: Implement!
-                        }}
+                        onSend={sendComment}
                     />
                 </Box>,
                 rootPortalElement,
