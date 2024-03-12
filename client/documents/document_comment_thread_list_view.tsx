@@ -11,9 +11,6 @@ import {
     useRef,
     useState,
 } from "react";
-import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
-import {mobileBottomBarKeyboardToolbarHeightRem} from "~/client/design/mobile_bottom_bar.js";
 import {NavigationBarResult} from "~/client/design/navigation_bar.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
@@ -33,12 +30,11 @@ import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
+import {MessageInputRef} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
 import {renderMessageListItem} from "~/client/messaging/messaging_view.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
-import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {subscribeToMobileBottomBarFrameChange} from "~/client/remix/subscribe_to_mobile_bottom_bar_frame_change.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {VirtualizedTree} from "~/client/virtualized/helpers/virtualized_tree.js";
@@ -96,6 +92,11 @@ const DocumentCommentThreadListViewForwardRef = forwardRef(DocumentCommentThread
 export {DocumentCommentThreadListViewForwardRef as DocumentCommentThreadListView};
 
 export type DocumentCommentThreadListViewRef = {
+    getHeight(): number;
+    getContentHeight(): number;
+    getScrollOffset(): number;
+    setScrollOffset(scrollOffset: number, options?: {behavior?: "instant" | "smooth"}): void;
+
     /**
      * Jump to the provided comment. If the comment thread or comment do
      * not exist this will do nothing.
@@ -223,6 +224,8 @@ function DocumentCommentThreadListView(
         header,
         navigationBar,
         scrollbarInsetTop,
+        pinnedCommentInputRef,
+        backgroundSlopBottomIfPinnedCommentInput,
     }: {
         documentId: DocumentId;
         content: DocumentContentWithReferences;
@@ -288,6 +291,26 @@ function DocumentCommentThreadListView(
          * Inset the scrollbar by this much. Passed to the underlying scroll view.
          */
         scrollbarInsetTop?: ScrollbarInsetDynamic;
+
+        /**
+         * A ref to the pinned comment input if we have a pinned comment input.
+         *
+         * There's a pinned comment input when the comment thread list view is using a
+         * mobile layout and there's only one comment thread.
+         */
+        pinnedCommentInputRef?: Ref<MessageInputRef>;
+
+        /**
+         * Add some background slop if there's a pinned comment input.
+         *
+         * This background slop is used to implement full-screenable comment threads on
+         * mobile. When you open a comment thread in a document we start by showing you
+         * just a preview. If you tap the comment input then the thread should expand
+         * to take the full screen. Since animating `height` is expensive, we instead
+         * animate `translateY`. So the comment thread is actually always the
+         * fullscreen size but when collapsed we have offscreen slop.
+         */
+        backgroundSlopBottomIfPinnedCommentInput?: RemLength;
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
@@ -640,7 +663,17 @@ function DocumentCommentThreadListView(
         [jumpToCommentIndex],
     );
 
-    useImperativeHandle(ref, () => ({jumpToCommentIndex}), [jumpToCommentIndex]);
+    useImperativeHandle(
+        ref,
+        () => ({
+            getHeight: () => assertExists(viewRef.current).getHeight(),
+            getContentHeight: () => assertExists(viewRef.current).getContentHeight(),
+            getScrollOffset: () => assertExists(viewRef.current).getScrollOffset(),
+            setScrollOffset: (...args) => assertExists(viewRef.current).setScrollOffset(...args),
+            jumpToCommentIndex,
+        }),
+        [jumpToCommentIndex],
+    );
 
     // Make sure the bottom of the scroll view stays visible when the keyboard
     // opens and closes.
@@ -650,6 +683,10 @@ function DocumentCommentThreadListView(
             oldVisibleRect => ({top: oldVisibleRect.bottom, height: 0}),
             [],
         ),
+        // Don't consider the background slop as valid scrollable area...
+        scrollableInsetBottom: isSingleMobileLayoutCommentThreadWithPinnedCommentInput
+            ? backgroundSlopBottomIfPinnedCommentInput
+            : undefined,
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -826,7 +863,9 @@ function DocumentCommentThreadListView(
                         shouldAddMarginBottom:
                             isSingleMobileLayoutCommentThreadWithPinnedCommentInput &&
                             index === tree.getItemCount() - 2
-                                ? "calc(var(--keyboard-safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px))"
+                                ? backgroundSlopBottomIfPinnedCommentInput
+                                    ? `calc(var(--keyboard-safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px) + ${backgroundSlopBottomIfPinnedCommentInput})`
+                                    : "calc(var(--keyboard-safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px))"
                                 : undefined,
                         render: node => (
                             <div
@@ -1020,10 +1059,10 @@ function DocumentCommentThreadListView(
             header,
             tree,
             documentId,
+            withoutCommentThreadPreview,
             isSingleMobileLayoutCommentThreadWithPinnedCommentInput,
             paddingX,
             unpersistedIsResolvedByCommentThreadId,
-            withoutCommentThreadPreview,
             contentSnippetByCommentThreadId,
             content.references,
             onCommentThreadSnippetPress,
@@ -1031,6 +1070,7 @@ function DocumentCommentThreadListView(
             messageEditing,
             highlightComment,
             handleJumpToComment,
+            backgroundSlopBottomIfPinnedCommentInput,
             space.id,
             replyingToCommentIndexByCommentThreadId,
             isConnected,
@@ -1056,6 +1096,11 @@ function DocumentCommentThreadListView(
                     ref={viewRef}
                     elementRef={navigationBar?.scrollViewRef}
                     scrollbarInsetTop={scrollbarInsetTop ?? navigationBar?.scrollbarInsetTop}
+                    scrollbarInsetBottom={
+                        isSingleMobileLayoutCommentThreadWithPinnedCommentInput
+                            ? backgroundSlopBottomIfPinnedCommentInput
+                            : undefined
+                    }
                     bufferedItemHeight={bufferedMessageViewHeight}
                     itemCount={
                         (header ? 1 : 0) +
@@ -1083,6 +1128,7 @@ function DocumentCommentThreadListView(
 
                         return (
                             <DocumentCommentInput
+                                inputRef={pinnedCommentInputRef}
                                 viewRef={viewRef}
                                 commentThread={item.commentThread}
                                 comments={item.comments}

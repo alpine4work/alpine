@@ -1,7 +1,20 @@
 import {setInteractionModality, useInteractionModality} from "@react-aria/interactions";
 import {animate} from "motion";
 import {ArrowArcLeft, ArrowRight, ArrowUp, X} from "phosphor-react";
-import {MutableRefObject, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
+import {
+    MutableRefObject,
+    ReactElement,
+    Ref,
+    RefAttributes,
+    RefObject,
+    forwardRef,
+    useEffect,
+    useId,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
@@ -75,32 +88,14 @@ import {
 } from "~/shared/messaging/messaging_shared_styles.js";
 import {colorSchemeVars, contentViewStyles, sprinkles} from "~/shared/styles/styles.js";
 
-const accountAvatarSize: Spacing = "7";
-const accountAvatarPaddingY: RemLength = `${
+export const messageInputAccountAvatarSize: Spacing = "7";
+export const messageInputAccountAvatarPaddingY: RemLength = `${
     (parseRemLengthNumber(messageViewBubbleMinHeight) -
-        parseRemLengthNumber(spacing[accountAvatarSize])) /
+        parseRemLengthNumber(spacing[messageInputAccountAvatarSize])) /
     2
 }rem`;
 
-export function MessageInput<RoomKey extends string, Message extends MessageModel<RoomKey>>({
-    messageNoun = "message",
-    messageStartOfSentenceNoun,
-    placeholder,
-    messages,
-    isMessageCreationDisabled,
-    onUpdateMessages,
-    createMessage,
-    messageEditing,
-    replyingToMessage,
-    onClearReplyingToMessage,
-    onJumpToMessage,
-    onShowTypingIndicator,
-    onHideTypingIndicator,
-    "data-testid": dataTestId,
-    restoreStateRef,
-    marginX = defaultMessageViewMarginX,
-    withMobileLayout,
-}: {
+export type MessageInputProps<RoomKey extends string, Message extends MessageModel<RoomKey>> = {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
     placeholder?: string;
@@ -124,7 +119,42 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     } | null>;
     marginX?: Spacing;
     withMobileLayout?: boolean;
-}) {
+};
+
+export type MessageInputRef = {
+    focus(): void;
+};
+
+const MessageInputForwardRef = forwardRef(MessageInput) as <
+    RoomKey extends string,
+    Message extends MessageModel<RoomKey>,
+>(
+    props: MessageInputProps<RoomKey, Message> & RefAttributes<MessageInputRef>,
+) => ReactElement;
+export {MessageInputForwardRef as MessageInput};
+
+function MessageInput<RoomKey extends string, Message extends MessageModel<RoomKey>>(
+    {
+        messageNoun = "message",
+        messageStartOfSentenceNoun,
+        placeholder,
+        messages,
+        isMessageCreationDisabled,
+        onUpdateMessages,
+        createMessage,
+        messageEditing,
+        replyingToMessage,
+        onClearReplyingToMessage,
+        onJumpToMessage,
+        onShowTypingIndicator,
+        onHideTypingIndicator,
+        "data-testid": dataTestId,
+        restoreStateRef,
+        marginX = defaultMessageViewMarginX,
+        withMobileLayout,
+    }: MessageInputProps<RoomKey, Message>,
+    ref: Ref<MessageInputRef>,
+) {
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
     const inboxPeekContext = useInboxPeekContext();
@@ -133,6 +163,16 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
         () =>
             restoreStateRef?.current?.state ??
             ContentEditorState.create(emptyMessageContentWithReferences),
+    );
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            focus: () => {
+                assertExists(editorRef.current).focus();
+            },
+        }),
+        [],
     );
 
     const hasInitiallyMountedRef = useRef(false);
@@ -666,12 +706,8 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                 ref={inputContainerRef}
                 width="full"
                 maxWidth="160"
-                paddingBottom="3"
-                style={{
-                    // Remove one pixel from top to make space for a border.
-                    paddingTop: !isBottomBar ? spacing["3"] : `calc(${spacing["3"]} - 1px)`,
-                    margin: "0 auto",
-                }}
+                paddingY="3"
+                style={{margin: "0 auto"}}
             >
                 {replyingToMessage &&
                     (() => {
@@ -807,13 +843,16 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                     {!withMobileLayout && (
                         <Box display="flex" alignItems="flex-end">
                             <Box
-                                width={accountAvatarSize}
+                                width={messageInputAccountAvatarSize}
                                 style={{
-                                    paddingTop: accountAvatarPaddingY,
-                                    paddingBottom: accountAvatarPaddingY,
+                                    paddingTop: messageInputAccountAvatarPaddingY,
+                                    paddingBottom: messageInputAccountAvatarPaddingY,
                                 }}
                             >
-                                <AccountAvatar account={currentAccount} size={accountAvatarSize} />
+                                <AccountAvatar
+                                    account={currentAccount}
+                                    size={messageInputAccountAvatarSize}
+                                />
                             </Box>
                         </Box>
                     )}
@@ -868,10 +907,10 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                     </FocusRing>
                     <Box display="flex" alignItems="flex-end">
                         <Box
-                            width={accountAvatarSize}
+                            width={messageInputAccountAvatarSize}
                             style={{
-                                paddingTop: accountAvatarPaddingY,
-                                paddingBottom: accountAvatarPaddingY,
+                                paddingTop: messageInputAccountAvatarPaddingY,
+                                paddingBottom: messageInputAccountAvatarPaddingY,
                             }}
                         >
                             <IconButton

@@ -22,7 +22,7 @@ import {
 } from "scheduler";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
-import {ScrollbarInsetDynamic, useScrollbar} from "~/client/design/scrollbar.js";
+import {ScrollbarInset, ScrollbarInsetDynamic, useScrollbar} from "~/client/design/scrollbar.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
@@ -442,6 +442,7 @@ function VirtualizedScrollView(
         alwaysRenderAdditionalItemIndexes,
         scrollbarInsetTopItemIndex,
         scrollbarInsetTop: actualScrollbarInsetTop,
+        scrollbarInsetBottom,
         extraChildren,
     }: {
         /**
@@ -559,6 +560,11 @@ function VirtualizedScrollView(
          * `scrollbarInsetTop` wins.
          */
         scrollbarInsetTop?: ScrollbarInsetDynamic;
+
+        /**
+         * Inset the scrollbar by this many pixels.
+         */
+        scrollbarInsetBottom?: ScrollbarInset;
 
         /**
          * Extra children to always render in our virtualized scroll view. Useful if
@@ -1644,7 +1650,9 @@ function VirtualizedScrollView(
                 ref={useMergedRefs(
                     scrollRef,
                     useScrollbar(
-                        scrollbarInsetTop !== undefined ? {insetTop: scrollbarInsetTop} : undefined,
+                        scrollbarInsetTop !== undefined || scrollbarInsetBottom !== undefined
+                            ? {insetTop: scrollbarInsetTop, insetBottom: scrollbarInsetBottom}
+                            : undefined,
                     ),
                     elementRefProp,
                 )}

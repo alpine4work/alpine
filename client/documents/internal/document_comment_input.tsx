@@ -1,4 +1,4 @@
-import {RefObject, useCallback} from "react";
+import {Ref, RefObject, useCallback} from "react";
 import {flushSync} from "react-dom";
 import {useAppContext} from "~/client/context/app_context.js";
 import {documentCommentInputMinHeight} from "~/client/documents/document_shared_styles.js";
@@ -7,7 +7,7 @@ import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/use_doc
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
-import {MessageInput} from "~/client/messaging/message_input.js";
+import {MessageInput, MessageInputRef} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {getMessageListItemKey} from "~/client/messaging/messaging_view.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
@@ -22,6 +22,7 @@ import {
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export function DocumentCommentInput({
+    inputRef,
     viewRef,
     commentThread,
     comments,
@@ -37,6 +38,7 @@ export function DocumentCommentInput({
     withMobileLayout,
     isStickyPositioned,
 }: {
+    inputRef?: Ref<MessageInputRef>;
     viewRef: RefObject<VirtualizedScrollViewRef>;
     commentThread: DocumentCommentThreadModel;
     comments: MessageList<DocumentCommentModel>;
@@ -162,6 +164,7 @@ export function DocumentCommentInput({
 
     return (
         <MessageInput
+            ref={inputRef}
             messageNoun="comment"
             messages={comments}
             onUpdateMessages={update =>

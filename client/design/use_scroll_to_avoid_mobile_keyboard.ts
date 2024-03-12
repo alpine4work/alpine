@@ -1,5 +1,6 @@
 import {Memo, RefObject, useEffect} from "react";
 import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {getNavigationBarHeightPxWithoutListening} from "~/client/design/navigation_bar.js";
 import {getElementWindowSafeAreaInsetBottomPx} from "~/client/design/safe_area_inset.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
@@ -12,6 +13,7 @@ import {
     subscribeToMobileKeyboardFrameChange,
 } from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
+import {RemLength, convertRemLengthToPx} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
@@ -39,11 +41,14 @@ export function useScrollToAvoidMobileKeyboard<
         getAnchorPosition,
         isDisabled = false,
         isPinned = false,
+        scrollableInsetBottom = 0,
     }: {
         /**
          * Get the position of the content we want to anchor in our scroll view. For
          * documents this is the document selection. For chat views it's the bottom of
          * the messaging view.
+         *
+         * The position should be in viewport coordinates.
          */
         getAnchorPosition: Memo<
             (oldVisibleRect: {top: number; bottom: number}) => {top: number; height: number} | null
@@ -66,6 +71,13 @@ export function useScrollToAvoidMobileKeyboard<
          * Defaults to false.
          */
         isPinned?: boolean;
+
+        /**
+         * Allow the caller to apply some inset to the bottom of the scrollable area.
+         * Use this if you have some absolutely positioned element covering your
+         * scrollable area so we don't scroll under that element.
+         */
+        scrollableInsetBottom?: RemLength | number;
     },
 ) {
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
@@ -93,8 +105,18 @@ export function useScrollToAvoidMobileKeyboard<
             const scrollableElement: HTMLElement =
                 "getElement" in scrollable ? scrollable.getElement() : scrollable;
 
+            const remPx = getRemPxWithoutListening();
+
             const viewportHeight = document.documentElement.getBoundingClientRect().height;
-            const scrollableRect = scrollableElement.getBoundingClientRect();
+
+            const {top: scrollableTop, bottom: originalScrollableBottom} =
+                scrollableElement.getBoundingClientRect();
+
+            const scrollableBottom =
+                originalScrollableBottom -
+                (typeof scrollableInsetBottom === "string"
+                    ? convertRemLengthToPx(scrollableInsetBottom, remPx)
+                    : scrollableInsetBottom);
 
             const windowSafeAreaInsetBottom = getElementWindowSafeAreaInsetBottomPx(
                 document.documentElement,
@@ -119,8 +141,8 @@ export function useScrollToAvoidMobileKeyboard<
             const oldCoveredBottom = viewportHeight - oldCoveredHeight;
 
             const oldVisibleRect = {
-                top: Math.min(scrollableRect.top, oldCoveredBottom),
-                bottom: Math.min(scrollableRect.bottom, oldCoveredBottom),
+                top: Math.min(scrollableTop, oldCoveredBottom),
+                bottom: Math.min(scrollableBottom, oldCoveredBottom),
             };
 
             const anchorPosition = getAnchorPosition(oldVisibleRect);
@@ -150,8 +172,8 @@ export function useScrollToAvoidMobileKeyboard<
             const newCoveredBottom = viewportHeight - newCoveredHeight;
 
             const newVisibleRect = {
-                top: Math.min(scrollableRect.top, newCoveredBottom),
-                bottom: Math.min(scrollableRect.bottom, newCoveredBottom),
+                top: Math.min(scrollableTop, newCoveredBottom),
+                bottom: Math.min(scrollableBottom, newCoveredBottom),
             };
 
             // By default, we only care about making sure the anchor stays visible. So when
@@ -220,8 +242,8 @@ export function useScrollToAvoidMobileKeyboard<
                 const newCoveredBottom = viewportHeight - newCoveredHeight;
 
                 const newVisibleRect = {
-                    top: Math.min(scrollableRect.top, newCoveredBottom),
-                    bottom: Math.min(scrollableRect.bottom, newCoveredBottom),
+                    top: Math.min(scrollableTop, newCoveredBottom),
+                    bottom: Math.min(scrollableBottom, newCoveredBottom),
                 };
 
                 const newAnchorPositionMiddle =
@@ -269,5 +291,12 @@ export function useScrollToAvoidMobileKeyboard<
             unsubscribe1();
             unsubscribe2();
         };
-    }, [getAnchorPosition, isDisabled, isInertNativeMobileRoute, isPinned, scrollableRef]);
+    }, [
+        getAnchorPosition,
+        isDisabled,
+        isInertNativeMobileRoute,
+        isPinned,
+        scrollableInsetBottom,
+        scrollableRef,
+    ]);
 }
