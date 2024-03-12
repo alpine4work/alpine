@@ -25,6 +25,8 @@ import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 // - Make sure it updates in realtime
 // - After resolving you can still hit the next button to go to the
 //   next comment
+//
+// Desktop and mobile and peek
 
 export function DocumentCommentThreadHeader({
     commentThread,
