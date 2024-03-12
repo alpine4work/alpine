@@ -1,8 +1,16 @@
-import {TextSelection} from "prosemirror-state";
-import {expandSelectionAroundLinkMark} from "~/client/content/internal/helpers/expand_selection_around_link_mark.js";
+import {Mark, Node} from "prosemirror-model";
+import {Selection, TextSelection} from "prosemirror-state";
+import {expandSelectionAroundMark} from "~/client/content/internal/helpers/expand_selection_around_mark.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
+
+function expandSelectionAroundLinkMark(
+    doc: Node,
+    selection: Selection,
+): {selection: TextSelection; mark: Mark} | null {
+    return expandSelectionAroundMark(doc, selection, "link");
+}
 
 test("expands selection around link", () => {
     const doc = schema.node("doc", {}, [

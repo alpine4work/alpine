@@ -10,8 +10,6 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
-// NOCOMMIT: Open comment from toolbar or edit menu?
-
 const {linkPressedClassName} = contentSchemaStyles;
 
 export const onParentScrollWhenPointerDownAndOverInteractiveMarkSymbol = Symbol(

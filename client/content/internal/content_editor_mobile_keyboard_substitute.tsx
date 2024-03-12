@@ -32,6 +32,7 @@ import {
     useState,
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
+import {createPortal} from "react-dom";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {
     ContentEditorMobileLinkModalState,
@@ -43,16 +44,17 @@ import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/cr
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
 import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
 import {expandEmptySelectionAroundWord} from "~/client/content/internal/helpers/expand_empty_selection_around_word.js";
-import {expandSelectionAroundLinkMark} from "~/client/content/internal/helpers/expand_selection_around_link_mark.js";
+import {expandSelectionAroundMark} from "~/client/content/internal/helpers/expand_selection_around_mark.js";
 import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpers/get_marks_spanning_across_entire_range.js";
 import {Box, BoxProps} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {mobileBottomBarKeyboardSubstituteHeight} from "~/client/design/mobile_bottom_bar.js";
 import {
     mobileModalAnimationDurationMs,
     mobileModalAnimationEasingParsedCubicBezier,
 } from "~/client/design/mobile_modal.js";
-import {mobileBottomBarKeyboardSubstituteHeight} from "~/client/design/mobile_bottom_bar.js";
+import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
@@ -64,8 +66,6 @@ import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {buttonStyles, colorSchemeVars, contentSchemaStyles} from "~/shared/styles/styles.js";
-import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
-import {createPortal} from "react-dom";
 
 export type ContentEditorMobileKeyboardSubstituteRef = {
     closeWithAnimation(): void;
@@ -372,7 +372,7 @@ function ContentEditorMobileKeyboardSubstituteMain({
     );
 
     const linkSelection = useMemo(
-        () => expandSelectionAroundLinkMark(state.doc, state.selection),
+        () => expandSelectionAroundMark(state.doc, state.selection, "link"),
         [state],
     );
 

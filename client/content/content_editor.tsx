@@ -1755,6 +1755,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     viewRef={viewRef}
                     isFocused={isFocused}
                     setDecorationCallbacks={setDecorationCallbacks}
+                    openCommentThread={props.openCommentThread}
                 />
             )}
         </div>

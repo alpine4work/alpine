@@ -3,12 +3,13 @@ import {Selection, TextSelection} from "prosemirror-state";
 
 /**
  * Expand the editor selection to include all text in the current text block
- * with the same link mark. If there's no link mark covering the selection
- * return null. Allows you to update a link mark all at once.
+ * with the same mark of a type (e.g. link). If there's no mark of the type
+ * covering the selection return null. Allows you to update a mark all at once.
  */
-export function expandSelectionAroundLinkMark(
+export function expandSelectionAroundMark(
     doc: Node,
     selection: Selection,
+    markName: string,
 ): {selection: TextSelection; mark: Mark} | null {
     if (!(selection instanceof TextSelection)) return null;
 
@@ -25,7 +26,7 @@ export function expandSelectionAroundLinkMark(
         if (!node.isText) return;
         if (isSelectionNodeMissingMark) return;
 
-        const currentMark = node?.marks.find(mark => mark.type.name === "link");
+        const currentMark = node?.marks.find(mark => mark.type.name === markName);
         if (!currentMark) {
             isSelectionNodeMissingMark = true;
             return;
@@ -49,7 +50,7 @@ export function expandSelectionAroundLinkMark(
     // 2. Try to find the mark before the selection (if selection isn't
     //    at start)
     const selectionNodeBeforeMark = selectionNodeBefore?.marks.find(
-        mark => mark.type.name === "link",
+        mark => mark.type.name === markName,
     );
     if (selectionNodeBeforeMark) {
         if (!mark) {
@@ -62,7 +63,7 @@ export function expandSelectionAroundLinkMark(
     // 3. Try to find the mark after the selection (if selection isn't
     //    at end)
     const selectionNodeAfterMark = selectionNodeAfter?.marks.find(
-        mark => mark.type.name === "link",
+        mark => mark.type.name === markName,
     );
     if (selectionNodeAfterMark) {
         if (!mark) {

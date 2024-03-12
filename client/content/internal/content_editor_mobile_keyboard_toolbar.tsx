@@ -45,6 +45,7 @@ import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
 import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
 import {expandEmptySelectionAroundWord} from "~/client/content/internal/helpers/expand_empty_selection_around_word.js";
+import {expandSelectionAroundMark} from "~/client/content/internal/helpers/expand_selection_around_mark.js";
 import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpers/get_marks_spanning_across_entire_range.js";
 import {
     dedentListItemCommand,
@@ -67,6 +68,8 @@ import {registerMobileBottomBarKeyboardToolbarFrame} from "~/client/remix/subscr
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertId} from "~/shared/id/id.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 // NOCOMMIT: Haptic feedback when style is selected? This feels like a nice way
@@ -85,6 +88,7 @@ function ContentEditorMobileKeyboardToolbar(
         viewRef,
         isFocused,
         setDecorationCallbacks,
+        openCommentThread,
     }: {
         state: EditorState & {schema: ContentProsemirrorSchema};
         viewRef: RefObject<EditorView | null>;
@@ -94,6 +98,9 @@ function ContentEditorMobileKeyboardToolbar(
                 ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
             >
         >;
+        openCommentThread:
+            | ((commentThreadId: DocumentCommentThreadId) => Promise<void>)
+            | undefined;
     },
     ref: Ref<ContentEditorMobileKeyboardToolbarRef>,
 ) {
@@ -287,6 +294,11 @@ function ContentEditorMobileKeyboardToolbar(
             (isUnorderedListItemActive || isOrderedListItemActive || isCheckListItemActive) &&
             dedentListItemCommand(state),
         [isCheckListItemActive, isOrderedListItemActive, isUnorderedListItemActive, state],
+    );
+
+    const commentSelection = useMemo(
+        () => expandSelectionAroundMark(state.doc, state.selection, "comment"),
+        [state],
     );
 
     return (
@@ -483,11 +495,20 @@ function ContentEditorMobileKeyboardToolbar(
                         <ContentEditorMobileKeyboardToolbarButton
                             label="Comment"
                             dividerLeft
-                            isActive={false}
+                            isActive={!!commentSelection}
                             isDisabled={
                                 state.selection.from === state.selection.to && !wordSelectionIfEmpty
                             }
                             onPress={() => {
+                                if (commentSelection) {
+                                    void openCommentThread?.(
+                                        assertId<DocumentCommentThreadId>(
+                                            commentSelection.mark.attrs.commentThreadId,
+                                        ),
+                                    );
+                                    return;
+                                }
+
                                 // Set the selection after the comment input opens so the mobile selection
                                 // renderer doesn't flash in/out.
                                 if (wordSelectionIfEmpty) {

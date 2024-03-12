@@ -28,7 +28,7 @@ import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
 import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
 import {expandEmptySelectionAroundWord} from "~/client/content/internal/helpers/expand_empty_selection_around_word.js";
-import {expandSelectionAroundLinkMark} from "~/client/content/internal/helpers/expand_selection_around_link_mark.js";
+import {expandSelectionAroundMark} from "~/client/content/internal/helpers/expand_selection_around_mark.js";
 import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpers/get_marks_spanning_across_entire_range.js";
 import {
     dedentListItemCommand,
@@ -122,7 +122,7 @@ export function MessageInputMobileKeyboardToolbar({
     );
 
     const linkSelection = useMemo(
-        () => expandSelectionAroundLinkMark(state.doc, state.selection),
+        () => expandSelectionAroundMark(state.doc, state.selection, "link"),
         [state],
     );
 
