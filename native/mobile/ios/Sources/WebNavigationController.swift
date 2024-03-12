@@ -247,7 +247,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 webDelegate?.webNavigationController?(
                     self,
                     didDisableTabBarChange: newDisableTabBar,
-                    isAnimated: isNavigationAnimating || transitionCoordinator != nil
+                    isAnimated: (isNavigationAnimating || transitionCoordinator != nil)
+                        // Never animate when hiding the tab bar. We mostly want this when popping back
+                        // to a screen that has the tab bar hidden (since the snapshot was rendered
+                        // with a hidden tab bar). Maybe we can refine this to say if we're animating a
+                        // pop disable any tab bar change animation.
+                        && !newDisableTabBar
                 )
             }
         }

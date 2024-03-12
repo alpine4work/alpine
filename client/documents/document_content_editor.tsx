@@ -1006,7 +1006,7 @@ function DocumentContentEditorStateful({
     // Hide the tab bar when the sidebar is open. Sidebar is render as a bottom
     // sheet on mobile.
     const hasDisabledNativeMobileTabBarRef = useRef(false);
-    useEffect(() => {
+    useLayoutEffectWithoutServerSideWarning(() => {
         if (!NativeMobileBridge) return;
 
         if (isInertNativeMobileRoute || !withMobileLayout || !sidebarState.isOpen) {
