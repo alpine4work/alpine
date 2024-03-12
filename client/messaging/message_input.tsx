@@ -86,7 +86,12 @@ import {
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
 } from "~/shared/messaging/messaging_shared_styles.js";
-import {colorSchemeVars, contentViewStyles, sprinkles} from "~/shared/styles/styles.js";
+import {
+    borderRadius,
+    colorSchemeVars,
+    contentViewStyles,
+    sprinkles,
+} from "~/shared/styles/styles.js";
 
 export const messageInputAccountAvatarSize: Spacing = "7";
 export const messageInputAccountAvatarPaddingY: RemLength = `${
@@ -868,7 +873,10 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                             }}
                         >
                             <Box
-                                ref={useScrollbar()}
+                                ref={useScrollbar({
+                                    insetTop: borderRadius[messageViewBubbleBorderRadius],
+                                    insetBottom: borderRadius[messageViewBubbleBorderRadius],
+                                })}
                                 maxHeight={isMobile ? "48" : "96"}
                                 position="relative"
                                 overflowX="hidden"

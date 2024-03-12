@@ -456,6 +456,20 @@ export const NativeMobileBridge: {
     };
 
     /**
+     * Functions for interacting with native rendered scrollbars.
+     */
+    readonly scrollbar: {
+        /**
+         * Update all scrollbar insets. Native automatically updates scrollbar insets
+         * after many events but not every possible update. Notably we don't
+         * automatically adjust scrollbar insets after the scroll view itself moves.
+         * Which can cause problems for components like `<DocumentContentEditor>` which
+         * animate their comment thread scroll views up and down.
+         */
+        updateAllInsets(): void;
+    };
+
+    /**
      * Functions for rendering modals in native code. It's useful to render modals
      * in native code because they can cover the tab bar (which is rendered in
      * native code).

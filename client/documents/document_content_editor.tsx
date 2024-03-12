@@ -109,6 +109,9 @@ import {
     spinAnimationClassName,
 } from "~/shared/styles/styles.js";
 
+// NOCOMMIT: Ask user to confirm before collapsing comment thread when they
+// have some content in message input?
+
 export const documentContentEditorSidebarWidth = spacing["96"];
 const documentContentEditorMobileSidebarInsetTop = "48";
 
@@ -217,7 +220,7 @@ function DocumentContentEditorStateful({
 
     const context = useAppContext();
     const isInitialAppRender = useIsInitialAppRender();
-    const {isAppleDevice} = useClientInfo();
+    const {isAppleDevice, isNativeMobile} = useClientInfo();
     const isMobile = useIsMobile();
     const isMounted = useIsMounted();
     const editorRef = useRef<ContentEditorRef<DocumentContentWithReferences>>(null);
@@ -319,15 +322,6 @@ function DocumentContentEditorStateful({
         // Already animating in...
         if (sidebarAnimationInRef.current) return;
 
-        const finish = () => {
-            setSidebarState(sidebarState => {
-                if (!sidebarState.isOpen || sidebarState.animationState !== "Opening")
-                    return sidebarState;
-
-                return {...sidebarState, animationState: null};
-            });
-        };
-
         const editorContainerElement = assertExists(editorContainerRef.current);
         const sidebarElement = assertExists(sidebarRef.current);
 
@@ -424,7 +418,18 @@ function DocumentContentEditorStateful({
             animation.play();
         });
 
-        animation.finished.finally(finish);
+        animation.finished.finally(() => {
+            // Our native app doesn't automatically update scrollbar insets after a scroll
+            // view translates (since this is rare) so manually update all insets.
+            NativeMobileBridge?.scrollbar.updateAllInsets();
+
+            setSidebarState(sidebarState => {
+                if (!sidebarState.isOpen || sidebarState.animationState !== "Opening")
+                    return sidebarState;
+
+                return {...sidebarState, animationState: null};
+            });
+        });
 
         sidebarAnimationInRef.current = animation;
     }, [isMobile, paddingX, sidebarState, withMobileLayout]);
@@ -438,15 +443,6 @@ function DocumentContentEditorStateful({
 
         // Already animating in...
         if (sidebarAnimationOutRef.current) return;
-
-        const finish = () => {
-            setSidebarState(sidebarState => {
-                if (!sidebarState.isOpen || sidebarState.animationState !== "Closing")
-                    return sidebarState;
-
-                return {isOpen: false, transition: null};
-            });
-        };
 
         const editorContainerElement = assertExists(editorContainerRef.current);
         const sidebarElement = assertExists(sidebarRef.current);
@@ -559,7 +555,18 @@ function DocumentContentEditorStateful({
             animation.play();
         });
 
-        animation.finished.finally(finish);
+        animation.finished.finally(() => {
+            // Our native app doesn't automatically update scrollbar insets after a scroll
+            // view translates (since this is rare) so manually update all insets.
+            NativeMobileBridge?.scrollbar.updateAllInsets();
+
+            setSidebarState(sidebarState => {
+                if (!sidebarState.isOpen || sidebarState.animationState !== "Closing")
+                    return sidebarState;
+
+                return {isOpen: false, transition: null};
+            });
+        });
 
         sidebarAnimationOutRef.current = animation;
     }, [isMobile, paddingX, sidebarState, withMobileLayout]);
@@ -647,6 +654,10 @@ function DocumentContentEditorStateful({
         );
 
         animation.finished.finally(() => {
+            // Our native app doesn't automatically update scrollbar insets after a scroll
+            // view translates (since this is rare) so manually update all insets.
+            NativeMobileBridge?.scrollbar.updateAllInsets();
+
             setSidebarState(sidebarState => {
                 if (
                     !sidebarState.isOpen ||
@@ -701,6 +712,10 @@ function DocumentContentEditorStateful({
         );
 
         animation.finished.finally(() => {
+            // Our native app doesn't automatically update scrollbar insets after a scroll
+            // view translates (since this is rare) so manually update all insets.
+            NativeMobileBridge?.scrollbar.updateAllInsets();
+
             setSidebarState(sidebarState => {
                 if (
                     !sidebarState.isOpen ||
@@ -1621,91 +1636,140 @@ function DocumentContentEditorStateful({
                                 // On mobile while the comment thread is not fullscreen, we render a fake
                                 // comment input that when touched expands the comment thread to take the full
                                 // screen.
-                                <Box
-                                    ref={mobileFakeCommentInputRef}
-                                    position="absolute"
-                                    zIndex="30"
-                                    left="0"
-                                    right="0"
-                                    bottom="0"
-                                    backgroundColor="grey-0"
-                                    style={{
-                                        paddingBottom: "var(--window-safe-area-inset-bottom, 0px)",
-                                    }}
-                                    onPointerDown={event => {
-                                        const editorElement = assertExists(
-                                            mobileFakeCommentInputEditorRef.current,
-                                        );
-
-                                        if (
-                                            event.target instanceof HTMLElement &&
-                                            event.target !== editorElement &&
-                                            !editorElement.contains(event.target)
-                                        ) {
-                                            onSidebarMobileFullScreenExpand({
-                                                shouldFocusCommentInput: false,
-                                            });
-                                        }
-                                    }}
-                                >
+                                <>
                                     <Box
-                                        padding="3"
-                                        display="flex"
-                                        gap="2"
-                                        style={{height: messageInputMinHeight}}
+                                        ref={mobileFakeCommentInputRef}
+                                        position="absolute"
+                                        zIndex="30"
+                                        left="0"
+                                        right="0"
+                                        bottom="0"
+                                        backgroundColor="grey-0"
+                                        style={{
+                                            paddingBottom:
+                                                "var(--window-safe-area-inset-bottom, 0px)",
+                                        }}
+                                        onPointerDown={event => {
+                                            const editorElement = assertExists(
+                                                mobileFakeCommentInputEditorRef.current,
+                                            );
+
+                                            if (
+                                                event.target instanceof HTMLElement &&
+                                                event.target !== editorElement &&
+                                                !editorElement.contains(event.target)
+                                            ) {
+                                                onSidebarMobileFullScreenExpand({
+                                                    shouldFocusCommentInput: false,
+                                                });
+                                            }
+                                        }}
                                     >
                                         <Box
-                                            ref={mobileFakeCommentInputEditorRef}
-                                            className={contentSchemaStyles.docClassName}
-                                            flexGrow="1"
-                                            borderRadius={messageViewBubbleBorderRadius}
-                                            paddingX="1"
-                                            paddingY="2"
-                                            // If the user has a mouse, make this feel like a text input.
-                                            cursor="text"
-                                            style={{
-                                                minHeight: messageViewBubbleMinHeight,
-                                                boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
-                                            }}
-                                            onPointerDown={() => {
-                                                onSidebarMobileFullScreenExpand({
-                                                    shouldFocusCommentInput: true,
-                                                });
-                                            }}
+                                            padding="3"
+                                            display="flex"
+                                            gap="2"
+                                            style={{height: messageInputMinHeight}}
                                         >
                                             <Box
-                                                className={contentSchemaStyles.paragraphClassName}
-                                                userSelect="none"
-                                                style={inputPlaceholderStyles}
-                                            >
-                                                Add a comment
-                                            </Box>
-                                        </Box>
-                                        <Box flexShrink="0" display="flex" alignItems="flex-end">
-                                            <Box
-                                                width={messageInputAccountAvatarSize}
+                                                ref={mobileFakeCommentInputEditorRef}
+                                                className={contentSchemaStyles.docClassName}
+                                                flexGrow="1"
+                                                borderRadius={messageViewBubbleBorderRadius}
+                                                paddingX="1"
+                                                paddingY="2"
+                                                // If the user has a mouse, make this feel like a text input.
+                                                cursor="text"
                                                 style={{
-                                                    paddingTop: messageInputAccountAvatarPaddingY,
-                                                    paddingBottom:
-                                                        messageInputAccountAvatarPaddingY,
+                                                    minHeight: messageViewBubbleMinHeight,
+                                                    boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
+                                                }}
+                                                onPointerDown={() => {
+                                                    onSidebarMobileFullScreenExpand({
+                                                        shouldFocusCommentInput: true,
+                                                    });
                                                 }}
                                             >
                                                 <Box
-                                                    width={messageInputAccountAvatarSize}
-                                                    height={messageInputAccountAvatarSize}
-                                                    backgroundColor="grey-5"
-                                                    color="grey-30"
-                                                    borderRadius="full"
-                                                    display="flex"
-                                                    justifyContent="center"
-                                                    alignItems="center"
+                                                    className={
+                                                        contentSchemaStyles.paragraphClassName
+                                                    }
+                                                    userSelect="none"
+                                                    style={inputPlaceholderStyles}
                                                 >
-                                                    <ArrowUp size={spacing["4"]} />
+                                                    Add a comment
+                                                </Box>
+                                            </Box>
+                                            <Box
+                                                flexShrink="0"
+                                                display="flex"
+                                                alignItems="flex-end"
+                                            >
+                                                <Box
+                                                    width={messageInputAccountAvatarSize}
+                                                    style={{
+                                                        paddingTop:
+                                                            messageInputAccountAvatarPaddingY,
+                                                        paddingBottom:
+                                                            messageInputAccountAvatarPaddingY,
+                                                    }}
+                                                >
+                                                    <Box
+                                                        width={messageInputAccountAvatarSize}
+                                                        height={messageInputAccountAvatarSize}
+                                                        backgroundColor="grey-5"
+                                                        color="grey-30"
+                                                        borderRadius="full"
+                                                        display="flex"
+                                                        justifyContent="center"
+                                                        alignItems="center"
+                                                    >
+                                                        <ArrowUp size={spacing["4"]} />
+                                                    </Box>
                                                 </Box>
                                             </Box>
                                         </Box>
                                     </Box>
-                                </Box>
+                                    {isNativeMobile && (
+                                        // In our native mobile app, include an invisible bottom bar which only serves
+                                        // to make sure the vertical scroll indicator insets are correct.
+                                        //
+                                        // We don't make our fake element above a native bottom bar since we want web
+                                        // code to control its CSS `transform` property.
+                                        <Box
+                                            id={`nmbb-${editorContainerId}`}
+                                            position="absolute"
+                                            left="0"
+                                            right="0"
+                                            bottom="0"
+                                            pointerEvents="none"
+                                            style={{
+                                                paddingBottom:
+                                                    "var(--window-safe-area-inset-bottom, 0px)",
+                                                // Our native mobile wrapper looks for compositing layers created from an
+                                                // element with an ID that starts with `nmbb-` and ties their position to
+                                                // the tab bar and software keyboard. So we get smooth animations while the
+                                                // keyboard opens or the tab bar shifts offscreen. To create a compositing
+                                                // layer we need to set `will-change: transform`. It's not specified that
+                                                // `will-change: transform` MUST create a compositing layer, instead some
+                                                // browser engines implement this hint themselves as an optimization.
+                                                //
+                                                // It so happens that WebKit is one of those browsers. Here's the code in
+                                                // WebKit that does this: [part 1][1], [part 2][2].
+                                                //
+                                                // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
+                                                // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
+                                                willChange: "transform",
+                                            }}
+                                            // Suppress React hydration warnings in our native mobile app. The native
+                                            // mobile app sets the `transform` property on this element. Sometimes before
+                                            // React finishes hydrating. This is expected, React can ignore the difference.
+                                            suppressHydrationWarning={true}
+                                        >
+                                            <Box style={{height: messageInputMinHeight}} />
+                                        </Box>
+                                    )}
+                                </>
                             )}
                     </>
                 )}
@@ -2050,6 +2114,16 @@ function DocumentContentEditorSidebar({
                                 display="flex"
                                 justifyContent="center"
                                 alignItems="center"
+                                style={{
+                                    paddingBottom: addRemLengths(
+                                        messageInputMinHeight,
+                                        isMobile &&
+                                            (!mobileState.isFullScreen ||
+                                                mobileState.animationState === "Expanding")
+                                            ? spacing[documentContentEditorMobileSidebarInsetTop]
+                                            : "0rem",
+                                    ),
+                                }}
                             >
                                 <SpinnerGap
                                     className={spinAnimationClassName}

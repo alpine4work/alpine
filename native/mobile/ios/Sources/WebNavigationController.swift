@@ -1154,6 +1154,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             disableTabBarCount += 1
         } else if messageBody == "tabBar.enable" {
             disableTabBarCount -= 1
+        } else if messageBody == "scrollbar.updateAllInsets" {
+            setAllWebScrollViewScrollIndicatorInsets()
         } else {
             logger.warning("Received unrecognized message from web view: \(messageBody)")
         }
@@ -1224,6 +1226,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 // Make sure scroll view wasn't removed.
                 guard webScrollViews[webScrollView] != nil else { return }
 
+                // Only consider scroll view bounds that are visible onscreen for determining
+                // whether this is a main scroll view. This is for comment threads in
+                // `<DocumentContentEditor>` who have a scroll view that extends below the
+                // screen which shouldn't be considered main.
+                let webScrollViewFrame = webScrollView.convert(webScrollView.bounds, to: view)
+                    .intersection(view.bounds)
+
                 // There may be other scroll views on our web page but we need to decide what
                 // the "main" scroll view is so that as it scrolls we can show/hide the tab
                 // bar, dismiss the keyboard, and more.
@@ -1236,14 +1245,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 // The root scroll view may not be the main scroll view since the root scroll
                 // view shouldn't be scrollable.
                 let isMain =
-                    webScrollView.frame.width >= view.frame.width * 0.5
+                    webScrollViewFrame.width >= view.frame.width * 0.5
                     // 250px is selected to exclude the document comment thread bottom sheet that
                     // opens when you tap a comment but include chat views.
-                    && webScrollView.frame.height >= view.frame.height - 250
+                    && webScrollViewFrame.height >= view.frame.height - 250
 
                 webScrollViews[webScrollView]!.isMain = isMain
 
-                if isMain { setMainWebScrollViewScrollIndicatorInsets(webScrollView) }
+                setWebScrollViewScrollIndicatorInsets(webScrollView)
 
                 // The main scrollbar pushes the keyboard down when it scrolls.
                 if isMain { webScrollView.keyboardDismissMode = .interactive }
@@ -1319,7 +1328,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     webBottomBarViews[webBottomBarView] = webBottomBarViewState
 
                     updateWebBottomBarFrame(webBottomBarView, webBottomBarViewState)
-                    setAllMainWebScrollViewScrollIndicatorInsets()
+                    setAllWebScrollViewScrollIndicatorInsets()
                 }
             }
         }
@@ -1379,7 +1388,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 webBottomBarViewState?.reconcileTimer?.invalidate()
                 webBottomBarViewState?.reconcileTimer = nil
 
-                setAllMainWebScrollViewScrollIndicatorInsets()
+                setAllWebScrollViewScrollIndicatorInsets()
             }
         }
 
@@ -1400,7 +1409,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // `keyboardOffset` (which this function call uses) is updated in
         // `webInputAccessoryObserverView(_:didMoveTo:)`. This method happens to run
         // after that method.
-        setAllMainWebScrollViewScrollIndicatorInsets()
+        setAllWebScrollViewScrollIndicatorInsets()
 
         let screen = notification.object as! UIScreen
         let beginScreenFrame =
@@ -1464,7 +1473,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // `keyboardOffset` (which this function call uses) is updated in
         // `webInputAccessoryObserverView(_:didMoveTo:)`. This method happens to run
         // after that method.
-        setAllMainWebScrollViewScrollIndicatorInsets()
+        setAllWebScrollViewScrollIndicatorInsets()
 
         let screen = notification.object as! UIScreen
         let beginScreenFrame =
@@ -1560,9 +1569,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         initWebViewHealthTimer()
     }
 
-    private func getSafeAreaInsets(
-        withoutPreservingOldKeyboardOffsetForOpenWebSubstitue: Bool = false
-    ) -> UIEdgeInsets {
+    private func getSafeAreaInsets(withoutPreserving: Bool = false) -> UIEdgeInsets {
         let safeAreaInsetTop = windowSafeAreaInsets.top
 
         let keyboardSafeAreaInsetBottom =
@@ -1571,11 +1578,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             // Maintain the old keyboard offset while the keyboard substitute is open so
             // layout doesn't shift around.
             case .opening(let oldKeyboardOffset, _):
-                withoutPreservingOldKeyboardOffsetForOpenWebSubstitue
+                withoutPreserving
                     ? bottomBarKeyboardSubstituteHeight + windowSafeAreaInsets.bottom
                     : oldKeyboardOffset
             case .opened(let oldKeyboardOffset):
-                withoutPreservingOldKeyboardOffsetForOpenWebSubstitue
+                withoutPreserving
                     ? bottomBarKeyboardSubstituteHeight + windowSafeAreaInsets.bottom
                     : oldKeyboardOffset
             }
@@ -1583,7 +1590,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // Include the tab bar in our safe area insets.
         let safeAreaInsetBottom = max(
             windowSafeAreaInsets.bottom,
-            tabBarController?.tabBar.frame.height ?? 0,
+            withoutPreserving && disableTabBarCount > 0
+                ? 0 : tabBarController?.tabBar.frame.height ?? 0,
             keyboardSafeAreaInsetBottom
         )
 
@@ -1603,7 +1611,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         // Scroll indicator insets and masked view masks change when window safe
         // area changes.
-        setAllMainWebScrollViewScrollIndicatorInsets()
+        setAllWebScrollViewScrollIndicatorInsets()
         updateAllWebMaskedViewMasks()
     }
 
@@ -1667,23 +1675,23 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         webView.evaluateJavaScript(source, completionHandler: completionHandler)
     }
 
-    private func setAllMainWebScrollViewScrollIndicatorInsets() {
-        setMainWebScrollViewScrollIndicatorInsets(webView.scrollView)
+    private func setAllWebScrollViewScrollIndicatorInsets() {
+        setWebScrollViewScrollIndicatorInsets(webView.scrollView)
 
-        for (webScrollView, webScrollViewState) in webScrollViews {
-            if webScrollViewState.isMain {
-                setMainWebScrollViewScrollIndicatorInsets(webScrollView)
-            }
+        for (webScrollView, _) in webScrollViews {
+            setWebScrollViewScrollIndicatorInsets(webScrollView)
         }
     }
 
-    private func setMainWebScrollViewScrollIndicatorInsets(_ webScrollView: UIScrollView) {
+    private func setWebScrollViewScrollIndicatorInsets(_ webScrollView: UIScrollView) {
         let safeAreaInsets = getSafeAreaInsets(
             // Normally, we preserve the old keyboard offset in our safe area inset when a
             // keyboard substitute is open so we don't shift layout when switching between
             // the substitute and the regular keyboard. However, the scroll indicator
             // insets don't effect document layout.
-            withoutPreservingOldKeyboardOffsetForOpenWebSubstitue: true
+            //
+            // Also makes it so we don't preserve space for the tab bar.
+            withoutPreserving: true
         )
 
         var verticalScrollIndicatorInsets = UIEdgeInsets(
@@ -1692,6 +1700,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             bottom: safeAreaInsets.bottom,
             right: safeAreaInsets.right
         )
+
+        let webScrollViewFrame = webScrollView.convert(webScrollView.bounds, to: view)
+        let webScrollViewTop = webScrollViewFrame.origin.y
+        let webScrollViewBottom =
+            view.frame.height - (webScrollViewFrame.origin.y + webScrollViewFrame.height)
 
         // Make sure vertical scroll indicators make space for bottom bars:
         for webBottomBarView in webBottomBarViews.keys {
@@ -1713,6 +1726,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 )
                 .y
 
+            // Don't apply this bottom bar view's scroll indicator inset to children. For
+            // example, `<MessageInput>`s are bottom bars but have a child scrollable
+            // `<ContentEditor>`.
+            if webScrollView.isDescendant(of: webBottomBarView) { continue }
+
             let webBottomBarAdditionalBottomInset = max(
                 0,
                 view.frame.height - webBottomBarViewOriginY - windowSafeAreaInsets.bottom
@@ -1724,16 +1742,39 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             )
         }
 
-        let webScrollViewFrame = webScrollView.superview!.convert(webScrollView.frame, to: view)
-        let webScrollViewTop = webScrollViewFrame.origin.y
-        let webScrollViewBottom =
-            view.frame.height - (webScrollViewFrame.origin.y + webScrollViewFrame.height)
+        // Compute the corner radius to make sure scrollbars are inset to not conflict
+        // with the corner radius. WebKit sets the `cornerRadius` property for
+        // `border-radius` CSS. It may not be on our layer but on a parent layer (e.g.
+        // a parent flex or overflow hidden container). Unwrap parent layers as long
+        // as no Y translation occurs until we get a layer with corner radius.
+        //
+        // Most notably this logic adds scroll indicator inset to the `<MessageInput>`
+        // component.
+        var cornerRadius = webScrollView.layer.cornerRadius
+
+        if cornerRadius == 0 && webScrollView.layer.frame.origin.y == 0 {
+            var superlayer = webScrollView.layer.superlayer
+            while let layer = superlayer {
+                cornerRadius = layer.cornerRadius
+
+                if cornerRadius == 0 && layer.frame.origin.y == 0 && layer != view.layer {
+                    superlayer = layer.superlayer
+                } else {
+                    break
+                }
+            }
+        }
 
         webScrollView.automaticallyAdjustsScrollIndicatorInsets = false
+
         webScrollView.verticalScrollIndicatorInsets = UIEdgeInsets(
-            top: max(0, verticalScrollIndicatorInsets.top - webScrollViewTop),
+            top: max(0, verticalScrollIndicatorInsets.top - webScrollViewTop, cornerRadius),
             left: verticalScrollIndicatorInsets.left,
-            bottom: max(0, verticalScrollIndicatorInsets.bottom - webScrollViewBottom),
+            bottom: max(
+                0,
+                verticalScrollIndicatorInsets.bottom - webScrollViewBottom,
+                cornerRadius
+            ),
             right: verticalScrollIndicatorInsets.right
         )
     }
@@ -2835,6 +2876,11 @@ private let webBridgeSource = """
                             }, 0);
                         }
                     }
+                },
+            },
+            scrollbar: {
+                updateAllInsets: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("scrollbar.updateAllInsets");
                 },
             },
             modal: {
