@@ -64,7 +64,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {registerMobileBottomBarKeyboardToolbarFrame} from "~/client/remix/subscribe_to_mobile_bottom_bar_frame_change.js";
+import {registerBottomBarMobileKeyboardToolbarFrame} from "~/client/remix/subscribe_to_bottom_bar_frame_change.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -158,7 +158,7 @@ function ContentEditorMobileKeyboardToolbar(
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (isInertNativeMobileRoute) return;
-        return registerMobileBottomBarKeyboardToolbarFrame();
+        return registerBottomBarMobileKeyboardToolbarFrame();
     }, [isInertNativeMobileRoute]);
 
     const isFocusedRef = useRef(isFocused);

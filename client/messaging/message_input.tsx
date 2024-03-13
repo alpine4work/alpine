@@ -54,10 +54,7 @@ import {
 } from "~/client/messaging/message_view.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {
-    isMobileBottomBarFrameChangeEnabled,
-    registerMobileBottomBarFrame,
-} from "~/client/remix/subscribe_to_mobile_bottom_bar_frame_change.js";
+import {registerBottomBarFrame} from "~/client/remix/subscribe_to_bottom_bar_frame_change.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -598,10 +595,6 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        // If `registerMobileBottomBar()` does nothing then don't bother adding resize
-        // event listeners.
-        if (!isMobileBottomBarFrameChangeEnabled) return;
-
         if (isInertNativeMobileRoute) return;
 
         const inputContainerElement = assertExists(inputContainerRef.current);
@@ -616,7 +609,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                 currentHeight = height;
 
                 const oldUnregister = unregister;
-                unregister = registerMobileBottomBarFrame(height, {withKeyboardToolbar: true});
+                unregister = registerBottomBarFrame(height, {withMobileKeyboardToolbar: true});
 
                 // Make sure to unregister AFTER registering the new height. That way if the
                 // height didn't change there will be no update notifications.
@@ -656,6 +649,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
             data-testid={dataTestId}
             id={isBottomBar && clientInfo.isNativeMobile ? `nmbb-wkt-${id}` : id}
             flexShrink="0"
+            width="full"
             backgroundColor="grey-0"
             style={{
                 minHeight: !isBottomBar
@@ -870,7 +864,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                             </Box>
                         </Box>
                     )}
-                    <FocusRing isVisibleWhenFocusWithin={true}>
+                    <FocusRing offset="border" isVisibleWhenFocusWithin={true}>
                         <Box
                             flexGrow="1"
                             overflow="hidden"

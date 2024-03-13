@@ -17,7 +17,7 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
-import {useScrollToAvoidMobileKeyboard} from "~/client/design/use_scroll_to_avoid_mobile_keyboard.js";
+import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {MessageEditing, useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageInput} from "~/client/messaging/message_input.js";
@@ -556,7 +556,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
 
     // Make sure the bottom of the scroll view stays visible when the keyboard
     // opens and closes.
-    useScrollToAvoidMobileKeyboard(viewRef, {
+    useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
         isPinned: true,
         getAnchorPosition: useCallback(
             oldVisibleRect => ({top: oldVisibleRect.bottom, height: 0}),

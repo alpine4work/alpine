@@ -31,7 +31,7 @@ import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
-import {useScrollToAvoidMobileKeyboard} from "~/client/design/use_scroll_to_avoid_mobile_keyboard.js";
+import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {
     DocumentCommentThreadListView,
@@ -1272,7 +1272,7 @@ function DocumentContentEditorStateful({
 
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
 
-    useScrollToAvoidMobileKeyboard(editorContainerRef, {
+    useScrollToAvoidBottomBarsAndMobileKeyboard(editorContainerRef, {
         // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on
         //   initial render.
         // - Disable on `sidebarState.isOpen` since the comment view should be

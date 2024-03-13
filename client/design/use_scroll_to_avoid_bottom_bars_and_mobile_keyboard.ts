@@ -3,11 +3,15 @@ import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js"
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {getNavigationBarHeightPxWithoutListening} from "~/client/design/navigation_bar.js";
 import {getElementWindowSafeAreaInsetBottomPx} from "~/client/design/safe_area_inset.js";
+import {
+    addResizeListenerForElement,
+    removeResizeListenerForElement,
+} from "~/client/helpers/use_resize_observer.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {
     getCurrentBottomBarHeight,
-    subscribeToMobileBottomBarFrameChange,
-} from "~/client/remix/subscribe_to_mobile_bottom_bar_frame_change.js";
+    subscribeToBottomBarFrameChange,
+} from "~/client/remix/subscribe_to_bottom_bar_frame_change.js";
 import {
     isMobileKeyboardFrameChangeEnabled,
     subscribeToMobileKeyboardFrameChange,
@@ -18,11 +22,11 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
 
-let currentKeyboardHeight = 0;
+let currentMobileKeyboardHeight = 0;
 
 if (isMobileKeyboardFrameChangeEnabled) {
     subscribeToMobileKeyboardFrameChange(({newKeyboardHeight}) => {
-        currentKeyboardHeight = newKeyboardHeight;
+        currentMobileKeyboardHeight = newKeyboardHeight;
     });
 }
 
@@ -32,8 +36,12 @@ if (isMobileKeyboardFrameChangeEnabled) {
  * hook helps you implement this behavior. You pick an anchor (with
  * `getAnchorPosition()`) and when the keyboard frame changes the hook will
  * make sure the anchor stays visible.
+ *
+ * This runs on both desktop and mobile. While desktop doesn't have a mobile
+ * keyboard to avoid, we still register bottom bars which change in height and
+ * we want the scrollable area to avoid.
  */
-export function useScrollToAvoidMobileKeyboard<
+export function useScrollToAvoidBottomBarsAndMobileKeyboard<
     ScrollableRef extends HTMLElement | VirtualizedScrollViewRef,
 >(
     scrollableRef: RefObject<ScrollableRef>,
@@ -88,35 +96,58 @@ export function useScrollToAvoidMobileKeyboard<
         // Don't scroll when the keyboard opens if we're part of an inert route.
         if (isInertNativeMobileRoute) return;
 
+        const scrollable = assertExists(scrollableRef.current);
+        const scrollableElement: HTMLElement =
+            "getElement" in scrollable ? scrollable.getElement() : scrollable;
+
+        let lastScrollableRect = scrollableElement.getBoundingClientRect();
+
+        const handleResize = () => {
+            // Update our last scrollable rect right before the next paint.
+            requestAnimationFrame(() => {
+                lastScrollableRect = scrollableElement.getBoundingClientRect();
+            });
+        };
+
+        addResizeListenerForElement(scrollableElement, handleResize);
+
         const scroll = ({
-            oldKeyboardHeight,
-            newKeyboardHeight,
+            oldMobileKeyboardHeight,
+            newMobileKeyboardHeight,
             oldBottomBarHeight,
             newBottomBarHeight,
             isAnimated,
         }: {
-            oldKeyboardHeight: number;
-            newKeyboardHeight: number;
-            oldBottomBarHeight: {visibleKeyboard: number; hiddenKeyboard: number};
-            newBottomBarHeight: {visibleKeyboard: number; hiddenKeyboard: number};
+            oldMobileKeyboardHeight: number;
+            newMobileKeyboardHeight: number;
+            oldBottomBarHeight: {visibleMobileKeyboard: number; hiddenMobileKeyboard: number};
+            newBottomBarHeight: {visibleMobileKeyboard: number; hiddenMobileKeyboard: number};
             isAnimated: boolean;
         }) => {
-            const scrollable = assertExists(scrollableRef.current);
-            const scrollableElement: HTMLElement =
-                "getElement" in scrollable ? scrollable.getElement() : scrollable;
-
             const remPx = getRemPxWithoutListening();
 
             const viewportHeight = document.documentElement.getBoundingClientRect().height;
 
-            const {top: scrollableTop, bottom: originalScrollableBottom} =
-                scrollableElement.getBoundingClientRect();
+            const currentScrollableRect = scrollableElement.getBoundingClientRect();
 
-            const scrollableBottom =
-                originalScrollableBottom -
-                (typeof scrollableInsetBottom === "string"
+            // `scroll()` is sometimes called because a bottom bar resized. Sometimes
+            // bottom bar resizing will also resize the scrollable element (like in
+            // `<MessagingView>` with `<MessageInput>` that lays out the virtualized scroll
+            // view + input with flexbox vertically).
+            //
+            // `lastScrollableRect` has the dimensions of our scrollable element before the
+            // scrollable element resized.
+            const {top: oldScrollableTop, bottom: oldOriginalScrollableBottom} = lastScrollableRect;
+            const {top: newScrollableTop, bottom: newOriginalScrollableBottom} =
+                currentScrollableRect;
+
+            const scrollableInsetBottomPx =
+                typeof scrollableInsetBottom === "string"
                     ? convertRemLengthToPx(scrollableInsetBottom, remPx)
-                    : scrollableInsetBottom);
+                    : scrollableInsetBottom;
+
+            const oldScrollableBottom = oldOriginalScrollableBottom - scrollableInsetBottomPx;
+            const newScrollableBottom = newOriginalScrollableBottom - scrollableInsetBottomPx;
 
             const windowSafeAreaInsetBottom = getElementWindowSafeAreaInsetBottomPx(
                 document.documentElement,
@@ -135,14 +166,16 @@ export function useScrollToAvoidMobileKeyboard<
             // - Safe area height
             // - Tab bar height
             const oldCoveredHeight =
-                Math.max(oldKeyboardHeight, windowSafeAreaInsetBottom + tabBarHeight) +
-                oldBottomBarHeight[oldKeyboardHeight > 0 ? "visibleKeyboard" : "hiddenKeyboard"];
+                Math.max(oldMobileKeyboardHeight, windowSafeAreaInsetBottom + tabBarHeight) +
+                oldBottomBarHeight[
+                    oldMobileKeyboardHeight > 0 ? "visibleMobileKeyboard" : "hiddenMobileKeyboard"
+                ];
 
             const oldCoveredBottom = viewportHeight - oldCoveredHeight;
 
             const oldVisibleRect = {
-                top: Math.min(scrollableTop, oldCoveredBottom),
-                bottom: Math.min(scrollableBottom, oldCoveredBottom),
+                top: Math.min(oldScrollableTop, oldCoveredBottom),
+                bottom: Math.min(oldScrollableBottom, oldCoveredBottom),
             };
 
             const anchorPosition = getAnchorPosition(oldVisibleRect);
@@ -166,14 +199,16 @@ export function useScrollToAvoidMobileKeyboard<
             // - Safe area height
             // - Tab bar height
             const newCoveredHeight =
-                Math.max(newKeyboardHeight, windowSafeAreaInsetBottom + tabBarHeight) +
-                newBottomBarHeight[newKeyboardHeight > 0 ? "visibleKeyboard" : "hiddenKeyboard"];
+                Math.max(newMobileKeyboardHeight, windowSafeAreaInsetBottom + tabBarHeight) +
+                newBottomBarHeight[
+                    newMobileKeyboardHeight > 0 ? "visibleMobileKeyboard" : "hiddenMobileKeyboard"
+                ];
 
             const newCoveredBottom = viewportHeight - newCoveredHeight;
 
             const newVisibleRect = {
-                top: Math.min(scrollableTop, newCoveredBottom),
-                bottom: Math.min(scrollableBottom, newCoveredBottom),
+                top: Math.min(newScrollableTop, newCoveredBottom),
+                bottom: Math.min(newScrollableBottom, newCoveredBottom),
             };
 
             // By default, we only care about making sure the anchor stays visible. So when
@@ -209,7 +244,26 @@ export function useScrollToAvoidMobileKeyboard<
                 newVisibleRect.top +
                 (newVisibleRect.bottom - newVisibleRect.top) * anchorPositionMiddlePercent;
 
-            const scrollDelta = anchorPositionMiddle - newAnchorPositionMiddle;
+            let scrollDelta = anchorPositionMiddle - newAnchorPositionMiddle;
+
+            // If our scrollable element is scrolled to the bottom and our scrollable
+            // element grew (e.g. you deleted some text in a `<MessageInput>` shrinking the
+            // `<MessageInput>` and causing the corresponding `<VirtualizedScrollView>` to
+            // grow) then the browser must automatically subtract from the scroll offset to
+            // fill the newly visible space. This avoids breaking the rule that scroll
+            // offset must be less than `scrollHeight - clientHeight`.
+            //
+            // This hook will want to apply the same scroll change the browser already made
+            // leaving us in the wrong position. So detect when the browser will
+            // automatically adjust the scroll offset and remove from our own scroll delta
+            // so we don't apply the same scroll again.
+            if (
+                currentScrollableRect.height > lastScrollableRect.height &&
+                scrollableElement.scrollTop + scrollableElement.clientHeight ===
+                    scrollableElement.scrollHeight
+            ) {
+                scrollDelta += currentScrollableRect.height - lastScrollableRect.height;
+            }
 
             const navigationBarHeight = getNavigationBarHeightPxWithoutListening();
 
@@ -232,18 +286,20 @@ export function useScrollToAvoidMobileKeyboard<
             } else {
                 const newCoveredHeight =
                     Math.max(
-                        newKeyboardHeight,
+                        newMobileKeyboardHeight,
                         windowSafeAreaInsetBottom + tabBarHeightAfterScroll,
                     ) +
                     newBottomBarHeight[
-                        newKeyboardHeight > 0 ? "visibleKeyboard" : "hiddenKeyboard"
+                        newMobileKeyboardHeight > 0
+                            ? "visibleMobileKeyboard"
+                            : "hiddenMobileKeyboard"
                     ];
 
                 const newCoveredBottom = viewportHeight - newCoveredHeight;
 
                 const newVisibleRect = {
-                    top: Math.min(scrollableTop, newCoveredBottom),
-                    bottom: Math.min(scrollableBottom, newCoveredBottom),
+                    top: Math.min(newScrollableTop, newCoveredBottom),
+                    bottom: Math.min(newScrollableBottom, newCoveredBottom),
                 };
 
                 const newAnchorPositionMiddle =
@@ -266,8 +322,8 @@ export function useScrollToAvoidMobileKeyboard<
                 const currentBottomBarHeight = getCurrentBottomBarHeight();
 
                 scroll({
-                    oldKeyboardHeight,
-                    newKeyboardHeight,
+                    oldMobileKeyboardHeight: oldKeyboardHeight,
+                    newMobileKeyboardHeight: newKeyboardHeight,
                     oldBottomBarHeight: currentBottomBarHeight,
                     newBottomBarHeight: currentBottomBarHeight,
                     isAnimated,
@@ -275,11 +331,11 @@ export function useScrollToAvoidMobileKeyboard<
             },
         );
 
-        const unsubscribe2 = subscribeToMobileBottomBarFrameChange(
+        const unsubscribe2 = subscribeToBottomBarFrameChange(
             ({oldBottomBarHeight, newBottomBarHeight}) => {
                 scroll({
-                    oldKeyboardHeight: currentKeyboardHeight,
-                    newKeyboardHeight: currentKeyboardHeight,
+                    oldMobileKeyboardHeight: currentMobileKeyboardHeight,
+                    newMobileKeyboardHeight: currentMobileKeyboardHeight,
                     oldBottomBarHeight,
                     newBottomBarHeight,
                     isAnimated: false,
@@ -288,6 +344,7 @@ export function useScrollToAvoidMobileKeyboard<
         );
 
         return () => {
+            removeResizeListenerForElement(scrollableElement, handleResize);
             unsubscribe1();
             unsubscribe2();
         };

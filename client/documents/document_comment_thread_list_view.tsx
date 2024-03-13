@@ -14,7 +14,7 @@ import {
 import {NavigationBarResult} from "~/client/design/navigation_bar.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
-import {useScrollToAvoidMobileKeyboard} from "~/client/design/use_scroll_to_avoid_mobile_keyboard.js";
+import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {
     documentCommentInputMinHeight,
     documentCommentThreadActionsHeight,
@@ -677,7 +677,7 @@ function DocumentCommentThreadListView(
 
     // Make sure the bottom of the scroll view stays visible when the keyboard
     // opens and closes.
-    useScrollToAvoidMobileKeyboard(viewRef, {
+    useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
         isPinned: true,
         getAnchorPosition: useCallback(
             oldVisibleRect => ({top: oldVisibleRect.bottom, height: 0}),
