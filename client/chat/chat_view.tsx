@@ -110,14 +110,12 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
                     alignItems="center"
                     gap={!isMobile ? "2" : "1"}
                 >
-                    <Box paddingX="0.5">
-                        <AccountAvatarPile
-                            size="6"
-                            previewAccounts={otherChatAccounts.slice(0, 4)}
-                            accountCount={otherChatAccounts.length}
-                            getAllAccounts={() => otherChatAccounts}
-                        />
-                    </Box>
+                    <AccountAvatarPile
+                        size="7"
+                        previewAccounts={otherChatAccounts.slice(0, 4)}
+                        accountCount={otherChatAccounts.length}
+                        getAllAccounts={() => otherChatAccounts}
+                    />
                     <h1
                         className={sprinkles({
                             fontStyle: !isMobile ? "truncate-semi-bold" : "truncate",
