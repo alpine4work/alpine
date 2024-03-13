@@ -3,6 +3,7 @@ import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js"
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {getNavigationBarHeightPxWithoutListening} from "~/client/design/navigation_bar.js";
 import {getElementWindowSafeAreaInsetBottomPx} from "~/client/design/safe_area_inset.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
@@ -41,6 +42,9 @@ if (isMobileKeyboardFrameChangeEnabled) {
  * keyboard to avoid, we still register bottom bars which change in height and
  * we want the scrollable area to avoid.
  */
+// TODO(calebmer): On desktop, we should probably only consider bottom bars
+// within the current peek. Bottom bars outside the peek shouldn't effect the
+// peek and vice versa.
 export function useScrollToAvoidBottomBarsAndMobileKeyboard<
     ScrollableRef extends HTMLElement | VirtualizedScrollViewRef,
 >(
@@ -263,6 +267,20 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                     scrollableElement.scrollHeight
             ) {
                 scrollDelta += currentScrollableRect.height - lastScrollableRect.height;
+
+                // So mobile WebKit doesn't do the automatic scroll adjustment until the user
+                // or JavaScript initiates a scroll. So if our scroll delta is 0 (well between
+                // -1 and 1 to support fractions like 0.5) then move our scroll just a smidge
+                // so WebKit automatic scroll adjustment kicks in. This seems to work fine on
+                // desktop WebKit.
+                //
+                // To test this, open the keyboard in a chat at the end of messages. Hit
+                // return so the message input grows then hit delete so it shrinks back.
+                //
+                // We use this same trick in `useScrollToNewMessages()`.
+                if (isMobileWebKit && -1 < scrollDelta && scrollDelta < 1) {
+                    scrollDelta = -0.1;
+                }
             }
 
             const navigationBarHeight = getNavigationBarHeightPxWithoutListening();

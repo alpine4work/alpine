@@ -1,7 +1,6 @@
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useCallback, useEffect, useRef, useState} from "react";
-import {ContentEditorRef} from "~/client/content/content_editor.js";
 import {
     ContentEditorState,
     createCommentThreadMetaKey,
@@ -15,17 +14,14 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {MessageInputBase} from "~/client/messaging/message_input.js";
+import {MessageInputBase, MessageInputRef} from "~/client/messaging/message_input.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
-import {
-    MessageContentWithReferences,
-    emptyMessageContentWithReferences,
-} from "~/shared/messaging/message_content_schema.js";
+import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {messageInputMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {greyElevated2ClassName, overlayFadeOutAnimationDurationMs} from "~/shared/styles/styles.js";
@@ -129,7 +125,7 @@ function ContentEditorCommentInput({
 
     const [isSendButtonPending, setIsSendButtonPending] = useState(false);
 
-    const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
+    const inputRef = useRef<MessageInputRef>(null);
     const shouldFocusNextRenderRef = useRef(true);
 
     useEffect(() => {
@@ -139,8 +135,8 @@ function ContentEditorCommentInput({
         if (!shouldFocusNextRenderRef.current) return;
         shouldFocusNextRenderRef.current = false;
 
-        const editor = assertExists(editorRef.current);
-        editor.focus({preventScroll: true});
+        const input = assertExists(inputRef.current);
+        input.focus({preventScroll: true});
     }, [shouldShowConfirmCloseDialog]);
 
     const sendCommentWithoutPromiseHandling = async () => {
@@ -234,8 +230,8 @@ function ContentEditorCommentInput({
                 })}
             >
                 <MessageInputBase
+                    ref={inputRef}
                     messageNoun="comment"
-                    editorRef={editorRef}
                     state={commentState}
                     onChange={setCommentState}
                     onSend={sendComment}

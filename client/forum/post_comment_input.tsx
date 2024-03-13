@@ -1,7 +1,7 @@
-import {Ref, RefObject, useCallback, useImperativeHandle} from "react";
+import {Ref, RefObject, useCallback, useImperativeHandle, useRef} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
-import {MessageInput} from "~/client/messaging/message_input.js";
+import {MessageInput, MessageInputRef} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
@@ -53,6 +53,8 @@ export function PostCommentInput({
     isStickyPositioned?: boolean;
 }) {
     const context = useAppContext();
+
+    const inputRef = useRef<MessageInputRef>(null);
 
     // We connect to realtime in our `<PostCommentInput>` component. When comments
     // are open this component is always rendered and we only want to connect to
@@ -122,6 +124,7 @@ export function PostCommentInput({
     // comment section is open.
     useScrollToNewMessages({
         viewRef,
+        inputRef,
         messages: postComments,
         getItemKey: useCallback(
             (item: MessageListItem<PostCommentModel>) => {
@@ -139,11 +142,11 @@ export function PostCommentInput({
             },
             [post.id],
         ),
-        stickyInputHeight: isStickyPositioned ? postCommentInputMinHeight : undefined,
     });
 
     return (
         <MessageInput
+            ref={inputRef}
             data-testid={`PostCommentInput:${post.id}`}
             messageNoun="comment"
             messages={postComments}

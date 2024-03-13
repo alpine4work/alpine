@@ -1,27 +1,26 @@
 import {Key, Memo, RefObject, useRef} from "react";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {MessageInputRef} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
-import {messageViewMarginY, shouldMergeMessages} from "~/client/messaging/message_view.js";
-import {messagingTypingIndicatorsMinHeight} from "~/client/messaging/messaging_typing_indicators.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
-import {RemLength, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx} from "~/shared/design/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
-import {messageViewMergedMarginY} from "~/shared/messaging/messaging_shared_styles.js";
+import {messageViewMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
 
 export function useScrollToNewMessages<Message extends MessageModel>({
     viewRef,
+    inputRef,
     messages,
     getItemKey,
-    stickyInputHeight = "0rem",
 }: {
     viewRef: RefObject<VirtualizedScrollViewRef>;
+    inputRef: RefObject<MessageInputRef>;
     messages: MessageList<Message>;
     getItemKey: Memo<(item: MessageListItem<Message>) => Key>;
-    stickyInputHeight?: RemLength;
 }) {
     // When new messages are added and the user is near the end of the scroll
     // view, we want to scroll our view down so that the user can see the new
@@ -33,114 +32,94 @@ export function useScrollToNewMessages<Message extends MessageModel>({
     // 2. The user is actively having a conversation at the end of the messaging
     //    view and another person in the conversation sends a message.
     const lastItemCountRef = useRef(messages.getItemCount());
-    const lastTypingIndicatorsHeightRef = useRef(0);
+    const lastHasTypingIndicatorsItemRef = useRef(false);
     useLayoutEffectWithoutServerSideWarning(() => {
         const lastItemCount = lastItemCountRef.current;
         const itemCount = messages.getItemCount();
         lastItemCountRef.current = itemCount;
 
-        const lastTypingIndicatorsHeight = lastTypingIndicatorsHeightRef.current;
-        const lastHasTypingIndicatorsItem = lastTypingIndicatorsHeight !== 0;
+        const lastHasTypingIndicatorsItem = lastHasTypingIndicatorsItemRef.current;
         const hasTypingIndicatorsItem = messages.hasTypingIndicatorsItem();
-
-        // This should be set to the correct value in our `run()` function but just in
-        // case the effect is cancelled, set it to a default here so it's at least
-        // non-zero next effect run.
-        lastTypingIndicatorsHeightRef.current = hasTypingIndicatorsItem
-            ? convertRemLengthToPx(messagingTypingIndicatorsMinHeight, getRemPxWithoutListening())
-            : 0;
+        lastHasTypingIndicatorsItemRef.current = hasTypingIndicatorsItem;
 
         // No new item changes, don't perform a scroll adjustment.
         if (lastItemCount === itemCount && lastHasTypingIndicatorsItem === hasTypingIndicatorsItem)
             return;
 
         const run = () => {
+            const firstNewItemIndex =
+                lastItemCount -
+                // If we previously had typing indicators item but now we don't, we want to
+                // scroll to the item which replaced the typing indicator.
+                (lastHasTypingIndicatorsItem && !hasTypingIndicatorsItem ? 1 : 0);
+
+            // No new items.
+            if (firstNewItemIndex >= itemCount) return;
+
             const view = assertExists(viewRef.current);
+            const input = assertExists(inputRef.current);
 
-            let newItemsOffset: number | null = null;
-            let newItemsHeight = 0;
-            let newTypingIndicatorsHeight = 0;
+            const firstNewItem = messages.getItem(firstNewItemIndex);
+            const firstNewItemPosition = view.getPositionByKeyIfExists(getItemKey(firstNewItem));
 
-            for (
-                let itemIndex =
-                    lastItemCount -
-                    // If we previously had the typing indicators item but now we don't, we want to
-                    // measure the height of the message which replaced the typing indicator.
-                    (lastHasTypingIndicatorsItem && !hasTypingIndicatorsItem ? 1 : 0);
-                itemIndex < itemCount;
-                itemIndex++
+            // If a position doesn't exist (maybe because the item is offscreen), don't
+            // perform a scroll adjustment.
+            if (!firstNewItemPosition) return;
+
+            const viewRect = view.getElement().getBoundingClientRect();
+            const inputRect = input.getBoundingClientRect();
+
+            const newItemsOffset = firstNewItemPosition.offset;
+            const newItemsHeight =
+                view.getContentHeight() -
+                newItemsOffset -
+                // Subtract margin added for safe area from new item heights. Particularly
+                // meaningful when the keyboard is open and there's lots of safe area.
+                Math.max(0, viewRect.bottom - inputRect.top);
+
+            const actualNewItemsTop =
+                viewRect.top + (firstNewItemPosition.offset - view.getScrollOffset());
+
+            const idealNewItemsTop = inputRect.top - newItemsHeight;
+
+            let scrollDelta = actualNewItemsTop - idealNewItemsTop;
+
+            // So mobile WebKit doesn't automatically adjust scroll when content in a
+            // scrollable element shrinks until the user or JavaScript initiates a scroll.
+            // This may happen when we have a typing indicator that's replaced by a message
+            // that's smaller than the typing indicator (will happen if the message merges
+            // with the previous one).
+            //
+            // So if our scroll delta is 0 (well between -1 and 1 to support fractions like
+            // 0.5) then move our scroll just a smidge so WebKit automatic scroll
+            // adjustment kicks in. This seems to work fine on desktop WebKit.
+            //
+            // To test this, open the keyboard in a chat at the end of messages. In another
+            // window (desktop or mobile) type a short one line message. Wait for typing
+            // indicators to appear on your first test mobile device then send from your
+            // second window (the message needs to merge with the previous message).
+            //
+            // We use this same trick in `useScrollToAvoidBottomBarsAndMobileKeyboard()`.
+            if (
+                isMobileWebKit &&
+                view.getScrollOffset() + view.getHeight() === view.getContentHeight() &&
+                -1 < scrollDelta &&
+                scrollDelta < 1
             ) {
-                const item = messages.getItem(itemIndex);
-                const position = view.getPositionByKeyIfExists(getItemKey(item));
-
-                // If any position doesn't exist, don't perform a scroll adjustment.
-                if (!position) return;
-
-                if (newItemsOffset === null) newItemsOffset = position.offset;
-                newItemsHeight += position.height;
-
-                if (item.type === "TypingIndicators") newTypingIndicatorsHeight += position.height;
+                scrollDelta = -0.1;
             }
 
-            lastTypingIndicatorsHeightRef.current = newTypingIndicatorsHeight;
+            const newScrollOffset = view.getScrollOffset() + scrollDelta;
 
-            // No new comments were found.
-            if (newItemsOffset === null) return;
-
-            const previousMessage =
-                lastItemCount > 0 ? messages.getItem(lastItemCount - 1).message ?? null : null;
-            const firstNewMessage =
-                lastItemCount < messages.getItemCount() - 1
-                    ? messages.getItem(lastItemCount).message ?? null
-                    : null;
-
-            const remPx = getRemPxWithoutListening();
-
-            const maybeNewScrollOffset =
-                view.getScrollOffset() +
-                newItemsHeight -
-                // If this render removed our typing indicator then we want to scroll the
-                // difference of the old typing indicator height and the new message replacing
-                // the typing indicator.
-                (lastHasTypingIndicatorsItem && !hasTypingIndicatorsItem
-                    ? lastTypingIndicatorsHeight
-                    : 0) -
-                // When a new message is added we also remove some margin from the previous
-                // message. Adjust our new scroll height so we don't overshoot and consider the
-                // fact that some margin is lost.
-                (lastItemCount > 0 &&
-                previousMessage &&
-                firstNewMessage &&
-                shouldMergeMessages(previousMessage, firstNewMessage)
-                    ? convertRemLengthToPx(spacing[messageViewMarginY], remPx) -
-                      convertRemLengthToPx(spacing[messageViewMergedMarginY], remPx)
-                    : 0);
-
-            // If the view has a sticky input then the view height alone is larger then
-            // what the user perceives as the visible message view window. This is used for
-            // posts which have a sticky comment input that occludes comments in the view.
-            const viewHeightWithoutStickyInput =
-                view.getHeight() - convertRemLengthToPx(stickyInputHeight, remPx);
-
+            // Only scroll if we're near the bottom. If we'd have to scroll more than ~4
+            // message views then don't do it since messages would jump unexpectedly and
+            // the user might be disturbed while reading.
             if (
-                // If the new messages are completely visible with our existing scroll offset
-                // then don't perform an adjustment.
-                !(
-                    view.getScrollOffset() <= newItemsOffset &&
-                    newItemsOffset + newItemsHeight <=
-                        view.getScrollOffset() + viewHeightWithoutStickyInput
-                ) &&
-                // Only set the new scroll offset if it would put the new messages onscreen.
-                // Otherwise the messages you're looking at will jump in a way that doesn't
-                // make sense.
-                areRangesOverlapping(
-                    maybeNewScrollOffset,
-                    maybeNewScrollOffset + viewHeightWithoutStickyInput,
-                    newItemsOffset,
-                    newItemsOffset + newItemsHeight,
-                )
+                scrollDelta <=
+                newItemsHeight +
+                    convertRemLengthToPx(messageViewMinHeight, getRemPxWithoutListening()) * 4
             ) {
-                view.setScrollOffset(maybeNewScrollOffset);
+                view.setScrollOffset(newScrollOffset);
             }
         };
 
@@ -154,5 +133,5 @@ export function useScrollToNewMessages<Message extends MessageModel>({
         return () => {
             isCancelled = true;
         };
-    }, [getItemKey, messages, stickyInputHeight, viewRef]);
+    }, [getItemKey, inputRef, messages, viewRef]);
 }

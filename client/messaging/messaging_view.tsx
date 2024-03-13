@@ -20,7 +20,7 @@ import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js"
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {MessageEditing, useMessageEditing} from "~/client/messaging/message_editing.js";
-import {MessageInput} from "~/client/messaging/message_input.js";
+import {MessageInput, MessageInputRef} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {MessageShimmer} from "~/client/messaging/message_shimmer.js";
 import {
@@ -373,6 +373,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     const isMobile = useIsMobile();
     const context = useAppContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
+    const inputRef = useRef<MessageInputRef>(null);
 
     const paddingX: Spacing = isMobile ? "4" : "5";
 
@@ -547,6 +548,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
 
     useScrollToNewMessages({
         viewRef,
+        inputRef,
         messages: state.messages,
         getItemKey: useCallback(
             (item: MessageListItem<Message>) => getMessageListItemKey(item, null),
@@ -641,6 +643,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 onRenderedRangeChange={tryLoadingMoreData}
             />
             <MessageInput
+                ref={inputRef}
                 messages={state.messages}
                 isMessageCreationDisabled={isMessageCreationDisabled}
                 onUpdateMessages={update => setMessages(update)}

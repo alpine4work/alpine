@@ -6,7 +6,6 @@ import {
     ReactElement,
     Ref,
     RefAttributes,
-    RefObject,
     forwardRef,
     useEffect,
     useId,
@@ -124,9 +123,11 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
 };
 
 export type MessageInputRef = {
-    focus(): void;
+    isFocused(): boolean;
+    focus(options?: FocusOptions): void;
     isEmpty(): boolean;
     clear(): void;
+    getBoundingClientRect(): DOMRect;
 };
 
 const MessageInputForwardRef = forwardRef(MessageInput) as <
@@ -157,33 +158,18 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         marginX = defaultMessageViewMarginX,
         withMobileLayout,
     }: MessageInputProps<RoomKey, Message>,
-    ref: Ref<MessageInputRef>,
+    externalRef: Ref<MessageInputRef>,
 ) {
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
     const inboxPeekContext = useInboxPeekContext();
-    const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
+
+    const inputRef = useRef<MessageInputRef>(null);
+
     const [state, setState] = useState(
         () =>
             restoreStateRef?.current?.state ??
             ContentEditorState.create(emptyMessageContentWithReferences),
-    );
-
-    useImperativeHandle(
-        ref,
-        () => ({
-            focus: () => {
-                assertExists(editorRef.current).focus();
-            },
-            isEmpty: () => {
-                const editor = assertExists(editorRef.current);
-                return isContentEmpty(editor.getState().getDoc());
-            },
-            clear: () => {
-                setState(ContentEditorState.create(emptyMessageContentWithReferences));
-            },
-        }),
-        [],
     );
 
     const hasInitiallyMountedRef = useRef(false);
@@ -194,16 +180,16 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
 
         if (!restoreStateRef) return;
 
-        const editor = assertExists(editorRef.current);
+        const input = assertExists(inputRef.current);
 
         // If we are restoring a message input that was focused then refocus it.
         if (isInitialMount && restoreStateRef.current?.isFocused) {
-            editor.focus();
+            input.focus();
         }
 
         restoreStateRef.current = {
             state,
-            isFocused: restoreStateRef.current?.isFocused ?? editor.isFocused() ?? false,
+            isFocused: restoreStateRef.current?.isFocused ?? input.isFocused() ?? false,
         };
     });
 
@@ -299,8 +285,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     const interactionModality = useInteractionModality();
 
     return (
-        <MessageInputBase
-            editorRef={editorRef}
+        <MessageInputBaseForwardRef
+            ref={useMergedRefs(inputRef, externalRef)}
             messageNoun={messageNoun}
             messageStartOfSentenceNoun={messageStartOfSentenceNoun}
             placeholder={placeholder}
@@ -352,7 +338,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                                     // user wasn't using keyboard navigation before.
                                     setInteractionModality(previousInteractionModality);
 
-                                    editorRef.current?.focus();
+                                    inputRef.current?.focus();
                                 },
                             });
                             break;
@@ -364,31 +350,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     );
 }
 
-export function MessageInputBase<RoomKey extends string, Message extends MessageModel<RoomKey>>({
-    editorRef: externalEditorRef,
-    messageNoun = "message",
-    messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
-    placeholder = `${messageNoun === "message" ? "Send" : "Add"} a ${messageNoun}`,
-    state,
-    onChange,
-    onSend: onSendProp,
-    isBottomBar = false,
-    withMobileLayout: withMobileLayoutProp,
-    isSendBottomArrowRight,
-    isSendButtonDisabled: isSendButtonDisabledProp,
-    isSendButtonPending,
-    replyingToMessage: replyingToMessageProp,
-    onClearReplyingToMessage,
-    onJumpToMessage,
-    onShowTypingIndicator,
-    onHideTypingIndicator,
-    "data-testid": dataTestId,
-    marginX = defaultMessageViewMarginX,
-    onFocus,
-    onBlur,
-    onArrowUp,
-}: {
-    editorRef?: RefObject<ContentEditorRef<MessageContentWithReferences>>;
+export type MessageInputBaseProps<RoomKey extends string, Message extends MessageModel<RoomKey>> = {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
     placeholder?: string;
@@ -410,7 +372,42 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     onFocus?: () => void;
     onBlur?: () => void;
     onArrowUp?: (event: KeyboardEvent) => void;
-}) {
+};
+
+const MessageInputBaseForwardRef = forwardRef(MessageInputBase) as <
+    RoomKey extends string,
+    Message extends MessageModel<RoomKey>,
+>(
+    props: MessageInputBaseProps<RoomKey, Message> & RefAttributes<MessageInputRef>,
+) => ReactElement;
+export {MessageInputBaseForwardRef as MessageInputBase};
+
+function MessageInputBase<RoomKey extends string, Message extends MessageModel<RoomKey>>(
+    {
+        messageNoun = "message",
+        messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
+        placeholder = `${messageNoun === "message" ? "Send" : "Add"} a ${messageNoun}`,
+        state,
+        onChange,
+        onSend: onSendProp,
+        isBottomBar = false,
+        withMobileLayout: withMobileLayoutProp,
+        isSendBottomArrowRight,
+        isSendButtonDisabled: isSendButtonDisabledProp,
+        isSendButtonPending,
+        replyingToMessage: replyingToMessageProp,
+        onClearReplyingToMessage,
+        onJumpToMessage,
+        onShowTypingIndicator,
+        onHideTypingIndicator,
+        "data-testid": dataTestId,
+        marginX = defaultMessageViewMarginX,
+        onFocus,
+        onBlur,
+        onArrowUp,
+    }: MessageInputBaseProps<RoomKey, Message>,
+    ref: Ref<MessageInputRef>,
+) {
     const isMobile = useIsMobile();
     const clientInfo = useClientInfo();
     const {currentAccount} = useSpaceContext();
@@ -420,6 +417,22 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
     const containerRef = useRef<HTMLDivElement>(null);
     const inputContainerRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
+
+    const clear = useEvent(() => {
+        onChange(ContentEditorState.create(emptyMessageContentWithReferences));
+    });
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            isFocused: () => assertExists(editorRef.current).isFocused(),
+            focus: options => assertExists(editorRef.current).focus(options),
+            isEmpty: () => isContentEmpty(assertExists(editorRef.current).getState().getDoc()),
+            clear,
+            getBoundingClientRect: () => assertExists(containerRef.current).getBoundingClientRect(),
+        }),
+        [clear],
+    );
 
     const [isKeyboardToolbarVisible, setIsKeyboardToolbarVisible] = useState(false);
     if (isKeyboardToolbarVisible && !(isMobile && isBottomBar)) setIsKeyboardToolbarVisible(false);
@@ -886,7 +899,7 @@ export function MessageInputBase<RoomKey extends string, Message extends Message
                                 overflowY="auto"
                             >
                                 <ContentEditor
-                                    ref={useMergedRefs(editorRef, externalEditorRef ?? null)}
+                                    ref={editorRef}
                                     state={state}
                                     onChange={(state, transaction) => {
                                         onChange(state);

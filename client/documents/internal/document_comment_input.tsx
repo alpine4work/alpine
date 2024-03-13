@@ -1,10 +1,10 @@
-import {Ref, RefObject, useCallback} from "react";
+import {Ref, RefObject, useCallback, useRef} from "react";
 import {flushSync} from "react-dom";
 import {useAppContext} from "~/client/context/app_context.js";
-import {documentCommentInputMinHeight} from "~/client/documents/document_shared_styles.js";
 import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client.js";
 import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/use_document_content_editor_web_socket.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageInput, MessageInputRef} from "~/client/messaging/message_input.js";
@@ -22,7 +22,7 @@ import {
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export function DocumentCommentInput({
-    inputRef,
+    inputRef: inputRefProp,
     viewRef,
     commentThread,
     comments,
@@ -63,6 +63,8 @@ export function DocumentCommentInput({
     isStickyPositioned?: boolean;
 }) {
     const context = useAppContext();
+
+    const inputRef = useRef<MessageInputRef>(null);
 
     const handlePersistedContentEvent = useEvent(
         (updatedCommentThread: DocumentCommentThreadModel) => {
@@ -153,18 +155,18 @@ export function DocumentCommentInput({
 
     useScrollToNewMessages({
         viewRef,
+        inputRef,
         messages: comments,
         getItemKey: useCallback(
             (item: MessageListItem<DocumentCommentModel>) =>
                 getMessageListItemKey(item, commentThread.id),
             [commentThread.id],
         ),
-        stickyInputHeight: isStickyPositioned ? documentCommentInputMinHeight : undefined,
     });
 
     return (
         <MessageInput
-            ref={inputRef}
+            ref={useMergedRefs(inputRef, inputRefProp ?? null)}
             messageNoun="comment"
             messages={comments}
             onUpdateMessages={update =>
