@@ -57,77 +57,109 @@ export function tryLoadingMessages<Message extends MessageModel>({
     range = messages.getMessagesRange(range);
     if (!range) return {isLoading: false};
 
-    const remPx = getRemPxWithoutListening();
-
     const startMessage = messages.getItem(range.startIndex);
     const endMessage = messages.getItem(range.endIndex);
 
-    // Everything rendered is loaded. Yay! Proceed if we need to load some data.
-    //
-    // TODO(calebmer): If there are some unloaded messages in the middle of the
-    // range we should load those.
-    if (startMessage.type !== "Unloaded" && endMessage.type !== "Unloaded")
-        return {isLoading: false};
+    const remPx = getRemPxWithoutListening();
+    const virtualizationWindowHeightPx = getVirtualizationWindowHeight(viewHeight);
+    const messageViewMinHeightPx = convertRemLengthToPx(messageViewMinHeight, remPx);
 
     // Load enough items to fill the virtualization window once. This gives the
     // user some space to scroll and read before we need to load more messages.
     //
     // If the user did a jump scroll then we load 50% more messages so we have some
     // buffer above and below the virtualization window.
-    const limit = Math.max(
-        20,
-        Math.ceil(
-            getVirtualizationWindowHeight(viewHeight) /
-                convertRemLengthToPx(messageViewMinHeight, remPx),
-        ),
-    );
-    const jumpLimit = Math.max(
-        20,
-        Math.ceil(
-            (getVirtualizationWindowHeight(viewHeight) * 1.5) /
-                convertRemLengthToPx(messageViewMinHeight, remPx),
-        ),
-    );
+    const limit = Math.max(20, Math.ceil(virtualizationWindowHeightPx / messageViewMinHeightPx));
 
-    if (endMessage.type === "Unloaded" && startMessage.type !== "Unloaded") {
-        const afterMessageIndex =
-            messages.getLastLoadedMessageBeforeIfExists(range.endIndex)?.index ?? null;
+    // Everything rendered is loaded. Yay! Proceed if we need to load some data.
+    if (startMessage.type !== "Unloaded" && endMessage.type !== "Unloaded") {
+        const afterMessageIndexInclusive = messages.getFirstUnloadedMessageIndexAfterIfExists(
+            range.startIndex,
+        );
+        if (afterMessageIndexInclusive === null || range.endIndex <= afterMessageIndexInclusive) {
+            return {isLoading: false};
+        }
 
-        const beforeMessageIndex =
-            messages.getFirstLoadedMessageAfterIfExists(range.endIndex)?.index ?? null;
+        const beforeMessageIndexInclusive = messages.getLastUnloadedMessageIndexBeforeIfExists(
+            range.endIndex,
+        );
 
-        // Always start at the last loaded message in our range. If there is none then
-        // maybe optimistic messages are involved?
-        if (afterMessageIndex === null) return {isLoading: false};
+        // We know `afterMessageIndexInclusive` is an unloaded message index before
+        // `range.endIndex` (as checked by the condition above) so we should at least
+        // get that.
+        assert(beforeMessageIndexInclusive !== null);
 
         return {
             isLoading: true,
             wasJump: false,
             promise: loadFromStart({
-                afterMessageIndex,
-                beforeMessageIndex,
+                afterMessageIndex: afterMessageIndexInclusive - 1,
+                beforeMessageIndex: beforeMessageIndexInclusive + 1,
+                limit,
+            }),
+        };
+    }
+
+    const jumpLimit = Math.max(
+        20,
+        Math.ceil((virtualizationWindowHeightPx * 1.5) / messageViewMinHeightPx),
+    );
+
+    if (endMessage.type === "Unloaded" && startMessage.type !== "Unloaded") {
+        const afterMessageIndexInclusive = messages.getFirstUnloadedMessageIndexAfterIfExists(
+            range.startIndex,
+        );
+
+        // We know `endMessage` is unloaded therefore there is at least that one
+        // unloaded index before our start index.
+        assert(afterMessageIndexInclusive !== null);
+
+        const maxBeforeMessageIndexInclusive = afterMessageIndexInclusive + limit;
+
+        const beforeMessageIndexInclusive = messages.getFirstUnloadedMessageIndexAfterIfExists(
+            maxBeforeMessageIndexInclusive + 1,
+        );
+
+        return {
+            isLoading: true,
+            wasJump: false,
+            promise: loadFromStart({
+                afterMessageIndex: afterMessageIndexInclusive - 1,
+                beforeMessageIndex:
+                    beforeMessageIndexInclusive !== null &&
+                    beforeMessageIndexInclusive < maxBeforeMessageIndexInclusive
+                        ? beforeMessageIndexInclusive + 1
+                        : null,
                 limit,
             }),
         };
     }
 
     if (startMessage.type === "Unloaded" && endMessage.type !== "Unloaded") {
-        const afterMessageIndex =
-            messages.getLastLoadedMessageBeforeIfExists(range.startIndex)?.index ?? null;
+        const beforeMessageIndexInclusive = messages.getLastUnloadedMessageIndexBeforeIfExists(
+            range.endIndex,
+        );
 
-        const beforeMessageIndex =
-            messages.getFirstLoadedMessageAfterIfExists(range.startIndex)?.index ?? null;
+        // We know `startMessage` is unloaded therefore there is at least that one
+        // unloaded index before our end index.
+        assert(beforeMessageIndexInclusive !== null);
 
-        // Always start at the first loaded message in our range. If there is none then
-        // maybe optimistic messages are involved?
-        if (beforeMessageIndex === null) return {isLoading: false};
+        const minBeforeMessageIndexInclusive = beforeMessageIndexInclusive - limit;
+
+        const afterMessageIndexInclusive = messages.getLastUnloadedMessageIndexBeforeIfExists(
+            minBeforeMessageIndexInclusive - 1,
+        );
 
         return {
             isLoading: true,
             wasJump: false,
             promise: loadFromEnd({
-                afterMessageIndex,
-                beforeMessageIndex,
+                afterMessageIndex:
+                    afterMessageIndexInclusive !== null &&
+                    afterMessageIndexInclusive > minBeforeMessageIndexInclusive
+                        ? afterMessageIndexInclusive - 1
+                        : null,
+                beforeMessageIndex: beforeMessageIndexInclusive + 1,
                 limit,
             }),
         };

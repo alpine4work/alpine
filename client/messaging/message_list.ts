@@ -58,6 +58,7 @@ export type MessageListTypingIndicatorsItem = {
 export class MessageList<Message extends MessageModel> {
     private readonly _messageCountExcludingOptimisticMessages: number;
     private readonly _messages: Tree<number, Message>;
+    private readonly _unloadedMessages: Tree<number, "Upper" | "Lower">;
     private readonly _optimisticMessages: ReadonlyArray<OptimisticMessageModel>;
     private readonly _lastMessageChangeTime: Date | null;
     private readonly _unloadedMessageChangeByIndex: ImmutableMap<number, MessageChange>;
@@ -69,6 +70,7 @@ export class MessageList<Message extends MessageModel> {
     private constructor({
         messageCountExcludingOptimisticMessages,
         messages,
+        unloadedMessages,
         optimisticMessages,
         lastMessageChangeTime,
         unloadedMessageChangeByIndex,
@@ -76,6 +78,7 @@ export class MessageList<Message extends MessageModel> {
     }: {
         messageCountExcludingOptimisticMessages: number;
         messages: Tree<number, Message>;
+        unloadedMessages: Tree<number, "Upper" | "Lower">;
         optimisticMessages: ReadonlyArray<OptimisticMessageModel>;
         lastMessageChangeTime: Date | null;
         unloadedMessageChangeByIndex: ImmutableMap<number, MessageChange>;
@@ -91,10 +94,50 @@ export class MessageList<Message extends MessageModel> {
                     messages.end.node.key < messageCountExcludingOptimisticMessages,
                 "Out of bounds message in message list",
             );
+
+            const iterator = unloadedMessages.begin;
+            while (iterator.valid) {
+                const lowerIteratorKey = iterator.key!;
+                const lowerIteratorValue = iterator.value!;
+
+                iterator.next();
+
+                assert(
+                    iterator.valid,
+                    "Expected an even number of entries in `unloadedMessages` tree",
+                );
+
+                const upperIteratorKey = iterator.key!;
+                const upperIteratorValue = iterator.value!;
+
+                assert(
+                    lowerIteratorValue === "Lower",
+                    "First entry of a pair in `unloadedMessages` tree must have the value `Lower`",
+                );
+
+                assert(
+                    upperIteratorValue === "Upper",
+                    "Second entry of a pair in `unloadedMessages` tree must have the value `Upper`",
+                );
+
+                assert(
+                    messages.get(lowerIteratorKey) !== undefined,
+                    "First entry of a pair in `unloadedMessages` must point to a loaded message",
+                );
+                assert(
+                    (upperIteratorKey - 1 === lowerIteratorKey ||
+                        messages.get(upperIteratorKey - 1) !== undefined) &&
+                        messages.get(upperIteratorKey) === undefined,
+                    "Second entry of a pair in `unloadedMessages` must point to a loaded message followed by an unloaded message",
+                );
+
+                iterator.next();
+            }
         }
 
         this._messageCountExcludingOptimisticMessages = messageCountExcludingOptimisticMessages;
         this._messages = messages;
+        this._unloadedMessages = unloadedMessages;
         this._optimisticMessages = optimisticMessages;
         this._lastMessageChangeTime = lastMessageChangeTime;
         this._unloadedMessageChangeByIndex = unloadedMessageChangeByIndex;
@@ -113,6 +156,7 @@ export class MessageList<Message extends MessageModel> {
         return new MessageList({
             messageCountExcludingOptimisticMessages: messageCount,
             messages: createTree(),
+            unloadedMessages: createTree(),
             optimisticMessages: [],
             lastMessageChangeTime,
             unloadedMessageChangeByIndex: ImmutableMap.empty(),
@@ -278,6 +322,85 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
+     * Get the first unloaded index after the provided index. If there is no
+     * unloaded message after the provided index we return null.
+     *
+     * - If the index is unloaded and the next index is unloaded then return the
+     *   next index.
+     * - If the index is unloaded and the next index is loaded then return the
+     *   first unloaded message after the loaded segment (or null if we have loaded
+     *   messages until the end of the list).
+     * - If the index is loaded then return the first unloaded index after the
+     *   loaded segment (or null if we have loaded messages until the end of the
+     *   list).
+     */
+    public getFirstUnloadedMessageIndexAfterIfExists(index: number): number | null {
+        const iterator = this._unloadedMessages.ge(index);
+        if (!iterator.valid) {
+            const nextIndex = index + 1;
+            return nextIndex < this._messageCountExcludingOptimisticMessages ? nextIndex : null;
+        }
+
+        const iteratorKey = iterator.key!;
+        const iteratorValue = iterator.value!;
+
+        switch (iteratorValue) {
+            case "Upper": {
+                return iteratorKey < this._messageCountExcludingOptimisticMessages
+                    ? iteratorKey
+                    : null;
+            }
+            case "Lower": {
+                iterator.next();
+                assert(iterator.valid);
+                const nextIteratorKey = iterator.key!;
+
+                return nextIteratorKey < this._messageCountExcludingOptimisticMessages
+                    ? nextIteratorKey
+                    : null;
+            }
+            default:
+                throw exhaustive(iteratorValue);
+        }
+    }
+
+    /**
+     * Get the last unloaded index before the provided index. If there is no
+     * unloaded index before the provided index we return null.
+     *
+     * - If the index is unloaded and the previous index is unloaded then return
+     *   the previous index.
+     * - If the index is unloaded and the previous index is loaded then return the
+     *   last unloaded index before the loaded segment (or null if all messages to
+     *   the beginning of the list are loaded).
+     * - If the index is loaded then return the last unloaded index before
+     *   the loaded segment (or null if all messages to the beginning of the list
+     *   are loaded).
+     */
+    public getLastUnloadedMessageIndexBeforeIfExists(index: number): number | null {
+        const iterator = this._unloadedMessages.lt(index);
+        if (!iterator.valid) {
+            const previousIndex = index - 1;
+            return previousIndex >= 0 ? previousIndex : null;
+        }
+
+        const iteratorKey = iterator.key!;
+        const iteratorValue = iterator.value!;
+
+        switch (iteratorValue) {
+            case "Lower": {
+                return iteratorKey - 1 >= 0 ? iteratorKey - 1 : null;
+            }
+            case "Upper": {
+                const previousIndex = index - 1;
+                return previousIndex >= 0 ? previousIndex : null;
+            }
+            default:
+                throw exhaustive(iteratorValue);
+        }
+    }
+
+    /**
      * Iterate loaded messages in the list. Optionally starting with the
      * provided index.
      */
@@ -336,6 +459,7 @@ export class MessageList<Message extends MessageModel> {
         return new MessageList({
             messageCountExcludingOptimisticMessages: messageCount,
             messages: this._messages,
+            unloadedMessages: this._unloadedMessages,
             optimisticMessages: this._optimisticMessages,
             lastMessageChangeTime: this._lastMessageChangeTime,
             unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
@@ -361,6 +485,7 @@ export class MessageList<Message extends MessageModel> {
         return new MessageList({
             messageCountExcludingOptimisticMessages: this._messageCountExcludingOptimisticMessages,
             messages: this._messages,
+            unloadedMessages: this._unloadedMessages,
             optimisticMessages: this._optimisticMessages,
             lastMessageChangeTime,
             unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
@@ -378,8 +503,11 @@ export class MessageList<Message extends MessageModel> {
 
         let messageCount = this._messageCountExcludingOptimisticMessages;
         let messages = this._messages;
+        let unloadedMessages = this._unloadedMessages;
         let optimisticMessages = this._optimisticMessages;
         let unloadedMessageChangeByIndex = this._unloadedMessageChangeByIndex;
+
+        const loadedMessageRanges: Array<{startIndex: number; endIndex: number}> = [];
 
         for (let message of newMessages) {
             let change: MessageChange | undefined;
@@ -414,11 +542,137 @@ export class MessageList<Message extends MessageModel> {
                 optimisticMessages = optimisticMessages.filter(
                     otherOptimisticMessage => otherOptimisticMessage !== optimisticMessage,
                 );
+
+            // Keep track of newly loaded message ranges.
+            let hasAddedLoadedMessageRange = false;
+            for (const loadedMessageRange of loadedMessageRanges) {
+                if (
+                    loadedMessageRange.startIndex <= message.index &&
+                    message.index <= loadedMessageRange.endIndex
+                ) {
+                    hasAddedLoadedMessageRange = true;
+                    break;
+                }
+
+                if (
+                    loadedMessageRange.startIndex - 1 <= message.index &&
+                    message.index <= loadedMessageRange.endIndex
+                ) {
+                    loadedMessageRange.startIndex = Math.min(
+                        message.index,
+                        loadedMessageRange.startIndex,
+                    );
+                    hasAddedLoadedMessageRange = true;
+                    break;
+                }
+
+                if (
+                    loadedMessageRange.startIndex <= message.index &&
+                    message.index <= loadedMessageRange.endIndex + 1
+                ) {
+                    loadedMessageRange.endIndex = Math.max(
+                        message.index,
+                        loadedMessageRange.endIndex,
+                    );
+                    hasAddedLoadedMessageRange = true;
+                    break;
+                }
+            }
+            if (!hasAddedLoadedMessageRange) {
+                loadedMessageRanges.push({
+                    startIndex: message.index,
+                    endIndex: message.index,
+                });
+            }
+        }
+
+        // Update `unloadedMessages` based on our newly loaded message ranges. We want
+        // a `Lower` entry before each loaded message segment and an `Upper` entry
+        // after each loaded message segment. The tree must have alternating
+        // `Lower`/`Upper` entries to be considered well formed.
+        for (const loadedMessageRange of loadedMessageRanges) {
+            // Clear out any boundaries within the range. Any unloaded messages within this
+            // range are now loaded!
+            while (true) {
+                const iterator = unloadedMessages.gt(loadedMessageRange.startIndex);
+                if (iterator.valid && iterator.key! < loadedMessageRange.endIndex + 1) {
+                    unloadedMessages = iterator.remove();
+                } else {
+                    break;
+                }
+            }
+
+            // Update the lower bound of the unloaded range. The lower bound is inclusive.
+            {
+                const iterator = unloadedMessages.le(loadedMessageRange.startIndex);
+                if (!iterator.valid) {
+                    unloadedMessages = unloadedMessages.insert(
+                        loadedMessageRange.startIndex,
+                        "Lower",
+                    );
+                } else {
+                    const iteratorValue = iterator.value!;
+
+                    switch (iteratorValue) {
+                        case "Upper": {
+                            if (iterator.key === loadedMessageRange.startIndex) {
+                                unloadedMessages = iterator.remove();
+                            } else {
+                                unloadedMessages = unloadedMessages.insert(
+                                    loadedMessageRange.startIndex,
+                                    "Lower",
+                                );
+                            }
+                            break;
+                        }
+                        case "Lower": {
+                            // All good.
+                            break;
+                        }
+                        default:
+                            throw exhaustive(iteratorValue);
+                    }
+                }
+            }
+
+            // Update the upper bound of the unloaded range. The upper bound is exclusive.
+            {
+                const iterator = unloadedMessages.ge(loadedMessageRange.endIndex + 1);
+                if (!iterator.valid) {
+                    unloadedMessages = unloadedMessages.insert(
+                        loadedMessageRange.endIndex + 1,
+                        "Upper",
+                    );
+                } else {
+                    const iteratorValue = iterator.value!;
+
+                    switch (iteratorValue) {
+                        case "Lower": {
+                            if (iterator.key === loadedMessageRange.endIndex + 1) {
+                                unloadedMessages = iterator.remove();
+                            } else {
+                                unloadedMessages = unloadedMessages.insert(
+                                    loadedMessageRange.endIndex + 1,
+                                    "Upper",
+                                );
+                            }
+                            break;
+                        }
+                        case "Upper": {
+                            // All good.
+                            break;
+                        }
+                        default:
+                            throw exhaustive(iteratorValue);
+                    }
+                }
+            }
         }
 
         return new MessageList({
             messageCountExcludingOptimisticMessages: messageCount,
             messages,
+            unloadedMessages,
             optimisticMessages,
             lastMessageChangeTime: this._lastMessageChangeTime,
             unloadedMessageChangeByIndex,
@@ -506,6 +760,7 @@ export class MessageList<Message extends MessageModel> {
     public addOptimisticMessage(message: OptimisticMessageModel): MessageList<Message> {
         return new MessageList({
             messageCountExcludingOptimisticMessages: this._messageCountExcludingOptimisticMessages,
+            unloadedMessages: this._unloadedMessages,
             messages: this._messages,
             optimisticMessages: [...this._optimisticMessages, message],
             lastMessageChangeTime: this._lastMessageChangeTime,
@@ -536,6 +791,7 @@ export class MessageList<Message extends MessageModel> {
                 messageCountExcludingOptimisticMessages:
                     this._messageCountExcludingOptimisticMessages,
                 messages: this._messages,
+                unloadedMessages: this._unloadedMessages,
                 optimisticMessages: this._optimisticMessages,
                 lastMessageChangeTime: this._lastMessageChangeTime,
                 unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex.update(
@@ -562,6 +818,7 @@ export class MessageList<Message extends MessageModel> {
                     messageCountExcludingOptimisticMessages:
                         this._messageCountExcludingOptimisticMessages,
                     messages: iterator.update(newMessage),
+                    unloadedMessages: this._unloadedMessages,
                     optimisticMessages: this._optimisticMessages,
                     lastMessageChangeTime:
                         !this._lastMessageChangeTime ||
@@ -580,6 +837,7 @@ export class MessageList<Message extends MessageModel> {
                     messageCountExcludingOptimisticMessages:
                         this._messageCountExcludingOptimisticMessages,
                     messages: iterator.update(newMessage),
+                    unloadedMessages: this._unloadedMessages,
                     optimisticMessages: this._optimisticMessages,
                     lastMessageChangeTime:
                         !this._lastMessageChangeTime ||
@@ -606,6 +864,7 @@ export class MessageList<Message extends MessageModel> {
         return new MessageList({
             messageCountExcludingOptimisticMessages: this._messageCountExcludingOptimisticMessages,
             messages: this._messages,
+            unloadedMessages: this._unloadedMessages,
             optimisticMessages: this._optimisticMessages.map(optimisticMessage =>
                 optimisticMessage.optimisticId === optimisticId
                     ? update(optimisticMessage)
@@ -634,6 +893,7 @@ export class MessageList<Message extends MessageModel> {
         return new MessageList({
             messageCountExcludingOptimisticMessages: this._messageCountExcludingOptimisticMessages,
             messages: this._messages,
+            unloadedMessages: this._unloadedMessages,
             optimisticMessages: this._optimisticMessages,
             lastMessageChangeTime: this._lastMessageChangeTime,
             unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
@@ -651,6 +911,7 @@ export class MessageList<Message extends MessageModel> {
         return new MessageList({
             messageCountExcludingOptimisticMessages: this._messageCountExcludingOptimisticMessages,
             messages: this._messages,
+            unloadedMessages: this._unloadedMessages,
             optimisticMessages: this._optimisticMessages,
             lastMessageChangeTime: this._lastMessageChangeTime,
             unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
