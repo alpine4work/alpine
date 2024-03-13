@@ -1,14 +1,18 @@
+import {ArrowLeft} from "phosphor-react";
 import {Memo, useCallback, useEffect, useRef} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
+import {IconButton} from "~/client/design/icon_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {PrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
+import {Spacer} from "~/client/design/spacer.js";
 import {messageViewMarginY} from "~/client/messaging/message_view.js";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
@@ -50,9 +54,11 @@ export function ChatView({
 }
 
 function ChatViewTopBar({chat}: {chat: ChatModel}) {
+    assert(chat.accounts.length > 0);
+
     const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
-    assert(chat.accounts.length > 0);
+    const navigate = useNavigate();
 
     // Exclude the current user from the list of accounts we display on top of the
     // chat unless this is a one-person chat with only the current user.
@@ -82,13 +88,27 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
                 justifyContent="center"
                 alignItems="center"
             >
+                {isMobile && (
+                    <Box flexShrink="0" paddingLeft="3">
+                        <IconButton
+                            size="base"
+                            description="Go back"
+                            withoutTooltip={true}
+                            pressErrorTitle="Couldn’t go back"
+                            onPress={() => navigate(-1)}
+                        >
+                            <ArrowLeft />
+                        </IconButton>
+                    </Box>
+                )}
                 <Box
                     width="full"
                     maxWidth="160"
                     paddingX={paddingX}
                     display="flex"
+                    flexDirection={!isMobile ? "row" : "column"}
                     alignItems="center"
-                    gap="2"
+                    gap={!isMobile ? "2" : "1"}
                 >
                     <Box paddingX="0.5">
                         <AccountAvatarPile
@@ -100,12 +120,16 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
                     </Box>
                     <h1
                         className={sprinkles({
-                            fontStyle: "truncate-semi-bold",
-                            fontSize: "200",
+                            fontStyle: !isMobile ? "truncate-semi-bold" : "truncate",
+                            fontSize: !isMobile ? "200" : "50",
                         })}
                     >
                         {otherChatAccounts.length === 1 ? (
-                            <AccountFullName account={otherChatAccounts[0]!} />
+                            !isMobile ? (
+                                <AccountFullName account={otherChatAccounts[0]!} />
+                            ) : (
+                                <AccountShortName account={otherChatAccounts[0]!} />
+                            )
                         ) : (
                             <PrettyConjunctionList
                                 list={otherChatAccounts.map(account => (
@@ -115,6 +139,7 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
                         )}
                     </h1>
                 </Box>
+                {isMobile && <Spacer space="10" />}
             </Box>
         </Box>
     );

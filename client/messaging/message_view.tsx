@@ -1,4 +1,4 @@
-import {differenceInMinutes} from "date-fns";
+import {differenceInDays, differenceInMinutes, startOfDay} from "date-fns";
 import {ArrowArcLeft, SpinnerGap} from "phosphor-react";
 import {Fragment, Memo, MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
@@ -926,6 +926,33 @@ export function formatMessageViewTimestampDividerDate(
     time: Date,
     {currentTime, locale, timeZone}: {currentTime: Date; locale: string; timeZone: TimeZone},
 ) {
+    const timeStartOfDay = startOfDay(time);
+    const currentTimeStartOfDay = startOfDay(currentTime);
+
+    const dayDifference = differenceInDays(currentTimeStartOfDay, timeStartOfDay);
+    if (dayDifference < 7) {
+        const formatter = new Intl.DateTimeFormat(locale, {
+            timeZone,
+            calendar: "iso8601",
+            weekday: dayDifference >= 2 ? "long" : undefined,
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+        });
+
+        const timeString = formatter
+            .format(time)
+            .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
+
+        if (dayDifference <= 0) {
+            return `Today ${timeString}`;
+        } else if (dayDifference === 1) {
+            return `Yesterday ${timeString}`;
+        } else {
+            return timeString;
+        }
+    }
+
     const isCurrentYear = currentTime.getFullYear() === time.getFullYear();
 
     const formatter = new Intl.DateTimeFormat(locale, {

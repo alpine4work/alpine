@@ -59,8 +59,8 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             // NOCOMMIT: Proper initial path. Just for debugging
             // initialPath: "/s/\(spaceId)/tasks/wstgc96gen6yp2zfetsksmg4t0",
             // initialPath: "/s/\(spaceId)/tasks/aqz6s9yy1c8vwzpqvf8ngxjma0",
-            // initialPath: "/s/\(spaceId)/chat/with/2wf86qqvavtzkgatx9czwbtcb8",
-            initialPath: "/s/\(spaceId)/documents/2v1kz5r5w3tdb7zv6xt98wm7qg",
+            initialPath: "/s/\(spaceId)/chat/with/2wf86qqvavtzkgatx9czwbtcb8",
+            // initialPath: "/s/\(spaceId)/documents/2v1kz5r5w3tdb7zv6xt98wm7qg",
             // initialPath: "/s/\(spaceId)/documents/3bvke6qzpyr2tzysk0a9p5sa8r",
             websiteDataStore: websiteDataStore
         )
