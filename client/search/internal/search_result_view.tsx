@@ -37,7 +37,7 @@ const paddingY = "4";
 const searchTypeDisplayNameFontSize = "50";
 const searchBodyTextSnippetFontSize = "75";
 const searchTitleFontSize = "100";
-const searchTypeDisplayMarginBottom = "1.5";
+const searchTypeDisplayMarginBottom = "1";
 const searchTitleMarginBottom = "1";
 
 const minSearchBodyTextSnippetHeight: RemLength = `${
