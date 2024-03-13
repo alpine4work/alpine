@@ -131,7 +131,9 @@ export function SearchResultView({
                         // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
                         // 1px to layout. Layout needs to be precise since this is rendered in a
                         // virtualized list.
-                        boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                        boxShadow: !isLastEntry
+                            ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}`
+                            : undefined,
                     }}
                 >
                     <Box display="flex" gap="3" alignItems="center">
