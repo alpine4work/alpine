@@ -712,6 +712,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             ? messageViewMarginY
                             : messageViewMergedMarginY,
                         overflow: "hidden",
+                        maxWidth: "full",
                     })}
                     style={{
                         // The width of the element should fit its content, not extend to 100% of the
