@@ -332,8 +332,8 @@ type VirtualizedScrollViewActualState = {
      * jittery, experience when scrolling up. To do that we adjust
      * `scrollElement.scrollTop` when items resize in an effect. However in Safari
      * on iOS (not Safari on MacOS) this cancels the momentum scroll animation
-     * ([you can follow this code around][1]) leading to an even more janky
-     * experience where your scrolls don't feel continuous.
+     * ([you can follow this code around][1], [ends up around here][2]) leading to
+     * an even more janky experience where your scrolls don't feel continuous.
      *
      * I spent a lot of time digging around in the WebKit source code for a way to
      * adjust scroll position without cancelling the scroll animation (e.g.
@@ -356,6 +356,7 @@ type VirtualizedScrollViewActualState = {
      * this tradeoff for smooth continuous scrolling.
      *
      * [1]: https://github.com/WebKit/WebKit/blob/8f690bd4d72836915fb0c82775e16f1bf01caf59/Source/WebCore/dom/Element.cpp#L1564-L1585
+     * [2]: https://github.com/WebKit/WebKit/blob/8f690bd4d72836915fb0c82775e16f1bf01caf59/Source/WebCore/rendering/RenderLayerScrollableArea.cpp#L304-L327
      */
     readonly scrollAnchorAdjustmentDuringMobileWebKitScroll: number | null;
 };

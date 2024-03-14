@@ -23,6 +23,7 @@ import {MessageList} from "~/client/messaging/message_list.js";
 import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {
@@ -159,6 +160,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     roomDisplayedCreatedTime?: Date;
     marginX?: Spacing;
 }) {
+    const isMobile = useIsMobile();
     const {timeZone, locale} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
 
@@ -181,8 +183,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     // `pointerleave` event when the pointer goes into a portalled element.
     const hoverRef = useRef<HTMLDivElement>(null);
     const [isHovered, setIsHovered] = useState(false);
+    if (isHovered && isMobile) setIsHovered(false);
 
     useEffect(() => {
+        if (isMobile) return;
+
         const hoverElement = assertExists(hoverRef.current);
 
         const handlePointerEnter = () => setIsHovered(true);
@@ -194,7 +199,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             hoverElement.removeEventListener("pointerenter", handlePointerEnter);
             hoverElement.removeEventListener("pointerleave", handlePointerLeave);
         };
-    }, []);
+    }, [isMobile]);
 
     const messageEditingForThisMessage =
         messageEditing.state.isEditing &&
@@ -802,6 +807,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                                 />
                                             </div>
                                         ) : (
+                                            !isMobile &&
                                             !message.isOptimistic &&
                                             !disableExpensiveFeaturesDuringScroll &&
                                             !shouldHighlight && (
