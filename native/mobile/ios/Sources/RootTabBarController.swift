@@ -169,9 +169,9 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     func webNavigationController(
         _ navigationController: WebNavigationController,
         didNavigate navigationEntry: WebNavigationEntry,
-        hasScrollView: Bool
+        hasMainScrollView: Bool
     ) {
-        if !hasScrollView {
+        if !hasMainScrollView {
             resetTabBar(scrollView: nil, navigationEntry: navigationEntry, isAnimated: true)
         }
     }
@@ -247,7 +247,14 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                 // Immediately finish any current animations.
                 tabBar.layer.removeAllAnimations()
 
-                if !isAnimated {
+                let newTabBarIsHidden =
+                    isWebDisablingTabBar || navigationBarScrollOffset >= navigationBarHeight
+
+                // Never animate when hiding the tab bar. We mostly want this when popping back
+                // to a screen that has the tab bar hidden (since the snapshot was rendered
+                // with a hidden tab bar). Maybe we can refine this to say if we're animating a
+                // pop disable any tab bar change animation.
+                if !isAnimated || newTabBarIsHidden {
                     tabBar.frame.origin.y = tabBarFrameOriginY
                     if !isWebDisablingTabBar {
                         webNavigationController.setTabBarScrollOffset(
@@ -257,8 +264,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                     }
 
                     // Mark the tab bar as hidden if the navigation bar is fully scrolled.
-                    tabBar.isHidden =
-                        isWebDisablingTabBar || navigationBarScrollOffset >= navigationBarHeight
+                    tabBar.isHidden = newTabBarIsHidden
                 } else {
                     // Make sure tab bar is not hidden for the animation.
                     tabBar.isHidden =
@@ -293,9 +299,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                             }
 
                             // Mark the tab bar as hidden if the navigation bar is fully scrolled.
-                            tabBar.isHidden =
-                                isWebDisablingTabBar
-                                || navigationBarScrollOffset >= navigationBarHeight
+                            tabBar.isHidden = newTabBarIsHidden
                         }
                     )
                 }

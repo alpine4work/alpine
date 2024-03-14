@@ -1368,14 +1368,14 @@ function DocumentContentEditorStateful({
         if (isInertNativeMobileRoute || !withMobileLayout || !sidebarState.isOpen) {
             if (hasDisabledNativeMobileTabBarRef.current) {
                 hasDisabledNativeMobileTabBarRef.current = false;
-                NativeMobileBridge.tabBar.enable();
+                NativeMobileBridge.tabBar.enable({isAnimated: true});
             }
             return;
         }
 
         if (!hasDisabledNativeMobileTabBarRef.current) {
             hasDisabledNativeMobileTabBarRef.current = true;
-            NativeMobileBridge.tabBar.disable();
+            NativeMobileBridge.tabBar.disable({isAnimated: false});
         }
 
         return () => {
@@ -1383,7 +1383,7 @@ function DocumentContentEditorStateful({
             if (!isMounted()) {
                 if (hasDisabledNativeMobileTabBarRef.current) {
                     hasDisabledNativeMobileTabBarRef.current = false;
-                    NativeMobileBridge!.tabBar.enable();
+                    NativeMobileBridge!.tabBar.enable({isAnimated: true});
                 }
             }
         };

@@ -57,6 +57,9 @@ export const overlayFadeInOutTimingFunction = "cubic-bezier(0.4, 0, 0.2, 1)";
 // a better abstraction.
 export const overlayAnimateContainerClassName = style({});
 
+export const overlayAnimateFadeInFromBottomAnimation = `${overlayFadeInBottomKeyframes} ${overlayFadeInAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`;
+export const overlayAnimateFadeInFromBottomSlowedAnimation = `${overlayFadeInBottomKeyframes} ${overlayFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`;
+
 export const overlayAnimateFadeInClassName = style({
     pointerEvents: "none",
     selectors: {
@@ -64,7 +67,7 @@ export const overlayAnimateFadeInClassName = style({
             animation: `${overlayFadeInTopKeyframes} ${overlayFadeInAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
         },
         [`${overlayAnimateContainerClassName}[data-popper-placement^=bottom] &`]: {
-            animation: `${overlayFadeInBottomKeyframes} ${overlayFadeInAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
+            animation: overlayAnimateFadeInFromBottomAnimation,
         },
         [`${overlayAnimateContainerClassName}[data-popper-placement^=left] &`]: {
             animation: `${overlayFadeInLeftKeyframes} ${overlayFadeInAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
@@ -75,6 +78,8 @@ export const overlayAnimateFadeInClassName = style({
     },
 });
 
+export const overlayAnimateFadeOutFromBottomAnimation = `${overlayFadeOutBottomKeyframes} ${overlayFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`;
+
 export const overlayAnimateFadeOutClassName = style({
     pointerEvents: "none",
     selectors: {
@@ -82,7 +87,7 @@ export const overlayAnimateFadeOutClassName = style({
             animation: `${overlayFadeOutTopKeyframes} ${overlayFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
         },
         [`${overlayAnimateContainerClassName}[data-popper-placement^=bottom] &`]: {
-            animation: `${overlayFadeOutBottomKeyframes} ${overlayFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
+            animation: overlayAnimateFadeOutFromBottomAnimation,
         },
         [`${overlayAnimateContainerClassName}[data-popper-placement^=left] &`]: {
             animation: `${overlayFadeOutLeftKeyframes} ${overlayFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,

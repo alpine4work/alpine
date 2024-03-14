@@ -43,9 +43,6 @@ import {
     sprinkles,
 } from "~/shared/styles/styles.js";
 
-// TODO(calebmer): Implement the mobile action sheet version of our menu
-// component.
-
 /**
  * A single action in a menu.
  */

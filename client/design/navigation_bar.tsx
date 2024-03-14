@@ -45,7 +45,11 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
-import {FontSize, navigationBarStyles, tasksStyles} from "~/shared/styles/styles.js";
+import {
+    FontSize,
+    navigationBarStyles,
+    pointerEventsNoneNotInheritedClassName,
+} from "~/shared/styles/styles.js";
 
 const {
     desktopNavigationBarHeight,
@@ -53,7 +57,6 @@ const {
     navigationBarBackgroundFadeOutAnimationClassName,
     navigationBarTitleFadeOutAnimationClassName,
 } = navigationBarStyles;
-const {pointerEventsNoneNotInheritedClassName} = tasksStyles;
 
 export {desktopNavigationBarHeight, mobileNavigationBarHeight};
 

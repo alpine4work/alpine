@@ -47,6 +47,7 @@ export function ContentView({
     isInert,
     isTruncated,
     shouldHighlightComment,
+    withUserSelectNone,
 }: {
     content: ContentWithReferences;
 
@@ -90,6 +91,11 @@ export function ContentView({
      * renders no comment highlights.
      */
     shouldHighlightComment?: Memo<(commentThreadId: DocumentCommentThreadId) => boolean>;
+
+    /**
+     * Set the CSS `user-select: none` to disable text selection of this element.
+     */
+    withUserSelectNone?: boolean;
 }) {
     const accountStore = useAccountClientStore();
 
@@ -359,6 +365,9 @@ export function ContentView({
                     isBodyEmpty && emptyBodyClassName,
                     isTruncated && contentViewStyles.truncatedClassName,
                 )}
+                style={
+                    withUserSelectNone ? {userSelect: "none", WebkitUserSelect: "none"} : undefined
+                }
                 dangerouslySetInnerHTML={{__html: html}}
                 aria-label={ariaLabel}
                 aria-labelledby={ariaLabelledBy}

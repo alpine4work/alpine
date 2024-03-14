@@ -1,6 +1,15 @@
 import {differenceInDays, differenceInMinutes, startOfDay} from "date-fns";
 import {ArrowArcLeft, SpinnerGap} from "phosphor-react";
-import {Fragment, Memo, MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
+import {
+    Fragment,
+    Memo,
+    MutableRefObject,
+    TouchEvent,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
@@ -20,10 +29,11 @@ import {
 import {shouldDisplayTextAsBigEmojiMessage} from "~/client/messaging/internal/should_display_text_as_big_emoji_message.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
+import {MessageViewTouchLightbox} from "~/client/messaging/message_view_touch_lightbox.js";
 import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {
@@ -33,7 +43,7 @@ import {
     parseRemLengthNumber,
     spacing,
 } from "~/shared/design/spacing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TimeZone} from "~/shared/helpers/date/time_zone.js";
@@ -160,7 +170,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     roomDisplayedCreatedTime?: Date;
     marginX?: Spacing;
 }) {
-    const isMobile = useIsMobile();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const {timeZone, locale} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
@@ -182,33 +191,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     // Manually implement hovering state by attaching event listeners (instead of
     // using `useHover()` from `react-aria`). React doesn't deliver a
     // `pointerleave` event when the pointer goes into a portalled element.
-    const hoverRef = useRef<HTMLDivElement>(null);
     const [isHovered, setIsHovered] = useState(false);
-
-    useEffect(() => {
-        const hoverElement = assertExists(hoverRef.current);
-
-        const handlePointerEnter = (event: PointerEvent) => {
-            // Ignore iOS touch pointer enter/leave events.
-            if (event.pointerType !== "mouse") return;
-
-            setIsHovered(true);
-        };
-
-        const handlePointerLeave = (event: PointerEvent) => {
-            // Ignore iOS touch pointer enter/leave events.
-            if (event.pointerType !== "mouse") return;
-
-            setIsHovered(false);
-        };
-
-        hoverElement.addEventListener("pointerenter", handlePointerEnter);
-        hoverElement.addEventListener("pointerleave", handlePointerLeave);
-        return () => {
-            hoverElement.removeEventListener("pointerenter", handlePointerEnter);
-            hoverElement.removeEventListener("pointerleave", handlePointerLeave);
-        };
-    }, [isMobile]);
 
     const messageEditingForThisMessage =
         messageEditing.state.isEditing &&
@@ -341,11 +324,57 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return null;
     }, [message.payload]);
 
+    const longTouchTimeoutRef = useRef<Timeout | null>(null);
+    const [touchLightboxState, setTouchLightboxState] = useState<{messageTop: number} | null>(null);
+
     // We try to memoize any UI in this component that changes infrequently to
     // speed up React rendering. Because `<MessageView>` renders during scroll
     // animations it's important to keep it fast.
     const contentPayloadNode = useMemo(() => {
         if (message.payload.type !== "Content") return null;
+
+        // NOCOMMIT: How does this work with links or other interactive elements?
+        const onTouchStart = (event: TouchEvent) => {
+            longTouchTimeoutRef.current?.clear();
+            longTouchTimeoutRef.current = null;
+
+            // If the user can hover, let them hover over the message to see message
+            // actions. Instead of opening a lightbox on touch which conflicts with text
+            // selection.
+            if (canPrimaryInputHover) return;
+
+            if (event.touches.length > 1) return;
+
+            const messageElement = event.currentTarget;
+
+            // Emulate a `UILongPressGestureRecognizer` on iOS. Which [waits for a touch to
+            // last 0.5 seconds][1] before firing.
+            //
+            // [1]: https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
+            longTouchTimeoutRef.current = createTimeout(() => {
+                longTouchTimeoutRef.current = null;
+
+                // NOCOMMIT: Haptic feedback when opening lightbox
+                setTouchLightboxState({
+                    messageTop: messageElement.getBoundingClientRect().top,
+                });
+            }, 500);
+        };
+
+        const onTouchEnd = (event: TouchEvent) => {
+            longTouchTimeoutRef.current?.clear();
+            longTouchTimeoutRef.current = null;
+        };
+
+        const onTouchMove = (event: TouchEvent) => {
+            longTouchTimeoutRef.current?.clear();
+            longTouchTimeoutRef.current = null;
+        };
+
+        const onTouchCancel = (event: TouchEvent) => {
+            longTouchTimeoutRef.current?.clear();
+            longTouchTimeoutRef.current = null;
+        };
 
         // Render the message as a big emoji message if the content is just emojis.
         if (messageTextForBigEmojiMessage) {
@@ -383,7 +412,14 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         fontSize: "600",
                         userSelect: "text",
                         pointerEvents: "auto",
+                        // Hide message while lightbox is open so its blur doesn't bleed into
+                        // the background.
+                        opacity: touchLightboxState ? "0" : undefined,
                     })}
+                    onTouchStart={onTouchStart}
+                    onTouchEnd={onTouchEnd}
+                    onTouchMove={onTouchMove}
+                    onTouchCancel={onTouchCancel}
                 >
                     {children}
                     {message.payload.contentUpdatedTime && (
@@ -428,20 +464,30 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         : messageViewBubbleMergedBorderRadius,
                     borderBottomRightRadius: messageViewBubbleBorderRadius,
                     pointerEvents: "auto",
+                    // Hide message while lightbox is open so its blur doesn't bleed into
+                    // the background.
+                    opacity: touchLightboxState ? "0" : undefined,
                 })}
+                onTouchStart={onTouchStart}
+                onTouchEnd={onTouchEnd}
+                onTouchMove={onTouchMove}
+                onTouchCancel={onTouchCancel}
             >
                 <ContentView
                     content={message.payload.content}
                     contentUpdatedTime={message.payload.contentUpdatedTime}
                     className={sprinkles({minWidth: messageViewBubbleMinWidth})}
+                    withUserSelectNone={!canPrimaryInputHover}
                 />
             </div>
         );
     }, [
+        canPrimaryInputHover,
         message.payload,
         messageTextForBigEmojiMessage,
         shouldMergeWithNextMessage,
         shouldMergeWithPreviousMessage,
+        touchLightboxState,
     ]);
 
     const deletedPayloadNode = useMemo(() => {
@@ -464,7 +510,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         ? messageViewBubbleBorderRadius
                         : messageViewBubbleMergedBorderRadius,
                     borderBottomRightRadius: messageViewBubbleBorderRadius,
-                    userSelect: "text",
+                    userSelect: canPrimaryInputHover ? "text" : "none",
                 })}
                 style={{
                     boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
@@ -483,6 +529,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             </div>
         );
     }, [
+        canPrimaryInputHover,
         message.payload.type,
         messageStartOfSentenceNoun,
         shouldMergeWithNextMessage,
@@ -592,6 +639,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     isTruncated={true}
                                     content={truncatedContent}
                                     className={sprinkles({minWidth: messageViewBubbleMinWidth})}
+                                    withUserSelectNone={true}
                                 />
                             </div>
                         </div>
@@ -718,7 +766,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 )}
                 {parentMessageNode}
                 <div
-                    ref={hoverRef}
                     className={sprinkles({
                         display: "flex",
                         paddingX: marginX,
@@ -734,6 +781,18 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         // actions, and some padding. Moving your mouse around in empty space won't
                         // cause a bunch of message actions to appear/disappear.
                         width: "fit-content",
+                    }}
+                    onPointerEnter={event => {
+                        // Ignore iOS touch pointer enter/leave events.
+                        if (event.pointerType !== "mouse") return;
+
+                        setIsHovered(true);
+                    }}
+                    onPointerLeave={event => {
+                        // Ignore iOS touch pointer enter/leave events.
+                        if (event.pointerType !== "mouse") return;
+
+                        setIsHovered(false);
                     }}
                 >
                     {useMemo(
@@ -890,6 +949,15 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         />
                     )}
             </div>
+            {touchLightboxState && (
+                <MessageViewTouchLightbox
+                    message={message}
+                    messageTop={touchLightboxState.messageTop}
+                    shouldMergeWithNextMessage={shouldMergeWithNextMessage}
+                    shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
+                    onClose={() => setTouchLightboxState(null)}
+                />
+            )}
         </>
     );
 }

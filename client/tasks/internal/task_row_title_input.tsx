@@ -45,6 +45,7 @@ import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize
 import {
     contentSchemaStyles,
     inputPlaceholderStyles,
+    pointerEventsNoneNotInheritedClassName,
     sprinkles,
     tasksStyles,
 } from "~/shared/styles/styles.js";
@@ -1153,7 +1154,7 @@ function TaskRowTitleInput(
             >
                 <div
                     className={classNames(
-                        tasksStyles.pointerEventsNoneNotInheritedClassName,
+                        pointerEventsNoneNotInheritedClassName,
                         marginRightContentContainerClassName,
                     )}
                     style={{

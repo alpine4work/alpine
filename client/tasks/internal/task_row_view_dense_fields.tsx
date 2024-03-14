@@ -13,7 +13,7 @@ import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {tasksStyles} from "~/shared/styles/styles.js";
+import {pointerEventsNoneNotInheritedClassName, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
@@ -259,7 +259,7 @@ function TaskRowViewDenseFields(
                         ref={assigneeInputRef}
                         flexShrink="0"
                         style={{maxWidth: fieldMaxWidth}}
-                        className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                        className={pointerEventsNoneNotInheritedClassName}
                         onFocus={() => {
                             setAssigneeInputState(assigneeInputState => {
                                 if (!assigneeInputState.isVisible) return assigneeInputState;
@@ -317,7 +317,7 @@ function TaskRowViewDenseFields(
                         ref={priorityInputRef}
                         flexShrink="0"
                         style={{maxWidth: fieldMaxWidth}}
-                        className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                        className={pointerEventsNoneNotInheritedClassName}
                         onFocus={() => {
                             setPriorityInputState(priorityInputState => {
                                 if (!priorityInputState.isVisible) return priorityInputState;
@@ -364,7 +364,7 @@ function TaskRowViewDenseFields(
                         ref={dueDateInputRef}
                         flexShrink="0"
                         style={{maxWidth: fieldMaxWidth}}
-                        className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                        className={pointerEventsNoneNotInheritedClassName}
                         onFocus={() => {
                             setDueDateInputState(dueDateInputState => {
                                 if (!dueDateInputState.isVisible) return dueDateInputState;

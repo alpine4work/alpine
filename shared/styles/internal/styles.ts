@@ -27,8 +27,10 @@ export * as documentContentStyles from "~/shared/styles/internal/document_conten
 export * from "~/shared/styles/internal/elevation.css.js";
 export * from "~/shared/styles/internal/fonts.css.js";
 export * from "~/shared/styles/internal/input_placeholder.css.js";
+export * as messagingStyles from "~/shared/styles/internal/messaging.css.js";
 export * as modalStyles from "~/shared/styles/internal/modal.css.js";
 export * as navigationBarStyles from "~/shared/styles/internal/navigation_bar.css.js";
+export * from "~/shared/styles/internal/pointer_events.css.js";
 export * from "~/shared/styles/internal/overlay_animated.css.js";
 export * from "~/shared/styles/internal/press_opacity_overlay.css.js";
 export * as scrollbarStyles from "~/shared/styles/internal/scrollbar.css.js";

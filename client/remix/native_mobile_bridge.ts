@@ -367,12 +367,12 @@ export const NativeMobileBridge: {
          * else the app will feel broken as the user won't be able to access the tab
          * bar.
          */
-        disable(): void;
+        disable(options?: {isAnimated: boolean}): void;
 
         /**
          * Show the tab bar after it was hidden by `disable()`.
          */
-        enable(): void;
+        enable(options?: {isAnimated: boolean}): void;
     };
 
     /**

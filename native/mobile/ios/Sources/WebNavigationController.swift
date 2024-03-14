@@ -30,7 +30,7 @@ private let logger = Logger(
     @objc optional func webNavigationController(
         _ webNavigationController: WebNavigationController,
         didNavigate webNavigationEntry: WebNavigationEntry,
-        hasScrollView: Bool
+        hasMainScrollView: Bool
     )
 }
 
@@ -232,6 +232,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var theme50Color = UIColor(named: "indigo-50")!
     private var theme60Color = UIColor(named: "indigo-60")!
 
+    private var isDisableTabBarChangeAnimated: Bool?
     private var disableTabBarCount = 0 {
         didSet {
             let oldDisableTabBar = oldValue > 0
@@ -247,12 +248,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 webDelegate?.webNavigationController?(
                     self,
                     didDisableTabBarChange: newDisableTabBar,
-                    isAnimated: (isNavigationAnimating || transitionCoordinator != nil)
-                        // Never animate when hiding the tab bar. We mostly want this when popping back
-                        // to a screen that has the tab bar hidden (since the snapshot was rendered
-                        // with a hidden tab bar). Maybe we can refine this to say if we're animating a
-                        // pop disable any tab bar change animation.
-                        && !newDisableTabBar
+                    isAnimated: isDisableTabBarChangeAnimated
+                        ?? ((isNavigationAnimating || transitionCoordinator != nil)
+                            // Never animate when hiding the tab bar. We mostly want this when popping back
+                            // to a screen that has the tab bar hidden (since the snapshot was rendered
+                            // with a hidden tab bar). Maybe we can refine this to say if we're animating a
+                            // pop disable any tab bar change animation.
+                            && !newDisableTabBar)
                 )
             }
         }
@@ -316,7 +318,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     private var preparingNavigationEntry: WebNavigationEntry?
-    private var hasAddedScrollViewWhilePreparingNavigation = false
+    private var hasAddedMainScrollViewWhilePreparingNavigation = false
 
     init(initialPath: String, websiteDataStore: WKWebsiteDataStore) {
         self.initialPath = initialPath
@@ -761,7 +763,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // [1]: https://stackoverflow.com/questions/29249132/wkwebview-complex-communication-between-javascript-native-code/49474323#49474323
         if prompt == "%%%navigation.preparePush" {
             preparingNavigationEntry = WebNavigationEntry()
-            hasAddedScrollViewWhilePreparingNavigation = false
+            hasAddedMainScrollViewWhilePreparingNavigation = false
 
             cleanupModalPresentedViewController()
 
@@ -783,7 +785,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
             preparingNavigationEntry =
                 ((viewController ?? topViewController) as! WebNavigationEntryController).entry
-            hasAddedScrollViewWhilePreparingNavigation = false
+            hasAddedMainScrollViewWhilePreparingNavigation = false
 
             cleanupModalPresentedViewController()
 
@@ -796,7 +798,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             return nil
         } else if prompt == "%%%navigation.preparePresentModal" {
             preparingNavigationEntry = WebNavigationEntry()
-            hasAddedScrollViewWhilePreparingNavigation = false
+            hasAddedMainScrollViewWhilePreparingNavigation = false
 
             cleanupModalPresentedViewController()
 
@@ -808,7 +810,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             return nil
         } else if prompt == "%%%navigation.prepareDismissModal" {
             preparingNavigationEntry = (topViewController as! WebNavigationEntryController).entry
-            hasAddedScrollViewWhilePreparingNavigation = false
+            hasAddedMainScrollViewWhilePreparingNavigation = false
 
             isNavigationAnimating = true
 
@@ -860,11 +862,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             webDelegate?.webNavigationController?(
                 self,
                 didNavigate: viewController.entry,
-                hasScrollView: hasAddedScrollViewWhilePreparingNavigation
+                hasMainScrollView: hasAddedMainScrollViewWhilePreparingNavigation
             )
 
             preparingNavigationEntry = nil
-            hasAddedScrollViewWhilePreparingNavigation = false
+            hasAddedMainScrollViewWhilePreparingNavigation = false
 
             super.pushViewController(viewController, animated: true)
 
@@ -894,11 +896,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             webDelegate?.webNavigationController?(
                 self,
                 didNavigate: (topViewController! as! WebNavigationEntryController).entry,
-                hasScrollView: hasAddedScrollViewWhilePreparingNavigation
+                hasMainScrollView: hasAddedMainScrollViewWhilePreparingNavigation
             )
 
             preparingNavigationEntry = nil
-            hasAddedScrollViewWhilePreparingNavigation = false
+            hasAddedMainScrollViewWhilePreparingNavigation = false
         } else if messageBody.starts(with: "navigation.pop:") {
             cleanupModalPresentedViewController()
 
@@ -916,11 +918,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 self,
                 didNavigate: ((viewController ?? topViewController) as! WebNavigationEntryController)
                     .entry,
-                hasScrollView: hasAddedScrollViewWhilePreparingNavigation
+                hasMainScrollView: hasAddedMainScrollViewWhilePreparingNavigation
             )
 
             preparingNavigationEntry = nil
-            hasAddedScrollViewWhilePreparingNavigation = false
+            hasAddedMainScrollViewWhilePreparingNavigation = false
 
             let completion = { [self] in
                 isNavigationAnimating = false
@@ -992,11 +994,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             webDelegate?.webNavigationController?(
                 self,
                 didNavigate: (topViewController! as! WebNavigationEntryController).entry,
-                hasScrollView: hasAddedScrollViewWhilePreparingNavigation
+                hasMainScrollView: hasAddedMainScrollViewWhilePreparingNavigation
             )
 
             preparingNavigationEntry = nil
-            hasAddedScrollViewWhilePreparingNavigation = false
+            hasAddedMainScrollViewWhilePreparingNavigation = false
 
             present(viewController, animated: true) { [self] in
                 isNavigationAnimating = false
@@ -1014,11 +1016,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             webDelegate?.webNavigationController?(
                 self,
                 didNavigate: (topViewController! as! WebNavigationEntryController).entry,
-                hasScrollView: hasAddedScrollViewWhilePreparingNavigation
+                hasMainScrollView: hasAddedMainScrollViewWhilePreparingNavigation
             )
 
             preparingNavigationEntry = nil
-            hasAddedScrollViewWhilePreparingNavigation = false
+            hasAddedMainScrollViewWhilePreparingNavigation = false
 
             if modalPresentedViewController != nil {
                 dismiss(animated: true) { [self] in
@@ -1150,10 +1152,22 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             )
         } else if messageBody == "editMenu.disableAddCommentAction" {
             setSwizzledWKWebViewAddCommentEditMenuAction(webView, action: nil)
-        } else if messageBody == "tabBar.disable" {
+        } else if messageBody.starts(with: "tabBar.disable:") {
+            let isAnimatedString = messageBody.suffix(
+                from: messageBody.index(messageBody.startIndex, offsetBy: 15)
+            )
+
+            isDisableTabBarChangeAnimated = isAnimatedString == "true"
             disableTabBarCount += 1
-        } else if messageBody == "tabBar.enable" {
+            isDisableTabBarChangeAnimated = nil
+        } else if messageBody.starts(with: "tabBar.enable:") {
+            let isAnimatedString = messageBody.suffix(
+                from: messageBody.index(messageBody.startIndex, offsetBy: 14)
+            )
+
+            isDisableTabBarChangeAnimated = isAnimatedString == "true"
             disableTabBarCount -= 1
+            isDisableTabBarChangeAnimated = nil
         } else if messageBody == "scrollbar.updateAllInsets" {
             setAllWebScrollViewScrollIndicatorInsets()
         } else {
@@ -1220,8 +1234,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 )
             )
 
-            if preparingNavigationEntry != nil { hasAddedScrollViewWhilePreparingNavigation = true }
-
             schedule { [self] in
                 // Make sure scroll view wasn't removed.
                 guard webScrollViews[webScrollView] != nil else { return }
@@ -1269,6 +1281,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     isMain: isMain,
                     isAnimated: isAnimated
                 )
+
+                if isMain && preparingNavigationEntry != nil {
+                    hasAddedMainScrollViewWhilePreparingNavigation = true
+                }
             }
         }
 
@@ -1856,7 +1872,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         guard modalPresentedViewController == nil else { return }
 
         preparingNavigationEntry = (topViewController! as! WebNavigationEntryController).entry
-        hasAddedScrollViewWhilePreparingNavigation = false
+        hasAddedMainScrollViewWhilePreparingNavigation = false
 
         // TODO(calebmer): If `NativeMobileBridge.navigation.finishExternalPop()` is
         // never called after this then we show a loading spinner forever. It's
@@ -2809,13 +2825,13 @@ private let webBridgeSource = """
                 isDisabled: () => {
                     return disableTabBarCount > 0;
                 },
-                disable: () => {
+                disable: ({isAnimated = false} = {}) => {
                     disableTabBarCount += 1;
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("tabBar.disable");
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.disable:${isAnimated}`);
                 },
-                enable: () => {
+                enable: ({isAnimated = false} = {}) => {
                     disableTabBarCount -= 1;
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("tabBar.enable");
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.enable:${isAnimated}`);
                 },
             },
             keyboard: {

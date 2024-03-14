@@ -207,10 +207,28 @@ const specialGreyColorVars: {
      * `grey-5` in light mode and `grey-10` in dark mode (the inverted `grey-10`).
      */
     "grey-5-dark-10": CssVarFunction;
+
+    /**
+     * `grey-0` with 20% opacity.
+     */
+    "grey-0-opacity-20": CssVarFunction;
+
+    /**
+     * `grey-0` with 40% opacity.
+     */
+    "grey-0-opacity-40": CssVarFunction;
+
+    /**
+     * `grey-0` with 60% opacity.
+     */
+    "grey-0-opacity-60": CssVarFunction;
 } = createGlobalTheme(":root", {
     "grey-text": colors["grey-dark"],
     "grey-wash": colors["grey-5"],
     "grey-5-dark-10": colors["grey-5"],
+    "grey-0-opacity-20": `${colors["grey-0"]}33`,
+    "grey-0-opacity-40": `${colors["grey-0"]}66`,
+    "grey-0-opacity-60": `${colors["grey-0"]}99`,
 });
 
 globalStyle(darkColorSchemeSelector, {
@@ -218,6 +236,9 @@ globalStyle(darkColorSchemeSelector, {
         "grey-text": colors["grey-0"],
         "grey-wash": colors["grey-dark"],
         "grey-5-dark-10": invertedColorsWithShade["grey-10"],
+        "grey-0-opacity-20": `${colors["grey-90"]}33`,
+        "grey-0-opacity-40": `${colors["grey-90"]}66`,
+        "grey-0-opacity-60": `${colors["grey-90"]}99`,
     }),
 });
 

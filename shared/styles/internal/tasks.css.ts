@@ -4,7 +4,6 @@ import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css.js";
 import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css.js";
 import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css.js";
-import {sprinkles} from "~/shared/styles/internal/sprinkles.css.js";
 
 export const textCursorNotInheritedClassName = style({
     cursor: "text",
@@ -25,22 +24,6 @@ globalStyle(`${textCursorNotInherited2ClassName} > * > *`, {
     // text always has a default cursor.
     cursor: "default",
 });
-
-export const pointerEventsNoneNotInheritedClassName = style({
-    pointerEvents: "none",
-});
-
-const pointerEventsNoneSprinklesNotSelector = sprinkles({pointerEvents: "none"})
-    .split(" ")
-    .map(className => `:not(${className})`)
-    .join("");
-
-globalStyle(
-    `${pointerEventsNoneNotInheritedClassName} > *:not(${pointerEventsNoneNotInheritedClassName})${pointerEventsNoneSprinklesNotSelector}`,
-    {
-        pointerEvents: "initial",
-    },
-);
 
 export const rowTitleInputEmptyContainerClassName = style({});
 export const rowTitleInputInitialAppRenderEmptyContainerClassName = style({});

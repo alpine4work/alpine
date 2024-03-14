@@ -88,6 +88,7 @@ import {TaskId} from "~/shared/id/types/id_types.js";
 import {
     colorSchemeVars,
     contentSchemaStyles,
+    pointerEventsNoneNotInheritedClassName,
     sprinkles,
     tasksStyles,
 } from "~/shared/styles/styles.js";
@@ -1122,7 +1123,7 @@ function TaskRowView(
                         />
                     ) : (
                         <div
-                            className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                            className={pointerEventsNoneNotInheritedClassName}
                             style={{
                                 width: taskRowViewDragHandleWidth,
                                 paddingRight: spacing["0.5"],
@@ -1136,7 +1137,7 @@ function TaskRowView(
                 {!withoutPaddingLeft &&
                     (!disableExpensiveFeaturesDuringScroll && hasTask ? (
                         <div
-                            className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                            className={pointerEventsNoneNotInheritedClassName}
                             style={{
                                 width: spacing["5"],
                                 paddingRight: spacing["1"],
@@ -1166,7 +1167,7 @@ function TaskRowView(
                         </div>
                     ) : (
                         <div
-                            className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                            className={pointerEventsNoneNotInheritedClassName}
                             style={{
                                 width: spacing["5"],
                                 paddingRight: spacing["1"],
@@ -1175,7 +1176,7 @@ function TaskRowView(
                     ))}
                 {!withoutPaddingLeft && (
                     <div
-                        className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                        className={pointerEventsNoneNotInheritedClassName}
                         style={{width: spacing["6"], paddingRight: spacing["2"]}}
                     >
                         {hasTask ? (
@@ -1466,7 +1467,7 @@ function TaskRowViewDragHandle({
     return (
         <div
             className={classNames(
-                tasksStyles.pointerEventsNoneNotInheritedClassName,
+                pointerEventsNoneNotInheritedClassName,
                 sprinkles({
                     paddingRight: "0.5",
                     opacity: isHovered ? "100" : "0",
