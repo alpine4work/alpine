@@ -4,16 +4,13 @@ import {Fragment, Memo, MutableRefObject, useEffect, useMemo, useRef, useState} 
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
-import {useContextMenuActionsRef} from "~/client/design/context_menu.js";
 import {ErrorIcon} from "~/client/design/error_icon.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {MenuAction} from "~/client/design/menu_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
 import {Tooltip} from "~/client/design/tooltip.js";
-import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
 import {MessageViewActions} from "~/client/messaging/internal/message_view_actions.js";
 import {
@@ -27,7 +24,6 @@ import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {
@@ -160,14 +156,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onJumpToMessage: Memo<(message: Message) => void>;
     onReplyToMessage: () => void;
     onDeleteMessage: () => Promise<void>;
-    getMessageUrl: Memo<(messageIndex: number) => URL>;
+    getMessageUrl: (messageIndex: number) => URL;
     roomDisplayedCreatedTime?: Date;
     marginX?: Spacing;
 }) {
     const isMobile = useIsMobile();
     const {timeZone, locale} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
-    const {currentAccount} = useSpaceContext();
 
     const shouldMergeWithPreviousMessage: boolean =
         !!previousMessage && shouldMergeMessages(previousMessage, message);
@@ -337,67 +332,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return null;
     }, [message.payload]);
 
-    const [showDeleteConfirmationDialog, setShowDeleteConfirmationDialog] = useState(false);
-
-    const contextMenuActions: Array<MenuAction> = [];
-
-    if (!message.isOptimistic) {
-        contextMenuActions.push({
-            label: "Copy link",
-            pressErrorTitle: `Couldn’t copy ${messageNoun} link`,
-            onPress: async () => {
-                await writeTextToClipboard(getMessageUrl(message.index).toString());
-            },
-        });
-
-        const messagePayload = message.payload;
-        if (messagePayload.type === "Content" && currentAccount.id === message.author.id) {
-            contextMenuActions.push({
-                label: "Edit",
-                onPress: () => {
-                    const dispatch = messageEditing.dispatch;
-
-                    dispatch({
-                        type: "StartEditing",
-                        messageIndex: message.index,
-                        messageRoomKey: message.getRoomKey(),
-                        messagePayload,
-                        returnFocusAfterEditing: null,
-                    });
-                },
-            });
-
-            contextMenuActions.push({
-                label: "Edit",
-                onPress: () => {
-                    const dispatch = messageEditing.dispatch;
-
-                    dispatch({
-                        type: "StartEditing",
-                        messageIndex: message.index,
-                        messageRoomKey: message.getRoomKey(),
-                        messagePayload,
-                        returnFocusAfterEditing: null,
-                    });
-                },
-            });
-
-            contextMenuActions.push({
-                label: "Delete",
-                pressErrorTitle: `Couldn’t delete ${messageNoun}`,
-                onPress: () => {
-                    setShowDeleteConfirmationDialog(true);
-                },
-            });
-        }
-    }
-
-    // Provide context menu actions on message bubbles. This is especially
-    // important when in mobile mode on desktop computers. Since we remove the
-    // actions on hover in mobile mode. So the user accesses these actions with
-    // a right click.
-    const contextMenuActionsRef = useContextMenuActionsRef([contextMenuActions]);
-
     // We try to memoize any UI in this component that changes infrequently to
     // speed up React rendering. Because `<MessageView>` renders during scroll
     // animations it's important to keep it fast.
@@ -436,7 +370,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
             return (
                 <div
-                    ref={contextMenuActionsRef}
                     className={sprinkles({
                         fontSize: "600",
                         userSelect: "text",
@@ -468,7 +401,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
         return (
             <div
-                ref={contextMenuActionsRef}
                 className={sprinkles({
                     position: "relative",
                     zIndex: "20",
@@ -497,7 +429,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             </div>
         );
     }, [
-        contextMenuActionsRef,
         message.payload,
         messageTextForBigEmojiMessage,
         shouldMergeWithNextMessage,
@@ -887,9 +818,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                                     messageEditing={messageEditing}
                                                     isHovered={isHovered}
                                                     onReplyToMessage={onReplyToMessage}
-                                                    onShowDeleteConfirmationDialog={() =>
-                                                        setShowDeleteConfirmationDialog(true)
-                                                    }
+                                                    onDeleteMessage={onDeleteMessage}
                                                     isEditing={!!messageEditingForThisMessage}
                                                     getMessageUrl={getMessageUrl}
                                                 />
@@ -950,13 +879,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         />
                     )}
             </div>
-            {showDeleteConfirmationDialog && (
-                <MessageDeleteConfirmationDialog
-                    messageNoun={messageNoun}
-                    onClose={() => setShowDeleteConfirmationDialog(false)}
-                    onDeleteMessage={onDeleteMessage}
-                />
-            )}
         </>
     );
 }

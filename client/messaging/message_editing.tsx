@@ -1,4 +1,4 @@
-import {Memo, MutableRefObject, useEffect, useMemo, useReducer} from "react";
+import {MutableRefObject, useEffect, useMemo, useReducer} from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -158,7 +158,7 @@ function reduce<RoomKey extends string>(
 
 export type MessageEditing<RoomKey extends string> = {
     readonly state: MessageEditingState<RoomKey>;
-    readonly dispatch: Memo<(action: MessageEditingAction<RoomKey>) => void>;
+    readonly dispatch: (action: MessageEditingAction<RoomKey>) => void;
 };
 
 /**
@@ -216,11 +216,5 @@ export function useMessageEditing<RoomKey extends string>({
         );
     }, [onUpdateMessageContent, showToast, state]);
 
-    return useMemo(
-        () => ({
-            state,
-            dispatch: dispatch as Memo<(action: MessageEditingAction<RoomKey>) => void>,
-        }),
-        [state],
-    );
+    return useMemo(() => ({state, dispatch}), [state]);
 }

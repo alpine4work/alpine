@@ -2,7 +2,6 @@ import classNames from "classnames";
 import {
     ReactElement,
     Ref,
-    RefCallback,
     createRef,
     forwardRef,
     useCallback,
@@ -35,42 +34,6 @@ import {greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
 const contextMenuEventActionsSymbol = Symbol("actions");
 
 /**
- * Create a context menu actions ref if you want to avoid rendering another
- * component with `<ContextMenuActions>` for performance reasons.
- */
-export function useContextMenuActionsRef(
-    actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
-): RefCallback<HTMLElement> {
-    const handleContextMenu = useEvent(
-        (
-            event: MouseEvent & {
-                [contextMenuEventActionsSymbol]?: Array<ReadonlyArray<MenuAction>>;
-            },
-        ) => {
-            const eventActions = (event[contextMenuEventActionsSymbol] ??= []);
-            eventActions.unshift(...actions);
-        },
-    );
-
-    const lifecycleRef = useCallback(
-        (element: HTMLElement) => {
-            assert(
-                element instanceof HTMLElement,
-                "Expected the children of `<ContextMenuActions>` to render an element with a ref to an HTML element",
-            );
-
-            element.addEventListener("contextmenu", handleContextMenu);
-            return () => {
-                element.removeEventListener("contextmenu", handleContextMenu);
-            };
-        },
-        [handleContextMenu],
-    );
-
-    return useLifecycleRef(lifecycleRef);
-}
-
-/**
  * Across our entire app we disable the native right-click menu. Because:
  *
  * - It doesn't feel app-like for the context menu to appear absolutely
@@ -95,7 +58,33 @@ export function ContextMenuActions({
     actions: ReadonlyArray<ReadonlyArray<MenuAction>>;
     children: ReactElement;
 }) {
-    return useElementWithRef(children, useContextMenuActions(actions));
+    const handleContextMenu = useEvent(
+        (
+            event: MouseEvent & {
+                [contextMenuEventActionsSymbol]?: Array<ReadonlyArray<MenuAction>>;
+            },
+        ) => {
+            const eventActions = (event[contextMenuEventActionsSymbol] ??= []);
+            eventActions.unshift(...actions);
+        },
+    );
+
+    const lifecycleRef = useCallback(
+        (element: unknown) => {
+            assert(
+                element instanceof HTMLElement,
+                "Expected the children of `<ContextMenuActions>` to render an element with a ref to an HTML element",
+            );
+
+            element.addEventListener("contextmenu", handleContextMenu);
+            return () => {
+                element.removeEventListener("contextmenu", handleContextMenu);
+            };
+        },
+        [handleContextMenu],
+    );
+
+    return useElementWithRef(children, useLifecycleRef(lifecycleRef));
 }
 
 type ContextMenuInstanceState = {
