@@ -23,7 +23,7 @@ import {MessageList} from "~/client/messaging/message_list.js";
 import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {
@@ -161,6 +161,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     marginX?: Spacing;
 }) {
     const isMobile = useIsMobile();
+    const canPrimaryInputHover = useCanPrimaryInputHover();
     const {timeZone, locale} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
 
@@ -183,15 +184,23 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     // `pointerleave` event when the pointer goes into a portalled element.
     const hoverRef = useRef<HTMLDivElement>(null);
     const [isHovered, setIsHovered] = useState(false);
-    if (isHovered && isMobile) setIsHovered(false);
 
     useEffect(() => {
-        if (isMobile) return;
-
         const hoverElement = assertExists(hoverRef.current);
 
-        const handlePointerEnter = () => setIsHovered(true);
-        const handlePointerLeave = () => setIsHovered(false);
+        const handlePointerEnter = (event: PointerEvent) => {
+            // Ignore iOS touch pointer enter/leave events.
+            if (event.pointerType !== "mouse") return;
+
+            setIsHovered(true);
+        };
+
+        const handlePointerLeave = (event: PointerEvent) => {
+            // Ignore iOS touch pointer enter/leave events.
+            if (event.pointerType !== "mouse") return;
+
+            setIsHovered(false);
+        };
 
         hoverElement.addEventListener("pointerenter", handlePointerEnter);
         hoverElement.addEventListener("pointerleave", handlePointerLeave);
@@ -807,7 +816,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                                 />
                                             </div>
                                         ) : (
-                                            !isMobile &&
+                                            // If the primary input device can't hover, improve performance by not
+                                            // rendering message view actions.
+                                            canPrimaryInputHover &&
                                             !message.isOptimistic &&
                                             !disableExpensiveFeaturesDuringScroll &&
                                             !shouldHighlight && (

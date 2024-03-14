@@ -62,7 +62,7 @@ import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_a
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
@@ -522,28 +522,9 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     const navigate = useNavigate();
     const isMobile = useIsMobile();
+    const canPrimaryInputHover = useCanPrimaryInputHover();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const withMobileLayout = isMobile || withMobileLayoutProp;
-
-    const [canPrimaryInputHover, setCanPrimaryInputHover] = useState(
-        () => !window.matchMedia("(hover: none)").matches,
-    );
-
-    useEffect(() => {
-        const mediaQuery = window.matchMedia("(hover: none)");
-
-        const handleChange = () => {
-            setCanPrimaryInputHover(!mediaQuery.matches);
-        };
-
-        // In case media query changed since initial render.
-        handleChange();
-
-        mediaQuery.addEventListener("change", handleChange);
-        return () => {
-            mediaQuery.removeEventListener("change", handleChange);
-        };
-    }, []);
 
     // We choose our interaction mode based on whether the device's primary input
     // can hover. This is true on a laptop (e.g. MacOS) and false on a phone (e.g.

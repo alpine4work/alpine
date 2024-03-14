@@ -7,6 +7,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 const IsMobileContext = createContext<boolean | null>(null);
+const CanPrimaryInputHoverContext = createContext<boolean | null>(null);
 
 /**
  * Is the component rendering in mobile mode?
@@ -30,6 +31,25 @@ export function useIsMobile(): boolean {
 }
 
 /**
+ * Can the user's primary input mechanism hover?
+ *
+ * Uses the CSS media query `(hover: none)`. When server rendering we use the
+ * same value as `isMobile` then update on initial client render.
+ */
+export function useCanPrimaryInputHover(): boolean {
+    const canPrimaryInputHover = useContext(CanPrimaryInputHoverContext);
+
+    if (canPrimaryInputHover === null) {
+        // In unit tests, pretend like we are not in mobile mode.
+        if (import.meta.jest) return true;
+
+        throw new InternalError("Must be rendered in an `<IsMobileContextProvider>`");
+    }
+
+    return canPrimaryInputHover;
+}
+
+/**
  * Is this a mobile context? Doesn't listen for changes. Prefer `useIsMobile()`
  * when possible. Definitely don't use this in React render methods.
  *
@@ -45,24 +65,48 @@ export function IsMobileContextProvider({children}: {children?: ReactNode}) {
     const [isMobile, setIsMobile] = useState(isNativeMobile || screenWidth <= mobileMaxScreenWidth);
 
     useEffect(() => {
-        const mediaQueryList = window.matchMedia(mobilePlatformMediaQuery);
+        const mediaQuery = window.matchMedia(mobilePlatformMediaQuery);
 
         const update = () => {
             runWithImmediatePriority(() => {
-                setIsMobile(isNativeMobile || mediaQueryList.matches);
+                setIsMobile(isNativeMobile || mediaQuery.matches);
             });
         };
 
         // In case the value changed since the time component rendered.
         update();
 
-        mediaQueryList.addEventListener("change", update);
+        mediaQuery.addEventListener("change", update);
         return () => {
-            mediaQueryList.removeEventListener("change", update);
+            mediaQuery.removeEventListener("change", update);
         };
     }, [isNativeMobile]);
 
-    return <IsMobileContext.Provider value={isMobile}>{children}</IsMobileContext.Provider>;
+    const [canPrimaryInputHover, setCanPrimaryInputHover] = useState(!isMobile);
+
+    useEffect(() => {
+        const mediaQuery = window.matchMedia("(hover: none)");
+
+        const update = () => {
+            setCanPrimaryInputHover(!mediaQuery.matches);
+        };
+
+        // In case the value changed since the time component rendered.
+        update();
+
+        mediaQuery.addEventListener("change", update);
+        return () => {
+            mediaQuery.removeEventListener("change", update);
+        };
+    }, [isNativeMobile]);
+
+    return (
+        <IsMobileContext.Provider value={isMobile}>
+            <CanPrimaryInputHoverContext.Provider value={canPrimaryInputHover}>
+                {children}
+            </CanPrimaryInputHoverContext.Provider>
+        </IsMobileContext.Provider>
+    );
 }
 
 export function TestIsMobileContextProvider({
