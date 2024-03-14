@@ -848,6 +848,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                         description="Cancel reply"
                                         withoutTooltip={true}
                                         onPress={onClearReplyingToMessage}
+                                        // Not focusable so clicking on this button doesn't unfocus
+                                        // the input.
+                                        isFocusable={false}
                                     >
                                         <X />
                                     </IconButton>

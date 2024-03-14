@@ -1,5 +1,5 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..b79f5d52aae28784152efa5e9e3e04bd902102a9 100644
+index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..89a288a5655ab6964f7634cd5e42e3452c055b0c 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
 @@ -3437,8 +3437,30 @@ function defaultTripleClick(view, inside, event) {
@@ -81,8 +81,15 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..b79f5d52aae28784152efa5e9e3e04bd
    }
  
    _createClass(EditorView, [{
+@@ -5792,3 +5840,6 @@ exports.EditorView = EditorView;
+ exports.__endComposition = __endComposition;
+ exports.__parseFromClipboard = __parseFromClipboard;
+ exports.__serializeForClipboard = __serializeForClipboard;
++
++// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
++exports.serializeForClipboard = serializeForClipboard;
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index 52ee8840c754562f9ae4d9891f61682035b092e7..7dd3c99c6d69fd3b54f6be547f8379fe7a415c32 100644
+index 52ee8840c754562f9ae4d9891f61682035b092e7..9fb17122aa444da0e08e18575289d89212c4a066 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
 @@ -638,6 +638,14 @@ interface EditorProps<P = any> {
@@ -100,7 +107,7 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..7dd3c99c6d69fd3b54f6be547f8379fe
      /**
      Can be used to override the behavior of pasting. `slice` is the
      pasted content parsed by the editor, but you can directly access
-@@ -831,6 +839,11 @@ interface DirectEditorProps extends EditorProps {
+@@ -831,6 +839,17 @@ interface DirectEditorProps extends EditorProps {
      the view instance as its `this` binding.
      */
      dispatchTransaction?: (tr: Transaction) => void;
@@ -112,8 +119,14 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..7dd3c99c6d69fd3b54f6be547f8379fe
  }
  
  export { DOMEventMap, Decoration, DecorationAttrs, DecorationSet, DecorationSource, DirectEditorProps, EditorProps, EditorView, MarkViewConstructor, NodeView, NodeViewConstructor };
++
++// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
++export function serializeForClipboard(view: EditorView, slice: Slice): {
++    dom: HTMLDivElement;
++    text: string;
++};
 diff --git a/dist/index.js b/dist/index.js
-index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..57ccce2264259c76cdb714ef77e044fc2428ed8d 100644
+index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..f4cf629c35e167234fbd07e3434e456302448ed9 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -3000,13 +3000,30 @@ function defaultTripleClick(view, inside, event) {
@@ -201,11 +214,28 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..57ccce2264259c76cdb714ef77e044fc
      }
      /**
      Holds `true` when a
+@@ -5304,3 +5347,6 @@ function checkStateComponent(plugin) {
+ }
+ 
+ export { Decoration, DecorationSet, EditorView, __endComposition, __parseFromClipboard, __serializeForClipboard };
++
++// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
++export { serializeForClipboard };
 diff --git a/src/index.ts b/src/index.ts
-index f28002967d6ff175430efdd8c2389924211c35ce..fafe2d9ca42f63ba42bad3897c9660c71db13e09 100644
+index f28002967d6ff175430efdd8c2389924211c35ce..4df262c97a21294560f942b10a92218b11145b72 100644
 --- a/src/index.ts
 +++ b/src/index.ts
-@@ -57,6 +57,8 @@ export class EditorView {
+@@ -25,6 +25,9 @@ export const __parseFromClipboard = parseFromClipboard
+ /// @internal
+ export const __endComposition = endComposition
+ 
++// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
++export {serializeForClipboard};
++
+ /// An editor view manages the DOM structure that represents an
+ /// editable document. Its state and behavior are determined by its
+ /// [props](#view.DirectEditorProps).
+@@ -57,6 +60,8 @@ export class EditorView {
    /// [space is eaten issue](https://github.com/ProseMirror/prosemirror/issues/651)
    /// @internal
    requiresGeckoHackNode: boolean = false
@@ -214,7 +244,7 @@ index f28002967d6ff175430efdd8c2389924211c35ce..fafe2d9ca42f63ba42bad3897c9660c7
  
    /// The view's current [state](#state.EditorState).
    public state: EditorState
-@@ -90,6 +92,8 @@ export class EditorView {
+@@ -90,6 +95,8 @@ export class EditorView {
      this.domObserver.start()
      initInput(this)
      this.updatePluginViews()
@@ -223,7 +253,7 @@ index f28002967d6ff175430efdd8c2389924211c35ce..fafe2d9ca42f63ba42bad3897c9660c7
    }
  
    /// An editable DOM node containing the document. (You probably
-@@ -581,6 +585,15 @@ export interface EditorProps<P = any> {
+@@ -581,6 +588,15 @@ export interface EditorProps<P = any> {
    /// Called for each node around a triple click.
    handleTripleClickOn?: (this: P, view: EditorView, pos: number, node: Node, nodePos: number, event: MouseEvent, direct: boolean) => boolean | void
  
@@ -239,7 +269,7 @@ index f28002967d6ff175430efdd8c2389924211c35ce..fafe2d9ca42f63ba42bad3897c9660c7
    /// Called when the editor is triple-clicked, after `handleTripleClickOn`.
    handleTripleClick?: (this: P, view: EditorView, pos: number, event: MouseEvent) => boolean | void
  
-@@ -734,4 +747,9 @@ export interface DirectEditorProps extends EditorProps {
+@@ -734,4 +750,9 @@ export interface DirectEditorProps extends EditorProps {
    /// [applied](#state.EditorState.apply). The callback will be bound to have
    /// the view instance as its `this` binding.
    dispatchTransaction?: (tr: Transaction) => void

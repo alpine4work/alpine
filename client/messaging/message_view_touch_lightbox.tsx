@@ -2,12 +2,15 @@ import {ArrowBendUpLeft, Copy, Link as LinkIcon, PencilSimple, Trash} from "phos
 import {useEffect, useState} from "react";
 import {createPortal} from "react-dom";
 import {ContentView} from "~/client/content/content_view.js";
+import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
 import {Box} from "~/client/design/box.js";
-import {Menu} from "~/client/design/menu_button.js";
+import {Menu, MenuAction} from "~/client/design/menu_button.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {
     messageViewActionsWidth,
     messageViewBubbleMinWidth,
@@ -15,7 +18,9 @@ import {
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {
@@ -43,16 +48,26 @@ export function MessageViewTouchLightbox<
     RoomKey extends string,
     Message extends MessageModel<RoomKey>,
 >({
+    messageNoun,
     message,
     messageTop,
     shouldMergeWithNextMessage,
     shouldMergeWithPreviousMessage,
+    messageEditing,
+    onReplyToMessage,
+    onShowDeleteConfirmationDialog,
+    getMessageUrl,
     onClose: onCloseWithoutAnimationProp,
 }: {
+    messageNoun: string;
     message: Message | OptimisticMessageModel;
     messageTop: number;
     shouldMergeWithNextMessage: boolean;
     shouldMergeWithPreviousMessage: boolean;
+    messageEditing: MessageEditing<RoomKey>;
+    onReplyToMessage: () => void;
+    onShowDeleteConfirmationDialog: () => void;
+    getMessageUrl: (messageIndex: number) => URL;
     onClose: () => void;
 }) {
     const rootPortalElement = assertExists(
@@ -196,45 +211,70 @@ export function MessageViewTouchLightbox<
                                     label: "Reply",
                                     icon: <ArrowBendUpLeft />,
                                     iconPlacement: "end",
-                                    onPress: () => {
-                                        // NOCOMMIT
-                                    },
+                                    onPress: onReplyToMessage,
                                 },
                             ],
                             [
-                                {
-                                    label: "Copy text",
-                                    icon: <Copy />,
-                                    iconPlacement: "end",
-                                    onPress: () => {
-                                        // NOCOMMIT
-                                    },
-                                },
-                                {
-                                    label: "Copy link",
-                                    icon: <LinkIcon />,
-                                    iconPlacement: "end",
-                                    onPress: () => {
-                                        // NOCOMMIT
-                                    },
-                                },
+                                ...(message.payload.type === "Content"
+                                    ? [
+                                          cast<MenuAction>({
+                                              label: "Copy text",
+                                              icon: <Copy />,
+                                              iconPlacement: "end",
+                                              pressErrorTitle: `Couldn’t copy ${messageNoun} text`,
+                                              onPress: async () => {
+                                                  assert(message.payload.type === "Content");
+
+                                                  await writeContentToClipboard(
+                                                      message.payload.content,
+                                                  );
+                                              },
+                                          }),
+                                      ]
+                                    : []),
+                                ...(!message.isOptimistic
+                                    ? [
+                                          cast<MenuAction>({
+                                              label: "Copy link",
+                                              icon: <LinkIcon />,
+                                              iconPlacement: "end",
+                                              pressErrorTitle: `Couldn’t copy ${messageNoun} link`,
+                                              onPress: async () => {
+                                                  await writeTextToClipboard(
+                                                      getMessageUrl(message.index).toString(),
+                                                  );
+                                              },
+                                          }),
+                                      ]
+                                    : []),
                             ],
                             [
-                                {
-                                    label: "Edit",
-                                    icon: <PencilSimple />,
-                                    iconPlacement: "end",
-                                    onPress: () => {
-                                        // NOCOMMIT
-                                    },
-                                },
+                                ...(!message.isOptimistic && message.payload.type === "Content"
+                                    ? [
+                                          cast<MenuAction>({
+                                              label: "Edit",
+                                              icon: <PencilSimple />,
+                                              iconPlacement: "end",
+                                              onPress: () => {
+                                                  assert(message.payload.type === "Content");
+
+                                                  // NOCOMMIT:
+                                                  // messageEditing.dispatch({
+                                                  //     type: "StartEditing",
+                                                  //     messageIndex: message.index,
+                                                  //     messageRoomKey: message.getRoomKey(),
+                                                  //     messagePayload: message.payload,
+                                                  //     returnFocusAfterEditing: null,
+                                                  // });
+                                              },
+                                          }),
+                                      ]
+                                    : []),
                                 {
                                     label: "Delete",
                                     icon: <Trash />,
                                     iconPlacement: "end",
-                                    onPress: () => {
-                                        // NOCOMMIT
-                                    },
+                                    onPress: onShowDeleteConfirmationDialog,
                                 },
                             ],
                         ]}

@@ -304,6 +304,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         };
     }, [shouldHighlight]);
 
+    const [showDeleteConfirmationDialog, setShowDeleteConfirmationDialog] = useState(false);
+
     const messageTextForBigEmojiMessage = useMemo(() => {
         if (message.payload.type !== "Content") return null;
 
@@ -353,6 +355,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             // [1]: https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
             longTouchTimeoutRef.current = createTimeout(() => {
                 longTouchTimeoutRef.current = null;
+
+                // Unfocus whatever the focused element is to close the keyboard.
+                if (document.activeElement instanceof HTMLElement) {
+                    document.activeElement.blur();
+                }
 
                 // NOCOMMIT: Haptic feedback when opening lightbox
                 setTouchLightboxState({
@@ -888,8 +895,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                                     messageEditing={messageEditing}
                                                     isHovered={isHovered}
                                                     onReplyToMessage={onReplyToMessage}
-                                                    onDeleteMessage={onDeleteMessage}
-                                                    isEditing={!!messageEditingForThisMessage}
+                                                    onShowDeleteConfirmationDialog={() =>
+                                                        setShowDeleteConfirmationDialog(true)
+                                                    }
                                                     getMessageUrl={getMessageUrl}
                                                 />
                                             )
@@ -949,12 +957,24 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         />
                     )}
             </div>
+            {showDeleteConfirmationDialog && (
+                <MessageDeleteConfirmationDialog
+                    messageNoun={messageNoun}
+                    onClose={() => setShowDeleteConfirmationDialog(false)}
+                    onDeleteMessage={onDeleteMessage}
+                />
+            )}
             {touchLightboxState && (
                 <MessageViewTouchLightbox
+                    messageNoun={messageNoun}
                     message={message}
                     messageTop={touchLightboxState.messageTop}
                     shouldMergeWithNextMessage={shouldMergeWithNextMessage}
                     shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
+                    messageEditing={messageEditing}
+                    onReplyToMessage={onReplyToMessage}
+                    onShowDeleteConfirmationDialog={() => setShowDeleteConfirmationDialog(true)}
+                    getMessageUrl={getMessageUrl}
                     onClose={() => setTouchLightboxState(null)}
                 />
             )}
