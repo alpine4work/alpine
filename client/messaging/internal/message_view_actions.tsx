@@ -6,7 +6,6 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
-import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -19,7 +18,7 @@ export function MessageViewActions<RoomKey extends string>({
     messageEditing,
     isHovered,
     onReplyToMessage,
-    onDeleteMessage,
+    onShowDeleteConfirmationDialog,
     getMessageUrl,
 }: {
     messageNoun: string;
@@ -28,7 +27,7 @@ export function MessageViewActions<RoomKey extends string>({
     messageEditing: MessageEditing<RoomKey>;
     isHovered: boolean;
     onReplyToMessage: () => void;
-    onDeleteMessage: () => Promise<void>;
+    onShowDeleteConfirmationDialog: () => void;
     isEditing: boolean;
     getMessageUrl: (messageIndex: number) => URL;
 }) {
@@ -41,7 +40,6 @@ export function MessageViewActions<RoomKey extends string>({
     });
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
     const setIsMoreMenuOpenTimeoutRef = useRef<Timeout | null>(null);
-    const [showDeleteConfirmationDialog, setShowDeleteConfirmationDialog] = useState(false);
 
     const isShowingActions =
         isHovered || (isFocusWithinActions && isFocusVisible) || isMoreMenuOpen;
@@ -73,9 +71,7 @@ export function MessageViewActions<RoomKey extends string>({
         actions.push({
             label: "Delete",
             pressErrorTitle: `Couldn’t delete ${messageNoun}`,
-            onPress: () => {
-                setShowDeleteConfirmationDialog(true);
-            },
+            onPress: onShowDeleteConfirmationDialog,
         });
     }
 
@@ -113,13 +109,6 @@ export function MessageViewActions<RoomKey extends string>({
                         <DotsThree />
                     </IconButton>
                 </MenuButton>
-            )}
-            {showDeleteConfirmationDialog && (
-                <MessageDeleteConfirmationDialog
-                    messageNoun={messageNoun}
-                    onClose={() => setShowDeleteConfirmationDialog(false)}
-                    onDeleteMessage={onDeleteMessage}
-                />
             )}
         </Box>
     );
