@@ -175,6 +175,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const {timeZone, locale} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
 
+    const containerRef = useRef<HTMLDivElement>(null);
+
     const shouldMergeWithPreviousMessage: boolean =
         !!previousMessage && shouldMergeMessages(previousMessage, message);
 
@@ -376,6 +378,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         getMessageTop: () => number;
     } | null>(null);
 
+    const hasParentMessage = !!parentMessage;
+
     // We try to memoize any UI in this component that changes infrequently to
     // speed up React rendering. Because `<MessageView>` renders during scroll
     // animations it's important to keep it fast.
@@ -393,6 +397,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
             if (event.touches.length > 1) return;
 
+            const containerElement = assertExists(containerRef.current);
             const messageElement = event.currentTarget;
 
             // If the user is touching a link, then a long press won't open the lightbox.
@@ -419,7 +424,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     document.activeElement.blur();
                 }
 
-                const initialMessageTop = messageElement.getBoundingClientRect().top;
+                const initialMessageTop = (
+                    hasParentMessage ? containerElement : messageElement
+                ).getBoundingClientRect().top;
 
                 // NOCOMMIT: Haptic feedback when opening lightbox
                 setTouchLightboxState({
@@ -428,7 +435,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         // Safeguard against the message being removed from the DOM.
                         if (!document.body.contains(messageElement)) return initialMessageTop;
 
-                        return messageElement.getBoundingClientRect().top;
+                        return (
+                            hasParentMessage ? containerElement : messageElement
+                        ).getBoundingClientRect().top;
                     },
                 });
             }, 500);
@@ -483,6 +492,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             return (
                 <div
                     className={sprinkles({
+                        paddingLeft: "1",
                         fontSize: "600",
                         userSelect: canPrimaryInputHover ? "text" : "none",
                         pointerEvents: "auto",
@@ -557,6 +567,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         );
     }, [
         canPrimaryInputHover,
+        hasParentMessage,
         message.payload,
         messageTextForBigEmojiMessage,
         shouldMergeWithNextMessage,
@@ -642,6 +653,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         spacing[messageViewActionsWidth],
                         spacing[marginX],
                     ),
+                    // Hide message while lightbox is open so its blur doesn't bleed into
+                    // the background.
+                    opacity: touchLightboxState ? "0" : undefined,
                 }}
             >
                 <OverlayScopeContextProvider
@@ -711,9 +725,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 <ContentView
                                     isInert={true}
                                     isTruncated={true}
+                                    withUserSelectNone={true}
                                     content={truncatedContent}
                                     className={sprinkles({minWidth: messageViewBubbleMinWidth})}
-                                    withUserSelectNone={true}
                                 />
                             </div>
                         </div>
@@ -727,6 +741,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         messageTextForBigEmojiMessage,
         onJumpToMessage,
         parentMessage,
+        touchLightboxState,
     ]);
 
     const timestampDividerNode = useMemo(() => {
@@ -781,6 +796,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         <>
             {timestampDividerNode}
             <div
+                ref={containerRef}
                 className={sprinkles({
                     width: "full",
                     maxWidth: "160",
@@ -817,6 +833,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                         getMessageBubbleMarginLeft(marginX),
                                         parentMessage === null ? spacing["1.5"] : spacing["1"],
                                     ),
+                                    // Hide message while lightbox is open so its blur doesn't bleed into
+                                    // the background.
+                                    opacity:
+                                        parentMessage !== null && touchLightboxState
+                                            ? "0"
+                                            : undefined,
                                 }}
                             >
                                 {parentMessage !== null && <ArrowArcLeft size={spacing["3"]} />}
@@ -836,7 +858,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 </span>
                             </div>
                         ),
-                    [marginX, message.author, parentMessage, shouldMergeWithPreviousMessage],
+                    [
+                        marginX,
+                        message.author,
+                        parentMessage,
+                        shouldMergeWithPreviousMessage,
+                        touchLightboxState,
+                    ],
                 )}
                 {parentMessageNode}
                 <div
@@ -1023,8 +1051,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             {touchLightboxState && (
                 <MessageViewTouchLightbox
                     messageNoun={messageNoun}
+                    messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                     message={message}
                     messageTextForBigEmojiMessage={messageTextForBigEmojiMessage}
+                    parentMessage={parentMessage}
                     initialMessageTop={touchLightboxState.initialMessageTop}
                     getMessageTop={touchLightboxState.getMessageTop}
                     shouldMergeWithNextMessage={shouldMergeWithNextMessage}
