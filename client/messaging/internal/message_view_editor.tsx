@@ -183,6 +183,9 @@ function MessageContentEditor({
             // With no content the message bubble will be at its min-width so only render
             // an en-dash as a placeholder.
             placeholder={"\u2013"}
+            // On mobile, don't allow interactions when unfocused. We're already in an
+            // editing modality.
+            withoutMobileDualModality={true}
             className={sprinkles({minWidth: messageViewBubbleMinWidth})}
             onEscape={event => {
                 event.preventDefault();

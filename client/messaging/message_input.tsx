@@ -160,6 +160,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     }: MessageInputProps<RoomKey, Message>,
     externalRef: Ref<MessageInputRef>,
 ) {
+    const isMobile = useIsMobile();
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
     const inboxPeekContext = useInboxPeekContext();
@@ -172,9 +173,13 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
             ContentEditorState.create(emptyMessageContentWithReferences),
     );
 
+    const isHiddenForEditing = isMobile && messageEditing.state.isEditing;
+
     const hasInitiallyMountedRef = useRef(false);
 
     useLayoutEffectWithoutServerSideWarning(() => {
+        if (isHiddenForEditing) return;
+
         const isInitialMount = !hasInitiallyMountedRef.current;
         hasInitiallyMountedRef.current = true;
 
@@ -284,9 +289,13 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
 
     const interactionModality = useInteractionModality();
 
+    const mergedInputRef = useMergedRefs(inputRef, externalRef);
+
+    if (isHiddenForEditing) return <MessageInputHiddenForEditingForwardRef ref={mergedInputRef} />;
+
     return (
         <MessageInputBaseForwardRef
-            ref={useMergedRefs(inputRef, externalRef)}
+            ref={mergedInputRef}
             messageNoun={messageNoun}
             messageStartOfSentenceNoun={messageStartOfSentenceNoun}
             placeholder={placeholder}
@@ -437,7 +446,45 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     const [isKeyboardToolbarVisible, setIsKeyboardToolbarVisible] = useState(false);
     if (isKeyboardToolbarVisible && !(isMobile && isBottomBar)) setIsKeyboardToolbarVisible(false);
 
-    const cancelFocusOrBlurRef = useRef<(() => void) | null>(null);
+    const lastIsKeyboardToolbarVisibleRef = useRef(isKeyboardToolbarVisible);
+    useEffect(() => {
+        if (NativeMobileBridge) return;
+
+        if (lastIsKeyboardToolbarVisibleRef.current === isKeyboardToolbarVisible) return;
+        lastIsKeyboardToolbarVisibleRef.current = isKeyboardToolbarVisible;
+
+        const containerElement = assertExists(containerRef.current);
+
+        if (isKeyboardToolbarVisible) {
+            animate(
+                containerElement,
+                {
+                    y: [0, -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening()],
+                },
+                {
+                    duration: 0.2,
+                    // Make sure we use hardware acceleration for this animation in WebKit. By
+                    // default `motion` turns it off.
+                    // https://motion.dev/guides/performance#webkits-exceptions
+                    allowWebkitAcceleration: true,
+                },
+            );
+        } else {
+            animate(
+                containerElement,
+                {
+                    y: [-mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening(), 0],
+                },
+                {
+                    duration: 0.2,
+                    // Make sure we use hardware acceleration for this animation in WebKit. By
+                    // default `motion` turns it off.
+                    // https://motion.dev/guides/performance#webkits-exceptions
+                    allowWebkitAcceleration: true,
+                },
+            );
+        }
+    }, [isKeyboardToolbarVisible]);
 
     const replyingToMessage = useMemo(() => {
         if (!replyingToMessageProp) return null;
@@ -509,99 +556,26 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     };
 
     const handleFocus = () => {
-        cancelFocusOrBlurRef.current?.();
-        cancelFocusOrBlurRef.current = null;
-
         onFocus?.();
 
         // 1. On mobile, make sure our keyboard toolbar is visible when focused
         // 2. On mobile web, animate so our toolbar is visible. In our native app, the
-        //    shell manages animating the toolbar so it's visible
+        //    shell manages animating the toolbar so it's visible (done in an effect)
         if (isMobile && isBottomBar) {
             setIsKeyboardToolbarVisible(true);
-
-            if (NativeMobileBridge) {
-                // Our native mobile app will animate the keyboard toolbar onscreen.
-            } else {
-                const containerElement = assertExists(containerRef.current);
-
-                const animation = animate(
-                    containerElement,
-                    {
-                        y: [
-                            0,
-                            -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening(),
-                        ],
-                    },
-                    {
-                        duration: 0.2,
-                        // Make sure we use hardware acceleration for this animation in WebKit. By
-                        // default `motion` turns it off.
-                        // https://motion.dev/guides/performance#webkits-exceptions
-                        allowWebkitAcceleration: true,
-                    },
-                );
-
-                const cancel = () => {
-                    animation.cancel();
-                };
-
-                cancelFocusOrBlurRef.current = cancel;
-                animation.finished.finally(() => {
-                    if (cancelFocusOrBlurRef.current === cancel)
-                        cancelFocusOrBlurRef.current = null;
-                });
-            }
         }
     };
 
     const handleBlur = () => {
-        cancelFocusOrBlurRef.current?.();
-        cancelFocusOrBlurRef.current = null;
-
         hideTypingIndicator();
 
         onBlur?.();
 
         // 1. On mobile, make sure our keyboard toolbar is visible when focused
         // 2. On mobile web, animate so our toolbar is visible. In our native app, the
-        //    shell manages animating the toolbar so it's visible
+        //    shell manages animating the toolbar so it's visible (done in an effect)
         if (isMobile && isBottomBar) {
             setIsKeyboardToolbarVisible(false);
-
-            if (NativeMobileBridge) {
-                // Our native mobile app will animate the keyboard toolbar offscreen. We just
-                // need to hide the keyboard toolbar which will be visible in safe areas.
-            } else {
-                const containerElement = assertExists(containerRef.current);
-
-                const animation = animate(
-                    containerElement,
-                    {
-                        y: [
-                            -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening(),
-                            0,
-                        ],
-                    },
-                    {
-                        duration: 0.2,
-                        // Make sure we use hardware acceleration for this animation in WebKit. By
-                        // default `motion` turns it off.
-                        // https://motion.dev/guides/performance#webkits-exceptions
-                        allowWebkitAcceleration: true,
-                    },
-                );
-
-                const cancel = () => {
-                    animation.cancel();
-                };
-
-                cancelFocusOrBlurRef.current = cancel;
-                animation.finished.finally(() => {
-                    if (cancelFocusOrBlurRef.current === cancel)
-                        cancelFocusOrBlurRef.current = null;
-                });
-            }
         }
     };
 
@@ -979,5 +953,35 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 />
             )}
         </Box>
+    );
+}
+
+const MessageInputHiddenForEditingForwardRef = forwardRef(MessageInputHiddenForEditing);
+
+function MessageInputHiddenForEditing({}: {}, ref: Ref<MessageInputRef>) {
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            isFocused: () => false,
+            focus: () => {},
+            isEmpty: () => true,
+            clear: () => {},
+            getBoundingClientRect: () => assertExists(containerRef.current).getBoundingClientRect(),
+        }),
+        [],
+    );
+
+    return (
+        <Box
+            ref={containerRef}
+            flexShrink="0"
+            width="full"
+            backgroundColor="grey-0"
+            style={{
+                height: "var(--window-safe-area-inset-bottom, 0px))",
+            }}
+        />
     );
 }

@@ -15,6 +15,8 @@ import {
 } from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {useAppContext} from "~/client/context/app_context.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {getElementSafeAreaInsetBottomPx} from "~/client/design/safe_area_inset.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
@@ -43,7 +45,7 @@ import {
     VirtualizedScrollViewRenderItem,
     getInitialVirtualizedScrollViewRenderedItemCount,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing} from "~/shared/design/spacing.js";
+import {Spacing, convertRemLengthToPx} from "~/shared/design/spacing.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -62,7 +64,7 @@ import {
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {messageViewMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
-import {sprinkles} from "~/shared/styles/styles.js";
+import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export const messagingViewMarginBottom =
     "calc(var(--safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px))";
@@ -558,12 +560,70 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
 
     // Make sure the bottom of the scroll view stays visible when the keyboard
     // opens and closes.
+    //
+    // Unless we are replying to a message or editing a message. Then we should
+    // anchor to the message in question.
+    //
+    // NOCOMMIT: Do this for document comment threads too?
     useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
         isPinned: true,
-        getAnchorPosition: useCallback(
-            oldVisibleRect => ({top: oldVisibleRect.bottom, height: 0}),
-            [],
-        ),
+        getAnchorPosition: useEvent(oldVisibleRect => {
+            const view = assertExists(viewRef.current);
+
+            if (messageEditing.state.isEditing) {
+                const itemIndex = state.getItemIndexForMessageIndex(
+                    messageEditing.state.messageIndex,
+                );
+                const item = state.getItem(itemIndex);
+
+                if (item.type === "Header") return null;
+
+                const position = view.getPositionByKeyIfExists(getMessageListItemKey(item, null));
+                if (!position) return null;
+
+                const anchorPositionTop =
+                    oldVisibleRect.top + (position.offset - view.getScrollOffset());
+
+                const anchorPosition = {
+                    top: anchorPositionTop,
+                    bottom:
+                        anchorPositionTop +
+                        position.height -
+                        // If this is the last item then it will have some safe are margin bottom.
+                        // Compute the safe area we applied and subtract it from the item's height.
+                        (itemIndex === state.getItemCount() - 1
+                            ? getElementSafeAreaInsetBottomPx(document.documentElement)
+                            : 0),
+                };
+
+                const paragraphLineHeight = convertRemLengthToPx(
+                    contentSchemaStyles.paragraphLineHeight,
+                    getRemPxWithoutListening(),
+                );
+
+                console.log("computing anchor", {
+                    safeAreaInsetBottom: getElementSafeAreaInsetBottomPx(document.documentElement),
+                    paragraphLineHeight,
+                    viewScrollOffset: view.getScrollOffset(),
+                    viewContentHeight: view.getContentHeight(),
+                    viewHeight: view.getHeight(),
+                    anchorPositionRelativeTop: position.offset - view.getScrollOffset(),
+                    oldVisibleRect,
+                    position,
+                    anchorPosition,
+                });
+
+                anchorPosition.top -= paragraphLineHeight;
+                anchorPosition.bottom += paragraphLineHeight;
+
+                return {
+                    top: anchorPosition.top,
+                    height: anchorPosition.bottom - anchorPosition.top,
+                };
+            }
+
+            return {top: oldVisibleRect.bottom, height: 0};
+        }),
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
