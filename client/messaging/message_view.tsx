@@ -33,7 +33,7 @@ import {MessageViewTouchLightbox} from "~/client/messaging/message_view_touch_li
 import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {
@@ -147,7 +147,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     disableExpensiveFeaturesDuringScroll,
     shouldHighlightRef,
     onJumpToMessage,
-    onReplyToMessage,
+    onReplyToMessage: onReplyToMessageProp,
     onDeleteMessage,
     getMessageUrl,
     roomDisplayedCreatedTime,
@@ -170,6 +170,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     roomDisplayedCreatedTime?: Date;
     marginX?: Spacing;
 }) {
+    const isMobile = useIsMobile();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const {timeZone, locale} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
@@ -194,12 +195,26 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const [isHovered, setIsHovered] = useState(false);
 
     const messageEditingForThisMessage =
+        // If we're on a mobile device (with keyboard toolbars) then instead of editing
+        // a message inline, we edit it within the sticky `<MessageInput>`.
+        !isMobile &&
         messageEditing.state.isEditing &&
         !message.isOptimistic &&
         messageEditing.state.messageRoomKey === message.getRoomKey() &&
         messageEditing.state.messageIndex === message.index
             ? messageEditing
             : null;
+
+    const onReplyToMessage = () => {
+        // If we're currently editing a message on mobile then cancel editing when
+        // trying to reply to a message. Otherwise `<MessageInput>` will override the
+        // reply state with editing state.
+        if (isMobile && messageEditing.state.isEditing) {
+            messageEditing.dispatch({type: "CancelEditing"});
+        }
+
+        onReplyToMessageProp();
+    };
 
     const messageEditorRef = useRef<MessageViewEditorRef>(null);
     const returnFocusAfterMessageEditingRef = useRef<(() => void) | null>(null);

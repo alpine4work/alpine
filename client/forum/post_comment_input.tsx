@@ -35,8 +35,8 @@ export function PostCommentInput({
     replyingToPostComment,
     onClearReplyingToPostComment,
     onJumpToPostComment,
+    onDeletePostComment,
     paddingX,
-    isStickyPositioned,
 }: {
     post: PostModel;
     viewRef: RefObject<VirtualizedScrollViewRef>;
@@ -49,8 +49,8 @@ export function PostCommentInput({
     replyingToPostComment: PostCommentModel | null;
     onClearReplyingToPostComment: () => void;
     onJumpToPostComment: (postComment: PostCommentModel) => void;
+    onDeletePostComment: (postCommentIndex: number) => Promise<void>;
     paddingX: Spacing;
-    isStickyPositioned?: boolean;
 }) {
     const context = useAppContext();
 
@@ -162,6 +162,7 @@ export function PostCommentInput({
             marginX={paddingX}
             onClearReplyingToMessage={onClearReplyingToPostComment}
             onJumpToMessage={onJumpToPostComment}
+            onDeleteMessage={onDeletePostComment}
             onShowTypingIndicator={() => {
                 // Don't show an error updating typing indicators to the user. We will see an
                 // error in our logs but the user won't see any weird behavior if the

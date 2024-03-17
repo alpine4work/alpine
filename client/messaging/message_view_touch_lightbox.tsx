@@ -1,5 +1,5 @@
 import {ArrowBendUpLeft, Copy, Link as LinkIcon, PencilSimple, Trash} from "phosphor-react";
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import {ContentView} from "~/client/content/content_view.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
@@ -43,6 +43,7 @@ import {
 // - Replies
 // - Links
 // - Translate if offscreen
+// - Put create time and update time in menu
 
 export function MessageViewTouchLightbox<
     RoomKey extends string,
@@ -89,7 +90,19 @@ export function MessageViewTouchLightbox<
     const [isFadingOut, setIsFadingOut] = useState(false);
 
     const onCloseWithAnimation = () => setIsFadingOut(true);
-    const onCloseWithoutAnimation = useEvent(onCloseWithoutAnimationProp);
+
+    const onCloseWithoutAnimationCallbacksRef = useRef<Array<() => void>>([]);
+
+    const onCloseWithoutAnimation = useEvent(() => {
+        const callbacks = onCloseWithoutAnimationCallbacksRef.current;
+        onCloseWithoutAnimationCallbacksRef.current = [];
+
+        for (const callback of callbacks) {
+            callback();
+        }
+
+        onCloseWithoutAnimationProp();
+    });
 
     useEffect(() => {
         if (!isFadingOut) return;
@@ -211,7 +224,14 @@ export function MessageViewTouchLightbox<
                                     label: "Reply",
                                     icon: <ArrowBendUpLeft />,
                                     iconPlacement: "end",
-                                    onPress: onReplyToMessage,
+                                    onPress: () => {
+                                        // Start editing once the lightbox has finished animating shut. So the
+                                        // animation completes smoothly. Otherwise the keyboard opening would throw
+                                        // things off.
+                                        onCloseWithoutAnimationCallbacksRef.current.push(
+                                            onReplyToMessage,
+                                        );
+                                    },
                                 },
                             ],
                             [
@@ -256,16 +276,23 @@ export function MessageViewTouchLightbox<
                                               icon: <PencilSimple />,
                                               iconPlacement: "end",
                                               onPress: () => {
-                                                  assert(message.payload.type === "Content");
-
-                                                  // NOCOMMIT:
-                                                  // messageEditing.dispatch({
-                                                  //     type: "StartEditing",
-                                                  //     messageIndex: message.index,
-                                                  //     messageRoomKey: message.getRoomKey(),
-                                                  //     messagePayload: message.payload,
-                                                  //     returnFocusAfterEditing: null,
-                                                  // });
+                                                  // Start editing once the lightbox has finished animating shut. So the
+                                                  // animation completes smoothly. Otherwise the keyboard opening would throw
+                                                  // things off.
+                                                  onCloseWithoutAnimationCallbacksRef.current.push(
+                                                      () => {
+                                                          if (message.payload.type === "Content") {
+                                                              messageEditing.dispatch({
+                                                                  type: "StartEditing",
+                                                                  messageIndex: message.index,
+                                                                  messageRoomKey:
+                                                                      message.getRoomKey(),
+                                                                  messagePayload: message.payload,
+                                                                  returnFocusAfterEditing: null,
+                                                              });
+                                                          }
+                                                      },
+                                                  );
                                               },
                                           }),
                                       ]

@@ -558,12 +558,50 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
 
     // Make sure the bottom of the scroll view stays visible when the keyboard
     // opens and closes.
+    //
+    // Unless we are replying to a message or editing a message. Then we should
+    // anchor to the message in question.
+    //
+    // NOCOMMIT: Do this for document comment threads too?
     useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
         isPinned: true,
-        getAnchorPosition: useCallback(
-            oldVisibleRect => ({top: oldVisibleRect.bottom, height: 0}),
-            [],
-        ),
+        getAnchorPosition: useEvent(oldVisibleRect => {
+            const view = assertExists(viewRef.current);
+
+            const anchorMessageIndex = messageEditing.state.isEditing
+                ? messageEditing.state.messageIndex
+                : replyingToMessageIndex;
+
+            if (anchorMessageIndex !== null) {
+                const itemIndex = state.getItemIndexForMessageIndex(anchorMessageIndex);
+                const item = state.getItem(itemIndex);
+
+                if (item.type === "Header") return null;
+
+                const position = view.getPositionByKeyIfExists(getMessageListItemKey(item, null));
+                if (!position) return null;
+
+                const anchorPositionTop =
+                    oldVisibleRect.top + (position.offset - view.getScrollOffset());
+
+                // Only include visible bits of the message in the anchor. This way, we exclude
+                // safe area margin bottom on the last message in the anchor position.
+                const anchorPosition = {
+                    top: Math.max(oldVisibleRect.top, anchorPositionTop),
+                    bottom: Math.min(
+                        Math.max(oldVisibleRect.bottom, anchorPositionTop),
+                        anchorPositionTop + position.height,
+                    ),
+                };
+
+                return {
+                    top: anchorPositionTop,
+                    height: anchorPosition.bottom - anchorPosition.top,
+                };
+            }
+
+            return {top: oldVisibleRect.bottom, height: 0};
+        }),
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -658,6 +696,9 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 }
                 onClearReplyingToMessage={() => setReplyingToMessageIndex(null)}
                 onJumpToMessage={handleJumpToMessage}
+                onDeleteMessage={async messageIndex => {
+                    await deleteMessage({messageIndex});
+                }}
                 onShowTypingIndicator={() => {
                     startTypingInMessageInput({})
                         // Don't show an error updating typing indicators to the user. We will see an

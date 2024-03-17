@@ -31,12 +31,12 @@ export function DocumentCommentInput({
     replyingToComment,
     onClearReplyingToComment,
     onJumpToComment,
+    onDeleteComment,
     isConnected,
     procedures,
     subscribeToCommentThreadEvents,
     marginX,
     withMobileLayout,
-    isStickyPositioned,
 }: {
     inputRef?: Ref<MessageInputRef>;
     viewRef: RefObject<VirtualizedScrollViewRef>;
@@ -55,12 +55,12 @@ export function DocumentCommentInput({
     replyingToComment: DocumentCommentModel | null;
     onClearReplyingToComment: () => void;
     onJumpToComment: (comment: DocumentCommentModel) => void;
+    onDeleteComment: (commentIndex: number) => Promise<void>;
     isConnected: boolean;
     procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
     marginX?: Spacing;
     withMobileLayout?: boolean;
-    isStickyPositioned?: boolean;
 }) {
     const context = useAppContext();
 
@@ -186,6 +186,7 @@ export function DocumentCommentInput({
             replyingToMessage={replyingToComment}
             onClearReplyingToMessage={onClearReplyingToComment}
             onJumpToMessage={onJumpToComment}
+            onDeleteMessage={onDeleteComment}
             onShowTypingIndicator={() => {
                 procedures
                     .startTypingInCommentInput({commentThreadId: commentThread.id})

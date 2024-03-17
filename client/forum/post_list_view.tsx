@@ -1049,8 +1049,16 @@ function PostListView(
                                 );
                             }}
                             onJumpToPostComment={handleJumpToPostComment}
+                            onDeletePostComment={async postCommentIndex => {
+                                const procedures = proceduresByPostIdRef.current.get(item.post.id);
+                                if (!procedures)
+                                    throw new InternalError("Post comment input isn't mounted");
+
+                                await procedures.deleteComment({
+                                    commentIndex: postCommentIndex,
+                                });
+                            }}
                             paddingX={paddingX}
-                            isStickyPositioned={true}
                         />
                     );
 
@@ -1680,6 +1688,17 @@ function PostListView(
                                 }}
                                 paddingX={paddingX}
                                 onJumpToPostComment={handleJumpToPostComment}
+                                onDeletePostComment={async postCommentIndex => {
+                                    const procedures = proceduresByPostIdRef.current.get(
+                                        lastPostContentItem.post.id,
+                                    );
+                                    if (!procedures)
+                                        throw new InternalError("Post comment input isn't mounted");
+
+                                    await procedures.deleteComment({
+                                        commentIndex: postCommentIndex,
+                                    });
+                                }}
                             />
                         );
                     })()}

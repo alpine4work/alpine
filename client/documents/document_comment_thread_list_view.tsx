@@ -971,12 +971,17 @@ function DocumentCommentThreadListView(
                                 );
                             }}
                             onJumpToComment={handleJumpToComment}
+                            onDeleteComment={async commentIndex => {
+                                await procedures.deleteComment({
+                                    commentThreadId: item.commentThread.id,
+                                    commentIndex,
+                                });
+                            }}
                             isConnected={isConnected}
                             procedures={procedures}
                             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
                             marginX={paddingX}
                             withMobileLayout={withMobileLayout}
-                            isStickyPositioned={true}
                         />
                     );
 
@@ -1170,6 +1175,12 @@ function DocumentCommentThreadListView(
                                     );
                                 }}
                                 onJumpToComment={handleJumpToComment}
+                                onDeleteComment={async commentIndex => {
+                                    await procedures.deleteComment({
+                                        commentThreadId: item.commentThread.id,
+                                        commentIndex,
+                                    });
+                                }}
                                 isConnected={isConnected}
                                 procedures={procedures}
                                 subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}

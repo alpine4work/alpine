@@ -75,7 +75,11 @@ function reduce<RoomKey extends string>(
                 isEditing: true,
                 messageRoomKey: action.messageRoomKey,
                 messageIndex: action.messageIndex,
-                contentEditorState: ContentEditorState.create(action.messagePayload.content),
+                contentEditorState: ContentEditorState.create(action.messagePayload.content, {
+                    // The user is much more likely to need to edit from the end of the message than
+                    // the start. This is especially convenient on mobile.
+                    selectionAt: "end",
+                }),
                 initialContent: action.messagePayload.content.doc,
                 returnFocusAfterEditing: action.returnFocusAfterEditing,
                 isSaving: false,
