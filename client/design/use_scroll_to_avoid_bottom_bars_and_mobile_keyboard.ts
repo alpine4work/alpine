@@ -22,6 +22,7 @@ import {RemLength, convertRemLengthToPx} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 
 let currentMobileKeyboardHeight = 0;
 
@@ -240,15 +241,49 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
 
             const anchorPositionMiddle = anchorPosition.top + anchorPosition.height / 2;
 
-            const anchorPositionMiddlePercent =
-                (anchorPositionMiddle - oldVisibleRect.top) /
+            const constrainedOldVisibleRect = {
+                top: oldVisibleRect.top + anchorPosition.height / 2,
+                bottom: oldVisibleRect.bottom - anchorPosition.height / 2,
+            };
+            constrainedOldVisibleRect.bottom = Math.max(
+                constrainedOldVisibleRect.top,
+                constrainedOldVisibleRect.bottom,
+            );
+
+            // We need to pick a Y position within our anchor to pin. If the anchor is at
+            // the top of the visible rect then we want to anchor the top Y position, if
+            // the anchor is at the bottom of the visible rect then we want to anchor the
+            // bottom Y position, if the anchor is in the middle of the visible rect
+            // then we want to anchor the middle Y position, and so on.
+            //
+            // Compute that anchor position here.
+            const anchorPositionY =
+                anchorPosition.top +
+                anchorPosition.height *
+                    clamp(
+                        0,
+                        (anchorPositionMiddle - constrainedOldVisibleRect.top) /
+                            (constrainedOldVisibleRect.bottom - constrainedOldVisibleRect.top),
+                        1,
+                    );
+
+            const anchorPositionYPercent =
+                (anchorPositionY - oldVisibleRect.top) /
                 (oldVisibleRect.bottom - oldVisibleRect.top);
 
-            const newAnchorPositionMiddle =
+            const newAnchorPositionY =
                 newVisibleRect.top +
-                (newVisibleRect.bottom - newVisibleRect.top) * anchorPositionMiddlePercent;
+                (newVisibleRect.bottom - newVisibleRect.top) * anchorPositionYPercent;
 
-            let scrollDelta = anchorPositionMiddle - newAnchorPositionMiddle;
+            // If our visible rect is growing then we need to make sure we scroll at least
+            // the same number of pixels as it took to grow the visible rect. Otherwise, if
+            // we're at the bottom of the scroll view we may not scroll the entire newly
+            // visible safe area offscreen.
+            //
+            // To test this, play with entering edit mode for `<MessageView>`s near the
+            // bottom of the screen.
+            const minScrollDelta = oldVisibleRect.bottom - newVisibleRect.bottom;
+            let scrollDelta = Math.min(minScrollDelta, anchorPositionY - newAnchorPositionY);
 
             // If our scrollable element is scrolled to the bottom and our scrollable
             // element grew (e.g. you deleted some text in a `<MessageInput>` shrinking the
@@ -320,11 +355,12 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                     bottom: Math.min(newScrollableBottom, newCoveredBottom),
                 };
 
-                const newAnchorPositionMiddle =
+                const newAnchorPositionY =
                     newVisibleRect.top +
-                    (newVisibleRect.bottom - newVisibleRect.top) * anchorPositionMiddlePercent;
+                    (newVisibleRect.bottom - newVisibleRect.top) * anchorPositionYPercent;
 
-                const scrollDelta = anchorPositionMiddle - newAnchorPositionMiddle;
+                const minScrollDelta = oldVisibleRect.bottom - newVisibleRect.bottom;
+                const scrollDelta = Math.min(minScrollDelta, anchorPositionY - newAnchorPositionY);
 
                 scrollableElement.scrollTo({
                     top: scrollableElement.scrollTop + scrollDelta,

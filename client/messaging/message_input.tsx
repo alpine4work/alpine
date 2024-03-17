@@ -442,7 +442,7 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     isSendBottomArrowRight?: boolean;
     isSendButtonDisabled?: boolean;
     isSendButtonPending?: boolean;
-    messageEditingForThisInput?: MessageEditing<RoomKey> | null;
+    messageEditingForThisInput?: (MessageEditing<RoomKey> & {state: {isEditing: true}}) | null;
     replyingToMessage?: Message | null;
     onClearReplyingToMessage?: () => void;
     onJumpToMessage?: (message: Message) => void;
@@ -576,7 +576,12 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
     // Focus the message input whenever the message we're replying to changes. Or
     // if we start editing the message.
-    const focusKey = replyingToMessage?.message.index ?? (isEditingMessage ? "editing" : null);
+    const focusKey =
+        replyingToMessage?.message.index !== undefined
+            ? `Replying:${replyingToMessage?.message.index}`
+            : isEditingMessage
+            ? `Editing:${messageEditingForThisInput.state.messageIndex}`
+            : null;
     const lastFocusKeyRef = useRef<Key | null>(null);
     useEffect(() => {
         if (lastFocusKeyRef.current === focusKey) return;
