@@ -5,7 +5,6 @@ import {
     Memo,
     MutableRefObject,
     TouchEvent,
-    useCallback,
     useEffect,
     useMemo,
     useRef,
@@ -30,6 +29,7 @@ import {
 import {shouldDisplayTextAsBigEmojiMessage} from "~/client/messaging/internal/should_display_text_as_big_emoji_message.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
+import {MessageViewTouchLightbox} from "~/client/messaging/message_view_touch_lightbox.js";
 import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
@@ -193,7 +193,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     // `pointerleave` event when the pointer goes into a portalled element.
     const [isHovered, setIsHovered] = useState(false);
 
-    const messageEditingForThisMessageEvenWhenNotInline =
+    const messageEditingForThisMessage =
         messageEditing.state.isEditing &&
         !message.isOptimistic &&
         messageEditing.state.messageRoomKey === message.getRoomKey() &&
@@ -201,16 +201,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             ? messageEditing
             : null;
 
-    // If the primary input can't hover then message editing uses
-    // `<MessageViewTouchLightbox>` instead of the inline `<MessageViewEditor>`.
-    const messageEditingForThisMessage = canPrimaryInputHover
-        ? messageEditingForThisMessageEvenWhenNotInline
-        : null;
-
-    const isTouchLightboxOpen =
-        messageEditingForThisMessageEvenWhenNotInline && !canPrimaryInputHover;
-
-    const messageRef = useRef<HTMLDivElement>(null);
     const messageEditorRef = useRef<MessageViewEditorRef>(null);
     const returnFocusAfterMessageEditingRef = useRef<(() => void) | null>(null);
     const hasMessageEditingConfirmationDialogRef = useRef(false);
@@ -314,31 +304,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         };
     }, [shouldHighlight]);
 
-    const onStartMessageEditing = useCallback(() => {
-        if (message.isOptimistic) return;
-        const messagePayload = message.payload;
-        if (messagePayload.type !== "Content") return;
-
-        // Written this way so `useCallback()` only takes a dep on
-        // `messageEditing.dispatch` and not the full `messageEditing`.
-        const dispatch = messageEditing.dispatch;
-
-        dispatch({
-            type: "StartEditing",
-            messageIndex: message.index,
-            messageRoomKey: message.getRoomKey(),
-            messagePayload,
-            messageTop: assertExists(messageRef.current).getBoundingClientRect().top,
-            shouldMergeWithNextMessage,
-            shouldMergeWithPreviousMessage,
-            returnFocusAfterEditing: null,
-        });
-    }, [
-        message,
-        messageEditing.dispatch,
-        shouldMergeWithNextMessage,
-        shouldMergeWithPreviousMessage,
-    ]);
+    const [showDeleteConfirmationDialog, setShowDeleteConfirmationDialog] = useState(false);
 
     const messageTextForBigEmojiMessage = useMemo(() => {
         if (message.payload.type !== "Content") return null;
@@ -361,6 +327,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     }, [message.payload]);
 
     const longTouchTimeoutRef = useRef<Timeout | null>(null);
+    const [touchLightboxState, setTouchLightboxState] = useState<{messageTop: number} | null>(null);
 
     // We try to memoize any UI in this component that changes infrequently to
     // speed up React rendering. Because `<MessageView>` renders during scroll
@@ -380,6 +347,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
             if (event.touches.length > 1) return;
 
+            const messageElement = event.currentTarget;
+
             // Emulate a `UILongPressGestureRecognizer` on iOS. Which [waits for a touch to
             // last 0.5 seconds][1] before firing.
             //
@@ -393,7 +362,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 }
 
                 // NOCOMMIT: Haptic feedback when opening lightbox
-                onStartMessageEditing();
+                setTouchLightboxState({
+                    messageTop: messageElement.getBoundingClientRect().top,
+                });
             }, 500);
         };
 
@@ -444,14 +415,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
             return (
                 <div
-                    ref={messageRef}
                     className={sprinkles({
                         fontSize: "600",
                         userSelect: "text",
                         pointerEvents: "auto",
                         // Hide message while lightbox is open so its blur doesn't bleed into
                         // the background.
-                        opacity: isTouchLightboxOpen ? "0" : undefined,
+                        opacity: touchLightboxState ? "0" : undefined,
                     })}
                     onTouchStart={onTouchStart}
                     onTouchEnd={onTouchEnd}
@@ -483,7 +453,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
         return (
             <div
-                ref={messageRef}
                 className={sprinkles({
                     position: "relative",
                     zIndex: "20",
@@ -504,7 +473,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     pointerEvents: "auto",
                     // Hide message while lightbox is open so its blur doesn't bleed into
                     // the background.
-                    opacity: isTouchLightboxOpen ? "0" : undefined,
+                    opacity: touchLightboxState ? "0" : undefined,
                 })}
                 onTouchStart={onTouchStart}
                 onTouchEnd={onTouchEnd}
@@ -521,12 +490,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         );
     }, [
         canPrimaryInputHover,
-        isTouchLightboxOpen,
         message.payload,
         messageTextForBigEmojiMessage,
-        onStartMessageEditing,
         shouldMergeWithNextMessage,
         shouldMergeWithPreviousMessage,
+        touchLightboxState,
     ]);
 
     const deletedPayloadNode = useMemo(() => {
@@ -923,10 +891,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                                 <MessageViewActions
                                                     messageNoun={messageNoun}
                                                     message={message}
+                                                    messagePayload={message.payload}
+                                                    messageEditing={messageEditing}
                                                     isHovered={isHovered}
                                                     onReplyToMessage={onReplyToMessage}
-                                                    onStartMessageEditing={onStartMessageEditing}
-                                                    onDeleteMessage={onDeleteMessage}
+                                                    onShowDeleteConfirmationDialog={() =>
+                                                        setShowDeleteConfirmationDialog(true)
+                                                    }
                                                     getMessageUrl={getMessageUrl}
                                                 />
                                             )
@@ -986,20 +957,27 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         />
                     )}
             </div>
-            {/* NOCOMMIT: {touchLightboxState && (
+            {showDeleteConfirmationDialog && (
+                <MessageDeleteConfirmationDialog
+                    messageNoun={messageNoun}
+                    onClose={() => setShowDeleteConfirmationDialog(false)}
+                    onDeleteMessage={onDeleteMessage}
+                />
+            )}
+            {touchLightboxState && (
                 <MessageViewTouchLightbox
                     messageNoun={messageNoun}
-                    messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                     message={message}
                     messageTop={touchLightboxState.messageTop}
                     shouldMergeWithNextMessage={shouldMergeWithNextMessage}
                     shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
+                    messageEditing={messageEditing}
                     onReplyToMessage={onReplyToMessage}
                     onShowDeleteConfirmationDialog={() => setShowDeleteConfirmationDialog(true)}
                     getMessageUrl={getMessageUrl}
                     onClose={() => setTouchLightboxState(null)}
                 />
-            )} */}
+            )}
         </>
     );
 }

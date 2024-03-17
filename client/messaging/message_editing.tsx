@@ -40,9 +40,6 @@ export type MessageEditingAction<RoomKey extends string> =
           readonly messageRoomKey: RoomKey;
           readonly messageIndex: number;
           readonly messagePayload: MessageContentPayloadModel;
-          readonly messageTop: number;
-          readonly shouldMergeWithNextMessage: boolean;
-          readonly shouldMergeWithPreviousMessage: boolean;
           readonly returnFocusAfterEditing: (() => void) | null;
       }
     | {

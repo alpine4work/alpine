@@ -104,11 +104,6 @@ type MenuStandardAction = {
     readonly onPress: () => void | Promise<void>;
 
     /**
-     * Don't close the menu after pressing on this action.
-     */
-    readonly shouldNotCloseAfterPress?: boolean;
-
-    /**
      * If an error occurs while running `onPress` we will report the error to the user with
      * this title. It is the "what happened" part of an error message according to [Adobe
      * Spectrum's][1] error content guidelines.
@@ -827,7 +822,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
             // - Show a loading spinner after a short delay
             // - Show a toast if there was an error
             if (!(promise instanceof Promise)) {
-                if (!shouldNotCloseAfterPress && !action.shouldNotCloseAfterPress) {
+                if (!shouldNotCloseAfterPress) {
                     onCloseWithoutAnimation();
                 }
             } else {
@@ -842,7 +837,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
 
                 promise.then(
                     () => {
-                        if (!shouldNotCloseAfterPress && !action.shouldNotCloseAfterPress) {
+                        if (!shouldNotCloseAfterPress) {
                             // Our animation principle is to respond to user input immediately
                             // without animation.
                             //
