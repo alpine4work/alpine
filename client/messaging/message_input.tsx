@@ -340,6 +340,10 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
 
                                     inputRef.current?.focus();
                                 },
+                                // TODO(calebmer): We should be able to get correct values for these, but they're only used when
+                                messageTop: 0,
+                                shouldMergeWithNextMessage: false,
+                                shouldMergeWithPreviousMessage: false,
                             });
                             break;
                         }
@@ -437,7 +441,45 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     const [isKeyboardToolbarVisible, setIsKeyboardToolbarVisible] = useState(false);
     if (isKeyboardToolbarVisible && !(isMobile && isBottomBar)) setIsKeyboardToolbarVisible(false);
 
-    const cancelFocusOrBlurRef = useRef<(() => void) | null>(null);
+    const lastIsKeyboardToolbarVisibleRef = useRef(isKeyboardToolbarVisible);
+    useEffect(() => {
+        if (NativeMobileBridge) return;
+
+        if (lastIsKeyboardToolbarVisibleRef.current === isKeyboardToolbarVisible) return;
+        lastIsKeyboardToolbarVisibleRef.current = isKeyboardToolbarVisible;
+
+        const containerElement = assertExists(containerRef.current);
+
+        if (isKeyboardToolbarVisible) {
+            animate(
+                containerElement,
+                {
+                    y: [0, -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening()],
+                },
+                {
+                    duration: 0.2,
+                    // Make sure we use hardware acceleration for this animation in WebKit. By
+                    // default `motion` turns it off.
+                    // https://motion.dev/guides/performance#webkits-exceptions
+                    allowWebkitAcceleration: true,
+                },
+            );
+        } else {
+            animate(
+                containerElement,
+                {
+                    y: [-mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening(), 0],
+                },
+                {
+                    duration: 0.2,
+                    // Make sure we use hardware acceleration for this animation in WebKit. By
+                    // default `motion` turns it off.
+                    // https://motion.dev/guides/performance#webkits-exceptions
+                    allowWebkitAcceleration: true,
+                },
+            );
+        }
+    }, [isKeyboardToolbarVisible]);
 
     const replyingToMessage = useMemo(() => {
         if (!replyingToMessageProp) return null;
@@ -509,99 +551,26 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     };
 
     const handleFocus = () => {
-        cancelFocusOrBlurRef.current?.();
-        cancelFocusOrBlurRef.current = null;
-
         onFocus?.();
 
         // 1. On mobile, make sure our keyboard toolbar is visible when focused
         // 2. On mobile web, animate so our toolbar is visible. In our native app, the
-        //    shell manages animating the toolbar so it's visible
+        //    shell manages animating the toolbar so it's visible (done in an effect)
         if (isMobile && isBottomBar) {
             setIsKeyboardToolbarVisible(true);
-
-            if (NativeMobileBridge) {
-                // Our native mobile app will animate the keyboard toolbar onscreen.
-            } else {
-                const containerElement = assertExists(containerRef.current);
-
-                const animation = animate(
-                    containerElement,
-                    {
-                        y: [
-                            0,
-                            -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening(),
-                        ],
-                    },
-                    {
-                        duration: 0.2,
-                        // Make sure we use hardware acceleration for this animation in WebKit. By
-                        // default `motion` turns it off.
-                        // https://motion.dev/guides/performance#webkits-exceptions
-                        allowWebkitAcceleration: true,
-                    },
-                );
-
-                const cancel = () => {
-                    animation.cancel();
-                };
-
-                cancelFocusOrBlurRef.current = cancel;
-                animation.finished.finally(() => {
-                    if (cancelFocusOrBlurRef.current === cancel)
-                        cancelFocusOrBlurRef.current = null;
-                });
-            }
         }
     };
 
     const handleBlur = () => {
-        cancelFocusOrBlurRef.current?.();
-        cancelFocusOrBlurRef.current = null;
-
         hideTypingIndicator();
 
         onBlur?.();
 
         // 1. On mobile, make sure our keyboard toolbar is visible when focused
         // 2. On mobile web, animate so our toolbar is visible. In our native app, the
-        //    shell manages animating the toolbar so it's visible
+        //    shell manages animating the toolbar so it's visible (done in an effect)
         if (isMobile && isBottomBar) {
             setIsKeyboardToolbarVisible(false);
-
-            if (NativeMobileBridge) {
-                // Our native mobile app will animate the keyboard toolbar offscreen. We just
-                // need to hide the keyboard toolbar which will be visible in safe areas.
-            } else {
-                const containerElement = assertExists(containerRef.current);
-
-                const animation = animate(
-                    containerElement,
-                    {
-                        y: [
-                            -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening(),
-                            0,
-                        ],
-                    },
-                    {
-                        duration: 0.2,
-                        // Make sure we use hardware acceleration for this animation in WebKit. By
-                        // default `motion` turns it off.
-                        // https://motion.dev/guides/performance#webkits-exceptions
-                        allowWebkitAcceleration: true,
-                    },
-                );
-
-                const cancel = () => {
-                    animation.cancel();
-                };
-
-                cancelFocusOrBlurRef.current = cancel;
-                animation.finished.finally(() => {
-                    if (cancelFocusOrBlurRef.current === cancel)
-                        cancelFocusOrBlurRef.current = null;
-                });
-            }
         }
     };
 
