@@ -342,7 +342,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     }, [message.payload]);
 
     const longTouchTimeoutRef = useRef<Timeout | null>(null);
-    const [touchLightboxState, setTouchLightboxState] = useState<{messageTop: number} | null>(null);
+    const [touchLightboxState, setTouchLightboxState] = useState<{
+        initialMessageTop: number;
+        getMessageTop: () => number;
+    } | null>(null);
 
     // We try to memoize any UI in this component that changes infrequently to
     // speed up React rendering. Because `<MessageView>` renders during scroll
@@ -376,9 +379,17 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     document.activeElement.blur();
                 }
 
+                const initialMessageTop = messageElement.getBoundingClientRect().top;
+
                 // NOCOMMIT: Haptic feedback when opening lightbox
                 setTouchLightboxState({
-                    messageTop: messageElement.getBoundingClientRect().top,
+                    initialMessageTop,
+                    getMessageTop: () => {
+                        // Safeguard against the message being removed from the DOM.
+                        if (!document.body.contains(messageElement)) return initialMessageTop;
+
+                        return messageElement.getBoundingClientRect().top;
+                    },
                 });
             }, 500);
         };
@@ -983,7 +994,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 <MessageViewTouchLightbox
                     messageNoun={messageNoun}
                     message={message}
-                    messageTop={touchLightboxState.messageTop}
+                    initialMessageTop={touchLightboxState.initialMessageTop}
+                    getMessageTop={touchLightboxState.getMessageTop}
                     shouldMergeWithNextMessage={shouldMergeWithNextMessage}
                     shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
                     messageEditing={messageEditing}

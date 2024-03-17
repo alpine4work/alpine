@@ -1,3 +1,4 @@
+import {animate} from "motion";
 import {ArrowBendUpLeft, Copy, Link as LinkIcon, PencilSimple, Trash} from "phosphor-react";
 import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
@@ -42,7 +43,6 @@ import {
 // - Emoji messages
 // - Replies
 // - Links
-// - Translate if offscreen
 // - Put create time and update time in menu
 
 export function MessageViewTouchLightbox<
@@ -51,7 +51,8 @@ export function MessageViewTouchLightbox<
 >({
     messageNoun,
     message,
-    messageTop,
+    initialMessageTop,
+    getMessageTop,
     shouldMergeWithNextMessage,
     shouldMergeWithPreviousMessage,
     messageEditing,
@@ -62,7 +63,8 @@ export function MessageViewTouchLightbox<
 }: {
     messageNoun: string;
     message: Message | OptimisticMessageModel;
-    messageTop: number;
+    initialMessageTop: number;
+    getMessageTop: () => number;
     shouldMergeWithNextMessage: boolean;
     shouldMergeWithPreviousMessage: boolean;
     messageEditing: MessageEditing<RoomKey>;
@@ -76,16 +78,8 @@ export function MessageViewTouchLightbox<
         "Can't server render `<MessageViewTouchLightbox>`",
     );
 
-    const [isInitialPaint, setIsInitialPaint] = useState(true);
-    useEffect(() => {
-        if (!isInitialPaint) return;
-
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                setIsInitialPaint(false);
-            });
-        });
-    }, [isInitialPaint]);
+    const backdropRef = useRef<HTMLDivElement>(null);
+    const presentedRef = useRef<HTMLDivElement>(null);
 
     const [isFadingOut, setIsFadingOut] = useState(false);
 
@@ -126,8 +120,82 @@ export function MessageViewTouchLightbox<
         };
     }, []);
 
+    const [hasOpenTranslateYAnimationFinished, setHasOpenTranslateYAnimationFinished] =
+        useState(false);
+
+    const hasOpenTranslateYAnimationStartedRef = useRef(false);
+    useEffect(() => {
+        if (hasOpenTranslateYAnimationStartedRef.current) return;
+        hasOpenTranslateYAnimationStartedRef.current = true;
+
+        const backdropElement = assertExists(backdropRef.current);
+        const presentedElement = assertExists(presentedRef.current);
+
+        const backdropRect = backdropElement.getBoundingClientRect();
+        const presentedRect = presentedElement.getBoundingClientRect();
+
+        const translateY = Math.max(0, presentedRect.bottom - backdropRect.bottom);
+        if (translateY === 0) {
+            // Even if we don't need to translate, let's wait a bit before running our
+            // translate X animation.
+            createTimeout(() => {
+                setHasOpenTranslateYAnimationFinished(true);
+            }, 50);
+            return;
+        }
+
+        const animation = animate(
+            presentedElement,
+            {
+                y: [0, -translateY],
+            },
+            {
+                duration: 0.15,
+                easing: "ease",
+                // Make sure we use hardware acceleration for this animation in WebKit. By
+                // default `motion` turns it off.
+                // https://motion.dev/guides/performance#webkits-exceptions
+                allowWebkitAcceleration: true,
+            },
+        );
+
+        animation.finished.finally(() => {
+            setHasOpenTranslateYAnimationFinished(true);
+        });
+    }, []);
+
+    const hasCloseTranslateYAnimationStartedRef = useRef(false);
+    useEffect(() => {
+        if (!isFadingOut) return;
+
+        if (hasCloseTranslateYAnimationStartedRef.current) return;
+        hasCloseTranslateYAnimationStartedRef.current = true;
+
+        const presentedElement = assertExists(presentedRef.current);
+
+        const messageTop = getMessageTop();
+
+        const translateY = messageTop - initialMessageTop;
+
+        animate(
+            presentedElement,
+            {
+                y: [null, translateY],
+            },
+            {
+                duration: 0.2,
+                easing: "ease",
+                // Make sure we use hardware acceleration for this animation in WebKit. By
+                // default `motion` turns it off.
+                // https://motion.dev/guides/performance#webkits-exceptions
+                allowWebkitAcceleration: true,
+            },
+        );
+    }, [getMessageTop, initialMessageTop, isFadingOut]);
+
     return createPortal(
         <Box
+            ref={backdropRef}
             position="fixed"
             inset="0"
             className={
@@ -142,9 +210,13 @@ export function MessageViewTouchLightbox<
             }}
         >
             <Box
+                ref={presentedRef}
                 position="absolute"
                 paddingX="4"
-                style={{top: messageTop}}
+                style={{
+                    top: initialMessageTop,
+                    paddingBottom: `calc(${spacing["4"]} + var(--safe-area-inset-bottom, 0px))`,
+                }}
                 className={pointerEventsNoneNotInheritedClassName}
             >
                 <Box display="flex" className={pointerEventsNoneNotInheritedClassName}>
@@ -161,7 +233,7 @@ export function MessageViewTouchLightbox<
                         paddingX={messageViewBubblePaddingX}
                         paddingY={messageViewBubblePaddingY}
                         borderTopLeftRadius={
-                            isInitialPaint || isFadingOut
+                            !hasOpenTranslateYAnimationFinished || isFadingOut
                                 ? !shouldMergeWithPreviousMessage
                                     ? messageViewBubbleBorderRadius
                                     : messageViewBubbleMergedBorderRadius
@@ -169,7 +241,7 @@ export function MessageViewTouchLightbox<
                         }
                         borderTopRightRadius={messageViewBubbleBorderRadius}
                         borderBottomLeftRadius={
-                            isInitialPaint || isFadingOut
+                            !hasOpenTranslateYAnimationFinished || isFadingOut
                                 ? !shouldMergeWithNextMessage
                                     ? messageViewBubbleBorderRadius
                                     : messageViewBubbleMergedBorderRadius
@@ -179,9 +251,11 @@ export function MessageViewTouchLightbox<
                         pointerEvents="auto"
                         style={{
                             transform: `translateX(-${
-                                isInitialPaint || isFadingOut ? "0rem" : spacing["9"]
+                                !hasOpenTranslateYAnimationFinished || isFadingOut
+                                    ? "0rem"
+                                    : spacing["9"]
                             })`,
-                            transition: `transform 200ms 50ms ease, border-radius 200ms 50ms ease`,
+                            transition: `transform 200ms ease, border-radius 200ms ease`,
                         }}
                     >
                         <ContentView
