@@ -258,13 +258,14 @@ export function MessageViewTouchLightbox<
                                               onPress: () => {
                                                   assert(message.payload.type === "Content");
 
-                                                  messageEditing.dispatch({
-                                                      type: "StartEditing",
-                                                      messageIndex: message.index,
-                                                      messageRoomKey: message.getRoomKey(),
-                                                      messagePayload: message.payload,
-                                                      returnFocusAfterEditing: null,
-                                                  });
+                                                  // NOCOMMIT:
+                                                  // messageEditing.dispatch({
+                                                  //     type: "StartEditing",
+                                                  //     messageIndex: message.index,
+                                                  //     messageRoomKey: message.getRoomKey(),
+                                                  //     messagePayload: message.payload,
+                                                  //     returnFocusAfterEditing: null,
+                                                  // });
                                               },
                                           }),
                                       ]
