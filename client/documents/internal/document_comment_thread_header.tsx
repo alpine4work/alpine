@@ -11,7 +11,7 @@ import {
     documentCommentThreadHeaderPaddingY,
 } from "~/client/documents/document_shared_styles.js";
 import {DocumentCommentThreadPreview} from "~/client/documents/internal/document_comment_thread_preview.js";
-import {formatMessageViewTimestampDividerDate} from "~/client/messaging/message_view.js";
+import {formatMessageViewTimestampDividerDate} from "~/client/messaging/format_message_view_timestamp_divider_date.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {spacing} from "~/shared/design/spacing.js";

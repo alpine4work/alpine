@@ -1,4 +1,4 @@
-import {differenceInDays, differenceInMinutes, startOfDay} from "date-fns";
+import {differenceInMinutes} from "date-fns";
 import {ArrowArcLeft, SpinnerGap} from "phosphor-react";
 import {
     Fragment,
@@ -20,6 +20,7 @@ import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
 import {Tooltip} from "~/client/design/tooltip.js";
+import {formatMessageViewTimestampDividerDate} from "~/client/messaging/format_message_view_timestamp_divider_date.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
 import {MessageViewActions} from "~/client/messaging/internal/message_view_actions.js";
 import {
@@ -46,7 +47,6 @@ import {
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {
     MessageContentProsemirrorSchema,
@@ -192,7 +192,36 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     // Manually implement hovering state by attaching event listeners (instead of
     // using `useHover()` from `react-aria`). React doesn't deliver a
     // `pointerleave` event when the pointer goes into a portalled element.
+    const hoverRef = useRef<HTMLDivElement>(null);
     const [isHovered, setIsHovered] = useState(false);
+
+    // NOTE(calebmer): This can't be `onPointerEnter` or `onPointerLeave` props.
+    // I've found that React doesn't call `onPointerLeave` when the
+    // `<MessageViewActions>` menu closes.
+    useEffect(() => {
+        const hoverElement = assertExists(hoverRef.current);
+
+        const handlePointerEnter = (event: PointerEvent) => {
+            // Ignore iOS touch pointer enter/leave events.
+            if (event.pointerType !== "mouse") return;
+
+            setIsHovered(true);
+        };
+
+        const handlePointerLeave = (event: PointerEvent) => {
+            // Ignore iOS touch pointer enter/leave events.
+            if (event.pointerType !== "mouse") return;
+
+            setIsHovered(false);
+        };
+
+        hoverElement.addEventListener("pointerenter", handlePointerEnter);
+        hoverElement.addEventListener("pointerleave", handlePointerLeave);
+        return () => {
+            hoverElement.removeEventListener("pointerenter", handlePointerEnter);
+            hoverElement.removeEventListener("pointerleave", handlePointerLeave);
+        };
+    }, [isMobile]);
 
     const messageEditingForThisMessage =
         // If we're on a mobile device (with keyboard toolbars) then instead of editing
@@ -799,6 +828,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 )}
                 {parentMessageNode}
                 <div
+                    ref={hoverRef}
                     className={sprinkles({
                         display: "flex",
                         paddingX: marginX,
@@ -814,18 +844,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         // actions, and some padding. Moving your mouse around in empty space won't
                         // cause a bunch of message actions to appear/disappear.
                         width: "fit-content",
-                    }}
-                    onPointerEnter={event => {
-                        // Ignore iOS touch pointer enter/leave events.
-                        if (event.pointerType !== "mouse") return;
-
-                        setIsHovered(true);
-                    }}
-                    onPointerLeave={event => {
-                        // Ignore iOS touch pointer enter/leave events.
-                        if (event.pointerType !== "mouse") return;
-
-                        setIsHovered(false);
                     }}
                 >
                     {useMemo(
@@ -1053,54 +1071,4 @@ export function getTruncatedMessageContentForReplyPreview({
         default:
             throw exhaustive(message.payload);
     }
-}
-
-export function formatMessageViewTimestampDividerDate(
-    time: Date,
-    {currentTime, locale, timeZone}: {currentTime: Date; locale: string; timeZone: TimeZone},
-) {
-    const timeStartOfDay = startOfDay(time);
-    const currentTimeStartOfDay = startOfDay(currentTime);
-
-    const dayDifference = differenceInDays(currentTimeStartOfDay, timeStartOfDay);
-    if (dayDifference < 7) {
-        const formatter = new Intl.DateTimeFormat(locale, {
-            timeZone,
-            calendar: "iso8601",
-            weekday: dayDifference >= 2 ? "long" : undefined,
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-        });
-
-        const timeString = formatter
-            .format(time)
-            .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
-
-        if (dayDifference <= 0) {
-            return `Today ${timeString}`;
-        } else if (dayDifference === 1) {
-            return `Yesterday ${timeString}`;
-        } else {
-            return timeString;
-        }
-    }
-
-    const isCurrentYear = currentTime.getFullYear() === time.getFullYear();
-
-    const formatter = new Intl.DateTimeFormat(locale, {
-        timeZone,
-        calendar: "iso8601",
-        year: !isCurrentYear ? "numeric" : undefined,
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-    });
-
-    return formatter
-        .format(time)
-        .replace(/, (\d+:\d+)/, " at $1")
-        .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
 }

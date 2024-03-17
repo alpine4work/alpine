@@ -10,6 +10,7 @@ import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointe
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
@@ -97,6 +98,7 @@ export function ContentView({
      */
     withUserSelectNone?: boolean;
 }) {
+    const canPrimaryInputHover = useCanPrimaryInputHover();
     const accountStore = useAccountClientStore();
 
     // Don't get the current account when running in a unit test so we don't need
@@ -373,7 +375,7 @@ export function ContentView({
                 aria-labelledby={ariaLabelledBy}
             />
             {focusedLinkElement && <FocusRing targetElement={focusedLinkElement} />}
-            {contentUpdatedTime && contentUpdatedNoteElement && (
+            {canPrimaryInputHover && contentUpdatedTime && contentUpdatedNoteElement && (
                 <Tooltip
                     placement="bottom"
                     content={<PrettyAbsoluteDateTooltipContent date={contentUpdatedTime} />}

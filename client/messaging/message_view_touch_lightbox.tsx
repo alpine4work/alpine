@@ -11,12 +11,14 @@ import {Spacer} from "~/client/design/spacer.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {MessageViewMenuCreatedTime} from "~/client/messaging/internal/message_view_menu_created_time.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {
     messageViewActionsWidth,
     messageViewBubbleMinWidth,
 } from "~/client/messaging/message_view.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -43,7 +45,6 @@ import {
 // - Emoji messages
 // - Replies
 // - Links
-// - Put create time and update time in menu
 
 export function MessageViewTouchLightbox<
     RoomKey extends string,
@@ -73,6 +74,7 @@ export function MessageViewTouchLightbox<
     getMessageUrl: (messageIndex: number) => URL;
     onClose: () => void;
 }) {
+    const {currentAccount} = useSpaceContext();
     const rootPortalElement = assertExists(
         useOverlayRootPortalElement(),
         "Can't server render `<MessageViewTouchLightbox>`",
@@ -342,43 +344,64 @@ export function MessageViewTouchLightbox<
                                       ]
                                     : []),
                             ],
-                            [
-                                ...(!message.isOptimistic && message.payload.type === "Content"
-                                    ? [
+                            ...(currentAccount.id === message.author.id
+                                ? [
+                                      [
+                                          ...(!message.isOptimistic &&
+                                          message.payload.type === "Content"
+                                              ? [
+                                                    cast<MenuAction>({
+                                                        label: "Edit",
+                                                        icon: <PencilSimple />,
+                                                        iconPlacement: "end",
+                                                        onPress: () => {
+                                                            // Start editing once the lightbox has finished animating shut. So the
+                                                            // animation completes smoothly. Otherwise the keyboard opening would throw
+                                                            // things off.
+                                                            onCloseWithoutAnimationCallbacksRef.current.push(
+                                                                () => {
+                                                                    if (
+                                                                        message.payload.type ===
+                                                                        "Content"
+                                                                    ) {
+                                                                        messageEditing.dispatch({
+                                                                            type: "StartEditing",
+                                                                            messageIndex:
+                                                                                message.index,
+                                                                            messageRoomKey:
+                                                                                message.getRoomKey(),
+                                                                            messagePayload:
+                                                                                message.payload,
+                                                                            returnFocusAfterEditing:
+                                                                                null,
+                                                                        });
+                                                                    }
+                                                                },
+                                                            );
+                                                        },
+                                                    }),
+                                                ]
+                                              : []),
                                           cast<MenuAction>({
-                                              label: "Edit",
-                                              icon: <PencilSimple />,
+                                              label: "Delete",
+                                              icon: <Trash />,
                                               iconPlacement: "end",
-                                              onPress: () => {
-                                                  // Start editing once the lightbox has finished animating shut. So the
-                                                  // animation completes smoothly. Otherwise the keyboard opening would throw
-                                                  // things off.
-                                                  onCloseWithoutAnimationCallbacksRef.current.push(
-                                                      () => {
-                                                          if (message.payload.type === "Content") {
-                                                              messageEditing.dispatch({
-                                                                  type: "StartEditing",
-                                                                  messageIndex: message.index,
-                                                                  messageRoomKey:
-                                                                      message.getRoomKey(),
-                                                                  messagePayload: message.payload,
-                                                                  returnFocusAfterEditing: null,
-                                                              });
-                                                          }
-                                                      },
-                                                  );
-                                              },
+                                              onPress: onShowDeleteConfirmationDialog,
                                           }),
-                                      ]
-                                    : []),
-                                {
-                                    label: "Delete",
-                                    icon: <Trash />,
-                                    iconPlacement: "end",
-                                    onPress: onShowDeleteConfirmationDialog,
-                                },
-                            ],
+                                      ],
+                                  ]
+                                : []),
                         ]}
+                        extraBottom={
+                            <MessageViewMenuCreatedTime
+                                createdTime={message.createdTime}
+                                contentUpdatedTime={
+                                    message.payload.type === "Content"
+                                        ? message.payload.contentUpdatedTime
+                                        : null
+                                }
+                            />
+                        }
                         onCloseWithAnimation={onCloseWithAnimation}
                         // Always close lightbox with animation.
                         onCloseWithoutAnimation={onCloseWithAnimation}

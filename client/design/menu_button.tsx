@@ -238,6 +238,7 @@ export function MenuButton({
     children,
     onStateChange,
     shouldNotCloseAfterActionPress,
+    extraOverlayBottom,
 }: {
     /**
      * All the actions available in a menu’s popup. When clicking on the button
@@ -291,6 +292,12 @@ export function MenuButton({
     shouldNotCloseAfterActionPress?: boolean;
 
     /**
+     * Some extra DOM to put at the bottom of the menu overlay. Useful if you
+     * need some particularly custom in your menu.
+     */
+    extraOverlayBottom?: ReactNode;
+
+    /**
      * The button element which opens and closes the menu. Must provide a ref to
      * an HTML `<button>` element or we will throw an error.
      */
@@ -317,6 +324,7 @@ export function MenuButton({
                     onCloseWithAnimation={onCloseWithAnimation}
                     onCloseWithoutAnimation={onCloseWithoutAnimation}
                     shouldNotCloseAfterActionPress={shouldNotCloseAfterActionPress}
+                    extraBottom={extraOverlayBottom}
                 />
             )}
         >
@@ -342,6 +350,7 @@ export const Menu = forwardRef(function Menu(
         onCloseWithAnimation,
         onCloseWithoutAnimation,
         shouldNotCloseAfterActionPress,
+        extraBottom,
     }: {
         size?: MenuSize;
         actions: MenuActions | (() => MenuActions);
@@ -350,6 +359,7 @@ export const Menu = forwardRef(function Menu(
         onCloseWithAnimation: () => void;
         onCloseWithoutAnimation: () => void;
         shouldNotCloseAfterActionPress?: boolean;
+        extraBottom?: ReactNode;
     },
     ref: Ref<HTMLDivElement>,
 ) {
@@ -650,6 +660,7 @@ export const Menu = forwardRef(function Menu(
                         throw exhaustive(action);
                 }
             })}
+            {extraBottom}
         </div>
     );
 });

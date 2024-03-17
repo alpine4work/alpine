@@ -6,6 +6,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {MessageViewMenuCreatedTime} from "~/client/messaging/internal/message_view_menu_created_time.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -103,6 +104,15 @@ export function MessageViewActions<RoomKey extends string>({
                             setIsMoreMenuOpen(nextIsMoreMenuOpen);
                         }
                     }}
+                    extraOverlayBottom={
+                        <MessageViewMenuCreatedTime
+                            createdTime={message.createdTime}
+                            // Never show the updated time in actions since the user can see it by hovering
+                            // over the "(edited)" text. We only show the updated time on platforms where the
+                            // user can't hover.
+                            contentUpdatedTime={null}
+                        />
+                    }
                 >
                     <IconButton description="More" size="sm">
                         <DotsThree />
