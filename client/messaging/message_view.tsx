@@ -434,17 +434,17 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             }, 500);
         };
 
-        const onTouchEnd = (event: TouchEvent) => {
+        const onTouchEnd = () => {
             longTouchTimeoutRef.current?.clear();
             longTouchTimeoutRef.current = null;
         };
 
-        const onTouchMove = (event: TouchEvent) => {
+        const onTouchMove = () => {
             longTouchTimeoutRef.current?.clear();
             longTouchTimeoutRef.current = null;
         };
 
-        const onTouchCancel = (event: TouchEvent) => {
+        const onTouchCancel = () => {
             longTouchTimeoutRef.current?.clear();
             longTouchTimeoutRef.current = null;
         };
@@ -472,18 +472,19 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 lastIndex = index + emoji.length;
             }
 
-            if (lastIndex !== messageTextForBigEmojiMessage.length - 1)
+            if (lastIndex !== messageTextForBigEmojiMessage.length - 1) {
                 children.push(
                     <Fragment key={lastIndex}>
                         {messageTextForBigEmojiMessage.slice(lastIndex)}
                     </Fragment>,
                 );
+            }
 
             return (
                 <div
                     className={sprinkles({
                         fontSize: "600",
-                        userSelect: "text",
+                        userSelect: canPrimaryInputHover ? "text" : "none",
                         pointerEvents: "auto",
                         // Hide message while lightbox is open so its blur doesn't bleed into
                         // the background.
@@ -1023,6 +1024,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 <MessageViewTouchLightbox
                     messageNoun={messageNoun}
                     message={message}
+                    messageTextForBigEmojiMessage={messageTextForBigEmojiMessage}
                     initialMessageTop={touchLightboxState.initialMessageTop}
                     getMessageTop={touchLightboxState.getMessageTop}
                     shouldMergeWithNextMessage={shouldMergeWithNextMessage}

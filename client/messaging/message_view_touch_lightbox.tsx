@@ -1,6 +1,6 @@
 import {animate} from "motion";
 import {ArrowBendUpLeft, Copy, Link as LinkIcon, PencilSimple, Trash} from "phosphor-react";
-import {useEffect, useRef, useState} from "react";
+import {Fragment, ReactNode, useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import {ContentView} from "~/client/content/content_view.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
@@ -24,6 +24,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {
@@ -33,6 +34,8 @@ import {
     messageViewBubblePaddingY,
 } from "~/shared/messaging/messaging_shared_styles.js";
 import {
+    contentViewStyles,
+    emojiFontFamily,
     messagingStyles,
     overlayAnimateFadeInFromBottomSlowedAnimation,
     overlayAnimateFadeOutFromBottomAnimation,
@@ -42,7 +45,6 @@ import {
 
 // NOCOMMIT:
 //
-// - Emoji messages
 // - Replies
 
 export function MessageViewTouchLightbox<
@@ -51,6 +53,7 @@ export function MessageViewTouchLightbox<
 >({
     messageNoun,
     message,
+    messageTextForBigEmojiMessage,
     initialMessageTop,
     getMessageTop,
     shouldMergeWithNextMessage,
@@ -63,6 +66,7 @@ export function MessageViewTouchLightbox<
 }: {
     messageNoun: string;
     message: Message | OptimisticMessageModel;
+    messageTextForBigEmojiMessage: string | null;
     initialMessageTop: number;
     getMessageTop: () => number;
     shouldMergeWithNextMessage: boolean;
@@ -194,6 +198,40 @@ export function MessageViewTouchLightbox<
         );
     }, [getMessageTop, initialMessageTop, isFadingOut]);
 
+    let messageChildrenForBigEmojiMessage: Array<ReactNode> | null = null;
+
+    // Render the message as a big emoji message if the content is just emojis.
+    if (messageTextForBigEmojiMessage) {
+        messageChildrenForBigEmojiMessage ??= [];
+
+        let lastIndex = 0;
+        for (const {index, emoji} of iterateEmojis(messageTextForBigEmojiMessage)) {
+            if (lastIndex !== index) {
+                messageChildrenForBigEmojiMessage.push(
+                    <Fragment key={lastIndex}>
+                        {messageTextForBigEmojiMessage.slice(lastIndex, index)}
+                    </Fragment>,
+                );
+            }
+
+            messageChildrenForBigEmojiMessage.push(
+                <span key={index} style={{fontFamily: emojiFontFamily}}>
+                    {emoji}
+                </span>,
+            );
+
+            lastIndex = index + emoji.length;
+        }
+
+        if (lastIndex !== messageTextForBigEmojiMessage.length - 1) {
+            messageChildrenForBigEmojiMessage.push(
+                <Fragment key={lastIndex}>
+                    {messageTextForBigEmojiMessage.slice(lastIndex)}
+                </Fragment>,
+            );
+        }
+    }
+
     return createPortal(
         <Box
             ref={backdropRef}
@@ -224,59 +262,88 @@ export function MessageViewTouchLightbox<
                     <Box pointerEvents="none" flexShrink="0" paddingRight="2">
                         <Spacer space="7" />
                     </Box>
-                    <Box
-                        position="relative"
-                        zIndex="20"
-                        backgroundColor="grey-5"
-                        maxWidth="full"
-                        overflow="hidden"
-                        display="inline-block"
-                        paddingX={messageViewBubblePaddingX}
-                        paddingY={messageViewBubblePaddingY}
-                        borderTopLeftRadius={
-                            !hasOpenTranslateYAnimationFinished || isFadingOut
-                                ? !shouldMergeWithPreviousMessage
-                                    ? messageViewBubbleBorderRadius
-                                    : messageViewBubbleMergedBorderRadius
-                                : messageViewBubbleBorderRadius
-                        }
-                        borderTopRightRadius={messageViewBubbleBorderRadius}
-                        borderBottomLeftRadius={
-                            !hasOpenTranslateYAnimationFinished || isFadingOut
-                                ? !shouldMergeWithNextMessage
-                                    ? messageViewBubbleBorderRadius
-                                    : messageViewBubbleMergedBorderRadius
-                                : messageViewBubbleBorderRadius
-                        }
-                        borderBottomRightRadius={messageViewBubbleBorderRadius}
-                        pointerEvents="auto"
-                        style={{
-                            transform: `translateX(-${
+                    {messageChildrenForBigEmojiMessage ? (
+                        <Box
+                            className={sprinkles({
+                                fontSize: "600",
+                                userSelect: "none",
+                            })}
+                            style={{
+                                transform: `translateX(-${
+                                    !hasOpenTranslateYAnimationFinished || isFadingOut
+                                        ? "0rem"
+                                        : spacing["9"]
+                                })`,
+                                transition: `transform 200ms ease`,
+                            }}
+                        >
+                            {messageChildrenForBigEmojiMessage}
+                            {message.payload.type === "Content" &&
+                                message.payload.contentUpdatedTime && (
+                                    <span
+                                        className={contentViewStyles.updatedNoteClassName}
+                                        style={{paddingLeft: spacing["1"]}}
+                                    >
+                                        {" "}
+                                        (updated)
+                                    </span>
+                                )}
+                        </Box>
+                    ) : (
+                        <Box
+                            position="relative"
+                            zIndex="20"
+                            backgroundColor="grey-5"
+                            maxWidth="full"
+                            overflow="hidden"
+                            display="inline-block"
+                            paddingX={messageViewBubblePaddingX}
+                            paddingY={messageViewBubblePaddingY}
+                            borderTopLeftRadius={
                                 !hasOpenTranslateYAnimationFinished || isFadingOut
-                                    ? "0rem"
-                                    : spacing["9"]
-                            })`,
-                            transition: `transform 200ms ease, border-radius 200ms ease`,
-                        }}
-                    >
-                        <ContentView
-                            isInert={true}
-                            withUserSelectNone={true}
-                            className={sprinkles({minWidth: messageViewBubbleMinWidth})}
-                            content={
-                                // Should only be able to open a lightbox for a message with content. If a
-                                // message is deleted then show nothing. (Message may be deleted in realtime.)
-                                message.payload.type === "Content"
-                                    ? message.payload.content
-                                    : emptyMessageContentWithReferences
+                                    ? !shouldMergeWithPreviousMessage
+                                        ? messageViewBubbleBorderRadius
+                                        : messageViewBubbleMergedBorderRadius
+                                    : messageViewBubbleBorderRadius
                             }
-                            contentUpdatedTime={
-                                message.payload.type === "Content"
-                                    ? message.payload.contentUpdatedTime
-                                    : message.payload.deletedTime
+                            borderTopRightRadius={messageViewBubbleBorderRadius}
+                            borderBottomLeftRadius={
+                                !hasOpenTranslateYAnimationFinished || isFadingOut
+                                    ? !shouldMergeWithNextMessage
+                                        ? messageViewBubbleBorderRadius
+                                        : messageViewBubbleMergedBorderRadius
+                                    : messageViewBubbleBorderRadius
                             }
-                        />
-                    </Box>
+                            borderBottomRightRadius={messageViewBubbleBorderRadius}
+                            pointerEvents="auto"
+                            style={{
+                                transform: `translateX(-${
+                                    !hasOpenTranslateYAnimationFinished || isFadingOut
+                                        ? "0rem"
+                                        : spacing["9"]
+                                })`,
+                                transition: `transform 200ms ease, border-radius 200ms ease`,
+                            }}
+                        >
+                            <ContentView
+                                isInert={true}
+                                withUserSelectNone={true}
+                                className={sprinkles({minWidth: messageViewBubbleMinWidth})}
+                                content={
+                                    // Should only be able to open a lightbox for a message with content. If a
+                                    // message is deleted then show nothing. (Message may be deleted in realtime.)
+                                    message.payload.type === "Content"
+                                        ? message.payload.content
+                                        : emptyMessageContentWithReferences
+                                }
+                                contentUpdatedTime={
+                                    message.payload.type === "Content"
+                                        ? message.payload.contentUpdatedTime
+                                        : null
+                                }
+                            />
+                        </Box>
+                    )}
                     <Box pointerEvents="none" flexShrink="0" paddingLeft="3">
                         <Box width={messageViewActionsWidth} />
                     </Box>
