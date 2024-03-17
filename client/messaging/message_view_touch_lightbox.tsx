@@ -44,7 +44,6 @@ import {
 //
 // - Emoji messages
 // - Replies
-// - Links
 
 export function MessageViewTouchLightbox<
     RoomKey extends string,

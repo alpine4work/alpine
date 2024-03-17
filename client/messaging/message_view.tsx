@@ -382,7 +382,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const contentPayloadNode = useMemo(() => {
         if (message.payload.type !== "Content") return null;
 
-        // NOCOMMIT: How does this work with links or other interactive elements?
         const onTouchStart = (event: TouchEvent) => {
             longTouchTimeoutRef.current?.clear();
             longTouchTimeoutRef.current = null;
@@ -395,6 +394,18 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             if (event.touches.length > 1) return;
 
             const messageElement = event.currentTarget;
+
+            // If the user is touching a link, then a long press won't open the lightbox.
+            // Instead it will open the link.
+            if (event.target instanceof HTMLElement) {
+                let element: HTMLElement | null = event.target;
+                while (element) {
+                    if (element.classList.contains(contentSchemaStyles.linkClassName)) {
+                        return;
+                    }
+                    element = element.parentElement;
+                }
+            }
 
             // Emulate a `UILongPressGestureRecognizer` on iOS. Which [waits for a touch to
             // last 0.5 seconds][1] before firing.
