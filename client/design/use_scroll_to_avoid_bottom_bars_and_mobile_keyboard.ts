@@ -3,6 +3,7 @@ import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js"
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {getNavigationBarHeightPxWithoutListening} from "~/client/design/navigation_bar.js";
 import {getElementWindowSafeAreaInsetBottomPx} from "~/client/design/safe_area_inset.js";
+import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {
     addResizeListenerForElement,
@@ -115,6 +116,11 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
         };
 
         addResizeListenerForElement(scrollableElement, handleResize);
+
+        let recoverableScrollDelta: {
+            time: number;
+            scrollDeltaDifference: number;
+        } | null = null;
 
         const scroll = ({
             oldMobileKeyboardHeight,
@@ -257,15 +263,25 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             // then we want to anchor the middle Y position, and so on.
             //
             // Compute that anchor position here.
+            const anchorPositionYRatio = clamp(
+                0,
+                (anchorPositionMiddle - constrainedOldVisibleRect.top) /
+                    (constrainedOldVisibleRect.bottom - constrainedOldVisibleRect.top),
+                1,
+            );
+
+            // Round so roughly:
+            //
+            // - `[0, 1/3)` is `0`
+            // - `[1/3, 2/3)` is `0.5`
+            // - `[2/3, 1]` is `1`
+            //
+            // Consistent ratios help us scroll consistent amounts for the same element.
+            const anchorPositionYRatioRounded =
+                Math.floor((Math.ceil(anchorPositionYRatio * 3) / 3) * 2) / 2;
+
             const anchorPositionY =
-                anchorPosition.top +
-                anchorPosition.height *
-                    clamp(
-                        0,
-                        (anchorPositionMiddle - constrainedOldVisibleRect.top) /
-                            (constrainedOldVisibleRect.bottom - constrainedOldVisibleRect.top),
-                        1,
-                    );
+                anchorPosition.top + anchorPosition.height * anchorPositionYRatioRounded;
 
             const anchorPositionYPercent =
                 (anchorPositionY - oldVisibleRect.top) /
@@ -275,15 +291,25 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 newVisibleRect.top +
                 (newVisibleRect.bottom - newVisibleRect.top) * anchorPositionYPercent;
 
+            // Rounding gives us consistent scroll deltas as the keyboard opens and closes.
+            let scrollDelta = Math.round(anchorPositionY - newAnchorPositionY);
+
             // If our visible rect is growing then we need to make sure we scroll at least
             // the same number of pixels as it took to grow the visible rect. Otherwise, if
             // we're at the bottom of the scroll view we may not scroll the entire newly
             // visible safe area offscreen.
             //
-            // To test this, play with entering edit mode for `<MessageView>`s near the
-            // bottom of the screen.
-            const minScrollDelta = oldVisibleRect.bottom - newVisibleRect.bottom;
-            let scrollDelta = Math.min(minScrollDelta, anchorPositionY - newAnchorPositionY);
+            // To test this, play with entering edit mode or reply mode for
+            // `<MessageView>`s near the bottom of the screen. (The second to last message
+            // not the last message.)
+            const scrollBottom =
+                scrollableElement.scrollHeight -
+                (scrollableElement.scrollTop + scrollableElement.clientHeight);
+            const minScrollDelta =
+                newVisibleRect.bottom > oldVisibleRect.bottom
+                    ? Math.max(0, newVisibleRect.bottom - oldVisibleRect.bottom - scrollBottom)
+                    : null;
+            if (minScrollDelta !== null) scrollDelta = Math.min(-minScrollDelta, scrollDelta);
 
             // If our scrollable element is scrolled to the bottom and our scrollable
             // element grew (e.g. you deleted some text in a `<MessageInput>` shrinking the
@@ -319,6 +345,31 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             }
 
             const navigationBarHeight = getNavigationBarHeightPxWithoutListening();
+
+            // NOTE(calebmer, 2024-03-18): This `recoveringScrollDelta` business isn't the
+            // most principled. I imagine it will need adapting over time. I added it for
+            // the swipe to reply to message interaction. Specifically when swiping the
+            // last message in the view (which has some safe area margin bottom).
+            //
+            // When swiping the last message in the view, the bottom bar frame change
+            // creates a scroll that pushes down the tab bar (since it scrolls up) so
+            // `tabBarHeightAfterScroll !== tabBarHeight` meaning we end up scrolling a
+            // smaller `scrollDelta` than we would have if the keyboard was open. But the
+            // keyboard then opens immediately afterwards! So in this case we want to apply
+            // the scroll delta difference from our previous scroll to our keyboard opening
+            // scroll to ultimately land the anchor in the right place.
+            let recoveringScrollDelta = null;
+            if (
+                recoverableScrollDelta &&
+                newMobileKeyboardHeight > navigationBarHeight &&
+                Date.now() - recoverableScrollDelta.time < perceivedAsInstantLimitMs
+            ) {
+                scrollDelta += recoverableScrollDelta.scrollDeltaDifference;
+                recoveringScrollDelta = recoverableScrollDelta;
+                recoverableScrollDelta = null;
+            }
+
+            const originalScrollDelta = scrollDelta;
 
             // If our scroll will cause the tab bar to fully hide or fully reveal then
             // compute a new scroll delta considering the tab bar's new state.
@@ -359,13 +410,30 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                     newVisibleRect.top +
                     (newVisibleRect.bottom - newVisibleRect.top) * anchorPositionYPercent;
 
-                const minScrollDelta = oldVisibleRect.bottom - newVisibleRect.bottom;
-                const scrollDelta = Math.min(minScrollDelta, anchorPositionY - newAnchorPositionY);
+                // Rounding gives us consistent scroll deltas as the keyboard opens and closes.
+                let scrollDelta = Math.round(anchorPositionY - newAnchorPositionY);
+
+                const minScrollDelta =
+                    newVisibleRect.bottom > oldVisibleRect.bottom
+                        ? Math.max(0, newVisibleRect.bottom - oldVisibleRect.bottom - scrollBottom)
+                        : null;
+                if (minScrollDelta !== null) scrollDelta = Math.min(-minScrollDelta, scrollDelta);
+
+                if (recoveringScrollDelta) {
+                    scrollDelta += recoveringScrollDelta.scrollDeltaDifference;
+                }
 
                 scrollableElement.scrollTo({
                     top: scrollableElement.scrollTop + scrollDelta,
                     behavior: isAnimated ? "smooth" : "instant",
                 });
+
+                if (scrollDelta < originalScrollDelta) {
+                    recoverableScrollDelta = {
+                        time: Date.now(),
+                        scrollDeltaDifference: originalScrollDelta - scrollDelta,
+                    };
+                }
             }
         };
 

@@ -1,25 +1,19 @@
 import {differenceInMinutes} from "date-fns";
+import {timeline} from "motion";
 import {ArrowArcLeft, SpinnerGap} from "phosphor-react";
-import {
-    Fragment,
-    Memo,
-    MutableRefObject,
-    TouchEvent,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import {Fragment, Memo, MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {ErrorIcon} from "~/client/design/error_icon.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
 import {Tooltip} from "~/client/design/tooltip.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {formatMessageViewTimestampDividerDate} from "~/client/messaging/format_message_view_timestamp_divider_date.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
 import {MessageViewActions} from "~/client/messaging/internal/message_view_actions.js";
@@ -37,6 +31,7 @@ import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_round
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
+import {easeOutExpo, parseCubicBezier} from "~/shared/design/easing.js";
 import {
     RemLength,
     Spacing,
@@ -105,6 +100,16 @@ export const messageViewMarginY: Spacing = "3";
 
 export const getMessageBubbleMarginLeft = (marginX: Spacing) =>
     addRemLengths(spacing[marginX], spacing["7"], spacing["2"]);
+
+const messageViewTouchReplyIconSize = "5";
+const messageViewTouchReplyIconSizeRem = parseRemLengthNumber(
+    spacing[messageViewTouchReplyIconSize],
+);
+
+const messageViewTouchReplyIconStartOffset = "1.5";
+const messageViewTouchReplyIconStartOffsetRem = parseRemLengthNumber(
+    spacing[messageViewTouchReplyIconStartOffset],
+);
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -176,6 +181,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const currentTime = useCurrentTimeRoundedToHour();
 
     const containerRef = useRef<HTMLDivElement>(null);
+    const messageRef = useRef<HTMLDivElement>(null);
+    const accountNameRef = useRef<HTMLDivElement>(null);
+    const parentMessageRef = useRef<HTMLDivElement>(null);
+    const touchReplyIconRef = useRef<HTMLDivElement>(null);
 
     const shouldMergeWithPreviousMessage: boolean =
         !!previousMessage && shouldMergeMessages(previousMessage, message);
@@ -236,7 +245,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             ? messageEditing
             : null;
 
-    const onReplyToMessage = () => {
+    const onReplyToMessage = useEvent(() => {
         // If we're currently editing a message on mobile then cancel editing when
         // trying to reply to a message. Otherwise `<MessageInput>` will override the
         // reply state with editing state.
@@ -245,7 +254,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         }
 
         onReplyToMessageProp();
-    };
+    });
 
     const messageEditorRef = useRef<MessageViewEditorRef>(null);
     const returnFocusAfterMessageEditingRef = useRef<(() => void) | null>(null);
@@ -372,33 +381,56 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return null;
     }, [message.payload]);
 
-    const longTouchTimeoutRef = useRef<Timeout | null>(null);
+    const hasParentMessage = !!parentMessage;
+
+    const [showTouchReplyIcon, setShowTouchReplyIcon] = useState(false);
     const [touchLightboxState, setTouchLightboxState] = useState<{
         initialMessageTop: number;
         getMessageTop: () => number;
     } | null>(null);
 
-    const hasParentMessage = !!parentMessage;
+    useEffect(() => {
+        if (message.payload.type !== "Content") return;
 
-    // We try to memoize any UI in this component that changes infrequently to
-    // speed up React rendering. Because `<MessageView>` renders during scroll
-    // animations it's important to keep it fast.
-    const contentPayloadNode = useMemo(() => {
-        if (message.payload.type !== "Content") return null;
+        // Reattach event listeners if the message payload changes. The `messageRef`
+        // element may switch between deleted, emoji, and regular messages.
+        //
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        message.payload;
 
-        const onTouchStart = (event: TouchEvent) => {
-            longTouchTimeoutRef.current?.clear();
-            longTouchTimeoutRef.current = null;
+        const messageElement = assertExists(messageRef.current);
+        const containerElement = assertExists(containerRef.current);
+        const accountNameElement = hasParentMessage ? assertExists(accountNameRef.current) : null;
+        const parentMessageElement = hasParentMessage
+            ? assertExists(parentMessageRef.current)
+            : null;
+
+        let touchState: {
+            gesture: "Reply" | "Other" | null;
+            hasReplyGestureActivated: boolean;
+            initialClientX: number;
+            initialClientY: number;
+            longTouchTimeout: Timeout | null;
+            finishGesture: (() => Promise<void>) | null;
+        } | null = null;
+
+        const handleTouchStart = (event: TouchEvent) => {
+            touchState?.longTouchTimeout?.clear();
+            void touchState?.finishGesture?.();
+            touchState = null;
 
             // If the user can hover, let them hover over the message to see message
             // actions. Instead of opening a lightbox on touch which conflicts with text
             // selection.
-            if (canPrimaryInputHover) return;
+            if (canPrimaryInputHover) {
+                setShowTouchReplyIcon(false);
+                return;
+            }
 
-            if (event.touches.length > 1) return;
-
-            const containerElement = assertExists(containerRef.current);
-            const messageElement = event.currentTarget;
+            if (event.touches.length > 1) {
+                setShowTouchReplyIcon(false);
+                return;
+            }
 
             // If the user is touching a link, then a long press won't open the lightbox.
             // Instead it will open the link.
@@ -416,8 +448,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             // last 0.5 seconds][1] before firing.
             //
             // [1]: https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
-            longTouchTimeoutRef.current = createTimeout(() => {
-                longTouchTimeoutRef.current = null;
+            const longTouchTimeout = createTimeout(() => {
+                if (touchState?.longTouchTimeout === longTouchTimeout)
+                    touchState.longTouchTimeout = null;
 
                 // Unfocus whatever the focused element is to close the keyboard.
                 if (document.activeElement instanceof HTMLElement) {
@@ -441,22 +474,196 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     },
                 });
             }, 500);
+
+            const touch = event.touches[0]!;
+
+            touchState = {
+                gesture: null,
+                hasReplyGestureActivated: false,
+                initialClientX: touch.clientX,
+                initialClientY: touch.clientY,
+                longTouchTimeout,
+                finishGesture: null,
+            };
+            setShowTouchReplyIcon(true);
         };
 
-        const onTouchEnd = () => {
-            longTouchTimeoutRef.current?.clear();
-            longTouchTimeoutRef.current = null;
+        const handleTouchEnd = () => {
+            touchState?.longTouchTimeout?.clear();
+            const gestureFinishedPromise = touchState?.finishGesture?.();
+            const hasReplyGestureActivated = touchState?.hasReplyGestureActivated ?? false;
+            touchState = null;
+            if (!gestureFinishedPromise) {
+                setShowTouchReplyIcon(false);
+            } else {
+                gestureFinishedPromise.finally(() => setShowTouchReplyIcon(false));
+            }
+
+            if (hasReplyGestureActivated) {
+                onReplyToMessage();
+            }
         };
 
-        const onTouchMove = () => {
-            longTouchTimeoutRef.current?.clear();
-            longTouchTimeoutRef.current = null;
+        const handleTouchMove = (event: TouchEvent) => {
+            touchState?.longTouchTimeout?.clear();
+            if (touchState) touchState.longTouchTimeout = null;
+
+            if (touchState && event.touches.length === 1) {
+                const touch = event.touches[0]!;
+
+                if (touchState.gesture === null) {
+                    if (Math.abs(touch.clientX - touchState.initialClientX) >= 10) {
+                        if (touch.clientX < touchState.initialClientX) {
+                            touchState.gesture = "Other";
+                        } else {
+                            touchState.gesture = "Reply";
+
+                            touchState.finishGesture = () => {
+                                const elements = [messageElement];
+                                if (accountNameElement) elements.push(accountNameElement);
+                                if (parentMessageElement) elements.push(parentMessageElement);
+
+                                const touchReplyIconElement = touchReplyIconRef.current;
+
+                                const animation = timeline(
+                                    [
+                                        [
+                                            elements,
+                                            {x: 0},
+                                            {
+                                                easing: parseCubicBezier(easeOutExpo.cubicBezier),
+                                                // Make sure we use hardware acceleration for this animation in WebKit. By
+                                                // default `motion` turns it off.
+                                                // https://motion.dev/guides/performance#webkits-exceptions
+                                                allowWebkitAcceleration: true,
+                                            },
+                                        ],
+                                        [
+                                            touchReplyIconElement ?? [],
+                                            {x: 0, opacity: 0},
+                                            {
+                                                at: 0,
+                                                easing: parseCubicBezier(easeOutExpo.cubicBezier),
+                                                // Make sure we use hardware acceleration for this animation in WebKit. By
+                                                // default `motion` turns it off.
+                                                // https://motion.dev/guides/performance#webkits-exceptions
+                                                allowWebkitAcceleration: true,
+                                            },
+                                        ],
+                                    ],
+                                    {
+                                        duration: 0.5,
+                                    },
+                                );
+
+                                return animation.finished;
+                            };
+                        }
+                    } else if (Math.abs(touch.clientY - touchState.initialClientY) >= 10) {
+                        touchState.gesture = "Other";
+                    }
+                }
+
+                if (touchState.gesture === "Reply") {
+                    event.preventDefault();
+
+                    const translateX = Math.max(
+                        0,
+                        (touch.clientX - touchState.initialClientX - 10) *
+                            // We slow the drag animation down to make it feel like the user is dragging
+                            // something heavy. But also this ends up smoothing out the animation! We only
+                            // get `touchmove` events every whole pixel. But on devices like iPhone every
+                            // virtual pixel is actually rendered by 2 to 3 hardware pixels. So animating
+                            // 1:1 with `touchmove` events can looking subtly coarse since we're jumping
+                            // across multiple hardware pixels per move.
+                            (1 / 3),
+                    );
+
+                    const elements = [messageElement];
+                    if (accountNameElement) elements.push(accountNameElement);
+                    if (parentMessageElement) elements.push(parentMessageElement);
+
+                    const touchReplyIconElement = touchReplyIconRef.current;
+
+                    const remPx = getRemPxWithoutListening();
+
+                    const maxTouchReplyIconElementTranslateX =
+                        messageViewTouchReplyIconStartOffsetRem * remPx;
+
+                    const touchReplyIconElementTranslateX = Math.min(
+                        Math.max(
+                            0,
+                            translateX -
+                                // Start translating the touch reply icon once the message bubble has moved out
+                                // of the way.
+                                (messageViewTouchReplyIconSizeRem -
+                                    messageViewTouchReplyIconStartOffsetRem) *
+                                    remPx,
+                        ) *
+                            // The touch reply icon should move slower than the message bubble.
+                            (1 / 2),
+                        // The touch reply icon finishes its animation once its left edge is where the
+                        // message bubble left edge started.
+                        maxTouchReplyIconElementTranslateX,
+                    );
+
+                    // NOCOMMIT: Haptic feedback when reply gesture activates.
+                    if (touchReplyIconElementTranslateX === maxTouchReplyIconElementTranslateX) {
+                        touchState.hasReplyGestureActivated = true;
+                    } else {
+                        touchState.hasReplyGestureActivated = false;
+                    }
+
+                    timeline(
+                        [
+                            [elements, {x: translateX}],
+                            [
+                                touchReplyIconElement ?? [],
+                                {
+                                    x: touchReplyIconElementTranslateX,
+                                    opacity:
+                                        touchReplyIconElementTranslateX /
+                                        maxTouchReplyIconElementTranslateX,
+                                },
+                                {at: 0},
+                            ],
+                        ],
+                        {duration: 0},
+                    );
+                }
+            }
         };
 
-        const onTouchCancel = () => {
-            longTouchTimeoutRef.current?.clear();
-            longTouchTimeoutRef.current = null;
+        const handleTouchCancel = () => {
+            touchState?.longTouchTimeout?.clear();
+            const gestureFinishedPromise = touchState?.finishGesture?.();
+            touchState = null;
+
+            if (!gestureFinishedPromise) {
+                setShowTouchReplyIcon(false);
+            } else {
+                gestureFinishedPromise.finally(() => setShowTouchReplyIcon(false));
+            }
         };
+
+        messageElement.addEventListener("touchstart", handleTouchStart);
+        messageElement.addEventListener("touchend", handleTouchEnd);
+        messageElement.addEventListener("touchmove", handleTouchMove, {passive: false});
+        messageElement.addEventListener("touchcancel", handleTouchCancel);
+
+        return () => {
+            messageElement.removeEventListener("touchstart", handleTouchStart);
+            messageElement.removeEventListener("touchend", handleTouchEnd);
+            messageElement.removeEventListener("touchmove", handleTouchMove);
+            messageElement.removeEventListener("touchcancel", handleTouchCancel);
+        };
+    }, [canPrimaryInputHover, hasParentMessage, message.payload, onReplyToMessage]);
+
+    // We try to memoize any UI in this component that changes infrequently to
+    // speed up React rendering. Because `<MessageView>` renders during scroll
+    // animations it's important to keep it fast.
+    const contentPayloadNode = useMemo(() => {
+        if (message.payload.type !== "Content") return null;
 
         // Render the message as a big emoji message if the content is just emojis.
         if (messageTextForBigEmojiMessage) {
@@ -491,6 +698,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
             return (
                 <div
+                    ref={messageRef}
                     className={sprinkles({
                         paddingLeft: "1",
                         fontSize: "600",
@@ -500,10 +708,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         // the background.
                         opacity: touchLightboxState ? "0" : undefined,
                     })}
-                    onTouchStart={onTouchStart}
-                    onTouchEnd={onTouchEnd}
-                    onTouchMove={onTouchMove}
-                    onTouchCancel={onTouchCancel}
                 >
                     {children}
                     {message.payload.contentUpdatedTime && (
@@ -530,6 +734,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
         return (
             <div
+                ref={messageRef}
                 className={sprinkles({
                     position: "relative",
                     zIndex: "20",
@@ -552,10 +757,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     // the background.
                     opacity: touchLightboxState ? "0" : undefined,
                 })}
-                onTouchStart={onTouchStart}
-                onTouchEnd={onTouchEnd}
-                onTouchMove={onTouchMove}
-                onTouchCancel={onTouchCancel}
             >
                 <ContentView
                     content={message.payload.content}
@@ -567,7 +768,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         );
     }, [
         canPrimaryInputHover,
-        hasParentMessage,
         message.payload,
         messageTextForBigEmojiMessage,
         shouldMergeWithNextMessage,
@@ -641,6 +841,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
         return (
             <div
+                ref={parentMessageRef}
                 className={sprinkles({
                     position: "relative",
                     zIndex: "10",
@@ -817,10 +1018,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     () =>
                         !shouldMergeWithPreviousMessage && (
                             <div
+                                ref={accountNameRef}
                                 className={sprinkles({
                                     fontSize: "50",
                                     fontStyle: "truncate",
-                                    paddingTop: "0.5",
+                                    paddingTop: parentMessage === null ? "0.5" : "1",
                                     paddingBottom: parentMessage === null ? "0.5" : "1",
                                     paddingRight: marginX,
                                     color: "grey-50",
@@ -875,7 +1077,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         paddingBottom: !shouldMergeWithNextMessage
                             ? messageViewMarginY
                             : messageViewMergedMarginY,
-                        overflow: "hidden",
                         maxWidth: "full",
                     })}
                     style={{
@@ -917,7 +1118,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             <div
                                 className={sprinkles({
                                     flexGrow: "1",
-                                    overflow: "hidden",
                                     display: "flex",
                                     position: "relative",
                                     zIndex: "10",
@@ -926,7 +1126,35 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     // message bubble is clickable.
                                     pointerEvents: "none",
                                 })}
+                                style={{
+                                    maxWidth: `calc(100% - ${spacing["9"]})`,
+                                }}
                             >
+                                {showTouchReplyIcon && (
+                                    <div
+                                        ref={touchReplyIconRef}
+                                        className={sprinkles({
+                                            position: "absolute",
+                                            left: `-${messageViewTouchReplyIconStartOffset}`,
+                                            width: messageViewTouchReplyIconSize,
+                                            height: messageViewTouchReplyIconSize,
+                                            display: "flex",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                            color: "grey-70",
+                                            backgroundColor: "grey-5",
+                                            borderRadius: "full",
+                                            pointerEvents: "none",
+                                            // Start at opacity 0 and our animation will make it visible.
+                                            opacity: "0",
+                                        })}
+                                        style={{
+                                            top: `calc(50% - ${spacing["2.5"]})`,
+                                        }}
+                                    >
+                                        <ArrowArcLeft size={spacing["3"]} />
+                                    </div>
+                                )}
                                 {contentPayloadNode}
                                 <div
                                     className={sprinkles({

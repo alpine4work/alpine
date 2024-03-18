@@ -114,6 +114,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private struct WebScrollViewState {
         var isMain: Bool
         let delegateForwarder: UIScrollViewDelegateForwarder
+        let delegateResizeObserver: UIScrollViewDelegateResizeObserver
     }
 
     /// Bottom bars are HTML elements which we optimistially translate in native
@@ -1229,6 +1230,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 // Can't know whether this is a main scroll view until after `schedule`.
                 isMain: false,
                 delegateForwarder: UIScrollViewDelegateForwarder(
+                    scrollView: webScrollView,
+                    delegate: self
+                ),
+                delegateResizeObserver: UIScrollViewDelegateResizeObserver(
                     scrollView: webScrollView,
                     delegate: self
                 )

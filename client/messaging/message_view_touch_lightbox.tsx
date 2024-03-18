@@ -369,7 +369,7 @@ export function MessageViewTouchLightbox<
                         <Box
                             fontSize="50"
                             fontStyle="truncate"
-                            paddingTop="0.5"
+                            paddingTop="1"
                             paddingBottom="1"
                             paddingRight="4"
                             color="grey-50"

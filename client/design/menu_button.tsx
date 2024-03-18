@@ -927,7 +927,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                           tabIndex: -1,
                       }
                     : {})}
-                width={width}
+                minWidth={width}
                 paddingX="2"
                 paddingY={itemPaddingY}
                 borderRadius="base"

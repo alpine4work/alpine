@@ -57,7 +57,7 @@ export function useCanPrimaryInputHover(): boolean {
  * initial server-side render.
  */
 export function getIsMobileWithoutListening(): boolean {
-    return !!NativeMobileBridge || window.matchMedia(mobilePlatformMediaQuery).matches;
+    return !!NativeMobileBridge || window.innerWidth <= mobileMaxScreenWidth;
 }
 
 export function IsMobileContextProvider({children}: {children?: ReactNode}) {

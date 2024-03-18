@@ -15,7 +15,6 @@ import {
     useRef,
     useState,
 } from "react";
-import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
@@ -35,12 +34,6 @@ import {useShowToast} from "~/client/design/toast.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {
-    addResizeListenerForElement,
-    addSuppressResizeLoopErrorNotificationForElement,
-    removeResizeListenerForElement,
-    removeSuppressResizeLoopErrorNotificationForElement,
-} from "~/client/helpers/use_resize_observer.js";
 import {useInboxPeekContext} from "~/client/inbox/inbox_peek_context.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
@@ -55,7 +48,7 @@ import {
 } from "~/client/messaging/message_view.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {registerBottomBarFrame} from "~/client/remix/subscribe_to_bottom_bar_frame_change.js";
+import {useRegisterBottomBarFrame} from "~/client/remix/subscribe_to_bottom_bar_frame_change.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -467,7 +460,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     {
         messageNoun = "message",
         messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
-        placeholder = `${messageNoun === "message" ? "Send" : "Add"} a ${messageNoun}`,
         state,
         onChange,
         onSend: onSendProp,
@@ -487,6 +479,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onFocus,
         onBlur,
         onArrowUp,
+        placeholder = `${
+            messageEditingForThisInput ? "Edit" : messageNoun === "message" ? "Send" : "Add"
+        } a ${messageNoun}`,
     }: MessageInputBaseProps<RoomKey, Message>,
     ref: Ref<MessageInputRef>,
 ) {
@@ -589,8 +584,20 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
         if (focusKey === null) return;
 
-        const editor = assertExists(editorRef.current);
-        editor.focus();
+        // Make sure we've finished painting the change causing us to focus before
+        // actually focusing the editor.
+        //
+        // NOTE(calebmer): Added this so that when you swipe to reply in our native
+        // mobile apps, the non-animated bottom bar frame change consistently happens
+        // before the animated keyboard frame change. Before adding double
+        // `requestAnimationFrame()` sometimes the keyboard animation would start
+        // before the bottom bar resize observer fired.
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const editor = assertExists(editorRef.current);
+                editor.focus();
+            });
+        });
     }, [focusKey]);
 
     const isSendButtonDisabled =
@@ -667,44 +674,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         }
     };
 
-    const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (isInertNativeMobileRoute) return;
-
-        const inputContainerElement = assertExists(inputContainerRef.current);
-
-        let currentHeight: number | null = null;
-        let unregister: (() => void) | null = null;
-
-        const handleResize = () => {
-            const {height} = inputContainerElement.getBoundingClientRect();
-
-            if (currentHeight !== height) {
-                currentHeight = height;
-
-                const oldUnregister = unregister;
-                unregister = registerBottomBarFrame(height, {withMobileKeyboardToolbar: true});
-
-                // Make sure to unregister AFTER registering the new height. That way if the
-                // height didn't change there will be no update notifications.
-                oldUnregister?.();
-            }
-        };
-
-        // We appear to have no visual issues when this resizes. Mainly adding a
-        // resize element listener to this element causes a suppressed warning from
-        // `<VirtualizedScrollView>` to be logged.
-        addSuppressResizeLoopErrorNotificationForElement(inputContainerElement);
-
-        addResizeListenerForElement(inputContainerElement, handleResize);
-
-        return () => {
-            removeResizeListenerForElement(inputContainerElement, handleResize);
-            removeSuppressResizeLoopErrorNotificationForElement(inputContainerElement);
-            unregister?.();
-        };
-    }, [isInertNativeMobileRoute]);
+    useRegisterBottomBarFrame(inputContainerRef, {withMobileKeyboardToolbar: true});
 
     const id = useId();
 
@@ -866,7 +836,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                     paddingBottom="1"
                                     display="flex"
                                     alignItems="center"
-                                    gap="0.5"
+                                    gap="1"
                                     fontSize="50"
                                     fontStyle="truncate"
                                 >
@@ -1044,7 +1014,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                         >
                             <IconButton
                                 variant="accent"
-                                description={`Send ${messageNoun}`}
+                                description={
+                                    isEditingMessage ? `Save ${messageNoun}` : `Send ${messageNoun}`
+                                }
                                 onPress={onSend}
                                 isDisabled={isSendButtonDisabled}
                                 isPending={isSendButtonPending}

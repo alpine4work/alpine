@@ -30,7 +30,6 @@ import {
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {createPortal} from "react-dom";
-import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
 import {ContentEditorMobileCommentInputBottomBar} from "~/client/content/internal/content_editor_mobile_comment_input_bottom_bar.js";
 import {
     ContentEditorMobileKeyboardSubstitute,
@@ -64,7 +63,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {registerBottomBarMobileKeyboardToolbarFrame} from "~/client/remix/subscribe_to_bottom_bar_frame_change.js";
+import {useRegisterBottomBarMobileKeyboardToolbarFrame} from "~/client/remix/subscribe_to_bottom_bar_frame_change.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -154,12 +153,7 @@ function ContentEditorMobileKeyboardToolbar(
         };
     }, [isSubstituteOpen, isMounted]);
 
-    const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (isInertNativeMobileRoute) return;
-        return registerBottomBarMobileKeyboardToolbarFrame();
-    }, [isInertNativeMobileRoute]);
+    useRegisterBottomBarMobileKeyboardToolbarFrame();
 
     const isFocusedRef = useRef(isFocused);
     useEffect(() => {
