@@ -88,6 +88,7 @@ import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
+import {printTaskCollectionSearchResultBodyTextSnippet} from "~/shared/tasks/print_task_collection_search_result_body_text_snippet.js";
 import {
     TaskCollectionAccessLevel,
     TaskCollectionAccessPolicy,
@@ -4654,6 +4655,48 @@ function createTaskCollectionModelSearchResultFromItem(
             accessPolicy: collectionItem.accessPolicy,
         }),
     };
+}
+
+/**
+ * Print the body text snippet we include in a task collection search result.
+ * If the user doesn't have access to the task collection then we return null
+ * instead of throwing. Since the search index (which calls this function) may
+ * have out-of-date data.
+ */
+export async function getTaskCollectionSearchResultBodyTextSnippetIfPossible(
+    context: ServerSessionActionContext,
+    collectionId: TaskCollectionId,
+    currentTime: Date,
+): Promise<string | null> {
+    const collectionItem = await TaskTable.getItem(context, {
+        partitionType: "TaskCollection",
+        sortRangeType: "EssentialAttributes",
+        collectionId,
+    });
+
+    // Deleted collections get no snippet.
+    if (isTaskCollectionItemDeleted(collectionItem)) return null;
+
+    const expectedAccessLevel = "View";
+
+    // We need to double check that we have access to this collection. Since the
+    // collection search index might be out of date.
+    const hasAccess = await isTaskCollectionItemAccessAuthorized(
+        context,
+        context.actor.getAccountId(),
+        collectionItem,
+        expectedAccessLevel,
+    );
+    if (!hasAccess) return null;
+
+    return printTaskCollectionSearchResultBodyTextSnippet({
+        currentTime,
+        createdTime: new Date(collectionItem.createdTime[0]),
+        lastTaskAddedTime: collectionItem.lastTaskAddedTime
+            ? new Date(collectionItem.lastTaskAddedTime[0])
+            : null,
+        openTaskCount: collectionItem.openTaskCount,
+    });
 }
 
 /**

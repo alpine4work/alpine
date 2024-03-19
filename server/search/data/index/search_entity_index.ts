@@ -51,6 +51,7 @@ import {
     getAccount,
     getSpaceAccountNameSearchIndex,
 } from "~/server/spaces/spaces_table.js";
+import {getTaskCollectionSearchResultBodyTextSnippetIfPossible} from "~/server/tasks/data/task_table.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippetWithHighlighting} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {Context} from "~/shared/context/context.js";
@@ -58,6 +59,7 @@ import {formatPrettyRelativeDateWithoutFullTimeTooltip} from "~/shared/design/fo
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -78,7 +80,8 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assertId} from "~/shared/id/id.js";
+import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {
     SearchEntityId,
@@ -1160,17 +1163,38 @@ export async function searchByKeywords(
                   })
                 : null;
 
-            const bodyTextSnippet = bodySnippet
+            let bodyTextSnippet = bodySnippet
                 ? printContentSingleLineTextSnippetWithHighlighting(
                       {doc: bodySnippet, references: emptyContentReferences},
                       mark => mark.type.name === "highlight",
                   )
-                : [];
+                : emptyArray;
 
             const docMedia = hit.fields.media?.[0];
-            const resultMedia = docMedia
-                ? await prepareSearchEntityMediaForResult(context, spaceId, hit.id, docMedia)
-                : null;
+
+            const resultMedia =
+                docMedia?.type === "TaskCollectionColor"
+                    ? docMedia
+                    : docMedia
+                    ? await prepareSearchEntityMediaForResult(context, spaceId, hit.id, docMedia)
+                    : null;
+
+            // If this hit is for a task collection then we'll include, as the search
+            // result body, a summary of how many tasks are in the collection and when the
+            // collection was last updated. This is helpful for a user comparing multiple
+            // task collections with the same name.
+            if (hit.id.startsWith("TaskCollection:") && bodyTextSnippet.length === 0) {
+                const taskCollectionBodyTextSnippet =
+                    await getTaskCollectionSearchResultBodyTextSnippetIfPossible(
+                        context,
+                        assertId<TaskCollectionId>(hit.id.slice(15)),
+                        currentTime,
+                    );
+
+                if (taskCollectionBodyTextSnippet !== null) {
+                    bodyTextSnippet = [{text: taskCollectionBodyTextSnippet, isHighlighted: false}];
+                }
+            }
 
             return {
                 entityId: hit.id,

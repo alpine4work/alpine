@@ -2,11 +2,11 @@ import {SpinnerGap} from "phosphor-react";
 import {Box} from "~/client/design/box.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {formatPrettyRelativeDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_relative_date_without_full_time_tooltip.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {spinAnimationClassName} from "~/shared/styles/styles.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
+import {printTaskCollectionSearchResultBodyTextSnippet} from "~/shared/tasks/print_task_collection_search_result_body_text_snippet.js";
 
 export const taskCollectionOptionSecondaryTextColor = "grey-40" as const;
 
@@ -42,15 +42,14 @@ export function TaskCollectionOption({
             <Box flexGrow="1" overflow="hidden">
                 <Box fontStyle="truncate">{collectionResult.collection.getName()}</Box>
                 <Box fontSize="50" color={taskCollectionOptionSecondaryTextColor}>
-                    {getTaskCollectionTaskCountSummary(collectionResult)},{" "}
-                    {!collectionResult.lastTaskAddedTime ? " created " : " updated "}
-                    {formatPrettyRelativeDateWithoutFullTimeTooltip(
-                        useCurrentTimeRoundedToHour(),
-                        !collectionResult.lastTaskAddedTime
-                            ? new Date(collectionResult.collection.getCreatedTime()[0])
-                            : new Date(collectionResult.lastTaskAddedTime[0]),
-                        "Weeks",
-                    )}
+                    {printTaskCollectionSearchResultBodyTextSnippet({
+                        currentTime: useCurrentTimeRoundedToHour(),
+                        createdTime: new Date(collectionResult.collection.getCreatedTime()[0]),
+                        lastTaskAddedTime: collectionResult.lastTaskAddedTime
+                            ? new Date(collectionResult.lastTaskAddedTime[0])
+                            : null,
+                        openTaskCount: collectionResult.openTaskCount,
+                    })}
                 </Box>
             </Box>
             {shouldShowPendingSpinner && (
@@ -60,16 +59,4 @@ export function TaskCollectionOption({
             )}
         </Box>
     );
-}
-
-function getTaskCollectionTaskCountSummary(collectionResult: TaskCollectionModelSearchResult) {
-    if (collectionResult.openTaskCount === 0) {
-        return "No tasks";
-    } else if (collectionResult.openTaskCount < 100) {
-        return "Several tasks";
-    } else if (collectionResult.openTaskCount < 1000) {
-        return "Hundreds of tasks";
-    } else {
-        return "Thousands of tasks";
-    }
 }
