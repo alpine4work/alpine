@@ -964,7 +964,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return (
             <div
                 className={sprinkles({
-                    paddingTop: "8",
+                    paddingTop: !isFirstMessage ? "8" : "0",
                     paddingBottom: "2",
                     display: "flex",
                     justifyContent: "center",

@@ -43,13 +43,7 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {
-    RemLength,
-    Spacing,
-    addRemLengths,
-    parseRemLengthNumber,
-    spacing,
-} from "~/shared/design/spacing.js";
+import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {UncheckedDocumentContentSchema} from "~/shared/documents/document_content_schema.js";
@@ -69,10 +63,14 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {sprinkles} from "~/shared/styles/styles.js";
+import {
+    documentCommentThreadsStyles,
+    inputPlaceholderStyles,
+    sprinkles,
+} from "~/shared/styles/styles.js";
 
 export const documentCommentThreadListViewMaxWidth: Spacing = "160";
-const documentCommentThreadListViewMarginY: Spacing = "20";
+const documentCommentThreadListViewMarginY: Spacing = "32";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -404,10 +402,9 @@ function DocumentCommentThreadListView(
         }, [allUnpersistedResolutionStateByCommentThreadId, commentThreadIds]),
     );
 
-    // Always pin the comment input to the bottom of the list view on mobile
-    // layout of a single comment thread.
-    const isSingleMobileLayoutCommentThreadWithPinnedCommentInput =
-        withMobileLayout && tree.getNodeCount() === 1;
+    // Always pin the comment input to the bottom of the list view of a single
+    // comment thread.
+    const isSingleCommentThreadWithPinnedCommentInput = tree.getNodeCount() === 1;
 
     const isLoadingRef = useRef(false);
     const [errorState, setErrorState] = useState<
@@ -684,7 +681,7 @@ function DocumentCommentThreadListView(
             [],
         ),
         // Don't consider the background slop as valid scrollable area...
-        scrollableInsetBottom: isSingleMobileLayoutCommentThreadWithPinnedCommentInput
+        scrollableInsetBottom: isSingleCommentThreadWithPinnedCommentInput
             ? backgroundSlopBottomIfPinnedCommentInput
             : undefined,
     });
@@ -722,13 +719,16 @@ function DocumentCommentThreadListView(
                             : spacing[documentCommentThreadActionsHeight],
                     );
 
+                    const nodeIndex = assertExists(
+                        tree.getNodeIndexByKeyIfExists(item.commentThread.id),
+                    );
+
                     return {
                         key: `DocumentCommentThreadHeader:${item.commentThread.id}`,
                         minHeight,
-                        renderAdditionalItemIndexes:
-                            !isSingleMobileLayoutCommentThreadWithPinnedCommentInput
-                                ? [item.commentInputItemIndex]
-                                : [],
+                        renderAdditionalItemIndexes: !isSingleCommentThreadWithPinnedCommentInput
+                            ? [item.commentInputItemIndex]
+                            : [],
                         node: (
                             <div
                                 className={sprinkles({
@@ -746,26 +746,35 @@ function DocumentCommentThreadListView(
                                             height: documentCommentThreadListViewMarginY,
                                             maxWidth: documentCommentThreadListViewMaxWidth,
                                             paddingX,
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            justifyContent: "center",
                                         })}
                                     >
+                                        <div style={{height: spacing["2"]}} />
+                                        <div
+                                            className={
+                                                documentCommentThreadsStyles.sawtoothBorderClassName
+                                            }
+                                        />
                                         <div
                                             className={sprinkles({
                                                 width: "full",
-                                                height: "1/2",
-                                                borderBottom: "grey-5",
+                                                paddingY: "0.5",
+                                                color: "grey-30",
+                                                fontSize: "50",
+                                                display: "flex",
+                                                justifyContent: "center",
+                                                alignItems: "center",
+                                                gap: "1",
                                             })}
                                             style={{
-                                                height: `${
-                                                    parseRemLengthNumber(
-                                                        spacing[
-                                                            documentCommentThreadListViewMarginY
-                                                        ],
-                                                    ) /
-                                                        2 -
-                                                    0.125
-                                                }rem`,
+                                                ...inputPlaceholderStyles,
+                                                fontVariantNumeric: "tabular-nums",
                                             }}
-                                        />
+                                        >
+                                            {nodeIndex + 1} of {tree.getNodeCount()}
+                                        </div>
                                     </div>
                                 )}
                                 <div
@@ -822,7 +831,6 @@ function DocumentCommentThreadListView(
                         groupKey: item.commentThread.id,
                         index: item.commentItemIndex,
                         item: item.commentItem,
-                        roomDisplayedCreatedTime: item.commentThread.createdTime,
                         randomSeedForShimmer: item.commentThread.id,
                         messageEditing,
                         shouldHighlightRef:
@@ -861,7 +869,7 @@ function DocumentCommentThreadListView(
                         },
                         marginX: paddingX,
                         shouldAddMarginBottom:
-                            isSingleMobileLayoutCommentThreadWithPinnedCommentInput &&
+                            isSingleCommentThreadWithPinnedCommentInput &&
                             index === tree.getItemCount() - 2
                                 ? backgroundSlopBottomIfPinnedCommentInput
                                     ? `calc(var(--keyboard-safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px) + ${backgroundSlopBottomIfPinnedCommentInput})`
@@ -889,13 +897,12 @@ function DocumentCommentThreadListView(
 
                     return {
                         ...renderedItem,
-                        renderAdditionalItemIndexes:
-                            !isSingleMobileLayoutCommentThreadWithPinnedCommentInput
-                                ? [
-                                      ...(renderedItem.renderAdditionalItemIndexes ?? []),
-                                      item.commentInputItemIndex,
-                                  ]
-                                : renderedItem.renderAdditionalItemIndexes,
+                        renderAdditionalItemIndexes: !isSingleCommentThreadWithPinnedCommentInput
+                            ? [
+                                  ...(renderedItem.renderAdditionalItemIndexes ?? []),
+                                  item.commentInputItemIndex,
+                              ]
+                            : renderedItem.renderAdditionalItemIndexes,
                     };
                 }
 
@@ -1065,7 +1072,7 @@ function DocumentCommentThreadListView(
             tree,
             documentId,
             withoutCommentThreadPreview,
-            isSingleMobileLayoutCommentThreadWithPinnedCommentInput,
+            isSingleCommentThreadWithPinnedCommentInput,
             paddingX,
             unpersistedIsResolvedByCommentThreadId,
             contentSnippetByCommentThreadId,
@@ -1102,7 +1109,7 @@ function DocumentCommentThreadListView(
                     elementRef={navigationBar?.scrollViewRef}
                     scrollbarInsetTop={scrollbarInsetTop ?? navigationBar?.scrollbarInsetTop}
                     scrollbarInsetBottom={
-                        isSingleMobileLayoutCommentThreadWithPinnedCommentInput
+                        isSingleCommentThreadWithPinnedCommentInput
                             ? backgroundSlopBottomIfPinnedCommentInput
                             : undefined
                     }
@@ -1112,13 +1119,13 @@ function DocumentCommentThreadListView(
                         tree.getItemCount() -
                         // Don't render the comment input (which should be the last item) if we are
                         // pinning the comment input to the bottom of the view.
-                        (isSingleMobileLayoutCommentThreadWithPinnedCommentInput ? 1 : 0)
+                        (isSingleCommentThreadWithPinnedCommentInput ? 1 : 0)
                     }
                     renderItem={renderItem}
                     onRenderedRangeChange={tryLoadingMoreData}
                     extraChildren={navigationBar?.navigationBar}
                 />
-                {isSingleMobileLayoutCommentThreadWithPinnedCommentInput &&
+                {isSingleCommentThreadWithPinnedCommentInput &&
                     (() => {
                         const item = tree.getItem(tree.getItemCount() - 1);
                         assert(item.type === "DocumentCommentInput");

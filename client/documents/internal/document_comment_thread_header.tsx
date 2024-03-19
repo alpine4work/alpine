@@ -1,6 +1,6 @@
 import {Check} from "phosphor-react";
 import {Node} from "prosemirror-model";
-import {useMemo, useRef, useState} from "react";
+import {useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -11,9 +11,6 @@ import {
     documentCommentThreadHeaderPaddingY,
 } from "~/client/documents/document_shared_styles.js";
 import {DocumentCommentThreadPreview} from "~/client/documents/internal/document_comment_thread_preview.js";
-import {formatMessageViewTimestampDividerDate} from "~/client/messaging/format_message_view_timestamp_divider_date.js";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
@@ -47,8 +44,6 @@ export function DocumentCommentThreadHeader({
     contentReferences: DocumentContentReferences;
     onCommentThreadSnippetPress: (commentThreadId: DocumentCommentThreadId) => void;
 }) {
-    const {locale, timeZone} = useClientInfo();
-    const currentTime = useCurrentTimeRoundedToHour();
     const showToast = useShowToast();
 
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -117,18 +112,6 @@ export function DocumentCommentThreadHeader({
                         {isResolved ? "Resolved" : "Mark as resolved"}
                     </Box>
                 </Box>
-                {useMemo(
-                    () => (
-                        <Box fontSize="50" fontStyle="truncate" color="grey-50">
-                            {formatMessageViewTimestampDividerDate(commentThread.createdTime, {
-                                currentTime,
-                                locale,
-                                timeZone,
-                            })}
-                        </Box>
-                    ),
-                    [commentThread.createdTime, currentTime, locale, timeZone],
-                )}
             </Box>
             {!withoutCommentThreadPreview && (
                 <>

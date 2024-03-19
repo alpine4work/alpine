@@ -170,6 +170,22 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> {
     }
 
     /**
+     * Get the node's index in the tree. Returns null if the node does not exist in
+     * the tree. So if there are three nodes each with five items the first node
+     * will have index 0, the second index 1, and the third index 2. Node indexes
+     * are not to be mixed with item indexes!
+     */
+    public getNodeIndexByKeyIfExists(nodeKey: NodeKey): number | null {
+        const orderKey = this._orderKeyByNodeKey.get(nodeKey);
+        if (!orderKey) return null;
+
+        const iterator = this._nodeByOrderKey.find(orderKey);
+        assert(iterator.value, "Could not find node for order key");
+
+        return iterator.index;
+    }
+
+    /**
      * Get a node in the tree by its index. Returns null if the item index is
      * out of bounds.
      *
