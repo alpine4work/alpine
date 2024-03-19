@@ -27,7 +27,7 @@ import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/use_task_g
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
     TaskClientStore,
-    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/task_client_store.js";
 import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
@@ -168,7 +168,7 @@ export function TaskQueryView({
     onSortsChange,
 }: {
     store: TaskClientStore;
-    affinityManager: TaskClientStoreSearchEntityAffinityManager;
+    affinityManager: TaskClientStoreSearchAffinityManager;
     initialQuery: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;

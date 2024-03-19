@@ -5,38 +5,38 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {markSearchEntityAffinityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
+import {markSearchAffinityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {SearchEntityAffinityId} from "~/shared/search/search_entity_affinity_id.js";
+import {SearchAffinityId} from "~/shared/search/search_affinity_id.js";
 
 const SessionStorageSchema = Schema.object({
     durationSinceLastUpdate: Schema.float.nullable().default(null),
 });
 
 /**
- * Send `markSearchEntityAffinityInteraction()` calls every 5 minutes
+ * Send `markSearchAffinityInteraction()` calls every 5 minutes
  * while the user is viewing the provided entity. If you pass in `null` this
  * hook will be disabled.
  *
  * Our convention is to call this hook from a route file in `app/routes` to
  * make it easier to manage/audit how this hook gets used.
  */
-export function useSearchEntityAffinityViewInteraction(entityId: SearchEntityAffinityId | null) {
+export function useSearchAffinityViewInteraction(affinityId: SearchAffinityId | null) {
     const context = useAppContext();
     const {space} = useSpaceContext();
 
     // When rendered in a peek, the peek may disable view interaction tracking. If
     // you only briefly view a search entity from within the search window's peek,
     // that shouldn't add to the affinity score.
-    const withoutSearchEntityViewAffinityInteraction =
-        usePeekContext()?.withoutSearchEntityViewAffinityInteraction ?? false;
+    const withoutSearchAffinityViewInteraction =
+        usePeekContext()?.withoutSearchAffinityViewInteraction ?? false;
 
     // Every 5min while our this hook is mounted we add to the entity's
     // affinity score. We don't add to affinity scores while the page is
     // hidden. We resume if the user reopens the page.
     useEffect(() => {
-        if (!entityId) return;
-        if (withoutSearchEntityViewAffinityInteraction) return;
+        if (!affinityId) return;
+        if (withoutSearchAffinityViewInteraction) return;
 
         const clock = new MonotonicClock(unsynchronizedSystemClock);
 
@@ -51,7 +51,7 @@ export function useSearchEntityAffinityViewInteraction(entityId: SearchEntityAff
             // Stop our affinity update loop:
             if (document.visibilityState !== "visible" && state) {
                 sessionStorage.setItem(
-                    `cyberworlds/searchEntityAffinityViewInteraction/${entityId}`,
+                    `cyberworlds/searchAffinityViewInteraction/${affinityId}`,
                     JSON.stringify(
                         SessionStorageSchema.serialize({
                             durationSinceLastUpdate: currentTime - state.lastUpdatedTime,
@@ -67,7 +67,7 @@ export function useSearchEntityAffinityViewInteraction(entityId: SearchEntityAff
                 const {durationSinceLastUpdate} = SessionStorageSchema.deserialize(
                     JSON.parse(
                         sessionStorage.getItem(
-                            `cyberworlds/searchEntityAffinityViewInteraction/${entityId}`,
+                            `cyberworlds/searchAffinityViewInteraction/${affinityId}`,
                         ) ?? "{}",
                     ),
                 );
@@ -80,9 +80,9 @@ export function useSearchEntityAffinityViewInteraction(entityId: SearchEntityAff
                 const updateLoop = () => {
                     // If this errs it will show up in our telemetry but we don't care about
                     // it here.
-                    void markSearchEntityAffinityInteraction(context, {
+                    void markSearchAffinityInteraction(context, {
                         spaceId: space.id,
-                        entityId,
+                        affinityId,
                         interaction: {type: "View"},
                     });
 
@@ -128,7 +128,7 @@ export function useSearchEntityAffinityViewInteraction(entityId: SearchEntityAff
                 const currentTime = clock.now();
 
                 sessionStorage.setItem(
-                    `cyberworlds/searchEntityAffinityViewInteraction/${entityId}`,
+                    `cyberworlds/searchAffinityViewInteraction/${affinityId}`,
                     JSON.stringify(
                         SessionStorageSchema.serialize({
                             durationSinceLastUpdate: currentTime - state.lastUpdatedTime,
@@ -139,5 +139,5 @@ export function useSearchEntityAffinityViewInteraction(entityId: SearchEntityAff
                 state = null;
             }
         };
-    }, [context, entityId, space.id, withoutSearchEntityViewAffinityInteraction]);
+    }, [context, affinityId, space.id, withoutSearchAffinityViewInteraction]);
 }

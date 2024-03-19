@@ -29,7 +29,7 @@ import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_stat
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {
     TaskClientStore,
-    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
 import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
@@ -56,7 +56,7 @@ export type TaskGridViewDraggableData =
     | {
           readonly type: "Row";
           readonly undoManager: TaskClientStoreUndoManager;
-          readonly affinityManager: TaskClientStoreSearchEntityAffinityManager;
+          readonly affinityManager: TaskClientStoreSearchAffinityManager;
           readonly taskId: TaskId;
           readonly displayStatus: TaskDisplayStatus;
           readonly title: TaskTitleModel;
@@ -66,7 +66,7 @@ export type TaskGridViewDraggableData =
     | {
           readonly type: "Card";
           readonly undoManager?: undefined;
-          readonly affinityManager: TaskClientStoreSearchEntityAffinityManager;
+          readonly affinityManager: TaskClientStoreSearchAffinityManager;
           readonly taskId: TaskId;
           readonly displayStatus: TaskDisplayStatus;
           readonly assigneeAccountId: AccountId | null;

@@ -23,7 +23,7 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {
     TaskClientStore,
-    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/task_client_store.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -52,7 +52,7 @@ export function TaskCollectionViewHeader({
     // should be read-only.
     collectionSubscription: TaskClientCollectionSubscription | null;
     createCollection: (name: string) => Promise<void>;
-    affinityManager: TaskClientStoreSearchEntityAffinityManager;
+    affinityManager: TaskClientStoreSearchAffinityManager;
 }) {
     const context = useAppContext();
     const navigate = useNavigate();

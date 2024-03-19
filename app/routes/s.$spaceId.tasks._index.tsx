@@ -1,6 +1,6 @@
 import {Params} from "react-router";
 import {useSearchParams} from "react-router-dom";
-import {useTaskClientStoreSearchEntityAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
+import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
@@ -229,7 +229,7 @@ export default function TasksRoute({withMobileLayout = false}: {withMobileLayout
     } = useTaskStoreLoaderDataWithoutRetaining();
     assert(assigneeActiveQuery && initialNotepadPageQuery);
 
-    const affinityManager = useTaskClientStoreSearchEntityAffinityManager("TaskNotepad");
+    const affinityManager = useTaskClientStoreSearchAffinityManager("TaskNotepad");
 
     return (
         <TaskGridViewDndContext store={store}>

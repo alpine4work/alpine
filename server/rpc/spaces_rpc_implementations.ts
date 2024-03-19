@@ -1,5 +1,5 @@
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
-import {getAccountIdsSortedBySearchEntityAffinity} from "~/server/search/data/table/search_entity_table.js";
+import {getAccountIdsSortedBySearchAffinity} from "~/server/search/data/table/search_entity_table.js";
 import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/spaces_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -13,10 +13,7 @@ implementRpc(
             expensivelyGetAllSpaceAccounts(context, input.spaceId),
 
             // We return all accounts sorted in affinity order.
-            getAccountIdsSortedBySearchEntityAffinity(
-                context.actor.authorizeSession(),
-                input.spaceId,
-            ),
+            getAccountIdsSortedBySearchAffinity(context.actor.authorizeSession(), input.spaceId),
         ]);
 
         const sortedIndexByAccountId = new Map<AccountId, number>();

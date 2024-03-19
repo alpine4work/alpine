@@ -3,7 +3,7 @@ import {getAccountClientStoreForClient} from "~/client/accounts/account_client_s
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {
     TaskClientStore,
-    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreSearchAffinityManager,
     setShouldDisableCommitTaskActionTransactionMutexForTest,
 } from "~/client/tasks/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
@@ -287,7 +287,7 @@ function createCollection(
     return TaskCollectionModel.createFromAction(store.spaceId, id, time, collectionAction);
 }
 
-const noopAffinityManager: TaskClientStoreSearchEntityAffinityManager = {
+const noopAffinityManager: TaskClientStoreSearchAffinityManager = {
     markLowIntentUpdateInteraction: () => {},
 };
 

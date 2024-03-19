@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {Params, ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
-import {useTaskClientStoreSearchEntityAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
+import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -23,7 +23,7 @@ import {
 } from "~/client/tasks/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {markSearchEntityAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
 import {
     authorizeTaskCollectionAccess,
@@ -142,9 +142,9 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
             // added on the client through the `affinityManager` object. Since we create
             // the collection on the server here, we need to manually add affinity points.
             context.process.waitUntil(
-                markSearchEntityAffinityInteraction(context, {
+                markSearchAffinityInteraction(context, {
                     spaceId,
-                    entityId: `TaskCollection:${collectionId}`,
+                    affinityId: `TaskCollection:${collectionId}`,
                     interaction: {type: "HighIntentUpdate"},
                 }),
             );
@@ -418,7 +418,7 @@ function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean
 
     useAddTaskCollectionViewingTimeAffinityPoints(collectionSubscription);
 
-    const affinityManager = useTaskClientStoreSearchEntityAffinityManager(
+    const affinityManager = useTaskClientStoreSearchAffinityManager(
         collectionSubscription ? `TaskCollection:${collectionSubscription.collectionId}` : null,
     );
 

@@ -15,7 +15,7 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
-import {useSearchEntityAffinityViewInteraction} from "~/client/search/use_search_entity_view_affinity_interaction.js";
+import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/documents/data/documents_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -109,7 +109,7 @@ export default function DocumentCommentThreadRoute({
     // Spending time with a document comment thread contributes affinity points
     // back to the document. Since the comment thread is discussing the document,
     // the document is likely an artifact you care about.
-    useSearchEntityAffinityViewInteraction(`Document:${initialDocument.id}`);
+    useSearchAffinityViewInteraction(`Document:${initialDocument.id}`);
 
     const content = editorState.getContent();
     const title = useMemo(() => getDocumentContentTitle(content.doc), [content.doc]);

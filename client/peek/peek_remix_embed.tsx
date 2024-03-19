@@ -31,7 +31,7 @@ import {convertSpacePathToPeekPath, isPeekPath} from "~/shared/remix/peek_path_h
 export type PeekContext = {
     readonly id: PeekId;
     readonly withMobileLayout: boolean;
-    readonly withoutSearchEntityViewAffinityInteraction: boolean;
+    readonly withoutSearchAffinityViewInteraction: boolean;
 };
 
 const PeekContext = createContext<PeekContext | null>(null);
@@ -220,13 +220,13 @@ export function usePeekRemixEmbedRouter() {
 export function PeekRemixEmbed({
     peekId,
     withMobileLayout,
-    withoutSearchEntityViewAffinityInteraction = false,
+    withoutSearchAffinityViewInteraction = false,
     router: originalRouter,
     onGoBackOverflow,
 }: {
     peekId: PeekId;
     withMobileLayout: boolean;
-    withoutSearchEntityViewAffinityInteraction?: boolean;
+    withoutSearchAffinityViewInteraction?: boolean;
     router: PeekRemixEmbedRouter;
     onGoBackOverflow?: () => void;
 }) {
@@ -287,9 +287,9 @@ export function PeekRemixEmbed({
                 () => ({
                     id: peekId,
                     withMobileLayout,
-                    withoutSearchEntityViewAffinityInteraction,
+                    withoutSearchAffinityViewInteraction,
                 }),
-                [peekId, withMobileLayout, withoutSearchEntityViewAffinityInteraction],
+                [peekId, withMobileLayout, withoutSearchAffinityViewInteraction],
             )}
         >
             <UpdateMetaTitleContextProvider

@@ -7,7 +7,7 @@ import {
     getAffinitiveSearchEntityIdsEarlyReturnTestCounter,
     getCurrentSearchEntityAccountAffinityPoints,
     getSearchEntityAccountAffinityExpirationDuration,
-    getSearchEntityAffinityPointsBucket,
+    getSearchAffinityPointsBucket,
     getSearchEntityTableForTest,
     monthDurationMs,
 } from "~/server/search/data/table/search_entity_table.js";
@@ -84,7 +84,7 @@ test("buckets search entity account affinity points as expected", () => {
         [16, 15],
     ];
 
-    expect(cases.map(([n]) => [n, getSearchEntityAffinityPointsBucket(n)])).toEqual(cases);
+    expect(cases.map(([n]) => [n, getSearchAffinityPointsBucket(n)])).toEqual(cases);
 });
 
 test("search entity account affinity points decay exponentially", () => {
@@ -193,7 +193,7 @@ test("can't read affinitive items for the wrong space", async () => {
                 accountId: session.account.id,
                 entityId: `Document:${document.id}`,
                 points,
-                pointsBucket: getSearchEntityAffinityPointsBucket(points),
+                pointsBucket: getSearchAffinityPointsBucket(points),
                 lastUpdatedTime: currentTime,
                 lastViewedTime: null,
                 expirationTime: new Date(
@@ -215,7 +215,7 @@ test("can't read affinitive items for the wrong space", async () => {
                 accountId: session.account.id,
                 entityId: `Document:${document.id}`,
                 points: points2,
-                pointsBucket: getSearchEntityAffinityPointsBucket(points2),
+                pointsBucket: getSearchAffinityPointsBucket(points2),
                 lastUpdatedTime: currentTime,
                 lastViewedTime: null,
                 expirationTime: new Date(
@@ -230,7 +230,7 @@ test("can't read affinitive items for the wrong space", async () => {
                 accountId: otherSession.account.id,
                 entityId: `Document:${document.id}`,
                 points: points1,
-                pointsBucket: getSearchEntityAffinityPointsBucket(points1),
+                pointsBucket: getSearchAffinityPointsBucket(points1),
                 lastUpdatedTime: currentTime,
                 lastViewedTime: null,
                 expirationTime: new Date(
@@ -323,7 +323,7 @@ test(
                     accountId: session.account.id,
                     entityId: `Document:${document.id}`,
                     points: actualPoints,
-                    pointsBucket: getSearchEntityAffinityPointsBucket(actualPoints),
+                    pointsBucket: getSearchAffinityPointsBucket(actualPoints),
                     lastUpdatedTime,
                     lastViewedTime: null,
                     expirationTime: new Date(
@@ -525,7 +525,7 @@ test(
                     accountId: session.account.id,
                     entityId: `Document:${document.id}`,
                     points: actualPoints,
-                    pointsBucket: getSearchEntityAffinityPointsBucket(actualPoints),
+                    pointsBucket: getSearchAffinityPointsBucket(actualPoints),
                     lastUpdatedTime,
                     lastViewedTime: null,
                     expirationTime: new Date(
@@ -711,7 +711,7 @@ test(
                     accountId: session.account.id,
                     entityId: `Document:${document.id}`,
                     points,
-                    pointsBucket: getSearchEntityAffinityPointsBucket(points),
+                    pointsBucket: getSearchAffinityPointsBucket(points),
                     lastUpdatedTime: currentTime,
                     lastViewedTime: null,
                     expirationTime: new Date(

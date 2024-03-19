@@ -3,7 +3,7 @@ import {MenuAction} from "~/client/design/menu_button.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {
     TaskClientStore,
-    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
@@ -29,7 +29,7 @@ export function getTaskStatusMenuActions({
     currentAccount: AccountModel;
     store: TaskClientStore;
     undoManager: TaskClientStoreUndoManager | null;
-    affinityManager: TaskClientStoreSearchEntityAffinityManager;
+    affinityManager: TaskClientStoreSearchAffinityManager;
     task: TaskModel;
 }): ReadonlyArray<MenuAction> {
     return getTaskStatusMenuActionsWithoutFullTask({
@@ -61,7 +61,7 @@ export function getTaskStatusMenuActionsWithoutFullTask({
     currentAccount: AccountModel;
     store: TaskClientStore;
     undoManager: TaskClientStoreUndoManager | null;
-    affinityManager: TaskClientStoreSearchEntityAffinityManager;
+    affinityManager: TaskClientStoreSearchAffinityManager;
     taskId: TaskId;
     displayStatus: TaskDisplayStatus;
     getAssigneeSnapshot: () => TaskAssigneeWithSortableAccount | null;

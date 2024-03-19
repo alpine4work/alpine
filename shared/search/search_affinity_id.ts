@@ -22,7 +22,7 @@ import {SearchEntityId} from "~/shared/search/search_entity_id.js";
  * receives new comments, you'll be reminded of it. Otherwise it's ok for posts
  * to fade into obscurity.
  */
-export type SearchEntityAffinityId =
+export type SearchAffinityId =
     | `Account:${AccountId}`
     | `Document:${DocumentId}`
     | `Channel:${ChannelId}`
@@ -33,11 +33,11 @@ export type SearchEntityAffinityId =
     // a search entity doc for it.
     | "TaskNotepad";
 
-assertAssignableTypes<Exclude<SearchEntityAffinityId, "TaskNotepad">, SearchEntityId>();
+assertAssignableTypes<Exclude<SearchAffinityId, "TaskNotepad">, SearchEntityId>();
 
-export const SearchEntityAffinityIdSchema = Schema.string as Schema<SearchEntityAffinityId>;
+export const SearchAffinityIdSchema = Schema.string as Schema<SearchAffinityId>;
 
-export type SearchEntityIdOrSearchAffinityId = SearchEntityId | SearchEntityAffinityId;
+export type SearchEntityIdOrSearchAffinityId = SearchEntityId | SearchAffinityId;
 
 export const SearchEntityIdOrSearchAffinityIdSchema =
     Schema.string as Schema<SearchEntityIdOrSearchAffinityId>;

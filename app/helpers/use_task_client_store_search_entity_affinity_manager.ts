@@ -1,30 +1,30 @@
 import {useMemo} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
-import {markSearchEntityAffinityLowIntentUpdateInteraction} from "~/client/search/mark_search_entity_affinity_low_intent_update_interaction.js";
-import {useSearchEntityAffinityViewInteraction} from "~/client/search/use_search_entity_view_affinity_interaction.js";
+import {markSearchAffinityLowIntentUpdateInteraction} from "~/client/search/mark_search_affinity_low_intent_update_interaction.js";
+import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {TaskClientStoreSearchEntityAffinityManager} from "~/client/tasks/task_client_store.js";
-import {markSearchEntityAffinityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
-import {SearchEntityAffinityId} from "~/shared/search/search_entity_affinity_id.js";
+import {TaskClientStoreSearchAffinityManager} from "~/client/tasks/task_client_store.js";
+import {markSearchAffinityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
+import {SearchAffinityId} from "~/shared/search/search_affinity_id.js";
 
 /**
- * Also calls `useSearchEntityAffinityViewInteraction()` for the entity.
+ * Also calls `useSearchAffinityViewInteraction()` for the entity.
  */
-export function useTaskClientStoreSearchEntityAffinityManager(
-    entityId: SearchEntityAffinityId | null,
-): TaskClientStoreSearchEntityAffinityManager {
+export function useTaskClientStoreSearchAffinityManager(
+    affinityId: SearchAffinityId | null,
+): TaskClientStoreSearchAffinityManager {
     const context = useAppContext();
     const {space, currentAccount} = useSpaceContext();
 
-    useSearchEntityAffinityViewInteraction(entityId);
+    useSearchAffinityViewInteraction(affinityId);
 
     return useMemo(
         () => ({
             markLowIntentUpdateInteraction: update => {
                 // If an entity is not currently provided, noop.
-                if (!entityId) return;
+                if (!affinityId) return;
 
-                const markedEntityIds = new Set<SearchEntityAffinityId>();
+                const markedEntityIds = new Set<SearchAffinityId>();
 
                 for (const [taskId, {oldTaskEntry, newTaskEntry}] of update.taskEntryUpdateById) {
                     const oldDisplayStatus =
@@ -41,9 +41,9 @@ export function useTaskClientStoreSearchEntityAffinityManager(
                     ) {
                         // If this errs it will show up in our telemetry but we don't care about
                         // it here.
-                        void markSearchEntityAffinityInteraction(context, {
+                        void markSearchAffinityInteraction(context, {
                             spaceId: space.id,
-                            entityId: `Task:${taskId}`,
+                            affinityId: `Task:${taskId}`,
                             interaction: {type: "HighIntentUpdate"},
                         });
 
@@ -65,9 +65,9 @@ export function useTaskClientStoreSearchEntityAffinityManager(
                     if (!oldCollectionEntry && newCollectionEntry) {
                         // If this errs it will show up in our telemetry but we don't care about
                         // it here.
-                        void markSearchEntityAffinityInteraction(context, {
+                        void markSearchAffinityInteraction(context, {
                             spaceId: space.id,
-                            entityId: `TaskCollection:${collectionId}`,
+                            affinityId: `TaskCollection:${collectionId}`,
                             interaction: {type: "HighIntentUpdate"},
                         });
 
@@ -76,18 +76,18 @@ export function useTaskClientStoreSearchEntityAffinityManager(
                 }
 
                 if (
-                    entityId !== null &&
+                    affinityId !== null &&
                     // If we already marked the search entity with an interaction, don't do it
                     // again. e.g. If the user marks a task as active within a task peek then only
                     // send a high intent update interaction. If the user marks a task as active
                     // within a collection we send both a low intent updated interaction for the
                     // collection and a high intent update interaction for the task.
-                    !markedEntityIds.has(entityId)
+                    !markedEntityIds.has(affinityId)
                 ) {
-                    markSearchEntityAffinityLowIntentUpdateInteraction(context, space.id, entityId);
+                    markSearchAffinityLowIntentUpdateInteraction(context, space.id, affinityId);
                 }
             },
         }),
-        [context, currentAccount.id, entityId, space.id],
+        [context, currentAccount.id, affinityId, space.id],
     );
 }

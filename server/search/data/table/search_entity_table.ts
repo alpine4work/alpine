@@ -9,8 +9,8 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {SearchEntityAffinityId} from "~/shared/search/search_entity_affinity_id.js";
-import {SearchEntityAffinityInteraction} from "~/shared/search/search_entity_affinity_interaction.js";
+import {SearchAffinityId} from "~/shared/search/search_affinity_id.js";
+import {SearchAffinityInteraction} from "~/shared/search/search_affinity_interaction.js";
 
 const SearchEntityTable = DynamoTableSchema.new({
     name: "SearchEntities",
@@ -23,10 +23,16 @@ const SearchEntityTable = DynamoTableSchema.new({
             },
             sortRanges: [
                 {
+                    // NOTE(calebmer, 2024-03-19): Would love to rename this sort range
+                    // `SearchAffinity` instead of `SearchEntityAffinity` but can't rename since
+                    // data is already stored in the database with this sort range type.
                     name: "SearchEntityAffinity",
                     sortKeyAttributes: {
+                        // NOTE(calebmer, 2024-03-19): Would love to rename this attribute `affinityId`
+                        // instead of `entityId` but can't rename since data is already stored in the
+                        // database with this key name.
                         entityId:
-                            DynamoKeyAttributeSchema.labelString as DynamoKeyAttributeSchema<SearchEntityAffinityId>,
+                            DynamoKeyAttributeSchema.labelString as DynamoKeyAttributeSchema<SearchAffinityId>,
                     },
                     withExpirationTime: "Required",
                     attributes: Schema.object({
@@ -40,7 +46,7 @@ const SearchEntityTable = DynamoTableSchema.new({
                          * buckets for better query performance so we only need to query entities
                          * with the highest affinity scores.
                          *
-                         * See `getSearchEntityAffinityPointsBucket()`.
+                         * See `getSearchAffinityPointsBucket()`.
                          */
                         pointsBucket: Schema.integer,
 
@@ -88,7 +94,7 @@ export function getSearchEntityTableForTest() {
  * increases write costs) while still having small enough buckets that are
  * efficient to query (to decrease read costs).
  */
-export function getSearchEntityAffinityPointsBucket(points: number): number {
+export function getSearchAffinityPointsBucket(points: number): number {
     if (points < 1) return 0;
     if (points < 3) return 1;
     if (points < 5) return 3;
@@ -132,7 +138,7 @@ export function getSearchEntityAccountAffinityExpirationDuration(points: number)
  * decay to 0 after 3 months (more accurately, 90 days).
  *
  * We don't let you directly pass in a point number. Instead you must pass in a
- * `SearchEntityAffinityInteraction` object. This interaction object abstracts
+ * `SearchAffinityInteraction` object. This interaction object abstracts
  * away the point count so the caller only needs to think about what kind of
  * interaction it was, not the right point total relative to all other point
  * counts.
@@ -148,16 +154,16 @@ export function getSearchEntityAccountAffinityExpirationDuration(points: number)
 // TODO(calebmer): I wonder if we should add a "mobile multiplier" to some of
 // these interactions. Since all of these interactions are harder to do on
 // mobile that must mean it's worth more to the user?
-export function markSearchEntityAffinityInteraction(
+export function markSearchAffinityInteraction(
     context: ServerSessionActionContext,
     {
         spaceId,
-        entityId,
+        affinityId,
         interaction,
     }: {
         spaceId: SpaceId;
-        entityId: SearchEntityAffinityId;
-        interaction: SearchEntityAffinityInteraction;
+        affinityId: SearchAffinityId;
+        interaction: SearchAffinityInteraction;
     },
 ) {
     let points: number;
@@ -182,24 +188,24 @@ export function markSearchEntityAffinityInteraction(
             throw exhaustive(interaction);
     }
 
-    return addSearchEntityAffinityPoints(context, {
+    return addSearchAffinityPoints(context, {
         spaceId,
-        entityId,
+        affinityId,
         points,
         shouldUpdateLastViewedTime: interaction.type === "View",
     });
 }
 
-async function addSearchEntityAffinityPoints(
+async function addSearchAffinityPoints(
     context: ServerSessionActionContext,
     {
         spaceId,
-        entityId,
+        affinityId,
         points,
         shouldUpdateLastViewedTime,
     }: {
         spaceId: SpaceId;
-        entityId: SearchEntityAffinityId;
+        affinityId: SearchAffinityId;
         points: number;
         shouldUpdateLastViewedTime: boolean;
     },
@@ -217,7 +223,7 @@ async function addSearchEntityAffinityPoints(
             sortRangeType: "SearchEntityAffinity",
             spaceId,
             accountId: context.actor.getAccountId(),
-            entityId,
+            entityId: affinityId,
         },
         affinityItem => {
             let newPoints = affinityItem
@@ -231,7 +237,7 @@ async function addSearchEntityAffinityPoints(
             );
             const expirationTime = new Date(currentTime + expirationDuration);
 
-            const newPointsBucket = getSearchEntityAffinityPointsBucket(newPoints);
+            const newPointsBucket = getSearchAffinityPointsBucket(newPoints);
 
             return {
                 ...affinityItem,
@@ -239,7 +245,7 @@ async function addSearchEntityAffinityPoints(
                 sortRangeType: "SearchEntityAffinity",
                 spaceId,
                 accountId: context.actor.getAccountId(),
-                entityId,
+                entityId: affinityId,
                 points: newPoints,
                 pointsBucket: newPointsBucket,
                 lastUpdatedTime: currentTime,
@@ -291,7 +297,7 @@ export async function internalGetAffinitiveSearchEntityIds(
     {spaceId, limit}: {spaceId: SpaceId; limit: number},
 ): Promise<
     Array<{
-        entityId: SearchEntityAffinityId;
+        entityId: SearchAffinityId;
         points: number;
         lastViewedTime: Date | null;
     }>
@@ -303,7 +309,7 @@ export async function internalGetAffinitiveSearchEntityIds(
     let lastIterationPointsBucket: number | null = null;
 
     const candidateItems: Array<{
-        entityId: SearchEntityAffinityId;
+        entityId: SearchAffinityId;
         points: number;
         pointsBucket: number;
         lastViewedTime: Date | null;
@@ -341,7 +347,7 @@ export async function internalGetAffinitiveSearchEntityIds(
         lastIterationPointsBucket = item.pointsBucket;
 
         const currentPoints = getCurrentSearchEntityAccountAffinityPoints(currentTime, item);
-        const currentPointsBucket = getSearchEntityAffinityPointsBucket(currentPoints);
+        const currentPointsBucket = getSearchAffinityPointsBucket(currentPoints);
 
         candidateItems.push({
             entityId: item.entityId,
@@ -394,7 +400,7 @@ export async function internalGetAffinitiveSearchEntityIds(
  * display accounts in this order when the user goes to mention someone or send
  * a message.
  */
-export async function getAccountIdsSortedBySearchEntityAffinity(
+export async function getAccountIdsSortedBySearchAffinity(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
 ): Promise<Array<AccountId>> {

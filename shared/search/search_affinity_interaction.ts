@@ -18,7 +18,7 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  * This interaction also keeps a record of `lastViewTime` so we can tell the
  * user when the last time they viewed a certain entity was.
  */
-const SearchEntityAffinityViewInteractionSchema = Schema.object({
+const SearchAffinityViewInteractionSchema = Schema.object({
     type: Schema.value("View"),
 });
 
@@ -42,7 +42,7 @@ const SearchEntityAffinityViewInteractionSchema = Schema.object({
  * - Typing in a document
  * - Adding tasks to a collection
  */
-const SearchEntityAffinityLowIntentUpdateInteractionSchema = Schema.object({
+const SearchAffinityLowIntentUpdateInteractionSchema = Schema.object({
     type: Schema.value("LowIntentUpdate"),
 });
 
@@ -59,7 +59,7 @@ const SearchEntityAffinityLowIntentUpdateInteractionSchema = Schema.object({
  * - Creating a post in a channel
  * - Commenting on a post
  */
-const SearchEntityAffinityMediumIntentUpdateInteractionSchema = Schema.object({
+const SearchAffinityMediumIntentUpdateInteractionSchema = Schema.object({
     type: Schema.value("MediumIntentUpdate"),
 });
 
@@ -85,17 +85,15 @@ const SearchEntityAffinityMediumIntentUpdateInteractionSchema = Schema.object({
  * entity list. It could drown out other relevant content. Instead we only
  * start adding affinity points as the user opens and updates a task.
  */
-const SearchEntityAffinityHighIntentUpdateInteractionSchema = Schema.object({
+const SearchAffinityHighIntentUpdateInteractionSchema = Schema.object({
     type: Schema.value("HighIntentUpdate"),
 });
 
-export type SearchEntityAffinityInteraction = SchemaType<
-    typeof SearchEntityAffinityInteractionSchema
->;
+export type SearchAffinityInteraction = SchemaType<typeof SearchAffinityInteractionSchema>;
 
-export const SearchEntityAffinityInteractionSchema = Schema.union({
-    View: SearchEntityAffinityViewInteractionSchema,
-    LowIntentUpdate: SearchEntityAffinityLowIntentUpdateInteractionSchema,
-    MediumIntentUpdate: SearchEntityAffinityMediumIntentUpdateInteractionSchema,
-    HighIntentUpdate: SearchEntityAffinityHighIntentUpdateInteractionSchema,
+export const SearchAffinityInteractionSchema = Schema.union({
+    View: SearchAffinityViewInteractionSchema,
+    LowIntentUpdate: SearchAffinityLowIntentUpdateInteractionSchema,
+    MediumIntentUpdate: SearchAffinityMediumIntentUpdateInteractionSchema,
+    HighIntentUpdate: SearchAffinityHighIntentUpdateInteractionSchema,
 });

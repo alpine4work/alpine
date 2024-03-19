@@ -69,7 +69,7 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
-    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
     TaskClientStoreUpdateTitleActionTransactionBuilder,
 } from "~/client/tasks/task_client_store.js";
@@ -247,7 +247,7 @@ function TaskRowView(
         query: TaskClientQuery;
         isQueryManuallySorted: boolean;
         undoManager: TaskClientStoreUndoManager;
-        affinityManager: TaskClientStoreSearchEntityAffinityManager;
+        affinityManager: TaskClientStoreSearchAffinityManager;
         cursor: TaskQuerySortCursor | null;
         ghostTaskId?: TaskId | null;
         onGhostTaskCreated?: () => void;
@@ -1434,7 +1434,7 @@ function TaskRowViewDragHandle({
     isHovered,
 }: {
     undoManager: TaskClientStoreUndoManager;
-    affinityManager: TaskClientStoreSearchEntityAffinityManager;
+    affinityManager: TaskClientStoreSearchAffinityManager;
     task: TaskModel | null;
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
     isHovered: boolean;

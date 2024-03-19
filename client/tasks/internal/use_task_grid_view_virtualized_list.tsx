@@ -62,7 +62,7 @@ import {
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
     TaskClientStore,
-    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
 import {useHasTaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
@@ -236,7 +236,7 @@ export function useTaskGridViewVirtualizedList({
         initialGridViewExpansionState: TaskGridViewExpansionState;
         initialBottomGhostTaskId: TaskId;
     } | null;
-    affinityManager: TaskClientStoreSearchEntityAffinityManager;
+    affinityManager: TaskClientStoreSearchAffinityManager;
     getMoveTaskToQueryActions: (
         taskId: TaskId,
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
@@ -2593,7 +2593,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     stateKey: Key | undefined;
     rootQuery: TaskClientQuery;
     isRootQueryManuallySorted: boolean;
-    affinityManager: TaskClientStoreSearchEntityAffinityManager;
+    affinityManager: TaskClientStoreSearchAffinityManager;
     query: TaskClientQuery;
     taskKey: TaskGridViewTaskKey;
     cursor: TaskQuerySortCursor | null;

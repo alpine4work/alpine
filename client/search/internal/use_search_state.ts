@@ -28,7 +28,7 @@ import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {addSumOperandToOpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
-import {SearchEntityIdOrSearchAffinityId} from "~/shared/search/search_entity_affinity_id.js";
+import {SearchEntityIdOrSearchAffinityId} from "~/shared/search/search_affinity_id.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
 import {SearchResult} from "~/shared/search/search_result.js";
 

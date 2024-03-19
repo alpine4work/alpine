@@ -1,7 +1,7 @@
 import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
 import {
     TaskClientStore,
-    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
@@ -158,7 +158,7 @@ function createTask(
     return TaskModel.createFromAction(store.spaceId, id, time, taskAction, getSortableAccount);
 }
 
-const noopAffinityManager: TaskClientStoreSearchEntityAffinityManager = {
+const noopAffinityManager: TaskClientStoreSearchAffinityManager = {
     markLowIntentUpdateInteraction: () => {},
 };
 

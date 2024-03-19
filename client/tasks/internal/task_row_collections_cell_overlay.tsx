@@ -5,7 +5,7 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {TaskCollectionsInput} from "~/client/tasks/internal/task_collections_input.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
-    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
 import {
@@ -34,7 +34,7 @@ export function TaskRowCollectionsCellOverlay({
     isReadOnly: boolean;
     query: TaskClientQuery;
     undoManager: TaskClientStoreUndoManager;
-    affinityManager: TaskClientStoreSearchEntityAffinityManager;
+    affinityManager: TaskClientStoreSearchAffinityManager;
     task: TaskModel | null;
     focusPreviousCell: () => void;
     cellRef: RefObject<HTMLDivElement>;

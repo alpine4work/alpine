@@ -2,8 +2,8 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {SearchEntityAffinityIdSchema} from "~/shared/search/search_entity_affinity_id.js";
-import {SearchEntityAffinityInteractionSchema} from "~/shared/search/search_entity_affinity_interaction.js";
+import {SearchAffinityIdSchema} from "~/shared/search/search_affinity_id.js";
+import {SearchAffinityInteractionSchema} from "~/shared/search/search_affinity_interaction.js";
 import {SearchOptionsSchema} from "~/shared/search/search_options.js";
 import {SearchResultSchema} from "~/shared/search/search_result.js";
 
@@ -48,12 +48,12 @@ export const searchByAffinity = defineRpc({
     },
 });
 
-export const markSearchEntityAffinityInteraction = defineRpc({
-    name: "markSearchEntityAffinityInteraction",
+export const markSearchAffinityInteraction = defineRpc({
+    name: "markSearchAffinityInteraction",
     input: {
         spaceId: Schema.id<SpaceId>(),
-        entityId: SearchEntityAffinityIdSchema,
-        interaction: SearchEntityAffinityInteractionSchema,
+        affinityId: SearchAffinityIdSchema,
+        interaction: SearchAffinityInteractionSchema,
     },
     output: {},
 });

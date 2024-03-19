@@ -13,7 +13,7 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {
     TaskClientStore,
-    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
@@ -80,7 +80,7 @@ function TaskStatusButton(
     }: {
         store: TaskClientStore;
         undoManager: TaskClientStoreUndoManager;
-        affinityManager: TaskClientStoreSearchEntityAffinityManager;
+        affinityManager: TaskClientStoreSearchAffinityManager;
         task: TaskModel;
         size?: "4" | "5" | "6" | "7";
         isDisabled?: boolean;

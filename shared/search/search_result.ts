@@ -2,7 +2,7 @@ import {AccountModel} from "~/shared/accounts/account_model.js";
 import {themeColors} from "~/shared/design/theme_colors.js";
 import {OpensearchSearchHitExplanationSchema} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {SearchEntityIdOrSearchAffinityIdSchema} from "~/shared/search/search_entity_affinity_id.js";
+import {SearchEntityIdOrSearchAffinityIdSchema} from "~/shared/search/search_affinity_id.js";
 
 /**
  * A search result object representing one of many different kinds of content

@@ -24,7 +24,7 @@ import {createMessagePayloadModel} from "~/server/messaging/helpers/create_messa
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
-import {markSearchEntityAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
     getAccount,
@@ -800,7 +800,7 @@ export async function createDocument(
     );
 
     context.process.waitUntil(
-        markSearchEntityAffinityInteraction(context, {
+        markSearchAffinityInteraction(context, {
             spaceId,
             entityId: `Document:${id}`,
             interaction: {type: "HighIntentUpdate"},
@@ -2635,7 +2635,7 @@ export async function updateDocumentContent(
                                             mentionedAccountId,
                                         )
                                     ) {
-                                        await markSearchEntityAffinityInteraction(context, {
+                                        await markSearchAffinityInteraction(context, {
                                             spaceId: internalDocument.spaceId,
                                             entityId: `Account:${mentionedAccountId as AccountId}`,
                                             interaction: {type: "HighIntentUpdate"},
@@ -3791,7 +3791,7 @@ export async function createDocumentComment(
         });
 
         context.process.waitUntil(
-            markSearchEntityAffinityInteraction(context, {
+            markSearchAffinityInteraction(context, {
                 spaceId: documentItem.spaceId,
                 entityId: `Document:${documentItem.documentId}`,
                 interaction: {type: "MediumIntentUpdate"},
@@ -3809,7 +3809,7 @@ export async function createDocumentComment(
                 if (
                     await isAccountMemberOfSpace(context, documentItem.spaceId, mentionedAccountId)
                 ) {
-                    await markSearchEntityAffinityInteraction(context, {
+                    await markSearchAffinityInteraction(context, {
                         spaceId: documentItem.spaceId,
                         entityId: `Account:${mentionedAccountId as AccountId}`,
                         interaction: {type: "HighIntentUpdate"},

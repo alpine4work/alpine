@@ -249,7 +249,7 @@ export type TaskClientStoreUpdateTitleActionTransactionBuilder = {
  * through child components until we reach a
  * `store.commitTaskActionTransaction()` call.
  */
-export interface TaskClientStoreSearchEntityAffinityManager {
+export interface TaskClientStoreSearchAffinityManager {
     markLowIntentUpdateInteraction(update: TaskClientStoreBatchUpdate): void;
 }
 
@@ -336,7 +336,7 @@ export class TaskClientStore {
         actions: ReadonlyArray<TaskAction>,
         options: {
             undoManager: TaskClientStoreUndoManager | null;
-            affinityManager: TaskClientStoreSearchEntityAffinityManager;
+            affinityManager: TaskClientStoreSearchAffinityManager;
             referencedCollections?: ReadonlyArray<TaskCollectionModel>;
             leaseId?: TaskActionTransactionLeaseId | null;
         },
@@ -347,7 +347,7 @@ export class TaskClientStore {
     public getTaskUpdateTitleActionTransactionBuilder(
         taskId: TaskId,
         initialTitleUpdate: TaskTitleUpdate,
-        options: {affinityManager: TaskClientStoreSearchEntityAffinityManager},
+        options: {affinityManager: TaskClientStoreSearchAffinityManager},
     ): {
         add: (titleUpdate: TaskTitleUpdate) => void;
         commit: (context: Context<{rpc: RpcContextModuleBase}>) => {
@@ -1541,7 +1541,7 @@ export class TaskClientStoreInternal {
             undoManager: TaskClientStoreUndoManager | null;
             // This property is required to force callers to pass down a `affinityManager`
             // object from the route component.
-            affinityManager: TaskClientStoreSearchEntityAffinityManager;
+            affinityManager: TaskClientStoreSearchAffinityManager;
             referencedCollections?: ReadonlyArray<TaskCollectionModel>;
             leaseId?: TaskActionTransactionLeaseId | null;
         },
@@ -1892,7 +1892,7 @@ export class TaskClientStoreInternal {
     public getTaskUpdateTitleActionTransactionBuilder(
         taskId: TaskId,
         initialTitleUpdate: TaskTitleUpdate,
-        {affinityManager}: {affinityManager: TaskClientStoreSearchEntityAffinityManager},
+        {affinityManager}: {affinityManager: TaskClientStoreSearchAffinityManager},
     ): TaskClientStoreUpdateTitleActionTransactionBuilder {
         let isFinished = false;
         let mergedTitleUpdate = initialTitleUpdate;

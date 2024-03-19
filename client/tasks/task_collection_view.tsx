@@ -22,7 +22,7 @@ import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_colle
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
     TaskClientStore,
-    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/task_client_store.js";
 import {createTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/task_query_view.js";
 import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
@@ -74,7 +74,7 @@ export function TaskCollectionView({
     // If `collectionSubscription` is null, that means we are creating a
     // new collection.
     collectionSubscription: TaskClientCollectionSubscription | null;
-    affinityManager: TaskClientStoreSearchEntityAffinityManager;
+    affinityManager: TaskClientStoreSearchAffinityManager;
     initialQuery: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;

@@ -4,7 +4,7 @@ import {
     searchByKeywords,
     searchBySemantics,
 } from "~/server/search/data/index/search_entity_index.js";
-import {markSearchEntityAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import * as definition from "~/shared/rpc/search_rpc_definitions.js";
 
 implementRpc(definition.searchByKeywords, {visibility: ["AppClient"]}, async (context, input) => {
@@ -20,10 +20,10 @@ implementRpc(definition.searchByAffinity, {visibility: ["AppClient"]}, async (co
 });
 
 implementRpc(
-    definition.markSearchEntityAffinityInteraction,
+    definition.markSearchAffinityInteraction,
     {visibility: ["AppClient"]},
     async (context, input) => {
-        await markSearchEntityAffinityInteraction(context.actor.authorizeSession(), input);
+        await markSearchAffinityInteraction(context.actor.authorizeSession(), input);
         return {};
     },
 );

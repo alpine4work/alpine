@@ -70,7 +70,7 @@ import {
 import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
-    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
@@ -115,7 +115,7 @@ export function TaskDetailView({
     withMobileLayout: boolean;
     taskSubscription: TaskClientTaskSubscription;
     childrenQuery: TaskClientQuery;
-    affinityManager: TaskClientStoreSearchEntityAffinityManager;
+    affinityManager: TaskClientStoreSearchAffinityManager;
     initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
     initialBottomGhostTaskId: TaskId;
     initialNotesVersion: number;
@@ -829,7 +829,7 @@ function TaskDetailViewMain(
     }: {
         taskSubscription: TaskClientTaskSubscription;
         undoManager: TaskClientStoreUndoManager;
-        affinityManager: TaskClientStoreSearchEntityAffinityManager;
+        affinityManager: TaskClientStoreSearchAffinityManager;
         initialNotesVersion: number;
         initialNotesContent: TaskNotesContentWithReferences;
         showSubtasks: boolean;
@@ -1521,7 +1521,7 @@ function TaskDetailViewStatusButton({
     size: "6" | "7";
     taskSubscription: TaskClientTaskSubscription;
     undoManager: TaskClientStoreUndoManager;
-    affinityManager: TaskClientStoreSearchEntityAffinityManager;
+    affinityManager: TaskClientStoreSearchAffinityManager;
     isReadOnly: boolean;
     elementRef: RefObject<HTMLElement>;
     contextMenuActions?: ReadonlyArray<ReadonlyArray<MenuAction>>;

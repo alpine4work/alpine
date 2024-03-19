@@ -21,7 +21,7 @@ import {
     taskNotepadViewActiveSectionCardTranslateDurationMs,
 } from "~/client/tasks/internal/task_notepad_view_active_section.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStoreSearchEntityAffinityManager} from "~/client/tasks/task_client_store.js";
+import {TaskClientStoreSearchAffinityManager} from "~/client/tasks/task_client_store.js";
 import {
     TaskGridViewDraggableData,
     TaskGridViewDroppableData,
@@ -46,7 +46,7 @@ function TaskNotepadCardView({
     deleteTaskAndAllChildren,
 }: {
     widthStyle: string;
-    affinityManager: TaskClientStoreSearchEntityAffinityManager;
+    affinityManager: TaskClientStoreSearchAffinityManager;
     query: TaskClientQuery;
     taskId: TaskId;
     assigneeActivePosition: TaskPosition;

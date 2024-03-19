@@ -23,7 +23,7 @@ import {
     getNotificationPostContentSnippet,
 } from "~/server/notifications/core/get_notification_content_snippet.js";
 import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
-import {markSearchEntityAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
     getAccount,
@@ -403,7 +403,7 @@ export async function createChannel(
     });
 
     context.process.waitUntil(
-        markSearchEntityAffinityInteraction(context, {
+        markSearchAffinityInteraction(context, {
             spaceId,
             entityId: `Channel:${channelItem.channelId}`,
             interaction: {type: "HighIntentUpdate"},
@@ -803,7 +803,7 @@ export async function createPost(
     // points so you could quickly jump to a channel if you're looking for a
     // certain post inside the channel.
     context.process.waitUntil(
-        markSearchEntityAffinityInteraction(context, {
+        markSearchAffinityInteraction(context, {
             spaceId: channel.spaceId,
             entityId: `Channel:${channel.id}`,
             interaction: {type: "MediumIntentUpdate"},
@@ -819,7 +819,7 @@ export async function createPost(
     for (const mentionedAccountId of mentionedAccountIds) {
         context.process.waitUntil(async () => {
             if (await isAccountMemberOfSpace(context, channel.spaceId, mentionedAccountId)) {
-                await markSearchEntityAffinityInteraction(context, {
+                await markSearchAffinityInteraction(context, {
                     spaceId: channel.spaceId,
                     entityId: `Account:${mentionedAccountId as AccountId}`,
                     interaction: {type: "HighIntentUpdate"},
@@ -1276,7 +1276,7 @@ export async function createPostComment(
         // points so you could quickly jump to a channel if you're looking for a
         // certain post inside the channel.
         context.process.waitUntil(
-            markSearchEntityAffinityInteraction(context, {
+            markSearchAffinityInteraction(context, {
                 spaceId: postItem.spaceId,
                 entityId: `Channel:${postItem.channelId}`,
                 interaction:
@@ -1295,7 +1295,7 @@ export async function createPostComment(
         for (const mentionedAccountId of mentionedAccountIds) {
             context.process.waitUntil(async () => {
                 if (await isAccountMemberOfSpace(context, postItem.spaceId, mentionedAccountId)) {
-                    await markSearchEntityAffinityInteraction(context, {
+                    await markSearchAffinityInteraction(context, {
                         spaceId: postItem.spaceId,
                         entityId: `Account:${mentionedAccountId as AccountId}`,
                         interaction: {type: "HighIntentUpdate"},

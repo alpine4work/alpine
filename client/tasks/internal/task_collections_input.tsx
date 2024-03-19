@@ -50,7 +50,7 @@ import {
 import {usePreloadAffinitiveTaskCollections} from "~/client/tasks/internal/use_affinitive_task_collections.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
-    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
@@ -114,7 +114,7 @@ function TaskCollectionsInput(
     }: {
         referencesSubscription: TaskClientQuery | TaskClientTaskSubscription;
         undoManager: TaskClientStoreUndoManager;
-        affinityManager: TaskClientStoreSearchEntityAffinityManager;
+        affinityManager: TaskClientStoreSearchAffinityManager;
         task: TaskModel | null;
         "aria-label"?: string;
         "aria-labelledby"?: string;

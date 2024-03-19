@@ -46,7 +46,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
-import {SearchEntityIdOrSearchAffinityId} from "~/shared/search/search_entity_affinity_id.js";
+import {SearchEntityIdOrSearchAffinityId} from "~/shared/search/search_affinity_id.js";
 import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchOptions} from "~/shared/search/search_options.js";
 import {SearchResult} from "~/shared/search/search_result.js";
@@ -827,7 +827,7 @@ function SearchModalPeekContent({
                     //
                     // This also means the "last opened" time we show for affinitive search entities
                     // won't change.
-                    withoutSearchEntityViewAffinityInteraction={true}
+                    withoutSearchAffinityViewInteraction={true}
                     router={routerResult.value}
                     onGoBackOverflow={onClose}
                 />

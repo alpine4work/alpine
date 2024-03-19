@@ -24,7 +24,7 @@ import {TaskRowCollectionsCellOverlay} from "~/client/tasks/internal/task_row_co
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
-    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
 import {
@@ -115,7 +115,7 @@ function TaskRowCollectionsCell(
         isReadOnly: boolean;
         query: TaskClientQuery;
         undoManager: TaskClientStoreUndoManager;
-        affinityManager: TaskClientStoreSearchEntityAffinityManager;
+        affinityManager: TaskClientStoreSearchAffinityManager;
         task: TaskModel | null;
         onCellKeyDown: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;

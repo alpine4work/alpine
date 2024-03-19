@@ -6,8 +6,8 @@ import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
-import {markSearchEntityAffinityLowIntentUpdateInteraction} from "~/client/search/mark_search_entity_affinity_low_intent_update_interaction.js";
-import {useSearchEntityAffinityViewInteraction} from "~/client/search/use_search_entity_view_affinity_interaction.js";
+import {markSearchAffinityLowIntentUpdateInteraction} from "~/client/search/mark_search_affinity_low_intent_update_interaction.js";
+import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     createDocument,
@@ -139,7 +139,7 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
     const commentIndexString = searchParams.get("comment");
     const commentIndex = commentIndexString ? parseInt(commentIndexString, 10) : null;
 
-    useSearchEntityAffinityViewInteraction(`Document:${initialDocument.id}`);
+    useSearchAffinityViewInteraction(`Document:${initialDocument.id}`);
 
     return (
         <DocumentContentEditor
@@ -153,7 +153,7 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
                 updateMetaTitle(`${getDocumentContentTitle(content)}${metaTitlePostfix}`);
             }}
             onContentLocalChange={() => {
-                markSearchEntityAffinityLowIntentUpdateInteraction(
+                markSearchAffinityLowIntentUpdateInteraction(
                     context,
                     space.id,
                     `Document:${initialDocument.id}`,

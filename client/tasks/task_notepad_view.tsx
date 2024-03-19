@@ -15,7 +15,7 @@ import {
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
     TaskClientStore,
-    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/task_client_store.js";
 import {
     TaskGridViewDraggableData,
@@ -58,7 +58,7 @@ export function TaskNotepadView({
     withMobileLayout: boolean;
     store: TaskClientStore;
     assigneeActiveQuery: TaskClientQuery;
-    affinityManager: TaskClientStoreSearchEntityAffinityManager;
+    affinityManager: TaskClientStoreSearchAffinityManager;
     initialQuery: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;

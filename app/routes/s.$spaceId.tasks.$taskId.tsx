@@ -1,6 +1,6 @@
 import {useEffect} from "react";
 import {Params, useParams} from "react-router";
-import {useTaskClientStoreSearchEntityAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
+import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {Box} from "~/client/design/box.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -192,7 +192,7 @@ export default function TaskRoute({withMobileLayout = false}: {withMobileLayout?
         return taskSubscription.taskEntryStore.subscribe(update);
     }, [taskSubscription.taskEntryStore, updateMetaTitle]);
 
-    const affinityManager = useTaskClientStoreSearchEntityAffinityManager(`Task:${taskId}`);
+    const affinityManager = useTaskClientStoreSearchAffinityManager(`Task:${taskId}`);
 
     return (
         <Box

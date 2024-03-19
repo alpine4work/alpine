@@ -7,7 +7,7 @@ import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
-import {useSearchEntityAffinityViewInteraction} from "~/client/search/use_search_entity_view_affinity_interaction.js";
+import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getChatAndInitialMessages} from "~/server/chat/data/chat_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -89,7 +89,7 @@ export default function ChatRoute({withMobileLayout}: {withMobileLayout?: boolea
     //
     // By accruing points to the account we allow chat conversations to affect
     // account selector type-ahead affinity rankings.
-    useSearchEntityAffinityViewInteraction(
+    useSearchAffinityViewInteraction(
         chat.accounts.length === 2
             ? `Account:${chat.accounts.filter(account => account.id !== currentAccount.id)[0]!.id}`
             : `Chat:${chat.id}`,

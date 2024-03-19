@@ -8,7 +8,7 @@ import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_wit
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
-import {useSearchEntityAffinityViewInteraction} from "~/client/search/use_search_entity_view_affinity_interaction.js";
+import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {selectChatForAccounts} from "~/server/chat/data/chat_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -122,7 +122,7 @@ export default function NewChatRoute({withMobileLayout = false}: {withMobileLayo
     //
     // By accruing points to the account we allow chat conversations to affect
     // account selector type-ahead affinity rankings.
-    useSearchEntityAffinityViewInteraction(
+    useSearchAffinityViewInteraction(
         loaderData.selectedChat
             ? loaderData.selectedChat.chat.accounts.length === 2
                 ? `Account:${

@@ -154,18 +154,6 @@ export function useTaskStoreLoaderDataWithoutRetainingOnlyStore() {
  * Get the task queries loaded by this route's loader if this route loaded any
  * queries. They will be in the same order as you passed your queries into
  * `loadTaskQueryData`.
- *
- * We require you to pass in a `SearchEntityAffinityId` we will call
- * `markSearchEntityAffinityLowIntentUpdateInteraction()` with whenever there's
- * a local update. We accrue affinity points on update to whatever the focus of
- * the route is. So if you're editing tasks within a collection, we accrue
- * affinity points to the collection instead of the task you're editing! We do
- * this since if you're editing a task in a collection or a task in your
- * notepad, the collection/notepad is the more important thing to return to.
- *
- * While we could put this behavior in another hook, by requiring you to set
- * the search entity here, we automatically cover all task routes which need to
- * call this function.
  */
 export function useTaskStoreLoaderDataWithoutRetaining(): {
     store: TaskClientStore;
