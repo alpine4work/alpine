@@ -6,7 +6,6 @@ import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {nullStore} from "~/client/helpers/store/null_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
-import {getTaskCollectionColor} from "~/client/tasks/internal/task_collection_chip_base.js";
 import {useTaskCollectionComboBoxSearchState} from "~/client/tasks/internal/task_collection_combo_box_base.js";
 import {TaskCollectionOption} from "~/client/tasks/internal/task_collection_option.js";
 import {TaskQueryFilterEditorMultiSelectComboBox} from "~/client/tasks/internal/task_query_filter_editor_multi_select_combo_box.js";
@@ -22,6 +21,7 @@ import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index.j
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {inputPlaceholderStyles} from "~/shared/styles/styles.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskQueryCollectionsFilter} from "~/shared/tasks/task_query_filter.js";

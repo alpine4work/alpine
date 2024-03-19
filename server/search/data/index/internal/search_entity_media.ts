@@ -1,3 +1,4 @@
+import {themeColors} from "~/shared/design/theme_colors.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
@@ -13,7 +14,13 @@ export const SearchEntityAccountPileMediaSchema = Schema.object({
     accountIds: Schema.array(Schema.id<AccountId>()).minLength(2),
 });
 
+export const SearchEntityTaskCollectionColorMediaSchema = Schema.object({
+    type: Schema.value("TaskCollectionColor"),
+    color: Schema.enum(themeColors).nullable(),
+});
+
 export const SearchEntityMediaSchema = Schema.union({
     Account: SearchEntityAccountMediaSchema,
     AccountPile: SearchEntityAccountPileMediaSchema,
+    TaskCollectionColor: SearchEntityTaskCollectionColorMediaSchema,
 });

@@ -13,6 +13,7 @@ import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchResult, SearchResultMedia} from "~/shared/search/search_result.js";
+import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {
     backgroundColorVar,
     colorSchemeVars,
@@ -174,6 +175,23 @@ export function SearchResultView({
                                         fontFeatureSettings: '"calt" on',
                                     }}
                                 >
+                                    {result.media?.type === "TaskCollectionColor" ? (
+                                        <Box
+                                            display="inline-flex"
+                                            alignItems="center"
+                                            style={{height: "1lh", verticalAlign: "top"}}
+                                        >
+                                            <Box
+                                                width="2"
+                                                height="2"
+                                                marginRight="1.5"
+                                                borderRadius="full"
+                                                backgroundColor={getTaskCollectionColor(
+                                                    result.media.color,
+                                                )}
+                                            />
+                                        </Box>
+                                    ) : null}
                                     {renderTextWithEmojiFontFamily(result.title)}
                                 </Box>
                             )}
@@ -356,6 +374,11 @@ function SearchResultMediaView({media}: {media: SearchResultMedia}) {
                 </>
             );
             break;
+        }
+        case "TaskCollectionColor": {
+            // We render task collection color media next to the collection name. Not in
+            // the standard media space.
+            return null;
         }
         default:
             throw exhaustive(media);

@@ -1,4 +1,5 @@
 import {AccountModel} from "~/shared/accounts/account_model.js";
+import {themeColors} from "~/shared/design/theme_colors.js";
 import {OpensearchSearchHitExplanationSchema} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SearchEntityIdOrSearchAffinityIdSchema} from "~/shared/search/search_entity_affinity_id.js";
@@ -22,9 +23,15 @@ const SearchResultAccountPileMediaSchema = Schema.object({
     accountCount: Schema.integer,
 });
 
+const SearchResultTaskCollectionColorMediaSchema = Schema.object({
+    type: Schema.value("TaskCollectionColor"),
+    color: Schema.enum(themeColors).nullable(),
+});
+
 export const SearchResultMediaSchema = Schema.union({
     Account: SearchResultAccountMediaSchema,
     AccountPile: SearchResultAccountPileMediaSchema,
+    TaskCollectionColor: SearchResultTaskCollectionColorMediaSchema,
 });
 
 export const SearchResultSchema = Schema.object({

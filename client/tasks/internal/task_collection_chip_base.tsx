@@ -7,6 +7,7 @@ import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {Sprinkles, colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 export const taskCollectionChipHeight: Spacing = "5";
@@ -127,9 +128,4 @@ function TaskCollectionChipBase(
             )}
         </div>
     );
-}
-
-export function getTaskCollectionColor(color: ThemeColor | null): Sprinkles["color"] {
-    if (color === null) return "grey-20";
-    return `${color}-50`;
 }

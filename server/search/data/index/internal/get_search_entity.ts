@@ -1188,7 +1188,7 @@ async function getTaskCollectionSearchEntity(
         createdTime: new Date(collection.getCreatedTime()[0]),
         title: collection.getName(),
         body: null,
-        media: null,
+        media: {type: "TaskCollectionColor", color: collection.getColor()},
         embeddingChunks: [],
         creatorId: collection.rawData.creatorId,
         // In the future we could keep track of which accounts were adding tasks to the

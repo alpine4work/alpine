@@ -22,8 +22,37 @@ const countLogInterval = process.env.NODE_ENV !== "production" ? 100 : 1000;
  * for search. May also be useful if you make a change to search indexing and
  * need to re-index all content from the source.
  */
-export async function runIndexEverySearchEntityMigration(
+export function runIndexEverySearchEntityMigration(
     context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    options: {segmentIndex: number; totalSegmentCount: number},
+) {
+    return runIndexSearchEntityMigrationModules(context, allMigrationModules, options);
+}
+
+/**
+ * Just index task and task collection search entities. Same as
+ * `runIndexEverySearchEntityMigration()` but with only those search entity
+ * types.
+ */
+export function runIndexTaskAndTaskCollectionSearchEntitiesMigration(
+    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    options: {segmentIndex: number; totalSegmentCount: number},
+) {
+    return runIndexSearchEntityMigrationModules(
+        context,
+        [taskAndTaskCollectionSearchEntityMigrationModule],
+        options,
+    );
+}
+
+type MigrationModule = (
+    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    options: {segmentIndex: number; totalSegmentCount: number},
+) => Promise<void>;
+
+async function runIndexSearchEntityMigrationModules(
+    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    modules: Array<MigrationModule>,
     {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
 ) {
     const mutexes = createArrayWithLength(subSegmentCount, () => new Mutex());
@@ -35,7 +64,7 @@ export async function runIndexEverySearchEntityMigration(
 
     let n = 0;
     for (let i = 0; i < subSegmentCount; i++) {
-        for (const migrationModule of migrationModules) {
+        for (const migrationModule of modules) {
             const mutex = mutexes[n++ % mutexes.length]!;
 
             const subSegmentIndex = segmentIndex * subSegmentCount + i;
@@ -81,10 +110,7 @@ function createDynamoScanMigrationModule<Item>(
         context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
         item: Item,
     ) => MaybePromise<void>,
-): (
-    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
-    options: {segmentIndex: number; totalSegmentCount: number},
-) => Promise<void> {
+): MigrationModule {
     return async (context, options) => {
         // We use a linked span instead of a child span since it's not practical to
         // read a span with thousands of children.
@@ -127,12 +153,42 @@ function createDynamoScanMigrationModule<Item>(
     };
 }
 
-const migrationModules: Array<
-    (
-        context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
-        options: {segmentIndex: number; totalSegmentCount: number},
-    ) => Promise<void>
-> = [
+const taskAndTaskCollectionSearchEntityMigrationModule = createDynamoScanMigrationModule(
+    "tasks and task collections",
+    expensiveScanEveryTaskAndTaskCollectionForMigration,
+    async (context, item) => {
+        switch (item.type) {
+            case "Task": {
+                context.jobs.send({
+                    type: "IndexSearchEntity",
+                    spaceId: item.spaceId,
+                    update: {
+                        type: "Task",
+                        taskId: item.taskId,
+                        updatedTraits: {type: "None"},
+                    },
+                });
+                break;
+            }
+            case "TaskCollection": {
+                context.jobs.send({
+                    type: "IndexSearchEntity",
+                    spaceId: item.spaceId,
+                    update: {
+                        type: "TaskCollection",
+                        collectionId: item.collectionId,
+                        updatedTraits: {type: "None"},
+                    },
+                });
+                break;
+            }
+            default:
+                throw exhaustive(item);
+        }
+    },
+);
+
+const allMigrationModules: Array<MigrationModule> = [
     createDynamoScanMigrationModule(
         "space accounts",
         expensiveScanEverySpaceAccountForMigration,
@@ -266,38 +322,5 @@ const migrationModules: Array<
             }
         },
     ),
-    createDynamoScanMigrationModule(
-        "tasks and task collections",
-        expensiveScanEveryTaskAndTaskCollectionForMigration,
-        async (context, item) => {
-            switch (item.type) {
-                case "Task": {
-                    context.jobs.send({
-                        type: "IndexSearchEntity",
-                        spaceId: item.spaceId,
-                        update: {
-                            type: "Task",
-                            taskId: item.taskId,
-                            updatedTraits: {type: "None"},
-                        },
-                    });
-                    break;
-                }
-                case "TaskCollection": {
-                    context.jobs.send({
-                        type: "IndexSearchEntity",
-                        spaceId: item.spaceId,
-                        update: {
-                            type: "TaskCollection",
-                            collectionId: item.collectionId,
-                            updatedTraits: {type: "None"},
-                        },
-                    });
-                    break;
-                }
-                default:
-                    throw exhaustive(item);
-            }
-        },
-    ),
+    taskAndTaskCollectionSearchEntityMigrationModule,
 ];

@@ -2,9 +2,9 @@ import {SpinnerGap} from "phosphor-react";
 import {Box} from "~/client/design/box.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {getTaskCollectionColor} from "~/client/tasks/internal/task_collection_chip_base.js";
 import {formatPrettyRelativeDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_relative_date_without_full_time_tooltip.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {spinAnimationClassName} from "~/shared/styles/styles.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 
