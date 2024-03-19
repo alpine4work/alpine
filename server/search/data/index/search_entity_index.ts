@@ -861,7 +861,7 @@ export async function searchByKeywords(
                 bool: {
                     minimum_should_match: 1,
 
-                    // If both matched then should will add together there scores.
+                    // If multiple clauses match then should will add together their scores.
                     //
                     // The more fields matched, the better!
                     //
@@ -1183,6 +1183,9 @@ export async function searchByKeywords(
             // result body, a summary of how many tasks are in the collection and when the
             // collection was last updated. This is helpful for a user comparing multiple
             // task collections with the same name.
+            //
+            // We don't have this logic in `searchByAffinity()` since task collections
+            // shouldn't appear in affinity search.
             if (hit.id.startsWith("TaskCollection:") && bodyTextSnippet.length === 0) {
                 const taskCollectionBodyTextSnippet =
                     await getTaskCollectionSearchResultBodyTextSnippetIfPossible(

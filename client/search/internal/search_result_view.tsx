@@ -104,7 +104,14 @@ export function SearchResultView({
                     onPressStart?.();
                 }
             }}
-            onDoubleClick={onDoubleClick}
+            onDoubleClick={event => {
+                // Presses in a modal outside our element tree shouldn't select the search
+                // result. This happens when clicking to close an overlay opened by
+                // `<SearchResultViewExplainDebugWidget>`.
+                if (event.target instanceof Element && event.currentTarget.contains(event.target)) {
+                    onDoubleClick();
+                }
+            }}
         >
             <Box
                 paddingX="4"
