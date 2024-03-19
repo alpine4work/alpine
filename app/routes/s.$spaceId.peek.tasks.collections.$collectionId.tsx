@@ -8,6 +8,6 @@ export {
     shouldRevalidate,
 } from "~/app/routes/s.$spaceId.tasks.collections.$collectionId.js";
 
-export default function TaskPeekRoute() {
+export default function TaskCollectionPeekRoute() {
     return <TaskCollectionRoute withMobileLayout={usePeekContext()?.withMobileLayout ?? false} />;
 }

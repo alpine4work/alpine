@@ -143,7 +143,7 @@ export async function clientLoader({
     clientLoaderTaskStoreLoaderData(spaceId, data);
 }
 
-export default function TaskQueryRoute() {
+export default function TaskQueryRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
     const {key} = useLoaderDataWithSchema(LoaderSchema);
 
     return (

@@ -2,10 +2,13 @@ import {
     ChatsCircle,
     EnvelopeOpen,
     FileText,
+    Funnel,
+    Hash,
     IconContext,
     ListChecks,
     Plus,
     SpinnerGap,
+    Table,
 } from "phosphor-react";
 import {ReactNode} from "react";
 import {Box} from "~/client/design/box.js";
@@ -31,89 +34,161 @@ export function SpaceLayoutSideBarCreateButton() {
         <MenuButton
             placement="left-start"
             actions={[
-                {
-                    withCustomLayout: true,
-                    pressErrorTitle: "Couldn’t open new chat",
-                    onPress: async () => {
-                        await peekStackContext.push(`/s/${space.id}/chat/new`, {focus: true});
+                [
+                    {
+                        withCustomLayout: true,
+                        pressErrorTitle: "Couldn’t open new chat",
+                        onPress: async () => {
+                            await peekStackContext.push(`/s/${space.id}/chat/new`, {focus: true});
+                        },
+                        render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
+                            <SpaceLayoutSideBarCreateButtonItem
+                                icon={<ChatsCircle />}
+                                label="Message"
+                                description="Start a chat with anyone"
+                                isHovered={isHovered}
+                                isPressed={isPressed}
+                                shouldShowPendingSpinner={shouldShowPendingSpinner}
+                            />
+                        ),
                     },
-                    render: ({isPressed, shouldShowPendingSpinner}) => (
-                        <SpaceLayoutSideBarCreateButtonItem
-                            icon={<ChatsCircle />}
-                            label="Send a chat message"
-                            description="Start a conversation with anyone"
-                            isPressed={isPressed}
-                            shouldShowPendingSpinner={shouldShowPendingSpinner}
-                        />
-                    ),
-                },
-                {
-                    withCustomLayout: true,
-                    pressErrorTitle: "Can not find a channel to post in",
-                    onPress: async () => {
-                        if (space.alphaAccessDefaultChannelId) {
-                            await rootNavigate(
-                                `/s/${space.id}/channels/${space.alphaAccessDefaultChannelId}`,
+                    {
+                        withCustomLayout: true,
+                        pressErrorTitle: "Couldn’t create post",
+                        onPress: async () => {
+                            if (space.alphaAccessDefaultChannelId) {
+                                await rootNavigate(
+                                    `/s/${space.id}/channels/${space.alphaAccessDefaultChannelId}`,
+                                );
+                            } else {
+                                showToast({
+                                    type: "Error",
+                                    title: "Can’t find a channel to post in",
+                                    error: new UnimplementedError(
+                                        "Channel explorer hasn’t been implemented yet",
+                                        {
+                                            displayMessage: errorDisplayMessage`Channel explorer hasn’t been implemented yet.`,
+                                        },
+                                    ),
+                                });
+                            }
+                        },
+                        render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
+                            <SpaceLayoutSideBarCreateButtonItem
+                                icon={<EnvelopeOpen />}
+                                label="Post"
+                                description="Share your ideas in a channel"
+                                isHovered={isHovered}
+                                isPressed={isPressed}
+                                shouldShowPendingSpinner={shouldShowPendingSpinner}
+                            />
+                        ),
+                    },
+                    {
+                        withCustomLayout: true,
+                        pressErrorTitle: "Couldn’t create document",
+                        onPress: async () => {
+                            const documentId = generateId();
+                            await peekStackContext.push(
+                                `/s/${space.id}/documents/${documentId}?create`,
+                                {focus: true},
                             );
-                        } else {
+                        },
+                        render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
+                            <SpaceLayoutSideBarCreateButtonItem
+                                icon={<FileText />}
+                                label="Document"
+                                description="Write what’s on your mind"
+                                isHovered={isHovered}
+                                isPressed={isPressed}
+                                shouldShowPendingSpinner={shouldShowPendingSpinner}
+                            />
+                        ),
+                    },
+                    {
+                        withCustomLayout: true,
+                        pressErrorTitle: "Couldn’t open tasks",
+                        onPress: async () => {
+                            await peekStackContext.push(`/s/${space.id}/tasks`);
+                        },
+                        render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
+                            <SpaceLayoutSideBarCreateButtonItem
+                                icon={<ListChecks />}
+                                label="Task"
+                                description="Keep track of work to do later"
+                                isHovered={isHovered}
+                                isPressed={isPressed}
+                                shouldShowPendingSpinner={shouldShowPendingSpinner}
+                            />
+                        ),
+                    },
+                ],
+                [
+                    {
+                        withCustomLayout: true,
+                        pressErrorTitle: "Couldn’t create channel",
+                        onPress: async () => {
                             showToast({
                                 type: "Error",
-                                title: "Can not find a channel to post in",
+                                title: "Couldn’t create channel",
                                 error: new UnimplementedError(
-                                    "Channel explorer has not been implemented yet",
+                                    "Channel creation hasn’t been implemented yet",
                                     {
-                                        displayMessage: errorDisplayMessage`Channel explorer has not been implemented yet.`,
+                                        displayMessage: errorDisplayMessage`Channel creation hasn’t been implemented yet.`,
                                     },
                                 ),
                             });
-                        }
+                        },
+                        render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
+                            <SpaceLayoutSideBarCreateButtonItem
+                                icon={<Hash />}
+                                label="Channel"
+                                description="Make a place for posts about some topic"
+                                isHovered={isHovered}
+                                isPressed={isPressed}
+                                shouldShowPendingSpinner={shouldShowPendingSpinner}
+                            />
+                        ),
                     },
-                    render: ({isPressed, shouldShowPendingSpinner}) => (
-                        <SpaceLayoutSideBarCreateButtonItem
-                            icon={<EnvelopeOpen />}
-                            label="Post in a channel"
-                            description="Share your ideas with everyone"
-                            isPressed={isPressed}
-                            shouldShowPendingSpinner={shouldShowPendingSpinner}
-                        />
-                    ),
-                },
-                {
-                    withCustomLayout: true,
-                    pressErrorTitle: "Couldn’t create document",
-                    onPress: async () => {
-                        const documentId = generateId();
-                        await peekStackContext.push(
-                            `/s/${space.id}/documents/${documentId}?create`,
-                            {focus: true},
-                        );
+                    {
+                        withCustomLayout: true,
+                        pressErrorTitle: "Couldn’t create task collection",
+                        onPress: async () => {
+                            const collectionId = generateId();
+                            await peekStackContext.push(
+                                `/s/${space.id}/tasks/collections/${collectionId}?create`,
+                                {focus: true},
+                            );
+                        },
+                        render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
+                            <SpaceLayoutSideBarCreateButtonItem
+                                icon={<Table />}
+                                label="Task collection"
+                                description="Organize a project’s tasks"
+                                isHovered={isHovered}
+                                isPressed={isPressed}
+                                shouldShowPendingSpinner={shouldShowPendingSpinner}
+                            />
+                        ),
                     },
-                    render: ({isPressed, shouldShowPendingSpinner}) => (
-                        <SpaceLayoutSideBarCreateButtonItem
-                            icon={<FileText />}
-                            label="Create a document"
-                            description="Write what’s on your mind"
-                            isPressed={isPressed}
-                            shouldShowPendingSpinner={shouldShowPendingSpinner}
-                        />
-                    ),
-                },
-                {
-                    withCustomLayout: true,
-                    pressErrorTitle: "Couldn’t open tasks",
-                    onPress: async () => {
-                        await peekStackContext.push(`/s/${space.id}/tasks`);
+                    {
+                        withCustomLayout: true,
+                        pressErrorTitle: "Couldn’t create task collection",
+                        onPress: async () => {
+                            await peekStackContext.push(`/s/${space.id}/tasks/view`, {focus: true});
+                        },
+                        render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
+                            <SpaceLayoutSideBarCreateButtonItem
+                                icon={<Funnel />}
+                                label="Task view"
+                                description="Filter and sort all your tasks"
+                                isHovered={isHovered}
+                                isPressed={isPressed}
+                                shouldShowPendingSpinner={shouldShowPendingSpinner}
+                            />
+                        ),
                     },
-                    render: ({isPressed, shouldShowPendingSpinner}) => (
-                        <SpaceLayoutSideBarCreateButtonItem
-                            icon={<ListChecks />}
-                            label="Create a task"
-                            description="Keep track of work to do later"
-                            isPressed={isPressed}
-                            shouldShowPendingSpinner={shouldShowPendingSpinner}
-                        />
-                    ),
-                },
+                ],
             ]}
         >
             <IconButton size="lg" description="Create" tooltipPlacement="right">
@@ -127,36 +202,43 @@ function SpaceLayoutSideBarCreateButtonItem({
     icon,
     label,
     description,
+    isHovered,
     isPressed,
     shouldShowPendingSpinner,
 }: {
     icon: ReactNode;
     label: string;
     description: string;
+    isHovered: boolean;
     isPressed: boolean;
     shouldShowPendingSpinner: boolean;
 }) {
     return (
         <Box
             position="relative"
-            paddingLeft="4"
-            paddingRight="4"
+            paddingLeft="3"
+            paddingRight="3"
             paddingY="3"
             display="flex"
             alignItems="center"
-            gap="4"
+            gap="3"
             aria-label={label}
         >
             <Box flexShrink="0" color={isPressed ? "grey-90" : "grey-70"}>
-                <IconContext.Provider
-                    value={{
-                        size: spacing["6"],
-                        weight: "light",
-                        color: "currentColor",
-                    }}
+                <Box
+                    padding="2"
+                    border={isPressed ? "grey-20" : isHovered ? "grey-10" : "grey-5"}
+                    borderRadius="full"
                 >
-                    {icon}
-                </IconContext.Provider>
+                    <IconContext.Provider
+                        value={{
+                            size: spacing["5"],
+                            color: "currentColor",
+                        }}
+                    >
+                        {icon}
+                    </IconContext.Provider>
+                </Box>
             </Box>
             <Box flexGrow="1">
                 <Box fontStyle="semi-bold" fontSize="100" paddingBottom="0.5">

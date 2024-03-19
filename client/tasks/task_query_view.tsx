@@ -476,7 +476,7 @@ function TaskQueryViewInstructionalPlaceholder({
     const {currentAccount} = useSpaceContext();
 
     return (
-        <Box maxWidth="96">
+        <Box width="full" maxWidth="96">
             <Box
                 // TODO(calebmer): Eventually I'd like a real graphic designer to take a look
                 // at this state. We could use a nice illustration here.
@@ -488,8 +488,7 @@ function TaskQueryViewInstructionalPlaceholder({
             </Box>
             <Spacer space="1" />
             <Box fontSize="100" color="grey-50" userSelect="text">
-                Views must include one of the following filters so you don’t see other people’s
-                private tasks.
+                Views must include one of the following filters.
             </Box>
             <Spacer space="10" />
             <Box
