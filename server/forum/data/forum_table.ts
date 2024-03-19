@@ -405,7 +405,7 @@ export async function createChannel(
     context.process.waitUntil(
         markSearchAffinityInteraction(context, {
             spaceId,
-            entityId: `Channel:${channelItem.channelId}`,
+            affinityId: `Channel:${channelItem.channelId}`,
             interaction: {type: "HighIntentUpdate"},
         }),
     );
@@ -805,7 +805,7 @@ export async function createPost(
     context.process.waitUntil(
         markSearchAffinityInteraction(context, {
             spaceId: channel.spaceId,
-            entityId: `Channel:${channel.id}`,
+            affinityId: `Channel:${channel.id}`,
             interaction: {type: "MediumIntentUpdate"},
         }),
     );
@@ -821,7 +821,7 @@ export async function createPost(
             if (await isAccountMemberOfSpace(context, channel.spaceId, mentionedAccountId)) {
                 await markSearchAffinityInteraction(context, {
                     spaceId: channel.spaceId,
-                    entityId: `Account:${mentionedAccountId as AccountId}`,
+                    affinityId: `Account:${mentionedAccountId as AccountId}`,
                     interaction: {type: "HighIntentUpdate"},
                 });
             }
@@ -1278,7 +1278,7 @@ export async function createPostComment(
         context.process.waitUntil(
             markSearchAffinityInteraction(context, {
                 spaceId: postItem.spaceId,
-                entityId: `Channel:${postItem.channelId}`,
+                affinityId: `Channel:${postItem.channelId}`,
                 interaction:
                     content.nodeSize < 50
                         ? {type: "LowIntentUpdate"}
@@ -1297,7 +1297,7 @@ export async function createPostComment(
                 if (await isAccountMemberOfSpace(context, postItem.spaceId, mentionedAccountId)) {
                     await markSearchAffinityInteraction(context, {
                         spaceId: postItem.spaceId,
-                        entityId: `Account:${mentionedAccountId as AccountId}`,
+                        affinityId: `Account:${mentionedAccountId as AccountId}`,
                         interaction: {type: "HighIntentUpdate"},
                     });
                 }

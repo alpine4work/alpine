@@ -32,6 +32,7 @@ export function markSearchAffinityLowIntentUpdateInteraction(
     context: AppContext,
     spaceId: SpaceId,
     affinityId: SearchAffinityId,
+    {isVeryLow = false}: {isVeryLow?: boolean} = {},
 ) {
     const currentTime = Date.now();
 
@@ -56,7 +57,7 @@ export function markSearchAffinityLowIntentUpdateInteraction(
         void markSearchAffinityInteraction(context, {
             spaceId,
             affinityId,
-            interaction: {type: "LowIntentUpdate"},
+            interaction: {type: isVeryLow ? "VeryLowIntentUpdate" : "LowIntentUpdate"},
         });
 
         sessionStorageBySearchAffinityId.set(affinityId, {lastUpdateTime: currentTime});

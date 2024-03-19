@@ -172,6 +172,10 @@ export function markSearchAffinityInteraction(
             points = 1;
             break;
         }
+        case "VeryLowIntentUpdate": {
+            points = 0.0625;
+            break;
+        }
         case "LowIntentUpdate": {
             points = 0.2;
             break;

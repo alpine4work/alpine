@@ -22,6 +22,22 @@ const SearchAffinityViewInteractionSchema = Schema.object({
     type: Schema.value("View"),
 });
 
+// NOTE(calebmer, 2023-03-19): Experimental interaction with lower intent than
+// `LowIntentUpdate`. In practice I've found documents I've authored dominate
+// my affinity list. Even a long time after I've opened them. So I want to
+// try lowering the points a document update assigns. We'll see how that
+// affects affinity lists. This is all more art than science.
+//
+// Right now the conversion rate is 16 very low intent updates equals 1 medium
+// intent update.
+//
+// Maybe document editing should be low intent for the first 30min or so then
+// very low intent afterwards? To count more points for drive by document
+// contributions.
+const SearchAffinityVeryLowIntentUpdateInteractionSchema = Schema.object({
+    type: Schema.value("VeryLowIntentUpdate"),
+});
+
 /**
  * A low intent update is one you may make pretty frequently without thinking
  * too hard. Perhaps you're making updates continuously. For example, typing in
@@ -93,6 +109,7 @@ export type SearchAffinityInteraction = SchemaType<typeof SearchAffinityInteract
 
 export const SearchAffinityInteractionSchema = Schema.union({
     View: SearchAffinityViewInteractionSchema,
+    VeryLowIntentUpdate: SearchAffinityVeryLowIntentUpdateInteractionSchema,
     LowIntentUpdate: SearchAffinityLowIntentUpdateInteractionSchema,
     MediumIntentUpdate: SearchAffinityMediumIntentUpdateInteractionSchema,
     HighIntentUpdate: SearchAffinityHighIntentUpdateInteractionSchema,

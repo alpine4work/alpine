@@ -890,7 +890,7 @@ export function sendChatMessage(
             if (chatAccountItem.chatAccountCount !== 2) {
                 await markSearchAffinityInteraction(context, {
                     spaceId: chatItem.spaceId,
-                    entityId: `Chat:${chatItem.chatId}`,
+                    affinityId: `Chat:${chatItem.chatId}`,
                     interaction,
                 });
             } else {
@@ -924,7 +924,7 @@ export function sendChatMessage(
 
                 await markSearchAffinityInteraction(context, {
                     spaceId: chatItem.spaceId,
-                    entityId: `Account:${assertExists(otherChatAccountIds[0])}`,
+                    affinityId: `Account:${assertExists(otherChatAccountIds[0])}`,
                     interaction,
                 });
             }
@@ -941,7 +941,7 @@ export function sendChatMessage(
                 if (await isAccountMemberOfSpace(context, chatItem.spaceId, mentionedAccountId)) {
                     await markSearchAffinityInteraction(context, {
                         spaceId: chatItem.spaceId,
-                        entityId: `Account:${mentionedAccountId as AccountId}`,
+                        affinityId: `Account:${mentionedAccountId as AccountId}`,
                         interaction: {type: "HighIntentUpdate"},
                     });
                 }

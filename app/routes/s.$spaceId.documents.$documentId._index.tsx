@@ -157,6 +157,7 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
                     context,
                     space.id,
                     `Document:${initialDocument.id}`,
+                    {isVeryLow: true},
                 );
             }}
             onCommentThreadChange={commentThreadId => {
