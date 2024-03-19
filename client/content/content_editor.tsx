@@ -28,7 +28,6 @@ import {
     useState,
 } from "react";
 import {flushSync} from "react-dom";
-import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
 import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
 import {
     ContentEditorState,
@@ -62,6 +61,7 @@ import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_a
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";

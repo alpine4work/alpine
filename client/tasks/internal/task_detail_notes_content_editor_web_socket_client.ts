@@ -164,7 +164,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                                     },
                                     {
                                         type: "Persisted",
-                                        newVersion: output.persistedVersion,
+                                        newVersion: output.result.persistedVersion,
                                     },
                                 ]);
                             } else {

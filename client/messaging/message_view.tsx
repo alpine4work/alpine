@@ -29,8 +29,6 @@ import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/easing.js";
 import {
     RemLength,
@@ -41,24 +39,27 @@ import {
 } from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
-import {
-    MessageContentProsemirrorSchema,
-    MessageContentWithReferences,
-    assertMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
+import {getTruncatedMessageContentForReplyPreview} from "~/shared/messaging/get_truncated_message_content_for_reply_preview.js";
 import {
     MessageModel,
     MessageModelBase,
     OptimisticMessageModel,
 } from "~/shared/messaging/message_model.js";
 import {
+    defaultMessageViewMarginX,
+    getMessageBubbleMarginLeft,
+    messageViewActionsWidth,
     messageViewBubbleBorderRadius,
     messageViewBubbleMergedBorderRadius,
+    messageViewBubbleMinWidth,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
+    messageViewMarginY,
     messageViewMergedMarginY,
+    messageViewReplyPreviewBubbleOpacity,
+    messageViewReplyPreviewOpacity,
+    messageViewReplyPreviewScale,
     minMessageViewTimestampDividerElapsedMinutes,
 } from "~/shared/messaging/messaging_shared_styles.js";
 import {
@@ -66,7 +67,6 @@ import {
     contentSchemaStyles,
     contentViewStyles,
     emojiFontFamily,
-    fontSizesByPlatform,
     spinAnimationClassName,
     sprinkles,
     wiggleAnimation,
@@ -83,23 +83,7 @@ const {paragraphFontSize} = contentSchemaStyles;
  */
 export const bufferedMessageViewHeight: RemLength = "4rem";
 
-/**
- * The minimum width of a message bubble.
- */
-export const messageViewBubbleMinWidth: Spacing = "6";
-
 const mergeMessageMinuteLimit = 5;
-
-export const messageViewActionsWidth: Spacing = "10";
-export const messageViewPreviewScale =
-    fontSizesByPlatform["50"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
-export const messageViewReplyPreviewOpacity = 0.6;
-export const messageViewReplyPreviewBubbleOpacity = 0.7;
-export const defaultMessageViewMarginX: Spacing = "5";
-export const messageViewMarginY: Spacing = "3";
-
-export const getMessageBubbleMarginLeft = (marginX: Spacing) =>
-    addRemLengths(spacing[marginX], spacing["7"], spacing["2"]);
 
 const messageViewTouchReplyIconSize = "5";
 const messageViewTouchReplyIconSizeRem = parseRemLengthNumber(
@@ -831,7 +815,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         if (!messageTextForBigEmojiMessage) height = addRemLengths(height, spacing["1.5"]);
 
         const scaledHeight = `${
-            Math.round(parseRemLengthNumber(height) * messageViewPreviewScale * 16) / 16
+            Math.round(parseRemLengthNumber(height) * messageViewReplyPreviewScale * 16) / 16
         }rem`;
 
         const truncatedContent = getTruncatedMessageContentForReplyPreview({
@@ -896,7 +880,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             })}
                             style={{
                                 opacity: messageViewReplyPreviewOpacity,
-                                transform: `scale(${messageViewPreviewScale})`,
+                                transform: `scale(${messageViewReplyPreviewScale})`,
                                 transformOrigin: "0% 0% 0",
                             }}
                             onClick={() => onJumpToMessage(parentMessage)}
@@ -1296,50 +1280,4 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             )}
         </>
     );
-}
-
-/**
- * Get the content to render in a reply preview of a message. A content payload
- * will be truncated to enough content to fill a single line. A deleted payload
- * will show a placeholder informing the user the message is deleted.
- */
-export function getTruncatedMessageContentForReplyPreview({
-    message,
-    messageStartOfSentenceNoun,
-}: {
-    message: MessageModel;
-    messageStartOfSentenceNoun: string;
-}): MessageContentWithReferences {
-    switch (message.payload.type) {
-        case "Content": {
-            return {
-                doc: assertMessageContent(
-                    getContentSnippet(message.payload.content.doc.resolve(0), 1),
-                ),
-                references: message.payload.content.references,
-            };
-        }
-        case "Deleted": {
-            // NOTE(calebmer): We render deleted messages with the same style as a normal
-            // message in a reply because if we render with the deleted style (no
-            // background, 1px border) it's just too light when scaled down and made
-            // translucent. The user can click on the reply to jump to the actual message
-            // with the correct treatment.
-            return {
-                doc: assertMessageContent(
-                    MessageContentProsemirrorSchema.node("doc", {}, [
-                        MessageContentProsemirrorSchema.node("paragraph", {}, [
-                            MessageContentProsemirrorSchema.text(
-                                `${messageStartOfSentenceNoun} deleted`,
-                                [MessageContentProsemirrorSchema.mark("italic")],
-                            ),
-                        ]),
-                    ]),
-                ),
-                references: emptyContentReferences,
-            };
-        }
-        default:
-            throw exhaustive(message.payload);
-    }
 }

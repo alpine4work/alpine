@@ -35,7 +35,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageShimmer} from "~/client/messaging/message_shimmer.js";
-import {MessageView, messageViewMarginY} from "~/client/messaging/message_view.js";
+import {MessageView} from "~/client/messaging/message_view.js";
 import {
     MessagingTypingIndicators,
     messagingTypingIndicatorsMinHeight,
@@ -66,7 +66,10 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {PostId} from "~/shared/id/types/id_types.js";
-import {messageViewMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
+import {
+    messageViewMarginY,
+    messageViewMinHeight,
+} from "~/shared/messaging/messaging_shared_styles.js";
 import {
     getPostCommentsFromEnd,
     getPostCommentsFromStart,

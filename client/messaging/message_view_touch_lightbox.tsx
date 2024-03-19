@@ -21,15 +21,6 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {MessageViewMenuCreatedTime} from "~/client/messaging/internal/message_view_menu_created_time.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
-import {
-    getMessageBubbleMarginLeft,
-    getTruncatedMessageContentForReplyPreview,
-    messageViewActionsWidth,
-    messageViewBubbleMinWidth,
-    messageViewPreviewScale,
-    messageViewReplyPreviewBubbleOpacity,
-    messageViewReplyPreviewOpacity,
-} from "~/client/messaging/message_view.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
@@ -38,13 +29,20 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
+import {getTruncatedMessageContentForReplyPreview} from "~/shared/messaging/get_truncated_message_content_for_reply_preview.js";
 import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {
+    getMessageBubbleMarginLeft,
+    messageViewActionsWidth,
     messageViewBubbleBorderRadius,
     messageViewBubbleMergedBorderRadius,
+    messageViewBubbleMinWidth,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
+    messageViewReplyPreviewBubbleOpacity,
+    messageViewReplyPreviewOpacity,
+    messageViewReplyPreviewScale,
 } from "~/shared/messaging/messaging_shared_styles.js";
 import {
     contentViewStyles,
@@ -255,7 +253,7 @@ export function MessageViewTouchLightbox<
         if (!messageTextForBigEmojiMessage) height = addRemLengths(height, spacing["1.5"]);
 
         const scaledHeight = `${
-            Math.round(parseRemLengthNumber(height) * messageViewPreviewScale * 16) / 16
+            Math.round(parseRemLengthNumber(height) * messageViewReplyPreviewScale * 16) / 16
         }rem`;
 
         const truncatedContent = getTruncatedMessageContentForReplyPreview({
@@ -293,7 +291,7 @@ export function MessageViewTouchLightbox<
                     })}
                     style={{
                         opacity: messageViewReplyPreviewOpacity,
-                        transform: `scale(${messageViewPreviewScale})`,
+                        transform: `scale(${messageViewReplyPreviewScale})`,
                         transformOrigin: "0% 0% 0",
                     }}
                 >

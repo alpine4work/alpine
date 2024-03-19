@@ -7,12 +7,12 @@ import {
     createCommentThreadMetaKey,
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
+import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {Box} from "~/client/design/box.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {MessageInputBase, MessageInputRef} from "~/client/messaging/message_input.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

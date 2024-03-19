@@ -637,7 +637,7 @@ test(
             });
 
             return results
-                .map(result => result.entityId)
+                .map(result => result.id)
                 .sort(
                     (id1, id2) =>
                         assertExists(taskSearchEntityIdOrder.findIndex(id => id === id1)) -

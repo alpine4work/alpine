@@ -1,5 +1,6 @@
 import {Ref, RefObject, useCallback, useRef} from "react";
 import {flushSync} from "react-dom";
+import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client.js";
 import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/use_document_content_editor_web_socket.js";
@@ -7,7 +8,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
-import {MessageInput, MessageInputRef} from "~/client/messaging/message_input.js";
+import {MessageInput} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {getMessageListItemKey} from "~/client/messaging/messaging_view.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";

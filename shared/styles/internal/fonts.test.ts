@@ -3,6 +3,7 @@ import {
     parseRemLengthNumber,
     remPxByPlatform,
 } from "~/shared/design/spacing.js";
+// eslint-disable-next-line no-restricted-imports
 import {fontSizesByPlatform} from "~/shared/styles/styles.js";
 
 test("letter spacing matches Inter tracking formula", () => {

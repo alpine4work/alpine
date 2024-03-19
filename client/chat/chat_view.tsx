@@ -9,7 +9,6 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {PrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
 import {Spacer} from "~/client/design/spacer.js";
-import {messageViewMarginY} from "~/client/messaging/message_view.js";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
@@ -23,6 +22,7 @@ import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
+import {messageViewMarginY} from "~/shared/messaging/messaging_shared_styles.js";
 import {
     getChatMessagesFromEnd,
     getChatMessagesFromStart,

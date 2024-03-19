@@ -2,21 +2,19 @@ import classNames from "classnames";
 import {useRef} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageList} from "~/client/messaging/message_list.js";
-import {
-    defaultMessageViewMarginX,
-    getMessageBubbleMarginLeft,
-    messageViewActionsWidth,
-    messageViewMarginY,
-} from "~/client/messaging/message_view.js";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {MessageModel, MessageModelBase} from "~/shared/messaging/message_model.js";
 import {
+    defaultMessageViewMarginX,
+    getMessageBubbleMarginLeft,
+    messageViewActionsWidth,
     messageViewBubbleBorderRadius,
     messageViewBubbleMergedBorderRadius,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
+    messageViewMarginY,
     messageViewMergedMarginY,
 } from "~/shared/messaging/messaging_shared_styles.js";
 import {

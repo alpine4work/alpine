@@ -4,11 +4,6 @@ import {useEffect, useMemo, useRef} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
-import {
-    defaultMessageViewMarginX,
-    getMessageBubbleMarginLeft,
-    messageViewMarginY,
-} from "~/client/messaging/message_view.js";
 import {messagingViewMarginBottom} from "~/client/messaging/messaging_view.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {easeInOutSin} from "~/shared/design/easing.js";
@@ -17,7 +12,12 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol.js";
-import {messageViewBubbleBorderRadius} from "~/shared/messaging/messaging_shared_styles.js";
+import {
+    defaultMessageViewMarginX,
+    getMessageBubbleMarginLeft,
+    messageViewBubbleBorderRadius,
+    messageViewMarginY,
+} from "~/shared/messaging/messaging_shared_styles.js";
 
 export const messagingTypingIndicatorsMinHeight = "3.875rem";
 

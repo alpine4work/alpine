@@ -309,13 +309,3 @@ export function NativeMobileOutlet({
         </div>
     );
 }
-
-/**
- * Is this an inert native mobile route? If so we should disable some effects.
- * For example disable scrolling in response to the keyboard frame changing.
- */
-export function useIsInertNativeMobileRoute(): boolean {
-    const router: (Router & {_isInert?: boolean}) | undefined =
-        useContext(DataRouterContext)?.router;
-    return router?._isInert ?? false;
-}

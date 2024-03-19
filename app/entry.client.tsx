@@ -5,6 +5,7 @@ import {AppContext, AppContextProvider} from "~/client/context/app_context.js";
 import {ReactContextModule} from "~/client/context/react_context_module.js";
 import {installScrollbarAuditorInDev} from "~/client/design/scrollbar.js";
 import {attachDevConsoleNotInProduction} from "~/client/dev/dev_console.js";
+import {subscribeToColorSchemeChange} from "~/client/helpers/color_scheme.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {updateNativeMobileThemeColors} from "~/client/remix/update_native_mobile_theme_colors.js";
 import {ClientRpcContextModule} from "~/client/rpc/client_rpc_context_module.js";
@@ -113,8 +114,10 @@ async function main() {
         }
     });
 
-    // Tell native mobile what our theme color is from server rendering.
+    // Tell native mobile what our theme color is after server rendering. Update
+    // the theme color whenever the color scheme changes.
     updateNativeMobileThemeColors();
+    subscribeToColorSchemeChange(updateNativeMobileThemeColors);
 
     attachDevConsoleNotInProduction();
 }

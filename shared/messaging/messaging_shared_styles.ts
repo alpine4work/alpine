@@ -3,14 +3,15 @@
 // `client/messaging`. For example `client/content`.
 
 import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
-import {contentSchemaStyles} from "~/shared/styles/styles.js";
+import {contentSchemaStyles, fontSizesByPlatform} from "~/shared/styles/styles.js";
 
 export const messageInputMinHeight: RemLength = "3.875rem";
+
+export const messageViewBubbleMinWidth: Spacing = "6";
 export const messageViewBubbleBorderRadius = "2xl" as const;
 export const messageViewBubbleMergedBorderRadius = "base" as const;
 export const messageViewBubblePaddingX: Spacing = "1";
 export const messageViewBubblePaddingY: Spacing = "2";
-export const messageViewMergedMarginY: Spacing = "0.5";
 
 export const messageViewBubbleMinHeight: RemLength = addRemLengths(
     spacing[messageViewBubblePaddingY],
@@ -18,10 +19,16 @@ export const messageViewBubbleMinHeight: RemLength = addRemLengths(
     spacing[messageViewBubblePaddingY],
 );
 
+export const messageViewMarginY: Spacing = "3";
+export const messageViewMergedMarginY: Spacing = "0.5";
+export const defaultMessageViewMarginX: Spacing = "5";
+
 export const messageViewMinHeight: RemLength = addRemLengths(
     messageViewBubbleMinHeight,
     spacing[messageViewMergedMarginY],
 );
+
+export const messageViewActionsWidth: Spacing = "10";
 
 /**
  * The minimum number of minutes between when we insert timestamp dividers into
@@ -41,3 +48,11 @@ export const messageViewMinHeight: RemLength = addRemLengths(
  * multiple "sections" of the conversation visually when they go to inspect it.
  */
 export const minMessageViewTimestampDividerElapsedMinutes = 60;
+
+export const messageViewReplyPreviewScale =
+    fontSizesByPlatform["50"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
+export const messageViewReplyPreviewOpacity = 0.6;
+export const messageViewReplyPreviewBubbleOpacity = 0.7;
+
+export const getMessageBubbleMarginLeft = (marginX: Spacing) =>
+    addRemLengths(spacing[marginX], spacing["7"], spacing["2"]);

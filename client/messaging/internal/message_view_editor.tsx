@@ -9,17 +9,15 @@ import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_a
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
-import {
-    messageViewActionsWidth,
-    messageViewBubbleMinWidth,
-} from "~/client/messaging/message_view.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {
+    messageViewActionsWidth,
     messageViewBubbleBorderRadius,
     messageViewBubbleMergedBorderRadius,
+    messageViewBubbleMinWidth,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
 } from "~/shared/messaging/messaging_shared_styles.js";

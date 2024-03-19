@@ -1,7 +1,8 @@
 import {Ref, RefObject, useCallback, useImperativeHandle, useRef} from "react";
+import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
-import {MessageInput, MessageInputRef} from "~/client/messaging/message_input.js";
+import {MessageInput} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";

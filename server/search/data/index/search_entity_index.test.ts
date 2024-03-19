@@ -1569,7 +1569,7 @@ test("search by keywords only sees entities the account has access to", async ()
                 currentTime: new Date(),
             })
         ).results
-            .map(result => result.entityId)
+            .map(result => result.id)
             .sort(defaultCompareStrings),
     ).toEqual([`Document:${otherDocument.id}`].sort(defaultCompareStrings));
 
@@ -1583,7 +1583,7 @@ test("search by keywords only sees entities the account has access to", async ()
                 currentTime: new Date(),
             })
         ).results
-            .map(result => result.entityId)
+            .map(result => result.id)
             .sort(defaultCompareStrings),
     ).toEqual(
         [
@@ -1606,7 +1606,7 @@ test("search by keywords only sees entities the account has access to", async ()
                 currentTime: new Date(),
             })
         ).results
-            .map(result => result.entityId)
+            .map(result => result.id)
             .sort(defaultCompareStrings),
     ).toEqual(
         [
@@ -1703,7 +1703,7 @@ test("search by semantics only sees entities the account has access to", async (
                 },
             )
         ).results
-            .map(result => result.entityId)
+            .map(result => result.id)
             .sort(defaultCompareStrings),
     ).toEqual([`Document:${otherDocument.id}`].sort(defaultCompareStrings));
 
@@ -1722,7 +1722,7 @@ test("search by semantics only sees entities the account has access to", async (
                 },
             )
         ).results
-            .map(result => result.entityId)
+            .map(result => result.id)
             .sort(defaultCompareStrings),
     ).toEqual(
         [
@@ -1748,7 +1748,7 @@ test("search by semantics only sees entities the account has access to", async (
                 },
             )
         ).results
-            .map(result => result.entityId)
+            .map(result => result.id)
             .sort(defaultCompareStrings),
     ).toEqual(
         [

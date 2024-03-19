@@ -6,6 +6,7 @@ load("//app:remix.bzl", "remix_app")
 
 ts_project(
     name = "app_lib",
+    visibility = ["//app/integration_tests:__pkg__"],
     deps = [
         "//:node_modules/@remix-run/dev",
         "//:node_modules/@remix-run/node",

@@ -14,20 +14,17 @@ import {
     useState,
 } from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {MessageEditing, useMessageEditing} from "~/client/messaging/message_editing.js";
-import {MessageInput, MessageInputRef} from "~/client/messaging/message_input.js";
+import {MessageInput} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {MessageShimmer} from "~/client/messaging/message_shimmer.js";
-import {
-    MessageView,
-    bufferedMessageViewHeight,
-    messageViewMarginY,
-} from "~/client/messaging/message_view.js";
+import {MessageView, bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
 import {
     MessagingTypingIndicators,
     messagingTypingIndicatorsMinHeight,
@@ -60,7 +57,10 @@ import {
     StopTypingInMessageInputProcedure,
     UpdateMessageContentProcedure,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
-import {messageViewMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
+import {
+    messageViewMarginY,
+    messageViewMinHeight,
+} from "~/shared/messaging/messaging_shared_styles.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 

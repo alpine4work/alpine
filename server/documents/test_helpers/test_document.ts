@@ -1,11 +1,8 @@
-import {Fragment, Mark, Slice} from "prosemirror-model";
-import {AddMarkStep, ReplaceStep, Step} from "prosemirror-transform";
+import {Fragment, Slice} from "prosemirror-model";
+import {ReplaceStep, Step} from "prosemirror-transform";
 import {
     DocumentContentCacheForUpdate,
-    backfillDocumentComments,
     createDocument,
-    getDocumentAndCommentThreads,
-    getDocumentCommentThread,
     updateDocumentContent,
 } from "~/server/documents/data/documents_table.js";
 import {TestDocumentCommentThread} from "~/server/documents/test_helpers/test_document_comment_thread.js";
@@ -19,7 +16,7 @@ import {
 } from "~/shared/documents/document_content_schema.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {DocumentId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const schema = DocumentContentProsemirrorSchema;

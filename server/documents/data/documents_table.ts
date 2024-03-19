@@ -802,7 +802,7 @@ export async function createDocument(
     context.process.waitUntil(
         markSearchAffinityInteraction(context, {
             spaceId,
-            entityId: `Document:${id}`,
+            affinityId: `Document:${id}`,
             interaction: {type: "HighIntentUpdate"},
         }),
     );
@@ -2637,7 +2637,9 @@ export async function updateDocumentContent(
                                     ) {
                                         await markSearchAffinityInteraction(context, {
                                             spaceId: internalDocument.spaceId,
-                                            entityId: `Account:${mentionedAccountId as AccountId}`,
+                                            affinityId: `Account:${
+                                                mentionedAccountId as AccountId
+                                            }`,
                                             interaction: {type: "HighIntentUpdate"},
                                         });
                                     }
@@ -3793,7 +3795,7 @@ export async function createDocumentComment(
         context.process.waitUntil(
             markSearchAffinityInteraction(context, {
                 spaceId: documentItem.spaceId,
-                entityId: `Document:${documentItem.documentId}`,
+                affinityId: `Document:${documentItem.documentId}`,
                 interaction: {type: "MediumIntentUpdate"},
             }),
         );
@@ -3811,7 +3813,7 @@ export async function createDocumentComment(
                 ) {
                     await markSearchAffinityInteraction(context, {
                         spaceId: documentItem.spaceId,
-                        entityId: `Account:${mentionedAccountId as AccountId}`,
+                        affinityId: `Account:${mentionedAccountId as AccountId}`,
                         interaction: {type: "HighIntentUpdate"},
                     });
                 }

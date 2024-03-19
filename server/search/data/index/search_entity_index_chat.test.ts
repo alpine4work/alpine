@@ -74,7 +74,7 @@ test("will not index chat until first message is sent", async () => {
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.entityId),
+        ).results.map(result => result.id),
     ).toEqual([]);
 
     await sendChatMessage(session2.action(), {
@@ -98,7 +98,7 @@ test("will not index chat until first message is sent", async () => {
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.entityId),
+        ).results.map(result => result.id),
     ).toEqual([`Chat:${chatId}`]);
 
     await sendChatMessage(session3.action(), {
@@ -122,7 +122,7 @@ test("will not index chat until first message is sent", async () => {
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.entityId),
+        ).results.map(result => result.id),
     ).toEqual([`Chat:${chatId}`]);
 
     await sendChatMessage(session1.action(), {
@@ -146,7 +146,7 @@ test("will not index chat until first message is sent", async () => {
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.entityId),
+        ).results.map(result => result.id),
     ).toEqual([`Chat:${chatId}`]);
 });
 
@@ -176,7 +176,7 @@ test("will not make chat searchable even if manually indexed until first message
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.entityId),
+        ).results.map(result => result.id),
     ).toEqual([]);
 
     await processIndexSearchEntityJob(
@@ -208,7 +208,7 @@ test("will not make chat searchable even if manually indexed until first message
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.entityId),
+        ).results.map(result => result.id),
     ).toEqual([]);
 
     await sendChatMessage(session2.action(), {
@@ -232,7 +232,7 @@ test("will not make chat searchable even if manually indexed until first message
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.entityId),
+        ).results.map(result => result.id),
     ).toEqual([`Chat:${chatId}`]);
 
     await sendChatMessage(session3.action(), {
@@ -256,7 +256,7 @@ test("will not make chat searchable even if manually indexed until first message
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.entityId),
+        ).results.map(result => result.id),
     ).toEqual([`Chat:${chatId}`]);
 
     await sendChatMessage(session1.action(), {
@@ -280,6 +280,6 @@ test("will not make chat searchable even if manually indexed until first message
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.entityId),
+        ).results.map(result => result.id),
     ).toEqual([`Chat:${chatId}`]);
 });

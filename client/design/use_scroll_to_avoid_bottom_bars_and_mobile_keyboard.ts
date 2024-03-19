@@ -1,8 +1,15 @@
 import {Memo, RefObject, useEffect} from "react";
-import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {getNavigationBarHeightPxWithoutListening} from "~/client/design/navigation_bar.js";
 import {getElementWindowSafeAreaInsetBottomPx} from "~/client/design/safe_area_inset.js";
+import {
+    getCurrentBottomBarHeight,
+    subscribeToBottomBarFrameChange,
+} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
+import {
+    isMobileKeyboardFrameChangeEnabled,
+    subscribeToMobileKeyboardFrameChange,
+} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {
@@ -10,15 +17,7 @@ import {
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {
-    getCurrentBottomBarHeight,
-    subscribeToBottomBarFrameChange,
-} from "~/client/remix/subscribe_to_bottom_bar_frame_change.js";
-import {
-    isMobileKeyboardFrameChangeEnabled,
-    subscribeToMobileKeyboardFrameChange,
-} from "~/client/remix/subscribe_to_mobile_keyboard_frame_change.js";
-import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
+import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {RemLength, convertRemLengthToPx} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
@@ -48,7 +47,7 @@ if (isMobileKeyboardFrameChangeEnabled) {
 // within the current peek. Bottom bars outside the peek shouldn't effect the
 // peek and vice versa.
 export function useScrollToAvoidBottomBarsAndMobileKeyboard<
-    ScrollableRef extends HTMLElement | VirtualizedScrollViewRef,
+    ScrollableRef extends HTMLElement | {getElement: () => HTMLElement},
 >(
     scrollableRef: RefObject<ScrollableRef>,
     {

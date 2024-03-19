@@ -1,8 +1,8 @@
 import {Key, Memo, RefObject, useRef} from "react";
+import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {MessageInputRef} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
 import {convertRemLengthToPx} from "~/shared/design/spacing.js";

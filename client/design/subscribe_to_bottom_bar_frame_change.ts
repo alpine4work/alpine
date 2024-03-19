@@ -1,5 +1,4 @@
 import {RefObject} from "react";
-import {useIsInertNativeMobileRoute} from "~/app/router/native_mobile_outlet.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {mobileBottomBarKeyboardToolbarHeightRem} from "~/client/design/mobile_bottom_bar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -9,6 +8,7 @@ import {
     removeResizeListenerForElement,
     removeSuppressResizeLoopErrorNotificationForElement,
 } from "~/client/helpers/use_resize_observer.js";
+import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";

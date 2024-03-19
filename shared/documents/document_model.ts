@@ -3,10 +3,7 @@ import {
     DocumentContentWithReferencesSchema,
     UncheckedDocumentContentWithReferencesSchema,
 } from "~/shared/documents/document_content_references.js";
-import {
-    DocumentContent,
-    UncheckedDocumentContentSchema,
-} from "~/shared/documents/document_content_schema.js";
+import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isId} from "~/shared/id/id.js";

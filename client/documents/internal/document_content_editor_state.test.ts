@@ -1061,6 +1061,7 @@ test("collaborative update scenario", () => {
     }
 
     const oldState: DocumentContentEditorState = {
+        persistedVersion: 0,
         pendingActions: [
             {
                 type: "ReceiveSteps",
@@ -1123,6 +1124,7 @@ test("collaborative update scenario", () => {
                 selection: Selection.fromJSON(doc, {type: "text", anchor: 14, head: 14}),
             },
             otherPresenceStateByConnectionId: ImmutableMap.empty(),
+            unpersistedResolutionStateByCommentThreadId: new Map(),
         },
     };
 

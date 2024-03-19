@@ -1,6 +1,5 @@
 import {useEffect, useState} from "react";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
-import {updateNativeMobileThemeColors} from "~/client/remix/update_native_mobile_theme_colors.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -46,10 +45,6 @@ export function ColorSchemeManager() {
                         scheduleUncaughtError(error);
                     }
                 }
-
-                // Whenever we switch from dark mode to light mode, we need to update our
-                // theme colors in the native mobile app.
-                updateNativeMobileThemeColors();
             }
         };
 
@@ -88,10 +83,13 @@ export function setColorScheme(colorScheme: ColorScheme) {
             scheduleUncaughtError(error);
         }
     }
+}
 
-    // Whenever we switch from dark mode to light mode, we need to update our
-    // theme colors in the native mobile app.
-    updateNativeMobileThemeColors();
+export function subscribeToColorSchemeChange(listener: (colorScheme: ColorScheme) => void) {
+    colorSchemeListeners.add(listener);
+    return () => {
+        colorSchemeListeners.delete(listener);
+    };
 }
 
 /**

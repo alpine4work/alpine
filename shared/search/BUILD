@@ -6,6 +6,7 @@ ts_project(
     deps = [
         "//:node_modules/fuse.js",
         "//shared/accounts",
+        "//shared/design",
         "//shared/error",
         "//shared/id",
         "//shared/opensearch",

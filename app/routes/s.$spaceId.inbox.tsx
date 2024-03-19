@@ -179,7 +179,7 @@ export default function InboxRoute() {
                 initialPeekData={peekData}
                 onPeekChange={peek => {
                     const url = new URL(window.location.href);
-                    if (!peek) {
+                    if (!peek?.content) {
                         url.searchParams.delete("selected");
                     } else {
                         // base64 encode the initial path to hide the fact that it's a URL.
@@ -187,7 +187,7 @@ export default function InboxRoute() {
 
                         const selectedSearchParam = encodeBase64(
                             textEncoder.encode(
-                                peek.initialSpacePath.replace(/^(\/s\/[^/]+\/)/, ""),
+                                peek.content.initialSpacePath.replace(/^(\/s\/[^/]+\/)/, ""),
                             ),
                             "Rfc4648Url",
                         );

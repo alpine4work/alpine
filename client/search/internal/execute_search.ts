@@ -203,7 +203,7 @@ export function executeSearch(
                 interpolation.point2.keywordScore - slope * interpolation.point2.semanticScore;
 
             const semanticResultByEntityId = new Map(
-                semanticSearchState.value.results.map(result => [result.entityId, result]),
+                semanticSearchState.value.results.map(result => [result.id, result]),
             );
 
             const newResults: Array<SearchResult> = [];
@@ -217,13 +217,13 @@ export function executeSearch(
                 maxKeywordScore = Math.max(maxKeywordScore, keywordResult.score);
                 minKeywordScore = Math.min(minKeywordScore, keywordResult.score);
 
-                const semanticResult = semanticResultByEntityId.get(keywordResult.entityId);
+                const semanticResult = semanticResultByEntityId.get(keywordResult.id);
                 if (!semanticResult) {
                     newResults.push(keywordResult);
                     continue;
                 }
 
-                semanticResultByEntityId.delete(keywordResult.entityId);
+                semanticResultByEntityId.delete(keywordResult.id);
 
                 const additionalScore = slope * semanticResult.score + intercept;
                 const actualKeywordScore = Math.max(

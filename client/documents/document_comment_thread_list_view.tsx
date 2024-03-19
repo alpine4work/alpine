@@ -11,6 +11,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {NavigationBarResult} from "~/client/design/navigation_bar.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
@@ -30,7 +31,6 @@ import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
-import {MessageInputRef} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
 import {renderMessageListItem} from "~/client/messaging/messaging_view.js";
