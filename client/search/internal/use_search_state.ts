@@ -28,9 +28,9 @@ import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {addSumOperandToOpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
-import {SearchEntityIdOrSearchAffinityId} from "~/shared/search/search_affinity_id.js";
+import {SearchCommandId, searchCommandIndex} from "~/shared/search/search_commands.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
-import {SearchResult} from "~/shared/search/search_result.js";
+import {SearchResult, SearchResultId} from "~/shared/search/search_result.js";
 
 /**
  * The debounce timeout before we'll send a new search request. Picked so that
@@ -214,14 +214,14 @@ export function useSearchState({
         limit: affinitiveSearchEntitiesLimit,
     });
 
-    const affinityResultByEntityId = useMemo(() => {
-        const affinityResultByEntityId = new Map<SearchEntityIdOrSearchAffinityId, SearchResult>();
+    const affinityResultById = useMemo(() => {
+        const affinityResultById = new Map<SearchResultId, SearchResult>();
 
         for (const result of affinityOutput.output?.results ?? []) {
-            affinityResultByEntityId.set(result.entityId, result);
+            affinityResultById.set(result.id, result);
         }
 
-        return affinityResultByEntityId;
+        return affinityResultById;
     }, [affinityOutput.output?.results]);
 
     const [searchState, dispatch] = useReducer(
@@ -301,11 +301,7 @@ export function useSearchState({
                     results: affinityOutput.output.results,
                 };
             }
-        }
-        // If some search results match affinitive search entities we loaded then we
-        // want to boost the search entities the user has an affinity for since it's
-        // more likely the user cares about those entities.
-        else if (queryOutput.results && affinityResultByEntityId.size > 0) {
+        } else if (queryOutput.results && affinityResultById.size > 0) {
             const interpolation = options.affinityToKeywordScoreInterpolation;
 
             const slope =
@@ -317,10 +313,38 @@ export function useSearchState({
 
             let newResults: Array<SearchResult> | null = null;
 
+            // Search for commands matching the query text and add them to the beginning of
+            // our results list if so.
+            const commandIds = new Set<SearchCommandId>();
+            const commandMatches = searchCommandIndex.get().search(queryOutput.queryText);
+            for (const match of commandMatches) {
+                if (commandIds.has(match.item.commandId)) continue;
+                commandIds.add(match.item.commandId);
+
+                newResults ??= [];
+
+                // Only count close matches. Exclude search results with too high a score. This
+                // cutoff was picked so typing "Create t" doesn't match "Create chat" and
+                // "Create a" doesn't match "Create task". But "Create tsk" matches
+                // "Create task" and "notepad" matches "Task notepad".
+                if (match.score! < 0.2) {
+                    newResults.push({
+                        id: match.item.commandId,
+                        score: Infinity,
+                        title: match.item.command.title,
+                        bodyTextSnippet: [],
+                        media: null,
+                    });
+                }
+            }
+
+            // If some search results match affinitive search entities we loaded then we
+            // want to boost the search entities the user has an affinity for since it's
+            // more likely the user cares about those entities.
             for (let i = 0; i < queryOutput.results.length; i++) {
                 const result = queryOutput.results[i]!;
 
-                const affinityResult = affinityResultByEntityId.get(result.entityId);
+                const affinityResult = affinityResultById.get(result.id);
                 if (!affinityResult) {
                     newResults?.push(result);
                     continue;
@@ -372,7 +396,7 @@ export function useSearchState({
         }
     }, [
         queryOutput,
-        affinityResultByEntityId,
+        affinityResultById,
         affinityOutput.output,
         affinityOutput.isLoading,
         affinityOutput.isValidating,

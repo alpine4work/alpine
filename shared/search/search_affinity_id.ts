@@ -36,8 +36,3 @@ export type SearchAffinityId =
 assertAssignableTypes<Exclude<SearchAffinityId, "TaskNotepad">, SearchEntityId>();
 
 export const SearchAffinityIdSchema = Schema.string as Schema<SearchAffinityId>;
-
-export type SearchEntityIdOrSearchAffinityId = SearchEntityId | SearchAffinityId;
-
-export const SearchEntityIdOrSearchAffinityIdSchema =
-    Schema.string as Schema<SearchEntityIdOrSearchAffinityId>;

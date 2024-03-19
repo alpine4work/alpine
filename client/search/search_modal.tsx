@@ -15,6 +15,7 @@ import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {Modal} from "~/client/design/modal.js";
+import {Toast, useShowToast} from "~/client/design/toast.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
@@ -25,6 +26,7 @@ import {usePromise} from "~/client/helpers/use_promise.js";
 import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
 import {
     PeekSwitcherStatePeek,
+    PeekSwitcherStatePeekContent,
     usePeekSwitcherState,
 } from "~/client/peek/use_peek_switcher_state.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
@@ -40,16 +42,17 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.js";
+import {PeekId, SpaceId} from "~/shared/id/types/id_types.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
-import {SearchEntityIdOrSearchAffinityId} from "~/shared/search/search_affinity_id.js";
 import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchOptions} from "~/shared/search/search_options.js";
-import {SearchResult} from "~/shared/search/search_result.js";
+import {SearchResult, SearchResultId} from "~/shared/search/search_result.js";
 import {
     colorSchemeVars,
     contentSchemaStyles,
@@ -57,6 +60,8 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/shared/styles/styles.js";
+import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
+import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 
 const searchModalInputHeight = "16";
 const searchModalPeekContentMaxHeight = "160";
@@ -85,6 +90,7 @@ export function SearchModal({
 }) {
     const {space} = useSpaceContext();
     const navigate = useNavigate();
+    const showToast = useShowToast();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const resultListContainerRef = useRef<HTMLDivElement>(null);
@@ -133,7 +139,8 @@ export function SearchModal({
     }, []);
 
     const {selectedPeek, activePeek, switchPeek} = usePeekSwitcherState<{
-        entityId: SearchEntityIdOrSearchAffinityId;
+        resultId: SearchResultId;
+        destination: SearchResultDestination;
     }>({
         // Reset our peek state if the search response changes.
         key: output.key,
@@ -225,7 +232,7 @@ export function SearchModal({
 
                             const index = selectedPeek
                                 ? output.results.findIndex(
-                                      result => result.entityId === selectedPeek.extra.entityId,
+                                      result => result.id === selectedPeek.extra.resultId,
                                   )
                                 : -1;
 
@@ -240,9 +247,11 @@ export function SearchModal({
                             // items so looping would be disorienting.
                             if (!result) break;
 
+                            const destination = getSearchResultDestination(space.id, result.id);
+
                             void switchPeek({
-                                spacePath: getSearchEntityIdPath(space.id, result.entityId),
-                                extra: {entityId: result.entityId},
+                                spacePath: destination.type === "Path" ? destination.path : null,
+                                extra: {resultId: result.id, destination},
                             });
                             break;
                         }
@@ -271,16 +280,34 @@ export function SearchModal({
                             // If nothing is selected, there's nothing to open.
                             if (!selectedPeek) break;
 
-                            // Open the selected peek when `Enter` is pressed. You've probably just
-                            // selected a peek with the keyboard.
-                            const spacePath = convertPeekPathToSpacePath(
-                                selectedPeek.history.location,
-                            );
-                            if (!spacePath) throw new InternalError("Can only expand peek routes");
+                            switch (selectedPeek.extra.destination.type) {
+                                case "Action": {
+                                    selectedPeek.extra.destination.onSelect({
+                                        spaceId: space.id,
+                                        navigate,
+                                        showToast,
+                                    });
+                                    break;
+                                }
+                                case "Path": {
+                                    if (!selectedPeek.content) break;
 
-                            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                            // Eventually switch to new page with a loading spinner?
-                            void navigate(spacePath);
+                                    // Open the selected peek when `Enter` is pressed. You've probably just
+                                    // selected a peek with the keyboard.
+                                    const spacePath = convertPeekPathToSpacePath(
+                                        selectedPeek.content.history.location,
+                                    );
+                                    if (!spacePath)
+                                        throw new InternalError("Can only expand peek routes");
+
+                                    // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+                                    // Eventually switch to new page with a loading spinner?
+                                    void navigate(spacePath);
+                                    break;
+                                }
+                                default:
+                                    throw exhaustive(selectedPeek.extra.destination);
+                            }
                             break;
                         }
                     }
@@ -371,11 +398,12 @@ export function SearchModal({
                             overflow="hidden"
                             borderLeft="grey-10"
                         >
-                            {activePeek ? (
+                            {activePeek?.content ? (
                                 <SearchModalPeekContent
                                     // Fully remount whenever the peek changes...
                                     key={activePeek.id}
-                                    peek={activePeek}
+                                    peekId={activePeek.id}
+                                    peekContent={activePeek.content}
                                     onClose={onClose}
                                     pushPeekStack={pushPeekStack}
                                     switchPeek={switchPeek}
@@ -524,34 +552,41 @@ function SearchModalResultList({
     switchPeek,
 }: {
     results: ReadonlyArray<SearchResult>;
-    selectedPeek: PeekSwitcherStatePeek<{entityId: SearchEntityIdOrSearchAffinityId}> | null;
+    selectedPeek: PeekSwitcherStatePeek<{
+        resultId: SearchResultId;
+        destination: SearchResultDestination;
+    }> | null;
     switchPeek: Memo<
         (
             peekData: {
-                spacePath: string;
-                extra: {entityId: SearchEntityIdOrSearchAffinityId};
+                spacePath: string | null;
+                extra: {
+                    resultId: SearchResultId;
+                    destination: SearchResultDestination;
+                };
             } | null,
         ) => Promise<void>
     >;
 }) {
     const navigate = useNavigate();
+    const showToast = useShowToast();
     const {space} = useSpaceContext();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const lastSelectedEntityIdRef = useRef(selectedPeek?.extra.entityId);
+    const lastSelectedResultIdRef = useRef(selectedPeek?.extra.resultId);
     useLayoutEffectWithoutServerSideWarning(() => {
         const view = assertExists(viewRef.current);
 
-        if (lastSelectedEntityIdRef.current === selectedPeek?.extra.entityId) return;
-        lastSelectedEntityIdRef.current = selectedPeek?.extra.entityId;
+        if (lastSelectedResultIdRef.current === selectedPeek?.extra.resultId) return;
+        lastSelectedResultIdRef.current = selectedPeek?.extra.resultId;
 
         // When a new result is selected, make sure it is visible in our scroll window. Scroll to
         // it if it is not visible.
-        if (selectedPeek?.extra.entityId) {
-            view.scrollToKeyIfExists(`Loaded:${selectedPeek.extra.entityId}`, {withAnchor: true});
+        if (selectedPeek?.extra.resultId) {
+            view.scrollToKeyIfExists(`Loaded:${selectedPeek.extra.resultId}`, {withAnchor: true});
         }
-    }, [selectedPeek?.extra.entityId]);
+    }, [selectedPeek?.extra.resultId]);
 
     return (
         <VirtualizedScrollView
@@ -566,12 +601,12 @@ function SearchModalResultList({
                     const isLastEntry = index === results.length - 1;
 
                     return {
-                        key: `Loaded:${result.entityId}`,
+                        key: `Loaded:${result.id}`,
                         minHeight: minSearchResultViewHeight,
                         node: (
                             <SearchResultView
                                 result={result}
-                                isSelected={result.entityId === selectedPeek?.extra.entityId}
+                                isSelected={result.id === selectedPeek?.extra.resultId}
                                 isFirstEntry={isFirstEntry}
                                 isLastEntry={isLastEntry}
                                 // We use `onPressStart` to select so the selected style is applied immediately.
@@ -579,44 +614,247 @@ function SearchModalResultList({
                                 // `isPressed` style. The benefit of using selection is the previous item loses
                                 // its style.
                                 onPressStart={() => {
-                                    if (result.entityId !== selectedPeek?.extra.entityId) {
+                                    if (result.id !== selectedPeek?.extra.resultId) {
+                                        const destination = getSearchResultDestination(
+                                            space.id,
+                                            result.id,
+                                        );
+
                                         void switchPeek({
-                                            spacePath: getSearchEntityIdPath(
-                                                space.id,
-                                                result.entityId,
-                                            ),
-                                            extra: {entityId: result.entityId},
+                                            spacePath:
+                                                destination.type === "Path"
+                                                    ? destination.path
+                                                    : null,
+                                            extra: {resultId: result.id, destination},
                                         });
                                     }
                                 }}
                                 onDoubleClick={() => {
-                                    // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                                    // Eventually switch to new page with a loading spinner?
-                                    void navigate(getSearchEntityIdPath(space.id, result.entityId));
+                                    const destination = getSearchResultDestination(
+                                        space.id,
+                                        result.id,
+                                    );
+
+                                    switch (destination.type) {
+                                        case "Path": {
+                                            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+                                            // Eventually switch to new page with a loading spinner?
+                                            void navigate(destination.path);
+                                            break;
+                                        }
+                                        case "Action": {
+                                            destination.onSelect({
+                                                spaceId: space.id,
+                                                navigate,
+                                                showToast,
+                                            });
+                                            break;
+                                        }
+                                        default:
+                                            throw exhaustive(destination);
+                                    }
                                 }}
                             />
                         ),
                     };
                 },
-                [navigate, results, selectedPeek?.extra.entityId, space.id, switchPeek],
+                [navigate, results, selectedPeek?.extra.resultId, showToast, space.id, switchPeek],
             )}
         />
     );
 }
 
-function getSearchEntityIdPath(
-    spaceId: SpaceId,
-    entityId: SearchEntityIdOrSearchAffinityId,
-): string {
-    if (entityId === "TaskNotepad") {
-        return `/s/${spaceId}/tasks`;
-    }
+type SearchResultDestination =
+    | {
+          readonly type: "Path";
+          readonly path: string;
+      }
+    | {
+          readonly type: "Action";
+          readonly onSelect: (props: {
+              spaceId: SpaceId;
+              navigate: (to: To) => Promise<void>;
+              showToast: (toast: Toast) => void;
+          }) => void;
+      };
 
-    const entityIdObject = parseSearchEntityId(entityId);
-    return actuallyGetSearchEntityIdPath(spaceId, entityIdObject);
+function getSearchResultDestination(
+    spaceId: SpaceId,
+    resultId: SearchResultId,
+): SearchResultDestination {
+    switch (resultId) {
+        case "CreateChat":
+        case "CreateChatMessage": {
+            return {
+                type: "Path",
+                path: `/s/${spaceId}/chat/new`,
+            };
+        }
+        case "CreatePost": {
+            return {
+                type: "Action",
+                onSelect: ({showToast}) => {
+                    showToast({
+                        type: "Error",
+                        title: "Can’t find a channel to post in",
+                        error: new UnimplementedError(
+                            "Channel explorer hasn’t been implemented yet",
+                            {
+                                displayMessage: errorDisplayMessage`Channel explorer hasn’t been implemented yet.`,
+                            },
+                        ),
+                    });
+                },
+            };
+        }
+        case "CreateChannel": {
+            return {
+                type: "Action",
+                onSelect: ({showToast}) => {
+                    showToast({
+                        type: "Error",
+                        title: "Couldn’t create channel",
+                        error: new UnimplementedError(
+                            "Channel creation hasn’t been implemented yet",
+                            {
+                                displayMessage: errorDisplayMessage`Channel creation hasn’t been implemented yet.`,
+                            },
+                        ),
+                    });
+                },
+            };
+        }
+        case "CreateDocument": {
+            return {
+                type: "Action",
+                onSelect: ({spaceId, navigate}) => {
+                    const documentId = generateId();
+
+                    // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+                    // Eventually switch to new page with a loading spinner?
+                    void navigate(`/s/${spaceId}/documents/${documentId}?create`);
+                },
+            };
+        }
+        case "CreateTaskCollection": {
+            return {
+                type: "Action",
+                onSelect: ({spaceId, navigate}) => {
+                    const collectionId = generateId();
+
+                    // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+                    // Eventually switch to new page with a loading spinner?
+                    void navigate(`/s/${spaceId}/tasks/collections/${collectionId}?create`);
+                },
+            };
+        }
+        case "CreateTaskView": {
+            return {
+                type: "Path",
+                path: `/s/${spaceId}/tasks/view`,
+            };
+        }
+        case "CreateTask":
+        case "TaskNotepad": {
+            return {
+                type: "Path",
+                path: `/s/${spaceId}/tasks`,
+            };
+        }
+        case "TaskQueryFilteredToCreatorIsCurrentAccount": {
+            const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
+                    },
+                },
+            ]);
+
+            const sortsSearchParam = serializeTaskQuerySortsSearchParam([
+                {
+                    type: "CreatedTime",
+                    direction: "Descending",
+                },
+            ]);
+
+            return {
+                type: "Path",
+                path: `/s/${spaceId}/tasks/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
+            };
+        }
+        case "TaskQueryFilteredToAssigneeIsCurrentAccount": {
+            const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
+                    },
+                },
+            ]);
+
+            const sortsSearchParam = serializeTaskQuerySortsSearchParam([
+                {
+                    type: "CreatedTime",
+                    direction: "Descending",
+                },
+            ]);
+
+            return {
+                type: "Path",
+                path: `/s/${spaceId}/tasks/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
+            };
+        }
+        case "TaskQueryFilteredToAssignerIsCurrentAccount": {
+            const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
+                    },
+                },
+                {
+                    type: "Assigner",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
+                    },
+                },
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "NoneOf",
+                        accounts: [{type: "CurrentAccount"}],
+                    },
+                },
+            ]);
+
+            const sortsSearchParam = serializeTaskQuerySortsSearchParam([
+                {
+                    type: "CreatedTime",
+                    direction: "Descending",
+                },
+            ]);
+
+            return {
+                type: "Path",
+                path: `/s/${spaceId}/tasks/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
+            };
+        }
+        default: {
+            const entityIdObject = parseSearchEntityId(resultId);
+            return {
+                type: "Path",
+                path: getSearchEntityPath(spaceId, entityIdObject),
+            };
+        }
+    }
 }
 
-function actuallyGetSearchEntityIdPath(spaceId: SpaceId, entityId: SearchEntityIdObject): string {
+function getSearchEntityPath(spaceId: SpaceId, entityId: SearchEntityIdObject): string {
     switch (entityId.type) {
         case "Account": {
             // NOTE(calebmer): Eventually I'd like to have a profile page for accounts.
@@ -659,29 +897,34 @@ function actuallyGetSearchEntityIdPath(spaceId: SpaceId, entityId: SearchEntityI
 }
 
 function SearchModalPeekContent({
-    peek,
+    peekId,
+    peekContent,
     onClose,
     pushPeekStack,
     switchPeek,
 }: {
-    peek: PeekSwitcherStatePeek<{entityId: SearchEntityIdOrSearchAffinityId}>;
+    peekId: PeekId;
+    peekContent: PeekSwitcherStatePeekContent;
     onClose: () => void;
     pushPeekStack: (to: To, options?: {focus?: boolean}) => Promise<void>;
     switchPeek: Memo<
         (
             peekData: {
-                spacePath: string;
-                extra: {entityId: SearchEntityIdOrSearchAffinityId};
+                spacePath: string | null;
+                extra: {
+                    resultId: SearchResultId;
+                    destination: SearchResultDestination;
+                };
             } | null,
         ) => Promise<void>
     >;
 }) {
     const navigate = useNavigate();
-    const routerResult = usePromise(peek.routerPromise);
+    const routerResult = usePromise(peekContent.routerPromise);
 
     const [historyPosition, setHistoryPosition] = useState(() => ({
-        index: peek.history.index,
-        entriesLength: peek.history.entries.length,
+        index: peekContent.history.index,
+        entriesLength: peekContent.history.entries.length,
     }));
 
     useEffect(() => {
@@ -690,8 +933,8 @@ function SearchModalPeekContent({
         const update = () => {
             setHistoryPosition(historyPosition => {
                 const newHistoryPosition = {
-                    index: peek.history.index,
-                    entriesLength: peek.history.entries.length,
+                    index: peekContent.history.index,
+                    entriesLength: peekContent.history.entries.length,
                 };
                 return !isDeepEqual(historyPosition, newHistoryPosition)
                     ? newHistoryPosition
@@ -702,7 +945,7 @@ function SearchModalPeekContent({
         update();
 
         return routerResult.value.subscribe(update);
-    }, [peek.history, routerResult.isPending, routerResult.value]);
+    }, [peekContent.history, routerResult.isPending, routerResult.value]);
 
     return (
         <Box
@@ -744,7 +987,7 @@ function SearchModalPeekContent({
                             description="Go back"
                             tooltipPlacement="top"
                             isDisabled={!(historyPosition.index > 0)}
-                            onPress={() => peek.history.go(-1)}
+                            onPress={() => peekContent.history.go(-1)}
                         >
                             <ArrowLeft />
                         </IconButton>
@@ -755,7 +998,7 @@ function SearchModalPeekContent({
                             isDisabled={
                                 !(historyPosition.index < historyPosition.entriesLength - 1)
                             }
-                            onPress={() => peek.history.go(1)}
+                            onPress={() => peekContent.history.go(1)}
                         >
                             <ArrowRight />
                         </IconButton>
@@ -779,7 +1022,9 @@ function SearchModalPeekContent({
                             tooltipContentOverride="Shift-click to open preview"
                             pressErrorTitle="Couldn’t expand"
                             onPress={async event => {
-                                const spacePath = convertPeekPathToSpacePath(peek.history.location);
+                                const spacePath = convertPeekPathToSpacePath(
+                                    peekContent.history.location,
+                                );
                                 if (!spacePath)
                                     throw new InternalError("Can only expand peek routes");
 
@@ -819,7 +1064,7 @@ function SearchModalPeekContent({
             )}
             {!routerResult.isPending ? (
                 <PeekRemixEmbed
-                    peekId={peek.id}
+                    peekId={peekId}
                     withMobileLayout={true}
                     // Don't record view interactions when looking at a search entity in the search
                     // modal. The user is discovering an entity to open so may have pretty low

@@ -26,6 +26,7 @@ import {useInboxState} from "~/client/inbox/use_inbox_state.js";
 import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
 import {
     PeekSwitcherStatePeek,
+    PeekSwitcherStatePeekContent,
     usePeekSwitcherState,
 } from "~/client/peek/use_peek_switcher_state.js";
 import {
@@ -41,6 +42,7 @@ import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_st
 import {createInterval} from "~/shared/helpers/async/interval.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {PeekId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
@@ -106,8 +108,8 @@ export function InboxView({
     // This will happen when we server-side render a peek who's item is not
     // included in the initial set of inbox entries.
     useEffect(() => {
-        if (activePeek && !activePeek.extra.key) {
-            const key = findItemKeyForSpacePathIfExists(activePeek.initialSpacePath);
+        if (activePeek && !activePeek.extra.key && activePeek.content) {
+            const key = findItemKeyForSpacePathIfExists(activePeek.content.initialSpacePath);
 
             if (key) {
                 activePeek.setExtra({key});
@@ -288,12 +290,13 @@ export function InboxView({
                 {useMemo(
                     () => (
                         <Box flexGrow="1" overflow="hidden">
-                            {activePeek && (
+                            {activePeek && activePeek.content && (
                                 <InboxViewPeekContent
                                     // Fully remount whenever the peek changes...
                                     key={activePeek.id}
                                     filter={filter}
-                                    peek={activePeek}
+                                    peekId={activePeek.id}
+                                    peekContent={activePeek.content}
                                     entry={activeEntry?.item ?? null}
                                     deleteEntryOptimistically={deleteEntryOptimistically}
                                 />
@@ -680,12 +683,14 @@ function InboxViewEntries({
 
 function InboxViewPeekContent({
     filter,
-    peek,
+    peekId,
+    peekContent,
     entry,
     deleteEntryOptimistically,
 }: {
     filter: "New" | "Archive";
-    peek: PeekSwitcherStatePeek<{key: DynamoItemKey | null}>;
+    peekId: PeekId;
+    peekContent: PeekSwitcherStatePeekContent;
     entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     deleteEntryOptimistically: Memo<
         ({
@@ -699,7 +704,7 @@ function InboxViewPeekContent({
         }) => void
     >;
 }) {
-    const routerResult = usePromise(peek.routerPromise);
+    const routerResult = usePromise(peekContent.routerPromise);
 
     const onCreateMessageOptimistically = useEvent((promise: Promise<unknown>) => {
         // We may not have an entry if the path in the URL is no longer in the inbox
@@ -741,7 +746,7 @@ function InboxViewPeekContent({
                     onCreateMessageOptimistically={onCreateMessageOptimistically}
                 >
                     <PeekRemixEmbed
-                        peekId={peek.id}
+                        peekId={peekId}
                         withMobileLayout={false}
                         router={routerResult.value}
                     />

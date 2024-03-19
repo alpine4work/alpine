@@ -1,8 +1,23 @@
-type SearchCommandId =
+import _Fuse from "fuse.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+
+// Node.js ESM interop (#node-esm-migration)
+const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
+
+/**
+ * Search commands are consistent across all Alpine spaces. They're used for
+ * quick navigation to some action or page.
+ *
+ * Some search commands accumulate affinity points. For example, `TaskNotepad`
+ * exists both in `SearchCommandId` and `SearchAffinityId` because the task
+ * notepad accumulates affinity points when you view it or add tasks to it.
+ */
+export type SearchCommandId =
     | "CreateChat"
     | "CreateChatMessage"
     | "CreatePost"
     | "CreateChannel"
+    | "CreateDocument"
     | "CreateTask"
     | "CreateTaskCollection"
     | "CreateTaskView"
@@ -11,44 +26,93 @@ type SearchCommandId =
     | "TaskQueryFilteredToAssigneeIsCurrentAccount"
     | "TaskQueryFilteredToAssignerIsCurrentAccount";
 
-const x = [
-    {
+type SearchCommand = {
+    readonly title: string;
+    readonly otherHitTexts?: ReadonlyArray<string>;
+};
+
+const searchCommandById: {
+    [Key in SearchCommandId]: SearchCommand;
+} = {
+    CreateChat: {
         title: "Create chat",
     },
-    {
+    CreateChatMessage: {
         title: "Send chat message",
-        otherHits: ["send message", "create chat message"],
+        otherHitTexts: ["send message", "create chat message"],
     },
-    {
+    CreatePost: {
         title: "Create post",
     },
-    {
+    CreateChannel: {
         title: "Create channel",
     },
-    {
+    CreateDocument: {
         title: "Create document",
     },
-    {
+    CreateTask: {
         title: "Create task",
     },
-    {
+    CreateTaskCollection: {
         title: "Create task collection",
+        otherHitTexts: ["create collection"],
     },
-    {
+    CreateTaskView: {
         title: "Create task view",
+        otherHitTexts: ["all tasks", "create view", "task views"],
     },
-    {
+    TaskNotepad: {
         title: "Task notepad",
-        otherHits: ["my tasks"],
+        otherHitTexts: ["my tasks"],
     },
-    {
+    TaskQueryFilteredToCreatorIsCurrentAccount: {
         title: "Tasks I’ve created",
-        otherHits: ["my tasks", "tasks by me", "tasks created by me"],
+        otherHitTexts: [
+            "all tasks",
+            "my tasks",
+            "tasks by me",
+            "tasks created by me",
+            "task views",
+        ],
     },
-    {
+    TaskQueryFilteredToAssigneeIsCurrentAccount: {
         title: "Tasks assigned to me",
+        otherHitTexts: ["assigned tasks", "task views"],
     },
-    {
+    TaskQueryFilteredToAssignerIsCurrentAccount: {
         title: "Tasks I’ve assigned to others",
+        otherHitTexts: ["assigned tasks", "task views"],
     },
-];
+};
+
+/**
+ * A lazy Fuse.js index for search commands. Used by our search implementation
+ * to allow the user to take actions from the search modal.
+ */
+export const searchCommandIndex = new Lazy(() => {
+    const commands: Array<{text: string; commandId: SearchCommandId; command: SearchCommand}> = [];
+
+    for (const [commandId, command] of Object.entries(searchCommandById)) {
+        commands.push({
+            text: command.title,
+            commandId: commandId as SearchCommandId,
+            command,
+        });
+
+        for (const otherHitText of command.otherHitTexts ?? []) {
+            commands.push({
+                text: otherHitText,
+                commandId: commandId as SearchCommandId,
+                command,
+            });
+        }
+    }
+
+    return new Fuse(commands, {
+        includeScore: true,
+        // Must match more characters than "Create". Otherwise the user would see all
+        // the create commands when typing "Create" all at once.
+        minMatchCharLength: "Create".length + 1,
+        keys: [{name: "text"}],
+    });
+});

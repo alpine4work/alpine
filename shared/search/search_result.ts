@@ -2,7 +2,13 @@ import {AccountModel} from "~/shared/accounts/account_model.js";
 import {themeColors} from "~/shared/design/theme_colors.js";
 import {OpensearchSearchHitExplanationSchema} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {SearchEntityIdOrSearchAffinityIdSchema} from "~/shared/search/search_affinity_id.js";
+import {SearchAffinityId} from "~/shared/search/search_affinity_id.js";
+import {SearchCommandId} from "~/shared/search/search_commands.js";
+import {SearchEntityId} from "~/shared/search/search_entity_id.js";
+
+export type SearchResultId = SearchEntityId | SearchAffinityId | SearchCommandId;
+
+export const SearchResultIdSchema = Schema.string as Schema<SearchResultId>;
 
 /**
  * A search result object representing one of many different kinds of content
@@ -35,7 +41,7 @@ export const SearchResultMediaSchema = Schema.union({
 });
 
 export const SearchResultSchema = Schema.object({
-    entityId: SearchEntityIdOrSearchAffinityIdSchema,
+    id: SearchResultIdSchema.originalPropertyKey("entityId"),
     score: Schema.float,
     title: Schema.string.nullable(),
     bodyTextSnippet: Schema.array(

@@ -32,7 +32,14 @@ export function markSearchAffinityLowIntentUpdateInteraction(
     context: AppContext,
     spaceId: SpaceId,
     affinityId: SearchAffinityId,
-    {isVeryLow = false}: {isVeryLow?: boolean} = {},
+    {
+        isVeryLow = false,
+    }: {
+        // TODO(calebmer): Mixing very low intent updates with regular low intent
+        // updates isn't supported right now. Ideally one regular low intent update
+        // makes the entire thing low intent (vs very low intent).
+        isVeryLow?: boolean;
+    } = {},
 ) {
     const currentTime = Date.now();
 

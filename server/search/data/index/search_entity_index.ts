@@ -45,7 +45,7 @@ import {
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {SearchEntityIndexSystemActionContext} from "~/server/search/data/index/search_entity_index_system_action_context.js";
-import {internalGetAffinitiveSearchEntityIds} from "~/server/search/data/table/search_entity_table.js";
+import {internalGetSearchAffinitiveIds} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
     getAccount,
@@ -1200,7 +1200,7 @@ export async function searchByKeywords(
             }
 
             return {
-                entityId: hit.id,
+                id: hit.id,
                 score: hit.score,
                 title: hit.fields.title?.[0] ?? null,
                 bodyTextSnippet,
@@ -1507,7 +1507,7 @@ export async function searchBySemantics(
                 : null;
 
             return {
-                entityId: hit.id,
+                id: hit.id,
                 score,
                 title: hit.fields.title?.[0] ?? null,
                 bodyTextSnippet,
@@ -1632,12 +1632,12 @@ export async function searchByAffinity(
 ): Promise<{results: Array<SearchResult>}> {
     const currentTime = new Date();
 
-    const entityIds = await internalGetAffinitiveSearchEntityIds(context, {spaceId, limit});
+    const affinityIds = await internalGetSearchAffinitiveIds(context, {spaceId, limit});
 
     const entitiesTitleAndMedia = await getSearchEntitiesTitleAndMediaIfExist(context, {
         spaceId,
-        entityIds: filterMapArray(entityIds, ({entityId}): SearchEntityId | null =>
-            entityId !== "TaskNotepad" ? entityId : null,
+        entityIds: filterMapArray(affinityIds, ({affinityId}): SearchEntityId | null =>
+            affinityId !== "TaskNotepad" ? affinityId : null,
         ),
     });
 
@@ -1649,8 +1649,8 @@ export async function searchByAffinity(
 
     const results = await runAllPromises(
         filterMapArray(
-            entityIds,
-            ({entityId, points, lastViewedTime}): MaybePromise<SearchResult> | null => {
+            affinityIds,
+            ({affinityId, points, lastViewedTime}): MaybePromise<SearchResult> | null => {
                 const bodyTextSnippet = [
                     {
                         isHighlighted: false,
@@ -1664,9 +1664,9 @@ export async function searchByAffinity(
                     },
                 ];
 
-                if (entityId === "TaskNotepad") {
+                if (affinityId === "TaskNotepad") {
                     return {
-                        entityId,
+                        id: affinityId,
                         score: points,
                         title: "Task notepad",
                         bodyTextSnippet,
@@ -1674,7 +1674,7 @@ export async function searchByAffinity(
                     };
                 }
 
-                const entityTitleAndMedia = entityTitleAndMediaById.get(entityId);
+                const entityTitleAndMedia = entityTitleAndMediaById.get(affinityId);
                 if (!entityTitleAndMedia) return null;
 
                 return Promise.resolve(
@@ -1682,12 +1682,12 @@ export async function searchByAffinity(
                         ? prepareSearchEntityMediaForResult(
                               context,
                               spaceId,
-                              entityId,
+                              affinityId,
                               entityTitleAndMedia.media,
                           )
                         : null,
                 ).then(media => ({
-                    entityId,
+                    id: affinityId,
                     score: points,
                     title: entityTitleAndMedia.title,
                     bodyTextSnippet,

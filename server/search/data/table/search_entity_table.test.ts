@@ -3,7 +3,7 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     accountAffinitiveSearchEntitiesQueryPageLimit,
-    internalGetAffinitiveSearchEntityIds as getAffinitiveSearchEntityIds,
+    internalGetSearchAffinitiveIds as getAffinitiveSearchEntityIds,
     getAffinitiveSearchEntityIdsEarlyReturnTestCounter,
     getCurrentSearchEntityAccountAffinityPoints,
     getSearchEntityAccountAffinityExpirationDuration,

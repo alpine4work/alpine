@@ -296,12 +296,12 @@ export const getAffinitiveSearchEntityIdsEarlyReturnTestCounter = new TestCounte
  * thanks! (Though ChatGPT did warn me that affinitive is an uncommon word
  * people may not be familiar with.)
  */
-export async function internalGetAffinitiveSearchEntityIds(
+export async function internalGetSearchAffinitiveIds(
     context: ServerSessionActionContext,
     {spaceId, limit}: {spaceId: SpaceId; limit: number},
 ): Promise<
     Array<{
-        entityId: SearchAffinityId;
+        affinityId: SearchAffinityId;
         points: number;
         lastViewedTime: Date | null;
     }>
@@ -313,7 +313,7 @@ export async function internalGetAffinitiveSearchEntityIds(
     let lastIterationPointsBucket: number | null = null;
 
     const candidateItems: Array<{
-        entityId: SearchAffinityId;
+        affinityId: SearchAffinityId;
         points: number;
         pointsBucket: number;
         lastViewedTime: Date | null;
@@ -354,7 +354,7 @@ export async function internalGetAffinitiveSearchEntityIds(
         const currentPointsBucket = getSearchAffinityPointsBucket(currentPoints);
 
         candidateItems.push({
-            entityId: item.entityId,
+            affinityId: item.entityId,
             points: currentPoints,
             pointsBucket: currentPointsBucket,
             lastViewedTime: item.lastViewedTime,

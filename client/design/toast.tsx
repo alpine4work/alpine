@@ -148,7 +148,7 @@ function reduce(state: ToastState, action: ToastAction): ToastState {
     }
 }
 
-const ToastContext = createContext<((toast: Toast) => void) | null>(null);
+const ToastContext = createContext<Memo<(toast: Toast) => void> | null>(null);
 
 // TODO(calebmer): How does this work on mobile? We should maybe abstract this
 // a bit so code is not saying "show toast" but rather "show alert" with some

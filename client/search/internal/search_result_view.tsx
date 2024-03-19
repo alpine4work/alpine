@@ -1,4 +1,14 @@
 import escapeHtml from "escape-html";
+import {
+    ChatsCircle,
+    EnvelopeOpen,
+    FileText,
+    Funnel,
+    Hash,
+    IconContext,
+    ListChecks,
+    Table,
+} from "phosphor-react";
 import {Fragment, ReactNode, useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
@@ -12,7 +22,7 @@ import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
-import {SearchResult, SearchResultMedia} from "~/shared/search/search_result.js";
+import {SearchResult, SearchResultId, SearchResultMedia} from "~/shared/search/search_result.js";
 import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {
     backgroundColorVar,
@@ -51,11 +61,23 @@ const minSearchBodyTextSnippetHeightWithTitle: RemLength = `${
     minSearchBodyTextSnippetLineCountWithTitle
 }rem`;
 
-const minSearchResultViewHeightWithoutPaddingY = addRemLengths(
-    fontSizes[searchTypeDisplayNameFontSize].lineHeight,
-    spacing[searchTypeDisplayMarginBottom],
-    minSearchBodyTextSnippetHeight,
-);
+const minSearchResultViewHeightWithoutPaddingY: RemLength = `${Math.min(
+    parseRemLengthNumber(
+        addRemLengths(
+            fontSizes[searchTypeDisplayNameFontSize].lineHeight,
+            spacing[searchTypeDisplayMarginBottom],
+            fontSizes[searchTitleFontSize].lineHeight,
+            minSearchBodyTextSnippetHeightWithTitle,
+        ),
+    ),
+    parseRemLengthNumber(
+        addRemLengths(
+            fontSizes[searchTypeDisplayNameFontSize].lineHeight,
+            spacing[searchTypeDisplayMarginBottom],
+            minSearchBodyTextSnippetHeight,
+        ),
+    ),
+)}rem`;
 
 export const minSearchResultViewHeight = addRemLengths(
     spacing[paddingY],
@@ -78,17 +100,7 @@ export function SearchResultView({
     onPressStart: () => void;
     onDoubleClick: () => void;
 }) {
-    const typeDisplay = useMemo(() => {
-        if (result.entityId === "TaskNotepad") {
-            // We label the task notepad as a task "collection" since it is a collection of
-            // tasks. We need some label and ideally it's not "Task notepad" since that's
-            // the same as the title.
-            return getSearchEntityTypeDisplay("TaskCollection");
-        }
-
-        const entityIdObject = parseSearchEntityId(result.entityId);
-        return getSearchEntityTypeDisplay(entityIdObject.type);
-    }, [result.entityId]);
+    const typeDisplay = useMemo(() => getSearchResultTypeDisplay(result.id), [result.id]);
 
     return (
         <Box
@@ -145,7 +157,39 @@ export function SearchResultView({
                     }}
                 >
                     <Box display="flex" gap="3" alignItems="center">
-                        {result.media && <SearchResultMediaView media={result.media} />}
+                        {result.media ? (
+                            <SearchResultMediaView media={result.media} />
+                        ) : typeDisplay.iconMedia ? (
+                            <Box
+                                flexShrink="0"
+                                position="relative"
+                                width={searchResultMediaViewSize}
+                                height={searchResultMediaViewSize}
+                                display="flex"
+                                alignItems="center"
+                                justifyContent="center"
+                            >
+                                <Box
+                                    width="9"
+                                    height="9"
+                                    borderRadius="full"
+                                    border={isSelected ? "grey-10" : "grey-5"}
+                                    color="grey-70"
+                                    display="flex"
+                                    justifyContent="center"
+                                    alignItems="center"
+                                >
+                                    <IconContext.Provider
+                                        value={{
+                                            size: spacing["5"],
+                                            color: "currentColor",
+                                        }}
+                                    >
+                                        {typeDisplay.iconMedia}
+                                    </IconContext.Provider>
+                                </Box>
+                            </Box>
+                        ) : null}
                         <Box
                             flexGrow="1"
                             overflow="hidden"
@@ -166,7 +210,11 @@ export function SearchResultView({
                                     overflow="hidden"
                                     fontSize={searchTitleFontSize}
                                     fontStyle="semi-bold"
-                                    paddingBottom={searchTitleMarginBottom}
+                                    paddingBottom={
+                                        result.bodyTextSnippet.length > 0
+                                            ? searchTitleMarginBottom
+                                            : undefined
+                                    }
                                     style={{
                                         minHeight: fontSizes[searchTitleFontSize].lineHeight,
                                         // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
@@ -268,31 +316,95 @@ export function SearchResultView({
 }
 
 /**
- * Configures how we display entities of this type in `<SearchResultView>`.
+ * Configures how we display results of various types in `<SearchResultView>`.
  *
  * - `name`: The name we present this search entity with.
- * - `icon`: An icon we use to represent the search entity alongside the name.
  * - `isAccountMediaAuthor`: If the `SearchResult` object has a `media` object
  *   with type `Account` then consider this account as the author of the search
  *   entity. Visually we end up putting the author name next to the search
  *   result body snippet to communicate authorship.
  */
-function getSearchEntityTypeDisplay(type: SearchEntityIdObject["type"]): {
+type SearchResultTypeDisplay = {
     name: string;
-    isAccountMediaAuthor: boolean;
-} {
-    switch (type) {
-        case "Account": {
+    isAccountMediaAuthor?: boolean;
+    iconMedia?: ReactNode;
+};
+
+// NOTE(calebmer): The icons used here for create actions are the same icons
+// used in `<SpaceLayoutSideBarCreateButton/>`. If you change an icon here you
+// should also change it there.
+function getSearchResultTypeDisplay(resultId: SearchResultId): SearchResultTypeDisplay {
+    switch (resultId) {
+        case "CreateChat":
+        case "CreateChatMessage": {
             return {
-                name: "Person",
-                isAccountMediaAuthor: false,
+                name: "Action",
+                iconMedia: <ChatsCircle />,
             };
         }
-        case "Document": {
+        case "CreatePost": {
             return {
-                name: "Document",
-                isAccountMediaAuthor: false,
+                name: "Action",
+                iconMedia: <EnvelopeOpen />,
             };
+        }
+        case "CreateDocument": {
+            return {
+                name: "Action",
+                iconMedia: <FileText />,
+            };
+        }
+        case "CreateTask": {
+            return {
+                name: "Action",
+                iconMedia: <ListChecks />,
+            };
+        }
+        case "CreateChannel": {
+            return {
+                name: "Action",
+                iconMedia: <Hash />,
+            };
+        }
+        case "CreateTaskCollection": {
+            return {
+                name: "Action",
+                iconMedia: <Table />,
+            };
+        }
+        case "CreateTaskView": {
+            return {
+                name: "Action",
+                iconMedia: <Funnel />,
+            };
+        }
+        case "TaskNotepad": {
+            // We label the task notepad as a task "collection" since it is a collection of
+            // tasks. We need some label and ideally it's not "Task notepad" since that's
+            // the same as the title.
+            return getSearchResultTypeDisplayForEntity("TaskCollection");
+        }
+        case "TaskQueryFilteredToCreatorIsCurrentAccount":
+        case "TaskQueryFilteredToAssigneeIsCurrentAccount":
+        case "TaskQueryFilteredToAssignerIsCurrentAccount": {
+            return {name: "Task view"};
+        }
+        default: {
+            const entityIdObject = parseSearchEntityId(resultId);
+            return getSearchResultTypeDisplayForEntity(entityIdObject.type);
+        }
+    }
+}
+
+function getSearchResultTypeDisplayForEntity(
+    type: SearchEntityIdObject["type"],
+): SearchResultTypeDisplay {
+    switch (type) {
+        case "Account": {
+            return {name: "Person"};
+        }
+        case "Document": {
+            return {name: "Document"};
         }
         case "DocumentComment": {
             return {
@@ -301,10 +413,7 @@ function getSearchEntityTypeDisplay(type: SearchEntityIdObject["type"]): {
             };
         }
         case "Channel": {
-            return {
-                name: "Channel",
-                isAccountMediaAuthor: false,
-            };
+            return {name: "Channel"};
         }
         case "Post": {
             return {
@@ -319,10 +428,7 @@ function getSearchEntityTypeDisplay(type: SearchEntityIdObject["type"]): {
             };
         }
         case "Chat": {
-            return {
-                name: "Chat",
-                isAccountMediaAuthor: false,
-            };
+            return {name: "Chat"};
         }
         case "ChatMessage": {
             return {
@@ -331,21 +437,17 @@ function getSearchEntityTypeDisplay(type: SearchEntityIdObject["type"]): {
             };
         }
         case "Task": {
-            return {
-                name: "Task",
-                isAccountMediaAuthor: false,
-            };
+            return {name: "Task"};
         }
         case "TaskCollection": {
-            return {
-                name: "Task collection",
-                isAccountMediaAuthor: false,
-            };
+            return {name: "Task collection"};
         }
         default:
             throw exhaustive(type);
     }
 }
+
+const searchResultMediaViewSize = "9";
 
 function SearchResultMediaView({media}: {media: SearchResultMedia}) {
     let node: ReactNode;
@@ -395,8 +497,8 @@ function SearchResultMediaView({media}: {media: SearchResultMedia}) {
         <Box
             flexShrink="0"
             position="relative"
-            width="9"
-            height="9"
+            width={searchResultMediaViewSize}
+            height={searchResultMediaViewSize}
             display="flex"
             alignItems="center"
             justifyContent="center"

@@ -24,6 +24,9 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {generateId} from "~/shared/id/id.js";
 import {spinAnimationClassName} from "~/shared/styles/styles.js";
 
+// NOTE(calebmer): The icons used here for create actions are the same icons
+// used in `<SearchResultView/>`'s `getSearchResultTypeDisplay()`. If you
+// change an icon here you should also change it there.
 export function SpaceLayoutSideBarCreateButton() {
     const {space} = useSpaceContext();
     const showToast = useShowToast();
