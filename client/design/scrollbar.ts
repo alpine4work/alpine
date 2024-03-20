@@ -1,4 +1,4 @@
-import {RefCallback, useCallback} from "react";
+import {Memo, RefCallback, useCallback} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
@@ -44,7 +44,7 @@ export type ScrollbarInset = RemLength | number;
 
 export type ScrollbarInsetDynamic =
     | ScrollbarInset
-    | readonly [ScrollbarInset, {readonly withSafeArea?: boolean}];
+    | Memo<readonly [ScrollbarInset, {readonly withSafeArea?: boolean}]>;
 
 /**
  * Duration after scrolling before the scrollbar disappears. We also use this to
@@ -1064,6 +1064,9 @@ export function initializeScrollbar(
     });
 
     return () => {
+        visibleAfterScrollTimeout?.clear();
+        visibleAfterScrollTimeout = null;
+
         /* ========================================================================== *\
          *                     Disconnect from scrollable element                     *
         \* ========================================================================== */

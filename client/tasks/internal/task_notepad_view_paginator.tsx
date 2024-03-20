@@ -6,6 +6,7 @@ import {Button} from "~/client/design/button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {usePrettyAbsoluteDateFormatter} from "~/client/design/pretty_absolute_date.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
@@ -27,6 +28,8 @@ export function TaskNotepadViewPaginator({
     onNotepadPageIdCreate: (notepadPageId: TaskNotepadPageId) => Promise<void>;
     onNotepadPageIdSelect: (notepadPageId: TaskNotepadPageId) => Promise<void>;
 }) {
+    const isMobile = useIsMobile();
+
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     onNotepadPageIdSelect = useEvent(onNotepadPageIdSelect);
 
@@ -48,9 +51,16 @@ export function TaskNotepadViewPaginator({
     });
 
     return (
-        <Box display="flex" alignItems="center" gap="3">
+        <Box
+            flexGrow={isMobile ? "1" : undefined}
+            display="flex"
+            flexDirection={isMobile ? "row-reverse" : "row"}
+            justifyContent={isMobile ? "space-between" : undefined}
+            alignItems="center"
+            gap="3"
+        >
             <Button
-                variant="neutral"
+                variant={isMobile ? "quieter" : "neutral"}
                 icon={<Plus />}
                 height="6"
                 paddingX="2"

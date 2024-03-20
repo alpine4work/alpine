@@ -1,7 +1,11 @@
 import {useDndContext} from "@dnd-kit/core";
 import {Memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
+import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
+import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
@@ -10,6 +14,7 @@ import {TaskNotepadViewPaginator} from "~/client/tasks/internal/task_notepad_vie
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {
     TaskGridViewVirtualizedListViewRef,
+    taskGridViewColumnHeaderHeight,
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
@@ -26,7 +31,7 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {RemLength, Spacing, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -45,8 +50,13 @@ import {
 
 export {taskNotepadAssigneeActiveLoadLimit} from "~/client/tasks/internal/task_notepad_view_active_section.js";
 
+const safeAreaOnlyScrollbarInsetTop: ScrollbarInsetDynamic = markMemoIfNotRendering([
+    0,
+    {withSafeArea: true},
+]);
+
 export function TaskNotepadView({
-    withMobileLayout,
+    withMobileLayout: withMobileLayoutProp,
     store,
     assigneeActiveQuery,
     affinityManager,
@@ -68,7 +78,11 @@ export function TaskNotepadView({
     allNotepadPageIds: TaskNotepadPageIdCompressedSet;
     onActiveNotepadPageIdChange: (notepadPageId: TaskNotepadPageId) => void;
 }) {
+    const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
+
+    const withMobileLayout = isMobile || withMobileLayoutProp;
+    const paddingX: Spacing = isMobile ? "4" : "5";
 
     // Retain `assigneeActiveQuery`. We can't retain it in
     // `<TaskNotepadViewActiveSection>` since that component may be scrolled
@@ -252,8 +266,6 @@ export function TaskNotepadView({
         [shiftRenderedRangeForGridView],
     );
 
-    const gridViewColumnHeaderControlsHeight = withMobileLayout ? "2.75rem" : "3rem";
-
     const gridViewCapabilities: Memo<TaskGridViewCapabilities> = useMemo(() => {
         if (!withMobileLayout) {
             return {
@@ -325,82 +337,92 @@ export function TaskNotepadView({
                 },
             },
         ],
-        withColumnHeaderBorderTop: !withMobileLayout,
         columnHeaderControls: useMemo(() => {
+            // We don't have sticky column header controls when rendering on mobile
+            // devices. Instead we render a navigation bar.
+            if (isMobile) return;
+
+            let height: RemLength =
+                spacing[isMobile ? navigationBarHeight.mobile : navigationBarHeight.desktop];
+
+            if (gridViewCapabilities.hasColumns) {
+                height = subtractRemLengths(height, spacing[taskGridViewColumnHeaderHeight]);
+            }
+
             return {
-                minHeight: gridViewColumnHeaderControlsHeight,
+                minHeight: height,
                 node: (
                     <Box
-                        paddingTop="2.5"
+                        paddingX={paddingX}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="space-between"
                         style={{
-                            height: gridViewColumnHeaderControlsHeight,
-                            // Make sure `paddingBottom` is the same as `paddingTop` when in a mobile
-                            // layout when we don't have column headers.
-                            paddingBottom: withMobileLayout
-                                ? spacing["2.5"]
-                                : addRemLengths(spacing["3"], spacing["0.5"]),
+                            height: `calc(${height} + var(--safe-area-inset-top, 0px))`,
+                            paddingTop: "var(--safe-area-inset-top, 0px)",
                         }}
                     >
-                        <Box
-                            paddingX="5"
-                            height="6"
-                            display="flex"
-                            alignItems="center"
-                            justifyContent="space-between"
-                        >
-                            <Box fontSize="100" fontStyle="semi-bold">
-                                Notepad
-                            </Box>
-                            <TaskNotepadViewPaginator
-                                store={store}
-                                allNotepadPageIds={allNotepadPageIds}
-                                notepadPageId={notepadPageState.notepadPageId}
-                                onNotepadPageIdCreate={notepadPageId => {
-                                    const promiseResolver = createPromiseResolver();
-
-                                    setNewNotepadPageIds(newNotepadPageIds => [
-                                        ...newNotepadPageIds,
-                                        notepadPageId,
-                                    ]);
-
-                                    setNotepadPageState({
-                                        notepadPageId,
-                                        // After creating a new notepad page, immediately initialize our client query
-                                        // to an empty query so we don't have to wait for it to load.
-                                        shouldImmediatelyInitializeEmptyQueryRef: {current: true},
-                                        promiseResolver,
-                                    });
-
-                                    return promiseResolver.promise;
-                                }}
-                                onNotepadPageIdSelect={notepadPageId => {
-                                    const promiseResolver = createPromiseResolver();
-
-                                    setNotepadPageState({
-                                        notepadPageId,
-                                        shouldImmediatelyInitializeEmptyQueryRef: {current: false},
-                                        promiseResolver,
-                                    });
-
-                                    return promiseResolver.promise;
-                                }}
-                            />
+                        <Box fontSize="200" fontStyle="semi-bold">
+                            Notepad
                         </Box>
+                        <TaskNotepadViewPaginator
+                            store={store}
+                            allNotepadPageIds={allNotepadPageIds}
+                            notepadPageId={notepadPageState.notepadPageId}
+                            onNotepadPageIdCreate={notepadPageId => {
+                                const promiseResolver = createPromiseResolver();
+
+                                setNewNotepadPageIds(newNotepadPageIds => [
+                                    ...newNotepadPageIds,
+                                    notepadPageId,
+                                ]);
+
+                                setNotepadPageState({
+                                    notepadPageId,
+                                    // After creating a new notepad page, immediately initialize our client query
+                                    // to an empty query so we don't have to wait for it to load.
+                                    shouldImmediatelyInitializeEmptyQueryRef: {current: true},
+                                    promiseResolver,
+                                });
+
+                                return promiseResolver.promise;
+                            }}
+                            onNotepadPageIdSelect={notepadPageId => {
+                                const promiseResolver = createPromiseResolver();
+
+                                setNotepadPageState({
+                                    notepadPageId,
+                                    shouldImmediatelyInitializeEmptyQueryRef: {current: false},
+                                    promiseResolver,
+                                });
+
+                                return promiseResolver.promise;
+                            }}
+                        />
                     </Box>
                 ),
             };
         }, [
             allNotepadPageIds,
-            gridViewColumnHeaderControlsHeight,
+            gridViewCapabilities.hasColumns,
+            isMobile,
             notepadPageState.notepadPageId,
+            paddingX,
             store,
-            withMobileLayout,
         ]),
+    });
+
+    const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
+        isDisabled: !isMobile,
+        withMobileLayout,
+        withoutDisappearingTitle: true,
+        title: "Notepad",
     });
 
     return (
         <Box
             data-testid="TaskNotepadView"
+            position="relative"
             flexGrow="1"
             width="full"
             overflow="hidden"
@@ -419,10 +441,24 @@ export function TaskNotepadView({
                 onSelectAll: () => focusGridViewEnd(),
             })}
         >
+            {!isMobile && (
+                // Cover the top safe area. Except on mobile when our navigation bar will cover
+                // the safe area. So when the active section scrolls into safe area (e.g. in a
+                // peek on desktop) it's covered.
+                <Box
+                    position="absolute"
+                    top="0"
+                    zIndex="10"
+                    width="full"
+                    style={{height: "var(--safe-area-inset-top, 0px)"}}
+                    backgroundColor="grey-0"
+                />
+            )}
             {gridViewModals}
             <GlobalKeyDownEvent onGlobalKeyDown={onGridViewGlobalKeyDown}>
                 <VirtualizedScrollView
                     ref={viewRef}
+                    elementRef={scrollViewRef}
                     stateKey={gridViewStateKey}
                     bufferedItemHeight={gridViewBufferedItemHeight}
                     itemCount={1 + gridViewItemCount}
@@ -430,8 +466,15 @@ export function TaskNotepadView({
                         () => alwaysRenderGridViewItemIndexes.map(index => index + 1),
                         [alwaysRenderGridViewItemIndexes],
                     )}
+                    scrollbarInsetTop={
+                        isMobile
+                            ? scrollbarInsetTop
+                            : withMobileLayout
+                            ? safeAreaOnlyScrollbarInsetTop
+                            : undefined
+                    }
                     scrollbarInsetTopItemIndex={
-                        scrollbarInsetTopGridViewItemIndex !== undefined
+                        !withMobileLayout && scrollbarInsetTopGridViewItemIndex !== undefined
                             ? scrollbarInsetTopGridViewItemIndex + 1
                             : undefined
                     }
@@ -440,15 +483,65 @@ export function TaskNotepadView({
                             if (index === 0) {
                                 return {
                                     key: "ActiveCards",
-                                    minHeight: "10.375rem",
+                                    // Height on desktop with no cards and no safe area.
+                                    minHeight: "12rem",
                                     node: (
-                                        <TaskNotepadViewActiveSection
-                                            withMobileLayout={withMobileLayout}
-                                            affinityManager={affinityManager}
-                                            assigneeActiveQuery={assigneeActiveQuery}
-                                            activeDraggableData={activeDraggableData}
-                                            overDroppableData={overDroppableData}
-                                        />
+                                        <>
+                                            <TaskNotepadViewActiveSection
+                                                withMobileLayout={withMobileLayout}
+                                                paddingX={paddingX}
+                                                affinityManager={affinityManager}
+                                                assigneeActiveQuery={assigneeActiveQuery}
+                                                activeDraggableData={activeDraggableData}
+                                                overDroppableData={overDroppableData}
+                                            />
+                                            {isMobile && (
+                                                <Box paddingX={paddingX} paddingY="2">
+                                                    <TaskNotepadViewPaginator
+                                                        store={store}
+                                                        allNotepadPageIds={allNotepadPageIds}
+                                                        notepadPageId={
+                                                            notepadPageState.notepadPageId
+                                                        }
+                                                        onNotepadPageIdCreate={notepadPageId => {
+                                                            const promiseResolver =
+                                                                createPromiseResolver();
+
+                                                            setNewNotepadPageIds(
+                                                                newNotepadPageIds => [
+                                                                    ...newNotepadPageIds,
+                                                                    notepadPageId,
+                                                                ],
+                                                            );
+
+                                                            setNotepadPageState({
+                                                                notepadPageId,
+                                                                // After creating a new notepad page, immediately initialize our client query
+                                                                // to an empty query so we don't have to wait for it to load.
+                                                                shouldImmediatelyInitializeEmptyQueryRef:
+                                                                    {current: true},
+                                                                promiseResolver,
+                                                            });
+
+                                                            return promiseResolver.promise;
+                                                        }}
+                                                        onNotepadPageIdSelect={notepadPageId => {
+                                                            const promiseResolver =
+                                                                createPromiseResolver();
+
+                                                            setNotepadPageState({
+                                                                notepadPageId,
+                                                                shouldImmediatelyInitializeEmptyQueryRef:
+                                                                    {current: false},
+                                                                promiseResolver,
+                                                            });
+
+                                                            return promiseResolver.promise;
+                                                        }}
+                                                    />
+                                                </Box>
+                                            )}
+                                        </>
                                     ),
                                 };
                             }
@@ -458,9 +551,14 @@ export function TaskNotepadView({
                         [
                             activeDraggableData,
                             affinityManager,
+                            allNotepadPageIds,
                             assigneeActiveQuery,
+                            isMobile,
+                            notepadPageState.notepadPageId,
                             overDroppableData,
+                            paddingX,
                             renderGridViewItem,
+                            store,
                             withMobileLayout,
                         ],
                     )}
@@ -470,6 +568,7 @@ export function TaskNotepadView({
                     onRenderedRangeLayoutChange={range => {
                         onGridViewRenderedRangeLayoutChange(shiftRenderedRangeForGridView(range));
                     }}
+                    extraChildren={navigationBar}
                 />
             </GlobalKeyDownEvent>
         </Box>

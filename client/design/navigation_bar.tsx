@@ -23,6 +23,7 @@ import {
 } from "~/client/design/scrollbar.js";
 import {ShareButton, createShareMenuItem} from "~/client/design/share_button.js";
 import {useShowToast} from "~/client/design/toast.js";
+import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {
@@ -165,15 +166,15 @@ const navigationBarRevealOrHideAnimationDurationMs = 200;
 // need to update native mobile code as well.
 assert(navigationBarTransitionDebounceScrollTimeoutMs === scrollbarVisibleAfterScrollDurationMs);
 
-const desktopNavigationBarScrollbarInsetTop: ScrollbarInsetDynamic = [
+const desktopNavigationBarScrollbarInsetTop: ScrollbarInsetDynamic = markMemoIfNotRendering([
     spacing[desktopNavigationBarHeight],
     {withSafeArea: true},
-];
+]);
 
-const mobileNavigationBarScrollbarInsetTop: ScrollbarInsetDynamic = [
+const mobileNavigationBarScrollbarInsetTop: ScrollbarInsetDynamic = markMemoIfNotRendering([
     spacing[mobileNavigationBarHeight],
     {withSafeArea: true},
-];
+]);
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
 //                                 IMPORTANT                                 //
@@ -239,6 +240,9 @@ export type NavigationBarResult = {
      *
      * `navigationBar` needs to be 100% height of scrollable content. Not 100%
      * height of the scrollable window.
+     *
+     * If you're attaching a navigation bar to a `<VirtualizedScrollView>` then
+     * `navigationBar` may be put in the `extraChildren` prop.
      */
     navigationBar: ReactNode;
 
@@ -273,6 +277,7 @@ export type NavigationBarResult = {
  */
 export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     ref,
+    isDisabled = false,
     withMobileLayout,
     title = null,
     titleBoundaryRef,
@@ -289,6 +294,14 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
      * A ref for interacting with the navigation bar when mounted.
      */
     ref?: Ref<NavigationBarRef>;
+
+    /**
+     * Is the navigation bar actually rendered? If true then none of the navigation
+     * bar logic runs and you don't need to use `navigationBarResult`.
+     *
+     * `ref` will not be initialized if true.
+     */
+    isDisabled?: boolean;
 
     /**
      * Should the navigation bar use a mobile layout even while on desktop? This is
@@ -381,43 +394,49 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     const [scrollViewSize, setScrollViewSize] = useState<{height: number; width: number} | null>(
         null,
     );
+    if (scrollViewSize !== null && isDisabled) setScrollViewSize(null);
 
     const scrollViewRef = useLifecycleRef<HTMLElement>(
-        useCallback(element => {
-            const handleResize = () => {
-                const newScrollViewSize = {
-                    height: element.offsetHeight,
-                    width: element.offsetWidth,
+        useCallback(
+            element => {
+                if (isDisabled) return;
+
+                const handleResize = () => {
+                    const newScrollViewSize = {
+                        height: element.offsetHeight,
+                        width: element.offsetWidth,
+                    };
+                    setScrollViewSize(scrollViewSize => {
+                        return newScrollViewSize.height !== scrollViewSize?.height ||
+                            newScrollViewSize.width !== scrollViewSize.width
+                            ? newScrollViewSize
+                            : scrollViewSize;
+                    });
                 };
-                setScrollViewSize(scrollViewSize => {
-                    return newScrollViewSize.height !== scrollViewSize?.height ||
-                        newScrollViewSize.width !== scrollViewSize.width
-                        ? newScrollViewSize
-                        : scrollViewSize;
-                });
-            };
 
-            const handleScroll = () => {
-                assertExists(navigationBarRef.current).onScroll(element);
-            };
+                const handleScroll = () => {
+                    assertExists(navigationBarRef.current).onScroll(element);
+                };
 
-            // Immediately populate the content rect with our element's dimensions
-            // on mount.
-            handleResize();
+                // Immediately populate the content rect with our element's dimensions
+                // on mount.
+                handleResize();
 
-            assertExists(navigationBarRef.current).initialize(element);
+                assertExists(navigationBarRef.current).initialize(element);
 
-            addResizeListenerForElement(element, handleResize);
-            element.addEventListener("scroll", handleScroll);
+                addResizeListenerForElement(element, handleResize);
+                element.addEventListener("scroll", handleScroll);
 
-            return () => {
-                element.removeEventListener("scroll", handleScroll);
-                removeResizeListenerForElement(element, handleResize);
-            };
-        }, []),
+                return () => {
+                    element.removeEventListener("scroll", handleScroll);
+                    removeResizeListenerForElement(element, handleResize);
+                };
+            },
+            [isDisabled],
+        ),
     );
 
-    const navigationBar = (
+    const navigationBar = !isDisabled && (
         <NavigationBar
             isMobile={isMobile}
             withMobileLayout={withMobileLayout || isMobile}
@@ -440,9 +459,11 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     return {
         scrollViewRef,
         navigationBar,
-        scrollbarInsetTop: isMobile
-            ? mobileNavigationBarScrollbarInsetTop
-            : desktopNavigationBarScrollbarInsetTop,
+        scrollbarInsetTop: !isDisabled
+            ? isMobile
+                ? mobileNavigationBarScrollbarInsetTop
+                : desktopNavigationBarScrollbarInsetTop
+            : 0,
     };
 }
 
@@ -1148,7 +1169,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                             <ShareButton />
                                         </Box>
                                     )}
-                                    {menuActions.length > 0 && (
+                                    {menuActions.length > 0 ? (
                                         <MenuButton
                                             actions={
                                                 shareButton && withMobileLayout
@@ -1174,6 +1195,8 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                                 />
                                             </IconButton>
                                         </MenuButton>
+                                    ) : (
+                                        <Box width="7" height="7" />
                                     )}
                                 </Box>
                             </OverlayScopeContextProvider>

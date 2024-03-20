@@ -158,16 +158,12 @@ export default function InboxRoute() {
     const {filter, entriesResult, peekData} = useLoaderDataWithSchema(LoaderSchema);
 
     return (
-        // Strange format to override the `<SpaceLayoutTopBar>` bottom border with a
-        // lighter color since our `<InboxView>` has a top bar of its own. We use a
-        // lighter border so the two top bars look to be made of the same material.
         <Box
             flexGrow="1"
             overflow="hidden"
             position="relative"
             zIndex="20"
-            borderTop="grey-5"
-            style={{height: "calc(100% + 1px)", marginTop: -1}}
+            height="full"
             display="flex"
             flexDirection="column"
         >

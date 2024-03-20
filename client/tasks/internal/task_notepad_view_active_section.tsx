@@ -3,9 +3,11 @@ import {CaretRight} from "phosphor-react";
 import {memo, useCallback, useEffect, useId, useMemo, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
+import {mobileNavigationBarHeight} from "~/client/design/navigation_bar.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
@@ -22,7 +24,7 @@ import {
     TaskGridViewDraggableData,
     TaskGridViewDroppableData,
 } from "~/client/tasks/task_grid_view_dnd_context.js";
-import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -66,19 +68,22 @@ export {TaskNotepadViewActiveSectionMemo as TaskNotepadViewActiveSection};
 
 function TaskNotepadViewActiveSection({
     withMobileLayout,
+    paddingX,
     affinityManager,
     assigneeActiveQuery,
     activeDraggableData,
     overDroppableData,
 }: {
     withMobileLayout: boolean;
+    paddingX: Spacing;
     affinityManager: TaskClientStoreSearchAffinityManager;
     assigneeActiveQuery: TaskClientQuery;
     activeDraggableData: TaskGridViewDraggableData | undefined;
     overDroppableData: TaskGridViewDroppableData | undefined;
 }) {
-    const {space} = useSpaceContext();
+    const isMobile = useIsMobile();
     const navigate = useNavigate();
+    const {space} = useSpaceContext();
 
     const loadedState = useStore(assigneeActiveQuery.loadedStateStore);
     const loadMoreTaskCount = useStore(assigneeActiveQuery.loadMoreTaskCountStore);
@@ -158,24 +163,39 @@ function TaskNotepadViewActiveSection({
         (shouldRenderCardShimmer ? 1 : 0) +
         (shouldRenderTruncatedExplainerCard ? 1 : 0);
 
-    const taskCountAboveTheFold = withMobileLayout ? 2 : 3;
+    // There's less horizontal space on mobile for cards than in peeks on desktop.
+    const taskCountAboveTheFold = isMobile ? 1 : withMobileLayout ? 2 : 3;
 
     const cardWidthStyle = `calc(${(1 / taskCountAboveTheFold) * 100}% - ${
         parseRemLengthNumber(spacing[taskNotepadViewActiveSectionCardGap]) *
             ((taskCountAboveTheFold - 1) / taskCountAboveTheFold) +
         (Math.max(cardCount, taskCountAboveTheFold) > taskCountAboveTheFold
-            ? parseRemLengthNumber(spacing["4"])
+            ? parseRemLengthNumber(spacing[taskCountAboveTheFold <= 1 ? "16" : "4"])
             : 0)
     }rem)`;
 
     return (
-        <Box paddingTop="4" paddingBottom="8">
-            <Box paddingX="5" fontSize="100" fontStyle="semi-bold">
+        <Box
+            style={{
+                paddingTop: `calc(${addRemLengths(
+                    spacing[!isMobile ? "4" : "2"],
+                    // Make room for the navigation bar on mobile.
+                    isMobile ? spacing[mobileNavigationBarHeight] : "0rem",
+                )} + var(--safe-area-inset-top, 0px))`,
+                // `columnHeaderControls` rendered for the notepad task grid view adds safe
+                // area inset top as margin for when it acts as a sticky header, remove a
+                // corresponding amount of space from our active section padding bottom.
+                paddingBottom: !isMobile
+                    ? `max(${spacing["8"]} - var(--safe-area-inset-top, 0px), 0px)`
+                    : spacing["8"],
+            }}
+        >
+            <Box paddingX={paddingX} fontSize={!isMobile ? "200" : "100"} fontStyle="semi-bold">
                 Active
             </Box>
             <Box
                 data-scrollbar="false"
-                paddingX="5"
+                paddingX={paddingX}
                 paddingY="2"
                 overflowX="scroll"
                 overflowY="hidden"
@@ -249,7 +269,7 @@ function TaskNotepadViewActiveSection({
                     bottom="2"
                     left="0"
                     right="0"
-                    paddingX="5"
+                    paddingX={paddingX}
                     display="flex"
                     gap={taskNotepadViewActiveSectionCardGap}
                 >
@@ -331,8 +351,8 @@ function TaskNotepadViewActiveSection({
                         zIndex="-10"
                         top="2"
                         bottom="2"
-                        left="5"
-                        right="5"
+                        left={paddingX}
+                        right={paddingX}
                         display="flex"
                         gap={taskNotepadViewActiveSectionCardGap}
                     >

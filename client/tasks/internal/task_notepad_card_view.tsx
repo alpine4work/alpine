@@ -1,11 +1,12 @@
 import {useDraggable} from "@dnd-kit/core";
-import {Memo, PointerEvent, memo, useId, useMemo, useState} from "react";
+import {Memo, PointerEvent, memo, useEffect, useId, useMemo, useRef, useState} from "react";
 import {mergeProps} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuAction} from "~/client/design/menu_button.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -27,6 +28,7 @@ import {
     TaskGridViewDroppableData,
 } from "~/client/tasks/task_grid_view_dnd_context.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {borderRadius, pressOpacityOverlayClassName} from "~/shared/styles/styles.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
@@ -57,6 +59,8 @@ function TaskNotepadCardView({
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
 
+    const cardRef = useRef<HTMLDivElement>(null);
+
     const {store} = query;
     const {task} = useStore(query.getLoadedTaskEntryStore(taskId));
     const displayStatus = task?.getDisplayStatus() ?? "OpenInactive";
@@ -70,6 +74,55 @@ function TaskNotepadCardView({
 
     // We manually implement `usePress()` so to play nice with drag-and-drop.
     const [isPressed, setIsPressed] = useState(false);
+
+    // Watch all parents for a scroll event. When a scroll event occurs we need to
+    // cancel the press.
+    //
+    // This replicates the behavior in `@react-aria/interactions` where a press is
+    // cancelled when a parent element scrolls. We need to reimplement the behavior
+    // here since we manually implement press state. This behavior is important for
+    // mobile since the user must press somewhere on the screen to scroll. Normally
+    // `pointercancel` should be dispatched when the user scrolls while pressing on
+    // some element but when the CSS `touch-action: manipulation` is set the press
+    // is not cancelled.
+    useEffect(() => {
+        if (!isPressed) return;
+
+        const cardElement = assertExists(cardRef.current);
+
+        const handleScroll = () => {
+            setIsPressed(false);
+        };
+
+        const scrollEventTargets: Array<EventTarget> = [window];
+
+        let parentElement = cardElement.parentElement;
+        while (parentElement) {
+            const {overflowX, overflowY} = getComputedStyle(parentElement);
+
+            if (
+                overflowX === "auto" ||
+                overflowX === "scroll" ||
+                overflowY === "auto" ||
+                overflowY === "scroll"
+            ) {
+                scrollEventTargets.push(parentElement);
+            }
+
+            parentElement =
+                parentElement.parentElement !== document.body ? parentElement.parentElement : null;
+        }
+
+        for (const scrollEventTarget of scrollEventTargets) {
+            scrollEventTarget.addEventListener("scroll", handleScroll, true);
+        }
+
+        return () => {
+            for (const scrollEventTarget of scrollEventTargets) {
+                scrollEventTarget.removeEventListener("scroll", handleScroll, true);
+            }
+        };
+    }, [isPressed]);
 
     const onPress = () => {
         const promise = onExpand(taskId);
@@ -235,9 +288,10 @@ function TaskNotepadCardView({
                             setIsPressed(false);
                             if (isPressed) onPress();
                         },
-                        onPointerOut: () => setIsPressed(false),
+                        onPointerLeave: () => setIsPressed(false),
+                        onPointerCancel: () => setIsPressed(false),
                     })}
-                    ref={setDraggableNodeRef}
+                    ref={useMergedRefs<HTMLDivElement>(cardRef, setDraggableNodeRef)}
                     tabIndex={0}
                     flexShrink="0"
                     alignSelf="stretch"

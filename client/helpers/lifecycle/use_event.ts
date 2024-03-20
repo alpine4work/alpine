@@ -1,9 +1,11 @@
-import React, {Memo, useCallback, useMemo, useRef, useState} from "react";
+import {Memo, useCallback, useMemo, useRef, useState} from "react";
+import {
+    getCurrentReactDispatcherIfExists,
+    reactDispatchersSeenDuringRender,
+} from "~/client/helpers/lifecycle/internal/react_current_dispatcher.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-
-const reactDispatchersSeenDuringRender = new Set();
 
 /**
  * Allows you to define event handlers that can read the latest props/state but
@@ -128,13 +130,4 @@ export function useEvents<Events extends {[key: string]: (...args: Array<any>) =
 
         return eventsMemo;
     }, [eventKeys]);
-}
-
-/**
- * While rendering, React sets a shared `ReactCurrentDispatcher` internal to this
- * property. We inspect this property to tell if React is rendering or not.
- */
-function getCurrentReactDispatcherIfExists() {
-    return (React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentDispatcher
-        .current;
 }

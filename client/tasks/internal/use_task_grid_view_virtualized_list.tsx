@@ -224,7 +224,6 @@ export function useTaskGridViewVirtualizedList({
     viewRef,
     getMoveTaskToQueryActions: getMoveTaskToRootQueryActions,
     getMaybeRemoveTaskFromQueryActions: getMaybeRemoveTaskFromRootQueryActions,
-    withColumnHeaderBorderTop = false,
     columnHeaderControls,
     onApplyUndoStackEntry,
 }: {
@@ -242,7 +241,6 @@ export function useTaskGridViewVirtualizedList({
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
     ) => Array<TaskAction>;
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
-    withColumnHeaderBorderTop?: boolean;
     columnHeaderControls?: Memo<{minHeight: RemLength | number; node: ReactNode}>;
     onApplyUndoStackEntry?: (options: {
         type: "Undo" | "Redo";
@@ -1754,7 +1752,6 @@ export function useTaskGridViewVirtualizedList({
                         <TaskGridViewColumnHeaderMemo
                             ref={ref}
                             viewRef={viewRef}
-                            withColumnHeaderBorderTop={withColumnHeaderBorderTop}
                             hasColumns={capabilities.hasColumns}
                             columnHeaderControls={columnHeaderControlsWithMinHeightPx}
                             minHeight={minHeight}
@@ -1973,7 +1970,6 @@ export function useTaskGridViewVirtualizedList({
         taskGhostRowPlaceholder,
         toggleAreChildTasksExpanded,
         viewRef,
-        withColumnHeaderBorderTop,
     ]);
 
     const onLayoutEffectCallbacksRef = useRef<Array<() => void>>([]);
@@ -2069,7 +2065,7 @@ type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly setTaskRowZIndex: (taskKey: TaskGridViewTaskKey, zIndex: number) => () => void;
 }>;
 
-const taskGridViewColumnHeaderHeight = "5";
+export const taskGridViewColumnHeaderHeight = "5";
 
 // It takes 2px to render the bottom borders on our column header. 1px for the
 // border itself and 1px below that to avoid covering the first row's bottom
@@ -2098,7 +2094,6 @@ const TaskGridViewColumnHeaderMemo = memo(forwardRef(TaskGridViewColumnHeader));
 function TaskGridViewColumnHeader(
     {
         viewRef,
-        withColumnHeaderBorderTop,
         hasColumns,
         columnHeaderControls,
         minHeight,
@@ -2107,7 +2102,6 @@ function TaskGridViewColumnHeader(
         shouldRenderWithRelativePositioning,
     }: {
         viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>;
-        withColumnHeaderBorderTop: boolean;
         hasColumns: boolean;
         columnHeaderControls: Memo<{minHeight: number; node: ReactNode}> | null;
         minHeight: number;
@@ -2193,37 +2187,6 @@ function TaskGridViewColumnHeader(
                 </Box>
             ) : (
                 <>
-                    {withColumnHeaderBorderTop && (
-                        // `grey-10` top border that replaces `<TaskLayoutTopBar>` border when column
-                        // header is not overlaying tasks. You should configure `<TaskLayoutTopBar>` to
-                        // not have a bottom border and this will render instead.
-                        //
-                        // It's notable that we use this `position: sticky` strategy for border
-                        // replacement so browsers can synchronously render the border replacement off
-                        // the main thread without requiring blocking JavaScript code in the scroll hot
-                        // path.
-                        //
-                        // See this explainer on scroll-linked effects:
-                        // https://firefox-source-docs.mozilla.org/performance/scroll-linked_effects.html
-                        <Box
-                            position="absolute"
-                            left="0"
-                            right="0"
-                            top="0"
-                            style={{height: offset + 1}}
-                            // Render above overlays which are at `zIndex="50"`
-                            zIndex="80"
-                            pointerEvents="none"
-                        >
-                            <Box
-                                position="sticky"
-                                top="0"
-                                left="0"
-                                right="0"
-                                borderBottom="grey-10"
-                            />
-                        </Box>
-                    )}
                     <Box
                         ref={columnHeaderBorderTopRef}
                         // `grey-5` top border that replaces `<TaskLayoutTopBar>` border when column
@@ -2327,7 +2290,7 @@ function TaskGridViewColumnHeader(
                         left="0"
                         right="0"
                         style={{
-                            top: withColumnHeaderBorderTop ? 1 : 0,
+                            top: 0,
                             // Render background color with an absolute positioned `<div>` so we don't
                             // cover the border rendered by `<TaskRowView>` (or our separate sticky div).
                             bottom: 2,

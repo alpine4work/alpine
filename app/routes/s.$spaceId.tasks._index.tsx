@@ -2,6 +2,7 @@ import {Params} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
@@ -253,7 +254,10 @@ export default function TasksRoute({withMobileLayout = false}: {withMobileLayout
 
                     setSearchParams(newSearchParams, {
                         // Allow forward/back navigation across notepad pages.
-                        replace: false,
+                        //
+                        // Except in our native mobile apps where we don't want to animate a new
+                        // page onscreen.
+                        replace: !!NativeMobileBridge,
                         unstable_shouldRevalidate: false,
                     });
                 }}

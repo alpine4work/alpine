@@ -56,17 +56,7 @@ export default function ChannelRoute({withMobileLayout = false}: {withMobileLayo
     useSearchAffinityViewInteraction(`Channel:${channel.id}`);
 
     return (
-        // Strange format to override the `<SpaceLayoutTopBar>` bottom border with a
-        // lighter color since our `<ChannelView>` has a top bar of its own. We use a
-        // lighter border so the two top bars look to be made of the same material.
-        <Box
-            flexGrow="1"
-            overflow="hidden"
-            position="relative"
-            zIndex="20"
-            borderTop="grey-5"
-            style={{height: "calc(100% + 1px)", marginTop: -1}}
-        >
+        <Box flexGrow="1" overflow="hidden" position="relative" zIndex="20" height="full">
             <ChannelView
                 // Remount when navigating to a different channel.
                 key={channel.id}
