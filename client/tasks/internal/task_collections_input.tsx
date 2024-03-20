@@ -121,8 +121,8 @@ function TaskCollectionsInput(
         isReadOnly?: boolean;
         shouldNotRenderInput?: boolean;
         areMarginsClickable?: boolean;
-        paddingX?: "2.5";
-        paddingY?: "2.5";
+        paddingX?: "3";
+        paddingY?: "3";
         isTabbable?: boolean;
         onArrowLeftLeaveKeyDown?: () => void;
         onReturnFocus?: () => void;

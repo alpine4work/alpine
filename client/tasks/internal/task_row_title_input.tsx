@@ -61,7 +61,7 @@ const taskRowTitleInputSingleLineHeightRem = parseRemLengthNumber(
     spacing[taskRowTitleInputSingleLineHeight],
 );
 
-const taskRowTitleInputPaddingY: RemLength = `${
+export const taskRowTitleInputPaddingY: RemLength = `${
     (parseRemLengthNumber(spacing[taskRowViewMinHeight]) -
         parseRemLengthNumber(contentSchemaStyles.paragraphLineHeight)) /
     2
@@ -1158,6 +1158,10 @@ function TaskRowTitleInput(
                         marginRightContentContainerClassName,
                     )}
                     style={{
+                        // On server side render we won't have `multilineState` so don't render.
+                        pointerEvents: isInitialAppRender ? "none" : undefined,
+                        visibility: isInitialAppRender ? "hidden" : undefined,
+
                         paddingLeft:
                             capabilities.hasMultilineTitle && multilineState?.withoutMarginLeft
                                 ? undefined

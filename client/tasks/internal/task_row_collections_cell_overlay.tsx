@@ -53,7 +53,7 @@ export function TaskRowCollectionsCellOverlay({
             position="absolute"
             zIndex="30"
             top="0"
-            right="0"
+            right="0.5"
             borderRadius="sm"
             boxShadow="elevation-20"
         >
@@ -88,8 +88,8 @@ export function TaskRowCollectionsCellOverlay({
                     affinityManager={affinityManager}
                     task={task}
                     areMarginsClickable={true}
-                    paddingX="2.5"
-                    paddingY="2.5"
+                    paddingX="3"
+                    paddingY="3"
                     // Keyboard navigation in grid view is not done with the tab key.
                     isTabbable={false}
                     onArrowLeftLeaveKeyDown={focusPreviousCell}

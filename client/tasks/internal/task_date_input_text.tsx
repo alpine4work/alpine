@@ -140,15 +140,9 @@ export function TaskDateInputText({
                         paddingRight: "1",
                     })}
                     onPointerDown={event => {
-                        if (
-                            document.activeElement &&
-                            assertExists(ref.current).contains(document.activeElement)
-                        ) {
-                            // Don't unfocus field segments when clicking on icon.
-                            event.preventDefault();
-                        }
-                    }}
-                    onClick={() => {
+                        // Focus first date input segment when pressed.
+                        event.preventDefault();
+
                         getNextFocusableElementIfExists(null, {
                             withinElement: assertExists(ref.current),
                         })?.focus();
