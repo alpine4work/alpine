@@ -17,7 +17,7 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {
     isTaskQueryManuallySorted,
     useTaskGridViewVirtualizedList,
-} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
+} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {

@@ -23,7 +23,7 @@ import {
     TaskQueryViewCustomizationBarRef,
 } from "~/client/tasks/internal/task_query_view_customization_bar.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
+import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
     TaskClientStore,

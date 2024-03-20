@@ -22,7 +22,7 @@ import {
     TaskGridViewVirtualizedListViewRef,
     taskGridViewColumnHeaderHeight,
     useTaskGridViewVirtualizedList,
-} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
+} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
     TaskClientStore,

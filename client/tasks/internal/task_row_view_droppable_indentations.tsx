@@ -2,7 +2,7 @@ import {useDroppable} from "@dnd-kit/core";
 import {Memo, useId} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
-import {isTaskQueryManuallySorted} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
+import {isTaskQueryManuallySorted} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskGridViewDroppableData} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";

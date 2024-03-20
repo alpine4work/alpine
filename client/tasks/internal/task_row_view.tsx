@@ -66,7 +66,7 @@ import {
 } from "~/client/tasks/internal/task_row_view_droppable_indentations.js";
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
+import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
     TaskClientStoreSearchAffinityManager,

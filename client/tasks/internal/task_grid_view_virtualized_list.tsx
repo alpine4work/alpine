@@ -2037,14 +2037,18 @@ export function useTaskGridViewVirtualizedList({
             [hasColumnHeaderItem],
         ),
         scrollbarInsetTopItemIndex: hasColumnHeaderItem ? 0 : undefined,
-        modals: taskDeleteConfirmationState && rootQuery && (
-            <TaskDeleteConfirmationModalDialog
-                store={rootQuery.store}
-                undoManager={taskDeleteConfirmationState.undoManager}
-                taskId={taskDeleteConfirmationState.taskId}
-                onClose={() => setTaskDeleteConfirmationState(null)}
-                onAfterDelete={taskDeleteConfirmationState.onAfterDelete}
-            />
+        modals: (
+            <>
+                {taskDeleteConfirmationState && rootQuery && (
+                    <TaskDeleteConfirmationModalDialog
+                        store={rootQuery.store}
+                        undoManager={taskDeleteConfirmationState.undoManager}
+                        taskId={taskDeleteConfirmationState.taskId}
+                        onClose={() => setTaskDeleteConfirmationState(null)}
+                        onAfterDelete={taskDeleteConfirmationState.onAfterDelete}
+                    />
+                )}
+            </>
         ),
         onGlobalKeyDown,
         focusStart: events.focusStart,

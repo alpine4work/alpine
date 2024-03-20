@@ -66,7 +66,7 @@ import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {
     TaskGridViewVirtualizedListViewRef,
     useTaskGridViewVirtualizedList,
-} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
+} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
