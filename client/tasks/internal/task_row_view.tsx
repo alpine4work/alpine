@@ -80,7 +80,7 @@ import {
     taskRowViewPaddingX,
     taskRowViewPaddingXRem,
 } from "~/client/tasks/task_row_shared_styles.js";
-import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";

@@ -1,8 +1,16 @@
 diff --git a/dist/import.mjs b/dist/import.mjs
-index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..fb5ce3c6624951050018ee922af9c71e1865f7a6 100644
+index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..27430fe263c7f870fea62a8cdd1ae41da84b0b02 100644
 --- a/dist/import.mjs
 +++ b/dist/import.mjs
-@@ -837,10 +837,13 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
+@@ -8,6 +8,7 @@ import {toCalendar as $cIPI0$toCalendar, CalendarDate as $cIPI0$CalendarDate} fr
+ import {NumberParser as $cIPI0$NumberParser} from "@internationalized/number";
+ import {useSpinButton as $cIPI0$useSpinButton} from "@react-aria/spinbutton";
+ import {LocalizedStringDictionary as $cIPI0$LocalizedStringDictionary} from "@internationalized/string";
++import {useIsSSR} from "@react-aria/ssr";
+ 
+ function $parcel$interopDefault(a) {
+   return a && a.__esModule ? a.default : a;
+@@ -837,10 +838,13 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
          }
      };
      // Focus the first placeholder segment from the end on mouse down/touch up in the field.
@@ -19,7 +27,7 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..fb5ce3c6624951050018ee922af9c71e
          let walker = (0, $cIPI0$getFocusableTreeWalker)(ref.current, {
              tabbable: true
          });
-@@ -867,15 +870,15 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
+@@ -867,15 +871,15 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
      let { pressProps: pressProps } = (0, $cIPI0$usePress)({
          preventFocusOnPress: true,
          allowTextSelectionOnPress: true,
@@ -39,7 +47,7 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..fb5ce3c6624951050018ee922af9c71e
      });
  }
  
-@@ -1130,22 +1133,32 @@ function $6057a3d2a53a12fd$export$42df105a73306d51(props, state, ref) {
+@@ -1130,22 +1134,32 @@ function $6057a3d2a53a12fd$export$42df105a73306d51(props, state, ref) {
  
  
  
@@ -78,7 +86,21 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..fb5ce3c6624951050018ee922af9c71e
  }
  class $3aeceb3a64eb8358$var$DisplayNamesPolyfill {
      of(field) {
-@@ -1431,6 +1444,9 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
+@@ -1411,8 +1425,12 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
+         ref,
+         focusManager
+     ]);
++    let isSSR = useIsSSR();
+     // spinbuttons cannot be focused with VoiceOver on iOS.
+-    let touchPropOverrides = (0, $cIPI0$isIOS)() || segment.type === "timeZoneName" ? {
++    //
++    // NOTE(calebmer): Always treat as spinbutton while server-side rendering
++    // so React doesn't complain about different props on the server and client.
++    let touchPropOverrides = (!isSSR && (0, $cIPI0$isIOS)()) || segment.type === "timeZoneName" ? {
+         role: "textbox",
+         "aria-valuemax": null,
+         "aria-valuemin": null,
+@@ -1431,6 +1449,9 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
      // This is needed because VoiceOver on iOS does not announce groups.
      let name = segment.type === "literal" ? "" : displayNames.of(segment.type);
      let labelProps = (0, $cIPI0$useLabels)({
@@ -89,10 +111,20 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..fb5ce3c6624951050018ee922af9c71e
          "aria-labelledby": ariaLabelledBy
      });
 diff --git a/dist/main.js b/dist/main.js
-index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..3638e1ff92016c2a65636868568834fa6cf74a16 100644
+index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..9b488c41b8fb1012e1d376ad80a74f032c45c233 100644
 --- a/dist/main.js
 +++ b/dist/main.js
-@@ -847,10 +847,13 @@ function $715562ad3b4cced4$export$4a931266a3838b86(state, ref, disableArrowNavig
+@@ -8,6 +8,9 @@ var $IwcIq$internationalizeddate = require("@internationalized/date");
+ var $IwcIq$internationalizednumber = require("@internationalized/number");
+ var $IwcIq$reactariaspinbutton = require("@react-aria/spinbutton");
+ var $IwcIq$internationalizedstring = require("@internationalized/string");
++var $IwcIq$internationalizedstring = require("@react-aria/ssr");
++
++let useIsSSR = $IwcIq$internationalizedstring.useIsSSR;
+ 
+ function $parcel$export(e, n, v, s) {
+   Object.defineProperty(e, n, {get: v, set: s, enumerable: true, configurable: true});
+@@ -847,10 +850,13 @@ function $715562ad3b4cced4$export$4a931266a3838b86(state, ref, disableArrowNavig
          }
      };
      // Focus the first placeholder segment from the end on mouse down/touch up in the field.
@@ -109,7 +141,7 @@ index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..3638e1ff92016c2a65636868568834fa
          let walker = (0, $IwcIq$reactariafocus.getFocusableTreeWalker)(ref.current, {
              tabbable: true
          });
-@@ -877,15 +880,15 @@ function $715562ad3b4cced4$export$4a931266a3838b86(state, ref, disableArrowNavig
+@@ -877,15 +883,15 @@ function $715562ad3b4cced4$export$4a931266a3838b86(state, ref, disableArrowNavig
      let { pressProps: pressProps } = (0, $IwcIq$reactariainteractions.usePress)({
          preventFocusOnPress: true,
          allowTextSelectionOnPress: true,
@@ -129,7 +161,7 @@ index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..3638e1ff92016c2a65636868568834fa
      });
  }
  
-@@ -1140,22 +1143,32 @@ function $e90ae7c26a69c6b1$export$42df105a73306d51(props, state, ref) {
+@@ -1140,22 +1146,32 @@ function $e90ae7c26a69c6b1$export$42df105a73306d51(props, state, ref) {
  
  
  
@@ -168,7 +200,21 @@ index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..3638e1ff92016c2a65636868568834fa
  }
  class $934ac650a0aceb4b$var$DisplayNamesPolyfill {
      of(field) {
-@@ -1441,6 +1454,9 @@ function $5c015c6316d1904d$export$1315d136e6f7581(segment, state, ref) {
+@@ -1421,8 +1437,12 @@ function $5c015c6316d1904d$export$1315d136e6f7581(segment, state, ref) {
+         ref,
+         focusManager
+     ]);
++    let isSSR = useIsSSR();
+     // spinbuttons cannot be focused with VoiceOver on iOS.
+-    let touchPropOverrides = (0, $IwcIq$reactariautils.isIOS)() || segment.type === "timeZoneName" ? {
++    //
++    // NOTE(calebmer): Always treat as spinbutton while server-side rendering
++    // so React doesn't complain about different props on the server and client.
++    let touchPropOverrides = (!isSSR && (0, $IwcIq$reactariautils.isIOS)()) || segment.type === "timeZoneName" ? {
+         role: "textbox",
+         "aria-valuemax": null,
+         "aria-valuemin": null,
+@@ -1441,6 +1461,9 @@ function $5c015c6316d1904d$export$1315d136e6f7581(segment, state, ref) {
      // This is needed because VoiceOver on iOS does not announce groups.
      let name = segment.type === "literal" ? "" : displayNames.of(segment.type);
      let labelProps = (0, $IwcIq$reactariautils.useLabels)({
@@ -179,10 +225,18 @@ index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..3638e1ff92016c2a65636868568834fa
          "aria-labelledby": ariaLabelledBy
      });
 diff --git a/dist/module.js b/dist/module.js
-index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..fb5ce3c6624951050018ee922af9c71e1865f7a6 100644
+index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..27430fe263c7f870fea62a8cdd1ae41da84b0b02 100644
 --- a/dist/module.js
 +++ b/dist/module.js
-@@ -837,10 +837,13 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
+@@ -8,6 +8,7 @@ import {toCalendar as $cIPI0$toCalendar, CalendarDate as $cIPI0$CalendarDate} fr
+ import {NumberParser as $cIPI0$NumberParser} from "@internationalized/number";
+ import {useSpinButton as $cIPI0$useSpinButton} from "@react-aria/spinbutton";
+ import {LocalizedStringDictionary as $cIPI0$LocalizedStringDictionary} from "@internationalized/string";
++import {useIsSSR} from "@react-aria/ssr";
+ 
+ function $parcel$interopDefault(a) {
+   return a && a.__esModule ? a.default : a;
+@@ -837,10 +838,13 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
          }
      };
      // Focus the first placeholder segment from the end on mouse down/touch up in the field.
@@ -199,7 +253,7 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..fb5ce3c6624951050018ee922af9c71e
          let walker = (0, $cIPI0$getFocusableTreeWalker)(ref.current, {
              tabbable: true
          });
-@@ -867,15 +870,15 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
+@@ -867,15 +871,15 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
      let { pressProps: pressProps } = (0, $cIPI0$usePress)({
          preventFocusOnPress: true,
          allowTextSelectionOnPress: true,
@@ -219,7 +273,7 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..fb5ce3c6624951050018ee922af9c71e
      });
  }
  
-@@ -1130,22 +1133,32 @@ function $6057a3d2a53a12fd$export$42df105a73306d51(props, state, ref) {
+@@ -1130,22 +1134,32 @@ function $6057a3d2a53a12fd$export$42df105a73306d51(props, state, ref) {
  
  
  
@@ -258,7 +312,21 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..fb5ce3c6624951050018ee922af9c71e
  }
  class $3aeceb3a64eb8358$var$DisplayNamesPolyfill {
      of(field) {
-@@ -1431,6 +1444,9 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
+@@ -1411,8 +1425,12 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
+         ref,
+         focusManager
+     ]);
++    let isSSR = useIsSSR();
+     // spinbuttons cannot be focused with VoiceOver on iOS.
+-    let touchPropOverrides = (0, $cIPI0$isIOS)() || segment.type === "timeZoneName" ? {
++    //
++    // NOTE(calebmer): Always treat as spinbutton while server-side rendering
++    // so React doesn't complain about different props on the server and client.
++    let touchPropOverrides = (!isSSR && (0, $cIPI0$isIOS)()) || segment.type === "timeZoneName" ? {
+         role: "textbox",
+         "aria-valuemax": null,
+         "aria-valuemin": null,
+@@ -1431,6 +1449,9 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
      // This is needed because VoiceOver on iOS does not announce groups.
      let name = segment.type === "literal" ? "" : displayNames.of(segment.type);
      let labelProps = (0, $cIPI0$useLabels)({
@@ -313,10 +381,33 @@ index 5892fecccc52080f0a122ee657cceae88efe82f2..a23005c3d28ad47fc04804bed33338b7
 +  });
  }
 diff --git a/src/useDateSegment.ts b/src/useDateSegment.ts
-index d11bd2761e75bd385bf0f37613f88aee06da6cf8..0c5a1fd84b410573866c418a73ccb217c1f1f97c 100644
+index d11bd2761e75bd385bf0f37613f88aee06da6cf8..e4d59cfdfec566ec9ecdc7e96a94a4fd16759787 100644
 --- a/src/useDateSegment.ts
 +++ b/src/useDateSegment.ts
-@@ -346,6 +346,9 @@ export function useDateSegment(segment: DateSegment, state: DateFieldState, ref:
+@@ -20,6 +20,7 @@ import React, {RefObject, useMemo, useRef} from 'react';
+ import {useDateFormatter, useFilter, useLocale} from '@react-aria/i18n';
+ import {useDisplayNames} from './useDisplayNames';
+ import {useSpinButton} from '@react-aria/spinbutton';
++import {useIsSSR} from '@react-aria/ssr';
+ 
+ export interface DateSegmentAria {
+   /** Props for the segment element. */
+@@ -323,8 +324,13 @@ export function useDateSegment(segment: DateSegment, state: DateFieldState, ref:
+     };
+   }, [ref, focusManager]);
+ 
++  let isSSR = useIsSSR();
++
+   // spinbuttons cannot be focused with VoiceOver on iOS.
+-  let touchPropOverrides = isIOS() || segment.type === 'timeZoneName' ? {
++  //
++  // NOTE(calebmer): Always treat as spinbutton while server-side rendering
++  // so React doesn't complain about different props on the server and client.
++  let touchPropOverrides = (!isSSR && isIOS()) || segment.type === 'timeZoneName' ? {
+     role: 'textbox',
+     'aria-valuemax': null,
+     'aria-valuemin': null,
+@@ -346,6 +352,9 @@ export function useDateSegment(segment: DateSegment, state: DateFieldState, ref:
    // This is needed because VoiceOver on iOS does not announce groups.
    let name = segment.type === 'literal' ? '' : displayNames.of(segment.type);
    let labelProps = useLabels({
