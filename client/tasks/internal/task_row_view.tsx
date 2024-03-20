@@ -31,7 +31,7 @@ import {useStore} from "~/client/helpers/store/use_store.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
@@ -78,6 +78,7 @@ import {
     taskRowViewFirstColumnExtraPaddingLeft,
     taskRowViewMinHeight,
     taskRowViewPaddingX,
+    taskRowViewPaddingXRem,
 } from "~/client/tasks/task_row_shared_styles.js";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -320,6 +321,8 @@ function TaskRowView(
     // transitions from a ghost task to a regular task when the user enters data.
     assert(cursor !== null ? ghostTaskId === null : ghostTaskId !== null);
 
+    const isMobile = useIsMobile();
+    const canPrimaryInputHover = useCanPrimaryInputHover();
     const navigate = useNavigate();
     const context = useAppContext();
     const {timeZone, isAppleDevice} = useClientInfo();
@@ -1013,12 +1016,15 @@ function TaskRowView(
     })();
 
     const marginLeft: RemLength = `${
-        parseRemLengthNumber(spacing["5"]) +
-        (!withoutPaddingLeft
-            ? parseRemLengthNumber(spacing["5"]) +
-              parseRemLengthNumber(spacing["6"]) +
-              parseRemLengthNumber(contentSchemaStyles.listItemIndentation) * parents.length
-            : 0)
+        !withoutPaddingLeft
+            ? contentSchemaStyles.listItemIndentationRem * parents.length +
+              (!isMobile || (hasTask && !isQueryManuallySorted)
+                  ? taskRowViewDragHandleWidthRem + taskRowViewExpandButtonWidthRem
+                  : taskRowViewPaddingXRem.mobile +
+                    // Hardcoded `spacing["2.5"]`
+                    0.625) +
+              taskRowViewStatusButtonWidthRem
+            : taskRowViewPaddingXRem[isMobile ? "mobile" : "desktop"]
     }rem`;
 
     const borderCoverNode = (
@@ -1110,6 +1116,7 @@ function TaskRowView(
                 })}
             >
                 {!withoutPaddingLeft &&
+                    (!isMobile || (hasTask && !isQueryManuallySorted)) &&
                     (!disableExpensiveFeaturesDuringScroll &&
                     !capabilities.isReadOnly &&
                     isQueryManuallySorted &&
@@ -1125,7 +1132,7 @@ function TaskRowView(
                         <div
                             className={pointerEventsNoneNotInheritedClassName}
                             style={{
-                                width: taskRowViewDragHandleWidth,
+                                width: spacing[taskRowViewDragHandleWidth],
                                 paddingRight: spacing["0.5"],
                             }}
                         >
@@ -1135,11 +1142,14 @@ function TaskRowView(
                         </div>
                     ))}
                 {!withoutPaddingLeft &&
+                    // If the primary input can't hover, don't render expand button. That way user
+                    // can't tap in that general location to hit the button.
+                    canPrimaryInputHover &&
                     (!disableExpensiveFeaturesDuringScroll && hasTask ? (
                         <div
                             className={pointerEventsNoneNotInheritedClassName}
                             style={{
-                                width: spacing["5"],
+                                width: spacing[taskRowViewExpandButtonWidth],
                                 paddingRight: spacing["1"],
                                 opacity: isHovered || isExpandButtonFocused ? 1 : 0,
                             }}
@@ -1169,7 +1179,7 @@ function TaskRowView(
                         <div
                             className={pointerEventsNoneNotInheritedClassName}
                             style={{
-                                width: spacing["5"],
+                                width: spacing[taskRowViewExpandButtonWidth],
                                 paddingRight: spacing["1"],
                             }}
                         />
@@ -1177,7 +1187,10 @@ function TaskRowView(
                 {!withoutPaddingLeft && (
                     <div
                         className={pointerEventsNoneNotInheritedClassName}
-                        style={{width: spacing["6"], paddingRight: spacing["2"]}}
+                        style={{
+                            width: spacing[taskRowViewStatusButtonWidth],
+                            paddingRight: spacing["2"],
+                        }}
                     >
                         {hasTask ? (
                             <TaskStatusButton
@@ -1424,7 +1437,14 @@ function TaskRowView(
     );
 }
 
-const taskRowViewDragHandleWidth = addRemLengths(spacing["4"], spacing["0.5"]);
+const taskRowViewStatusButtonWidth = "6";
+const taskRowViewStatusButtonWidthRem = parseRemLengthNumber(spacing[taskRowViewStatusButtonWidth]);
+
+const taskRowViewExpandButtonWidth = "5";
+const taskRowViewExpandButtonWidthRem = parseRemLengthNumber(spacing[taskRowViewExpandButtonWidth]);
+
+const taskRowViewDragHandleWidth = "5";
+const taskRowViewDragHandleWidthRem = parseRemLengthNumber(spacing[taskRowViewDragHandleWidth]);
 
 function TaskRowViewDragHandle({
     undoManager,
@@ -1469,11 +1489,11 @@ function TaskRowViewDragHandle({
             className={classNames(
                 pointerEventsNoneNotInheritedClassName,
                 sprinkles({
-                    paddingRight: "0.5",
+                    width: taskRowViewDragHandleWidth,
+                    paddingX: "0.5",
                     opacity: isHovered ? "100" : "0",
                 }),
             )}
-            style={{width: taskRowViewDragHandleWidth}}
         >
             <FocusRing>
                 <button

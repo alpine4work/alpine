@@ -1,8 +1,28 @@
-import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {
+    RemLength,
+    Spacing,
+    addRemLengths,
+    parseRemLengthNumber,
+    spacing,
+} from "~/shared/design/spacing.js";
 
 export const taskRowViewMinHeight: Spacing = "10";
 
-export const taskRowViewPaddingX: Spacing = "5";
+export const taskRowViewPaddingX: {
+    desktop: Spacing;
+    mobile: Spacing;
+} = {
+    desktop: "5",
+    mobile: "4",
+};
+
+export const taskRowViewPaddingXRem: {
+    desktop: number;
+    mobile: number;
+} = {
+    desktop: parseRemLengthNumber(spacing[taskRowViewPaddingX.desktop]),
+    mobile: parseRemLengthNumber(spacing[taskRowViewPaddingX.mobile]),
+};
 
 export const taskRowViewColumnWidth: Spacing = "32";
 export const taskRowViewCollectionsColumnWidth: Spacing = "48";

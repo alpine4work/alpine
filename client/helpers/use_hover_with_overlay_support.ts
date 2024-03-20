@@ -1,5 +1,6 @@
 import {RefCallback, useCallback, useEffect, useRef, useState} from "react";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
+import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**
@@ -19,8 +20,17 @@ export function useHoverWithOverlaySupport(): [
     const lifecycleRef = useCallback((element: HTMLElement) => {
         elementRef.current = element;
 
-        const handlePointerEnter = () => setIsHovered(true);
-        const handlePointerLeave = () => setIsHovered(false);
+        const handlePointerEnter = (event: PointerEvent) => {
+            if (event.pointerType !== "mouse") return;
+
+            setIsHovered(true);
+        };
+
+        const handlePointerLeave = (event: PointerEvent) => {
+            if (event.pointerType !== "mouse") return;
+
+            setIsHovered(false);
+        };
 
         element.addEventListener("pointerenter", handlePointerEnter);
         element.addEventListener("pointerleave", handlePointerLeave);
@@ -43,6 +53,8 @@ export function useHoverWithOverlaySupport(): [
         const element = assertExists(elementRef.current);
 
         const handleDocumentPointerEnter = (event: PointerEvent) => {
+            if (event.pointerType !== "mouse") return;
+
             if (!event.currentTarget || event.currentTarget instanceof Node) {
                 setIsHovered(element.contains(event.currentTarget));
             }

@@ -342,6 +342,7 @@ export const quoteBlockClassName = style({
 // roman numerals.
 
 export const listItemIndentation = spacing["8"];
+export const listItemIndentationRem = parseRemLengthNumber(listItemIndentation);
 export const listItemIndentationVar: CssVarFunction = createVar();
 
 const bulletListItemBulletSize = spacing["1.5"];

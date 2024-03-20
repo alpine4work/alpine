@@ -496,7 +496,7 @@ export function TaskNotepadView({
                                                 overDroppableData={overDroppableData}
                                             />
                                             {isMobile && (
-                                                <Box paddingX={paddingX} paddingY="2">
+                                                <Box paddingX="2" paddingY="2">
                                                     <TaskNotepadViewPaginator
                                                         store={store}
                                                         allNotepadPageIds={allNotepadPageIds}
