@@ -103,6 +103,8 @@ import {
 } from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
+// NOCOMMIT: Haptic feedback when you close a task or mark it as active
+
 export type TaskGridViewColumn =
     | "ExpandButton"
     | "StatusButton"

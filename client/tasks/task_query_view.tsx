@@ -342,7 +342,6 @@ export function TaskQueryView({
         // `isTaskQueryManuallySorted()` checks. Namely drag-and-drop at the root query
         // level (subtasks are fine) and tab/shift-tab to indent.
         getMaybeRemoveTaskFromQueryActions: () => [],
-        withColumnHeaderBorderTop: true,
         columnHeaderControls: useMemo(() => {
             return {
                 minHeight: "3rem",

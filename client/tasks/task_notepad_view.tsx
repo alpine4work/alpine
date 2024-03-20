@@ -259,6 +259,7 @@ export function TaskNotepadView({
                         scrollOffset,
                     ),
                 ),
+            getElement: () => assertExists(viewRef.current).getElement(),
             getContentElement: () => assertExists(viewRef.current).getContentElement(),
             getItemElementByKeyIfExists: key =>
                 assertExists(viewRef.current).getItemElementByKeyIfExists(key),

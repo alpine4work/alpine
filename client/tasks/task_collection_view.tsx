@@ -358,7 +358,6 @@ export function TaskCollectionView({
                 },
             ];
         },
-        withColumnHeaderBorderTop: !withMobileLayout,
         columnHeaderControls: useMemo(() => {
             return {
                 minHeight: withMobileLayout ? "2.75rem" : "3rem",

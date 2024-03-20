@@ -25,6 +25,7 @@ import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {MemoObject, useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
@@ -153,6 +154,7 @@ export type TaskGridViewVirtualizedListViewRef = {
     peekRenderedRangeAfterSetScrollOffset: (
         scrollOffset: number,
     ) => {startIndex: number; endIndex: number} | null;
+    getElement: () => HTMLElement;
     getContentElement: () => HTMLElement;
     getItemElementByKeyIfExists: (key: Key) => HTMLElement | null;
 };
@@ -228,7 +230,7 @@ export function useTaskGridViewVirtualizedList({
     onApplyUndoStackEntry,
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
-    viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>;
+    viewRef: RefObject<TaskGridViewVirtualizedListViewRef>;
     store: TaskClientStore;
     query: {
         query: TaskClientQuery;
@@ -1713,6 +1715,27 @@ export function useTaskGridViewVirtualizedList({
             }
         };
     }, [animationState.animations, events]);
+
+    /* ========================================================================== *\
+     *                              Mobile Scrolling                              *
+    \* ========================================================================== */
+
+    // When the keyboard opens, make sure we scroll so that whatever's focused
+    // stays in view. (e.g. The text title input.)
+    useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
+        getAnchorPosition: useCallback(() => {
+            const viewContentElement = assertExists(viewRef.current).getContentElement();
+
+            if (
+                document.activeElement instanceof Element &&
+                viewContentElement.contains(document.activeElement)
+            ) {
+                return document.activeElement.getBoundingClientRect();
+            }
+
+            return null;
+        }, [viewRef]),
+    });
 
     /* ========================================================================== *\
      *                               Item Rendering                               *
