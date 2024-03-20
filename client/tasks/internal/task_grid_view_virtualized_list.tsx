@@ -28,6 +28,7 @@ import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {MemoObject, useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
@@ -42,6 +43,7 @@ import {findTaskIndexInGridViewVirtualizedListIfExists} from "~/client/tasks/int
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
+import {TaskGridViewMobileKeyboardToolbar} from "~/client/tasks/internal/task_grid_view_mobile_keyboard_toolbar.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {
     TaskGridViewVirtualizedListAnimation,
@@ -343,6 +345,8 @@ export function useTaskGridViewVirtualizedList({
      */
     remPx: number;
 } {
+    const isInitialAppRender = useIsInitialAppRender();
+    const isMobile = useIsMobile();
     const {isAppleDevice} = useClientInfo();
     const context = useAppContext();
     const remPx = useRemPx();
@@ -2047,6 +2051,10 @@ export function useTaskGridViewVirtualizedList({
                         onClose={() => setTaskDeleteConfirmationState(null)}
                         onAfterDelete={taskDeleteConfirmationState.onAfterDelete}
                     />
+                )}
+                {!isInitialAppRender && isMobile && (
+                    // The mobile keyboard toolbar is modal-ish? Maybe we should rename this prop.
+                    <TaskGridViewMobileKeyboardToolbar />
                 )}
             </>
         ),

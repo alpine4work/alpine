@@ -8,13 +8,17 @@ export function TaskPriorityIcon({
     size,
     priority,
     shouldHighlightUrgent,
+    withCurrentColorForUnfilledBars,
 }: {
     size: Spacing;
     priority: TaskPriority | null;
     shouldHighlightUrgent: boolean;
+    withCurrentColorForUnfilledBars?: boolean;
 }) {
     const filledBarColor = colorSchemeVars["grey-80"];
-    const notFilledBarColor = colorSchemeVars["grey-20"];
+    const unfilledBarColor = withCurrentColorForUnfilledBars
+        ? "currentColor"
+        : colorSchemeVars["grey-20"];
 
     let fillBar1: boolean;
     let fillBar2: boolean;
@@ -119,25 +123,28 @@ export function TaskPriorityIcon({
             }}
         >
             <rect
-                x="22.5"
+                x="23.5"
                 y="5"
-                width="4"
+                width="2"
                 height="22"
-                fill={fillBar3 ? filledBarColor : notFilledBarColor}
+                rx="1"
+                fill={fillBar3 ? filledBarColor : unfilledBarColor}
             />
             <rect
-                x="14"
+                x="15"
                 y="10.5"
-                width="4"
+                width="2"
                 height="16.5"
-                fill={fillBar2 ? filledBarColor : notFilledBarColor}
+                rx="1"
+                fill={fillBar2 ? filledBarColor : unfilledBarColor}
             />
             <rect
-                x="5.5"
+                x="6.5"
                 y="16"
-                width="4"
+                width="2"
                 height="11"
-                fill={fillBar1 ? filledBarColor : notFilledBarColor}
+                rx="1"
+                fill={fillBar1 ? filledBarColor : unfilledBarColor}
             />
         </svg>
     );
