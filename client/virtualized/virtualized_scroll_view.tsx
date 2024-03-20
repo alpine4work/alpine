@@ -1265,6 +1265,8 @@ function VirtualizedScrollView(
             scrollAnchorAdjustmentDuringMobileWebKitScroll;
     }, [contentHeight, scrollAnchorAdjustmentDuringMobileWebKitScroll]);
 
+    const lastStateKeyRef = useRef(actualState.key);
+
     // On every render:
     //
     // - Check if our item heights changed and update them. This is redundant with
@@ -1274,6 +1276,9 @@ function VirtualizedScrollView(
     // - Update our rendered range. Many changes in props may affect what items
     //   need to be rendered outside of simply scroll changes.
     useLayoutEffectWithoutServerSideWarning(() => {
+        const hasStateKeyChanged = lastStateKeyRef.current !== actualState.key;
+        if (hasStateKeyChanged) lastStateKeyRef.current = actualState.key;
+
         const scrollElement = assertExists(scrollRef.current);
 
         const heightByKey = new Map<Key, number>();
@@ -1283,7 +1288,10 @@ function VirtualizedScrollView(
             // `offsetHeight` is rounded (at least on iOS Safari).
             const {height} = elementRef.element.getBoundingClientRect();
 
-            if (height !== elementRef.lastRenderedHeight) {
+            // If our state key changes, we need to call `setItemHeight()` for all items
+            // regardless of the last rendered height. Since the state will have reset all
+            // heights back to min heights.
+            if (hasStateKeyChanged || height !== elementRef.lastRenderedHeight) {
                 heightByKey.set(key, height);
             }
         }

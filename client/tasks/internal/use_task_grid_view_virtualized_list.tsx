@@ -26,6 +26,7 @@ import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
+import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {MemoObject, useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
@@ -399,6 +400,12 @@ export function useTaskGridViewVirtualizedList({
     );
 
     const state = useStore(stateStore);
+
+    useDevConsoleTool("taskGridView", () => ({
+        viewRef,
+        query: rootQuery,
+        state,
+    }));
 
     const stateItemCount = state.getItemCount();
 

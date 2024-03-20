@@ -15,6 +15,8 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 
+export const taskNotepadViewPaginatorHeight = "6";
+
 export function TaskNotepadViewPaginator({
     store,
     allNotepadPageIds,
@@ -53,6 +55,7 @@ export function TaskNotepadViewPaginator({
     return (
         <Box
             flexGrow={isMobile ? "1" : undefined}
+            height={taskNotepadViewPaginatorHeight}
             display="flex"
             flexDirection={isMobile ? "row-reverse" : "row"}
             justifyContent={isMobile ? "space-between" : undefined}
@@ -62,7 +65,7 @@ export function TaskNotepadViewPaginator({
             <Button
                 variant={isMobile ? "quieter" : "neutral"}
                 icon={<Plus />}
-                height="6"
+                height={taskNotepadViewPaginatorHeight}
                 paddingX="2"
                 pressErrorTitle="Couldn’t create notepad page"
                 onPress={async () => {
@@ -164,7 +167,7 @@ export function TaskNotepadViewPaginator({
             >
                 <Button
                     variant="quieter"
-                    height="6"
+                    height={taskNotepadViewPaginatorHeight}
                     paddingX="2"
                     icon={<CaretDown />}
                     iconPlacement="end"

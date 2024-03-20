@@ -24,7 +24,7 @@ import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
-export const taskCardViewMinHeight = "5.25rem";
+export const taskCardViewMinHeight = "5.375rem";
 export const taskCardViewMaxWidth = "96";
 
 const TaskCardViewContentForwardRef = forwardRef(TaskCardViewContent);
@@ -209,7 +209,7 @@ function TaskCardViewContent(
             ref={ref}
             width="full"
             maxWidth={taskCardViewMaxWidth}
-            minHeight="full"
+            height="full"
             overflow="hidden"
             padding="4"
             display="flex"
@@ -218,6 +218,7 @@ function TaskCardViewContent(
             gap="4"
             position="relative"
             zIndex="0"
+            style={{minHeight: taskCardViewMinHeight}}
         >
             <Box
                 display="flex"

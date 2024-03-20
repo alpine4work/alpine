@@ -16,6 +16,7 @@ import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_
 import {
     TaskCardViewContent,
     taskCardViewMaxWidth,
+    taskCardViewMinHeight,
 } from "~/client/tasks/internal/task_card_view_content.js";
 import {
     taskNotepadViewActiveSectionCardGap,
@@ -305,6 +306,7 @@ function TaskNotepadCardView({
                     pointerEvents={isDragging ? "none" : undefined}
                     style={{
                         width: widthStyle,
+                        minHeight: taskCardViewMinHeight,
                         transform: shouldPushRight
                             ? `translateX(100%) translateX(${spacing[taskNotepadViewActiveSectionCardGap]})`
                             : shouldPushLeft

@@ -9,8 +9,14 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
-import {TaskNotepadViewActiveSection} from "~/client/tasks/internal/task_notepad_view_active_section.js";
-import {TaskNotepadViewPaginator} from "~/client/tasks/internal/task_notepad_view_paginator.js";
+import {
+    TaskNotepadViewActiveSection,
+    taskNotepadViewActiveSectionMinHeight,
+} from "~/client/tasks/internal/task_notepad_view_active_section.js";
+import {
+    TaskNotepadViewPaginator,
+    taskNotepadViewPaginatorHeight,
+} from "~/client/tasks/internal/task_notepad_view_paginator.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {
     TaskGridViewVirtualizedListViewRef,
@@ -31,7 +37,13 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {RemLength, Spacing, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
+import {
+    RemLength,
+    Spacing,
+    addRemLengths,
+    spacing,
+    subtractRemLengths,
+} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -484,8 +496,14 @@ export function TaskNotepadView({
                             if (index === 0) {
                                 return {
                                     key: "ActiveCards",
-                                    // Height on desktop with no cards and no safe area.
-                                    minHeight: "12rem",
+                                    minHeight: isMobile
+                                        ? addRemLengths(
+                                              taskNotepadViewActiveSectionMinHeight.mobile,
+                                              spacing["2"],
+                                              spacing[taskNotepadViewPaginatorHeight],
+                                              spacing["2"],
+                                          )
+                                        : taskNotepadViewActiveSectionMinHeight.desktop,
                                     node: (
                                         <>
                                             <TaskNotepadViewActiveSection

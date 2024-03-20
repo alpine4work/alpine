@@ -41,6 +41,30 @@ import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_fi
 import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
 
+const taskNotepadViewActiveSectionMarginTop = {desktop: "4", mobile: "2"} as const;
+const taskNotepadViewActiveSectionMarginBottom = "8";
+const taskNotepadViewActiveSectionPaddingY = "2";
+const taskNotepadViewActiveSectionTitleFontSize = {desktop: "200", mobile: "100"} as const;
+
+export const taskNotepadViewActiveSectionMinHeight = {
+    desktop: addRemLengths(
+        spacing[taskNotepadViewActiveSectionMarginTop.desktop],
+        fontSizes[taskNotepadViewActiveSectionTitleFontSize.desktop].lineHeight,
+        spacing[taskNotepadViewActiveSectionPaddingY],
+        taskCardViewMinHeight,
+        spacing[taskNotepadViewActiveSectionPaddingY],
+        spacing[taskNotepadViewActiveSectionMarginBottom],
+    ),
+    mobile: addRemLengths(
+        spacing[taskNotepadViewActiveSectionMarginTop.mobile],
+        fontSizes[taskNotepadViewActiveSectionTitleFontSize.mobile].lineHeight,
+        spacing[taskNotepadViewActiveSectionPaddingY],
+        taskCardViewMinHeight,
+        spacing[taskNotepadViewActiveSectionPaddingY],
+        spacing[taskNotepadViewActiveSectionMarginBottom],
+    ),
+};
+
 /**
  * The maximum number of cards to render before rendering a card saying you
  * have too many active tasks.
@@ -177,8 +201,9 @@ function TaskNotepadViewActiveSection({
     return (
         <Box
             style={{
+                minHeight: taskNotepadViewActiveSectionMinHeight[isMobile ? "mobile" : "desktop"],
                 paddingTop: `calc(${addRemLengths(
-                    spacing[!isMobile ? "4" : "2"],
+                    spacing[taskNotepadViewActiveSectionMarginTop[isMobile ? "mobile" : "desktop"]],
                     // Make room for the navigation bar on mobile.
                     isMobile ? spacing[mobileNavigationBarHeight] : "0rem",
                 )} + var(--safe-area-inset-top, 0px))`,
@@ -186,17 +211,21 @@ function TaskNotepadViewActiveSection({
                 // area inset top as margin for when it acts as a sticky header, remove a
                 // corresponding amount of space from our active section padding bottom.
                 paddingBottom: !isMobile
-                    ? `max(${spacing["8"]} - var(--safe-area-inset-top, 0px), 0px)`
-                    : spacing["8"],
+                    ? `max(${spacing[taskNotepadViewActiveSectionMarginBottom]} - var(--safe-area-inset-top, 0px), 0px)`
+                    : spacing[taskNotepadViewActiveSectionMarginBottom],
             }}
         >
-            <Box paddingX={paddingX} fontSize={!isMobile ? "200" : "100"} fontStyle="semi-bold">
+            <Box
+                paddingX={paddingX}
+                fontSize={taskNotepadViewActiveSectionTitleFontSize}
+                fontStyle="semi-bold"
+            >
                 Active
             </Box>
             <Box
                 data-scrollbar="false"
                 paddingX={paddingX}
-                paddingY="2"
+                paddingY={taskNotepadViewActiveSectionPaddingY}
                 overflowX="scroll"
                 overflowY="hidden"
                 display="flex"
