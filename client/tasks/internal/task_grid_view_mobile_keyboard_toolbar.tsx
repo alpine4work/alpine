@@ -48,6 +48,9 @@ export function TaskGridViewMobileKeyboardToolbar({
     titleInputRef,
     nestWithPreviousTaskRowIfExistsAndExpand,
     unnestTaskIfNestedRow,
+    focusAssigneeInput,
+    focusPriorityInput,
+    focusDueDateInput,
 }: {
     portalRef: RefObject<HTMLDivElement>;
     task: TaskModel | null;
@@ -57,6 +60,9 @@ export function TaskGridViewMobileKeyboardToolbar({
     titleInputRef: RefObject<TaskRowTitleInputRef>;
     nestWithPreviousTaskRowIfExistsAndExpand: (titleSelection: Selection) => void;
     unnestTaskIfNestedRow: (titleSelection: Selection) => void;
+    focusAssigneeInput: () => void;
+    focusPriorityInput: () => void;
+    focusDueDateInput: () => void;
 }) {
     const portalElement = assertExists(
         portalRef.current,
@@ -82,17 +88,11 @@ export function TaskGridViewMobileKeyboardToolbar({
                     : null
             }
             isAssigneeActive={!!task?.getAssignee()}
-            onAssigneePress={() => {
-                // NOCOMMIT: Implement!
-            }}
+            onAssigneePress={focusAssigneeInput}
             isPriorityActive={!!task?.getPriority()}
-            onPriorityPress={() => {
-                // NOCOMMIT: Implement!
-            }}
+            onPriorityPress={focusPriorityInput}
             isDueDateActive={!!task?.getDueDate()}
-            onDueDatePress={() => {
-                // NOCOMMIT: Implement!
-            }}
+            onDueDatePress={focusDueDateInput}
         />,
         portalElement,
     );
@@ -375,7 +375,10 @@ function TaskGridViewMobileKeyboardToolbarContent({
                 isActive={false}
                 flexGrow={1.2}
                 onPress={() => {
-                    // NOCOMMIT: Implement
+                    // Close the keyboard...
+                    if (document.activeElement instanceof HTMLElement) {
+                        document.activeElement.blur();
+                    }
                 }}
             >
                 <Box fontSize="100" fontStyle="semi-bold">

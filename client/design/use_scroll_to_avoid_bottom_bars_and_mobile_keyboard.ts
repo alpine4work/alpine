@@ -32,6 +32,32 @@ if (isMobileKeyboardFrameChangeEnabled) {
     });
 }
 
+export function getCurrentMobileKeyboardHeight(): number {
+    return currentMobileKeyboardHeight;
+}
+
+export function getCurrentCoveredHeight(): number {
+    const mobileKeyboardHeight = currentMobileKeyboardHeight;
+    const bottomBarHeight = getCurrentBottomBarHeight();
+
+    const tabBarHeight =
+        NativeMobileBridge && !NativeMobileBridge.tabBar.isDisabled()
+            ? NativeMobileBridge.tabBar.height - NativeMobileBridge.tabBar.getDeferredScrollOffset()
+            : 0;
+
+    const windowSafeAreaInsetBottom = getElementWindowSafeAreaInsetBottomPx(
+        document.documentElement,
+    );
+
+    const coveredHeight =
+        Math.max(mobileKeyboardHeight, windowSafeAreaInsetBottom + tabBarHeight) +
+        bottomBarHeight[
+            mobileKeyboardHeight > 0 ? "visibleMobileKeyboard" : "hiddenMobileKeyboard"
+        ];
+
+    return coveredHeight;
+}
+
 /**
  * When the virtual keyboard opens on mobile devices, you want to scroll
  * content so whatever the user was interacting with is still visible. this

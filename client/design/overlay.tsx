@@ -1,4 +1,4 @@
-import {Instance, Rect, createPopper} from "@popperjs/core";
+import {Instance, Modifier, OptionsGeneric, Rect, State, createPopper} from "@popperjs/core";
 import {
     ReactElement,
     ReactNode,
@@ -23,6 +23,9 @@ import {
     getElementSafeAreaInsetBottomPx,
     getElementSafeAreaInsetTopPx,
 } from "~/client/design/safe_area_inset.js";
+import {subscribeToBottomBarFrameChange} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
+import {subscribeToMobileKeyboardFrameChange} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
+import {getCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
@@ -271,141 +274,147 @@ function Overlay(
             );
             const overlayElement = overlayRef.current;
 
-            // Getting the value of 1rem without subscribing so that all our `<Overlay>`
-            // components don't need to re-render after the initial render.
-            const remPx = getRemPxWithoutListening();
+            const getOptions = () => {
+                // Getting the value of 1rem without subscribing so that all our `<Overlay>`
+                // components don't need to re-render after the initial render.
+                const remPx = getRemPxWithoutListening();
 
-            const paddingPx = convertRemLengthToPx(spacing["1"], remPx);
+                const paddingPx = convertRemLengthToPx(spacing["1"], remPx);
 
-            const padding = {
-                top: paddingPx + getElementSafeAreaInsetTopPx(targetElement),
-                bottom: paddingPx + getElementSafeAreaInsetBottomPx(targetElement),
-                left:
-                    paddingPx +
-                    (typeof overlaySink.insetLeft === "string"
-                        ? parseRemLengthNumber(overlaySink.insetLeft) * remPx
-                        : overlaySink.insetLeft ?? 0),
-                right:
-                    paddingPx +
-                    (typeof overlaySink.insetRight === "string"
-                        ? parseRemLengthNumber(overlaySink.insetRight) * remPx
-                        : overlaySink.insetRight ?? 0),
+                const padding = {
+                    top: paddingPx + getElementSafeAreaInsetTopPx(targetElement),
+                    bottom: paddingPx + getCurrentCoveredHeight(),
+                    left:
+                        paddingPx +
+                        (typeof overlaySink.insetLeft === "string"
+                            ? parseRemLengthNumber(overlaySink.insetLeft) * remPx
+                            : overlaySink.insetLeft ?? 0),
+                    right:
+                        paddingPx +
+                        (typeof overlaySink.insetRight === "string"
+                            ? parseRemLengthNumber(overlaySink.insetRight) * remPx
+                            : overlaySink.insetRight ?? 0),
+                };
+
+                return {
+                    placement: placement === "center" ? "top-start" : placement,
+                    modifiers: [
+                        {
+                            name: "preventOverflow",
+                            enabled: preventOverflow,
+                            options: {padding},
+                        },
+                        {
+                            name: "flip",
+                            enabled: placement !== "center",
+                            options: {
+                                fallbackPlacements,
+                                padding,
+                            },
+                        },
+                        // When placing in the center, add a custom offset modifier that positions the
+                        // overlay on top of the element underneath.
+                        placement === "center"
+                            ? {
+                                  name: "offset",
+                                  enabled: true,
+                                  options: {
+                                      offset: ({
+                                          reference,
+                                          popper,
+                                      }: {
+                                          reference: Rect;
+                                          popper: Rect;
+                                      }) => {
+                                          // This seems to be running before the `sameWidth` and `sameHeight` plugin so
+                                          // our `popper` rect hasn't updated. Instead we can hardcode similar
+                                          // logic here.
+                                          return [
+                                              reference.width / 2 -
+                                                  (sameWidth ? reference.width : popper.width) / 2,
+                                              -(sameHeight ? reference.height : popper.height) / 2 -
+                                                  reference.height / 2,
+                                          ];
+                                      },
+                                  },
+                              }
+                            : {
+                                  name: "offset",
+                                  enabled: true,
+                                  options: {
+                                      offset: [
+                                          offsetAlong
+                                              ? offsetAlong.startsWith("-")
+                                                  ? -convertRemLengthToPx(
+                                                        !offsetAlong.endsWith("rem")
+                                                            ? spacing[
+                                                                  offsetAlong.slice(1) as Spacing
+                                                              ]
+                                                            : (offsetAlong.slice(1) as RemLength),
+                                                        remPx,
+                                                    )
+                                                  : convertRemLengthToPx(
+                                                        !offsetAlong.endsWith("rem")
+                                                            ? spacing[offsetAlong as Spacing]
+                                                            : (offsetAlong as RemLength),
+                                                        remPx,
+                                                    )
+                                              : 0,
+                                          offset
+                                              ? offset.startsWith("-")
+                                                  ? -convertRemLengthToPx(
+                                                        !offset.endsWith("rem")
+                                                            ? spacing[offset.slice(1) as Spacing]
+                                                            : (offset.slice(1) as RemLength),
+                                                        remPx,
+                                                    )
+                                                  : convertRemLengthToPx(
+                                                        !offset.endsWith("rem")
+                                                            ? spacing[offset as Spacing]
+                                                            : (offset as RemLength),
+                                                        remPx,
+                                                    )
+                                              : 0,
+                                      ],
+                                  },
+                              },
+                        {
+                            name: "sameWidth",
+                            enabled: sameWidth,
+                            phase: "beforeWrite" as const,
+                            requires: ["computeStyles"],
+                            fn: ({state}: {state: State}) => {
+                                state.styles.popper!.width = `${state.rects.reference.width}px`;
+                            },
+                            effect: ({state}: {state: State}) => {
+                                state.elements.popper.style.width = `${
+                                    (state.elements.reference as HTMLElement).offsetWidth
+                                }px`;
+                            },
+                        },
+                        {
+                            name: "sameHeight",
+                            enabled: sameHeight,
+                            phase: "beforeWrite" as const,
+                            requires: ["computeStyles"],
+                            fn: ({state}: {state: State}) => {
+                                state.styles.popper!.height = `${state.rects.reference.height}px`;
+                            },
+                            effect: ({state}: {state: State}) => {
+                                state.elements.popper.style.height = `${
+                                    (state.elements.reference as HTMLElement).offsetHeight
+                                }px`;
+                            },
+                        },
+                    ],
+                };
             };
 
             // The Popper library was deprecated and replaced with Floating UI.
             // Functionality-wise, Popper is still working great for us. The Popper
             // documentation lives on here:
             // https://popper.js.org/docs/v2/
-            const popper = createPopper(targetElement, overlayElement, {
-                placement: placement === "center" ? "top-start" : placement,
-                modifiers: [
-                    {
-                        name: "preventOverflow",
-                        enabled: preventOverflow,
-                        options: {padding},
-                    },
-                    {
-                        name: "flip",
-                        enabled: placement !== "center",
-                        options: {
-                            fallbackPlacements,
-                            padding,
-                        },
-                    },
-                    // When placing in the center, add a custom offset modifier that positions the
-                    // overlay on top of the element underneath.
-                    placement === "center"
-                        ? {
-                              name: "offset",
-                              enabled: true,
-                              options: {
-                                  offset: ({
-                                      reference,
-                                      popper,
-                                  }: {
-                                      reference: Rect;
-                                      popper: Rect;
-                                  }) => {
-                                      // This seems to be running before the `sameWidth` and `sameHeight` plugin so
-                                      // our `popper` rect hasn't updated. Instead we can hardcode similar
-                                      // logic here.
-                                      return [
-                                          reference.width / 2 -
-                                              (sameWidth ? reference.width : popper.width) / 2,
-                                          -(sameHeight ? reference.height : popper.height) / 2 -
-                                              reference.height / 2,
-                                      ];
-                                  },
-                              },
-                          }
-                        : {
-                              name: "offset",
-                              enabled: true,
-                              options: {
-                                  offset: [
-                                      offsetAlong
-                                          ? offsetAlong.startsWith("-")
-                                              ? -convertRemLengthToPx(
-                                                    !offsetAlong.endsWith("rem")
-                                                        ? spacing[offsetAlong.slice(1) as Spacing]
-                                                        : (offsetAlong.slice(1) as RemLength),
-                                                    remPx,
-                                                )
-                                              : convertRemLengthToPx(
-                                                    !offsetAlong.endsWith("rem")
-                                                        ? spacing[offsetAlong as Spacing]
-                                                        : (offsetAlong as RemLength),
-                                                    remPx,
-                                                )
-                                          : 0,
-                                      offset
-                                          ? offset.startsWith("-")
-                                              ? -convertRemLengthToPx(
-                                                    !offset.endsWith("rem")
-                                                        ? spacing[offset.slice(1) as Spacing]
-                                                        : (offset.slice(1) as RemLength),
-                                                    remPx,
-                                                )
-                                              : convertRemLengthToPx(
-                                                    !offset.endsWith("rem")
-                                                        ? spacing[offset as Spacing]
-                                                        : (offset as RemLength),
-                                                    remPx,
-                                                )
-                                          : 0,
-                                  ],
-                              },
-                          },
-                    {
-                        name: "sameWidth",
-                        enabled: sameWidth,
-                        phase: "beforeWrite",
-                        requires: ["computeStyles"],
-                        fn: ({state}) => {
-                            state.styles.popper!.width = `${state.rects.reference.width}px`;
-                        },
-                        effect: ({state}) => {
-                            state.elements.popper.style.width = `${
-                                (state.elements.reference as HTMLElement).offsetWidth
-                            }px`;
-                        },
-                    },
-                    {
-                        name: "sameHeight",
-                        enabled: sameHeight,
-                        phase: "beforeWrite",
-                        requires: ["computeStyles"],
-                        fn: ({state}) => {
-                            state.styles.popper!.height = `${state.rects.reference.height}px`;
-                        },
-                        effect: ({state}) => {
-                            state.elements.popper.style.height = `${
-                                (state.elements.reference as HTMLElement).offsetHeight
-                            }px`;
-                        },
-                    },
-                ],
-            });
+            const popper = createPopper(targetElement, overlayElement, getOptions());
 
             popperRef.current = popper;
 
@@ -441,12 +450,22 @@ function Overlay(
                 },
             );
 
+            // If the mobile keyboard frame changes while our overlay is visible then
+            // update the overlay's options with the new covered height (read in
+            // `getOptions()`).
+            const unsubscribeFromMobileKeyboardFrameChange = subscribeToMobileKeyboardFrameChange(
+                () => {
+                    void popper.setOptions(getOptions());
+                },
+            );
+
             return () => {
                 popperRef.current = null;
                 popper.destroy();
                 removeResizeListenerForElement(targetElement, handleResize);
                 cleanupTargetElementAttributes();
                 cleanupOverlayElementAttributes();
+                unsubscribeFromMobileKeyboardFrameChange();
             };
         },
         [

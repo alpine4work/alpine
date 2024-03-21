@@ -9,6 +9,7 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {
@@ -101,6 +102,8 @@ function TaskPriorityInput(
     },
     ref: Ref<TaskPriorityInputRef>,
 ) {
+    const isMobile = useIsMobile();
+
     const [inputState, setInputState] = useState<TaskPriorityInputState>({
         type: "Selection",
         disableAnimationOut: false,
@@ -160,23 +163,47 @@ function TaskPriorityInput(
         },
 
         onFocus: () => {
+            const inputElement = assertExists(inputRef.current);
+
             // Select all text on focus.
-            assertExists(inputRef.current).select();
+            //
+            // Except on mobile. Since on mobile devices like iOS selecting a range of text
+            // will open a hovering edit menu (with copy/paste/etc. actions) which
+            // conflicts with our overlay. So instead clear out the text. The old text will
+            // still be visible in a placeholder.
+            if (!isMobile) {
+                inputElement.select();
 
-            // Open the combobox on focus.
-            comboBoxState.open();
+                // Open the combobox on focus.
+                comboBoxState.open();
 
-            // When focused, switch to a typing state.
-            setInputState(inputState => {
-                if (inputState.type === "Typing") return inputState;
-                return {
-                    type: "Typing",
-                    initialPriority: priority,
-                    value: inputValue,
-                    hasChanged: false,
-                    shouldSelect: false,
-                };
-            });
+                // When focused, switch to a typing state.
+                setInputState(inputState => {
+                    if (inputState.type === "Typing") return inputState;
+                    return {
+                        type: "Typing",
+                        initialPriority: priority,
+                        value: inputValue,
+                        hasChanged: false,
+                        shouldSelect: false,
+                    };
+                });
+            } else {
+                // Open the combobox on focus.
+                comboBoxState.open();
+
+                // When focused, switch to a typing state.
+                setInputState(inputState => {
+                    if (inputState.type === "Typing") return inputState;
+                    return {
+                        type: "Typing",
+                        initialPriority: priority,
+                        value: "",
+                        hasChanged: false,
+                        shouldSelect: false,
+                    };
+                });
+            }
         },
 
         onBlur: () => {
@@ -340,7 +367,9 @@ function TaskPriorityInput(
                         ? inputState.disableAnimationOut
                         : inputState.shouldSelect
                 }
-                placement="bottom-start"
+                // Prefer rendering the overlay above the input on mobile since the keyboard
+                // will open below the input causing an overlay rendered below to jump up.
+                placement={isMobile ? "top-start" : "bottom-start"}
                 overlay={
                     <div ref={popoverRef} className={sprinkles({position: "relative"})}>
                         <TaskPriorityInputListBox
@@ -375,8 +404,12 @@ function TaskPriorityInput(
                             // don't let a click unfocus it.
                             if (event.target === event.currentTarget) {
                                 event.preventDefault();
-                                assertExists(inputRef.current).focus();
                             }
+
+                            // Make sure the input focuses on press. iOS Safari seems to require a double
+                            // tap before the input focuses. Possibly because hover events are attached
+                            // somewhere.
+                            assertExists(inputRef.current).focus();
 
                             // Make sure to reopen the combobox whenever the pointer clicks the input.
                             if (!isReadOnly) {

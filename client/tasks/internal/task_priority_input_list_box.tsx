@@ -10,6 +10,7 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {TaskPriorityInputItem} from "~/client/tasks/internal/task_priority_input.js";
@@ -28,6 +29,8 @@ export function TaskPriorityInputListBox({
     listBoxProps: AriaListBoxOptions<TaskPriorityInputItem>;
     selectedKey: TaskPriorityInputItem["key"];
 }) {
+    const isMobile = useIsMobile();
+
     const {listBoxProps} = useListBox(_listBoxProps, comboBoxState, listBoxRef);
 
     return (
@@ -43,11 +46,15 @@ export function TaskPriorityInputListBox({
                     backgroundColor: "grey-0",
                     boxShadow: "elevation-20",
                     width: "48",
-                    maxHeight: "64",
                     overflowX: "hidden",
                     overflowY: "auto",
                 }),
             )}
+            style={{
+                // On mobile the height needs to be less than half of the available space when
+                // the keyboard and navigation bar are open.
+                maxHeight: isMobile ? "10rem" : spacing["64"],
+            }}
         >
             {comboBoxState.collection.size === 0 ? (
                 <Box padding="1.5" display="flex" alignItems="center" gap="1.5" color="grey-70">

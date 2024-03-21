@@ -1481,6 +1481,18 @@ function TaskRowView(
                         nestWithPreviousTaskRowIfExistsAndExpand
                     }
                     unnestTaskIfNestedRow={unnestTaskIfNestedRow}
+                    focusAssigneeInput={() => {
+                        if (!capabilities.hasDenseFields) return;
+                        assertExists(denseFieldsRef.current).focusAssigneeInput();
+                    }}
+                    focusPriorityInput={() => {
+                        if (!capabilities.hasDenseFields) return;
+                        assertExists(denseFieldsRef.current).focusPriorityInput();
+                    }}
+                    focusDueDateInput={() => {
+                        if (!capabilities.hasDenseFields) return;
+                        assertExists(denseFieldsRef.current).focusDueDateInput();
+                    }}
                 />
             )}
         </>

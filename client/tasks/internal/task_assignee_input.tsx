@@ -13,6 +13,7 @@ import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growin
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     useExpensivelyLoadAllSpaceAccounts,
@@ -113,6 +114,7 @@ function TaskAssigneeInput(
     },
     ref: Ref<TaskAssigneeInputRef>,
 ) {
+    const isMobile = useIsMobile();
     const accountStore = useAccountClientStore();
     const {currentAccount} = useSpaceContext();
 
@@ -243,23 +245,47 @@ function TaskAssigneeInput(
         },
 
         onFocus: () => {
+            const inputElement = assertExists(inputRef.current);
+
             // Select all text on focus.
-            assertExists(inputRef.current).select();
+            //
+            // Except on mobile. Since on mobile devices like iOS selecting a range of text
+            // will open a hovering edit menu (with copy/paste/etc. actions) which
+            // conflicts with our overlay. So instead clear out the text. The old text will
+            // still be visible in a placeholder.
+            if (!isMobile) {
+                inputElement.select();
 
-            // Open the combobox on focus.
-            comboBoxState.open();
+                // Open the combobox on focus.
+                comboBoxState.open();
 
-            // When focused, switch to a typing state.
-            setInputState(inputState => {
-                if (inputState.type === "Typing") return inputState;
-                return {
-                    type: "Typing",
-                    initialAssigneeAccountId: assigneeAccountData?.id ?? null,
-                    value: inputValue,
-                    hasChanged: false,
-                    shouldSelect: false,
-                };
-            });
+                // When focused, switch to a typing state.
+                setInputState(inputState => {
+                    if (inputState.type === "Typing") return inputState;
+                    return {
+                        type: "Typing",
+                        initialAssigneeAccountId: assigneeAccountData?.id ?? null,
+                        value: inputValue,
+                        hasChanged: false,
+                        shouldSelect: false,
+                    };
+                });
+            } else {
+                // Open the combobox on focus.
+                comboBoxState.open();
+
+                // When focused, switch to a typing state.
+                setInputState(inputState => {
+                    if (inputState.type === "Typing") return inputState;
+                    return {
+                        type: "Typing",
+                        initialAssigneeAccountId: assigneeAccountData?.id ?? null,
+                        value: "",
+                        hasChanged: false,
+                        shouldSelect: false,
+                    };
+                });
+            }
         },
 
         onBlur: () => {
@@ -455,7 +481,9 @@ function TaskAssigneeInput(
                         ? inputState.disableAnimationOut
                         : inputState.shouldSelect
                 }
-                placement="bottom-start"
+                // Prefer rendering the overlay above the input on mobile since the keyboard
+                // will open below the input causing an overlay rendered below to jump up.
+                placement={isMobile ? "top-start" : "bottom-start"}
                 overlay={
                     <div ref={popoverRef} className={sprinkles({position: "relative"})}>
                         <TaskAssigneeInputListBox
@@ -492,8 +520,12 @@ function TaskAssigneeInput(
                             // don't let a click unfocus it.
                             if (event.target === event.currentTarget) {
                                 event.preventDefault();
-                                assertExists(inputRef.current).focus();
                             }
+
+                            // Make sure the input focuses on press. iOS Safari seems to require a double
+                            // tap before the input focuses. Possibly because hover events are attached
+                            // somewhere.
+                            assertExists(inputRef.current).focus();
 
                             // Make sure to reopen the combobox whenever the pointer clicks the input.
                             if (!isReadOnly) {
