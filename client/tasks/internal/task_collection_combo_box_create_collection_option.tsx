@@ -2,7 +2,7 @@ import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import {Plus, SpinnerGap} from "phosphor-react";
 import {useRef, useState} from "react";
-import {mergeProps, useHover, useOption} from "react-aria";
+import {useOption} from "react-aria";
 import {ComboBoxState} from "react-stately";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -24,9 +24,18 @@ export function TaskCollectionComboBoxCreateCollectionOption<T>({
     isPending: boolean;
 }) {
     const optionRef = useRef(null);
-    const {isHovered, hoverProps} = useHover({});
-    const {optionProps, isFocused, isPressed} = useOption(
-        {key: item.key},
+    const {optionProps, isFocused, isPressed, isHovered} = useOption(
+        {
+            key: item.key,
+            // By default `@react-aria/listbox` allows you to press on the combobox trigger
+            // then drag up and release to select an item. This is not a common interaction
+            // and not something we want to support (our `<MenuButton>` doesn't support
+            // this). Furthermore, on mobile it means if you press an option in a combobox
+            // then scroll and release that option will be selected! Instead the scroll
+            // should cancel the press. We really want to disable that behavior since it
+            // feels broken.
+            disallowsDifferentPressOrigin: true,
+        },
         comboBoxState,
         optionRef,
     );
@@ -51,7 +60,7 @@ export function TaskCollectionComboBoxCreateCollectionOption<T>({
             isVisible={isFocused && wasFocusVisibleWhenFocused}
         >
             <Box
-                {...mergeProps(optionProps, hoverProps)}
+                {...optionProps}
                 ref={optionRef}
                 width="full"
                 padding="1.5"

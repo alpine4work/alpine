@@ -42,6 +42,9 @@ patchedDependencies:
   '@react-aria/label@3.7.1':
     hash: 4kaui6yu46mauqurrzjvzxfaky
     path: admin/patches/@react-aria__label@3.7.1.patch
+  '@react-aria/listbox@3.11.0':
+    hash: dfhlqmdgdphcpck56bit3vnanu
+    path: admin/patches/@react-aria__listbox@3.11.0.patch
   '@react-aria/selection@3.17.0':
     hash: eg54rmngwn4ny6roak6qnk7bfu
     path: admin/patches/@react-aria__selection@3.17.0.patch
@@ -194,6 +197,9 @@ dependencies:
   '@react-aria/label':
     specifier: 3.7.1
     version: 3.7.1(patch_hash=4kaui6yu46mauqurrzjvzxfaky)(react@18.2.0)
+  '@react-aria/listbox':
+    specifier: 3.11.0
+    version: 3.11.0(patch_hash=dfhlqmdgdphcpck56bit3vnanu)(react-dom@18.2.0)(react@18.2.0)
   '@react-aria/selection':
     specifier: 3.17.0
     version: 3.17.0(patch_hash=eg54rmngwn4ny6roak6qnk7bfu)(react-dom@18.2.0)(react@18.2.0)
@@ -4312,7 +4318,7 @@ packages:
     dependencies:
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
       '@react-aria/interactions': 3.19.0(patch_hash=p2oozbkxqialsghqx77zcrrpdi)(react@18.2.0)
-      '@react-aria/listbox': 3.11.0(react-dom@18.2.0)(react@18.2.0)
+      '@react-aria/listbox': 3.11.0(patch_hash=dfhlqmdgdphcpck56bit3vnanu)(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/live-announcer': 3.3.1
       '@react-aria/menu': 3.11.0(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/overlays': 3.18.0(react-dom@18.2.0)(react@18.2.0)
@@ -4511,7 +4517,7 @@ packages:
       react: 18.2.0
     dev: false
 
-  /@react-aria/listbox@3.11.0(react-dom@18.2.0)(react@18.2.0):
+  /@react-aria/listbox@3.11.0(patch_hash=dfhlqmdgdphcpck56bit3vnanu)(react-dom@18.2.0)(react@18.2.0):
     resolution: {integrity: sha512-N82ISTmnUWsp2Bmo/Kjy+3l/1/CSfRl/y6U3vUMZzEc+v4ptgWscUoWMpqzDrBpYhbVx1RdFuFJYOYOv4M5QYQ==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
@@ -4530,6 +4536,7 @@ packages:
       react: 18.2.0
       react-dom: 18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0)
     dev: false
+    patched: true
 
   /@react-aria/live-announcer@3.3.1:
     resolution: {integrity: sha512-hsc77U7S16trM86d+peqJCOCQ7/smO1cybgdpOuzXyiwcHQw8RQ4GrXrS37P4Ux/44E9nMZkOwATQRT2aK8+Ew==}
@@ -4672,7 +4679,7 @@ packages:
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
       '@react-aria/interactions': 3.19.0(patch_hash=p2oozbkxqialsghqx77zcrrpdi)(react@18.2.0)
       '@react-aria/label': 3.7.1(patch_hash=4kaui6yu46mauqurrzjvzxfaky)(react@18.2.0)
-      '@react-aria/listbox': 3.11.0(react-dom@18.2.0)(react@18.2.0)
+      '@react-aria/listbox': 3.11.0(patch_hash=dfhlqmdgdphcpck56bit3vnanu)(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/menu': 3.11.0(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/selection': 3.17.0(patch_hash=eg54rmngwn4ny6roak6qnk7bfu)(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
@@ -14140,7 +14147,7 @@ packages:
       '@react-aria/interactions': 3.19.0(patch_hash=p2oozbkxqialsghqx77zcrrpdi)(react@18.2.0)
       '@react-aria/label': 3.7.1(patch_hash=4kaui6yu46mauqurrzjvzxfaky)(react@18.2.0)
       '@react-aria/link': 3.6.0(react@18.2.0)
-      '@react-aria/listbox': 3.11.0(react-dom@18.2.0)(react@18.2.0)
+      '@react-aria/listbox': 3.11.0(patch_hash=dfhlqmdgdphcpck56bit3vnanu)(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/menu': 3.11.0(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/meter': 3.4.6(react@18.2.0)
       '@react-aria/numberfield': 3.9.0(react-dom@18.2.0)(react@18.2.0)

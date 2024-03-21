@@ -1,0 +1,187 @@
+diff --git a/dist/import.mjs b/dist/import.mjs
+index 5e89551ad2ab07490e1b0821ceec28e78169bd12..2b461b17b5dcaf7051abf3f88ec56c94c38302b2 100644
+--- a/dist/import.mjs
++++ b/dist/import.mjs
+@@ -161,7 +161,9 @@ function $293f70390ea03370$export$497855f14858aa34(props, state, ref) {
+         key: key,
+         ref: ref,
+         shouldSelectOnPressUp: shouldSelectOnPressUp,
+-        allowsDifferentPressOrigin: shouldSelectOnPressUp && shouldFocusOnHover,
++        // NOTE(calebmer): Allow explicitly turning off `allowsDifferentPressOrigin`
++        // in `useSelectableItem()`.
++        allowsDifferentPressOrigin: !props.disallowsDifferentPressOrigin && shouldSelectOnPressUp && shouldFocusOnHover,
+         isVirtualized: isVirtualized,
+         shouldUseVirtualFocus: shouldUseVirtualFocus,
+         isDisabled: isDisabled,
+@@ -171,7 +173,7 @@ function $293f70390ea03370$export$497855f14858aa34(props, state, ref) {
+         } : undefined,
+         linkBehavior: data === null || data === void 0 ? void 0 : data.linkBehavior
+     });
+-    let { hoverProps: hoverProps } = (0, $frWMC$useHover)({
++    let { hoverProps: hoverProps, isHovered: isHovered } = (0, $frWMC$useHover)({
+         isDisabled: isDisabled || !shouldFocusOnHover,
+         onHoverStart () {
+             if (!(0, $frWMC$isFocusVisible)()) {
+@@ -202,7 +204,9 @@ function $293f70390ea03370$export$497855f14858aa34(props, state, ref) {
+         isDisabled: isDisabled,
+         isPressed: isPressed,
+         allowsSelection: allowsSelection,
+-        hasAction: hasAction
++        hasAction: hasAction,
++        // NOTE(calebmer): Return `isHovered` prop since it's available.
++        isHovered: isHovered
+     };
+ }
+ 
+diff --git a/dist/main.js b/dist/main.js
+index 21cd9c2e4e57986b784b6a913c913bef392e7305..e38d0c181265b46f479f1ba5aab86dcd1722a726 100644
+--- a/dist/main.js
++++ b/dist/main.js
+@@ -170,7 +170,9 @@ function $c164f9f79f4cef2d$export$497855f14858aa34(props, state, ref) {
+         key: key,
+         ref: ref,
+         shouldSelectOnPressUp: shouldSelectOnPressUp,
+-        allowsDifferentPressOrigin: shouldSelectOnPressUp && shouldFocusOnHover,
++        // NOTE(calebmer): Allow explicitly turning off `allowsDifferentPressOrigin`
++        // in `useSelectableItem()`.
++        allowsDifferentPressOrigin: !props.disallowsDifferentPressOrigin && shouldSelectOnPressUp && shouldFocusOnHover,
+         isVirtualized: isVirtualized,
+         shouldUseVirtualFocus: shouldUseVirtualFocus,
+         isDisabled: isDisabled,
+@@ -180,7 +182,7 @@ function $c164f9f79f4cef2d$export$497855f14858aa34(props, state, ref) {
+         } : undefined,
+         linkBehavior: data === null || data === void 0 ? void 0 : data.linkBehavior
+     });
+-    let { hoverProps: hoverProps } = (0, $eFCLV$reactariainteractions.useHover)({
++    let { hoverProps: hoverProps, isHovered: isHovered } = (0, $eFCLV$reactariainteractions.useHover)({
+         isDisabled: isDisabled || !shouldFocusOnHover,
+         onHoverStart () {
+             if (!(0, $eFCLV$reactariainteractions.isFocusVisible)()) {
+@@ -211,7 +213,9 @@ function $c164f9f79f4cef2d$export$497855f14858aa34(props, state, ref) {
+         isDisabled: isDisabled,
+         isPressed: isPressed,
+         allowsSelection: allowsSelection,
+-        hasAction: hasAction
++        hasAction: hasAction,
++        // NOTE(calebmer): Return `isHovered` prop since it's available.
++        isHovered: isHovered
+     };
+ }
+ 
+diff --git a/dist/module.js b/dist/module.js
+index 5e89551ad2ab07490e1b0821ceec28e78169bd12..2b461b17b5dcaf7051abf3f88ec56c94c38302b2 100644
+--- a/dist/module.js
++++ b/dist/module.js
+@@ -161,7 +161,9 @@ function $293f70390ea03370$export$497855f14858aa34(props, state, ref) {
+         key: key,
+         ref: ref,
+         shouldSelectOnPressUp: shouldSelectOnPressUp,
+-        allowsDifferentPressOrigin: shouldSelectOnPressUp && shouldFocusOnHover,
++        // NOTE(calebmer): Allow explicitly turning off `allowsDifferentPressOrigin`
++        // in `useSelectableItem()`.
++        allowsDifferentPressOrigin: !props.disallowsDifferentPressOrigin && shouldSelectOnPressUp && shouldFocusOnHover,
+         isVirtualized: isVirtualized,
+         shouldUseVirtualFocus: shouldUseVirtualFocus,
+         isDisabled: isDisabled,
+@@ -171,7 +173,7 @@ function $293f70390ea03370$export$497855f14858aa34(props, state, ref) {
+         } : undefined,
+         linkBehavior: data === null || data === void 0 ? void 0 : data.linkBehavior
+     });
+-    let { hoverProps: hoverProps } = (0, $frWMC$useHover)({
++    let { hoverProps: hoverProps, isHovered: isHovered } = (0, $frWMC$useHover)({
+         isDisabled: isDisabled || !shouldFocusOnHover,
+         onHoverStart () {
+             if (!(0, $frWMC$isFocusVisible)()) {
+@@ -202,7 +204,9 @@ function $293f70390ea03370$export$497855f14858aa34(props, state, ref) {
+         isDisabled: isDisabled,
+         isPressed: isPressed,
+         allowsSelection: allowsSelection,
+-        hasAction: hasAction
++        hasAction: hasAction,
++        // NOTE(calebmer): Return `isHovered` prop since it's available.
++        isHovered: isHovered
+     };
+ }
+ 
+diff --git a/dist/types.d.ts b/dist/types.d.ts
+index 017141b501c493c791774fa497cb265d5f4e5815..3222bc89988d89f77ca80f8a8e5015f8ad8ab3c2 100644
+--- a/dist/types.d.ts
++++ b/dist/types.d.ts
+@@ -63,6 +63,8 @@ export interface OptionAria extends SelectableItemStates {
+     isFocused: boolean;
+     /** Whether the option is keyboard focused. */
+     isFocusVisible: boolean;
++    // NOTE(calebmer): Return `isHovered` prop since it's available.
++    isHovered: boolean;
+ }
+ export interface AriaOptionProps {
+     /**
+@@ -99,6 +101,9 @@ export interface AriaOptionProps {
+      * @deprecated
+      */
+     shouldUseVirtualFocus?: boolean;
++    // NOTE(calebmer): Allow explicitly turning off `allowsDifferentPressOrigin`
++    // in `useSelectableItem()`.
++    disallowsDifferentPressOrigin?: boolean;
+ }
+ /**
+  * Provides the behavior and accessibility implementation for an option in a listbox.
+diff --git a/src/useOption.ts b/src/useOption.ts
+index 574e6801467e9d0ceb289695c95c343985f1ac1c..faec5ec32f241fcaf53f2ec1ec1bbf504937d0e7 100644
+--- a/src/useOption.ts
++++ b/src/useOption.ts
+@@ -33,7 +33,10 @@ export interface OptionAria extends SelectableItemStates {
+   isFocused: boolean,
+ 
+   /** Whether the option is keyboard focused. */
+-  isFocusVisible: boolean
++  isFocusVisible: boolean,
++
++  // NOTE(calebmer): Return `isHovered` prop since it's available.
++  isHovered: boolean
+ }
+ 
+ export interface AriaOptionProps {
+@@ -77,7 +80,11 @@ export interface AriaOptionProps {
+    * Whether the option should use virtual focus instead of being focused directly.
+    * @deprecated
+    */
+-  shouldUseVirtualFocus?: boolean
++  shouldUseVirtualFocus?: boolean,
++
++  // NOTE(calebmer): Allow explicitly turning off `allowsDifferentPressOrigin`
++  // in `useSelectableItem()`.
++  disallowsDifferentPressOrigin?: boolean;
+ }
+ 
+ /**
+@@ -130,7 +137,9 @@ export function useOption<T>(props: AriaOptionProps, state: ListState<T>, ref: R
+     key,
+     ref,
+     shouldSelectOnPressUp,
+-    allowsDifferentPressOrigin: shouldSelectOnPressUp && shouldFocusOnHover,
++    // NOTE(calebmer): Allow explicitly turning off `allowsDifferentPressOrigin`
++    // in `useSelectableItem()`.
++    allowsDifferentPressOrigin: !props.disallowsDifferentPressOrigin && shouldSelectOnPressUp && shouldFocusOnHover,
+     isVirtualized,
+     shouldUseVirtualFocus,
+     isDisabled,
+@@ -138,7 +147,7 @@ export function useOption<T>(props: AriaOptionProps, state: ListState<T>, ref: R
+     linkBehavior: data?.linkBehavior
+   });
+ 
+-  let {hoverProps} = useHover({
++  let {hoverProps, isHovered} = useHover({
+     isDisabled: isDisabled || !shouldFocusOnHover,
+     onHoverStart() {
+       if (!isFocusVisible()) {
+@@ -169,6 +178,8 @@ export function useOption<T>(props: AriaOptionProps, state: ListState<T>, ref: R
+     isDisabled,
+     isPressed,
+     allowsSelection,
+-    hasAction
++    hasAction,
++    // NOTE(calebmer): Return `isHovered` prop since it's available.
++    isHovered
+   };
+ }
