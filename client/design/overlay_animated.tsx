@@ -2,7 +2,8 @@ import {Ref, forwardRef, useEffect, useRef, useState} from "react";
 import {Overlay, OverlayProps, OverlayRef} from "~/client/design/overlay.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {
     overlayAnimateContainerClassName,
@@ -99,22 +100,6 @@ function OverlayAnimated(
 
     if (state !== _state) setState(state);
 
-    useEffect(() => {
-        if (state.isAnimating) {
-            const timeoutId = setTimeout(
-                () => {
-                    setState(prevState => ({...prevState, isAnimating: false}));
-                },
-                state.isVisible
-                    ? overlayFadeInAnimationDurationMs
-                    : overlayFadeOutAnimationDurationMs,
-            );
-            return () => {
-                clearTimeout(timeoutId);
-            };
-        }
-    }, [state.isAnimating, state.isVisible]);
-
     const overlayRef = useRef<HTMLElement>(null);
 
     // We need this intermediate `<div>` because our animation uses CSS `translate`
@@ -124,21 +109,42 @@ function OverlayAnimated(
         </div>
     );
 
-    // It's ok to ignore the server-side warning since overlays are not visible in
-    // the server-side render.
-    useLayoutEffectWithoutServerSideWarning(() => {
-        const animateClassName = state.isAnimating
-            ? state.isVisible
-                ? overlayAnimateFadeInClassName
-                : overlayAnimateFadeOutClassName
-            : null;
+    useEffect(() => {
+        if (!state.isAnimating) return;
 
-        if (animateClassName) {
-            assert(overlayRef.current);
-            const overlayElement = overlayRef.current;
+        const overlayElement = assertExists(overlayRef.current);
+
+        let isCancelled = false;
+        let timeout: Timeout | null = null;
+        let animateClassName: string | null = null;
+
+        // NOTE(calebmer): Without this `requestAnimationFrame()` the animation is
+        // [quite choppy on iOS Safari][1]. I have no idea why adding this helps.
+        // My best guess is the animation is being blocked by some JavaScript code?
+        //
+        // [1]: https://gist.github.com/calebmer/ab71d37aa8ebf3866043882ad17d32ca
+        requestAnimationFrame(() => {
+            if (isCancelled) return;
+
+            animateClassName = state.isVisible
+                ? overlayAnimateFadeInClassName
+                : overlayAnimateFadeOutClassName;
+
             overlayElement.classList.add(animateClassName);
-            return () => overlayElement.classList.remove(animateClassName);
-        }
+
+            timeout = createTimeout(
+                () => setState(prevState => ({...prevState, isAnimating: false})),
+                state.isVisible
+                    ? overlayFadeInAnimationDurationMs
+                    : overlayFadeOutAnimationDurationMs,
+            );
+        });
+
+        return () => {
+            isCancelled = true;
+            timeout?.clear();
+            if (animateClassName) overlayElement.classList.remove(animateClassName);
+        };
     }, [state.isAnimating, state.isVisible]);
 
     const isActuallyVisible = state.isVisible || state.isAnimating;
