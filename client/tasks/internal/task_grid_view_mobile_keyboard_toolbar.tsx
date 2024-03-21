@@ -205,10 +205,10 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
             // makes the animation when the iOS keyboard opens more consistent. Before
             // adding this slop sometimes when animating the keyboard open the toolbar
             // wouldn't be visible until half way through the animation then pop in. This
-            // looks janky. You can observe it in [this video][1] ([backup link][2]) if you
-            // go frame by frame either time the keyboard opens. The toolbar pops in during
-            // the animation. This doesn't happen all the time. It's sporadic, mostly
-            // happening when the keyboard opens without needing to scroll the view.
+            // looks janky. You can observe it in [this video][1] if you go frame by frame
+            // either time the keyboard opens. The toolbar pops in during the animation.
+            // This doesn't happen all the time. It's sporadic, mostly happening when the
+            // keyboard opens without needing to scroll the view.
             //
             // My theory is that somewhere iOS or Safari is un-rendering the element while
             // it's offscreen and since we start the animation through non-traditional
@@ -219,8 +219,7 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
             // Safari into thinking the toolbar is visible onscreen so needs to always be
             // rendered.
             //
-            // [1]: https://gist.github.com/assets/8282507/3e2c58e3-d489-4e10-85d1-b0a7c4209e55
-            // [2]: https://gist.github.com/calebmer/76c991e6e7c51459aaae1702306b0fa4
+            // [1]: https://gist.github.com/calebmer/167a4853a187b44ed0621e2d667e7873
             pointerEvents="none"
             paddingTop="2"
             marginTop="-2"

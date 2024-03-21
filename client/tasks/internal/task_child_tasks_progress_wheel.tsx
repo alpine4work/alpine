@@ -65,7 +65,21 @@ export function TaskChildTasksProgressWheel({
     const circumference = 2 * Math.PI * radius;
 
     return (
-        <div style={{position: "relative", width: spacing[size], height: spacing[size]}}>
+        <div
+            style={{
+                position: "relative",
+                width: spacing[size],
+                height: spacing[size],
+                // NOTE(calebmer, 2024-03-21): Without this, in mobile Safari for iOS when the
+                // expand task button is clicked the progress wheel [icon shifts ever so
+                // slightly][1]. Adding this fixes it. This feels like a Safari bug and adding
+                // `transform` fixes it by creating a new composite layer for the progress
+                // wheel. Maybe a future version of Safari will fix this bug.
+                //
+                // [1]: https://gist.github.com/calebmer/4cc8e53c111199f4ace763b6ebb7750a
+                transform: "translate(0px, 0px)",
+            }}
+        >
             <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className={progressTrackClassName}
