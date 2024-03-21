@@ -155,14 +155,14 @@ function ContentEditorMobileKeyboardToolbar(
 
     useRegisterBottomBarMobileKeyboardToolbarFrame();
 
-    const isFocusedRef = useRef(isFocused);
+    const lastIsFocusedRef = useRef(isFocused);
     useEffect(() => {
         // In our native mobile app, the native mobile wrapper is responsible for
         // making this toolbar visible.
         if (isNativeMobile) return;
 
-        if (isFocusedRef.current === isFocused) return;
-        isFocusedRef.current = isFocused;
+        if (lastIsFocusedRef.current === isFocused) return;
+        lastIsFocusedRef.current = isFocused;
 
         const toolbarElement = assertExists(toolbarRef.current);
 

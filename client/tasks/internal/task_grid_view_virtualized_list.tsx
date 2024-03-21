@@ -43,7 +43,7 @@ import {findTaskIndexInGridViewVirtualizedListIfExists} from "~/client/tasks/int
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
-import {TaskGridViewMobileKeyboardToolbar} from "~/client/tasks/internal/task_grid_view_mobile_keyboard_toolbar.js";
+import {TaskGridViewMobileKeyboardToolbarContainer} from "~/client/tasks/internal/task_grid_view_mobile_keyboard_toolbar.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {
     TaskGridViewVirtualizedListAnimation,
@@ -350,6 +350,8 @@ export function useTaskGridViewVirtualizedList({
     const {isAppleDevice} = useClientInfo();
     const context = useAppContext();
     const remPx = useRemPx();
+
+    const mobileKeyboardToolbarPortalRef = useRef<HTMLDivElement>(null);
 
     assert(
         useHasTaskGridViewDndContext(),
@@ -1849,6 +1851,8 @@ export function useTaskGridViewVirtualizedList({
                                             !isDragging && disableExpensiveFeaturesDuringScroll
                                         }
                                         isFirstRow={stateItemCount === 0}
+                                        // The ghost row is not a task in the query so always report as false.
+                                        isFirstTaskInQuery={false}
                                         nextIndentation={0}
                                         titlePlaceholder={
                                             !capabilities.isReadOnly
@@ -1873,6 +1877,9 @@ export function useTaskGridViewVirtualizedList({
                                         // look misaligned. So remove it.
                                         withoutPaddingLeft={stateItemCount === 0}
                                         withPaddingBottom={itemIndex === itemCount - 1}
+                                        mobileKeyboardToolbarPortalRef={
+                                            mobileKeyboardToolbarPortalRef
+                                        }
                                     />
                                 ),
                             ),
@@ -1928,6 +1935,7 @@ export function useTaskGridViewVirtualizedList({
                                     !isDragging && disableExpensiveFeaturesDuringScroll
                                 }
                                 isFirstRow={itemIndex - itemCountBeforeState === 0}
+                                isFirstTaskInQuery={item.isFirstTaskInQuery}
                                 nextIndentation={
                                     itemIndex + 1 < itemCountBeforeState + stateItemCount
                                         ? // This doesn't mess up the `state.getItem(n + 1)` optimization since
@@ -1947,6 +1955,7 @@ export function useTaskGridViewVirtualizedList({
                                     onTaskDeleteConfirmationModalDialogClosedCallbacksRef
                                 }
                                 withPaddingBottom={itemIndex === itemCount - 1}
+                                mobileKeyboardToolbarPortalRef={mobileKeyboardToolbarPortalRef}
                             />
                         ),
                     ),
@@ -2054,7 +2063,9 @@ export function useTaskGridViewVirtualizedList({
                 )}
                 {!isInitialAppRender && isMobile && (
                     // The mobile keyboard toolbar is modal-ish? Maybe we should rename this prop.
-                    <TaskGridViewMobileKeyboardToolbar />
+                    <TaskGridViewMobileKeyboardToolbarContainer
+                        portalRef={mobileKeyboardToolbarPortalRef}
+                    />
                 )}
             </>
         ),
@@ -2580,6 +2591,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     parents,
     disableExpensiveFeaturesDuringScroll,
     isFirstRow,
+    isFirstTaskInQuery,
     nextIndentation,
     titlePlaceholder,
     viewRef,
@@ -2592,6 +2604,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     onTaskDeleteConfirmationModalDialogClosedCallbacksRef,
     withoutPaddingLeft,
     withPaddingBottom,
+    mobileKeyboardToolbarPortalRef,
 }: {
     context: AppContext;
     capabilities: Memo<TaskGridViewCapabilities>;
@@ -2606,6 +2619,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
     disableExpensiveFeaturesDuringScroll: boolean;
     isFirstRow: boolean;
+    isFirstTaskInQuery: boolean;
     nextIndentation: number;
     titlePlaceholder?: string;
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>;
@@ -2628,6 +2642,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     onTaskDeleteConfirmationModalDialogClosedCallbacksRef: MutableRefObject<Array<() => void>>;
     withoutPaddingLeft?: boolean;
     withPaddingBottom?: boolean;
+    mobileKeyboardToolbarPortalRef: RefObject<HTMLDivElement>;
 }) {
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
@@ -3249,6 +3264,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
             titlePlaceholder={titlePlaceholder}
             isFirstRow={isFirstRow}
+            isFirstTaskInQuery={isFirstTaskInQuery}
             nextIndentation={nextIndentation}
             areChildTasksExpandedStore={areChildTasksExpandedStore}
             onAreChildTasksExpandedToggle={() => {
@@ -3288,6 +3304,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
                 zIndex => events.setTaskRowZIndex(taskKey, zIndex),
                 [events, taskKey],
             )}
+            mobileKeyboardToolbarPortalRef={mobileKeyboardToolbarPortalRef}
         />
     );
 });

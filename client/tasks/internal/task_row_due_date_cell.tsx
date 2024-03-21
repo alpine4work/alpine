@@ -204,7 +204,9 @@ function TaskRowDueDateCell(
         <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
             <div
                 ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
-                data-testid="TaskRowDueDateCell"
+                data-testid={
+                    process.env.NODE_ENV !== "production" ? "TaskRowDueDateCell" : undefined
+                }
                 tabIndex={-1}
                 className={
                     isReadOnly

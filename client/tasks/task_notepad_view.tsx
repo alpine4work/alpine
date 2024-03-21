@@ -10,6 +10,11 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {
+    TaskGridViewVirtualizedListViewRef,
+    taskGridViewColumnHeaderHeight,
+    useTaskGridViewVirtualizedList,
+} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {
     TaskNotepadViewActiveSection,
     taskNotepadViewActiveSectionMinHeight,
 } from "~/client/tasks/internal/task_notepad_view_active_section.js";
@@ -18,11 +23,6 @@ import {
     taskNotepadViewPaginatorHeight,
 } from "~/client/tasks/internal/task_notepad_view_paginator.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {
-    TaskGridViewVirtualizedListViewRef,
-    taskGridViewColumnHeaderHeight,
-    useTaskGridViewVirtualizedList,
-} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
     TaskClientStore,
@@ -425,6 +425,7 @@ export function TaskNotepadView({
         ]),
     });
 
+    // NOCOMMIT: Put undo/redo in more actions
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         isDisabled: !isMobile,
         withMobileLayout,

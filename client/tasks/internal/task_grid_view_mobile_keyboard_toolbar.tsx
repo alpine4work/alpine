@@ -1,30 +1,194 @@
+import {animate} from "motion";
 import {CalendarBlank, IconContext, TextIndent, TextOutdent, User} from "phosphor-react";
-import {ReactNode, useId} from "react";
+import {ReactNode, Ref, RefObject, useEffect, useId, useRef, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
-import {createPortal} from "react-dom";
+import {createPortal, flushSync} from "react-dom";
 import {Box} from "~/client/design/box.js";
-import {mobileBottomBarKeyboardToolbarHeight} from "~/client/design/mobile_bottom_bar.js";
+import {
+    mobileBottomBarKeyboardToolbarHeight,
+    mobileBottomBarKeyboardToolbarHeightRem,
+} from "~/client/design/mobile_bottom_bar.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
 import {useRegisterBottomBarMobileKeyboardToolbarFrame} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {noop} from "~/shared/helpers/control/noop.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
-export function TaskGridViewMobileKeyboardToolbar() {
+/**
+ * The way our mobile keyboard toolbar works is at the task grid view level we
+ * render a `<TaskGridViewMobileKeyboardToolbarContainer>` which is the native
+ * mobile bottom bar. It contains disabled buttons. When a `<TaskRowView>`
+ * receives focus it renders a `<TaskGridViewMobileKeyboardToolbar>` which
+ * portals into the container with buttons that actually work!
+ *
+ * We use this setup because we want to use the props and state of
+ * `<TaskRowView>` to render our keyboard toolbar buttons but for smooth
+ * animations between states, want one bottom bar element animating up/down.
+ *
+ * Instead of portaling into `<TaskGridViewMobileKeyboardToolbarContainer>` we
+ * could implement all the buttons at that level by using `TaskRowViewRef`s.
+ * But then it's challenging to get access to the row's corresponding
+ * `TaskModel` in state since while we have a task key -> `TaskRowViewRef` data
+ * structure, we don't have a task key -> `TaskGridViewVirtualizedListStateItem`
+ * data structure.
+ */
+export function TaskGridViewMobileKeyboardToolbar({
+    portalRef,
+    task,
+    hasParents,
+    isFirstTaskInQuery,
+    isQueryManuallySorted,
+}: {
+    portalRef: RefObject<HTMLDivElement>;
+    task: TaskModel | null;
+    hasParents: boolean;
+    isQueryManuallySorted: boolean;
+    isFirstTaskInQuery: boolean;
+}) {
+    const portalElement = assertExists(
+        portalRef.current,
+        "Must render after `<TaskGridViewMobileKeyboardToolbarContainer>` has been rendered",
+    );
+
+    return createPortal(
+        <TaskGridViewMobileKeyboardToolbarContent
+            onDedentPress={
+                isQueryManuallySorted && task && hasParents
+                    ? () => {
+                          // NOCOMMIT: Implement!
+                      }
+                    : null
+            }
+            onIndentPress={
+                isQueryManuallySorted && task && !isFirstTaskInQuery
+                    ? () => {
+                          // NOCOMMIT: Implement!
+                      }
+                    : null
+            }
+            isAssigneeActive={!!task?.getAssignee()}
+            onAssigneePress={() => {
+                // NOCOMMIT: Implement!
+            }}
+            isPriorityActive={!!task?.getPriority()}
+            onPriorityPress={() => {
+                // NOCOMMIT: Implement!
+            }}
+            isDueDateActive={!!task?.getDueDate()}
+            onDueDatePress={() => {
+                // NOCOMMIT: Implement!
+            }}
+        />,
+        portalElement,
+    );
+}
+
+export function TaskGridViewMobileKeyboardToolbarContainer({
+    portalRef: externalPortalRef,
+}: {
+    portalRef: Ref<HTMLDivElement>;
+}) {
     const {isNativeMobile} = useClientInfo();
     const rootPortalElement = assertExists(
         useOverlayRootPortalElement(),
         "Can't server render `<TaskGridViewMobileKeyboardToolbar>`",
     );
 
+    const toolbarRef = useRef<HTMLDivElement>(null);
+    const portalRef = useRef<HTMLDivElement>(null);
+
     const id = useId();
 
     useRegisterBottomBarMobileKeyboardToolbarFrame();
 
+    const [isVisible, setIsVisible] = useState(false);
+
+    useEffect(() => {
+        const portalElement = assertExists(portalRef.current);
+
+        // Check if while waiting to mount the portal element got child nodes.
+        setIsVisible(!!portalElement.firstElementChild);
+
+        let isCancelled = false;
+        let isUpdateScheduled = false;
+
+        const observer = new MutationObserver(records => {
+            if (isUpdateScheduled) return;
+            isUpdateScheduled = true;
+
+            // Wait until right before the animation frame to re-render in case multiple
+            // mutations happen (remove node + add node) in this animation frame.
+            requestAnimationFrame(() => {
+                if (isCancelled) return;
+
+                isUpdateScheduled = false;
+
+                // Make sure we synchronously re-render so the default, disabled, content is
+                // hidden in the same paint.
+                flushSync(() => {
+                    setIsVisible(!!portalElement.firstElementChild);
+                });
+            });
+        });
+
+        observer.observe(portalElement, {childList: true});
+
+        return () => {
+            isCancelled = true;
+            observer.disconnect();
+        };
+    }, []);
+
+    const lastIsVisibleRef = useRef(isVisible);
+    useEffect(() => {
+        // In our native mobile app, the native mobile wrapper is responsible for
+        // making this toolbar visible.
+        if (isNativeMobile) return;
+
+        if (lastIsVisibleRef.current === isVisible) return;
+        lastIsVisibleRef.current = isVisible;
+
+        const toolbarElement = assertExists(toolbarRef.current);
+
+        if (isVisible) {
+            animate(
+                toolbarElement,
+                {
+                    y: [0, `-${mobileBottomBarKeyboardToolbarHeightRem}rem`],
+                },
+                {
+                    duration: 0.2,
+                    // Make sure we use hardware acceleration for this animation in WebKit. By
+                    // default `motion` turns it off.
+                    // https://motion.dev/guides/performance#webkits-exceptions
+                    allowWebkitAcceleration: true,
+                },
+            );
+        } else {
+            animate(
+                toolbarElement,
+                {
+                    y: [`-${mobileBottomBarKeyboardToolbarHeightRem}rem`, 0],
+                },
+                {
+                    duration: 0.2,
+                    // Make sure we use hardware acceleration for this animation in WebKit. By
+                    // default `motion` turns it off.
+                    // https://motion.dev/guides/performance#webkits-exceptions
+                    allowWebkitAcceleration: true,
+                },
+            );
+        }
+    }, [isVisible, isNativeMobile]);
+
     return createPortal(
         <Box
+            ref={toolbarRef}
             id={isNativeMobile ? `nmbb-kt-${id}` : id}
             // NOTE(calebmer): This is a little strange, we have a wrapper `<div>` with
             // `spacing["2"]` padding height on our keyboard toolbar. I've observed this
@@ -86,6 +250,7 @@ export function TaskGridViewMobileKeyboardToolbar() {
         >
             <Box
                 pointerEvents="auto"
+                position="relative"
                 height={mobileBottomBarKeyboardToolbarHeight}
                 backgroundColor="grey-5"
                 display="flex"
@@ -96,76 +261,119 @@ export function TaskGridViewMobileKeyboardToolbar() {
                     event.preventDefault();
                 }}
             >
-                <TaskGridViewMobileKeyboardToolbarButton
-                    label="Dedent"
-                    isActive={false}
-                    isDisabled={true}
-                    onPress={() => {
-                        // NOCOMMIT: Implement
-                    }}
-                >
-                    <TextOutdent />
-                </TaskGridViewMobileKeyboardToolbarButton>
-                <TaskGridViewMobileKeyboardToolbarButton
-                    dividerRight
-                    label="Indent"
-                    isActive={false}
-                    onPress={() => {
-                        // NOCOMMIT: Implement
-                    }}
-                >
-                    <TextIndent />
-                </TaskGridViewMobileKeyboardToolbarButton>
-                <TaskGridViewMobileKeyboardToolbarButton
-                    dividerLeft
-                    label="Assignee"
-                    isActive={false}
-                    onPress={() => {
-                        // NOCOMMIT: Implement
-                    }}
-                >
-                    <User />
-                </TaskGridViewMobileKeyboardToolbarButton>
-                <TaskGridViewMobileKeyboardToolbarButton
-                    label="Priority"
-                    isActive={false}
-                    onPress={() => {
-                        // NOCOMMIT: Implement
-                    }}
-                >
-                    <TaskPriorityIcon
-                        size="5"
-                        priority={null}
-                        shouldHighlightUrgent={false}
-                        withCurrentColorForUnfilledBars={true}
-                    />
-                </TaskGridViewMobileKeyboardToolbarButton>
-                <TaskGridViewMobileKeyboardToolbarButton
-                    dividerRight
-                    label="Due date"
-                    isActive={false}
-                    onPress={() => {
-                        // NOCOMMIT: Implement
-                    }}
-                >
-                    <CalendarBlank />
-                </TaskGridViewMobileKeyboardToolbarButton>
-                <TaskGridViewMobileKeyboardToolbarButton
-                    dividerLeft
-                    label="Done"
-                    isActive={false}
-                    flexGrow={1.2}
-                    onPress={() => {
-                        // NOCOMMIT: Implement
-                    }}
-                >
-                    <Box fontSize="100" fontStyle="semi-bold">
-                        Done
+                <Box
+                    ref={useMergedRefs(portalRef, externalPortalRef)}
+                    position="absolute"
+                    inset="0"
+                />
+                {!isVisible && (
+                    <Box position="absolute" inset="0">
+                        <TaskGridViewMobileKeyboardToolbarContent
+                            onDedentPress={null}
+                            onIndentPress={null}
+                            isAssigneeActive={false}
+                            onAssigneePress={null}
+                            isPriorityActive={false}
+                            onPriorityPress={null}
+                            isDueDateActive={false}
+                            onDueDatePress={null}
+                        />
                     </Box>
-                </TaskGridViewMobileKeyboardToolbarButton>
+                )}
             </Box>
         </Box>,
         rootPortalElement,
+    );
+}
+
+function TaskGridViewMobileKeyboardToolbarContent({
+    onDedentPress,
+    onIndentPress,
+    isAssigneeActive,
+    onAssigneePress,
+    isPriorityActive,
+    onPriorityPress,
+    isDueDateActive,
+    onDueDatePress,
+}: {
+    onDedentPress: (() => void) | null;
+    onIndentPress: (() => void) | null;
+    isAssigneeActive: boolean;
+    onAssigneePress: (() => void) | null;
+    isPriorityActive: boolean;
+    onPriorityPress: (() => void) | null;
+    isDueDateActive: boolean;
+    onDueDatePress: (() => void) | null;
+}) {
+    return (
+        <Box
+            width="full"
+            height={mobileBottomBarKeyboardToolbarHeight}
+            display="flex"
+            paddingX="0.5"
+        >
+            <TaskGridViewMobileKeyboardToolbarButton
+                label="Dedent"
+                isActive={false}
+                isDisabled={!onDedentPress}
+                onPress={onDedentPress ?? noop}
+            >
+                <TextOutdent />
+            </TaskGridViewMobileKeyboardToolbarButton>
+            <TaskGridViewMobileKeyboardToolbarButton
+                dividerRight
+                label="Indent"
+                isActive={false}
+                isDisabled={!onIndentPress}
+                onPress={onIndentPress ?? noop}
+            >
+                <TextIndent />
+            </TaskGridViewMobileKeyboardToolbarButton>
+            <TaskGridViewMobileKeyboardToolbarButton
+                dividerLeft
+                label="Assignee"
+                isActive={isAssigneeActive}
+                isDisabled={!onAssigneePress}
+                onPress={onAssigneePress ?? noop}
+            >
+                <User />
+            </TaskGridViewMobileKeyboardToolbarButton>
+            <TaskGridViewMobileKeyboardToolbarButton
+                label="Priority"
+                isActive={isPriorityActive}
+                isDisabled={!onPriorityPress}
+                onPress={onPriorityPress ?? noop}
+            >
+                <TaskPriorityIcon
+                    size="5"
+                    priority={null}
+                    shouldHighlightUrgent={false}
+                    withCurrentColorForUnfilledBars={true}
+                />
+            </TaskGridViewMobileKeyboardToolbarButton>
+            <TaskGridViewMobileKeyboardToolbarButton
+                dividerRight
+                label="Due date"
+                isActive={isDueDateActive}
+                isDisabled={!onDueDatePress}
+                onPress={onDueDatePress ?? noop}
+            >
+                <CalendarBlank />
+            </TaskGridViewMobileKeyboardToolbarButton>
+            <TaskGridViewMobileKeyboardToolbarButton
+                dividerLeft
+                label="Done"
+                isActive={false}
+                flexGrow={1.2}
+                onPress={() => {
+                    // NOCOMMIT: Implement
+                }}
+            >
+                <Box fontSize="100" fontStyle="semi-bold">
+                    Done
+                </Box>
+            </TaskGridViewMobileKeyboardToolbarButton>
+        </Box>
     );
 }
 

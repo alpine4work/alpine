@@ -183,7 +183,9 @@ function TaskStatusButton(
                 <button
                     {...mergeProps(buttonProps, {onKeyDownCapture})}
                     ref={mergedButtonRef as any}
-                    data-testid="TaskStatusButton"
+                    data-testid={
+                        process.env.NODE_ENV !== "production" ? "TaskStatusButton" : undefined
+                    }
                     tabIndex={!isTabbable ? -1 : undefined}
                     className={className}
                 >
@@ -199,7 +201,9 @@ function TaskStatusButton(
                     ref={mergedButtonRef as any}
                     // TODO(calebmer, #swc-transform): Consider writing a plugin that removes
                     // `data-testid` attributes in production build modes.
-                    data-testid="TaskStatusButton"
+                    data-testid={
+                        process.env.NODE_ENV !== "production" ? "TaskStatusButton" : undefined
+                    }
                     // Remove `tabIndex` from button props if this button is not focusable.
                     tabIndex={undefined}
                     className={className}

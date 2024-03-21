@@ -762,3 +762,13 @@ We typically use `<Box position="relative" zIndex="0">` to create a new stacking
 values like 10, 20, and 30 instead of trying to find the highest z-index globally like 999999 or
 `Number.MAX_SAFE_INTEGER` as used in some CSS. It also reduces the chance of their being bugs as
 adjacent components evolve since their z-order should be isolated from your component’s z-order.
+
+### Treat `data-testid` attributes as if they only exist in test environments
+
+Don’t look for elements with some `data-testid` attribute outside of unit tests or integration
+tests. They’re only used as a way to programmatically find elements that aren’t annotated in an
+accessibility friendly way.
+
+**Why?** `data-testid` attributes add unnecessary bloat to the DOM. Someday we’d like to write an
+SWC plugin that strips `data-testid` attributes away in non-production builds. Today we sometimes
+manually check that `NODE_ENV` is not production when assigning `data-testid`.

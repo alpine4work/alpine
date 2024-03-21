@@ -605,7 +605,7 @@ function TaskCollectionsInput(
     return (
         <Box
             ref={containerRef}
-            data-testid="TaskCollectionsInput"
+            data-testid={process.env.NODE_ENV !== "production" ? "TaskCollectionsInput" : undefined}
             display="flex"
             alignItems="center"
             flexWrap="wrap"

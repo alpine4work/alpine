@@ -3,10 +3,12 @@ import classNames from "classnames";
 import {ArrowsOutSimple, DotsSixVertical} from "phosphor-react";
 import {Selection} from "prosemirror-state";
 import {
+    FocusEvent,
     Key,
     KeyboardEvent,
     Memo,
     Ref,
+    RefObject,
     forwardRef,
     useId,
     useImperativeHandle,
@@ -24,6 +26,7 @@ import {MenuAction} from "~/client/design/menu_button.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {Store} from "~/client/helpers/store/store.js";
@@ -36,6 +39,8 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
+import {TaskGridViewMobileKeyboardToolbar} from "~/client/tasks/internal/task_grid_view_mobile_keyboard_toolbar.js";
+import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {
     TaskRowAssigneeCell,
     TaskRowAssigneeCellRef,
@@ -66,7 +71,6 @@ import {
 } from "~/client/tasks/internal/task_row_view_droppable_indentations.js";
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
     TaskClientStoreSearchAffinityManager,
@@ -216,8 +220,9 @@ function TaskRowView(
         parents,
         disableExpensiveFeaturesDuringScroll,
         isFirstRow,
-        titlePlaceholder,
+        isFirstTaskInQuery,
         nextIndentation,
+        titlePlaceholder,
         areChildTasksExpandedStore,
         onAreChildTasksExpandedToggle,
         withoutPaddingLeft,
@@ -244,6 +249,7 @@ function TaskRowView(
         pushUndoStackYDocEntryFromRedo,
         pushRedoStackYDocEntry,
         setRowZIndex,
+        mobileKeyboardToolbarPortalRef,
     }: {
         capabilities: TaskGridViewCapabilities;
         stateKey: Key | undefined;
@@ -257,6 +263,7 @@ function TaskRowView(
         parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
         disableExpensiveFeaturesDuringScroll: boolean;
         isFirstRow: boolean;
+        isFirstTaskInQuery: boolean;
         nextIndentation: number;
         titlePlaceholder?: string;
         areChildTasksExpandedStore: Store<true | undefined>;
@@ -300,6 +307,7 @@ function TaskRowView(
         }) => void;
         pushRedoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
         setRowZIndex: Memo<(zIndex: number) => () => void>;
+        mobileKeyboardToolbarPortalRef: RefObject<HTMLDivElement>;
     },
     ref: Ref<TaskRowViewRef>,
 ) {
@@ -323,6 +331,7 @@ function TaskRowView(
     // transitions from a ghost task to a regular task when the user enters data.
     assert(cursor !== null ? ghostTaskId === null : ghostTaskId !== null);
 
+    const isInitialAppRender = useIsInitialAppRender();
     const isMobile = useIsMobile();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const navigate = useNavigate();
@@ -1017,6 +1026,18 @@ function TaskRowView(
         return contextMenuActions;
     })();
 
+    const [isTextInputWithinFocusedIfMobile, setIsTextInputWithinFocusedIfMobile] = useState(false);
+    if (!isMobile && isTextInputWithinFocusedIfMobile) setIsTextInputWithinFocusedIfMobile(false);
+
+    const handleFocusChange = (event: FocusEvent) => {
+        setIsTextInputWithinFocusedIfMobile(
+            isMobile &&
+                document.activeElement instanceof Element &&
+                isTextInputElement(document.activeElement) &&
+                event.currentTarget.contains(document.activeElement),
+        );
+    };
+
     const marginLeft: RemLength = `${
         !withoutPaddingLeft
             ? contentSchemaStyles.listItemIndentationRem * parents.length +
@@ -1085,7 +1106,9 @@ function TaskRowView(
         <div
             ref={!capabilities.hasDenseFields ? mergedContainerRef : undefined}
             data-testid={
-                !capabilities.hasDenseFields ? `TaskRowView:${effectiveTaskId}` : undefined
+                process.env.NODE_ENV !== "production" && !capabilities.hasDenseFields
+                    ? `TaskRowView:${effectiveTaskId}`
+                    : undefined
             }
             data-indentation={!capabilities.hasDenseFields ? parents.length : undefined}
             style={{
@@ -1097,6 +1120,8 @@ function TaskRowView(
                 overflow: undefined,
                 display: "flex",
             }}
+            onFocus={!capabilities.hasDenseFields ? handleFocusChange : undefined}
+            onBlur={!capabilities.hasDenseFields ? handleFocusChange : undefined}
         >
             {!capabilities.hasDenseFields && borderCoverNode}
             <div
@@ -1233,7 +1258,9 @@ function TaskRowView(
             <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
                 <div
                     ref={titleCellRef}
-                    data-testid="TaskRowTitleCell"
+                    data-testid={
+                        process.env.NODE_ENV !== "production" ? "TaskRowTitleCell" : undefined
+                    }
                     tabIndex={capabilities.hasColumns ? (isFirstRow ? 0 : -1) : undefined}
                     className={titleCellClassName}
                     onKeyDown={event => {
@@ -1397,7 +1424,11 @@ function TaskRowView(
                 ) : (
                     <div
                         ref={mergedContainerRef}
-                        data-testid={`TaskRowView:${effectiveTaskId}`}
+                        data-testid={
+                            process.env.NODE_ENV !== "production"
+                                ? `TaskRowView:${effectiveTaskId}`
+                                : undefined
+                        }
                         data-indentation={parents.length}
                         style={{
                             minHeight: spacing[taskRowViewMinHeight],
@@ -1405,6 +1436,8 @@ function TaskRowView(
                             zIndex: "0",
                             backgroundColor: colorSchemeVars["grey-0"],
                         }}
+                        onFocus={handleFocusChange}
+                        onBlur={handleFocusChange}
                     >
                         {borderCoverNode}
                         {node}
@@ -1433,6 +1466,15 @@ function TaskRowView(
                     capabilities={capabilities}
                     focusTitleEnd={focusTitleEnd}
                     focusTitleAll={focusTitleAll}
+                />
+            )}
+            {!isInitialAppRender && isMobile && isTextInputWithinFocusedIfMobile && (
+                <TaskGridViewMobileKeyboardToolbar
+                    portalRef={mobileKeyboardToolbarPortalRef}
+                    task={task}
+                    hasParents={parents.length > 0}
+                    isQueryManuallySorted={isQueryManuallySorted}
+                    isFirstTaskInQuery={isFirstTaskInQuery}
                 />
             )}
         </>

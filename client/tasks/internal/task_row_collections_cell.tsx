@@ -206,7 +206,9 @@ function TaskRowCollectionsCell(
     return (
         <div
             ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
-            data-testid="TaskRowCollectionsCell"
+            data-testid={
+                process.env.NODE_ENV !== "production" ? "TaskRowCollectionsCell" : undefined
+            }
             tabIndex={-1}
             className={classNames(
                 !isReadOnly && tasksStyles.textCursorNotInheritedClassName,
