@@ -446,6 +446,26 @@ function TaskPriorityInput(
                                 // placeholder.
                                 cursor: inputValue.length > 0 ? "text" : undefined,
                             }}
+                            onKeyDown={event => {
+                                if (
+                                    event.key === "Enter" &&
+                                    comboBoxState.selectionManager.focusedKey == null
+                                ) {
+                                    // NOTE(calebmer): By default, `@react-aria/combobox` [calls `state.commit()`
+                                    // whenever `Enter` is pressed][1] whether or not an option is focused. If an
+                                    // option isn't focused this just closes the combobox and leaves the user
+                                    // confused. Is what they typed the new value or not? It's not, you can tell
+                                    // since the avatar doesn't change. This is particularly confusing on mobile
+                                    // where the user may hit the return key expecting the first value in the menu
+                                    // to be selected. But that won't happen, the menu will just close.
+                                    //
+                                    // So intercept this case and don't call into `@react-aria/combobox`.
+                                    //
+                                    // [1]: https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/combobox/src/useComboBox.ts#L132
+                                } else {
+                                    inputProps.onKeyDown?.(event);
+                                }
+                            }}
                         />
                     </div>
                 </FocusRing>
