@@ -1031,7 +1031,8 @@ function TaskRowView(
 
     const handleFocusChange = (event: FocusEvent) => {
         setIsTextInputWithinFocusedIfMobile(
-            isMobile &&
+            !isInitialAppRender &&
+                isMobile &&
                 document.activeElement instanceof Element &&
                 isTextInputElement(document.activeElement) &&
                 event.currentTarget.contains(document.activeElement),

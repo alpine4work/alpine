@@ -433,7 +433,12 @@ function TaskRowTitleInput(
                     event.stopPropagation();
 
                     if (childTaskCount > 0) {
-                        assertExists(childTasksButtonRef.current).focus();
+                        const childTasksButton = assertExists(childTasksButtonRef.current);
+                        if (childTasksButton.isFocusable()) {
+                            childTasksButton.focus();
+                        } else {
+                            focusNextCell();
+                        }
                     } else {
                         focusNextCell();
                     }

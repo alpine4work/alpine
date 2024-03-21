@@ -3,6 +3,7 @@ import {Key, KeyboardEvent, Ref, forwardRef, useImperativeHandle, useRef} from "
 import {mergeProps, useHover, usePress} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {Tooltip} from "~/client/design/tooltip.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_tasks_progress_wheel.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -23,6 +24,7 @@ import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 const Box = null;
 
 export type TaskRowTitleChildTasksButtonRef = {
+    isFocusable(): boolean;
     focus(): void;
 };
 
@@ -77,6 +79,8 @@ function TaskRowTitleChildTasksButton(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
+    const isMobile = useIsMobile();
+
     const buttonRef = useRef<HTMLDivElement>(null);
     const {hoverProps, isHovered} = useHover({});
     const {pressProps, isPressed} = usePress({onPress: onAreChildTasksExpandedToggle});
@@ -84,9 +88,14 @@ function TaskRowTitleChildTasksButton(
     useImperativeHandle(
         ref,
         () => ({
-            focus: () => assertExists(buttonRef.current).focus(),
+            isFocusable: () => !isMobile,
+            focus: () => {
+                if (!isMobile) {
+                    assertExists(buttonRef.current).focus();
+                }
+            },
         }),
-        [],
+        [isMobile],
     );
 
     return (
@@ -97,7 +106,15 @@ function TaskRowTitleChildTasksButton(
                     ref={buttonRef}
                     className={buttonClassName}
                     // Focusable by keyboard navigation.
-                    tabIndex={-1}
+                    //
+                    // Except on mobile! In mobile mode we expect the user to be interacting with
+                    // touch and not have access to a physical keyboard. If the virtual keyboard is
+                    // open (since they're editing text) and they expand/collapse a task then we
+                    // don't want to move focus to the button causing the keyboard to close.
+                    // Ideally this could be focusable on mobile but we prevent moving focus and
+                    // closing the keyboard with `event.preventDefault()` but this doesn't seem
+                    // possible.
+                    tabIndex={!isMobile ? -1 : undefined}
                     style={{
                         backgroundColor: isPressed
                             ? colorSchemeVars["grey-10"]

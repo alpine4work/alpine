@@ -19,7 +19,6 @@ const Box = null;
 const progressTrackClassName = sprinkles({
     position: "absolute",
     inset: "0",
-    color: {light: "theme-40", dark: "theme-60"},
 });
 
 const progressLineClassName = sprinkles({
@@ -59,14 +58,16 @@ export function TaskChildTasksProgressWheel({
 
     const size: Spacing = "3";
 
-    const radius = useSpacingPx(size) / 2;
+    const viewBoxSize = useSpacingPx(size);
     const strokeWidth = 2;
-    const viewBoxSize = radius * 2 + strokeWidth;
+    const diameter = viewBoxSize - strokeWidth;
+    const radius = diameter / 2;
     const circumference = 2 * Math.PI * radius;
 
     return (
         <div style={{position: "relative", width: spacing[size], height: spacing[size]}}>
-            <div
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
                 className={progressTrackClassName}
                 style={{
                     color: isPressed
@@ -75,57 +76,41 @@ export function TaskChildTasksProgressWheel({
                         ? colorSchemeVars["grey-30"]
                         : colorSchemeVars["grey-20"],
                 }}
+                fill="currentColor"
+                viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
             >
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    style={{
-                        // Safari logs a warning when using `width` or `height` with rem units.
-                        width: spacing[size],
-                        height: spacing[size],
-                    }}
-                    fill="currentColor"
-                    viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
-                >
-                    <circle
-                        cx={viewBoxSize / 2}
-                        cy={viewBoxSize / 2}
-                        r={radius}
-                        fill="none"
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1}
-                    />
-                </svg>
-            </div>
-            <div className={progressLineClassName}>
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    style={{
-                        // Safari logs a warning when using `width` or `height` with rem units.
-                        width: spacing[size],
-                        height: spacing[size],
-                    }}
-                    fill="currentColor"
-                    viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
-                >
-                    <path
-                        d={`
-                            M ${viewBoxSize / 2}, ${viewBoxSize / 2}
-                            m 0, -${radius}
-                            a ${radius},${radius} 0 1,1 0,${radius * 2}
-                            a ${radius},${radius} 0 1,1 0,-${radius * 2}
-                        `}
-                        fill="none"
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={strokeWidth}
-                        strokeDasharray={`${fraction * circumference} ${circumference}`}
-                        style={{transition: "stroke-dasharray 200ms ease"}}
-                    />
-                </svg>
-            </div>
+                <circle
+                    cx={viewBoxSize / 2}
+                    cy={viewBoxSize / 2}
+                    r={radius}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1}
+                />
+            </svg>
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className={progressLineClassName}
+                fill="currentColor"
+                viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
+            >
+                <path
+                    d={`\
+M ${viewBoxSize / 2}, ${viewBoxSize / 2}
+m 0, -${radius}
+a ${radius},${radius} 0 1,1 0,${radius * 2}
+a ${radius},${radius} 0 1,1 0,-${radius * 2}`}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={`${fraction * circumference} ${circumference}`}
+                    style={{transition: "stroke-dasharray 200ms ease"}}
+                />
+            </svg>
         </div>
     );
 }
