@@ -9,6 +9,7 @@ import {useAccountClientStore} from "~/client/accounts/account_client_store_cont
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
+import {useTouchSlop} from "~/client/design/use_touch_slop.js";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {Store} from "~/client/helpers/store/store.js";
@@ -501,8 +502,18 @@ function TaskAssigneeInput(
                             !isReadOnly ? tasksStyles.textCursorNotInheritedClassName : undefined,
                             sprinkles({
                                 maxWidth: "full",
-                                height: avatarSize,
-                                marginY: avatarSize === "5" ? "-0.5" : undefined,
+                                // Height of 9 for 45px on mobile to meet the [minimum recommended touch hit
+                                // target size][1].
+                                //
+                                // [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
+                                height: isMobile ? "9" : avatarSize,
+                                marginY: isMobile
+                                    ? avatarSize === "5"
+                                        ? "-2"
+                                        : "-2.5"
+                                    : avatarSize === "5"
+                                    ? "-0.5"
+                                    : undefined,
                                 overflow: "hidden",
                                 display: "inline-flex",
                                 alignItems: "center",
@@ -549,7 +560,10 @@ function TaskAssigneeInput(
                                     ? selectionInputValue
                                     : nullTaskAssigneeInputLabel
                             }
-                            className={sprinkles({color, height: "4"})}
+                            className={sprinkles({
+                                color,
+                                height: isMobile ? "9" : "4",
+                            })}
                             style={{
                                 ...inputProps.style,
                                 // We want a text cursor even if `isReadOnly` is true. But not if we have a

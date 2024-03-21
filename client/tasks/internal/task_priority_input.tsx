@@ -387,7 +387,12 @@ function TaskPriorityInput(
                             !isReadOnly && tasksStyles.textCursorNotInheritedClassName,
                             sprinkles({
                                 maxWidth: "full",
-                                height: "4",
+                                // Height of 9 for 45px on mobile to meet the [minimum recommended touch hit
+                                // target size][1].
+                                //
+                                // [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
+                                height: isMobile ? "9" : "4",
+                                marginY: isMobile ? "-2.5" : undefined,
                                 display: "inline-flex",
                                 alignItems: "center",
                                 gap: "1",
@@ -431,7 +436,10 @@ function TaskPriorityInput(
                             ref={inputRef}
                             tabIndex={!isTabbable ? -1 : undefined}
                             placeholder={priority ? selectionInputValue : getTaskPriorityName(null)}
-                            className={sprinkles({color, height: "4"})}
+                            className={sprinkles({
+                                color,
+                                height: isMobile ? "9" : "4",
+                            })}
                             style={{
                                 ...inputProps.style,
                                 // We want a text cursor even if `isReadOnly` is true. But not if we have a
