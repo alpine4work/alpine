@@ -230,9 +230,9 @@ function TaskRowView(
         getMoveTaskToQueryActions,
         getMoveTaskToRootQueryActions,
         getMaybeRemoveTaskFromQueryActions,
-        nestWithPreviousTaskRowIfExistsAndExpand,
         createTaskAbove,
         createTaskBelowAndFocus,
+        nestWithPreviousTaskRowIfExistsAndExpand,
         unnestTaskIfNestedRow,
         deleteTaskAndAllChildren,
         deleteTaskAndAllChildrenAndFocusPreviousRow,
@@ -1475,6 +1475,11 @@ function TaskRowView(
                     hasParents={parents.length > 0}
                     isQueryManuallySorted={isQueryManuallySorted}
                     isFirstTaskInQuery={isFirstTaskInQuery}
+                    titleInputRef={titleInputRef}
+                    nestWithPreviousTaskRowIfExistsAndExpand={
+                        nestWithPreviousTaskRowIfExistsAndExpand
+                    }
+                    unnestTaskIfNestedRow={unnestTaskIfNestedRow}
                 />
             )}
         </>

@@ -1,5 +1,6 @@
 import {animate} from "motion";
 import {CalendarBlank, IconContext, TextIndent, TextOutdent, User} from "phosphor-react";
+import {Selection} from "prosemirror-state";
 import {ReactNode, Ref, RefObject, useEffect, useId, useRef, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {createPortal, flushSync} from "react-dom";
@@ -14,6 +15,7 @@ import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_wit
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
+import {TaskRowTitleInputRef} from "~/client/tasks/internal/task_row_title_input.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -43,12 +45,18 @@ export function TaskGridViewMobileKeyboardToolbar({
     hasParents,
     isFirstTaskInQuery,
     isQueryManuallySorted,
+    titleInputRef,
+    nestWithPreviousTaskRowIfExistsAndExpand,
+    unnestTaskIfNestedRow,
 }: {
     portalRef: RefObject<HTMLDivElement>;
     task: TaskModel | null;
     hasParents: boolean;
     isQueryManuallySorted: boolean;
     isFirstTaskInQuery: boolean;
+    titleInputRef: RefObject<TaskRowTitleInputRef>;
+    nestWithPreviousTaskRowIfExistsAndExpand: (titleSelection: Selection) => void;
+    unnestTaskIfNestedRow: (titleSelection: Selection) => void;
 }) {
     const portalElement = assertExists(
         portalRef.current,
@@ -60,14 +68,16 @@ export function TaskGridViewMobileKeyboardToolbar({
             onDedentPress={
                 isQueryManuallySorted && task && hasParents
                     ? () => {
-                          // NOCOMMIT: Implement!
+                          const titleInput = assertExists(titleInputRef.current);
+                          unnestTaskIfNestedRow(titleInput.getSelection());
                       }
                     : null
             }
             onIndentPress={
                 isQueryManuallySorted && task && !isFirstTaskInQuery
                     ? () => {
-                          // NOCOMMIT: Implement!
+                          const titleInput = assertExists(titleInputRef.current);
+                          nestWithPreviousTaskRowIfExistsAndExpand(titleInput.getSelection());
                       }
                     : null
             }
