@@ -1737,16 +1737,48 @@ export function useTaskGridViewVirtualizedList({
     // stays in view. (e.g. The text title input.)
     useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
         getAnchorPosition: useCallback(() => {
+            const {activeElement} = document;
             const viewContentElement = assertExists(viewRef.current).getContentElement();
 
             if (
-                document.activeElement instanceof Element &&
-                viewContentElement.contains(document.activeElement)
+                !(activeElement instanceof Element) ||
+                !viewContentElement.contains(document.activeElement)
             ) {
-                return document.activeElement.getBoundingClientRect();
+                return null;
             }
 
-            return null;
+            const activeRect = activeElement.getBoundingClientRect();
+
+            // If we've focused a date input text segment then we want to include the
+            // calendar overlay in our anchor position. So search up the DOM tree for the
+            // `aria-owns` property added by `<Overlay>` which points to the calendar
+            // overlay.
+            if (activeElement.classList.contains(tasksStyles.taskDateInputTextSegmentClassName)) {
+                let parentElement = activeElement.parentElement;
+                let ownedElement: HTMLElement | null = null;
+
+                while (parentElement !== null) {
+                    const ariaOwnsAttribute = parentElement.getAttribute("aria-owns");
+                    if (ariaOwnsAttribute) {
+                        const ariaOwns = ariaOwnsAttribute.split(" ")[0]!;
+                        ownedElement = document.getElementById(ariaOwns);
+                        break;
+                    }
+
+                    parentElement = parentElement.parentElement;
+                }
+
+                if (ownedElement) {
+                    const ownedRect = ownedElement.getBoundingClientRect();
+
+                    const top = Math.min(activeRect.top, ownedRect.top);
+                    const bottom = Math.max(activeRect.bottom, ownedRect.bottom);
+
+                    return {top, height: bottom - top};
+                }
+            }
+
+            return activeRect;
         }, [viewRef]),
     });
 

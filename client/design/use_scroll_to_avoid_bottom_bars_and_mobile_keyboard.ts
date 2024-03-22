@@ -268,6 +268,21 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 // If our anchor is completely visible after the keyboard or bottom bar change
                 // then we don't need to scroll to make it visible again.
                 if (isCompletelyVisible) return;
+
+                const isPartiallyHidden = areRangesOverlapping(
+                    anchorPosition.top,
+                    anchorPosition.top + anchorPosition.height,
+                    newVisibleRect.bottom,
+                    Infinity,
+                );
+
+                // If our scroll anchor won't be partially hidden by the visible rect changing
+                // then don't scroll.
+                //
+                // A test case: Tap on a `<TaskDateInput>` near the top of the task notepad.
+                // Trying to adjust the scroll will cancel out the animated scroll
+                // `<TaskDateInput>` starts since this hook tries to make a minor adjustment.
+                if (!isPartiallyHidden) return;
             }
 
             const anchorPositionMiddle = anchorPosition.top + anchorPosition.height / 2;

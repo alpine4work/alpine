@@ -7,9 +7,11 @@
  */
 export function setElementAttributesWithCleanup(
     element: Element,
-    attributes: {[attributeName: string]: string | null},
+    attributes: {[attributeName: string]: string | null | undefined},
 ): () => void {
-    const attributeEntries = Object.entries(attributes);
+    const attributeEntries = Object.entries(attributes).filter(
+        ([, attributeValue]) => attributeValue !== undefined,
+    ) as Array<[string, string | null]>;
 
     const lastAttributeEntries: Array<[string, string | null]> = attributeEntries.map(
         ([attributeName]) => [attributeName, element.getAttribute(attributeName)],

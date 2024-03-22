@@ -40,7 +40,6 @@ import {
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {noop} from "~/shared/helpers/control/noop.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 /**
@@ -424,13 +423,21 @@ function Overlay(
             addResizeListenerForElement(targetElement, handleResize);
 
             const originalTargetElementId = targetElement.id;
-            const cleanupTargetElementAttributes = !originalTargetElementId
-                ? setElementAttributesWithCleanup(targetElement, {id: defaultTargetElementId})
-                : noop;
+            const originalOverlayElementId = overlayElement.id;
+
+            const cleanupTargetElementAttributes = setElementAttributesWithCleanup(targetElement, {
+                id: !originalTargetElementId ? defaultTargetElementId : undefined,
+
+                "aria-owns": originalOverlayElementId
+                    ? originalOverlayElementId
+                    : `${defaultTargetElementId}-overlay`,
+            });
 
             const cleanupOverlayElementAttributes = setElementAttributesWithCleanup(
                 overlayElement,
                 {
+                    id: !originalOverlayElementId ? `${defaultTargetElementId}-overlay` : undefined,
+
                     "data-ownedby": originalTargetElementId
                         ? originalTargetElementId
                         : defaultTargetElementId,
