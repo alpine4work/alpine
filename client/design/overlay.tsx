@@ -1,4 +1,4 @@
-import {Instance, Modifier, OptionsGeneric, Rect, State, createPopper} from "@popperjs/core";
+import {Instance, Rect, State, createPopper} from "@popperjs/core";
 import {
     ReactElement,
     ReactNode,
@@ -19,11 +19,7 @@ import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
-import {
-    getElementSafeAreaInsetBottomPx,
-    getElementSafeAreaInsetTopPx,
-} from "~/client/design/safe_area_inset.js";
-import {subscribeToBottomBarFrameChange} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
+import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {subscribeToMobileKeyboardFrameChange} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
 import {getCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";

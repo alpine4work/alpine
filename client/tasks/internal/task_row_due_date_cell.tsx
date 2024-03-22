@@ -256,7 +256,6 @@ function TaskRowDueDateCell(
                         display="block"
                         height="full"
                         paddingX={taskRowViewColumnPaddingX}
-                        overlayPlacement="bottom"
                         overlayOffset="-1"
                         focusRingAroundText={true}
                         shouldIncludeCalendarIcon={true}

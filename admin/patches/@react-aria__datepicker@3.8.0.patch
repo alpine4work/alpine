@@ -1,5 +1,5 @@
 diff --git a/dist/import.mjs b/dist/import.mjs
-index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..27430fe263c7f870fea62a8cdd1ae41da84b0b02 100644
+index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..f39bbcee127114c0f4db3e6e1de402c1f14b0b4d 100644
 --- a/dist/import.mjs
 +++ b/dist/import.mjs
 @@ -8,6 +8,7 @@ import {toCalendar as $cIPI0$toCalendar, CalendarDate as $cIPI0$CalendarDate} fr
@@ -10,6 +10,15 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..27430fe263c7f870fea62a8cdd1ae41d
  
  function $parcel$interopDefault(a) {
    return a && a.__esModule ? a.default : a;
+@@ -807,7 +808,7 @@ $dfb4eba373ed9493$exports = {
+ 
+ 
+ 
+-function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavigation) {
++function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavigation, disablePressNavigation) {
+     let { direction: direction } = (0, $cIPI0$useLocale)();
+     let focusManager = (0, $cIPI0$useMemo)(()=>(0, $cIPI0$createFocusManager)(ref), [
+         ref
 @@ -837,10 +838,13 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
          }
      };
@@ -27,8 +36,13 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..27430fe263c7f870fea62a8cdd1ae41d
          let walker = (0, $cIPI0$getFocusableTreeWalker)(ref.current, {
              tabbable: true
          });
-@@ -867,15 +871,15 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
+@@ -865,17 +869,20 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
+         if (target) target.focus();
+     };
      let { pressProps: pressProps } = (0, $cIPI0$usePress)({
++        // NOTE(calebmer): Allow disabling built-in press navigation. For
++        // `<TaskDateInputText>` we implement press navigation ourselves.
++        isDisabled: disablePressNavigation,
          preventFocusOnPress: true,
          allowTextSelectionOnPress: true,
 -        onPressStart (e) {
@@ -47,7 +61,16 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..27430fe263c7f870fea62a8cdd1ae41d
      });
  }
  
-@@ -1130,22 +1134,32 @@ function $6057a3d2a53a12fd$export$42df105a73306d51(props, state, ref) {
+@@ -921,7 +928,7 @@ function $16f0b7bb276bc17e$export$5591b0b878c1a989(props, state, ref) {
+         propsFocusManager,
+         ref
+     ]);
+-    let groupProps = (0, $3dfb0f96be0d6a08$export$4a931266a3838b86)(state, ref, props[$16f0b7bb276bc17e$export$300019f83c56d282] === "presentation");
++    let groupProps = (0, $3dfb0f96be0d6a08$export$4a931266a3838b86)(state, ref, props[$16f0b7bb276bc17e$export$300019f83c56d282] === "presentation", props.disablePressNavigation);
+     // Pass labels and other information to segments.
+     $16f0b7bb276bc17e$export$653eddfc964b0f8a.set(state, {
+         ariaLabel: props["aria-label"],
+@@ -1130,22 +1137,32 @@ function $6057a3d2a53a12fd$export$42df105a73306d51(props, state, ref) {
  
  
  
@@ -86,7 +109,7 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..27430fe263c7f870fea62a8cdd1ae41d
  }
  class $3aeceb3a64eb8358$var$DisplayNamesPolyfill {
      of(field) {
-@@ -1411,8 +1425,12 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
+@@ -1411,8 +1428,12 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
          ref,
          focusManager
      ]);
@@ -100,7 +123,7 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..27430fe263c7f870fea62a8cdd1ae41d
          role: "textbox",
          "aria-valuemax": null,
          "aria-valuemin": null,
-@@ -1431,6 +1449,9 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
+@@ -1431,6 +1452,9 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
      // This is needed because VoiceOver on iOS does not announce groups.
      let name = segment.type === "literal" ? "" : displayNames.of(segment.type);
      let labelProps = (0, $cIPI0$useLabels)({
@@ -111,7 +134,7 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..27430fe263c7f870fea62a8cdd1ae41d
          "aria-labelledby": ariaLabelledBy
      });
 diff --git a/dist/main.js b/dist/main.js
-index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..9b488c41b8fb1012e1d376ad80a74f032c45c233 100644
+index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..7a6a84f1de5355efcde760c256727f3273628108 100644
 --- a/dist/main.js
 +++ b/dist/main.js
 @@ -8,6 +8,9 @@ var $IwcIq$internationalizeddate = require("@internationalized/date");
@@ -124,6 +147,15 @@ index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..9b488c41b8fb1012e1d376ad80a74f03
  
  function $parcel$export(e, n, v, s) {
    Object.defineProperty(e, n, {get: v, set: s, enumerable: true, configurable: true});
+@@ -817,7 +820,7 @@ $c1905b78f6d2f5bf$exports = {
+ 
+ 
+ 
+-function $715562ad3b4cced4$export$4a931266a3838b86(state, ref, disableArrowNavigation) {
++function $715562ad3b4cced4$export$4a931266a3838b86(state, ref, disableArrowNavigation, disablePressNavigation) {
+     let { direction: direction } = (0, $IwcIq$reactariai18n.useLocale)();
+     let focusManager = (0, $IwcIq$react.useMemo)(()=>(0, $IwcIq$reactariafocus.createFocusManager)(ref), [
+         ref
 @@ -847,10 +850,13 @@ function $715562ad3b4cced4$export$4a931266a3838b86(state, ref, disableArrowNavig
          }
      };
@@ -141,8 +173,13 @@ index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..9b488c41b8fb1012e1d376ad80a74f03
          let walker = (0, $IwcIq$reactariafocus.getFocusableTreeWalker)(ref.current, {
              tabbable: true
          });
-@@ -877,15 +883,15 @@ function $715562ad3b4cced4$export$4a931266a3838b86(state, ref, disableArrowNavig
+@@ -875,17 +881,20 @@ function $715562ad3b4cced4$export$4a931266a3838b86(state, ref, disableArrowNavig
+         if (target) target.focus();
+     };
      let { pressProps: pressProps } = (0, $IwcIq$reactariainteractions.usePress)({
++        // NOTE(calebmer): Allow disabling built-in press navigation. For
++        // `<TaskDateInputText>` we implement press navigation ourselves.
++        isDisabled: disablePressNavigation,
          preventFocusOnPress: true,
          allowTextSelectionOnPress: true,
 -        onPressStart (e) {
@@ -161,7 +198,16 @@ index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..9b488c41b8fb1012e1d376ad80a74f03
      });
  }
  
-@@ -1140,22 +1146,32 @@ function $e90ae7c26a69c6b1$export$42df105a73306d51(props, state, ref) {
+@@ -931,7 +940,7 @@ function $4acc2f407c169e55$export$5591b0b878c1a989(props, state, ref) {
+         propsFocusManager,
+         ref
+     ]);
+-    let groupProps = (0, $715562ad3b4cced4$export$4a931266a3838b86)(state, ref, props[$4acc2f407c169e55$export$300019f83c56d282] === "presentation");
++    let groupProps = (0, $715562ad3b4cced4$export$4a931266a3838b86)(state, ref, props[$4acc2f407c169e55$export$300019f83c56d282] === "presentation", props.disablePressNavigation);
+     // Pass labels and other information to segments.
+     $4acc2f407c169e55$export$653eddfc964b0f8a.set(state, {
+         ariaLabel: props["aria-label"],
+@@ -1140,22 +1149,32 @@ function $e90ae7c26a69c6b1$export$42df105a73306d51(props, state, ref) {
  
  
  
@@ -200,7 +246,7 @@ index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..9b488c41b8fb1012e1d376ad80a74f03
  }
  class $934ac650a0aceb4b$var$DisplayNamesPolyfill {
      of(field) {
-@@ -1421,8 +1437,12 @@ function $5c015c6316d1904d$export$1315d136e6f7581(segment, state, ref) {
+@@ -1421,8 +1440,12 @@ function $5c015c6316d1904d$export$1315d136e6f7581(segment, state, ref) {
          ref,
          focusManager
      ]);
@@ -214,7 +260,7 @@ index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..9b488c41b8fb1012e1d376ad80a74f03
          role: "textbox",
          "aria-valuemax": null,
          "aria-valuemin": null,
-@@ -1441,6 +1461,9 @@ function $5c015c6316d1904d$export$1315d136e6f7581(segment, state, ref) {
+@@ -1441,6 +1464,9 @@ function $5c015c6316d1904d$export$1315d136e6f7581(segment, state, ref) {
      // This is needed because VoiceOver on iOS does not announce groups.
      let name = segment.type === "literal" ? "" : displayNames.of(segment.type);
      let labelProps = (0, $IwcIq$reactariautils.useLabels)({
@@ -225,7 +271,7 @@ index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..9b488c41b8fb1012e1d376ad80a74f03
          "aria-labelledby": ariaLabelledBy
      });
 diff --git a/dist/module.js b/dist/module.js
-index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..27430fe263c7f870fea62a8cdd1ae41da84b0b02 100644
+index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..f39bbcee127114c0f4db3e6e1de402c1f14b0b4d 100644
 --- a/dist/module.js
 +++ b/dist/module.js
 @@ -8,6 +8,7 @@ import {toCalendar as $cIPI0$toCalendar, CalendarDate as $cIPI0$CalendarDate} fr
@@ -236,6 +282,15 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..27430fe263c7f870fea62a8cdd1ae41d
  
  function $parcel$interopDefault(a) {
    return a && a.__esModule ? a.default : a;
+@@ -807,7 +808,7 @@ $dfb4eba373ed9493$exports = {
+ 
+ 
+ 
+-function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavigation) {
++function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavigation, disablePressNavigation) {
+     let { direction: direction } = (0, $cIPI0$useLocale)();
+     let focusManager = (0, $cIPI0$useMemo)(()=>(0, $cIPI0$createFocusManager)(ref), [
+         ref
 @@ -837,10 +838,13 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
          }
      };
@@ -253,8 +308,13 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..27430fe263c7f870fea62a8cdd1ae41d
          let walker = (0, $cIPI0$getFocusableTreeWalker)(ref.current, {
              tabbable: true
          });
-@@ -867,15 +871,15 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
+@@ -865,17 +869,20 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
+         if (target) target.focus();
+     };
      let { pressProps: pressProps } = (0, $cIPI0$usePress)({
++        // NOTE(calebmer): Allow disabling built-in press navigation. For
++        // `<TaskDateInputText>` we implement press navigation ourselves.
++        isDisabled: disablePressNavigation,
          preventFocusOnPress: true,
          allowTextSelectionOnPress: true,
 -        onPressStart (e) {
@@ -273,7 +333,16 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..27430fe263c7f870fea62a8cdd1ae41d
      });
  }
  
-@@ -1130,22 +1134,32 @@ function $6057a3d2a53a12fd$export$42df105a73306d51(props, state, ref) {
+@@ -921,7 +928,7 @@ function $16f0b7bb276bc17e$export$5591b0b878c1a989(props, state, ref) {
+         propsFocusManager,
+         ref
+     ]);
+-    let groupProps = (0, $3dfb0f96be0d6a08$export$4a931266a3838b86)(state, ref, props[$16f0b7bb276bc17e$export$300019f83c56d282] === "presentation");
++    let groupProps = (0, $3dfb0f96be0d6a08$export$4a931266a3838b86)(state, ref, props[$16f0b7bb276bc17e$export$300019f83c56d282] === "presentation", props.disablePressNavigation);
+     // Pass labels and other information to segments.
+     $16f0b7bb276bc17e$export$653eddfc964b0f8a.set(state, {
+         ariaLabel: props["aria-label"],
+@@ -1130,22 +1137,32 @@ function $6057a3d2a53a12fd$export$42df105a73306d51(props, state, ref) {
  
  
  
@@ -312,7 +381,7 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..27430fe263c7f870fea62a8cdd1ae41d
  }
  class $3aeceb3a64eb8358$var$DisplayNamesPolyfill {
      of(field) {
-@@ -1411,8 +1425,12 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
+@@ -1411,8 +1428,12 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
          ref,
          focusManager
      ]);
@@ -326,7 +395,7 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..27430fe263c7f870fea62a8cdd1ae41d
          role: "textbox",
          "aria-valuemax": null,
          "aria-valuemin": null,
-@@ -1431,6 +1449,9 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
+@@ -1431,6 +1452,9 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
      // This is needed because VoiceOver on iOS does not announce groups.
      let name = segment.type === "literal" ? "" : displayNames.of(segment.type);
      let labelProps = (0, $cIPI0$useLabels)({
@@ -336,10 +405,58 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..27430fe263c7f870fea62a8cdd1ae41d
          "aria-label": `${name}${ariaLabel ? `, ${ariaLabel}` : ""}${ariaLabelledBy ? ", " : ""}`,
          "aria-labelledby": ariaLabelledBy
      });
+diff --git a/dist/types.d.ts b/dist/types.d.ts
+index 920f31e19b1b18ed66ebb27e6bfd6e7c7b72c89a..6e96ebf75d6e11c6ec5743605a9a6fa274ca501a 100644
+--- a/dist/types.d.ts
++++ b/dist/types.d.ts
+@@ -8,6 +8,9 @@ import { CalendarProps, RangeCalendarProps } from "@react-types/calendar";
+ export interface AriaDateFieldOptions<T extends DateValue> extends Omit<AriaDateFieldProps<T>, 'value' | 'defaultValue' | 'onChange' | 'minValue' | 'maxValue' | 'placeholderValue'> {
+     /** A ref for the hidden input element for HTML form submission. */
+     inputRef?: RefObject<HTMLInputElement>;
++    // NOTE(calebmer): Allow disabling built-in press navigation. For
++    // `<TaskDateInputText>` we implement press navigation ourselves.
++    disablePressNavigation?: boolean;
+ }
+ export interface DateFieldAria {
+     /** Props for the field's visible label element, if any. */
+diff --git a/src/useDateField.ts b/src/useDateField.ts
+index aac721955172358dfe26123da8f02a132dbe8f9b..9a2cae33dd1d438a4a14d98dee71fda8d3531cbb 100644
+--- a/src/useDateField.ts
++++ b/src/useDateField.ts
+@@ -26,7 +26,10 @@ import {useLocalizedStringFormatter} from '@react-aria/i18n';
+ // Allows this hook to also be used with TimeField
+ export interface AriaDateFieldOptions<T extends DateValue> extends Omit<AriaDateFieldPropsBase<T>, 'value' | 'defaultValue' | 'onChange' | 'minValue' | 'maxValue' | 'placeholderValue'> {
+   /** A ref for the hidden input element for HTML form submission. */
+-  inputRef?: RefObject<HTMLInputElement>
++  inputRef?: RefObject<HTMLInputElement>,
++  // NOTE(calebmer): Allow disabling built-in press navigation. For
++  // `<TaskDateInputText>` we implement press navigation ourselves.
++  disablePressNavigation?: boolean
+ }
+ 
+ export interface DateFieldAria {
+@@ -94,7 +97,7 @@ export function useDateField<T extends DateValue>(props: AriaDateFieldOptions<T>
+     : [descProps['aria-describedby'], fieldProps['aria-describedby']].filter(Boolean).join(' ') || undefined;
+   let propsFocusManager = props[focusManagerSymbol];
+   let focusManager = useMemo(() => propsFocusManager || createFocusManager(ref), [propsFocusManager, ref]);
+-  let groupProps = useDatePickerGroup(state, ref, props[roleSymbol] === 'presentation');
++  let groupProps = useDatePickerGroup(state, ref, props[roleSymbol] === 'presentation', props.disablePressNavigation);
+ 
+   // Pass labels and other information to segments.
+   hookData.set(state, {
 diff --git a/src/useDatePickerGroup.ts b/src/useDatePickerGroup.ts
-index 5892fecccc52080f0a122ee657cceae88efe82f2..a23005c3d28ad47fc04804bed33338b7c5c19d4b 100644
+index 5892fecccc52080f0a122ee657cceae88efe82f2..0485c267705027fe495453f278fff06f825995a0 100644
 --- a/src/useDatePickerGroup.ts
 +++ b/src/useDatePickerGroup.ts
+@@ -6,7 +6,7 @@ import {RefObject, useMemo} from 'react';
+ import {useLocale} from '@react-aria/i18n';
+ import {usePress} from '@react-aria/interactions';
+ 
+-export function useDatePickerGroup(state: DatePickerState | DateRangePickerState | DateFieldState, ref: RefObject<Element>, disableArrowNavigation?: boolean) {
++export function useDatePickerGroup(state: DatePickerState | DateRangePickerState | DateFieldState, ref: RefObject<Element>, disableArrowNavigation?: boolean, disablePressNavigation?: boolean) {
+   let {direction} = useLocale();
+   let focusManager = useMemo(() => createFocusManager(ref), [ref]);
+ 
 @@ -49,9 +49,13 @@ export function useDatePickerGroup(state: DatePickerState | DateRangePickerState
    };
  
@@ -356,8 +473,13 @@ index 5892fecccc52080f0a122ee657cceae88efe82f2..a23005c3d28ad47fc04804bed33338b7
      let walker = getFocusableTreeWalker(ref.current, {tabbable: true});
      if (target) {
        walker.currentNode = target;
-@@ -87,11 +91,6 @@ export function useDatePickerGroup(state: DatePickerState | DateRangePickerState
+@@ -85,13 +89,11 @@ export function useDatePickerGroup(state: DatePickerState | DateRangePickerState
+   };
+ 
    let {pressProps} = usePress({
++    // NOTE(calebmer): Allow disabling built-in press navigation. For
++    // `<TaskDateInputText>` we implement press navigation ourselves.
++    isDisabled: disablePressNavigation,
      preventFocusOnPress: true,
      allowTextSelectionOnPress: true,
 -    onPressStart(e) {
@@ -368,7 +490,7 @@ index 5892fecccc52080f0a122ee657cceae88efe82f2..a23005c3d28ad47fc04804bed33338b7
      onPress(e) {
        if (e.pointerType !== 'mouse') {
          focusLast();
-@@ -99,5 +98,10 @@ export function useDatePickerGroup(state: DatePickerState | DateRangePickerState
+@@ -99,5 +101,10 @@ export function useDatePickerGroup(state: DatePickerState | DateRangePickerState
      }
    });
  

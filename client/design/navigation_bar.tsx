@@ -50,6 +50,7 @@ import {
     FontSize,
     navigationBarStyles,
     pointerEventsNoneNotInheritedClassName,
+    sprinkles,
 } from "~/shared/styles/styles.js";
 
 const {
@@ -511,6 +512,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
         ? mobileNavigationBarHeightRem
         : desktopNavigationBarHeightRem;
 
+    const navigationBarContainerRef = useRef<HTMLDivElement>(null);
     const navigationBarRef = useRef<HTMLDivElement>(null);
     const navigationBarBackgroundRef = useRef<HTMLDivElement>(null);
     const navigationBarContentRef = useRef<HTMLDivElement>(null);
@@ -692,6 +694,9 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             navigationBarHeight,
                         );
 
+                        const navigationBarContainerElement = assertExists(
+                            navigationBarContainerRef.current,
+                        );
                         const navigationBarBackgroundElement = assertExists(
                             navigationBarBackgroundRef.current,
                         );
@@ -775,10 +780,16 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             if (isNavigationBarOpaque) {
                                 navigationBarBackgroundElement.style.opacity = "1";
                                 navigationBarBackgroundElement.style.pointerEvents = "auto";
+
+                                // Render over overlays while opaque.
+                                navigationBarContainerElement.style.zIndex = "80";
                             } else {
                                 navigationBarBackgroundElement.style.opacity = `${navigationBarScrollPercentage}`;
                                 navigationBarBackgroundElement.style.pointerEvents =
                                     navigationBarScrollPercentage === 0 ? "none" : "auto";
+
+                                // Render under overlays while translucent.
+                                navigationBarContainerElement.style.zIndex = "40";
                             }
 
                             // If we have a fade out animation running, cancel it.
@@ -801,6 +812,9 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                 navigationBarBackgroundElement.classList.add(
                                     navigationBarBackgroundFadeOutAnimationClassName,
                                 );
+
+                                // Render under overlays while translucent.
+                                navigationBarContainerElement.style.zIndex = "40";
                             } else {
                                 navigationBarBackgroundElement.style.opacity = "1";
                                 navigationBarBackgroundElement.style.pointerEvents = "auto";
@@ -808,6 +822,9 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                 navigationBarBackgroundElement.classList.remove(
                                     navigationBarBackgroundFadeOutAnimationClassName,
                                 );
+
+                                // Render over overlays while opaque.
+                                navigationBarContainerElement.style.zIndex = "80";
                             }
                         }
 
@@ -976,11 +993,15 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
     return (
         <div
+            ref={navigationBarContainerRef}
+            className={sprinkles({
+                // Initial z-index renders under overlays. We update the z-index in JavaScript
+                // when the navigation background is opaque.
+                zIndex: "40",
+            })}
             style={{
                 position: "absolute",
                 inset: 0,
-                // Render on top of everything, including overlays.
-                zIndex: 80,
                 // The children of this element may be bigger than our container but we don't
                 // want our children to grow the container. We can't use `overflow: hidden`
                 // since that creates a new scroll context and breaks the `position: sticky`

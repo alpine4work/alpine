@@ -12,6 +12,7 @@ ts_project(
         "//:node_modules/@dnd-kit/modifiers",
         "//:node_modules/@dnd-kit/sortable",
         "//:node_modules/@internationalized/date",
+        "//:node_modules/@react-aria/datepicker",
         "//:node_modules/@types/react",
         "//:node_modules/@types/scheduler",
         "//:node_modules/classnames",

@@ -1,8 +1,9 @@
 import {CalendarDate, DateValue, createCalendar} from "@internationalized/date";
+import {AriaDateFieldOptions} from "@react-aria/datepicker";
 import classNames from "classnames";
 import {CalendarBlank} from "phosphor-react";
 import {useRef, useState} from "react";
-import {AriaDateFieldProps, useDateField, useDateSegment} from "react-aria";
+import {useDateField, useDateSegment} from "react-aria";
 import {DateFieldState, DateFieldStateOptions, DateSegment, useDateFieldState} from "react-stately";
 import {FocusRingBox, useIsFocusRingVisible} from "~/client/design/focus_ring.js";
 import {
@@ -39,7 +40,6 @@ export function TaskDateInputText({
     isEditing,
     shouldIncludeCalendarIcon,
     display,
-    height,
     paddingX,
     color,
     focusRingOffset,
@@ -56,7 +56,6 @@ export function TaskDateInputText({
     isEditing: boolean;
     shouldIncludeCalendarIcon: boolean;
     display: "inline" | "block";
-    height: "full" | "4";
     paddingX: "0" | "1" | "1.5";
     color: "grey-text" | "grey-60";
     focusRingOffset: "0" | undefined;
@@ -69,7 +68,7 @@ export function TaskDateInputText({
 }) {
     const {locale} = useClientInfo();
 
-    const datePickerProps: DateFieldStateOptions & AriaDateFieldProps<CalendarDate> = {
+    const datePickerProps: DateFieldStateOptions & AriaDateFieldOptions<CalendarDate> = {
         isDisabled: isReadOnly,
         locale,
         createCalendar,
@@ -78,6 +77,12 @@ export function TaskDateInputText({
         value: date,
         // The types are wrong. These hooks actually support `CalendarDate | null`.
         onChange: onDateChange as (value: DateValue) => void,
+        // By default, `@react-aria/datepicker` sets up press listeners on our date
+        // field that will focus the last element. This is nice when the right side of
+        // your date input is empty space. However, we choose to implement focus on
+        // press manually ourselves. The `@react-aria/datepicker` behavior gets in the
+        // way so disable it.
+        disablePressNavigation: true,
     };
 
     const state = useDateFieldState(datePickerProps);
@@ -173,28 +178,33 @@ export function TaskDateInputText({
                             : undefined;
 
                     const paddingLeft =
-                        !shouldIncludeCalendarIcon && index === 0 ? paddingX : undefined;
+                        !shouldIncludeCalendarIcon && index === 0
+                            ? paddingX
+                            : state.segments[index - 1]?.type === "literal"
+                            ? "1"
+                            : undefined;
 
-                    const paddingRight = index === state.segments.length - 1 ? paddingX : undefined;
+                    const paddingRight =
+                        index === state.segments.length - 1
+                            ? paddingX
+                            : state.segments[index + 1]?.type === "literal"
+                            ? "1"
+                            : undefined;
 
                     return segment.type === "literal" ? (
                         <div
                             key={index}
                             className={sprinkles({
                                 display: "flex",
+                                justifyContent: "center",
                                 alignItems: "center",
                                 flexGrow,
+                                width: "0",
                                 height: "full",
-                                paddingLeft,
-                                paddingRight,
+                                // We add padding to segments around the literal and give the literal a width
+                                // of 0. So focus on pointer down should be managed by the text input segments.
+                                pointerEvents: "none",
                             })}
-                            onClick={event => {
-                                if (event.target === event.currentTarget) {
-                                    getNextFocusableElementIfExists(ref.current, {
-                                        withinElement: event.currentTarget.parentElement,
-                                    })?.focus({preventScroll: true});
-                                }
-                            }}
                         >
                             <div
                                 // The only prop provided to literal segments is `aria-hidden={true}`. As an
@@ -202,11 +212,6 @@ export function TaskDateInputText({
                                 // segments.
                                 // https://github.com/adobe/react-spectrum/blob/88550234c383f2a07a27aa2ca9a0a47a9f49e9aa/packages/%40react-aria/datepicker/src/useDateSegment.ts#L353-L361
                                 aria-hidden={true}
-                                className={sprinkles({
-                                    // `react-aria`s click support for non-editable segments isn't super reliable.
-                                    // So use our parent's `onClick` handler instead.
-                                    pointerEvents: !segment.isEditable ? "none" : undefined,
-                                })}
                                 style={
                                     areAllSegmentsPlaceholders || segment.isPlaceholder
                                         ? inputPlaceholderStyles
@@ -308,7 +313,7 @@ export function TaskDateInputText({
 
     return (
         <div
-            className={sprinkles({height})}
+            className={sprinkles({height: "full"})}
             onKeyDown={event => {
                 if (event.key === "Escape") {
                     event.preventDefault();
@@ -342,8 +347,8 @@ function TaskDateInputTextSegment({
     segment: DateSegment;
     areAllSegmentsPlaceholders: boolean;
     flexGrow: "1" | undefined;
-    paddingLeft: "0" | "1" | "1.5" | undefined;
-    paddingRight: "0" | "1" | "1.5" | undefined;
+    paddingLeft: "0" | "0.5" | "1" | "1.5" | undefined;
+    paddingRight: "0" | "0.5" | "1" | "1.5" | undefined;
     isFirstSegment: boolean;
     isLastSegment: boolean;
     isTabbable: boolean;
@@ -367,15 +372,13 @@ function TaskDateInputTextSegment({
                 paddingLeft,
                 paddingRight,
             })}
-            onClick={event => {
+            onPointerDown={event => {
                 if (event.target === event.currentTarget) {
-                    if (segment.isEditable) {
-                        assertExists(ref.current).focus({preventScroll: true});
-                    } else {
-                        getNextFocusableElementIfExists(ref.current, {
-                            withinElement: event.currentTarget.parentElement,
-                        })?.focus({preventScroll: true});
-                    }
+                    // Don't blur because we clicked on a non focusable element. Instead focus will
+                    // go to this segment.
+                    event.preventDefault();
+
+                    assertExists(ref.current).focus({preventScroll: true});
                 }
             }}
         >
@@ -387,9 +390,6 @@ function TaskDateInputTextSegment({
                     tasksStyles.taskDateInputTextSegmentClassName,
                     sprinkles({
                         backgroundColor: isFocused ? "theme-selection" : undefined,
-                        // `react-aria`s click support for non-editable segments isn't super reliable.
-                        // So use our parent's `onClick` handler instead.
-                        pointerEvents: !segment.isEditable ? "none" : undefined,
                     }),
                 )}
                 style={{
