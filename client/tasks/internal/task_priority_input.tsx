@@ -345,8 +345,18 @@ function TaskPriorityInput(
         [],
     );
 
+    const insetMarginY = isMobile ? "2.5" : undefined;
+
     return (
         <div
+            className={sprinkles({
+                // Height of 9 for 45px on mobile to meet the [minimum recommended touch hit
+                // target size][1].
+                //
+                // [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
+                height: isMobile ? "9" : "4",
+                marginY: insetMarginY ? `-${insetMarginY}` : undefined,
+            })}
             onKeyDown={event => {
                 // Blur the input when escape is pressed which closes the dropdown.
                 if (event.key === "Escape") {
@@ -381,18 +391,13 @@ function TaskPriorityInput(
                     </div>
                 }
             >
-                <FocusRing isVisibleWhenFocusWithin>
+                <FocusRing insetY={insetMarginY} isVisibleWhenFocusWithin>
                     <div
                         className={classNames(
                             !isReadOnly && tasksStyles.textCursorNotInheritedClassName,
                             sprinkles({
                                 maxWidth: "full",
-                                // Height of 9 for 45px on mobile to meet the [minimum recommended touch hit
-                                // target size][1].
-                                //
-                                // [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
-                                height: isMobile ? "9" : "4",
-                                marginY: isMobile ? "-2.5" : undefined,
+                                height: "full",
                                 display: "inline-flex",
                                 alignItems: "center",
                                 gap: "1",

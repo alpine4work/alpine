@@ -458,9 +458,25 @@ function TaskAssigneeInput(
         [],
     );
 
+    const insetMarginY = isMobile
+        ? avatarSize === "5"
+            ? "2"
+            : "2.5"
+        : avatarSize === "5"
+        ? "0.5"
+        : undefined;
+
     return (
         <div
-            className={sprinkles({marginLeft: avatarSize === "5" ? "-0.5" : undefined})}
+            className={sprinkles({
+                // Height of 9 for 45px on mobile to meet the [minimum recommended touch hit
+                // target size][1].
+                //
+                // [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
+                height: isMobile ? "9" : avatarSize,
+                marginY: insetMarginY ? `-${insetMarginY}` : undefined,
+                marginLeft: avatarSize === "5" ? "-0.5" : undefined,
+            })}
             onKeyDown={event => {
                 // Blur the input when escape is pressed which closes the dropdown.
                 if (event.key === "Escape") {
@@ -495,24 +511,13 @@ function TaskAssigneeInput(
                     </div>
                 }
             >
-                <FocusRing isVisibleWhenFocusWithin>
+                <FocusRing insetY={isMobile ? insetMarginY : undefined} isVisibleWhenFocusWithin>
                     <div
                         className={classNames(
                             !isReadOnly ? tasksStyles.textCursorNotInheritedClassName : undefined,
                             sprinkles({
                                 maxWidth: "full",
-                                // Height of 9 for 45px on mobile to meet the [minimum recommended touch hit
-                                // target size][1].
-                                //
-                                // [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
-                                height: isMobile ? "9" : avatarSize,
-                                marginY: isMobile
-                                    ? avatarSize === "5"
-                                        ? "-2"
-                                        : "-2.5"
-                                    : avatarSize === "5"
-                                    ? "-0.5"
-                                    : undefined,
+                                height: "full",
                                 overflow: "hidden",
                                 display: "inline-flex",
                                 alignItems: "center",

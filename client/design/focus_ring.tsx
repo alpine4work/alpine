@@ -45,6 +45,7 @@ function FocusRing(
     {
         offset,
         insetX,
+        insetY,
         insetBottom,
         isVisible: isAlwaysVisible = false,
         isDisabled = false,
@@ -74,6 +75,14 @@ function FocusRing(
          * `offset - insetX`.
          */
         insetX?: Spacing;
+
+        /**
+         * How far in on the Y axis we should inset our focus ring?
+         *
+         * This will be subtracted from `offset`. So the true offset on the Y axis is
+         * `offset - insetY`.
+         */
+        insetY?: Spacing;
 
         /**
          * How far from the bottom should we inset our focus ring?
@@ -184,6 +193,7 @@ function FocusRing(
                     <FocusRingBox
                         offset={offset}
                         insetX={insetX}
+                        insetY={insetY}
                         insetBottom={insetBottom}
                         targetRef={targetRef}
                     />
@@ -374,15 +384,28 @@ export function useIsChildFocusRingVisible(): [
 
 export function FocusRingBox({
     offset = "0.5",
-    insetX = "0",
-    insetBottom = "0",
+    insetX: insetXProp,
+    insetY: insetYProp,
+    insetTop: insetTopProp,
+    insetBottom: insetBottomProp,
+    insetLeft: insetLeftProp,
+    insetRight: insetRightProp,
     targetRef,
 }: {
     offset?: Spacing | "border" | "inset";
     insetX?: Spacing;
+    insetY?: Spacing;
+    insetTop?: Spacing;
     insetBottom?: Spacing | "border";
+    insetLeft?: Spacing;
+    insetRight?: Spacing;
     targetRef: RefObject<HTMLElement | null>;
 }) {
+    const insetTop = insetTopProp ?? insetYProp ?? "0";
+    const insetBottom = insetBottomProp ?? insetYProp ?? "0";
+    const insetLeft = insetLeftProp ?? insetXProp ?? "0";
+    const insetRight = insetRightProp ?? insetXProp ?? "0";
+
     const ringRef = useRef<HTMLDivElement>(null);
 
     const ringWidthPx = 2;
@@ -406,13 +429,16 @@ export function FocusRingBox({
     // inside the element.
     if (offset === "inset") ringOffsetBasePx = -ringWidthPx;
 
-    const ringInsetXPx = convertRemLengthToPx(spacing[insetX], remPx);
+    const ringInsetTopPx = convertRemLengthToPx(spacing[insetTop], remPx);
     const ringInsetBottomPx =
         insetBottom === "border" ? 1 : convertRemLengthToPx(spacing[insetBottom], remPx);
+    const ringInsetLeftPx = convertRemLengthToPx(spacing[insetLeft], remPx);
+    const ringInsetRightPx = convertRemLengthToPx(spacing[insetRight], remPx);
 
-    const ringOffsetXPx = ringOffsetBasePx - ringInsetXPx;
-    const ringOffsetTopPx = ringOffsetBasePx;
+    const ringOffsetTopPx = ringOffsetBasePx - ringInsetTopPx;
     const ringOffsetBottomPx = ringOffsetBasePx - ringInsetBottomPx;
+    const ringOffsetLeftPx = ringOffsetBasePx - ringInsetLeftPx;
+    const ringOffsetRightPx = ringOffsetBasePx - ringInsetRightPx;
 
     useLayoutEffect(() => {
         const run = () => {
@@ -499,9 +525,9 @@ export function FocusRingBox({
             ref={ringRef}
             className={sprinkles({border: "theme-30-const"})}
             style={{
-                width: `calc(100% + ${ringWidthPx * 2 + ringOffsetXPx * 2}px)`,
+                width: `calc(100% + ${ringWidthPx * 2 + ringOffsetLeftPx + ringOffsetRightPx}px)`,
                 height: `calc(100% + ${ringWidthPx * 2 + ringOffsetTopPx + ringOffsetBottomPx}px)`,
-                transform: `translate(${-(ringWidthPx + ringOffsetXPx)}px, ${-(
+                transform: `translate(${-(ringWidthPx + ringOffsetLeftPx)}px, ${-(
                     ringWidthPx + ringOffsetTopPx
                 )}px)`,
                 borderWidth: ringWidthPx,

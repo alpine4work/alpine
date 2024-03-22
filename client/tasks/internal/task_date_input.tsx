@@ -154,6 +154,8 @@ export function TaskDateInput({
         });
     }, [isEditing, isMobile]);
 
+    const insetMarginY = height === "full" ? undefined : isMobile ? "2.5" : undefined;
+
     return (
         <div
             className={sprinkles({
@@ -164,7 +166,7 @@ export function TaskDateInput({
                 //
                 // [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
                 height: height === "full" ? "full" : isMobile ? "9" : cast<"4">(height),
-                marginY: height === "full" ? undefined : isMobile ? "-2" : undefined,
+                marginY: insetMarginY ? `-${insetMarginY}` : undefined,
             })}
         >
             {!isEditing && formattedDate && (
@@ -361,6 +363,7 @@ export function TaskDateInput({
                         color={color}
                         focusRingOffset={focusRingOffset}
                         focusRingAroundText={focusRingAroundText}
+                        focusRingInsetY={insetMarginY}
                         isTabbable={isTabbable}
                         onArrowLeftLeaveKeyDown={onArrowLeftLeaveKeyDown}
                         onArrowRightLeaveKeyDown={onArrowRightLeaveKeyDown}

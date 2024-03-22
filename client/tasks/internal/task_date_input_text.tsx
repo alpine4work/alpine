@@ -13,7 +13,7 @@ import {
 import {Overlay} from "~/client/design/overlay.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 
@@ -44,6 +44,7 @@ export function TaskDateInputText({
     color,
     focusRingOffset,
     focusRingAroundText,
+    focusRingInsetY,
     isTabbable,
     onArrowLeftLeaveKeyDown,
     onArrowRightLeaveKeyDown,
@@ -62,6 +63,7 @@ export function TaskDateInputText({
     // By default the focus ring is around the full area of the input but if you
     // want it just around the text (excluding margins) you may set this to true.
     focusRingAroundText: boolean;
+    focusRingInsetY: Spacing | undefined;
     isTabbable: boolean;
     onArrowLeftLeaveKeyDown: (() => void) | undefined;
     onArrowRightLeaveKeyDown: (() => void) | undefined;
@@ -255,7 +257,11 @@ export function TaskDateInputText({
                                 position: "relative",
                             })}
                         >
-                            <FocusRingBox offset={focusRingOffset} targetRef={focusRingTargetRef} />
+                            <FocusRingBox
+                                insetY={focusRingInsetY}
+                                offset={focusRingOffset}
+                                targetRef={focusRingTargetRef}
+                            />
                         </div>
                     }
                 >
@@ -271,19 +277,41 @@ export function TaskDateInputText({
                             opacity: "0",
                         })}
                     >
-                        {state.segments.map((segment, index) => (
-                            <div
-                                key={index}
-                                style={{
-                                    fontVariantNumeric: "tabular-nums",
-                                    ...(areAllSegmentsPlaceholders || segment.isPlaceholder
-                                        ? inputPlaceholderStyles
-                                        : {}),
-                                }}
-                            >
-                                {segment.text}
-                            </div>
-                        ))}
+                        {state.segments.map((segment, index) => {
+                            if (segment.type === "literal") return null;
+
+                            const paddingLeft =
+                                !shouldIncludeCalendarIcon && index === 0
+                                    ? paddingX
+                                    : state.segments[index - 1]?.type === "literal"
+                                    ? "1"
+                                    : undefined;
+
+                            const paddingRight =
+                                index === state.segments.length - 1
+                                    ? undefined
+                                    : state.segments[index + 1]?.type === "literal"
+                                    ? "1"
+                                    : undefined;
+
+                            return (
+                                <div
+                                    key={index}
+                                    style={{
+                                        fontVariantNumeric: "tabular-nums",
+                                        ...(areAllSegmentsPlaceholders || segment.isPlaceholder
+                                            ? inputPlaceholderStyles
+                                            : {}),
+                                        paddingLeft: paddingLeft ? spacing[paddingLeft] : undefined,
+                                        paddingRight: paddingRight
+                                            ? spacing[paddingRight]
+                                            : undefined,
+                                    }}
+                                >
+                                    {segment.text}
+                                </div>
+                            );
+                        })}
                     </div>
                 </Overlay>
             )}
@@ -302,7 +330,11 @@ export function TaskDateInputText({
                 sameHeight={true}
                 overlay={
                     <div className={sprinkles({pointerEvents: "none", position: "relative"})}>
-                        <FocusRingBox offset={focusRingOffset} targetRef={focusRingTargetRef} />
+                        <FocusRingBox
+                            insetY={focusRingInsetY}
+                            offset={focusRingOffset}
+                            targetRef={focusRingTargetRef}
+                        />
                     </div>
                 }
             >
