@@ -626,6 +626,9 @@ function TaskCollectionsInput(
                     // Don't unfocus as a result of clicking.
                     event.preventDefault();
 
+                    // NOCOMMIT: On mobile this should probably be cancelled if the user
+                    // scrolls so we should use `usePress()` instead and use `onPressStart` for
+                    // mouse inputs and `onPress` for touch inputs.
                     assertExists(inputRef.current).focus({
                         // Should scroll `<TaskRowCollectionsCell>`.
                         preventScroll: false,
@@ -839,6 +842,9 @@ function TaskCollectionsInput(
                                     // input. We've observed some bugs where `react-aria` doesn't happen to open
                                     // the combobox consistently on focus.
                                     onPointerDown={() => {
+                                        // NOCOMMIT: On mobile this should probably be cancelled if the user
+                                        // scrolls so we should use `usePress()` instead and use `onPressStart` for
+                                        // mouse inputs and `onPress` for touch inputs.
                                         if (!isReadOnly) {
                                             comboBoxState.open();
                                         }

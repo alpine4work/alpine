@@ -597,6 +597,9 @@ export function ChatAccountPicker({
                             // while the input is focused if they are quickly selecting accounts to message
                             // with their pointer.
                             onPointerDown={() => {
+                                // TODO(calebmer): On mobile this should probably be cancelled if the user
+                                // scrolls so we should use `usePress()` instead and use `onPressStart` for
+                                // mouse inputs and `onPress` for touch inputs.
                                 comboBoxState.open();
                             }}
                             onKeyDown={event => {

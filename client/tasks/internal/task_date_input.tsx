@@ -2,6 +2,7 @@ import {CalendarDate} from "@internationalized/date";
 import classNames from "classnames";
 import {CalendarBlank} from "phosphor-react";
 import {useEffect, useMemo, useRef, useState} from "react";
+import {usePress} from "react-aria";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {getNavigationBarHeightPxWithoutListening} from "~/client/design/navigation_bar.js";
@@ -156,6 +157,44 @@ export function TaskDateInput({
 
     const insetMarginY = height === "full" ? undefined : isMobile ? "2.5" : undefined;
 
+    const {pressProps: previewPressProps} = usePress({
+        // Preview doesn't receive focus.
+        preventFocusOnPress: true,
+
+        onPressStart: event => {
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType === "mouse") {
+                const skipElementsString = (event.target as HTMLElement).dataset.skip;
+                const skipElements = skipElementsString
+                    ? parseInt(skipElementsString, 10)
+                    : undefined;
+
+                getNextFocusableElementIfExists(null, {
+                    withinElement: assertExists(inputRef.current),
+                    skipElements,
+                })?.focus();
+            }
+        },
+        onPress: event => {
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType !== "mouse") {
+                const skipElementsString = (event.target as HTMLElement).dataset.skip;
+                const skipElements = skipElementsString
+                    ? parseInt(skipElementsString, 10)
+                    : undefined;
+
+                getNextFocusableElementIfExists(null, {
+                    withinElement: assertExists(inputRef.current),
+                    skipElements,
+                })?.focus();
+            }
+        },
+    });
+
     return (
         <div
             className={sprinkles({
@@ -185,20 +224,13 @@ export function TaskDateInput({
                 >
                     {shouldIncludeCalendarIcon && (
                         <div
+                            {...previewPressProps}
                             className={sprinkles({
                                 display: "flex",
                                 alignItems: "center",
                                 paddingLeft: paddingX,
                                 paddingRight: "1",
                             })}
-                            onPointerDown={event => {
-                                // `mousedown` will blur by default. Prevent that.
-                                event.preventDefault();
-
-                                getNextFocusableElementIfExists(null, {
-                                    withinElement: assertExists(inputRef.current),
-                                })?.focus();
-                            }}
                         >
                             <CalendarBlank size={spacing["4"]} />
                         </div>
@@ -207,6 +239,7 @@ export function TaskDateInput({
                         // Render read-only date inputs as a single div so they may be easily selected
                         // and copied/pasted.
                         <div
+                            {...previewPressProps}
                             className={sprinkles({
                                 flexGrow: display === "block" ? "1" : undefined,
                                 display: "flex",
@@ -214,23 +247,18 @@ export function TaskDateInput({
                                 paddingLeft: !shouldIncludeCalendarIcon ? paddingX : undefined,
                                 paddingRight: paddingX,
                             })}
-                            onPointerDown={event => {
-                                // `mousedown` will blur by default. Prevent that.
-                                event.preventDefault();
-
-                                getNextFocusableElementIfExists(null, {
-                                    withinElement: assertExists(inputRef.current),
-                                    // NOTE(calebmer): Small UX improvement, focus the day input segment if the
-                                    // text is "Today" or "Yesterday".
-                                    skipElements: 1,
-                                })?.focus();
-                            }}
+                            // Small UX improvement, focus the day input segment if the text is "Today"
+                            // or "Yesterday".
+                            //
+                            // Used by `previewPressProps`.
+                            data-skip={1}
                         >
                             {formattedDate.dateString}
                         </div>
                     ) : (
                         formattedDate.dateString.split(" ").map((segment, index, segments) => (
                             <div
+                                {...previewPressProps}
                                 key={index}
                                 className={sprinkles({
                                     flexGrow:
@@ -250,23 +278,17 @@ export function TaskDateInput({
                                     // Don't collapse space.
                                     whiteSpace: "pre",
                                 }}
-                                onPointerDown={event => {
-                                    // `mousedown` will blur by default. Prevent that.
-                                    event.preventDefault();
-
-                                    getNextFocusableElementIfExists(null, {
-                                        withinElement: assertExists(inputRef.current),
-                                        // NOTE(calebmer): Small UX improvement, focus the input segment the user
-                                        // clicked on. It's a little strange how the preview text transforms into
-                                        // editable text. Especially disorienting when you click the end and the start
-                                        // is focused. So attempt to focus the same segment the user clicked.
-                                        //
-                                        // We hope that the words separated by spaces in our date line up with the
-                                        // editable input segments which is the case with the en-US locale but this
-                                        // heuristic may need to be hardened for other locales.
-                                        skipElements: index,
-                                    })?.focus();
-                                }}
+                                // Small UX improvement, focus the input segment the user clicked on. It's a
+                                // little strange how the preview text transforms into editable text.
+                                // Especially disorienting when you click the end and the start is focused. So
+                                // attempt to focus the same segment the user clicked.
+                                //
+                                // We hope that the words separated by spaces in our date line up with the
+                                // editable input segments which is the case with the en-US locale but this
+                                // heuristic may need to be hardened for other locales.
+                                //
+                                // Used by `previewPressProps`.
+                                data-skip={index}
                             >
                                 {segment}
                                 {index < segments.length - 1 && " "}

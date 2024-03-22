@@ -3,7 +3,7 @@ import {AriaDateFieldOptions} from "@react-aria/datepicker";
 import classNames from "classnames";
 import {CalendarBlank} from "phosphor-react";
 import {useRef, useState} from "react";
-import {useDateField, useDateSegment} from "react-aria";
+import {useDateField, useDateSegment, usePress} from "react-aria";
 import {DateFieldState, DateFieldStateOptions, DateSegment, useDateFieldState} from "react-stately";
 import {FocusRingBox, useIsFocusRingVisible} from "~/client/design/focus_ring.js";
 import {
@@ -121,6 +121,32 @@ export function TaskDateInputText({
         })?.focus();
     };
 
+    const {pressProps: iconPressProps} = usePress({
+        // Backdrop doesn't receive focus.
+        preventFocusOnPress: true,
+
+        onPressStart: event => {
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType === "mouse") {
+                getNextFocusableElementIfExists(null, {
+                    withinElement: assertExists(ref.current),
+                })?.focus();
+            }
+        },
+        onPress: event => {
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType !== "mouse") {
+                getNextFocusableElementIfExists(null, {
+                    withinElement: assertExists(ref.current),
+                })?.focus();
+            }
+        },
+    });
+
     let node = (
         <div
             ref={useMergedRefs<HTMLDivElement>(
@@ -139,6 +165,7 @@ export function TaskDateInputText({
         >
             {shouldIncludeCalendarIcon && (
                 <div
+                    {...iconPressProps}
                     className={sprinkles({
                         alignSelf: "stretch",
                         display: "flex",
@@ -146,14 +173,6 @@ export function TaskDateInputText({
                         paddingLeft: paddingX,
                         paddingRight: "1",
                     })}
-                    onPointerDown={event => {
-                        // Focus first date input segment when pressed.
-                        event.preventDefault();
-
-                        getNextFocusableElementIfExists(null, {
-                            withinElement: assertExists(ref.current),
-                        })?.focus();
-                    }}
                 >
                     <CalendarBlank
                         size={spacing["4"]}
@@ -394,9 +413,33 @@ function TaskDateInputTextSegment({
     const {segmentProps} = useDateSegment(segment, state, ref);
     const [isFocused, setIsFocused] = useState(false);
 
+    const {pressProps: backdropPressProps} = usePress({
+        // Backdrop doesn't receive focus.
+        preventFocusOnPress: true,
+
+        onPressStart: event => {
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType === "mouse") {
+                assertExists(ref.current).focus({preventScroll: true});
+            }
+        },
+        onPress: event => {
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType !== "mouse") {
+                assertExists(ref.current).focus({preventScroll: true});
+            }
+        },
+    });
+
     return (
         <div
             className={sprinkles({
+                position: "relative",
+                zIndex: "0",
                 display: "flex",
                 alignItems: "center",
                 flexGrow,
@@ -404,16 +447,16 @@ function TaskDateInputTextSegment({
                 paddingLeft,
                 paddingRight,
             })}
-            onPointerDown={event => {
-                if (event.target === event.currentTarget) {
-                    // Don't blur because we clicked on a non focusable element. Instead focus will
-                    // go to this segment.
-                    event.preventDefault();
-
-                    assertExists(ref.current).focus({preventScroll: true});
-                }
-            }}
         >
+            <div
+                {...backdropPressProps}
+                className={sprinkles({
+                    position: "absolute",
+                    zIndex: "-10",
+                    inset: "0",
+                    cursor: "text",
+                })}
+            />
             <div
                 {...segmentProps}
                 ref={ref}

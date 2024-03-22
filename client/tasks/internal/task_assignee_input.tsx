@@ -1,4 +1,4 @@
-import {getInteractionModality} from "@react-aria/interactions";
+import {getInteractionModality, usePress} from "@react-aria/interactions";
 import classNames from "classnames";
 import _Fuse from "fuse.js";
 import {Ref, forwardRef, useImperativeHandle, useMemo, useRef, useState} from "react";
@@ -450,6 +450,38 @@ function TaskAssigneeInput(
         comboBoxState,
     );
 
+    const {pressProps: backdropPressProps} = usePress({
+        // Backdrop doesn't receive focus.
+        preventFocusOnPress: true,
+
+        onPressStart: event => {
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType === "mouse") {
+                assertExists(inputRef.current).focus();
+
+                // Make sure to reopen the combobox whenever the pointer clicks the input.
+                if (!isReadOnly) {
+                    comboBoxState.open();
+                }
+            }
+        },
+        onPress: event => {
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType !== "mouse") {
+                assertExists(inputRef.current).focus();
+
+                // Make sure to reopen the combobox whenever the pointer clicks the input.
+                if (!isReadOnly) {
+                    comboBoxState.open();
+                }
+            }
+        },
+    });
+
     useImperativeHandle(
         ref,
         () => ({
@@ -513,41 +545,34 @@ function TaskAssigneeInput(
             >
                 <FocusRing insetY={isMobile ? insetMarginY : undefined} isVisibleWhenFocusWithin>
                     <div
-                        className={classNames(
-                            !isReadOnly ? tasksStyles.textCursorNotInheritedClassName : undefined,
-                            sprinkles({
-                                maxWidth: "full",
-                                height: "full",
-                                overflow: "hidden",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: avatarSize === "5" ? "1.5" : "1",
-                            }),
-                        )}
+                        className={sprinkles({
+                            position: "relative",
+                            zIndex: "0",
+                            maxWidth: "full",
+                            height: "full",
+                            overflow: "hidden",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: avatarSize === "5" ? "1.5" : "1",
+                        })}
                         style={{
                             // `display: inline-flex` creates an inline layout which adds extra space
                             // below the element. Adding `vertical-align` stops the space from being added.
                             // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
                             verticalAlign: "top",
                         }}
-                        onPointerDown={event => {
-                            // If the backdrop of this element was clicked and the input is focused then
-                            // don't let a click unfocus it.
-                            if (event.target === event.currentTarget) {
-                                event.preventDefault();
-                            }
-
-                            // Make sure the input focuses on press. iOS Safari seems to require a double
-                            // tap before the input focuses. Possibly because hover events are attached
-                            // somewhere.
-                            assertExists(inputRef.current).focus();
-
-                            // Make sure to reopen the combobox whenever the pointer clicks the input.
-                            if (!isReadOnly) {
-                                comboBoxState.open();
-                            }
-                        }}
                     >
+                        {!isReadOnly && (
+                            <div
+                                {...backdropPressProps}
+                                className={sprinkles({
+                                    position: "absolute",
+                                    zIndex: "-10",
+                                    inset: "0",
+                                    cursor: "text",
+                                })}
+                            />
+                        )}
                         <div className={sprinkles({flexShrink: "0", pointerEvents: "none"})}>
                             {assigneeAccountData ? (
                                 <AccountAvatar size={avatarSize} account={assigneeAccountData} />
