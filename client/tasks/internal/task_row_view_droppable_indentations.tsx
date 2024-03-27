@@ -202,7 +202,7 @@ export function renderTaskRowViewDroppableIndentations({
 
 const droppableContainerPositionedAboveClassName = sprinkles({
     position: "absolute",
-    top: "-6",
+    top: "-7",
     left: "0",
     right: "0",
     zIndex: "10",
@@ -244,7 +244,7 @@ const droppableVerticalOverIndicatorClassName = sprinkles({
 
 const droppableVerticalOverIndicatorFlippedClassName = sprinkles({
     position: "absolute",
-    top: "6",
+    top: "7",
     height: "2",
     backgroundColor: {light: "theme-30", dark: "theme-60"},
 });
