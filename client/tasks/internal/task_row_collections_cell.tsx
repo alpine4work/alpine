@@ -131,10 +131,10 @@ function TaskRowCollectionsCell(
     ref: Ref<TaskRowCollectionsCellRef>,
 ) {
     // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
-    // this file. It is critical for scroll performance that this component renders
-    // fast. Use the `sprinkles()` function in the module body instead. We've
-    // observed while profiling the sprinkles function takes a meaningful amount of
-    // time during render.
+    // this component. It is critical for scroll performance that this component
+    // renders fast. Use the `sprinkles()` function in the module body instead.
+    // We've observed while profiling the sprinkles function takes a meaningful
+    // amount of time during render.
     //
     // One day we'd like to introduce transformations that automatically
     // pre-evaluates `sprinkles()` functions at which point lifting them to the
