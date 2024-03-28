@@ -45,7 +45,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
-import {contentSchemaStyles} from "~/shared/styles/styles.js";
+import {contentSchemaStyles, fontSizesByPlatform} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
@@ -570,7 +570,7 @@ function TaskRowViewDragOverlay({
                             paddingTop: 1,
                             left:
                                 data.overlayPlacement === "ActivatorTouch" && activatorTouchOffset
-                                    ? `calc(${activatorTouchOffset.left}px - ${spacing["4"]})`
+                                    ? activatorTouchOffset.left
                                     : spacing["2"],
                             top:
                                 data.overlayPlacement === "ActivatorTouch" && activatorTouchOffset
@@ -578,7 +578,16 @@ function TaskRowViewDragOverlay({
                                           parseRemLengthNumber(spacing[taskRowViewMinHeight]) / 2
                                       }rem)`
                                     : -1,
-                            transform: "scale(75%)",
+                            transform: [
+                                `scale(${
+                                    fontSizesByPlatform["50"].desktop.fontSize /
+                                    fontSizesByPlatform["100"].desktop.fontSize
+                                })`,
+                                ...(data.overlayPlacement === "ActivatorTouch" &&
+                                activatorTouchOffset
+                                    ? ["translateX(-50%)"]
+                                    : []),
+                            ].join(" "),
                             transformOrigin: "center left",
                         }}
                     >
