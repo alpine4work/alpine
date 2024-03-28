@@ -244,7 +244,7 @@ const droppableVerticalOverIndicatorClassName = sprinkles({
 
 const droppableVerticalOverIndicatorFlippedClassName = sprinkles({
     position: "absolute",
-    top: "7",
+    bottom: "1",
     height: "2",
     backgroundColor: {light: "theme-30", dark: "theme-60"},
 });
