@@ -14,6 +14,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {flushSync} from "react-dom";
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {ySyncPlugin, ySyncPluginKey, yUndoPlugin, yXmlFragmentToProsemirror} from "y-prosemirror";
 import * as Y from "yjs";
@@ -25,7 +26,7 @@ import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_prio
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {createTaskEntryAccessStore} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
@@ -39,6 +40,7 @@ import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStoreTaskEntry} from "~/client/tasks/task_client_store.js";
 import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -297,7 +299,6 @@ function TaskRowTitleInput(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
-    const isMobile = useIsMobile();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const {isAppleDevice} = useClientInfo();
     const remPx = useRemPx();
@@ -313,7 +314,7 @@ function TaskRowTitleInput(
     // title inputs don't currently have any interactive content but we may add
     // mentions, links, or other styling options in the future that require
     // interaction.
-    const isDualModality = isMobile || !canPrimaryInputHover;
+    const isDualModality = !canPrimaryInputHover;
 
     const viewRef = useRef<
         | {isReady: false; callbacks: Set<(view: EditorView) => void>}
@@ -884,6 +885,115 @@ function TaskRowTitleInput(
 
             window.addEventListener("resize", handleWindowResize);
 
+            let touchState: {
+                finish: (event: TouchEvent) => void;
+                cancel: () => void;
+            } | null = null;
+
+            // NOTE(calebmer): The logic here is taken almost exactly from
+            // `<ContentEditor>` since that component supports dual modality on mobile
+            // too. If you make a change here you probably also want to make a change
+            // there and vice versa.
+            view.dom.addEventListener("touchstart", event => {
+                touchState?.cancel();
+                touchState = null;
+
+                // If we're not on mobile the document is always editable.
+                if (!isDualModalityRef.current) return;
+
+                // If our view already has focus, we don't need a tap to give it focus.
+                if (view.hasFocus()) return;
+
+                // Only support a single touch.
+                if (event.touches.length !== 1) return;
+                const touch = event.touches[0]!;
+
+                // If there's a selection this tap dismisses the selection. It doesn't make the
+                // editor editable.
+                const selection = window.getSelection();
+                const hasSelection =
+                    selection &&
+                    (selection.anchorNode !== selection.focusNode ||
+                        selection.anchorOffset !== selection.focusOffset);
+                if (hasSelection) return;
+
+                // Long press touch starts dragging the task instead of editing. 0.5 seconds is
+                // the long press duration we use since that's what iOS's default long press
+                // duration is.
+                // https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
+                const longPressTimeout = createTimeout(() => {
+                    touchState?.cancel();
+                    touchState = null;
+                }, 500);
+
+                touchState = {
+                    finish: event => {
+                        longPressTimeout.clear();
+
+                        const posResult = view.posAtCoords({
+                            left: touch.clientX,
+                            top: touch.clientY,
+                        });
+                        if (!posResult) return;
+
+                        // By default, iOS will move the selection to the end of the word you touched.
+                        // We instead want focus moved to the selection specified in our
+                        // `setSelection()` call.
+                        event.preventDefault();
+
+                        // This may seem strange. Shouldn't `setIsFocused(true)` be set from an event
+                        // handler after `focus()` is called? Well in this case our editor is not
+                        // editable if we are in dual modality state and `isFocused` is false. When our
+                        // editor is not editable it's also not focusable. So we need to set `isFocused`
+                        // to true to be able to focus!
+                        //
+                        // We must call `focus()` during the `touchend` event since iOS won't open the
+                        // software keyboard unless focus happens in a user-initiated event. So we call
+                        // `flushSync()` to make sure `isFocused` is updated synchronously so we can
+                        // call `focus()` synchronously.
+                        flushSync(() => setIsFocused(true));
+                        view.focus();
+
+                        view.dispatch(
+                            view.state.tr.setSelection(
+                                new TextSelection(view.state.doc.resolve(posResult.pos)),
+                            ),
+                        );
+                    },
+                    cancel: () => {
+                        longPressTimeout.clear();
+                    },
+                };
+            });
+
+            view.dom.addEventListener("touchmove", () => {
+                // Touch move turns into a scroll or drag gesture.
+                touchState?.cancel();
+                touchState = null;
+            });
+
+            view.dom.addEventListener("touchend", event => {
+                // If our tap state hasn't been cancelled we actually successfully received
+                // a tap!
+                touchState?.finish(event);
+                touchState = null;
+            });
+
+            view.dom.addEventListener("touchcancel", () => {
+                touchState?.cancel();
+                touchState = null;
+            });
+
+            const handleSelectionChange = () => {
+                // After a long press, iOS selects text. If we see the selection change during
+                // a tap we no longer have a tap gesture and instead we have a long press
+                // gesture.
+                touchState?.cancel();
+                touchState = null;
+            };
+
+            document.addEventListener("selectionchange", handleSelectionChange);
+
             // Update `viewRef` and call any callbacks that were waiting for the view to
             // be ready.
             {
@@ -898,6 +1008,7 @@ function TaskRowTitleInput(
 
             return () => {
                 window.removeEventListener("resize", handleWindowResize);
+                document.addEventListener("selectionchange", handleSelectionChange);
 
                 viewRef.current = {isReady: false, callbacks: new Set()};
                 containerElement.removeChild(view.dom);
@@ -1045,6 +1156,12 @@ function TaskRowTitleInput(
                 runWhenViewIsReady(view => {
                     const selection = Selection.atStart(view.state.doc);
 
+                    // When in dual modality, the `isFocused` state must be true for the editor to
+                    // be `contenteditable="true"` and thus focusable.
+                    if (isDualModalityRef.current) {
+                        flushSync(() => setIsFocused(true));
+                    }
+
                     view.focus();
                     view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
                 });
@@ -1053,6 +1170,12 @@ function TaskRowTitleInput(
                 runWhenViewIsReady(view => {
                     const selection = Selection.atEnd(view.state.doc);
 
+                    // When in dual modality, the `isFocused` state must be true for the editor to
+                    // be `contenteditable="true"` and thus focusable.
+                    if (isDualModalityRef.current) {
+                        flushSync(() => setIsFocused(true));
+                    }
+
                     view.focus();
                     view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
                 });
@@ -1060,6 +1183,12 @@ function TaskRowTitleInput(
             focusAll: () => {
                 runWhenViewIsReady(view => {
                     const selection = new AllSelection(view.state.doc);
+
+                    // When in dual modality, the `isFocused` state must be true for the editor to
+                    // be `contenteditable="true"` and thus focusable.
+                    if (isDualModalityRef.current) {
+                        flushSync(() => setIsFocused(true));
+                    }
 
                     view.focus();
                     view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
@@ -1087,12 +1216,24 @@ function TaskRowTitleInput(
                         ? Selection.atEnd(view.state.doc)
                         : Selection.atStart(view.state.doc);
 
+                    // When in dual modality, the `isFocused` state must be true for the editor to
+                    // be `contenteditable="true"` and thus focusable.
+                    if (isDualModalityRef.current) {
+                        flushSync(() => setIsFocused(true));
+                    }
+
                     view.focus();
                     view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
                 });
             },
             focusSelection: (selection: Selection) => {
                 runWhenViewIsReady(view => {
+                    // When in dual modality, the `isFocused` state must be true for the editor to
+                    // be `contenteditable="true"` and thus focusable.
+                    if (isDualModalityRef.current) {
+                        flushSync(() => setIsFocused(true));
+                    }
+
                     view.focus();
 
                     // If the document changed since the selection was created then create a

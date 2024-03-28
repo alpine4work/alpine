@@ -986,17 +986,18 @@ function ContentEditor<Content extends ContentWithReferences>(
             view.dom.style.caretColor = NativeMobileBridge ? "initial" : "-apple-system-blue";
         }
 
-        let touchTapState: {
+        let touchState: {
             finish: (event: TouchEvent) => void;
             cancel: () => void;
         } | null = null;
 
-        // TODO(calebmer): Probably also need to support focusing in dual modality mode
-        // with mouse events. For example, an iPad user with a hardware trackpad.
-        // Does the browser give us touch events or mouse events?
+        // NOTE(calebmer): The logic here also exists in a nearly identical form in
+        // `<TaskRowTitleInput>` since that component supports dual modality on mobile
+        // too. If you make a change here you probably also want to make a change
+        // there and vice versa.
         view.dom.addEventListener("touchstart", event => {
-            touchTapState?.cancel();
-            touchTapState = null;
+            touchState?.cancel();
+            touchState = null;
 
             // If we're not on mobile the document is always editable.
             if (!isDualModalityRef.current) return;
@@ -1047,11 +1048,11 @@ function ContentEditor<Content extends ContentWithReferences>(
             // default press duration used by iOS's long press gesture recognizer.
             // https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
             const longPressTimeout = createTimeout(() => {
-                touchTapState?.cancel();
-                touchTapState = null;
+                touchState?.cancel();
+                touchState = null;
             }, 500);
 
-            touchTapState = {
+            touchState = {
                 finish: event => {
                     longPressTimeout.clear();
 
@@ -1090,28 +1091,28 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         view.dom.addEventListener("touchmove", () => {
             // Touch move turns into a scroll or drag gesture.
-            touchTapState?.cancel();
-            touchTapState = null;
+            touchState?.cancel();
+            touchState = null;
         });
 
         view.dom.addEventListener("touchend", event => {
             // If our tap state hasn't been cancelled we actually successfully received
             // a tap!
-            touchTapState?.finish(event);
-            touchTapState = null;
+            touchState?.finish(event);
+            touchState = null;
         });
 
         view.dom.addEventListener("touchcancel", () => {
-            touchTapState?.cancel();
-            touchTapState = null;
+            touchState?.cancel();
+            touchState = null;
         });
 
         const handleSelectionChange = () => {
             // After a long press, iOS selects text. If we see the selection change during
             // a tap we no longer have a tap gesture and instead we have a long press
             // gesture.
-            touchTapState?.cancel();
-            touchTapState = null;
+            touchState?.cancel();
+            touchState = null;
         };
 
         document.addEventListener("selectionchange", handleSelectionChange);

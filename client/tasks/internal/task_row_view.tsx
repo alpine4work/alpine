@@ -1077,17 +1077,28 @@ function TaskRowView(
     };
 
     // Is the entire row draggable after a long touch? True if the query is
-    // manually sorted and we're on mobile.
+    // manually sorted and we're on a mobile device.
+    //
+    // If we're in a mobile layout but the primary input can hover then there's
+    // no affordance for reordering task rows. Must either be on a desktop
+    // layout (so the drag handle is accessible) or be on a device without hover
+    // affordance (to enable touch dragging).
+    //
+    // This is because touch dragging requires `<TaskRowTitleInput>` to be in
+    // dual modality mode. Which is very inconvenient for devices with a mouse. So
+    // we prefer normal input editing over touch dragging.
     const isDraggableAfterLongTouch =
-        (isMobile || !canPrimaryInputHover) &&
-        !capabilities.isReadOnly &&
-        isQueryManuallySorted &&
-        hasTask;
+        !canPrimaryInputHover && !capabilities.isReadOnly && isQueryManuallySorted && hasTask;
 
     const onManuallyActivateTouchSensorRef = useRef<((event: any) => void) | null>(null);
 
     useEffect(() => {
         if (!isDraggableAfterLongTouch) return;
+
+        // If the row is focused and the keyboard is open then a long press won't start
+        // a drag. The keyboard must close first. Instead long presses will perform
+        // text selection.
+        if (isTextInputWithinFocusedIfMobile) return;
 
         const containerElement = assertExists(containerRef.current);
 
@@ -1119,6 +1130,16 @@ function TaskRowView(
                 // NOCOMMIT: Haptic feedback when dragging starts and when dragging crosses
                 // each task boundary.
                 onManuallyActivateTouchSensorRef.current?.({nativeEvent: event});
+
+                // Dispatch a `pointercancel` event so that any `usePress()` hooks cancel their
+                // press when a drag starts. To see this work, on mobile try pressing on an
+                // assignee avatar in a dense field long enough to start dragging. Then release
+                // without moving the mouse. Without firing a `pointercancel` the assignee
+                // input will open since `pointerup` is fired and `usePress()` calls `onPress`.
+                //
+                // `pointerup` will still be dispatched but since we dispatched `pointercancel`
+                // first `usePress()` will have cancelled its press state.
+                event.target?.dispatchEvent(new PointerEvent("pointercancel", event));
             }, 500);
 
             const touch = event.touches[0]!;
@@ -1151,12 +1172,15 @@ function TaskRowView(
         containerElement.addEventListener("touchcancel", handleTouchCancel);
 
         return () => {
+            touchState?.longTouchTimeout?.clear();
+            touchState = null;
+
             containerElement.removeEventListener("touchstart", handleTouchStart);
             containerElement.removeEventListener("touchend", handleTouchEnd);
             containerElement.removeEventListener("touchmove", handleTouchMove);
             containerElement.removeEventListener("touchcancel", handleTouchCancel);
         };
-    }, [isDraggableAfterLongTouch]);
+    }, [isDraggableAfterLongTouch, isTextInputWithinFocusedIfMobile]);
 
     const marginLeft: RemLength = `${
         !withoutPaddingLeft
