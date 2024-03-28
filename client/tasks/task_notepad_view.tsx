@@ -273,8 +273,8 @@ export function TaskNotepadView({
                 ),
             getElement: () => assertExists(viewRef.current).getElement(),
             getContentElement: () => assertExists(viewRef.current).getContentElement(),
-            getItemElementByKeyIfExists: key =>
-                assertExists(viewRef.current).getItemElementByKeyIfExists(key),
+            getElementByKeyIfExists: key =>
+                assertExists(viewRef.current).getElementByKeyIfExists(key),
         }),
         [shiftRenderedRangeForGridView],
     );

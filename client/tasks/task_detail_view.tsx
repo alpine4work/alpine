@@ -61,12 +61,12 @@ import {
     TaskDetailTitleInput,
     TaskDetailTitleInputRef,
 } from "~/client/tasks/internal/task_detail_title_input.js";
-import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
-import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {
     TaskGridViewVirtualizedListViewRef,
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
+import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
@@ -243,8 +243,8 @@ export function TaskDetailView({
                 ),
             getElement: () => assertExists(viewRef.current).getElement(),
             getContentElement: () => assertExists(viewRef.current).getContentElement(),
-            getItemElementByKeyIfExists: key =>
-                assertExists(viewRef.current).getItemElementByKeyIfExists(key),
+            getElementByKeyIfExists: key =>
+                assertExists(viewRef.current).getElementByKeyIfExists(key),
         }),
         [shiftRenderedRangeForChildrenGridView],
     );

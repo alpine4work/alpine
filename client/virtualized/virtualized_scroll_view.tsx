@@ -311,7 +311,7 @@ export type VirtualizedScrollViewRef = {
      * Return the underlying HTML element for an item at the specified index if
      * it exists.
      */
-    getItemElementByKeyIfExists(key: Key): HTMLElement | null;
+    getElementByKeyIfExists(key: Key): HTMLElement | null;
 };
 
 const VirtualizedScrollViewForwardRef = forwardRef(VirtualizedScrollView);
@@ -775,7 +775,7 @@ function VirtualizedScrollView(
     const iterateItemRefs = () =>
         filterIterable(
             itemsRef.current.elementRefByKey,
-            ([key, elementRef]) =>
+            ([, elementRef]) =>
                 // Ignore refs from old generations. They will eventually be cleaned up.
                 elementRef.generation === itemsRef.current.generation &&
                 // Ignore refs that were removed from the DOM but have not been cleaned up yet.
@@ -961,11 +961,21 @@ function VirtualizedScrollView(
         // on scroll and will continue to be the anchor as long as it is in the
         // scroll window.
         shouldAnchorWhileVisible: boolean;
-        lastPosition: {offset: number; height: number};
+        lastPosition: {
+            offset: number;
+            height: number;
+            previousElementSibling: Element | null | "ignore";
+            nextElementSibling: Element | null | "ignore";
+        };
         getPosition: (actualState: {
             state: VirtualizedScrollViewState;
             scrollAnchorAdjustmentDuringMobileWebKitScroll: number | null;
-        }) => {offset: number; height: number} | null;
+        }) => {
+            offset: number;
+            height: number;
+            previousElementSibling: Element | null | "ignore";
+            nextElementSibling: Element | null | "ignore";
+        } | null;
     } | null>(null);
 
     // Implement an anchor node selection algorithm. Ours is simpler than the
@@ -1006,21 +1016,10 @@ function VirtualizedScrollView(
 
         let element: HTMLElement | null = null;
 
-        // Inline `iterateItemRefs()` so the React hook dependency warning doesn't fire
-        // when we call this from a `useMemo()`/`useEffect()`/`useImperativeHandle()`.
-        const itemRefsIterable = filterIterable(
-            itemsRef.current.elementRefByKey,
-            ([key, elementRef]) =>
-                // Ignore refs from old generations. They will eventually be cleaned up.
-                elementRef.generation === itemsRef.current.generation &&
-                // Ignore refs that were removed from the DOM but have not been cleaned up yet.
-                document.body.contains(elementRef.element),
-        );
-
         // NOTE(calebmer): There's room to optimize this algorithm. If we keep our item
         // refs in sorted order we can break after we find the first item within the
         // scroll window.
-        for (const [, elementRef] of itemRefsIterable) {
+        for (const [, elementRef] of iterateItemRefs()) {
             // Ignore elements that are positioned within an element other than our
             // absolutely positioned content element. This could happen for items using
             // custom layout.
@@ -1346,21 +1345,54 @@ function VirtualizedScrollView(
             if (nextPosition) {
                 const lastPosition = scrollAnchorRef.current.lastPosition;
 
-                const scrollAdjustment = nextPosition.offset - lastPosition.offset;
+                // If our scroll anchor moves in the DOM, we don't want to apply its scroll
+                // adjustment! Elements moving *around* our scroll anchor is fine but we want
+                // to see that our scroll anchor remains attached to either its next sibling or
+                // previous sibling before applying a scroll adjustment.
+                //
+                // Some test cases for you to try:
+                //
+                // 1. In a long chat, reload the page and scroll from the bottom to the top.
+                //    Scroll anchor adjustments *should* be applied to make the scrolling feel
+                //    smooth.
+                //
+                // 2. In a long chat, reply to a message near the top of the chat. Then reload
+                //    the page and jump to that message. Scroll anchor adjustments *should* be
+                //    applied to make sure while data loads around the anchored message the
+                //    anchored message stays centered.
+                //
+                // 3. In task notepad view in mobile mode, drag down the first task so the view
+                //    scrolls a little then drop. Scroll anchor adjustments *should NOT* be
+                //    applied because the scroll anchor (the first task) moved in the DOM so
+                //    its new position should not effect the scroll.
+                //
+                //    If you scroll enough that the second task becomes the scroll anchor then
+                //    drop the scroll anchor adjustments *should* be applied since while the
+                //    first task moved in the DOM, the second task did not.
+                if (
+                    nextPosition.nextElementSibling === "ignore" ||
+                    nextPosition.previousElementSibling === "ignore" ||
+                    lastPosition.nextElementSibling === "ignore" ||
+                    lastPosition.previousElementSibling === "ignore" ||
+                    nextPosition.nextElementSibling === lastPosition.nextElementSibling ||
+                    nextPosition.previousElementSibling === lastPosition.previousElementSibling
+                ) {
+                    const scrollAdjustment = nextPosition.offset - lastPosition.offset;
 
-                // If this is not a mobile WebKit scroll, actually update the `scrollTop`. On
-                // mobile WebKit this cancels the scrolling animation so instead we have a
-                // piece of state we use to implement a more hacky version of scroll
-                // adjustments that doesn't disrupt the scroll.
-                if (newScrollAnchorAdjustmentDuringMobileWebKitScroll === null) {
-                    // `element.scrollTop` rounds to an integer. Make sure
-                    // `lastScrollTopRef.current` and everything else is an integer too.
-                    scrollTop = Math.round(scrollTop + scrollAdjustment);
-                    if (scrollTop !== originalScrollTop) {
-                        lastScrollTopRef.current = scrollElement.scrollTop = scrollTop;
+                    // If this is not a mobile WebKit scroll, actually update the `scrollTop`. On
+                    // mobile WebKit this cancels the scrolling animation so instead we have a
+                    // piece of state we use to implement a more hacky version of scroll
+                    // adjustments that doesn't disrupt the scroll.
+                    if (newScrollAnchorAdjustmentDuringMobileWebKitScroll === null) {
+                        // `element.scrollTop` rounds to an integer. Make sure
+                        // `lastScrollTopRef.current` and everything else is an integer too.
+                        scrollTop = Math.round(scrollTop + scrollAdjustment);
+                        if (scrollTop !== originalScrollTop) {
+                            lastScrollTopRef.current = scrollElement.scrollTop = scrollTop;
+                        }
+                    } else {
+                        newScrollAnchorAdjustmentDuringMobileWebKitScroll += scrollAdjustment;
                     }
-                } else {
-                    newScrollAnchorAdjustmentDuringMobileWebKitScroll += scrollAdjustment;
                 }
 
                 scrollAnchorRef.current.lastPosition = nextPosition;
@@ -1518,9 +1550,16 @@ function VirtualizedScrollView(
                         },
                     );
 
-                    const itemKey = getItemWithoutRender(index).key;
+                    const {key} = getItemWithoutRender(index);
 
                     if (withAnchor) {
+                        // Once an item has rendered, use its DOM position instead of looking at state.
+                        const initialItemRef = itemsRef.current.elementRefByKey.get(key);
+                        const initialElement =
+                            initialItemRef?.generation === itemsRef.current.generation
+                                ? initialItemRef.element
+                                : null;
+
                         // Anchor to the item we are scrolling to. At first when the item hasn't
                         // rendered we use the position we found in our state. Then once we find the
                         // item was rendered in the DOM we use the position of the related DOM node.
@@ -1528,24 +1567,53 @@ function VirtualizedScrollView(
                         // The position we initially render our item in the DOM may be different from
                         // the computed position which is why we need to capture the computed
                         // position here.
-                        const scrollAnchor = {
+                        scrollAnchorRef.current = {
                             shouldAnchorWhileVisible: true,
-                            lastPosition: position,
-                            getPosition: ({state}: {state: VirtualizedScrollViewState}) => {
+                            lastPosition: initialElement
+                                ? getElementPosition(
+                                      scrollElement,
+                                      initialElement,
+                                      previousScrollAnchorAdjustmentDuringMobileWebKitScrollRef.current,
+                                  )
+                                : {
+                                      ...position,
+                                      // If the item isn't rendered, we can't know adjacent elements.
+                                      previousElementSibling: "ignore",
+                                      nextElementSibling: "ignore",
+                                  },
+                            getPosition: ({
+                                state,
+                                scrollAnchorAdjustmentDuringMobileWebKitScroll,
+                            }) => {
+                                // Once an item has rendered, use its DOM position instead of looking at state.
+                                const itemRef = itemsRef.current.elementRefByKey.get(key);
+                                const element =
+                                    itemRef?.generation === itemsRef.current.generation
+                                        ? itemRef.element
+                                        : null;
+                                if (element) {
+                                    return getElementPosition(
+                                        scrollElement,
+                                        element,
+                                        scrollAnchorAdjustmentDuringMobileWebKitScroll,
+                                    );
+                                }
+
                                 // We use the virtualized scroll view state to get the position instead of DOM
                                 // nodes because while scrolling to an item it may not be rendered in the
                                 // virtualization window but we still need the position.
                                 //
                                 // By using the latest state we can also see updates that haven't been written
                                 // to the DOM yet which causes less churn in scroll anchor adjustments.
-                                return (
-                                    state.getPositionByKeyIfExists(itemKey) ??
-                                    state.getPositionByIndex(index)
-                                );
+                                return {
+                                    ...(state.getPositionByKeyIfExists(key) ??
+                                        state.getPositionByIndex(index)),
+                                    // If the item isn't rendered, we can't know adjacent elements.
+                                    previousElementSibling: "ignore",
+                                    nextElementSibling: "ignore",
+                                };
                             },
                         };
-
-                        scrollAnchorRef.current = scrollAnchor;
                     }
 
                     // Actually perform the scroll.
@@ -1635,7 +1703,7 @@ function VirtualizedScrollView(
                 },
                 getElement: () => assertExists(scrollRef.current),
                 getContentElement: () => assertExists(contentRef.current),
-                getItemElementByKeyIfExists: (key: Key) => {
+                getElementByKeyIfExists: key => {
                     const itemRef = itemsRef.current.elementRefByKey.get(key);
                     if (itemRef?.generation !== itemsRef.current.generation) return null;
                     return itemRef.element;
@@ -1850,7 +1918,12 @@ function getElementPosition(
     scrollElement: HTMLElement,
     element: HTMLElement,
     scrollAnchorAdjustmentDuringMobileWebKitScroll: number | null,
-): {offset: number; height: number} {
+): {
+    offset: number;
+    height: number;
+    previousElementSibling: Element | null;
+    nextElementSibling: Element | null;
+} {
     const scrollRect = scrollElement.getBoundingClientRect();
     const rect = element.getBoundingClientRect();
 
@@ -1876,5 +1949,7 @@ function getElementPosition(
     return {
         offset,
         height: rect.height,
+        previousElementSibling: element.previousElementSibling,
+        nextElementSibling: element.nextElementSibling,
     };
 }

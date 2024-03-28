@@ -159,7 +159,7 @@ export type TaskGridViewVirtualizedListViewRef = {
     ) => {startIndex: number; endIndex: number} | null;
     getElement: () => HTMLElement;
     getContentElement: () => HTMLElement;
-    getItemElementByKeyIfExists: (key: Key) => HTMLElement | null;
+    getElementByKeyIfExists: (key: Key) => HTMLElement | null;
 };
 
 // Should be able to pass `VirtualizedScrollViewRef` in for
@@ -1351,12 +1351,12 @@ export function useTaskGridViewVirtualizedList({
         },
 
         setTaskRowZIndex: (taskKey: TaskGridViewTaskKey, newZIndex: number) => {
-            const itemElement = viewRef.current?.getItemElementByKeyIfExists(`Task:${taskKey}`);
-            if (!itemElement) return noop;
+            const taskElement = viewRef.current?.getElementByKeyIfExists(`Task:${taskKey}`);
+            if (!taskElement) return noop;
 
             const zIndexes = getOrSetDefaultMapValue(
                 zIndexesByTaskRowItemElement,
-                itemElement,
+                taskElement,
                 () => [],
             );
 
@@ -1368,9 +1368,9 @@ export function useTaskGridViewVirtualizedList({
                 const actualZIndex = zIndexes.length !== 0 ? Math.min(...zIndexes) : null;
 
                 if (actualZIndex === null) {
-                    itemElement.style.removeProperty("z-index");
+                    taskElement.style.removeProperty("z-index");
                 } else {
-                    itemElement.style.zIndex = String(actualZIndex);
+                    taskElement.style.zIndex = String(actualZIndex);
                 }
             };
 
@@ -1665,7 +1665,7 @@ export function useTaskGridViewVirtualizedList({
             if (movements === null) continue;
 
             const key = view.getKeyByIndexIfExists(i);
-            const element = key ? view.getItemElementByKeyIfExists(key) : null;
+            const element = key ? view.getElementByKeyIfExists(key) : null;
 
             if (!element) continue;
 
