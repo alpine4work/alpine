@@ -5,11 +5,17 @@ import {
     DragEndEvent,
     DragOverlay,
     MouseSensor,
+    TouchSensor,
     useDndContext,
     useSensor,
     useSensors,
 } from "@dnd-kit/core";
-import type {MouseSensorProps} from "@dnd-kit/core/dist/sensors";
+import type {
+    AbstractPointerSensor as AbstractPointerSensorType,
+    MouseSensorProps,
+    PointerEventHandlers,
+    PointerSensorProps,
+} from "@dnd-kit/core/dist/sensors";
 import {
     ReactElement,
     ReactNode,
@@ -33,7 +39,7 @@ import {
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
 import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -62,6 +68,7 @@ export type TaskGridViewDraggableData =
           readonly title: TaskTitleModel;
           readonly assigneeAccountId: AccountId | null;
           readonly getDropOnRowActions: (taskId: TaskId) => Array<TaskAction>;
+          readonly overlayPlacement: "ActivatorNode" | "ActivatorTouch";
       }
     | {
           readonly type: "Card";
@@ -117,6 +124,52 @@ class MouseSensorWithImmediatePriorityEnd extends MouseSensor {
     }
 }
 
+// `@dnd-kit/core` doesn't export `AbstractPointerSensor` so get it through
+// `TouchSensor`'s prototype chain.
+const AbstractPointerSensor: typeof AbstractPointerSensorType = Object.getPrototypeOf(
+    TouchSensor.prototype,
+).constructor;
+
+// Fork of [`TouchSensor`][1] with a custom activator function we call after a
+// long press.
+//
+// [1]: https://github.com/clauderic/dnd-kit/blob/694dcc2f62e5269541fc941fa6c9af46ccd682ad/packages/core/src/sensors/touch/TouchSensor.ts#L20
+class TouchSensorWithManualActivation extends AbstractPointerSensor {
+    constructor(props: PointerSensorProps) {
+        super(props, TouchSensorWithManualActivation._events);
+    }
+
+    private static _events: PointerEventHandlers = {
+        move: {name: "touchmove"},
+        end: {name: "touchend"},
+    };
+
+    public static activators = [
+        {
+            eventName: "onManuallyActivateTouchSensor" as any,
+            handler: () => true,
+        },
+    ];
+
+    static setup() {
+        // Adding a non-capture and non-passive `touchmove` listener in order
+        // to force `event.preventDefault()` calls to work in dynamically added
+        // touchmove event handlers. This is required for iOS Safari.
+        window.addEventListener(TouchSensorWithManualActivation._events.move.name, noop, {
+            capture: false,
+            passive: false,
+        });
+
+        return function teardown() {
+            window.removeEventListener(TouchSensorWithManualActivation._events.move.name, noop);
+        };
+
+        // We create a new handler because the teardown function of another sensor
+        // could remove our event listener if we use a referentially equal listener.
+        function noop() {}
+    }
+}
+
 export function TaskGridViewDndContext({
     store,
     children,
@@ -142,9 +195,11 @@ export function TaskGridViewDndContext({
         ),
     );
 
+    const touchSensor = useSensor(TouchSensorWithManualActivation);
+
     // No keyboard sensor. To move task rows and cards with the keyboard we should
     // have other keyboard shortcuts.
-    const sensors = useSensors(mouseSensor);
+    const sensors = useSensors(mouseSensor, touchSensor);
 
     const onDragEnd = useEvent(({active, over}: DragEndEvent) => {
         if (!over) return;
@@ -423,10 +478,27 @@ const taskGridViewDndCollisionDetection: CollisionDetection = ({
 };
 
 function TaskRowViewDragPortals({store}: {store: TaskClientStore}) {
-    const {active, activatorEvent} = useDndContext();
+    const {active, activatorEvent, activeNodeRect} = useDndContext();
 
     const isPointerDragging =
-        active && (activatorEvent instanceof PointerEvent || activatorEvent instanceof MouseEvent);
+        active &&
+        (activatorEvent instanceof PointerEvent ||
+            activatorEvent instanceof MouseEvent ||
+            activatorEvent instanceof TouchEvent);
+
+    const getActivatorTouchOffset = () => {
+        if (!activeNodeRect) return null;
+        if (!activatorEvent) return null;
+        if (!(activatorEvent instanceof TouchEvent)) return null;
+        if (!activatorEvent.touches[0]) return null;
+
+        const activatorTouch = activatorEvent.touches[0];
+
+        return {
+            top: activatorTouch.clientY - activeNodeRect.top,
+            left: activatorTouch.clientX - activeNodeRect.left,
+        };
+    };
 
     return (
         <>
@@ -438,7 +510,10 @@ function TaskRowViewDragPortals({store}: {store: TaskClientStore}) {
             {active &&
                 createPortal(
                     <DragOverlay zIndex={60}>
-                        <TaskRowViewDragOverlay dataRef={active.data as any} />
+                        <TaskRowViewDragOverlay
+                            dataRef={active.data as any}
+                            getActivatorTouchOffset={getActivatorTouchOffset}
+                        />
                     </DragOverlay>,
                     document.body,
                 )}
@@ -446,58 +521,78 @@ function TaskRowViewDragPortals({store}: {store: TaskClientStore}) {
     );
 }
 
-function TaskRowViewDragOverlay({dataRef}: {dataRef: RefObject<TaskGridViewDraggableData>}) {
+function TaskRowViewDragOverlay({
+    dataRef,
+    getActivatorTouchOffset,
+}: {
+    dataRef: RefObject<TaskGridViewDraggableData>;
+    getActivatorTouchOffset: () => {top: number; left: number} | null;
+}) {
     const [data] = useState(assertExists(dataRef.current));
+    const [activatorTouchOffset] = useState(getActivatorTouchOffset);
 
-    switch (data.type) {
-        case "Row": {
-            return (
-                <Box
-                    display="inline-block"
-                    minWidth="48"
-                    maxWidth="128"
-                    paddingX="3"
-                    borderRadius="md"
-                    boxShadow="elevation-30"
-                    backgroundColor="grey-0"
-                    position="relative"
-                    left="2"
-                    style={{
-                        height: `calc(${spacing[taskRowViewMinHeight]} + 1px)`,
-                        paddingTop: 1,
-                        top: -1,
-                        transform: "scale(75%)",
-                        transformOrigin: "center left",
-                        opacity: 0.75,
-                    }}
-                >
+    return useMemo(() => {
+        switch (data.type) {
+            case "Row": {
+                return (
                     <Box
-                        height="full"
-                        display="flex"
-                        alignItems="center"
-                        gap="2"
-                        style={{opacity: 0.5}}
+                        display="inline-block"
+                        minWidth="48"
+                        maxWidth={{desktop: "128", mobile: "64"}}
+                        paddingX="3"
+                        borderRadius="md"
+                        boxShadow="elevation-30"
+                        backgroundColor="grey-0"
+                        position="relative"
+                        opacity="80"
+                        style={{
+                            height: `calc(${spacing[taskRowViewMinHeight]} + 1px)`,
+                            paddingTop: 1,
+                            left:
+                                data.overlayPlacement === "ActivatorTouch" && activatorTouchOffset
+                                    ? `calc(${activatorTouchOffset.left}px - ${spacing["4"]})`
+                                    : spacing["2"],
+                            top:
+                                data.overlayPlacement === "ActivatorTouch" && activatorTouchOffset
+                                    ? `calc(${activatorTouchOffset.top - 1}px - ${
+                                          parseRemLengthNumber(spacing[taskRowViewMinHeight]) / 2
+                                      }rem)`
+                                    : -1,
+                            transform: "scale(75%)",
+                            transformOrigin: "center left",
+                        }}
                     >
-                        <Box flexShrink="0">
-                            <TaskDisplayStatusCircle size="4" displayStatus={data.displayStatus} />
-                        </Box>
                         <Box
-                            fontStyle="truncate"
-                            style={contentSchemaStyles.paragraphFontSize}
-                            dangerouslySetInnerHTML={{
-                                __html: serializeProsemirrorFragmentToHtml(
-                                    data.title.getProsemirrorNode().content,
-                                ),
-                            }}
-                        />
+                            height="full"
+                            display="flex"
+                            alignItems="center"
+                            gap="2"
+                            style={{opacity: 0.5}}
+                        >
+                            <Box flexShrink="0">
+                                <TaskDisplayStatusCircle
+                                    size="4"
+                                    displayStatus={data.displayStatus}
+                                />
+                            </Box>
+                            <Box
+                                fontStyle="truncate"
+                                style={contentSchemaStyles.paragraphFontSize}
+                                dangerouslySetInnerHTML={{
+                                    __html: serializeProsemirrorFragmentToHtml(
+                                        data.title.getProsemirrorNode().content,
+                                    ),
+                                }}
+                            />
+                        </Box>
                     </Box>
-                </Box>
-            );
+                );
+            }
+            case "Card": {
+                return data.overlayNode;
+            }
+            default:
+                throw exhaustive(data);
         }
-        case "Card": {
-            return data.overlayNode;
-        }
-        default:
-            throw exhaustive(data);
-    }
+    }, [activatorTouchOffset, data]);
 }

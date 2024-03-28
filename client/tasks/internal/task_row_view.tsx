@@ -10,6 +10,7 @@ import {
     Ref,
     RefObject,
     forwardRef,
+    useEffect,
     useId,
     useImperativeHandle,
     useMemo,
@@ -85,6 +86,7 @@ import {
     taskRowViewPaddingXRem,
 } from "~/client/tasks/task_row_shared_styles.js";
 import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -166,6 +168,15 @@ const Box = null;
 const TaskRowViewForwardRef = forwardRef(TaskRowView);
 export {TaskRowViewForwardRef as TaskRowView};
 
+const taskRowViewStatusButtonWidth = "6";
+const taskRowViewStatusButtonWidthRem = parseRemLengthNumber(spacing[taskRowViewStatusButtonWidth]);
+
+const taskRowViewExpandButtonWidth = "5";
+const taskRowViewExpandButtonWidthRem = parseRemLengthNumber(spacing[taskRowViewExpandButtonWidth]);
+
+const taskRowViewDragHandleWidth = "5";
+const taskRowViewDragHandleWidthRem = parseRemLengthNumber(spacing[taskRowViewDragHandleWidth]);
+
 const borderCoverClassName = sprinkles({
     position: "absolute",
     zIndex: "-10",
@@ -178,13 +189,36 @@ const borderCoverClassName = sprinkles({
 });
 
 const marginLeftContainerClassName = sprinkles({
+    alignSelf: "stretch",
     position: "relative",
     flexShrink: "0",
     display: "flex",
     justifyContent: "flex-end",
-    alignItems: "center",
-    height: taskRowViewMinHeight,
 });
+
+const dragHandleContainerClassName = `${pointerEventsNoneNotInheritedClassName} ${sprinkles({
+    width: taskRowViewDragHandleWidth,
+    height: taskRowViewMinHeight,
+    paddingX: "0.5",
+    display: "flex",
+    alignItems: "center",
+})}`;
+
+const expandButtonContainerClassName = `${pointerEventsNoneNotInheritedClassName} ${sprinkles({
+    width: taskRowViewExpandButtonWidth,
+    height: taskRowViewMinHeight,
+    paddingRight: "1",
+    display: "flex",
+    alignItems: "center",
+})}`;
+
+const statusButtonContainerClassName = `${pointerEventsNoneNotInheritedClassName} ${sprinkles({
+    width: taskRowViewStatusButtonWidth,
+    height: taskRowViewMinHeight,
+    paddingRight: "2",
+    display: "flex",
+    alignItems: "center",
+})}`;
 
 const placeholderStatusButtonClassName = sprinkles({
     width: "4",
@@ -1039,9 +1073,100 @@ function TaskRowView(
         );
     };
 
+    // Is the entire row draggable after a long touch? True if the query is
+    // manually sorted and we're on mobile.
+    const isDraggableAfterLongTouch =
+        (isMobile || !canPrimaryInputHover) &&
+        !capabilities.isReadOnly &&
+        isQueryManuallySorted &&
+        hasTask;
+
+    const onManuallyActivateTouchSensorRef = useRef<((event: any) => void) | null>(null);
+
+    useEffect(() => {
+        if (!isDraggableAfterLongTouch) return;
+
+        const containerElement = assertExists(containerRef.current);
+
+        let touchState: {
+            initialClientX: number;
+            initialClientY: number;
+            longTouchTimeout: Timeout | null;
+        } | null = null;
+
+        const handleTouchStart = (event: TouchEvent) => {
+            touchState?.longTouchTimeout?.clear();
+            touchState = null;
+
+            if (event.touches.length > 1) return;
+
+            const clonedEvent = new TouchEvent("touchstart", {
+                ...event,
+                changedTouches: [...event.changedTouches],
+                targetTouches: [...event.changedTouches],
+                touches: [...event.touches],
+            });
+
+            // Emulate a `UILongPressGestureRecognizer` on iOS. Which [waits for a touch to
+            // last 0.5 seconds][1] before firing.
+            //
+            // [1]: https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
+            const longTouchTimeout = createTimeout(() => {
+                if (touchState?.longTouchTimeout === longTouchTimeout)
+                    touchState.longTouchTimeout = null;
+
+                // Unfocus whatever the focused element is to close the keyboard.
+                if (document.activeElement instanceof HTMLElement) {
+                    document.activeElement.blur();
+                }
+
+                // NOCOMMIT: Haptic feedback when dragging starts and when dragging crosses
+                // each task boundary.
+                onManuallyActivateTouchSensorRef.current?.({nativeEvent: clonedEvent});
+            }, 500);
+
+            const touch = event.touches[0]!;
+
+            touchState = {
+                initialClientX: touch.clientX,
+                initialClientY: touch.clientY,
+                longTouchTimeout,
+            };
+        };
+
+        const handleTouchEnd = () => {
+            touchState?.longTouchTimeout?.clear();
+            touchState = null;
+        };
+
+        const handleTouchMove = (event: TouchEvent) => {
+            touchState?.longTouchTimeout?.clear();
+            if (touchState) touchState.longTouchTimeout = null;
+        };
+
+        const handleTouchCancel = () => {
+            touchState?.longTouchTimeout?.clear();
+            touchState = null;
+        };
+
+        containerElement.addEventListener("touchstart", handleTouchStart);
+        containerElement.addEventListener("touchend", handleTouchEnd);
+        containerElement.addEventListener("touchmove", handleTouchMove, {passive: false});
+        containerElement.addEventListener("touchcancel", handleTouchCancel);
+
+        return () => {
+            containerElement.removeEventListener("touchstart", handleTouchStart);
+            containerElement.removeEventListener("touchend", handleTouchEnd);
+            containerElement.removeEventListener("touchmove", handleTouchMove);
+            containerElement.removeEventListener("touchcancel", handleTouchCancel);
+        };
+    }, [isDraggableAfterLongTouch]);
+
     const marginLeft: RemLength = `${
         !withoutPaddingLeft
             ? contentSchemaStyles.listItemIndentationRem * parents.length +
+              // On mobile we don't show the expand button, but if the query is auto-sorted
+              // we still want to render row numbers in the expand button space.
               (!isMobile || (hasTask && !isQueryManuallySorted)
                   ? taskRowViewDragHandleWidthRem + taskRowViewExpandButtonWidthRem
                   : taskRowViewPaddingXRem.mobile +
@@ -1143,10 +1268,20 @@ function TaskRowView(
                     onSelectAll: focusTitleAll,
                 })}
             >
+                {!disableExpensiveFeaturesDuringScroll && isDraggableAfterLongTouch && (
+                    <TaskRowViewDragAfterLongTouchController
+                        undoManager={undoManager}
+                        affinityManager={affinityManager}
+                        task={task}
+                        getMaybeRemoveTaskFromQueryActions={getMaybeRemoveTaskFromQueryActions}
+                        onManuallyActivateTouchSensorRef={onManuallyActivateTouchSensorRef}
+                    />
+                )}
                 {!withoutPaddingLeft &&
                     (!isMobile || (hasTask && !isQueryManuallySorted)) &&
                     (!disableExpensiveFeaturesDuringScroll &&
                     !capabilities.isReadOnly &&
+                    !isDraggableAfterLongTouch &&
                     isQueryManuallySorted &&
                     hasTask ? (
                         <TaskRowViewDragHandle
@@ -1157,13 +1292,7 @@ function TaskRowView(
                             isHovered={isHovered}
                         />
                     ) : (
-                        <div
-                            className={pointerEventsNoneNotInheritedClassName}
-                            style={{
-                                width: spacing[taskRowViewDragHandleWidth],
-                                paddingRight: spacing["0.5"],
-                            }}
-                        >
+                        <div className={dragHandleContainerClassName}>
                             {hasTask && !isQueryManuallySorted && (
                                 <div className={tasksStyles.rowNumberClassName} />
                             )}
@@ -1175,12 +1304,8 @@ function TaskRowView(
                     canPrimaryInputHover &&
                     (!disableExpensiveFeaturesDuringScroll && hasTask ? (
                         <div
-                            className={pointerEventsNoneNotInheritedClassName}
-                            style={{
-                                width: spacing[taskRowViewExpandButtonWidth],
-                                paddingRight: spacing["1"],
-                                opacity: isHovered || isExpandButtonFocused ? 1 : 0,
-                            }}
+                            className={expandButtonContainerClassName}
+                            style={{opacity: isHovered || isExpandButtonFocused ? 1 : 0}}
                         >
                             <IconButton
                                 ref={expandButtonRef}
@@ -1204,22 +1329,10 @@ function TaskRowView(
                             </IconButton>
                         </div>
                     ) : (
-                        <div
-                            className={pointerEventsNoneNotInheritedClassName}
-                            style={{
-                                width: spacing[taskRowViewExpandButtonWidth],
-                                paddingRight: spacing["1"],
-                            }}
-                        />
+                        <div className={expandButtonContainerClassName} />
                     ))}
                 {!withoutPaddingLeft && (
-                    <div
-                        className={pointerEventsNoneNotInheritedClassName}
-                        style={{
-                            width: spacing[taskRowViewStatusButtonWidth],
-                            paddingRight: spacing["2"],
-                        }}
-                    >
+                    <div className={statusButtonContainerClassName}>
                         {hasTask ? (
                             <TaskStatusButton
                                 ref={statusButtonRef}
@@ -1251,7 +1364,9 @@ function TaskRowView(
                                 }
                             />
                         ) : (
-                            <div className={placeholderStatusButtonClassName} />
+                            <div className={statusButtonContainerClassName}>
+                                <div className={placeholderStatusButtonClassName} />
+                            </div>
                         )}
                     </div>
                 )}
@@ -1499,15 +1614,6 @@ function TaskRowView(
     );
 }
 
-const taskRowViewStatusButtonWidth = "6";
-const taskRowViewStatusButtonWidthRem = parseRemLengthNumber(spacing[taskRowViewStatusButtonWidth]);
-
-const taskRowViewExpandButtonWidth = "5";
-const taskRowViewExpandButtonWidthRem = parseRemLengthNumber(spacing[taskRowViewExpandButtonWidth]);
-
-const taskRowViewDragHandleWidth = "5";
-const taskRowViewDragHandleWidthRem = parseRemLengthNumber(spacing[taskRowViewDragHandleWidth]);
-
 function TaskRowViewDragHandle({
     undoManager,
     affinityManager,
@@ -1517,7 +1623,7 @@ function TaskRowViewDragHandle({
 }: {
     undoManager: TaskClientStoreUndoManager;
     affinityManager: TaskClientStoreSearchAffinityManager;
-    task: TaskModel | null;
+    task: TaskModel;
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
     isHovered: boolean;
 }) {
@@ -1527,42 +1633,37 @@ function TaskRowViewDragHandle({
     // every row.
     const {
         attributes: draggableAttributes,
-        listeners: draggableListeners,
+        listeners: {
+            // @ts-expect-error: Added by `TouchSensorWithManualActivation` but TypeScript
+            // doesn't know about it.
+            onManuallyActivateTouchSensor,
+            ...draggableListeners
+        },
         setNodeRef: setDraggableNodeRef,
     } = useDraggable({
         id: useId(),
-        data: task
-            ? cast<TaskGridViewDraggableData>({
-                  type: "Row",
-                  undoManager,
-                  affinityManager,
-                  taskId: task.id,
-                  displayStatus: task.getDisplayStatus(),
-                  assigneeAccountId: task.getAssignee()?.assignee.accountId ?? null,
-                  title: task.getTitle(),
-                  getDropOnRowActions: getMaybeRemoveTaskFromQueryActions,
-              })
-            : undefined,
-        disabled: !task,
+        data: cast<TaskGridViewDraggableData>({
+            type: "Row",
+            undoManager,
+            affinityManager,
+            taskId: task.id,
+            displayStatus: task.getDisplayStatus(),
+            assigneeAccountId: task.getAssignee()?.assignee.accountId ?? null,
+            title: task.getTitle(),
+            getDropOnRowActions: getMaybeRemoveTaskFromQueryActions,
+            overlayPlacement: "ActivatorNode",
+        }),
     });
 
     return (
-        <div
-            className={classNames(
-                pointerEventsNoneNotInheritedClassName,
-                sprinkles({
-                    width: taskRowViewDragHandleWidth,
-                    paddingX: "0.5",
-                    opacity: isHovered ? "100" : "0",
-                }),
-            )}
-        >
+        <div className={dragHandleContainerClassName} style={{opacity: isHovered ? 1 : 0}}>
             <FocusRing>
                 <button
                     {...mergeProps(draggableAttributes, draggableListeners ?? {}, {
                         onPointerDown: () => setIsDragHandlePressed(true),
                         onPointerUp: () => setIsDragHandlePressed(false),
                         onPointerOut: () => setIsDragHandlePressed(false),
+                        onPointerCancel: () => setIsDragHandlePressed(false),
                     })}
                     ref={setDraggableNodeRef}
                     className={sprinkles({
@@ -1583,6 +1684,67 @@ function TaskRowViewDragHandle({
                 </button>
             </FocusRing>
         </div>
+    );
+}
+
+function TaskRowViewDragAfterLongTouchController({
+    undoManager,
+    affinityManager,
+    task,
+    getMaybeRemoveTaskFromQueryActions,
+    onManuallyActivateTouchSensorRef,
+}: {
+    undoManager: TaskClientStoreUndoManager;
+    affinityManager: TaskClientStoreSearchAffinityManager;
+    task: TaskModel;
+    getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
+    onManuallyActivateTouchSensorRef: RefObject<((event: any) => void) | null>;
+}) {
+    // When drag state updates, only re-render
+    // `<TaskRowViewDragAfterLongTouchController>`s. Not every row component.
+    // That's why we have this controller component instead of putting the
+    // `useDraggable()` hook directly in `<TaskRowView>`.
+    const {
+        listeners: {
+            // @ts-expect-error: Added by `TouchSensorWithManualActivation` but TypeScript
+            // doesn't know about it.
+            onManuallyActivateTouchSensor,
+        },
+        setNodeRef: setDraggableNodeRef,
+    } = useDraggable({
+        id: useId(),
+        data: cast<TaskGridViewDraggableData>({
+            type: "Row",
+            undoManager,
+            affinityManager,
+            taskId: task.id,
+            displayStatus: task.getDisplayStatus(),
+            assigneeAccountId: task.getAssignee()?.assignee.accountId ?? null,
+            title: task.getTitle(),
+            getDropOnRowActions: getMaybeRemoveTaskFromQueryActions,
+            overlayPlacement: "ActivatorTouch",
+        }),
+    });
+
+    useImperativeHandle(onManuallyActivateTouchSensorRef, () => onManuallyActivateTouchSensor, [
+        onManuallyActivateTouchSensor,
+    ]);
+
+    // We need a DOM element for `@dnd-kit/core` to be able to correctly position
+    // our drag overlay. Render it at the beginning of our margin left with 0
+    // width. The user should not be able to interact with this element, it should
+    // only be used for spacing.
+    return (
+        <div
+            ref={setDraggableNodeRef}
+            style={{
+                position: "absolute",
+                top: 0,
+                bottom: 0,
+                left: 0,
+                width: 0,
+            }}
+        />
     );
 }
 

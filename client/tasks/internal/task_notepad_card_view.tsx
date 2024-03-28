@@ -159,7 +159,12 @@ function TaskNotepadCardView({
     const {
         isDragging,
         attributes: draggableAttributes,
-        listeners: draggableListeners,
+        listeners: {
+            // @ts-expect-error: Added by `TouchSensorWithManualActivation` but TypeScript
+            // doesn't know about it.
+            onManuallyActivateTouchSensor,
+            ...draggableListeners
+        },
         setNodeRef: setDraggableNodeRef,
         active: dndContextActive,
         over: dndContextOver,

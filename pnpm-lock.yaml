@@ -19,7 +19,7 @@ patchedDependencies:
     hash: hd2oz2xlphxbe5w65c4x3qmfrm
     path: admin/patches/@cloudflare__workers-types@3.18.0.patch
   '@dnd-kit/core@6.0.8':
-    hash: gbxnwhqtfh4i26xaiayk53jqeu
+    hash: 7phbxv4pzfr6sphz6gpqy6mxeu
     path: admin/patches/@dnd-kit__core@6.0.8.patch
   '@dnd-kit/utilities@3.2.1':
     hash: di55vvis5paiupfudkzzxlvcfm
@@ -160,7 +160,7 @@ dependencies:
     version: 3.18.0(patch_hash=hd2oz2xlphxbe5w65c4x3qmfrm)
   '@dnd-kit/core':
     specifier: 6.0.8
-    version: 6.0.8(patch_hash=gbxnwhqtfh4i26xaiayk53jqeu)(react-dom@18.2.0)(react@18.2.0)
+    version: 6.0.8(patch_hash=7phbxv4pzfr6sphz6gpqy6mxeu)(react-dom@18.2.0)(react@18.2.0)
   '@dnd-kit/modifiers':
     specifier: ^6.0.1
     version: 6.0.1(@dnd-kit/core@6.0.8)(react@18.2.0)
@@ -3002,7 +3002,7 @@ packages:
       tslib: 2.5.0
     dev: false
 
-  /@dnd-kit/core@6.0.8(patch_hash=gbxnwhqtfh4i26xaiayk53jqeu)(react-dom@18.2.0)(react@18.2.0):
+  /@dnd-kit/core@6.0.8(patch_hash=7phbxv4pzfr6sphz6gpqy6mxeu)(react-dom@18.2.0)(react@18.2.0):
     resolution: {integrity: sha512-lYaoP8yHTQSLlZe6Rr9qogouGUz9oRUj4AHhDQGQzq/hqaJRpFo65X+JKsdHf8oUFBzx5A+SJPUvxAwTF2OabA==}
     peerDependencies:
       react: '>=16.8.0 || 18'
@@ -3022,7 +3022,7 @@ packages:
       '@dnd-kit/core': ^6.0.6
       react: '>=16.8.0 || 18'
     dependencies:
-      '@dnd-kit/core': 6.0.8(patch_hash=gbxnwhqtfh4i26xaiayk53jqeu)(react-dom@18.2.0)(react@18.2.0)
+      '@dnd-kit/core': 6.0.8(patch_hash=7phbxv4pzfr6sphz6gpqy6mxeu)(react-dom@18.2.0)(react@18.2.0)
       '@dnd-kit/utilities': 3.2.1(patch_hash=di55vvis5paiupfudkzzxlvcfm)(react@18.2.0)
       react: 18.2.0
       tslib: 2.4.0
@@ -3034,7 +3034,7 @@ packages:
       '@dnd-kit/core': ^6.0.7
       react: '>=16.8.0 || 18'
     dependencies:
-      '@dnd-kit/core': 6.0.8(patch_hash=gbxnwhqtfh4i26xaiayk53jqeu)(react-dom@18.2.0)(react@18.2.0)
+      '@dnd-kit/core': 6.0.8(patch_hash=7phbxv4pzfr6sphz6gpqy6mxeu)(react-dom@18.2.0)(react@18.2.0)
       '@dnd-kit/utilities': 3.2.1(patch_hash=di55vvis5paiupfudkzzxlvcfm)(react@18.2.0)
       react: 18.2.0
       tslib: 2.5.0

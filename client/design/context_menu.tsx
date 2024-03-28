@@ -135,6 +135,15 @@ export function ContextMenuManager() {
                 [contextMenuEventActionsSymbol]?: Array<ReadonlyArray<MenuAction>>;
             },
         ) => {
+            // The Chrome mobile device debugger (and so probably also Chrome on Android)
+            // fires the `contextmenu` event after a long press. This breaks any long press
+            // functionality we might add so call `event.preventDefault()` and don't open
+            // our custom context menu.
+            if ("pointerType" in event && event.pointerType !== "mouse") {
+                event.preventDefault();
+                return;
+            }
+
             // If the user was holding shift then show the default browser context menu.
             //
             // TODO(calebmer): If we ever have a native app wrapper, disable this behavior

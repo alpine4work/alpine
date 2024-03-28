@@ -15,7 +15,7 @@ index 68f1a95179a27aaed272ef98c02c2aae12c98e24..937988bfee890bb0c87af731f7164cf5
  export interface CancelDropArguments extends DragEndEvent {
  }
 diff --git a/dist/core.cjs.development.js b/dist/core.cjs.development.js
-index a9282a8733e10c1c8acfeda1597b2ef54194456f..93ae1d6eb5f353ea2ac8669cf8fd6a19639a8130 100644
+index a9282a8733e10c1c8acfeda1597b2ef54194456f..cf29811522f1f35f17ac59363cb80dfd1986f251 100644
 --- a/dist/core.cjs.development.js
 +++ b/dist/core.cjs.development.js
 @@ -2340,12 +2340,15 @@ function useRects(elements, measure) {
@@ -124,8 +124,14 @@ index a9282a8733e10c1c8acfeda1597b2ef54194456f..93ae1d6eb5f353ea2ac8669cf8fd6a19
    useAutoScroller({ ...autoScrollOptions,
      delta: translate,
      draggingRect: collisionRect,
+@@ -3903,4 +3919,4 @@ exports.useDraggable = useDraggable;
+ exports.useDroppable = useDroppable;
+ exports.useSensor = useSensor;
+ exports.useSensors = useSensors;
+-//# sourceMappingURL=core.cjs.development.js.map
++// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/dist/core.esm.js b/dist/core.esm.js
-index 91671e94105af35a13703236af1ab507319bfeef..b1241c21ecbead2ee3b77bc020644aa95d76b941 100644
+index 91671e94105af35a13703236af1ab507319bfeef..70429b8fdb27f3a14af6a5d974ecae8e141277cd 100644
 --- a/dist/core.esm.js
 +++ b/dist/core.esm.js
 @@ -2343,12 +2343,15 @@ function useRects(elements, measure) {
@@ -234,6 +240,12 @@ index 91671e94105af35a13703236af1ab507319bfeef..b1241c21ecbead2ee3b77bc020644aa9
    useAutoScroller({ ...autoScrollOptions,
      delta: translate,
      draggingRect: collisionRect,
+@@ -3882,4 +3898,4 @@ const DragOverlay = /*#__PURE__*/React.memo(_ref => {
+ });
+ 
+ export { AutoScrollActivator, DndContext, DragOverlay, KeyboardCode, KeyboardSensor, MeasuringFrequency, MeasuringStrategy, MouseSensor, PointerSensor, TouchSensor, TraversalOrder, applyModifiers, closestCenter, closestCorners, defaultAnnouncements, defaultCoordinates, defaultDropAnimationConfiguration as defaultDropAnimation, defaultDropAnimationSideEffects, defaultScreenReaderInstructions, getClientRect, getFirstCollision, getScrollableAncestors, pointerWithin, rectIntersection, useDndContext, useDndMonitor, useDraggable, useDroppable, useSensor, useSensors };
+-//# sourceMappingURL=core.esm.js.map
++// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/dist/index.js b/dist/index.js
 index 5fec47389d27ef25efb49191ba16af960622c77c..fd9b9e59dd36b531e9cf52844e0f20460f247cce 100644
 --- a/dist/index.js

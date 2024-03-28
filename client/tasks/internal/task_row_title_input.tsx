@@ -25,6 +25,7 @@ import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_prio
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {createTaskEntryAccessStore} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
@@ -70,6 +71,8 @@ export const taskRowTitleInputPaddingY: RemLength = `${
 export type TaskRowTitleInputRef = {
     getSelection(): Selection;
     isFocused(): boolean;
+    // NOCOMMIT: These focus methods should do the update state trick when in dual
+    // modality mode.
     focusStart(): void;
     focusEnd(): void;
     focusAll(): void;
@@ -294,9 +297,23 @@ function TaskRowTitleInput(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
+    const isMobile = useIsMobile();
+    const canPrimaryInputHover = useCanPrimaryInputHover();
     const {isAppleDevice} = useClientInfo();
     const remPx = useRemPx();
     const isInitialAppRender = useIsInitialAppRender();
+
+    // Title input is in dual modality mode if:
+    //
+    // - We are on a mobile device (drag handle is hidden on mobile sizes); OR
+    // - The primary input can't hover (e.g. we're on an iPad)
+    //
+    // Dual modality mode, like `<ContentEditor>`, means the input content is
+    // interactive while unfocused and non-interactive while focused. Now, task row
+    // title inputs don't currently have any interactive content but we may add
+    // mentions, links, or other styling options in the future that require
+    // interaction.
+    const isDualModality = isMobile || !canPrimaryInputHover;
 
     const viewRef = useRef<
         | {isReady: false; callbacks: Set<(view: EditorView) => void>}
@@ -466,11 +483,13 @@ function TaskRowTitleInput(
     const handleKeyDownRef = useRef(handleKeyDown);
     const isReadOnlyRef = useRef(capabilities.isReadOnly);
     const remPxRef = useRef(remPx);
+    const isDualModalityRef = useRef(isDualModality);
     useInsertionEffect(() => {
         titleRef.current = title;
         handleKeyDownRef.current = handleKeyDown;
         isReadOnlyRef.current = capabilities.isReadOnly;
         remPxRef.current = remPx;
+        isDualModalityRef.current = isDualModality;
     });
 
     const onLayoutEffectCallbacksRef = useRef<Array<() => void>>([]);
@@ -638,6 +657,10 @@ function TaskRowTitleInput(
             // Don't render a scrollbar with our row title input.
             viewElement.dataset.scrollbar = "false";
 
+            const initialIsDualModality = isDualModalityRef.current;
+            const initialIsReadOnly = isReadOnlyRef.current;
+            const initialIsEditable = !initialIsDualModality && !initialIsReadOnly;
+
             const view = new EditorView(
                 {mount: viewElement},
                 {
@@ -662,11 +685,16 @@ function TaskRowTitleInput(
                     shouldUseDOMSelectionOnFocus: true,
 
                     // Disable editing when the `isReadOnly` prop is set.
-                    editable: () => !isReadOnlyRef.current,
+                    //
+                    // Or if we're in dual modality mode on mobile/touch devices.
+                    editable: () => initialIsEditable,
 
+                    // NOTE(calebmer): If you add or update an attribute here you'll also need to
+                    // update the attribute in a layout effect below! Since `tabindex` needs to
+                    // update as our editable state changes.
                     attributes: {
                         // Title row inputs are focusable but are not a part of the tab order.
-                        tabindex: "-1",
+                        ...(initialIsEditable ? {tabindex: "-1"} : {}),
 
                         // Native spellcheck is often more distracting then it's worth. It puts a red
                         // squiggly under names, nouns, industry terms, and oddly sometimes
@@ -708,6 +736,10 @@ function TaskRowTitleInput(
                     },
                 },
             );
+
+            if (!initialIsEditable) {
+                view.dom.classList.add(tasksStyles.rowTitleInputIsNotEditableClassName);
+            }
 
             const updateFullyScrolledState = (isInitialUpdate: boolean) => {
                 const isFullyScrolledLeft = view.dom.scrollLeft === 0;
@@ -906,6 +938,63 @@ function TaskRowTitleInput(
         ],
     );
 
+    const [isFocused, setIsFocused] = useState(false);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isInitialAppRender) return;
+
+        assert(viewRef.current.isReady);
+        const {view} = viewRef.current;
+
+        const isEditable = (!isDualModality || isFocused) && !capabilities.isReadOnly;
+
+        view.setProps({
+            editable: () => isEditable,
+
+            // Copied from the `new EditorView()` call above. See `new EditorView()` for
+            // documentation on why we set these attributes.
+            attributes: {
+                ...(isEditable ? {tabindex: "-1"} : {}),
+                spellcheck: "false",
+            },
+        });
+
+        if (!isEditable) {
+            view.dom.classList.add(tasksStyles.rowTitleInputIsNotEditableClassName);
+        } else {
+            view.dom.classList.remove(tasksStyles.rowTitleInputIsNotEditableClassName);
+        }
+    }, [capabilities.isReadOnly, isDualModality, isFocused, isInitialAppRender]);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isInitialAppRender) return;
+
+        assert(viewRef.current.isReady);
+        const {view} = viewRef.current;
+        const viewElement = view.dom;
+
+        const handleFocus = () => {
+            setIsFocused(true);
+        };
+
+        const handleBlur = () => {
+            setIsFocused(false);
+        };
+
+        if (document.activeElement === viewElement) {
+            handleFocus();
+        } else {
+            handleBlur();
+        }
+
+        viewElement.addEventListener("focus", handleFocus);
+        viewElement.addEventListener("blur", handleBlur);
+        return () => {
+            viewElement.addEventListener("focus", handleFocus);
+            viewElement.addEventListener("blur", handleBlur);
+        };
+    }, [isInitialAppRender]);
+
     const runWhenViewIsReady = useCallback((run: (view: EditorView) => void) => {
         if (viewRef.current.isReady) {
             run(viewRef.current.view);
@@ -929,7 +1018,7 @@ function TaskRowTitleInput(
 
     const {
         getSelection,
-        isFocused,
+        getIsFocused,
         focusStart,
         focusEnd,
         focusAll,
@@ -948,7 +1037,7 @@ function TaskRowTitleInput(
                     return viewRef.current.view.state.selection;
                 }
             },
-            isFocused: () => {
+            getIsFocused: () => {
                 if (!viewRef.current.isReady) return false;
                 return viewRef.current.view.dom === document.activeElement;
             },
@@ -1049,7 +1138,7 @@ function TaskRowTitleInput(
 
     useImperativeHandle(ref, () => ({
         getSelection,
-        isFocused,
+        isFocused: getIsFocused,
         focusStart,
         focusEnd,
         focusAll,
