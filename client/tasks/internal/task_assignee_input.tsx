@@ -1,5 +1,4 @@
 import {getInteractionModality, usePress} from "@react-aria/interactions";
-import classNames from "classnames";
 import _Fuse from "fuse.js";
 import {Ref, forwardRef, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {useComboBox} from "react-aria";
@@ -13,7 +12,7 @@ import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growin
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     useExpensivelyLoadAllSpaceAccounts,
@@ -31,7 +30,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
@@ -115,6 +114,7 @@ function TaskAssigneeInput(
     ref: Ref<TaskAssigneeInputRef>,
 ) {
     const isMobile = useIsMobile();
+    const canPrimaryInputHover = useCanPrimaryInputHover();
     const accountStore = useAccountClientStore();
     const {currentAccount} = useSpaceContext();
 
@@ -598,6 +598,19 @@ function TaskAssigneeInput(
                                 // We want a text cursor even if `isReadOnly` is true. But not if we have a
                                 // placeholder.
                                 cursor: inputValue.length > 0 ? "text" : undefined,
+                            }}
+                            containerStyle={{
+                                // Don't allow selecting the input text if touch drag is supported and the
+                                // input is unfocused. We know `!canPrimaryInputHover` is the main precondition
+                                // to supporting touch dragging.
+                                //
+                                // Otherwise if you long press on this text input the browser will try to
+                                // select text and go into drag state at the same time! We only want to engage
+                                // drag state.
+                                pointerEvents:
+                                    !canPrimaryInputHover && inputState.type === "Selection"
+                                        ? "none"
+                                        : undefined,
                             }}
                             onKeyDown={event => {
                                 if (

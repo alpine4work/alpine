@@ -1,5 +1,4 @@
 import {getInteractionModality, usePress} from "@react-aria/interactions";
-import classNames from "classnames";
 import _Fuse from "fuse.js";
 import {Ref, forwardRef, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {useComboBox} from "react-aria";
@@ -9,7 +8,7 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {
@@ -18,7 +17,7 @@ import {
 } from "~/client/tasks/internal/task_priority_input_list_box.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
 // Node.js ESM interop (#node-esm-migration)
@@ -103,6 +102,7 @@ function TaskPriorityInput(
     ref: Ref<TaskPriorityInputRef>,
 ) {
     const isMobile = useIsMobile();
+    const canPrimaryInputHover = useCanPrimaryInputHover();
 
     const [inputState, setInputState] = useState<TaskPriorityInputState>({
         type: "Selection",
@@ -475,6 +475,19 @@ function TaskPriorityInput(
                                 // We want a text cursor even if `isReadOnly` is true. But not if we have a
                                 // placeholder.
                                 cursor: inputValue.length > 0 ? "text" : undefined,
+                            }}
+                            containerStyle={{
+                                // Don't allow selecting the input text if touch drag is supported and the
+                                // input is unfocused. We know `!canPrimaryInputHover` is the main precondition
+                                // to supporting touch dragging.
+                                //
+                                // Otherwise if you long press on this text input the browser will try to
+                                // select text and go into drag state at the same time! We only want to engage
+                                // drag state.
+                                pointerEvents:
+                                    !canPrimaryInputHover && inputState.type === "Selection"
+                                        ? "none"
+                                        : undefined,
                             }}
                             onKeyDown={event => {
                                 if (

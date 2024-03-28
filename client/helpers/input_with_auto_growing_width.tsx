@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {InputHTMLAttributes, Ref, forwardRef} from "react";
+import {CSSProperties, InputHTMLAttributes, Ref, forwardRef} from "react";
 
 const InputWithAutoGrowingWidthForwardRef = forwardRef(InputWithAutoGrowingWidth);
 export {InputWithAutoGrowingWidthForwardRef as InputWithAutoGrowingWidth};
@@ -7,11 +7,15 @@ export {InputWithAutoGrowingWidthForwardRef as InputWithAutoGrowingWidth};
 function InputWithAutoGrowingWidth(
     {
         containerClassName,
+        containerStyle,
         textClassName,
+        textStyle,
         ...props
     }: InputHTMLAttributes<HTMLInputElement> & {
         containerClassName?: string;
+        containerStyle?: CSSProperties;
         textClassName?: string;
+        textStyle?: CSSProperties;
     },
     ref: Ref<HTMLInputElement>,
 ) {
@@ -19,6 +23,7 @@ function InputWithAutoGrowingWidth(
         <div
             className={containerClassName}
             style={{
+                ...containerStyle,
                 maxWidth: "100%",
                 overflow: "hidden",
                 // The width of this element is determined by nested text boxes. The `<input>`
@@ -30,6 +35,7 @@ function InputWithAutoGrowingWidth(
                 aria-hidden={true}
                 className={textClassName}
                 style={{
+                    ...textStyle,
                     height: 0,
                     opacity: 0,
                     pointerEvents: "none",
@@ -43,6 +49,7 @@ function InputWithAutoGrowingWidth(
                 aria-hidden={true}
                 className={textClassName}
                 style={{
+                    ...textStyle,
                     height: 0,
                     opacity: 0,
                     pointerEvents: "none",
