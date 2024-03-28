@@ -60,6 +60,7 @@ import {
     messageViewReplyPreviewBubbleOpacity,
     messageViewReplyPreviewOpacity,
     messageViewReplyPreviewScale,
+    messageViewTimestampDividerMarginTop,
     minMessageViewTimestampDividerElapsedMinutes,
 } from "~/shared/messaging/messaging_shared_styles.js";
 import {
@@ -948,7 +949,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return (
             <div
                 className={sprinkles({
-                    paddingTop: !isFirstMessage ? "8" : "0",
+                    paddingTop: !isFirstMessage ? messageViewTimestampDividerMarginTop : undefined,
                     paddingBottom: "2",
                     display: "flex",
                     justifyContent: "center",

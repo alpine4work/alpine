@@ -18,11 +18,14 @@ import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
-import {messageViewMarginY} from "~/shared/messaging/messaging_shared_styles.js";
+import {
+    messageViewMarginY,
+    messageViewTimestampDividerMarginTop,
+} from "~/shared/messaging/messaging_shared_styles.js";
 import {
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
@@ -154,7 +157,10 @@ function AccountFullName({account}: {account: AccountModel}) {
  */
 export const chatMessagingHeader = ((): DistributiveOmit<VirtualizedScrollViewItem, "key"> => {
     // When our view is full of messages this will be the top margin of the view.
-    const height = spacing[messageViewMarginY];
+    const height = addRemLengths(
+        spacing[messageViewTimestampDividerMarginTop],
+        spacing[messageViewMarginY],
+    );
 
     return {
         minHeight: height,
