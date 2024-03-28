@@ -341,6 +341,13 @@ export class TaskGridViewVirtualizedListState {
     }
 
     /**
+     * Return the root query if our state has one.
+     */
+    public getRootQueryIfExists() {
+        return this._tree?.query ?? null;
+    }
+
+    /**
      * If the provided `TaskQuerySortCursor` exists in our state at the root level
      * then return the index corresponding to the task. Otherwise return null.
      */
@@ -352,10 +359,45 @@ export class TaskGridViewVirtualizedListState {
     }
 
     /**
-     * Return the root query if our state has one.
+     * If a task with the provided cursor within parents with the provided cursors
+     * exists in our state then return the index corresponding to the task.
+     * Otherwise return null.
      */
-    public getRootQueryIfExists() {
-        return this._tree?.query ?? null;
+    public getIndexByCursorAndParentsIfExists({
+        parents,
+        cursor,
+    }: {
+        parents: ReadonlyArray<{
+            query: TaskClientQuery;
+            cursor: TaskQuerySortCursor;
+        }>;
+        cursor: TaskQuerySortCursor;
+    }): number | null {
+        let index = 0;
+        let tree = this._tree;
+
+        for (const parent of parents) {
+            if (!tree) return null;
+
+            // Safe guard so we don't end up comparing cursors from different queries
+            // (which may cause assertion failures).
+            if (tree.query !== parent.query) return null;
+
+            const iterator = tree.tasks.find(parent.cursor);
+            if (!iterator.value) return null;
+
+            index += this._getPreviousItemCount(tree.query, iterator) + 1;
+            tree = iterator.value.childrenTree;
+        }
+
+        if (!tree) return null;
+
+        const iterator = tree.tasks.find(cursor);
+        if (!iterator.valid) return null;
+
+        index += this._getPreviousItemCount(tree.query, iterator);
+
+        return index;
     }
 
     /**

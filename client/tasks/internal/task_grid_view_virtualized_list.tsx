@@ -69,7 +69,10 @@ import {
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
-import {useHasTaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
+import {
+    TaskGridViewDraggableData,
+    useHasTaskGridViewDndContext,
+} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
     taskRowViewCollectionsColumnWidth,
     taskRowViewColumnPaddingX,
@@ -361,6 +364,19 @@ export function useTaskGridViewVirtualizedList({
     const dndContext = useDndContext();
     const isDragging = !!dndContext.active;
 
+    const [draggingData] = useStateWithDependencies(
+        (isDragging: boolean) => {
+            if (!isDragging) return null;
+
+            const draggingData = dndContext.active?.data.current as
+                | TaskGridViewDraggableData
+                | undefined;
+            if (draggingData?.type !== "Row") return null;
+            return draggingData;
+        },
+        [isDragging],
+    );
+
     const [bottomGhostTaskId, setBottomGhostTaskId] = useStateWithDependencies(
         rootQueryWithInitialState?.initialBottomGhostTaskId ?? null,
         [rootQueryWithInitialState?.query],
@@ -427,7 +443,19 @@ export function useTaskGridViewVirtualizedList({
             ? stateItemCount + 1
             : Math.max(stateItemCount + (hasBottomGhostTask ? 1 : 0), 3));
 
-    const taskRowByTaskKeyRef = useRef(new Map<TaskGridViewTaskKey, TaskRowViewRef>());
+    const taskRowByGridKeyRef = useRef(new Map<TaskGridViewTaskKey, TaskRowViewRef>());
+
+    // Get the index of the task we're currently dragging. We want to always render
+    // the task we're dragging so touch events aren't cancelled when the task
+    // unmounts.
+    //
+    // If the task's cursor (or parent cursors) change while we're dragging it then
+    // we consider it acceptable to cancel the drag.
+    const draggingIndex = useMemo(() => {
+        if (!draggingData) return null;
+        const index = state.getIndexByCursorAndParentsIfExists(draggingData);
+        return index !== null ? index + itemCountBeforeState : null;
+    }, [draggingData, itemCountBeforeState, state]);
 
     /* ========================================================================== *\
      *                         Delete Confirmation State                          *
@@ -960,7 +988,7 @@ export function useTaskGridViewVirtualizedList({
                     loadedState === "FullyLoaded" &&
                     bottomGhostTaskId
                 ) {
-                    return taskRowByTaskKeyRef.current.get(bottomGhostTaskId) ?? null;
+                    return taskRowByGridKeyRef.current.get(bottomGhostTaskId) ?? null;
                 }
                 return null;
             }
@@ -968,9 +996,9 @@ export function useTaskGridViewVirtualizedList({
             const item = state.getItem(stateIndex);
             if (item.type !== "Task") return null;
 
-            const taskKey = getTaskGridViewTaskKey(item);
+            const gridKey = getTaskGridViewTaskKey(item);
 
-            return taskRowByTaskKeyRef.current.get(taskKey) ?? null;
+            return taskRowByGridKeyRef.current.get(gridKey) ?? null;
         },
 
         focusStart: () => {
@@ -1017,17 +1045,17 @@ export function useTaskGridViewVirtualizedList({
             }
         },
 
-        focusTaskTitleStart: (taskKey: TaskGridViewTaskKey) => {
-            taskRowByTaskKeyRef.current.get(taskKey)?.focusTitleStart();
+        focusTaskTitleStart: (gridKey: TaskGridViewTaskKey) => {
+            taskRowByGridKeyRef.current.get(gridKey)?.focusTitleStart();
         },
 
-        focusTaskTitleSelection: (taskKey: TaskGridViewTaskKey, selection: Selection) => {
-            taskRowByTaskKeyRef.current.get(taskKey)?.focusTitleSelection(selection);
+        focusTaskTitleSelection: (gridKey: TaskGridViewTaskKey, selection: Selection) => {
+            taskRowByGridKeyRef.current.get(gridKey)?.focusTitleSelection(selection);
         },
 
-        focusNextTaskTitleCoord: (taskKey: TaskGridViewTaskKey, coord: number) => {
+        focusNextTaskTitleCoord: (gridKey: TaskGridViewTaskKey, coord: number) => {
             const itemIndex = assertExists(
-                viewRef.current?.getIndexByKeyIfExists(`Task:${taskKey}`),
+                viewRef.current?.getIndexByKeyIfExists(`Task:${gridKey}`),
             );
 
             coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
@@ -1046,9 +1074,9 @@ export function useTaskGridViewVirtualizedList({
             };
         },
 
-        focusPreviousTaskTitleCoord: (taskKey: TaskGridViewTaskKey, coord: number) => {
+        focusPreviousTaskTitleCoord: (gridKey: TaskGridViewTaskKey, coord: number) => {
             const itemIndex = assertExists(
-                viewRef.current?.getIndexByKeyIfExists(`Task:${taskKey}`),
+                viewRef.current?.getIndexByKeyIfExists(`Task:${gridKey}`),
             );
 
             coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
@@ -1067,9 +1095,9 @@ export function useTaskGridViewVirtualizedList({
             };
         },
 
-        focusNextTaskCell: (taskKey: TaskGridViewTaskKey, column: TaskGridViewColumn) => {
+        focusNextTaskCell: (gridKey: TaskGridViewTaskKey, column: TaskGridViewColumn) => {
             const itemIndex = assertExists(
-                viewRef.current?.getIndexByKeyIfExists(`Task:${taskKey}`),
+                viewRef.current?.getIndexByKeyIfExists(`Task:${gridKey}`),
             );
 
             for (let index = itemIndex + 1; index < itemCount; index++) {
@@ -1081,9 +1109,9 @@ export function useTaskGridViewVirtualizedList({
             }
         },
 
-        focusPreviousTaskCell: (taskKey: TaskGridViewTaskKey, column: TaskGridViewColumn) => {
+        focusPreviousTaskCell: (gridKey: TaskGridViewTaskKey, column: TaskGridViewColumn) => {
             const itemIndex = assertExists(
-                viewRef.current?.getIndexByKeyIfExists(`Task:${taskKey}`),
+                viewRef.current?.getIndexByKeyIfExists(`Task:${gridKey}`),
             );
 
             for (let index = itemIndex - 1; index >= 0; index--) {
@@ -1167,7 +1195,7 @@ export function useTaskGridViewVirtualizedList({
                 if (typeof key !== "string" || !key.startsWith("Task:")) continue;
 
                 return assertExists(
-                    taskRowByTaskKeyRef.current.get(
+                    taskRowByGridKeyRef.current.get(
                         key.slice("Task:".length) as TaskGridViewTaskKey,
                     ),
                 );
@@ -1290,7 +1318,7 @@ export function useTaskGridViewVirtualizedList({
                 if (typeof key !== "string" || !key.startsWith("Task:")) continue;
 
                 return assertExists(
-                    taskRowByTaskKeyRef.current.get(
+                    taskRowByGridKeyRef.current.get(
                         key.slice("Task:".length) as TaskGridViewTaskKey,
                     ),
                 );
@@ -1350,8 +1378,8 @@ export function useTaskGridViewVirtualizedList({
             }
         },
 
-        setTaskRowZIndex: (taskKey: TaskGridViewTaskKey, newZIndex: number) => {
-            const taskElement = viewRef.current?.getElementByKeyIfExists(`Task:${taskKey}`);
+        setTaskRowZIndex: (gridKey: TaskGridViewTaskKey, newZIndex: number) => {
+            const taskElement = viewRef.current?.getElementByKeyIfExists(`Task:${gridKey}`);
             if (!taskElement) return noop;
 
             const zIndexes = getOrSetDefaultMapValue(
@@ -1872,7 +1900,7 @@ export function useTaskGridViewVirtualizedList({
                                         isRootQueryManuallySorted={isRootQueryManuallySorted}
                                         affinityManager={affinityManager}
                                         query={rootQuery}
-                                        taskKey={bottomGhostTaskId}
+                                        gridKey={bottomGhostTaskId}
                                         cursor={null}
                                         ghostTaskId={bottomGhostTaskId}
                                         parents={emptyArray}
@@ -1893,7 +1921,7 @@ export function useTaskGridViewVirtualizedList({
                                         }
                                         viewRef={viewRef}
                                         events={events}
-                                        taskRowByTaskKeyRef={taskRowByTaskKeyRef}
+                                        taskRowByGridKeyRef={taskRowByGridKeyRef}
                                         onLayoutEffectCallbacksRef={onLayoutEffectCallbacksRef}
                                         getAreChildTasksExpandedStore={
                                             getAreChildTasksExpandedStore
@@ -1940,10 +1968,10 @@ export function useTaskGridViewVirtualizedList({
             const item = state.getItem(itemIndex - itemCountBeforeState);
 
             if (item.type === "Task") {
-                const taskKey = getTaskGridViewTaskKey(item);
+                const gridKey = getTaskGridViewTaskKey(item);
 
                 return {
-                    key: `Task:${taskKey}`,
+                    key: `Task:${gridKey}`,
                     minHeight: spacing[taskRowViewMinHeight],
                     withManualLayout: true,
                     render: renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll(
@@ -1957,7 +1985,7 @@ export function useTaskGridViewVirtualizedList({
                                 isRootQueryManuallySorted={isRootQueryManuallySorted}
                                 affinityManager={affinityManager}
                                 query={item.query}
-                                taskKey={taskKey}
+                                gridKey={gridKey}
                                 cursor={item.cursor}
                                 parents={item.parents}
                                 // Don't disable expensive features while auto-scrolling during drag since one
@@ -1978,7 +2006,7 @@ export function useTaskGridViewVirtualizedList({
                                 }
                                 viewRef={viewRef}
                                 events={events}
-                                taskRowByTaskKeyRef={taskRowByTaskKeyRef}
+                                taskRowByGridKeyRef={taskRowByGridKeyRef}
                                 onLayoutEffectCallbacksRef={onLayoutEffectCallbacksRef}
                                 getAreChildTasksExpandedStore={getAreChildTasksExpandedStore}
                                 toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
@@ -2001,18 +2029,18 @@ export function useTaskGridViewVirtualizedList({
                     item.parents[item.parents.length - 1]!.cursor,
                 );
 
-                const parentTaskKey: TaskGridViewTaskKey =
+                const parentGridKey: TaskGridViewTaskKey =
                     item.parents.length > 1
                         ? `${getTaskQuerySortCursorTaskId(item.parents[0]!.cursor)}-${parentTaskId}`
                         : parentTaskId;
 
                 return {
-                    key: `UnloadedChildTask:${parentTaskKey}-${item.unloadedChildTaskIndex}`,
+                    key: `UnloadedChildTask:${parentGridKey}-${item.unloadedChildTaskIndex}`,
                     minHeight: spacing[taskRowViewMinHeight],
                     node: (
                         <TaskGridViewUnloadedChildTaskMemo
                             capabilities={capabilities}
-                            parentTaskKey={parentTaskKey}
+                            parentGridKey={parentGridKey}
                             unloadedChildTaskIndex={item.unloadedChildTaskIndex}
                             indentation={item.parents.length}
                             focusPreviousTaskTitleEnd={events.focusPreviousTaskTitleEnd}
@@ -2077,10 +2105,12 @@ export function useTaskGridViewVirtualizedList({
 
             updateRowNumberCounter(renderedRange);
         },
-        alwaysRenderAdditionalItemIndexes: useMemo(
-            () => (hasColumnHeaderItem ? [0] : emptyArray),
-            [hasColumnHeaderItem],
-        ),
+        alwaysRenderAdditionalItemIndexes: useMemo(() => {
+            if (hasColumnHeaderItem && draggingIndex !== null) return [0, draggingIndex];
+            if (hasColumnHeaderItem) return [0];
+            if (draggingIndex !== null) return [draggingIndex];
+            return emptyArray;
+        }, [draggingIndex, hasColumnHeaderItem]),
         scrollbarInsetTopItemIndex: hasColumnHeaderItem ? 0 : undefined,
         modals: (
             <>
@@ -2129,13 +2159,13 @@ type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly focusEnd: () => void;
     readonly focusPreviousTaskTitleEnd: (key: Key) => void;
     readonly focusPreviousTaskTitleAll: (key: Key) => void;
-    readonly focusTaskTitleStart: (taskKey: TaskGridViewTaskKey) => void;
-    readonly focusTaskTitleSelection: (taskKey: TaskGridViewTaskKey, selection: Selection) => void;
-    readonly focusNextTaskTitleCoord: (taskKey: TaskGridViewTaskKey, coord: number) => void;
-    readonly focusPreviousTaskTitleCoord: (taskKey: TaskGridViewTaskKey, coord: number) => void;
-    readonly focusNextTaskCell: (taskKey: TaskGridViewTaskKey, column: TaskGridViewColumn) => void;
+    readonly focusTaskTitleStart: (gridKey: TaskGridViewTaskKey) => void;
+    readonly focusTaskTitleSelection: (gridKey: TaskGridViewTaskKey, selection: Selection) => void;
+    readonly focusNextTaskTitleCoord: (gridKey: TaskGridViewTaskKey, coord: number) => void;
+    readonly focusPreviousTaskTitleCoord: (gridKey: TaskGridViewTaskKey, coord: number) => void;
+    readonly focusNextTaskCell: (gridKey: TaskGridViewTaskKey, column: TaskGridViewColumn) => void;
     readonly focusPreviousTaskCell: (
-        taskKey: TaskGridViewTaskKey,
+        gridKey: TaskGridViewTaskKey,
         column: TaskGridViewColumn,
     ) => void;
     readonly preserveLastTaskTitleArrowNavigationCoord: () => void;
@@ -2147,7 +2177,7 @@ type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly focusLastVisibleTaskTitleEnd: () => void;
     readonly focusLastVisibleTaskCell: (column: TaskGridViewColumn) => void;
     readonly scrollLastVisiblePageDownTaskIntoView: () => Promise<TaskRowViewRef | null>;
-    readonly setTaskRowZIndex: (taskKey: TaskGridViewTaskKey, zIndex: number) => () => void;
+    readonly setTaskRowZIndex: (gridKey: TaskGridViewTaskKey, zIndex: number) => () => void;
 }>;
 
 export const taskGridViewColumnHeaderHeight = "5";
@@ -2576,14 +2606,14 @@ const TaskGridViewDecorativeGhostTaskMemo = memo(function TaskGridViewDecorative
 
 const TaskGridViewUnloadedChildTaskMemo = memo(function TaskGridViewUnloadedChildTaskMemo({
     capabilities,
-    parentTaskKey,
+    parentGridKey,
     unloadedChildTaskIndex,
     indentation,
     focusPreviousTaskTitleEnd,
     focusPreviousTaskTitleAll,
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
-    parentTaskKey: TaskGridViewTaskKey;
+    parentGridKey: TaskGridViewTaskKey;
     unloadedChildTaskIndex: number;
     indentation: number;
     focusPreviousTaskTitleEnd: Memo<(key: string) => void>;
@@ -2592,17 +2622,17 @@ const TaskGridViewUnloadedChildTaskMemo = memo(function TaskGridViewUnloadedChil
     return (
         <TaskRowShimmer
             capabilities={capabilities}
-            randomSeed={parentTaskKey}
+            randomSeed={parentGridKey}
             index={unloadedChildTaskIndex}
             indentation={indentation}
             focusPreviousTaskTitleEnd={() =>
                 focusPreviousTaskTitleEnd(
-                    `UnloadedChildTask:${parentTaskKey}-${unloadedChildTaskIndex}`,
+                    `UnloadedChildTask:${parentGridKey}-${unloadedChildTaskIndex}`,
                 )
             }
             focusPreviousTaskTitleAll={() =>
                 focusPreviousTaskTitleAll(
-                    `UnloadedChildTask:${parentTaskKey}-${unloadedChildTaskIndex}`,
+                    `UnloadedChildTask:${parentGridKey}-${unloadedChildTaskIndex}`,
                 )
             }
         />
@@ -2617,7 +2647,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     isRootQueryManuallySorted,
     affinityManager,
     query,
-    taskKey,
+    gridKey,
     cursor,
     ghostTaskId,
     parents,
@@ -2628,7 +2658,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     titlePlaceholder,
     viewRef,
     events,
-    taskRowByTaskKeyRef,
+    taskRowByGridKeyRef,
     onLayoutEffectCallbacksRef,
     getAreChildTasksExpandedStore,
     toggleAreChildTasksExpanded,
@@ -2645,7 +2675,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     isRootQueryManuallySorted: boolean;
     affinityManager: TaskClientStoreSearchAffinityManager;
     query: TaskClientQuery;
-    taskKey: TaskGridViewTaskKey;
+    gridKey: TaskGridViewTaskKey;
     cursor: TaskQuerySortCursor | null;
     ghostTaskId?: TaskId | null;
     parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
@@ -2656,7 +2686,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     titlePlaceholder?: string;
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>;
     events: TaskGridViewVirtualizedListEvents;
-    taskRowByTaskKeyRef: MutableRefObject<Map<TaskGridViewTaskKey, TaskRowViewRef>>;
+    taskRowByGridKeyRef: MutableRefObject<Map<TaskGridViewTaskKey, TaskRowViewRef>>;
     onLayoutEffectCallbacksRef: MutableRefObject<Array<() => void>>;
     getAreChildTasksExpandedStore: Memo<
         (taskPath: ReadonlyArray<TaskId>) => Store<true | undefined>
@@ -2932,7 +2962,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
         if (!cursor) return;
 
-        const itemIndex = assertExists(viewRef.current?.getIndexByKeyIfExists(`Task:${taskKey}`));
+        const itemIndex = assertExists(viewRef.current?.getIndexByKeyIfExists(`Task:${gridKey}`));
 
         const state = events.getState();
         const itemCountBeforeState = events.getItemCountBeforeState();
@@ -3144,13 +3174,13 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     const deleteTaskAndAllChildrenAndFocusPreviousRow = () => {
         // If this is a ghost task then hitting delete should focus the task above it.
         if (!cursor) {
-            events.focusPreviousTaskTitleEnd(`Task:${taskKey}`);
+            events.focusPreviousTaskTitleEnd(`Task:${gridKey}`);
             return;
         }
 
         const taskId = getTaskQuerySortCursorTaskId(cursor);
 
-        const itemIndex = assertExists(viewRef.current?.getIndexByKeyIfExists(`Task:${taskKey}`));
+        const itemIndex = assertExists(viewRef.current?.getIndexByKeyIfExists(`Task:${gridKey}`));
 
         const state = events.getState();
         const itemCount = events.getItemCount();
@@ -3274,13 +3304,16 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
     return (
         <TaskRowView
-            ref={taskRow => {
-                if (!taskRow) {
-                    taskRowByTaskKeyRef.current.delete(taskKey);
-                } else {
-                    taskRowByTaskKeyRef.current.set(taskKey, taskRow);
-                }
-            }}
+            ref={useCallback(
+                (taskRow: TaskRowViewRef) => {
+                    if (!taskRow) {
+                        taskRowByGridKeyRef.current.delete(gridKey);
+                    } else {
+                        taskRowByGridKeyRef.current.set(gridKey, taskRow);
+                    }
+                },
+                [gridKey, taskRowByGridKeyRef],
+            )}
             capabilities={capabilities}
             stateKey={stateKey}
             // It's important we use the `query` property from `item` since child tasks
@@ -3292,6 +3325,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             cursor={cursor}
             ghostTaskId={ghostTaskId}
             onGhostTaskCreated={events.onGhostTaskCreated}
+            gridKey={gridKey}
             parents={parents}
             disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
             titlePlaceholder={titlePlaceholder}
@@ -3316,12 +3350,12 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             deleteTaskAndAllChildrenAndFocusPreviousRow={
                 deleteTaskAndAllChildrenAndFocusPreviousRow
             }
-            focusNextTaskTitleCoord={coord => events.focusNextTaskTitleCoord(taskKey, coord)}
+            focusNextTaskTitleCoord={coord => events.focusNextTaskTitleCoord(gridKey, coord)}
             focusPreviousTaskTitleCoord={coord =>
-                events.focusPreviousTaskTitleCoord(taskKey, coord)
+                events.focusPreviousTaskTitleCoord(gridKey, coord)
             }
-            focusNextTaskCell={column => events.focusNextTaskCell(taskKey, column)}
-            focusPreviousTaskCell={column => events.focusPreviousTaskCell(taskKey, column)}
+            focusNextTaskCell={column => events.focusNextTaskCell(gridKey, column)}
+            focusPreviousTaskCell={column => events.focusPreviousTaskCell(gridKey, column)}
             preserveLastTaskTitleArrowNavigationCoord={
                 events.preserveLastTaskTitleArrowNavigationCoord
             }
@@ -3333,8 +3367,8 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             pushUndoStackYDocEntryFromRedo={pushUndoStackYDocEntryFromRedo}
             pushRedoStackYDocEntry={pushRedoStackYDocEntry}
             setRowZIndex={useCallback(
-                zIndex => events.setTaskRowZIndex(taskKey, zIndex),
-                [events, taskKey],
+                zIndex => events.setTaskRowZIndex(gridKey, zIndex),
+                [events, gridKey],
             )}
             mobileKeyboardToolbarPortalRef={mobileKeyboardToolbarPortalRef}
         />

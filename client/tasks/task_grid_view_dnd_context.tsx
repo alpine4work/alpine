@@ -33,6 +33,7 @@ import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_prio
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/internal/create_get_task_action_referenced_sortable_account.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
@@ -51,6 +52,7 @@ import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskPosition, compareTaskPosition} from "~/shared/tasks/task_position.js";
+import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 
 const TaskGridViewHasDndContext = createContext(false);
 
@@ -63,6 +65,11 @@ export type TaskGridViewDraggableData =
           readonly type: "Row";
           readonly undoManager: TaskClientStoreUndoManager;
           readonly affinityManager: TaskClientStoreSearchAffinityManager;
+          readonly parents: ReadonlyArray<{
+              readonly query: TaskClientQuery;
+              readonly cursor: TaskQuerySortCursor;
+          }>;
+          readonly cursor: TaskQuerySortCursor;
           readonly taskId: TaskId;
           readonly displayStatus: TaskDisplayStatus;
           readonly title: TaskTitleModel;

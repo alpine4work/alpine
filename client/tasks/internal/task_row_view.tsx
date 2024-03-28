@@ -41,6 +41,7 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewMobileKeyboardToolbar} from "~/client/tasks/internal/task_grid_view_mobile_keyboard_toolbar.js";
+import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {
     TaskRowAssigneeCell,
@@ -251,6 +252,7 @@ function TaskRowView(
         cursor,
         ghostTaskId = null,
         onGhostTaskCreated,
+        gridKey,
         parents,
         disableExpensiveFeaturesDuringScroll,
         isFirstRow,
@@ -294,6 +296,7 @@ function TaskRowView(
         cursor: TaskQuerySortCursor | null;
         ghostTaskId?: TaskId | null;
         onGhostTaskCreated?: () => void;
+        gridKey: TaskGridViewTaskKey;
         parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
         disableExpensiveFeaturesDuringScroll: boolean;
         isFirstRow: boolean;
@@ -1100,13 +1103,6 @@ function TaskRowView(
 
             if (event.touches.length > 1) return;
 
-            const clonedEvent = new TouchEvent("touchstart", {
-                ...event,
-                changedTouches: [...event.changedTouches],
-                targetTouches: [...event.changedTouches],
-                touches: [...event.touches],
-            });
-
             // Emulate a `UILongPressGestureRecognizer` on iOS. Which [waits for a touch to
             // last 0.5 seconds][1] before firing.
             //
@@ -1122,7 +1118,7 @@ function TaskRowView(
 
                 // NOCOMMIT: Haptic feedback when dragging starts and when dragging crosses
                 // each task boundary.
-                onManuallyActivateTouchSensorRef.current?.({nativeEvent: clonedEvent});
+                onManuallyActivateTouchSensorRef.current?.({nativeEvent: event});
             }, 500);
 
             const touch = event.touches[0]!;
@@ -1139,7 +1135,7 @@ function TaskRowView(
             touchState = null;
         };
 
-        const handleTouchMove = (event: TouchEvent) => {
+        const handleTouchMove = () => {
             touchState?.longTouchTimeout?.clear();
             if (touchState) touchState.longTouchTimeout = null;
         };
@@ -1272,6 +1268,9 @@ function TaskRowView(
                     <TaskRowViewDragAfterLongTouchController
                         undoManager={undoManager}
                         affinityManager={affinityManager}
+                        parents={parents}
+                        // If `hasTask` is true then `cursor` will be non-null.
+                        cursor={cursor!}
                         task={task}
                         getMaybeRemoveTaskFromQueryActions={getMaybeRemoveTaskFromQueryActions}
                         onManuallyActivateTouchSensorRef={onManuallyActivateTouchSensorRef}
@@ -1287,6 +1286,9 @@ function TaskRowView(
                         <TaskRowViewDragHandle
                             undoManager={undoManager}
                             affinityManager={affinityManager}
+                            parents={parents}
+                            // If `hasTask` is true then `cursor` will be non-null.
+                            cursor={cursor!}
                             task={task}
                             getMaybeRemoveTaskFromQueryActions={getMaybeRemoveTaskFromQueryActions}
                             isHovered={isHovered}
@@ -1617,12 +1619,16 @@ function TaskRowView(
 function TaskRowViewDragHandle({
     undoManager,
     affinityManager,
+    parents,
+    cursor,
     task,
     getMaybeRemoveTaskFromQueryActions,
     isHovered,
 }: {
     undoManager: TaskClientStoreUndoManager;
     affinityManager: TaskClientStoreSearchAffinityManager;
+    parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
+    cursor: TaskQuerySortCursor;
     task: TaskModel;
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
     isHovered: boolean;
@@ -1646,6 +1652,8 @@ function TaskRowViewDragHandle({
             type: "Row",
             undoManager,
             affinityManager,
+            parents,
+            cursor,
             taskId: task.id,
             displayStatus: task.getDisplayStatus(),
             assigneeAccountId: task.getAssignee()?.assignee.accountId ?? null,
@@ -1690,12 +1698,16 @@ function TaskRowViewDragHandle({
 function TaskRowViewDragAfterLongTouchController({
     undoManager,
     affinityManager,
+    parents,
+    cursor,
     task,
     getMaybeRemoveTaskFromQueryActions,
     onManuallyActivateTouchSensorRef,
 }: {
     undoManager: TaskClientStoreUndoManager;
     affinityManager: TaskClientStoreSearchAffinityManager;
+    parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
+    cursor: TaskQuerySortCursor;
     task: TaskModel;
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
     onManuallyActivateTouchSensorRef: RefObject<((event: any) => void) | null>;
@@ -1717,6 +1729,8 @@ function TaskRowViewDragAfterLongTouchController({
             type: "Row",
             undoManager,
             affinityManager,
+            parents,
+            cursor,
             taskId: task.id,
             displayStatus: task.getDisplayStatus(),
             assigneeAccountId: task.getAssignee()?.assignee.accountId ?? null,

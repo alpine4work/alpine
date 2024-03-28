@@ -2633,3 +2633,661 @@ test("can represent items of a query with some double nested expanded child task
         },
     ]);
 });
+
+test("can get the index of items including nested items if the path to the task is known", () => {
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onError: handleError,
+    });
+
+    const task1 = createTask(store);
+
+    let task2 = createTask(store);
+
+    task2 = task2.applyAction(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task2.id,
+            taskAction: {
+                type: "UpdateChildrenCounts",
+                addedChildTaskCount: 3,
+                removedChildTaskCount: 0,
+                addedClosedChildTaskCount: 0,
+                removedClosedChildTaskCount: 0,
+            },
+        },
+        getSortableAccount,
+    );
+
+    let task2a = createTask(store);
+
+    task2a = task2a
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task2a.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "Low",
+                },
+            },
+            getSortableAccount,
+        )
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task2a.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task2.id,
+                },
+            },
+            getSortableAccount,
+        );
+
+    let task2b = createTask(store);
+
+    task2b = task2b
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task2b.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "Low",
+                },
+            },
+            getSortableAccount,
+        )
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task2b.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task2.id,
+                },
+            },
+            getSortableAccount,
+        )
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task2b.id,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 3,
+                    removedChildTaskCount: 0,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+            getSortableAccount,
+        );
+
+    let task2c = createTask(store);
+
+    task2c = task2c
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task2c.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "Low",
+                },
+            },
+            getSortableAccount,
+        )
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task2c.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task2.id,
+                },
+            },
+            getSortableAccount,
+        );
+
+    let task2b1 = createTask(store);
+
+    task2b1 = task2b1
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task2b1.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "Low",
+                },
+            },
+            getSortableAccount,
+        )
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task2b1.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task2b.id,
+                },
+            },
+            getSortableAccount,
+        );
+
+    let task2b2 = createTask(store);
+
+    task2b2 = task2b2
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task2b2.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "Low",
+                },
+            },
+            getSortableAccount,
+        )
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task2b2.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task2b.id,
+                },
+            },
+            getSortableAccount,
+        );
+
+    let task2b3 = createTask(store);
+
+    task2b3 = task2b3
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task2b3.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "Low",
+                },
+            },
+            getSortableAccount,
+        )
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task2b3.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task2b.id,
+                },
+            },
+            getSortableAccount,
+        );
+
+    const task3 = createTask(store);
+    const task4 = createTask(store);
+
+    const rootQuery = store.createAndRetainQuery({
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            creatorFilter: {
+                type: "OneOf",
+                accountIds: assertNonEmptyReadonlySet(new Set([account1.id])),
+            },
+            priorityFilter: {
+                ifNull: true,
+                ifLow: false,
+                ifMedium: false,
+                ifHigh: false,
+                ifUrgent: false,
+            },
+        },
+        sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
+    });
+
+    const query2 = store.ensureAndRetainTaskChildrenQuery(task2.id, {limit: 100});
+    const query2b = store.ensureAndRetainTaskChildrenQuery(task2b.id, {limit: 100});
+
+    store.loadTasksIntoQuery(rootQuery, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+    });
+
+    store.loadTasksIntoQuery(query2, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+    });
+
+    store.loadTasksIntoQuery(query2b, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        defaultAuthorizationStateVersion: store.clock.now(),
+        actions: [],
+        backfillTasks: [
+            {type: "Authorized", task: task1},
+            {type: "Authorized", task: task2},
+            {type: "Authorized", task: task3},
+            {type: "Authorized", task: task4},
+            {type: "Authorized", task: task2a},
+            {type: "Authorized", task: task2b},
+            {type: "Authorized", task: task2b1},
+            {type: "Authorized", task: task2b2},
+            {type: "Authorized", task: task2b3},
+            {type: "Authorized", task: task2c},
+        ],
+        backfillCollections: [],
+        referencedAccounts: [],
+        originClientId: null,
+    });
+
+    expect(rootQuery.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task1.id,
+        task2.id,
+        task3.id,
+        task4.id,
+    ]);
+
+    const areChildTasksExpandedStoreByPath = new StoreMap<string, true>();
+
+    const state = TaskGridViewVirtualizedListState.new(rootQuery, taskPath =>
+        areChildTasksExpandedStoreByPath.get(taskPath.join("-")),
+    );
+
+    areChildTasksExpandedStoreByPath.set(task2.id, true);
+
+    expect(
+        state
+            .getSnapshot()
+            .getIndexByRootCursorIfExists(
+                getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task1),
+            ),
+    ).toEqual(0);
+
+    expect(
+        state
+            .getSnapshot()
+            .getIndexByRootCursorIfExists(
+                getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+            ),
+    ).toEqual(1);
+
+    expect(
+        state
+            .getSnapshot()
+            .getIndexByRootCursorIfExists(
+                getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2b),
+            ),
+    ).toEqual(null);
+
+    expect(
+        state
+            .getSnapshot()
+            .getIndexByRootCursorIfExists(
+                getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2b1),
+            ),
+    ).toEqual(null);
+
+    expect(
+        state
+            .getSnapshot()
+            .getIndexByRootCursorIfExists(
+                getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task3),
+            ),
+    ).toEqual(5);
+
+    expect(
+        state
+            .getSnapshot()
+            .getIndexByRootCursorIfExists(
+                getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task4),
+            ),
+    ).toEqual(6);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [],
+            cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task1),
+        }),
+    ).toEqual(0);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [],
+            cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+        }),
+    ).toEqual(1);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [
+                {
+                    query: rootQuery,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+                },
+            ],
+            cursor: getTaskQueryNormalizedSortCursorForModel(query2.sorts, task2a),
+        }),
+    ).toEqual(2);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [
+                {
+                    query: rootQuery,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+                },
+            ],
+            cursor: getTaskQueryNormalizedSortCursorForModel(query2.sorts, task2b),
+        }),
+    ).toEqual(3);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [
+                {
+                    query: rootQuery,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+                },
+                {
+                    query: query2,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(query2.sorts, task2b),
+                },
+            ],
+            cursor: getTaskQueryNormalizedSortCursorForModel(query2b.sorts, task2b1),
+        }),
+    ).toEqual(null);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [
+                {
+                    query: rootQuery,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+                },
+                {
+                    query: query2,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(query2.sorts, task2b),
+                },
+            ],
+            cursor: getTaskQueryNormalizedSortCursorForModel(query2b.sorts, task2b2),
+        }),
+    ).toEqual(null);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [
+                {
+                    query: rootQuery,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+                },
+                {
+                    query: query2,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(query2.sorts, task2b),
+                },
+            ],
+            cursor: getTaskQueryNormalizedSortCursorForModel(query2b.sorts, task2b3),
+        }),
+    ).toEqual(null);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [
+                {
+                    query: rootQuery,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+                },
+            ],
+            cursor: getTaskQueryNormalizedSortCursorForModel(query2.sorts, task2c),
+        }),
+    ).toEqual(4);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [],
+            cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task3),
+        }),
+    ).toEqual(5);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [],
+            cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task4),
+        }),
+    ).toEqual(6);
+
+    areChildTasksExpandedStoreByPath.set(`${task2.id}-${task2b.id}`, true);
+
+    expect(
+        state
+            .getSnapshot()
+            .getIndexByRootCursorIfExists(
+                getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task1),
+            ),
+    ).toEqual(0);
+
+    expect(
+        state
+            .getSnapshot()
+            .getIndexByRootCursorIfExists(
+                getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+            ),
+    ).toEqual(1);
+
+    expect(
+        state
+            .getSnapshot()
+            .getIndexByRootCursorIfExists(
+                getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2b),
+            ),
+    ).toEqual(null);
+
+    expect(
+        state
+            .getSnapshot()
+            .getIndexByRootCursorIfExists(
+                getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2b1),
+            ),
+    ).toEqual(null);
+
+    expect(
+        state
+            .getSnapshot()
+            .getIndexByRootCursorIfExists(
+                getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task3),
+            ),
+    ).toEqual(8);
+
+    expect(
+        state
+            .getSnapshot()
+            .getIndexByRootCursorIfExists(
+                getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task4),
+            ),
+    ).toEqual(9);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [],
+            cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task1),
+        }),
+    ).toEqual(0);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [],
+            cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+        }),
+    ).toEqual(1);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [
+                {
+                    query: rootQuery,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+                },
+            ],
+            cursor: getTaskQueryNormalizedSortCursorForModel(query2.sorts, task2a),
+        }),
+    ).toEqual(2);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [
+                {
+                    query: rootQuery,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+                },
+            ],
+            cursor: getTaskQueryNormalizedSortCursorForModel(query2.sorts, task2b),
+        }),
+    ).toEqual(3);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [
+                {
+                    query: rootQuery,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+                },
+                {
+                    query: query2,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(query2.sorts, task2b),
+                },
+            ],
+            cursor: getTaskQueryNormalizedSortCursorForModel(query2b.sorts, task2b1),
+        }),
+    ).toEqual(4);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [
+                {
+                    query: rootQuery,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+                },
+                {
+                    query: query2,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(query2.sorts, task2b),
+                },
+            ],
+            cursor: getTaskQueryNormalizedSortCursorForModel(query2b.sorts, task2b2),
+        }),
+    ).toEqual(5);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [
+                {
+                    query: rootQuery,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+                },
+                {
+                    query: query2,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(query2.sorts, task2b),
+                },
+            ],
+            cursor: getTaskQueryNormalizedSortCursorForModel(query2b.sorts, task2b3),
+        }),
+    ).toEqual(6);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [
+                {
+                    query: rootQuery,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+                },
+            ],
+            cursor: getTaskQueryNormalizedSortCursorForModel(query2.sorts, task2c),
+        }),
+    ).toEqual(7);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [],
+            cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task3),
+        }),
+    ).toEqual(8);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [],
+            cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task4),
+        }),
+    ).toEqual(9);
+
+    // Cases introducing errors:
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [
+                {
+                    query: rootQuery,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+                },
+                {
+                    query: query2,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(query2.sorts, task2b),
+                },
+            ],
+            cursor: getTaskQueryNormalizedSortCursorForModel(query2b.sorts, task2b2),
+        }),
+    ).toEqual(5);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [
+                {
+                    query: query2,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(query2.sorts, task2b),
+                },
+                {
+                    query: rootQuery,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+                },
+            ],
+            cursor: getTaskQueryNormalizedSortCursorForModel(query2b.sorts, task2b2),
+        }),
+    ).toEqual(null);
+
+    expect(
+        state.getSnapshot().getIndexByCursorAndParentsIfExists({
+            parents: [
+                {
+                    query: rootQuery,
+                    cursor: getTaskQueryNormalizedSortCursorForModel(rootQuery.sorts, task2),
+                },
+            ],
+            cursor: getTaskQueryNormalizedSortCursorForModel(query2b.sorts, task2b2),
+        }),
+    ).toEqual(null);
+});
