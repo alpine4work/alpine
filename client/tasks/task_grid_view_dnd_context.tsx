@@ -25,11 +25,10 @@ import {
     useMemo,
     useState,
 } from "react";
-import {createPortal} from "react-dom";
+import {createPortal, flushSync} from "react-dom";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/internal/create_get_task_action_referenced_sortable_account.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
@@ -114,16 +113,16 @@ export type TaskGridViewDroppableData =
           ) => Array<TaskAction>;
       };
 
-class MouseSensorWithImmediatePriorityEnd extends MouseSensor {
+class MouseSensorWithFlushSyncEnd extends MouseSensor {
     constructor(props: MouseSensorProps) {
         super({
             ...props,
             onEnd: () => {
-                // Run the `onEnd` handler with immediate priority. This means React will batch
+                // Run the `onEnd` handler synchronously. This means React will batch
                 // any `useSyncExternalStore()` updates with any state updates at the end of
                 // the drag. So we won't have weird flashes where an external store has updated
                 // but not our drag state.
-                runWithImmediatePriority(() => {
+                flushSync(() => {
                     props.onEnd();
                 });
             },
@@ -141,9 +140,23 @@ const AbstractPointerSensor: typeof AbstractPointerSensorType = Object.getProtot
 // long press.
 //
 // [1]: https://github.com/clauderic/dnd-kit/blob/694dcc2f62e5269541fc941fa6c9af46ccd682ad/packages/core/src/sensors/touch/TouchSensor.ts#L20
-class TouchSensorWithManualActivation extends AbstractPointerSensor {
+class TouchSensorWithManualActivationAndFlushSyncEnd extends AbstractPointerSensor {
     constructor(props: PointerSensorProps) {
-        super(props, TouchSensorWithManualActivation._events);
+        super(
+            {
+                ...props,
+                onEnd: () => {
+                    // Run the `onEnd` handler synchronously. This means React will batch
+                    // any `useSyncExternalStore()` updates with any state updates at the end of
+                    // the drag. So we won't have weird flashes where an external store has updated
+                    // but not our drag state.
+                    flushSync(() => {
+                        props.onEnd();
+                    });
+                },
+            },
+            TouchSensorWithManualActivationAndFlushSyncEnd._events,
+        );
     }
 
     private static _events: PointerEventHandlers = {
@@ -162,13 +175,13 @@ class TouchSensorWithManualActivation extends AbstractPointerSensor {
         // Adding a non-capture and non-passive `touchmove` listener in order
         // to force `event.preventDefault()` calls to work in dynamically added
         // touchmove event handlers. This is required for iOS Safari.
-        window.addEventListener(TouchSensorWithManualActivation._events.move.name, noop, {
+        window.addEventListener(this._events.move.name, noop, {
             capture: false,
             passive: false,
         });
 
-        return function teardown() {
-            window.removeEventListener(TouchSensorWithManualActivation._events.move.name, noop);
+        return () => {
+            window.removeEventListener(this._events.move.name, noop);
         };
 
         // We create a new handler because the teardown function of another sensor
@@ -187,7 +200,7 @@ export function TaskGridViewDndContext({
     const context = useAppContext();
 
     const mouseSensor = useSensor(
-        MouseSensorWithImmediatePriorityEnd,
+        MouseSensorWithFlushSyncEnd,
         // Needs to be `useMemo()`d to avoid unnecessary re-renders.
         // https://github.com/clauderic/dnd-kit/blob/00f749bc0cc3e6582f4f887f64c1f1de65ee0081/packages/core/src/sensors/useSensor.ts#L15
         useMemo(
@@ -202,7 +215,7 @@ export function TaskGridViewDndContext({
         ),
     );
 
-    const touchSensor = useSensor(TouchSensorWithManualActivation);
+    const touchSensor = useSensor(TouchSensorWithManualActivationAndFlushSyncEnd);
 
     // No keyboard sensor. To move task rows and cards with the keyboard we should
     // have other keyboard shortcuts.
