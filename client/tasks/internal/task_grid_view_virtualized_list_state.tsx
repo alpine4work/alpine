@@ -69,6 +69,7 @@ function createTaskGridViewVirtualizedTaskTree(
     query: TaskClientQuery,
     getAreChildTasksExpandedStore: (taskPath: ReadonlyArray<TaskId>) => Store<true | undefined>,
     parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>,
+    maxGridExpandableTaskDepth: number,
 ): Store<TaskGridViewVirtualizedTaskTree> {
     return flatMapTreeStoreValues(query.taskOrderStore, (_null, cursor) => {
         const taskId = getTaskQuerySortCursorTaskId(cursor);
@@ -77,6 +78,12 @@ function createTaskGridViewVirtualizedTaskTree(
         // among task children. If we detect a child task with the same `TaskId` as our
         // root task that means we have a cycle. Break it by returning a null store.
         if (parents.length > 0 && getTaskQuerySortCursorTaskId(parents[0]!.cursor) === taskId) {
+            return nullStore;
+        }
+
+        // Don't allow expanding tasks infinitely. You must open the task to see
+        // subtasks after this depth.
+        if (parents.length >= maxGridExpandableTaskDepth) {
             return nullStore;
         }
 
@@ -117,6 +124,7 @@ function createTaskGridViewVirtualizedTaskTree(
                         taskChildrenQuery,
                         getAreChildTasksExpandedStore,
                         newParents,
+                        maxGridExpandableTaskDepth,
                     ),
                     (childTaskCount, childrenTree): TaskGridViewVirtualizedTaskTreeValue | null => {
                         // Tasks with no children are always treated as collapsed.
@@ -239,6 +247,7 @@ export class TaskGridViewVirtualizedListState {
     public static new(
         query: TaskClientQuery | null,
         getAreChildTasksExpandedStore: (taskPath: ReadonlyArray<TaskId>) => Store<true | undefined>,
+        maxGridExpandableTaskDepth: number,
     ): Store<TaskGridViewVirtualizedListState> {
         // Share the item count subtree cache across all virtualized lists that
         // are created.
@@ -253,9 +262,12 @@ export class TaskGridViewVirtualizedListState {
             );
         }
 
-        return createTaskGridViewVirtualizedTaskTree(query, getAreChildTasksExpandedStore, []).map(
-            tree => new TaskGridViewVirtualizedListState(tree, itemCountSubtreeCache),
-        );
+        return createTaskGridViewVirtualizedTaskTree(
+            query,
+            getAreChildTasksExpandedStore,
+            [],
+            maxGridExpandableTaskDepth,
+        ).map(tree => new TaskGridViewVirtualizedListState(tree, itemCountSubtreeCache));
     }
 
     /**

@@ -104,7 +104,6 @@ import {
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {emptyTaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {
     TaskQuerySortCursor,
     getTaskQuerySortCursorTaskId,
@@ -245,6 +244,7 @@ const paddingBottomClassName = sprinkles({
 function TaskRowView(
     {
         capabilities,
+        maxGridExpandableTaskDepth,
         stateKey,
         query,
         isQueryManuallySorted,
@@ -289,6 +289,7 @@ function TaskRowView(
         mobileKeyboardToolbarPortalRef,
     }: {
         capabilities: TaskGridViewCapabilities;
+        maxGridExpandableTaskDepth: number;
         stateKey: Key | undefined;
         query: TaskClientQuery;
         isQueryManuallySorted: boolean;
@@ -1444,9 +1445,10 @@ function TaskRowView(
                     <TaskRowTitleInput
                         ref={titleInputRef}
                         capabilities={capabilities}
+                        maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
                         stateKey={stateKey}
                         query={query}
-                        title={task?.getTitle() ?? emptyTaskTitleModel.get()}
+                        task={task}
                         onTitleChange={onTitleChange}
                         placeholder={titlePlaceholder}
                         indentation={parents.length}
@@ -1456,8 +1458,6 @@ function TaskRowView(
                                 : undefined
                         }
                         parentTaskEntryStore={parentTaskEntryStore}
-                        childTaskCount={task?.getChildTaskCount() ?? 0}
-                        closedChildTaskCount={task?.getClosedChildTaskCount() ?? 0}
                         areChildTasksExpanded={areChildTasksExpanded}
                         onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
                         createTaskAbove={createTaskAbove}
@@ -1621,8 +1621,9 @@ function TaskRowView(
             {!isInitialAppRender && isMobile && isTextInputWithinFocusedIfMobile && (
                 <TaskGridViewMobileKeyboardToolbar
                     portalRef={mobileKeyboardToolbarPortalRef}
+                    maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
                     task={task}
-                    hasParents={parents.length > 0}
+                    parents={parents}
                     isQueryManuallySorted={isQueryManuallySorted}
                     isFirstTaskInQuery={isFirstTaskInQuery}
                     titleInputRef={titleInputRef}

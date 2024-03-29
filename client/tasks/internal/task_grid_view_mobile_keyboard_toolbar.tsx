@@ -16,10 +16,12 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {TaskRowTitleInputRef} from "~/client/tasks/internal/task_row_title_input.js";
+import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 
 /**
  * The way our mobile keyboard toolbar works is at the task grid view level we
@@ -41,8 +43,9 @@ import {TaskModel} from "~/shared/tasks/model/task_model.js";
  */
 export function TaskGridViewMobileKeyboardToolbar({
     portalRef,
+    maxGridExpandableTaskDepth,
     task,
-    hasParents,
+    parents,
     isFirstTaskInQuery,
     isQueryManuallySorted,
     titleInputRef,
@@ -53,8 +56,9 @@ export function TaskGridViewMobileKeyboardToolbar({
     focusDueDateInput,
 }: {
     portalRef: RefObject<HTMLDivElement>;
+    maxGridExpandableTaskDepth: number;
     task: TaskModel | null;
-    hasParents: boolean;
+    parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
     isQueryManuallySorted: boolean;
     isFirstTaskInQuery: boolean;
     titleInputRef: RefObject<TaskRowTitleInputRef>;
@@ -72,7 +76,7 @@ export function TaskGridViewMobileKeyboardToolbar({
     return createPortal(
         <TaskGridViewMobileKeyboardToolbarContent
             onDedentPress={
-                isQueryManuallySorted && task && hasParents
+                isQueryManuallySorted && task && parents.length > 0
                     ? () => {
                           const titleInput = assertExists(titleInputRef.current);
                           unnestTaskIfNestedRow(titleInput.getSelection());
@@ -80,7 +84,10 @@ export function TaskGridViewMobileKeyboardToolbar({
                     : null
             }
             onIndentPress={
-                isQueryManuallySorted && task && !isFirstTaskInQuery
+                isQueryManuallySorted &&
+                task &&
+                !isFirstTaskInQuery &&
+                parents.length < maxGridExpandableTaskDepth
                     ? () => {
                           const titleInput = assertExists(titleInputRef.current);
                           nestWithPreviousTaskRowIfExistsAndExpand(titleInput.getSelection());

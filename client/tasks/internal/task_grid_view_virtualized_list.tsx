@@ -416,9 +416,21 @@ export function useTaskGridViewVirtualizedList({
     // Consider a null `rootQuery` as a fully loaded empty query.
     const loadedState = useStore(rootQuery?.loadedStateStore ?? null) ?? "FullyLoaded";
 
+    // This is not a hard limit on task nesting. Rather a limit on how much nesting
+    // we'll render in the grid view. Since too much nesting won't provide enough
+    // space for the title text.
+    //
+    // It's purely a client-side limitation.
+    const maxGridExpandableTaskDepth = isMobile ? 3 : 4;
+
     const stateStore = useMemo(
-        () => TaskGridViewVirtualizedListState.new(rootQuery, getAreChildTasksExpandedStore),
-        [getAreChildTasksExpandedStore, rootQuery],
+        () =>
+            TaskGridViewVirtualizedListState.new(
+                rootQuery,
+                getAreChildTasksExpandedStore,
+                maxGridExpandableTaskDepth,
+            ),
+        [getAreChildTasksExpandedStore, maxGridExpandableTaskDepth, rootQuery],
     );
 
     const state = useStore(stateStore);
@@ -1895,6 +1907,7 @@ export function useTaskGridViewVirtualizedList({
                                     <TaskRowViewMemo
                                         context={context}
                                         capabilities={capabilities}
+                                        maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
                                         stateKey={stateKey}
                                         rootQuery={rootQuery}
                                         isRootQueryManuallySorted={isRootQueryManuallySorted}
@@ -1979,6 +1992,7 @@ export function useTaskGridViewVirtualizedList({
                             <TaskRowViewMemo
                                 context={context}
                                 capabilities={capabilities}
+                                maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
                                 stateKey={stateKey}
                                 // If we have a task item then that must mean we have a query.
                                 rootQuery={rootQuery!}
@@ -2065,6 +2079,7 @@ export function useTaskGridViewVirtualizedList({
         itemCount,
         itemCountBeforeState,
         loadedState,
+        maxGridExpandableTaskDepth,
         remPx,
         rootQuery,
         state,
@@ -2642,6 +2657,7 @@ const TaskGridViewUnloadedChildTaskMemo = memo(function TaskGridViewUnloadedChil
 const TaskRowViewMemo = memo(function TaskRowViewMemo({
     context,
     capabilities,
+    maxGridExpandableTaskDepth,
     stateKey,
     rootQuery,
     isRootQueryManuallySorted,
@@ -2670,6 +2686,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
 }: {
     context: AppContext;
     capabilities: Memo<TaskGridViewCapabilities>;
+    maxGridExpandableTaskDepth: number;
     stateKey: Key | undefined;
     rootQuery: TaskClientQuery;
     isRootQueryManuallySorted: boolean;
@@ -2848,7 +2865,11 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
         //
         // Otherwise we fall down to the branch below and create a task below ours in
         // our query.
-        if (task.getChildTaskCount() > 0 && areChildTasksExpandedStore.getSnapshot()) {
+        if (
+            task.getChildTaskCount() > 0 &&
+            parents.length < maxGridExpandableTaskDepth &&
+            areChildTasksExpandedStore.getSnapshot()
+        ) {
             const childrenQuery = query.store.getTaskChildrenQueryStore(task.id).getSnapshot();
             if (childrenQuery && childrenQuery.loadedStateStore.getSnapshot() !== "Unloaded") {
                 const time1 = query.store.clock.now();
@@ -2962,6 +2983,11 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
         if (!cursor) return;
 
+        // Don't nest tasks if it would exceed the maximum task depth. While we allow
+        // infinite nesting, the UI can only support showing nesting to a certain
+        // level.
+        if (parents.length >= maxGridExpandableTaskDepth) return;
+
         const itemIndex = assertExists(viewRef.current?.getIndexByKeyIfExists(`Task:${gridKey}`));
 
         const state = events.getState();
@@ -3018,19 +3044,23 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
                 );
 
                 onLayoutEffectCallbacksRef.current.push(() => {
-                    if (previousItem.parents.length === 0) {
-                        events.focusTaskTitleSelection(
-                            `${previousTaskId}-${taskId}`,
-                            titleSelection,
-                        );
-                    } else {
-                        events.focusTaskTitleSelection(
-                            `${getTaskQuerySortCursorTaskId(
-                                previousItem.parents[0]!.cursor,
-                            )}-${taskId}`,
-                            titleSelection,
-                        );
-                    }
+                    // This may call `flushSync()` which can't be called during React lifecycle
+                    // methods. So we wrap in a microtask.
+                    scheduleMicrotask(() => {
+                        if (previousItem.parents.length === 0) {
+                            events.focusTaskTitleSelection(
+                                `${previousTaskId}-${taskId}`,
+                                titleSelection,
+                            );
+                        } else {
+                            events.focusTaskTitleSelection(
+                                `${getTaskQuerySortCursorTaskId(
+                                    previousItem.parents[0]!.cursor,
+                                )}-${taskId}`,
+                                titleSelection,
+                            );
+                        }
+                    });
                 });
             };
 
@@ -3152,14 +3182,18 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
         // Store updates are rendered by React immediately. So focus our task before
         // the next paint.
         onLayoutEffectCallbacksRef.current.push(() => {
-            if (parents.length <= 1) {
-                events.focusTaskTitleSelection(taskId, titleSelection);
-            } else {
-                events.focusTaskTitleSelection(
-                    `${getTaskQuerySortCursorTaskId(parents[0]!.cursor)}-${taskId}`,
-                    titleSelection,
-                );
-            }
+            // This may call `flushSync()` which can't be called during React lifecycle
+            // methods. So we wrap in a microtask.
+            scheduleMicrotask(() => {
+                if (parents.length <= 1) {
+                    events.focusTaskTitleSelection(taskId, titleSelection);
+                } else {
+                    events.focusTaskTitleSelection(
+                        `${getTaskQuerySortCursorTaskId(parents[0]!.cursor)}-${taskId}`,
+                        titleSelection,
+                    );
+                }
+            });
         });
     };
 
@@ -3315,6 +3349,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
                 [gridKey, taskRowByGridKeyRef],
             )}
             capabilities={capabilities}
+            maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
             stateKey={stateKey}
             // It's important we use the `query` property from `item` since child tasks
             // come from a different query than our root query.

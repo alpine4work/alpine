@@ -52,7 +52,8 @@ import {
     sprinkles,
     tasksStyles,
 } from "~/shared/styles/styles.js";
-import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {emptyTaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {
     TaskTitleProsemirrorSchema,
     TaskTitleUpdate,
@@ -221,16 +222,15 @@ let scheduledDestroyTaskRowTitleInputEditorViewCallbacks: Array<() => void> | nu
 function TaskRowTitleInput(
     {
         capabilities,
+        maxGridExpandableTaskDepth,
         stateKey,
         query,
-        title,
+        task,
         onTitleChange,
         placeholder,
         indentation,
         paddingRight,
         parentTaskEntryStore,
-        childTaskCount,
-        closedChildTaskCount,
         areChildTasksExpanded,
         onAreChildTasksExpandedToggle,
         createTaskAbove,
@@ -250,16 +250,15 @@ function TaskRowTitleInput(
         pushRedoStackYDocEntry,
     }: {
         capabilities: TaskGridViewCapabilities;
+        maxGridExpandableTaskDepth: number;
         stateKey: Key | undefined;
         query: TaskClientQuery;
-        title: TaskTitleModel;
+        task: TaskModel | null;
         onTitleChange: (titleUpdate: TaskTitleUpdate) => void;
         placeholder?: string;
         indentation: number;
         paddingRight: RemLength | undefined;
         parentTaskEntryStore: Store<TaskClientStoreTaskEntry> | null;
-        childTaskCount: number;
-        closedChildTaskCount: number;
         areChildTasksExpanded: boolean;
         onAreChildTasksExpandedToggle: () => void;
         createTaskAbove: () => void;
@@ -321,6 +320,8 @@ function TaskRowTitleInput(
         | {isReady: true; view: EditorView}
     >({isReady: false, callbacks: new Set()});
     const childTasksButtonRef = useRef<TaskRowTitleChildTasksButtonRef>(null);
+
+    const title = task?.getTitle() ?? emptyTaskTitleModel.get();
 
     const titleYDoc = useTaskTitleModelYDoc({
         title,
@@ -450,7 +451,7 @@ function TaskRowTitleInput(
                     event.preventDefault();
                     event.stopPropagation();
 
-                    if (childTaskCount > 0) {
+                    if ((task?.getChildTaskCount() ?? 0) > 0) {
                         const childTasksButton = assertExists(childTasksButtonRef.current);
                         if (childTasksButton.isFocusable()) {
                             childTasksButton.focus();
@@ -509,7 +510,7 @@ function TaskRowTitleInput(
     const [isFullyScrolledLeft, setIsFullyScrolledLeft] = useState(true);
     const [isFullyScrolledRight, setIsFullyScrolledRight] = useState(true);
 
-    const shouldShowChildTasksButton = childTaskCount > 0;
+    const shouldShowChildTasksButton = (task?.getChildTaskCount() ?? 0) > 0;
 
     const shouldShowParentTaskTitle =
         capabilities.hasParentTaskTitle && !!parentTaskEntryStore && indentation === 0;
@@ -1394,8 +1395,14 @@ function TaskRowTitleInput(
                     )}
                     style={{
                         // On server side render we won't have `multilineState` so don't render.
-                        pointerEvents: isInitialAppRender ? "none" : undefined,
-                        visibility: isInitialAppRender ? "hidden" : undefined,
+                        pointerEvents:
+                            capabilities.hasMultilineTitle && isInitialAppRender
+                                ? "none"
+                                : undefined,
+                        visibility:
+                            capabilities.hasMultilineTitle && isInitialAppRender
+                                ? "hidden"
+                                : undefined,
 
                         paddingLeft:
                             capabilities.hasMultilineTitle && multilineState?.withoutMarginLeft
@@ -1444,10 +1451,10 @@ function TaskRowTitleInput(
                         <TaskRowTitleChildTasksButton
                             ref={childTasksButtonRef}
                             stateKey={stateKey}
-                            childTaskCount={childTaskCount}
-                            closedChildTaskCount={closedChildTaskCount}
+                            task={task}
                             areChildTasksExpanded={areChildTasksExpanded}
                             onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
+                            isMaxExpandedTaskDepth={indentation >= maxGridExpandableTaskDepth}
                             onKeyDown={event => {
                                 switch (event.key) {
                                     case "ArrowLeft": {

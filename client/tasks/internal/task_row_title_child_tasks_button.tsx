@@ -4,10 +4,12 @@ import {mergeProps, useHover, usePress} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_tasks_progress_wheel.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -48,17 +50,17 @@ const buttonClassName = sprinkles({
 function TaskRowTitleChildTasksButton(
     {
         stateKey,
-        childTaskCount,
-        closedChildTaskCount,
+        task,
         areChildTasksExpanded,
         onAreChildTasksExpandedToggle,
+        isMaxExpandedTaskDepth,
         onKeyDown,
     }: {
         stateKey: Key | undefined;
-        childTaskCount: number;
-        closedChildTaskCount: number;
+        task: TaskModel | null;
         areChildTasksExpanded: boolean;
         onAreChildTasksExpandedToggle: () => void;
+        isMaxExpandedTaskDepth: boolean;
         onKeyDown: (event: KeyboardEvent) => void;
     },
     ref: Ref<TaskRowTitleChildTasksButtonRef>,
@@ -80,10 +82,27 @@ function TaskRowTitleChildTasksButton(
     const sprinkles = null;
 
     const isMobile = useIsMobile();
+    const navigate = useNavigate();
 
     const buttonRef = useRef<HTMLDivElement>(null);
+
+    const childTaskCount = task?.getChildTaskCount() ?? 0;
+    const closedChildTaskCount = task?.getClosedChildTaskCount() ?? 0;
+
     const {hoverProps, isHovered} = useHover({});
-    const {pressProps, isPressed} = usePress({onPress: onAreChildTasksExpandedToggle});
+
+    const {pressProps, isPressed} = usePress({
+        onPress: () => {
+            if (!isMaxExpandedTaskDepth) {
+                onAreChildTasksExpandedToggle();
+            } else {
+                // TODO(calebmer, #global-loading-indicator): Some global loading indicator? Or
+                // local loading indicator inside this button? Probably local loading
+                // indicator.
+                if (task) void navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`);
+            }
+        },
+    });
 
     useImperativeHandle(
         ref,
@@ -99,7 +118,15 @@ function TaskRowTitleChildTasksButton(
     );
 
     return (
-        <Tooltip content={areChildTasksExpanded ? "Collapse subtasks" : "Expand subtasks"}>
+        <Tooltip
+            content={
+                isMaxExpandedTaskDepth
+                    ? "Open to see subtasks"
+                    : areChildTasksExpanded
+                    ? "Collapse subtasks"
+                    : "Expand subtasks"
+            }
+        >
             <FocusRing offset="0">
                 <div
                     {...mergeProps(hoverProps, pressProps, {onKeyDown})}
@@ -116,6 +143,7 @@ function TaskRowTitleChildTasksButton(
                     // possible.
                     tabIndex={!isMobile ? -1 : undefined}
                     style={{
+                        paddingRight: isMaxExpandedTaskDepth ? spacing["1.5"] : undefined,
                         backgroundColor: isPressed
                             ? colorSchemeVars["grey-10"]
                             : isHovered
@@ -132,17 +160,21 @@ function TaskRowTitleChildTasksButton(
                     <div style={{color: colorSchemeVars["grey-70"]}}>
                         {`${closedChildTaskCount}/${childTaskCount}`}
                     </div>
-                    <CaretUp
-                        // When our grid view resets (we find out through a `stateKey` change) we don't
-                        // want to animate our caret. By setting it as a key here React will fully
-                        // destroy and recreate this component skipping the transition animation.
-                        key={stateKey}
-                        size={spacing["3"]}
-                        style={{
-                            transform: areChildTasksExpanded ? "rotate(180deg)" : "rotate(0deg)",
-                            transition: "transform 200ms ease",
-                        }}
-                    />
+                    {!isMaxExpandedTaskDepth && (
+                        <CaretUp
+                            // When our grid view resets (we find out through a `stateKey` change) we don't
+                            // want to animate our caret. By setting it as a key here React will fully
+                            // destroy and recreate this component skipping the transition animation.
+                            key={stateKey}
+                            size={spacing["3"]}
+                            style={{
+                                transform: areChildTasksExpanded
+                                    ? "rotate(180deg)"
+                                    : "rotate(0deg)",
+                                transition: "transform 200ms ease",
+                            }}
+                        />
+                    )}
                 </div>
             </FocusRing>
         </Tooltip>
