@@ -1,9 +1,16 @@
 import {useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
+import {
+    desktopTaskRowViewIndentation,
+    desktopTaskRowViewIndentationRem,
+    mobileTaskRowViewIndentation,
+    mobileTaskRowViewIndentationRem,
+    taskRowViewMinHeight,
+} from "~/client/tasks/task_row_shared_styles.js";
 import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
@@ -55,6 +62,8 @@ export function TaskRowShimmer({
     focusPreviousTaskTitleEnd: () => void;
     focusPreviousTaskTitleAll: () => void;
 }) {
+    const isMobile = useIsMobile();
+
     const shimmerRef = useRef<HTMLDivElement>(null);
     const stableRandom = new StableRandom(`TaskRowShimmer:${randomSeed}`);
 
@@ -67,7 +76,8 @@ export function TaskRowShimmer({
         parseRemLengthNumber(spacing["5"]) +
         (parseRemLengthNumber(spacing["5"]) +
             parseRemLengthNumber(spacing["6"]) +
-            parseRemLengthNumber(contentSchemaStyles.listItemIndentation) * indentation)
+            (isMobile ? mobileTaskRowViewIndentationRem : desktopTaskRowViewIndentationRem) *
+                indentation)
     }rem`;
 
     // Set shimmer start times to the same value. That way shimmers rendered at

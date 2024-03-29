@@ -4,6 +4,7 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskAssigneeInput} from "~/client/tasks/internal/task_assignee_input.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
@@ -51,8 +52,11 @@ function TaskRowViewDenseFields(
     },
     ref: Ref<TaskRowViewDenseFieldsRef>,
 ) {
+    const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
     const {timeZone} = useClientInfo();
+
+    const paddingX = isMobile ? "4" : "5";
 
     const assigneeInputRef = useRef<HTMLDivElement>(null);
     const priorityInputRef = useRef<HTMLDivElement>(null);
@@ -62,16 +66,6 @@ function TaskRowViewDenseFields(
     const assigneeAccountData = useStore(assigneeAccountStore);
     const priority = task?.getPriority() ?? null;
     const dueDate = task?.getDueDate() ?? null;
-
-    const fieldMaxWidth = `calc(${100 / 3}% - ${
-        parseRemLengthNumber(
-            addRemLengths(
-                marginLeft, // Margin left
-                spacing["2"], // Gap
-                spacing["5"], // Margin right
-            ),
-        ) / 3
-    }rem)`;
 
     const [assigneeInputState, setAssigneeInputState] = useState<
         {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
@@ -225,8 +219,17 @@ function TaskRowViewDenseFields(
         [assigneeInputState.isVisible, dueDateInputState.isVisible, priorityInputState.isVisible],
     );
 
+    const gap = "5";
+
+    const fieldCount =
+        (assigneeInputState.isVisible ? 1 : 0) +
+        (priorityInputState.isVisible ? 1 : 0) +
+        (dueDateInputState.isVisible ? 1 : 0);
+
+    const fieldMaxWidth = `${100 / fieldCount}%`;
+
     const node = (
-        <Box display="flex" alignItems="stretch">
+        <Box display="flex" alignItems="stretch" paddingRight={paddingX}>
             <Box
                 flexShrink="0"
                 cursor={!isReadOnly ? "text" : undefined}
@@ -239,8 +242,9 @@ function TaskRowViewDenseFields(
             />
             <Box
                 flexGrow="1"
+                overflow="hidden"
                 display="flex"
-                gap="5"
+                gap={gap}
                 // I find some negative `marginLeft` helps the fields feel optically aligned.
                 marginLeft="-0.5"
                 // I find some negative `marginTop` helps the fields feel optically aligned.
@@ -257,7 +261,7 @@ function TaskRowViewDenseFields(
                 {assigneeInputState.isVisible && (
                     <Box
                         ref={assigneeInputRef}
-                        flexShrink="0"
+                        overflow="hidden"
                         style={{maxWidth: fieldMaxWidth}}
                         className={pointerEventsNoneNotInheritedClassName}
                         onFocus={() => {
@@ -315,7 +319,7 @@ function TaskRowViewDenseFields(
                 {priorityInputState.isVisible && (
                     <Box
                         ref={priorityInputRef}
-                        flexShrink="0"
+                        overflow="hidden"
                         style={{maxWidth: fieldMaxWidth}}
                         className={pointerEventsNoneNotInheritedClassName}
                         onFocus={() => {
@@ -362,8 +366,8 @@ function TaskRowViewDenseFields(
                 {dueDateInputState.isVisible && (
                     <Box
                         ref={dueDateInputRef}
-                        flexShrink="0"
-                        style={{maxWidth: fieldMaxWidth}}
+                        overflow="hidden"
+                        style={{minWidth: fieldMaxWidth}}
                         className={pointerEventsNoneNotInheritedClassName}
                         onFocus={() => {
                             setDueDateInputState(dueDateInputState => {

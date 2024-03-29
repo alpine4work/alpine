@@ -81,6 +81,8 @@ import {
 } from "~/client/tasks/task_client_store.js";
 import {TaskGridViewDraggableData} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
+    desktopTaskRowViewIndentationRem,
+    mobileTaskRowViewIndentationRem,
     taskRowViewFirstColumnExtraPaddingLeft,
     taskRowViewMinHeight,
     taskRowViewPaddingX,
@@ -95,7 +97,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {
     colorSchemeVars,
-    contentSchemaStyles,
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
     tasksStyles,
@@ -1184,7 +1185,8 @@ function TaskRowView(
 
     const marginLeft: RemLength = `${
         !withoutPaddingLeft
-            ? contentSchemaStyles.listItemIndentationRem * parents.length +
+            ? (isMobile ? mobileTaskRowViewIndentationRem : desktopTaskRowViewIndentationRem) *
+                  parents.length +
               // On mobile we don't show the expand button, but if the query is auto-sorted
               // we still want to render row numbers in the expand button space.
               (!isMobile || (hasTask && !isQueryManuallySorted)

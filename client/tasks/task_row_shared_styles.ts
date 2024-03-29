@@ -5,6 +5,7 @@ import {
     parseRemLengthNumber,
     spacing,
 } from "~/shared/design/spacing.js";
+import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 export const taskRowViewMinHeight: Spacing = "10";
 
@@ -41,3 +42,9 @@ export const taskRowViewFirstColumnWidth: RemLength = addRemLengths(
 );
 
 export const taskRowViewLastColumnPaddingRight: Spacing = "0";
+
+export const desktopTaskRowViewIndentation = contentSchemaStyles.listItemIndentation;
+export const mobileTaskRowViewIndentation = spacing["6"];
+
+export const desktopTaskRowViewIndentationRem = parseRemLengthNumber(desktopTaskRowViewIndentation);
+export const mobileTaskRowViewIndentationRem = parseRemLengthNumber(mobileTaskRowViewIndentation);

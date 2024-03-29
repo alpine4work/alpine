@@ -1,16 +1,21 @@
 import {useDroppable} from "@dnd-kit/core";
 import {Memo, useId} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {isTaskQueryManuallySorted} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskGridViewDroppableData} from "~/client/tasks/task_grid_view_dnd_context.js";
-import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
+import {
+    desktopTaskRowViewIndentationRem,
+    mobileTaskRowViewIndentationRem,
+    taskRowViewMinHeight,
+} from "~/client/tasks/task_row_shared_styles.js";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {
@@ -282,6 +287,8 @@ export function TaskRowViewDroppable({
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
+    const isMobile = useIsMobile();
+
     const {isOver, setNodeRef: setDroppableNodeRef} = useDroppable({
         id: useId(),
         data: cast<TaskGridViewDroppableData>({
@@ -290,7 +297,9 @@ export function TaskRowViewDroppable({
         }),
     });
 
-    const listItemIndent = parseRemLengthNumber(contentSchemaStyles.listItemIndentation);
+    const listItemIndent = isMobile
+        ? mobileTaskRowViewIndentationRem
+        : desktopTaskRowViewIndentationRem;
 
     // If collections are expanded then make sure our task row renders on top of
     // all other task rows.
