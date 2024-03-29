@@ -26,6 +26,7 @@ import {
 } from "~/client/tasks/task_grid_view_dnd_context.js";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {
@@ -326,7 +327,7 @@ function TaskNotepadViewActiveSection({
                                     }
                                     assigneeActivePosition={assigneeActivePosition}
                                     nextAssigneeActivePosition={
-                                        index < taskCardCount - 1
+                                        index < allTasks.length - 1
                                             ? allTasks[index + 1]?.assigneeActivePosition ?? null
                                             : null
                                     }
@@ -352,13 +353,17 @@ function TaskNotepadViewActiveSection({
                                 <TaskNotepadViewActiveSectionDroppable
                                     key={index}
                                     query={assigneeActiveQuery}
-                                    taskId={null}
+                                    taskId={allTasks[taskCardCount]?.id ?? null}
                                     showHintIndex={taskCardCount}
                                     previousAssigneeActivePosition={
                                         allTasks[taskCardCount - 1]?.assigneeActivePosition ?? null
                                     }
-                                    assigneeActivePosition={null}
-                                    nextAssigneeActivePosition={null}
+                                    assigneeActivePosition={
+                                        allTasks[taskCardCount]?.assigneeActivePosition ?? null
+                                    }
+                                    nextAssigneeActivePosition={
+                                        allTasks[taskCardCount + 1]?.assigneeActivePosition ?? null
+                                    }
                                     {...(cardCount < taskCountAboveTheFold && index === length - 1
                                         ? {
                                               flexGrow: "1",
@@ -369,6 +374,7 @@ function TaskNotepadViewActiveSection({
                                               widthStyle: cardWidthStyle,
                                               withMarginRight: index === length - 1,
                                           })}
+                                    shouldDebug={true}
                                 />
                             ),
                         )}
@@ -443,6 +449,7 @@ function TaskNotepadViewActiveSectionDroppable({
     widthStyle,
     maxWidthStyle,
     withMarginRight,
+    shouldDebug = false,
 }: {
     query: TaskClientQuery;
     taskId: TaskId | null;
@@ -455,10 +462,13 @@ function TaskNotepadViewActiveSectionDroppable({
     widthStyle?: number | string;
     maxWidthStyle?: number | string;
     withMarginRight?: boolean;
-}) {
     // Switch this to `true` if you're in a development environment and need to see
     // the droppable area bounds. Switch back to `false` before committing!
-    const shouldDebug = false;
+    shouldDebug?: boolean;
+}) {
+    if (shouldDebug) {
+        assert(process.env.NODE_ENV === "development");
+    }
 
     const {currentAccount} = useSpaceContext();
     const {timeZone} = useClientInfo();

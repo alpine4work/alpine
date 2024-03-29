@@ -541,6 +541,9 @@ function TaskRowViewDragPortals({store}: {store: TaskClientStore}) {
     );
 }
 
+const taskRowViewDragOverlayScale =
+    fontSizesByPlatform["50"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
+
 function TaskRowViewDragOverlay({
     dataRef,
     getActivatorTouchOffset,
@@ -579,10 +582,7 @@ function TaskRowViewDragOverlay({
                                       }rem)`
                                     : -1,
                             transform: [
-                                `scale(${
-                                    fontSizesByPlatform["50"].desktop.fontSize /
-                                    fontSizesByPlatform["100"].desktop.fontSize
-                                })`,
+                                `scale(${taskRowViewDragOverlayScale})`,
                                 ...(data.overlayPlacement === "ActivatorTouch" &&
                                 activatorTouchOffset
                                     ? ["translateX(-50%)"]

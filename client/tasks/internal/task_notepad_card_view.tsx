@@ -1,15 +1,26 @@
 import {useDraggable} from "@dnd-kit/core";
-import {Memo, PointerEvent, memo, useEffect, useId, useMemo, useRef, useState} from "react";
+import {
+    Memo,
+    PointerEvent as PointerSyntheticEvent,
+    memo,
+    useEffect,
+    useId,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {mergeProps} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuAction} from "~/client/design/menu_button.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {createDisplayTaskCollectionsStore} from "~/client/tasks/internal/create_display_task_collections_store.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
@@ -29,6 +40,7 @@ import {
     TaskGridViewDroppableData,
 } from "~/client/tasks/task_grid_view_dnd_context.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {borderRadius, pressOpacityOverlayClassName} from "~/shared/styles/styles.js";
@@ -56,6 +68,8 @@ function TaskNotepadCardView({
     onExpand: Memo<(taskId: TaskId) => Promise<void>>;
     deleteTaskAndAllChildren: Memo<(taskId: TaskId) => void>;
 }) {
+    const isMobile = useIsMobile();
+    const canPrimaryInputHover = useCanPrimaryInputHover();
     const context = useAppContext();
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
@@ -162,7 +176,7 @@ function TaskNotepadCardView({
         listeners: {
             // @ts-expect-error: Added by `TouchSensorWithManualActivation` but TypeScript
             // doesn't know about it.
-            onManuallyActivateTouchSensor,
+            onManuallyActivateTouchSensor: onManuallyActivateTouchSensorWithoutMemo,
             ...draggableListeners
         },
         setNodeRef: setDraggableNodeRef,
@@ -187,6 +201,8 @@ function TaskNotepadCardView({
                     boxShadow="elevation-30-with-grey-10-border"
                     borderRadius="lg"
                     pointerEvents="none"
+                    // On mobile since there are so few active cards onscreen at a time, we make the drag overlay
+                    opacity={isMobile ? "80" : undefined}
                 >
                     {content}
                 </Box>
@@ -276,18 +292,105 @@ function TaskNotepadCardView({
         ]);
     }
 
+    const isDraggableAfterLongTouch = !canPrimaryInputHover;
+
+    const onManuallyActivateTouchSensor = useEvent(onManuallyActivateTouchSensorWithoutMemo);
+
+    useEffect(() => {
+        if (!isDraggableAfterLongTouch) return;
+
+        const cardElement = assertExists(cardRef.current);
+
+        let touchState: {
+            initialClientX: number;
+            initialClientY: number;
+            longTouchTimeout: Timeout | null;
+        } | null = null;
+
+        const handleTouchStart = (event: TouchEvent) => {
+            touchState?.longTouchTimeout?.clear();
+            touchState = null;
+
+            if (event.touches.length > 1) return;
+
+            // Emulate a `UILongPressGestureRecognizer` on iOS. Which [waits for a touch to
+            // last 0.5 seconds][1] before firing.
+            //
+            // [1]: https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
+            const longTouchTimeout = createTimeout(() => {
+                if (touchState?.longTouchTimeout === longTouchTimeout)
+                    touchState.longTouchTimeout = null;
+
+                // Unfocus whatever the focused element is to close the keyboard.
+                if (document.activeElement instanceof HTMLElement) {
+                    document.activeElement.blur();
+                }
+
+                // NOCOMMIT: Haptic feedback when dragging starts and when dragging crosses
+                // each task boundary.
+                onManuallyActivateTouchSensor({nativeEvent: event});
+
+                // Dispatch a `pointercancel` event so that we end up setting
+                // `setIsPressed(false)` when a drag starts. We could set state directly but
+                // this works more generally (say we used a `usePress()` hook).
+                //
+                // `pointerup` will still be dispatched but since we dispatched `pointercancel`
+                // first `usePress()` will have cancelled its press state.
+                event.target?.dispatchEvent(new PointerEvent("pointercancel", event));
+            }, 500);
+
+            const touch = event.touches[0]!;
+
+            touchState = {
+                initialClientX: touch.clientX,
+                initialClientY: touch.clientY,
+                longTouchTimeout,
+            };
+        };
+
+        const handleTouchEnd = () => {
+            touchState?.longTouchTimeout?.clear();
+            touchState = null;
+        };
+
+        const handleTouchMove = () => {
+            touchState?.longTouchTimeout?.clear();
+            if (touchState) touchState.longTouchTimeout = null;
+        };
+
+        const handleTouchCancel = () => {
+            touchState?.longTouchTimeout?.clear();
+            touchState = null;
+        };
+
+        cardElement.addEventListener("touchstart", handleTouchStart);
+        cardElement.addEventListener("touchend", handleTouchEnd);
+        cardElement.addEventListener("touchmove", handleTouchMove, {passive: false});
+        cardElement.addEventListener("touchcancel", handleTouchCancel);
+
+        return () => {
+            touchState?.longTouchTimeout?.clear();
+            touchState = null;
+
+            cardElement.removeEventListener("touchstart", handleTouchStart);
+            cardElement.removeEventListener("touchend", handleTouchEnd);
+            cardElement.removeEventListener("touchmove", handleTouchMove);
+            cardElement.removeEventListener("touchcancel", handleTouchCancel);
+        };
+    }, [isDraggableAfterLongTouch, onManuallyActivateTouchSensor]);
+
     return (
         <ContextMenuActions actions={contextMenuActions}>
             <FocusRing offset="border">
                 <Box
                     {...mergeProps(draggableListeners ?? {}, draggableAttributes, {
-                        onPointerDown: (event: PointerEvent) => {
+                        onPointerDown: (event: PointerSyntheticEvent) => {
                             // Only count left clicks.
                             if (event.button !== 0) return;
 
                             setIsPressed(true);
                         },
-                        onPointerUp: (event: PointerEvent) => {
+                        onPointerUp: (event: PointerSyntheticEvent) => {
                             // Only count left clicks.
                             if (event.button !== 0) return;
 

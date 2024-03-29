@@ -24,6 +24,9 @@ import {
     pressOpacityOverlayClassName,
 } from "~/shared/styles/styles.js";
 
+const documentCommentThreadPreviewScale =
+    fontSizesByPlatform["75"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
+
 export function DocumentCommentThreadPreview({
     commentThread,
     unpersistedIsResolved,
@@ -97,12 +100,6 @@ export function DocumentCommentThreadPreview({
         previewElement.scrollTop =
             commentRect.y - (previewRect.y - previewElement.scrollTop) - commentOffset;
     }, [commentOffset, commentThread.id, content]);
-
-    // Scale the content snippet down to our smallest font size. Scaling it down so
-    // it has the same text layout as the main content editor leads to text so
-    // small that it's unreadable.
-    const scale =
-        fontSizesByPlatform["75"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
 
     const buttonRef = useRef<HTMLDivElement>(null);
     const {buttonProps, isPressed} = useButton(
@@ -183,9 +180,9 @@ export function DocumentCommentThreadPreview({
                         pointerEvents="none"
                         paddingX="1.5"
                         style={{
-                            width: `${(1 / scale) * 100}%`,
+                            width: `${(1 / documentCommentThreadPreviewScale) * 100}%`,
                             transformOrigin: "0 0",
-                            transform: `scale(${scale})`,
+                            transform: `scale(${documentCommentThreadPreviewScale})`,
                         }}
                     >
                         {content && (
