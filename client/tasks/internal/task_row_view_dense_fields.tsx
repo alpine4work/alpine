@@ -11,7 +11,7 @@ import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
-import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {RemLength} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {pointerEventsNoneNotInheritedClassName, tasksStyles} from "~/shared/styles/styles.js";
@@ -242,7 +242,6 @@ function TaskRowViewDenseFields(
             />
             <Box
                 flexGrow="1"
-                overflow="hidden"
                 display="flex"
                 gap={gap}
                 // I find some negative `marginLeft` helps the fields feel optically aligned.
@@ -261,8 +260,7 @@ function TaskRowViewDenseFields(
                 {assigneeInputState.isVisible && (
                     <Box
                         ref={assigneeInputRef}
-                        overflow="hidden"
-                        style={{maxWidth: fieldMaxWidth}}
+                        style={{maxWidth: fieldMaxWidth, minWidth: 0}}
                         className={pointerEventsNoneNotInheritedClassName}
                         onFocus={() => {
                             setAssigneeInputState(assigneeInputState => {
@@ -319,8 +317,7 @@ function TaskRowViewDenseFields(
                 {priorityInputState.isVisible && (
                     <Box
                         ref={priorityInputRef}
-                        overflow="hidden"
-                        style={{maxWidth: fieldMaxWidth}}
+                        style={{maxWidth: fieldMaxWidth, minWidth: 0}}
                         className={pointerEventsNoneNotInheritedClassName}
                         onFocus={() => {
                             setPriorityInputState(priorityInputState => {

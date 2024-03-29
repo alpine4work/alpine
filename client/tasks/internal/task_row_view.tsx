@@ -169,8 +169,15 @@ const Box = null;
 const TaskRowViewForwardRef = forwardRef(TaskRowView);
 export {TaskRowViewForwardRef as TaskRowView};
 
-const taskRowViewStatusButtonWidth = "6";
-const taskRowViewStatusButtonWidthRem = parseRemLengthNumber(spacing[taskRowViewStatusButtonWidth]);
+const desktopTaskRowViewStatusButtonWidth = "6";
+const desktopTaskRowViewStatusButtonWidthRem = parseRemLengthNumber(
+    spacing[desktopTaskRowViewStatusButtonWidth],
+);
+
+const mobileTaskRowViewStatusButtonWidth = "7";
+const mobileTaskRowViewStatusButtonWidthRem = parseRemLengthNumber(
+    spacing[mobileTaskRowViewStatusButtonWidth],
+);
 
 const taskRowViewExpandButtonWidth = "5";
 const taskRowViewExpandButtonWidthRem = parseRemLengthNumber(spacing[taskRowViewExpandButtonWidth]);
@@ -213,17 +220,40 @@ const expandButtonContainerClassName = `${pointerEventsNoneNotInheritedClassName
     alignItems: "center",
 })}`;
 
-const statusButtonContainerClassName = `${pointerEventsNoneNotInheritedClassName} ${sprinkles({
-    width: taskRowViewStatusButtonWidth,
-    height: taskRowViewMinHeight,
-    paddingRight: "2",
-    display: "flex",
-    alignItems: "center",
-})}`;
+const desktopStatusButtonContainerClassName = `${pointerEventsNoneNotInheritedClassName} ${sprinkles(
+    {
+        width: desktopTaskRowViewStatusButtonWidth,
+        height: taskRowViewMinHeight,
+        paddingRight: "2",
+        display: "flex",
+        alignItems: "center",
+    },
+)}`;
 
-const placeholderStatusButtonClassName = sprinkles({
+const mobileStatusButtonContainerClassName = `${pointerEventsNoneNotInheritedClassName} ${sprinkles(
+    {
+        width: mobileTaskRowViewStatusButtonWidth,
+        height: taskRowViewMinHeight,
+        paddingRight: "2",
+        display: "flex",
+        alignItems: "center",
+        // Add a lil extra space between status button and task title.
+        position: "relative",
+        left: "-0.5",
+    },
+)}`;
+
+const desktopPlaceholderStatusButtonClassName = sprinkles({
     width: "4",
     height: "4",
+    borderRadius: "full",
+    border: "grey-10",
+    pointerEvents: "none",
+});
+
+const mobilePlaceholderStatusButtonClassName = sprinkles({
+    width: "5",
+    height: "5",
     borderRadius: "full",
     border: "grey-10",
     pointerEvents: "none",
@@ -1201,7 +1231,9 @@ function TaskRowView(
                   : taskRowViewPaddingXRem.mobile +
                     // Hardcoded `spacing["2.5"]`
                     0.625) +
-              taskRowViewStatusButtonWidthRem
+              (isMobile
+                  ? mobileTaskRowViewStatusButtonWidthRem
+                  : desktopTaskRowViewStatusButtonWidthRem)
             : taskRowViewPaddingXRem[isMobile ? "mobile" : "desktop"]
     }rem`;
 
@@ -1367,13 +1399,20 @@ function TaskRowView(
                         <div className={expandButtonContainerClassName} />
                     ))}
                 {!withoutPaddingLeft && (
-                    <div className={statusButtonContainerClassName}>
+                    <div
+                        className={
+                            isMobile
+                                ? mobileStatusButtonContainerClassName
+                                : desktopStatusButtonContainerClassName
+                        }
+                    >
                         {hasTask ? (
                             <TaskStatusButton
                                 ref={statusButtonRef}
                                 store={query.store}
                                 undoManager={undoManager}
                                 affinityManager={affinityManager}
+                                size={isMobile ? "5" : "4"}
                                 task={task}
                                 // Disable the ability to tab to this button. Since there are so many tasks and
                                 // the `Tab` keyboard shortcut indents a task, we don't rely on `Tab` for focus
@@ -1399,8 +1438,20 @@ function TaskRowView(
                                 }
                             />
                         ) : (
-                            <div className={statusButtonContainerClassName}>
-                                <div className={placeholderStatusButtonClassName} />
+                            <div
+                                className={
+                                    isMobile
+                                        ? mobileStatusButtonContainerClassName
+                                        : desktopStatusButtonContainerClassName
+                                }
+                            >
+                                <div
+                                    className={
+                                        isMobile
+                                            ? mobilePlaceholderStatusButtonClassName
+                                            : desktopPlaceholderStatusButtonClassName
+                                    }
+                                />
                             </div>
                         )}
                     </div>

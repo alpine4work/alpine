@@ -6,6 +6,7 @@ import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
 import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_tasks_progress_wheel.js";
@@ -57,6 +58,7 @@ function TaskCardViewContent(
     },
     ref: Ref<HTMLDivElement>,
 ) {
+    const isMobile = useIsMobile();
     const {timeZone, locale} = useClientInfo();
     const currentDate = useCurrentDate();
 
@@ -222,7 +224,7 @@ function TaskCardViewContent(
         >
             <Box
                 display="flex"
-                gap="2"
+                gap={isMobile ? "2.5" : "2"}
                 // Extra margin on the right to balance margin on the left from status button.
                 paddingRight="3"
             >
@@ -236,7 +238,10 @@ function TaskCardViewContent(
                     position="relative"
                     zIndex="20"
                 >
-                    <TaskDisplayStatusCircle displayStatus={displayStatus} size="4" />
+                    <TaskDisplayStatusCircle
+                        displayStatus={displayStatus}
+                        size={isMobile ? "5" : "4"}
+                    />
                 </Box>
                 <Box
                     flexGrow="1"
