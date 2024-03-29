@@ -67,7 +67,6 @@ export {TaskRowCollectionsCellForwardRefMemo as TaskRowCollectionsCell};
 
 const cellClassName = sprinkles({
     flexShrink: "0",
-    width: taskRowViewCollectionsColumnWidth,
     paddingLeft: taskRowViewColumnPaddingX,
     paddingRight: taskRowViewLastColumnPaddingRight,
     // Important not to set `overflow="hidden"` here so that the editable
@@ -214,6 +213,7 @@ function TaskRowCollectionsCell(
                 !isReadOnly && tasksStyles.textCursorNotInheritedClassName,
                 cellClassName,
             )}
+            style={{width: taskRowViewCollectionsColumnWidth}}
             onFocus={() => setIsFocusWithin(true)}
             onBlur={event => {
                 setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));

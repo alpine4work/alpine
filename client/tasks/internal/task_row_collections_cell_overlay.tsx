@@ -9,11 +9,10 @@ import {
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
 import {
-    taskRowViewCollectionsColumnWidth,
-    taskRowViewColumnPaddingX,
+    taskRowViewCollectionsColumnCellOverlayWidth,
     taskRowViewMinHeight,
 } from "~/client/tasks/task_row_shared_styles.js";
-import {addRemLengths, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
@@ -64,10 +63,7 @@ export function TaskRowCollectionsCellOverlay({
                 overflowY="scroll"
                 borderRadius="sm"
                 style={{
-                    width: addRemLengths(
-                        spacing[taskRowViewCollectionsColumnWidth],
-                        subtractRemLengths(spacing["2.5"], spacing[taskRowViewColumnPaddingX]),
-                    ),
+                    width: taskRowViewCollectionsColumnCellOverlayWidth,
                     // We add an extra 1px of padding to the top to render on top of the row's
                     // `box-shadow` border.
                     minHeight: `calc(${spacing[taskRowViewMinHeight]} + 1px)`,

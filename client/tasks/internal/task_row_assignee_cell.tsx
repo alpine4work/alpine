@@ -63,7 +63,6 @@ export {TaskRowAssigneeCellForwardRefMemo as TaskRowAssigneeCell};
 
 const cellClassName = sprinkles({
     flexShrink: "0",
-    width: taskRowViewColumnWidth,
     paddingX: taskRowViewColumnPaddingX,
     overflow: "hidden",
     height: taskRowViewMinHeight,
@@ -218,7 +217,10 @@ function TaskRowAssigneeCell(
                     !isActuallyReadOnly && tasksStyles.textCursorNotInheritedClassName,
                     cellClassName,
                 )}
-                style={{opacity: assigneeAccountData || isHovered || isFocusWithin ? 1 : 0}}
+                style={{
+                    width: taskRowViewColumnWidth,
+                    opacity: assigneeAccountData || isHovered || isFocusWithin ? 1 : 0,
+                }}
                 {...useOutOfBoundsClickSelection({
                     isDisabled: isReadOnly,
                     onSelect: () => assertExists(inputRef.current).focus(),

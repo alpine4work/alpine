@@ -2440,45 +2440,45 @@ function TaskGridViewColumnHeader(
                                 <Box flexGrow="1" />
                                 <Box
                                     flexShrink="0"
-                                    style={{
-                                        width: taskRowViewFirstColumnWidth,
-                                        paddingLeft: taskRowViewFirstColumnPaddingLeft,
-                                    }}
                                     paddingX={taskRowViewColumnPaddingX}
                                     paddingBottom="1"
                                     color="grey-40"
                                     fontSize="50"
+                                    style={{
+                                        width: taskRowViewFirstColumnWidth,
+                                        paddingLeft: taskRowViewFirstColumnPaddingLeft,
+                                    }}
                                 >
                                     Assignee
                                 </Box>
                                 <Box
                                     flexShrink="0"
-                                    width={taskRowViewColumnWidth}
                                     paddingX={taskRowViewColumnPaddingX}
                                     paddingBottom="1"
                                     color="grey-40"
                                     fontSize="50"
+                                    style={{width: taskRowViewColumnWidth}}
                                 >
                                     Priority
                                 </Box>
                                 <Box
                                     flexShrink="0"
-                                    width={taskRowViewColumnWidth}
                                     paddingX={taskRowViewColumnPaddingX}
                                     paddingBottom="1"
                                     color="grey-40"
                                     fontSize="50"
+                                    style={{width: taskRowViewColumnWidth}}
                                 >
                                     Due date
                                 </Box>
                                 <Box
                                     flexShrink="0"
-                                    width={taskRowViewCollectionsColumnWidth}
                                     paddingLeft={taskRowViewColumnPaddingX}
                                     paddingRight={taskRowViewLastColumnPaddingRight}
                                     paddingBottom="1"
                                     color="grey-40"
                                     fontSize="50"
+                                    style={{width: taskRowViewCollectionsColumnWidth}}
                                 >
                                     Collections
                                 </Box>

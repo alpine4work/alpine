@@ -1167,19 +1167,25 @@ function TaskRowView(
             touchState = null;
         };
 
-        containerElement.addEventListener("touchstart", handleTouchStart);
-        containerElement.addEventListener("touchend", handleTouchEnd);
-        containerElement.addEventListener("touchmove", handleTouchMove, {passive: false});
-        containerElement.addEventListener("touchcancel", handleTouchCancel);
+        containerElement.addEventListener("touchstart", handleTouchStart, {capture: true});
+        containerElement.addEventListener("touchend", handleTouchEnd, {capture: true});
+        containerElement.addEventListener("touchmove", handleTouchMove, {capture: true});
+        containerElement.addEventListener("touchcancel", handleTouchCancel, {capture: true});
+
+        // NOTE(calebmer): I've observed cases where `touchend` is not fired but
+        // `pointerup` is. Perhaps this occurs if the touched element is removed from
+        // the DOM? Listen to `pointerup` as a fallback for cancelling a long touch.
+        containerElement.addEventListener("pointerup", handleTouchEnd, {capture: true});
 
         return () => {
             touchState?.longTouchTimeout?.clear();
             touchState = null;
 
-            containerElement.removeEventListener("touchstart", handleTouchStart);
-            containerElement.removeEventListener("touchend", handleTouchEnd);
-            containerElement.removeEventListener("touchmove", handleTouchMove);
-            containerElement.removeEventListener("touchcancel", handleTouchCancel);
+            containerElement.removeEventListener("touchstart", handleTouchStart, {capture: true});
+            containerElement.removeEventListener("touchend", handleTouchEnd, {capture: true});
+            containerElement.removeEventListener("touchmove", handleTouchMove, {capture: true});
+            containerElement.removeEventListener("touchcancel", handleTouchCancel, {capture: true});
+            containerElement.removeEventListener("pointerup", handleTouchEnd, {capture: true});
         };
     }, [isDraggableAfterLongTouch, isTextInputWithinFocusedIfMobile]);
 

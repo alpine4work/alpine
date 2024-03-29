@@ -59,7 +59,6 @@ export {TaskRowPriorityCellForwardRefMemo as TaskRowPriorityCell};
 
 const cellClassName = sprinkles({
     flexShrink: "0",
-    width: taskRowViewColumnWidth,
     paddingX: taskRowViewColumnPaddingX,
     overflow: "hidden",
     height: taskRowViewMinHeight,
@@ -193,6 +192,7 @@ function TaskRowPriorityCell(
                     cellClassName,
                 )}
                 style={{
+                    width: taskRowViewColumnWidth,
                     opacity: priority || isHovered || isFocusWithin ? 1 : 0,
                 }}
                 {...useOutOfBoundsClickSelection({

@@ -4,6 +4,7 @@ import {
     addRemLengths,
     parseRemLengthNumber,
     spacing,
+    subtractRemLengths,
 } from "~/shared/design/spacing.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
@@ -25,8 +26,16 @@ export const taskRowViewPaddingXRem: {
     mobile: parseRemLengthNumber(spacing[taskRowViewPaddingX.mobile]),
 };
 
-export const taskRowViewColumnWidth: Spacing = "32";
-export const taskRowViewCollectionsColumnWidth: Spacing = "48";
+const taskRowViewColumnWidthRem = spacing["32"];
+const taskRowViewColumnMinViewportWidth = "10vw";
+
+const taskRowViewCollectionsColumnWidthRem = spacing["48"];
+const taskRowViewCollectionsColumnMinViewportWidth = "15vw";
+
+// Minimum width is in viewport units instead of percentages so it's consistent
+// regardless of the container element we use this width in.
+export const taskRowViewColumnWidth = `min(${taskRowViewColumnWidthRem}, ${taskRowViewColumnMinViewportWidth})`;
+export const taskRowViewCollectionsColumnWidth = `min(${taskRowViewCollectionsColumnWidthRem}, ${taskRowViewCollectionsColumnMinViewportWidth})`;
 export const taskRowViewColumnPaddingX = "1.5" satisfies Spacing;
 
 export const taskRowViewFirstColumnExtraPaddingLeft = spacing["6"];
@@ -36,10 +45,20 @@ export const taskRowViewFirstColumnPaddingLeft: RemLength = addRemLengths(
     taskRowViewFirstColumnExtraPaddingLeft,
 );
 
-export const taskRowViewFirstColumnWidth: RemLength = addRemLengths(
-    spacing["32"],
+export const taskRowViewFirstColumnWidth = `min(${addRemLengths(
+    taskRowViewColumnWidthRem,
     taskRowViewFirstColumnExtraPaddingLeft,
+)}, ${taskRowViewColumnMinViewportWidth} + ${taskRowViewFirstColumnExtraPaddingLeft})`;
+
+const taskRowViewCollectionsColumnCellOverlayExtraWidth = subtractRemLengths(
+    spacing["2.5"],
+    spacing[taskRowViewColumnPaddingX],
 );
+
+export const taskRowViewCollectionsColumnCellOverlayWidth = `min(${addRemLengths(
+    taskRowViewCollectionsColumnWidthRem,
+    taskRowViewCollectionsColumnCellOverlayExtraWidth,
+)}, ${taskRowViewCollectionsColumnMinViewportWidth} + ${taskRowViewCollectionsColumnCellOverlayExtraWidth})`;
 
 export const taskRowViewLastColumnPaddingRight: Spacing = "0";
 

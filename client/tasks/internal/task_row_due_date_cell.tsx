@@ -64,7 +64,6 @@ export {TaskRowDueDateCellForwardRefMemo as TaskRowDueDateCell};
 
 const cellClassName = sprinkles({
     flexShrink: "0",
-    width: taskRowViewColumnWidth,
     height: taskRowViewMinHeight,
     overflow: "hidden",
     display: "flex",
@@ -216,7 +215,10 @@ function TaskRowDueDateCell(
                           )
                         : cellClassName
                 }
-                style={{opacity: dueDate || isHovered || isFocusWithin ? 1 : 0}}
+                style={{
+                    width: taskRowViewColumnWidth,
+                    opacity: dueDate || isHovered || isFocusWithin ? 1 : 0,
+                }}
                 onFocus={() => setIsFocusWithin(true)}
                 onBlur={event => {
                     setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
@@ -320,6 +322,7 @@ function TaskRowDueDateCellPreview({
                     : previewBeforeDueDateClassName
             }
             style={{
+                whiteSpace: "nowrap",
                 // Get around the `textCursorNotInheritedClassName` reset.
                 cursor: "text",
             }}
