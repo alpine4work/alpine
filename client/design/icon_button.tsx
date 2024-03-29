@@ -371,17 +371,20 @@ function IconButton(
               },
     };
 
-    const {buttonSize, iconSize} = (
+    const {buttonSize, iconSize, withoutTouchSlop} = (
         {
-            lg: {buttonSize: "8", iconSize: "5"},
-            base: {buttonSize: "7", iconSize: "5"},
-            md: {buttonSize: "6", iconSize: "4"},
-            sm: {buttonSize: "5", iconSize: "4"},
-            xs: {buttonSize: "4", iconSize: "3"},
+            lg: {buttonSize: "8", iconSize: "5", withoutTouchSlop: false},
+            base: {buttonSize: "7", iconSize: "5", withoutTouchSlop: false},
+            md: {buttonSize: "6", iconSize: "4", withoutTouchSlop: false},
+            sm: {buttonSize: "5", iconSize: "4", withoutTouchSlop: true},
+            xs: {buttonSize: "4", iconSize: "3", withoutTouchSlop: true},
         } as const
     )[size];
 
-    const touchSlop = useTouchSlop(buttonSize);
+    const defaultTouchSlop = useTouchSlop(buttonSize);
+    const touchSlop = withoutTouchSlop
+        ? ({slop: "0", sizeWithSlop: buttonSize} as const)
+        : defaultTouchSlop;
 
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.

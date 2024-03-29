@@ -23,8 +23,8 @@ export const mobileTouchSlopBySpacing: {
     "8": {slop: "0.5", sizeWithSlop: "9"},
     "7": {slop: "1", sizeWithSlop: "9"},
     "6": {slop: "1.5", sizeWithSlop: "9"},
-    "5": {slop: "0", sizeWithSlop: "5"},
-    "4": {slop: "0", sizeWithSlop: "4"},
+    "5": {slop: "2", sizeWithSlop: "9"},
+    "4": {slop: "2.5", sizeWithSlop: "9"},
 };
 
 /**
