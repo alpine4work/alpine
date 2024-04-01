@@ -710,7 +710,7 @@ function VirtualizedScrollView(
         // doesn't shift for the user.
         {
             const contentElement = assertExists(contentRef.current);
-            let element: HTMLElement | null = null;
+            let selectedElement: HTMLElement | null = null;
 
             // NOTE(calebmer): There's room to optimize this algorithm. If we keep our item
             // refs in sorted order we can break after we find the first item within the
@@ -722,13 +722,16 @@ function VirtualizedScrollView(
                 if (elementRef.element.offsetParent !== contentElement) continue;
 
                 // Select the last element.
-                if (element === null || elementRef.element.offsetTop > element.offsetTop) {
-                    element = elementRef.element;
+                if (
+                    selectedElement === null ||
+                    elementRef.element.offsetTop > selectedElement.offsetTop
+                ) {
+                    selectedElement = elementRef.element;
                 }
             }
 
-            if (element) {
-                const scrollAnchorElement = element;
+            if (selectedElement) {
+                const scrollAnchorElement = selectedElement;
 
                 scrollAnchorRef.current = {
                     // Use the last element as the anchor until it is scrolled offscreen. Then
@@ -1014,7 +1017,7 @@ function VirtualizedScrollView(
             }
         }
 
-        let element: HTMLElement | null = null;
+        let selectedElement: HTMLElement | null = null;
 
         // NOTE(calebmer): There's room to optimize this algorithm. If we keep our item
         // refs in sorted order we can break after we find the first item within the
@@ -1025,19 +1028,24 @@ function VirtualizedScrollView(
             // custom layout.
             if (elementRef.element.offsetParent !== contentElement) continue;
 
-            // Ignore elements that are above scroll window.
-            if (elementRef.element.offsetTop < scrollTop) continue;
-
-            // Select the element closest to the top of the scroll window.
-            if (element === null || elementRef.element.offsetTop < element.offsetTop) {
-                element = elementRef.element;
+            if (
+                // Start our comparison with the first element we see.
+                selectedElement === null ||
+                // Pick the earliest element in the scroll view.
+                elementRef.element.offsetTop < selectedElement.offsetTop ||
+                // If the current element is completely outside the scroll window, then prefer
+                // an element inside the scroll window.
+                (selectedElement.offsetTop + selectedElement.offsetHeight < scrollTop &&
+                    elementRef.element.offsetTop < scrollTop + clientHeight)
+            ) {
+                selectedElement = elementRef.element;
             }
         }
 
-        if (element === null) {
+        if (selectedElement === null) {
             scrollAnchorRef.current = null;
         } else {
-            const scrollAnchorElement = element;
+            const scrollAnchorElement = selectedElement;
 
             scrollAnchorRef.current = {
                 shouldAnchorWhileVisible: false,
