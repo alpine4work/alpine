@@ -1060,6 +1060,10 @@ function TaskRowTitleInput(
 
         const isEditable = (!isDualModality || isFocused) && !capabilities.isReadOnly;
 
+        // Optimization: Don't update editor if editable state equals what we expect.
+        // It'll be initialized to the correct value when constructed.
+        if (view.editable === isEditable) return;
+
         view.setProps({
             editable: () => isEditable,
 
