@@ -214,20 +214,6 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 bottom: Math.min(oldScrollableBottom, oldCoveredBottom),
             };
 
-            const anchorPosition = getAnchorPosition(oldVisibleRect);
-            if (!anchorPosition) return;
-
-            const wasVisible = areRangesOverlapping(
-                oldVisibleRect.top,
-                oldVisibleRect.bottom,
-                anchorPosition.top,
-                anchorPosition.top + anchorPosition.height,
-            );
-
-            // If the anchor wasn't previously visible scrolling then scrolling by the
-            // keyboard and bottom bar delta won't make it visible now.
-            if (!wasVisible) return;
-
             // Considers:
             //
             // - Keyboard height
@@ -246,6 +232,85 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 top: Math.min(newScrollableTop, newCoveredBottom),
                 bottom: Math.min(newScrollableBottom, newCoveredBottom),
             };
+            const originalNewVisibleRect = newVisibleRect;
+
+            const scrollBottom =
+                scrollableElement.scrollHeight -
+                (scrollableElement.scrollTop + scrollableElement.clientHeight);
+
+            // If we decide to bail out of scrolling we should call this fallback scroll
+            // function. It performs one final check to see if we need to scroll since
+            // we're at the bottom of the scroll view and some keyboard safe area is about
+            // to be removed.
+            //
+            // Generally this path is only called if `anchorPosition` returns null or
+            // `isPinned` is false. If `isPinned` is true keeping the anchor visible should
+            // automatically make sure safe area stays offscreen.
+            //
+            // To test this path go to a task detail view on mobile with one or two
+            // subtasks. Tap the first subtask. This will scroll so the subtask stays in
+            // view. Then tap "Done". This should scroll back up so the safe area added for
+            // the keyboard doesn't remain visible.
+            const fallbackScroll = () => {
+                if (originalNewVisibleRect.bottom <= oldVisibleRect.bottom) return;
+
+                // Since our fallback scroll is used to scroll up at the end of our scroll
+                // view, we need to include the tab bar height in our calculations. 1) We're
+                // scrolling up so the tab bar will be revealed. 2) The goal is for our final
+                // scroll position to be the end of the scroll view where the tab bar will
+                // always be visible regardless of the tab bar's partial visibility.
+                const newCoveredHeight =
+                    Math.max(
+                        newMobileKeyboardHeight,
+                        windowSafeAreaInsetBottom + (NativeMobileBridge?.tabBar.height ?? 0),
+                    ) +
+                    newBottomBarHeight[
+                        newMobileKeyboardHeight > 0
+                            ? "visibleMobileKeyboard"
+                            : "hiddenMobileKeyboard"
+                    ];
+
+                const newCoveredBottom = viewportHeight - newCoveredHeight;
+
+                const newVisibleRect = {
+                    top: Math.min(newScrollableTop, newCoveredBottom),
+                    bottom: Math.min(newScrollableBottom, newCoveredBottom),
+                };
+
+                // The amount of safe area removed by this keyboard frame change.
+                const visibleRectBottomDelta = newVisibleRect.bottom - oldVisibleRect.bottom;
+
+                // Will the scroll bottom seen by the user be invalid after safe area is
+                // removed? (Scroll bottom must be greater than 0.) If so then we need to
+                // scroll past the safe area.
+                const newScrollBottom = scrollBottom - visibleRectBottomDelta;
+                if (newScrollBottom >= 0) return;
+
+                scrollableElement.scrollTo({
+                    top: scrollableElement.scrollTop + newScrollBottom,
+                    behavior: isAnimated ? "smooth" : "instant",
+                });
+            };
+
+            const anchorPosition = getAnchorPosition(oldVisibleRect);
+            if (!anchorPosition) {
+                fallbackScroll();
+                return;
+            }
+
+            const wasVisible = areRangesOverlapping(
+                oldVisibleRect.top,
+                oldVisibleRect.bottom,
+                anchorPosition.top,
+                anchorPosition.top + anchorPosition.height,
+            );
+
+            // If the anchor wasn't previously visible scrolling then scrolling by the
+            // keyboard and bottom bar delta won't make it visible now.
+            if (!wasVisible) {
+                fallbackScroll();
+                return;
+            }
 
             // By default, we only care about making sure the anchor stays visible. So when
             // the keyboard closes (revealing more area) it follows that our anchor would
@@ -267,7 +332,10 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
 
                 // If our anchor is completely visible after the keyboard or bottom bar change
                 // then we don't need to scroll to make it visible again.
-                if (isCompletelyVisible) return;
+                if (isCompletelyVisible) {
+                    fallbackScroll();
+                    return;
+                }
 
                 const isPartiallyHidden = areRangesOverlapping(
                     anchorPosition.top,
@@ -282,7 +350,10 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 // A test case: Tap on a `<TaskDateInput>` near the top of the task notepad.
                 // Trying to adjust the scroll will cancel out the animated scroll
                 // `<TaskDateInput>` starts since this hook tries to make a minor adjustment.
-                if (!isPartiallyHidden) return;
+                if (!isPartiallyHidden) {
+                    fallbackScroll();
+                    return;
+                }
             }
 
             const anchorPositionMiddle = anchorPosition.top + anchorPosition.height / 2;
@@ -342,9 +413,6 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             // To test this, play with entering edit mode or reply mode for
             // `<MessageView>`s near the bottom of the screen. (The second to last message
             // not the last message.)
-            const scrollBottom =
-                scrollableElement.scrollHeight -
-                (scrollableElement.scrollTop + scrollableElement.clientHeight);
             const minScrollDelta =
                 newVisibleRect.bottom > oldVisibleRect.bottom
                     ? Math.max(0, newVisibleRect.bottom - oldVisibleRect.bottom - scrollBottom)
