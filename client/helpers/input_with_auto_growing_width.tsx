@@ -41,6 +41,9 @@ function InputWithAutoGrowingWidth(
                     pointerEvents: "none",
                     // Leading and trailing spaces should contribute to width.
                     whiteSpace: "pre",
+                    // NOTE(calebmer): I've found adding an extra pixel of width helps with
+                    // sub-pixel rendering which sometimes clips the text.
+                    paddingRight: 1,
                 }}
             >
                 {props.placeholder}
@@ -55,6 +58,9 @@ function InputWithAutoGrowingWidth(
                     pointerEvents: "none",
                     // Leading and trailing spaces should contribute to width.
                     whiteSpace: "pre",
+                    // NOTE(calebmer): I've found adding an extra pixel of width helps with
+                    // sub-pixel rendering which sometimes clips the text.
+                    paddingRight: 1,
                 }}
             >
                 {props.value}
