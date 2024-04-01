@@ -115,6 +115,8 @@ globalStyle(`${taskDateInputTextSegmentClassName}::selection`, {
     background: "none",
 });
 
+export const taskCollectionsInputAddInputClassName = style({});
+
 export const rowNumberCounterName = "task-row-number";
 
 // When server-side rendering, start the counter at 0.

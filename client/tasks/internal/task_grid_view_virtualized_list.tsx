@@ -235,6 +235,7 @@ export function useTaskGridViewVirtualizedList({
     getMaybeRemoveTaskFromQueryActions: getMaybeRemoveTaskFromRootQueryActions,
     columnHeaderControls,
     onApplyUndoStackEntry,
+    getAnchorPosition,
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef>;
@@ -257,6 +258,9 @@ export function useTaskGridViewVirtualizedList({
         target: {taskId: TaskId; column: TaskGridViewColumn};
         undoManager: TaskClientStoreUndoManager;
     }) => boolean;
+    getAnchorPosition?: Memo<
+        (oldVisibleRect: {top: number; bottom: number}) => {top: number; height: number} | null
+    >;
 }): {
     /**
      * Key that resets our virtualized scroll view's internal state. Should be
@@ -1778,50 +1782,64 @@ export function useTaskGridViewVirtualizedList({
     // When the keyboard opens, make sure we scroll so that whatever's focused
     // stays in view. (e.g. The text title input.)
     useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
-        getAnchorPosition: useCallback(() => {
-            const {activeElement} = document;
-            const viewContentElement = assertExists(viewRef.current).getContentElement();
+        getAnchorPosition: useCallback(
+            oldVisibleRect => {
+                const anchorPositionFromProps = getAnchorPosition?.(oldVisibleRect);
+                if (anchorPositionFromProps) return anchorPositionFromProps;
 
-            if (
-                !(activeElement instanceof Element) ||
-                !viewContentElement.contains(document.activeElement)
-            ) {
-                return null;
-            }
+                const {activeElement} = document;
+                const viewContentElement = assertExists(viewRef.current).getContentElement();
 
-            const activeRect = activeElement.getBoundingClientRect();
+                if (
+                    !(activeElement instanceof Element) ||
+                    !viewContentElement.contains(document.activeElement)
+                ) {
+                    return null;
+                }
 
-            // If we've focused a date input text segment then we want to include the
-            // calendar overlay in our anchor position. So search up the DOM tree for the
-            // `aria-owns` property added by `<Overlay>` which points to the calendar
-            // overlay.
-            if (activeElement.classList.contains(tasksStyles.taskDateInputTextSegmentClassName)) {
-                let parentElement = activeElement.parentElement;
-                let ownedElement: HTMLElement | null = null;
+                const activeRect = activeElement.getBoundingClientRect();
 
-                while (parentElement !== null) {
-                    const ariaOwnsAttribute = parentElement.getAttribute("aria-owns");
-                    if (ariaOwnsAttribute) {
-                        const ariaOwns = ariaOwnsAttribute.split(" ")[0]!;
-                        ownedElement = document.getElementById(ariaOwns);
-                        break;
+                // If we've focused a date input text segment then we want to include the
+                // calendar overlay in our anchor position. So search up the DOM tree for the
+                // `aria-owns` property added by `<Overlay>` which points to the calendar
+                // overlay.
+                if (
+                    activeElement.classList.contains(
+                        tasksStyles.taskDateInputTextSegmentClassName,
+                    ) ||
+                    // This mainly targets `<TaskCollectionsInput>` in `<TaskDetailView>`.
+                    activeElement.classList.contains(
+                        tasksStyles.taskCollectionsInputAddInputClassName,
+                    )
+                ) {
+                    let parentElement = activeElement.parentElement;
+                    let ownedElement: HTMLElement | null = null;
+
+                    while (parentElement !== null) {
+                        const ariaOwnsAttribute = parentElement.getAttribute("aria-owns");
+                        if (ariaOwnsAttribute) {
+                            const ariaOwns = ariaOwnsAttribute.split(" ")[0]!;
+                            ownedElement = document.getElementById(ariaOwns);
+                            break;
+                        }
+
+                        parentElement = parentElement.parentElement;
                     }
 
-                    parentElement = parentElement.parentElement;
+                    if (ownedElement) {
+                        const ownedRect = ownedElement.getBoundingClientRect();
+
+                        const top = Math.min(activeRect.top, ownedRect.top);
+                        const bottom = Math.max(activeRect.bottom, ownedRect.bottom);
+
+                        return {top, height: bottom - top};
+                    }
                 }
 
-                if (ownedElement) {
-                    const ownedRect = ownedElement.getBoundingClientRect();
-
-                    const top = Math.min(activeRect.top, ownedRect.top);
-                    const bottom = Math.max(activeRect.bottom, ownedRect.bottom);
-
-                    return {top, height: bottom - top};
-                }
-            }
-
-            return activeRect;
-        }, [viewRef]),
+                return activeRect;
+            },
+            [viewRef],
+        ),
     });
 
     /* ========================================================================== *\

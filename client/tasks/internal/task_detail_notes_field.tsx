@@ -28,6 +28,7 @@ import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_
 export type TaskDetailNotesFieldRef = {
     isFocused(): boolean;
     focus(): void;
+    getEditorIfExists(): ContentEditorRef<TaskNotesContentWithReferences> | null;
 };
 
 const TaskDetailNotesFieldForwardRef = forwardRef(TaskDetailNotesField);
@@ -73,6 +74,10 @@ function TaskDetailNotesField(
             focus: () => {
                 if (isReadOnly) return;
                 assertExists(editorRef.current).focus();
+            },
+            getEditorIfExists: () => {
+                if (isReadOnly) return null;
+                return assertExists(editorRef.current);
             },
         }),
         [isReadOnly],

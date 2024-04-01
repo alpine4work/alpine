@@ -1,4 +1,5 @@
-import {getInteractionModality} from "@react-aria/interactions";
+import {getInteractionModality, usePress} from "@react-aria/interactions";
+import classNames from "classnames";
 import {Plus, SpinnerGap} from "phosphor-react";
 import {
     KeyboardEvent,
@@ -27,6 +28,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {createDisplayTaskCollectionsStore} from "~/client/tasks/internal/create_display_task_collections_store.js";
@@ -134,6 +136,7 @@ function TaskCollectionsInput(
     },
     ref: Ref<TaskCollectionsInputRef>,
 ) {
+    const isMobile = useIsMobile();
     const {isAppleDevice} = useClientInfo();
     const context = useAppContext();
     const rootNavigate = useRootNavigate();
@@ -234,6 +237,9 @@ function TaskCollectionsInput(
         },
 
         onFocus: () => {
+            // Open the combobox on focus.
+            comboBoxState.open();
+
             setInputState(inputState => {
                 if (inputState.type === "Focused") return inputState;
                 return {type: "Focused", value: inputState.value};
@@ -602,10 +608,34 @@ function TaskCollectionsInput(
         );
     });
 
+    const {pressProps: backdropPressProps} = usePress({
+        // Backdrop doesn't receive focus.
+        preventFocusOnPress: true,
+
+        onPressStart: event => {
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType === "mouse") {
+                assertExists(inputRef.current).focus({preventScroll: true});
+            }
+        },
+        onPress: event => {
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType !== "mouse") {
+                assertExists(inputRef.current).focus({preventScroll: true});
+            }
+        },
+    });
+
     return (
         <Box
             ref={containerRef}
             data-testid={process.env.NODE_ENV !== "production" ? "TaskCollectionsInput" : undefined}
+            position="relative"
+            zIndex="0"
             display="flex"
             alignItems="center"
             flexWrap="wrap"
@@ -613,29 +643,18 @@ function TaskCollectionsInput(
             columnGap="2.5"
             paddingX={paddingX}
             paddingY={paddingY}
-            className={
-                !isReadOnly && areMarginsClickable
-                    ? tasksStyles.textCursorNotInheritedClassName
-                    : undefined
-            }
-            onPointerDown={event => {
-                if (isReadOnly) return;
-                if (!areMarginsClickable) return;
-
-                if (event.target === event.currentTarget) {
-                    // Don't unfocus as a result of clicking.
-                    event.preventDefault();
-
-                    // NOCOMMIT: On mobile this should probably be cancelled if the user
-                    // scrolls so we should use `usePress()` instead and use `onPressStart` for
-                    // mouse inputs and `onPress` for touch inputs.
-                    assertExists(inputRef.current).focus({
-                        // Should scroll `<TaskRowCollectionsCell>`.
-                        preventScroll: false,
-                    });
-                }
-            }}
         >
+            {!isReadOnly && areMarginsClickable && (
+                <div
+                    {...backdropPressProps}
+                    className={sprinkles({
+                        position: "absolute",
+                        zIndex: "-10",
+                        inset: "0",
+                        cursor: "text",
+                    })}
+                />
+            )}
             {collectionsChildren}
             {createCollectionInputState.isVisible && (
                 <Box
@@ -717,7 +736,11 @@ function TaskCollectionsInput(
                     placement="bottom-start"
                     // If we're approaching the edge of the screen (like in a row cell) don't allow
                     // flipping horizontally but still allow flipping vertically.
-                    fallbackPlacements={["top-start"]}
+                    //
+                    // Don't allow flipping vertically on mobile. Instead
+                    // `useScrollToAvoidBottomBarsAndMobileKeyboard()` should kick in to make sure
+                    // the overlay is visible.
+                    fallbackPlacements={!isMobile ? ["top-start"] : []}
                     overlay={
                         <Box
                             ref={popoverRef}
@@ -815,12 +838,15 @@ function TaskCollectionsInput(
                                     ref={inputRef}
                                     type="text"
                                     tabIndex={!isTabbable ? -1 : undefined}
-                                    className={sprinkles({
-                                        position: "absolute",
-                                        inset: "0",
-                                        display: "inline-block",
-                                        backgroundColor: "transparent",
-                                    })}
+                                    className={classNames(
+                                        tasksStyles.taskCollectionsInputAddInputClassName,
+                                        sprinkles({
+                                            position: "absolute",
+                                            inset: "0",
+                                            display: "inline-block",
+                                            backgroundColor: "transparent",
+                                        }),
+                                    )}
                                     style={{
                                         paddingLeft:
                                             inputState.value.length === 0
@@ -838,17 +864,6 @@ function TaskCollectionsInput(
                                     // Use `aria-placeholder` since the placeholder text is rendered by another DOM
                                     // element with an icon.
                                     aria-placeholder={inputPlaceholder}
-                                    // Make sure the combobox is always open when the user clicks on the collection
-                                    // input. We've observed some bugs where `react-aria` doesn't happen to open
-                                    // the combobox consistently on focus.
-                                    onPointerDown={() => {
-                                        // NOCOMMIT: On mobile this should probably be cancelled if the user
-                                        // scrolls so we should use `usePress()` instead and use `onPressStart` for
-                                        // mouse inputs and `onPress` for touch inputs.
-                                        if (!isReadOnly) {
-                                            comboBoxState.open();
-                                        }
-                                    }}
                                     onKeyDown={event => {
                                         if (
                                             event.key === "Enter" &&

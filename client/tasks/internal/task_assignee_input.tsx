@@ -460,11 +460,6 @@ function TaskAssigneeInput(
             // starts scrolling that cancels our press.
             if (event.pointerType === "mouse") {
                 assertExists(inputRef.current).focus();
-
-                // Make sure to reopen the combobox whenever the pointer clicks the input.
-                if (!isReadOnly) {
-                    comboBoxState.open();
-                }
             }
         },
         onPress: event => {
@@ -473,11 +468,6 @@ function TaskAssigneeInput(
             // starts scrolling that cancels our press.
             if (event.pointerType !== "mouse") {
                 assertExists(inputRef.current).focus();
-
-                // Make sure to reopen the combobox whenever the pointer clicks the input.
-                if (!isReadOnly) {
-                    comboBoxState.open();
-                }
             }
         },
     });

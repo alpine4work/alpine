@@ -16,15 +16,18 @@ import {
     useRef,
     useState,
 } from "react";
+import {ContentEditorRef} from "~/client/content/content_editor.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {MenuAction} from "~/client/design/menu_button.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {Tooltip} from "~/client/design/tooltip.js";
+import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -79,7 +82,7 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Context} from "~/shared/context/context.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -87,7 +90,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
-import {invertSelectionColorsClassName, sprinkles} from "~/shared/styles/styles.js";
+import {
+    contentSchemaStyles,
+    invertSelectionColorsClassName,
+    sprinkles,
+} from "~/shared/styles/styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {
     addFallbackToTaskTitle,
@@ -402,6 +409,30 @@ export function TaskDetailView({
 
             return true;
         },
+        getAnchorPosition: useCallback(() => {
+            const main = assertExists(mainRef.current);
+            const editor = main.getNotesEditorIfExists();
+
+            // We'll get our anchor position from the editor if it exists and is focused.
+            if (!editor || !editor.isFocused()) return null;
+
+            const editorState = editor.getState();
+
+            const coords = editor.coordsAtPos(editorState.getSelection().from);
+
+            const paragraphLineHeight = convertRemLengthToPx(
+                contentSchemaStyles.paragraphLineHeight,
+                getRemPxWithoutListening(),
+            );
+
+            // Add a paragraph line height in either direction as slop. We consider the
+            // selection offscreen if there's less than a line of space between it and the
+            // keyboard.
+            return {
+                top: coords.top - paragraphLineHeight,
+                height: coords.bottom - coords.top + paragraphLineHeight * 2,
+            };
+        }, []),
     });
 
     const displayStatus = useStore(
@@ -798,6 +829,7 @@ type TaskDetailViewMainRef = {
     focusAssigneeInput(): void;
     focusCollectionsInput(): void;
     focusNotesInput(): void;
+    getNotesEditorIfExists(): ContentEditorRef<TaskNotesContentWithReferences> | null;
 };
 
 const TaskDetailViewMainMemo = memo(forwardRef(TaskDetailViewMain));
@@ -974,6 +1006,9 @@ function TaskDetailViewMain(
                 if (!notesField.isFocused()) {
                     notesField.focus();
                 }
+            },
+            getNotesEditorIfExists: () => {
+                return assertExists(notesFieldRef.current).getEditorIfExists();
             },
         }),
         [focusDueDateInput, focusPriorityInput, statusButtonRef, titleInputRef],
@@ -1356,9 +1391,20 @@ function TaskDetailViewDenseField({
                 // As an affordance for mouse users, when the label is clicked we focus
                 // the first element in the input.
                 onClick={() => {
-                    getNextFocusableElementIfExists(null, {
+                    let element = getNextFocusableElementIfExists(null, {
                         withinElement: assertExists(valueRef.current),
-                    })?.focus();
+                    });
+
+                    // Look specifically for text input elements. This is important for
+                    // `<TaskCollectionsInput>` since we want to focus the "+ Add" text input not a
+                    // collection chip.
+                    while (!isTextInputElement(element)) {
+                        element = getNextFocusableElementIfExists(element, {
+                            withinElement: assertExists(valueRef.current),
+                        });
+                    }
+
+                    element?.focus();
                 }}
             >
                 {label}
