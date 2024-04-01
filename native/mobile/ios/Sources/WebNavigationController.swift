@@ -226,6 +226,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 }) ? bottomBarKeyboardToolbarHeight : 0)
     }
 
+    private var hasCalledKeyboardDidHide = false
+    private var keyboardWillHideAnimationTimer: Timer?
+
     private var lastApplicationDidBecomeActiveNotificationTime: DispatchTime?
 
     private var theme30Color = UIColor(named: "indigo-30")!
@@ -1491,6 +1494,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     @objc private func keyboardWillHide(notification: NSNotification) {
+        hasCalledKeyboardDidHide = false
+        keyboardWillHideAnimationTimer?.invalidate()
+        keyboardWillHideAnimationTimer = nil
+
         // `keyboardOffset` (which this function call uses) is updated in
         // `webInputAccessoryObserverView(_:didMoveTo:)`. This method happens to run
         // after that method.
@@ -1536,27 +1543,46 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         webView.evaluateJavaScript(
             "window.__NativeMobileBridge.keyboard._callFrameChangeListeners(\(args))"
         )
+
+        // We observe that `keyboardDidHide()` is called after ~500ms whereas
+        // `animationDuration` is 250ms. We want to call our keyboard animation
+        // listeners promptly once the keyboard closes (since keyboard animations block
+        // navigation) so set a timer for when the keyboard animation completes and
+        // call `keyboardDidHide()` ourselves if it hasn't been called yet.
+        let timer = Timer.scheduledTimer(withTimeInterval: animationDuration, repeats: false) {
+            [self] (_) in
+            keyboardWillHideAnimationTimer = nil
+            actuallyKeyboardDidHide()
+        }
+
+        // Add some tolerance to reduce timer energy impact.
+        timer.tolerance = 0.05
+
+        keyboardWillHideAnimationTimer = timer
     }
 
-    @objc private func keyboardDidHide(notification: NSNotification) {
-        var shouldCallScheduledAfterKeyboardAnimationCallbacks = false
+    @objc private func keyboardDidHide(notification: NSNotification) { actuallyKeyboardDidHide() }
+
+    private func actuallyKeyboardDidHide() {
+        if hasCalledKeyboardDidHide { return }
+        hasCalledKeyboardDidHide = true
+        keyboardWillHideAnimationTimer?.invalidate()
+        keyboardWillHideAnimationTimer = nil
+
+        var alsoCallScheduledAfterKeyboardAnimationCallbacks = false
         keyboardAnimationState = nil
 
         if isAfterKeyboardAnimationCallbackScheduled {
             isAfterKeyboardAnimationCallbackScheduled = false
-            shouldCallScheduledAfterKeyboardAnimationCallbacks = true
+            alsoCallScheduledAfterKeyboardAnimationCallbacks = true
         }
 
         // Once the keyboard is fully hidden, now we update safe area insets so they
         // don't include space for the keyboard anymore.
         updateWebViewSafeAreaInsets(
             alsoCallFrameChangeListeners: nil,
-            completion: shouldCallScheduledAfterKeyboardAnimationCallbacks
-                ? { [self] in
-                    webView.evaluateJavaScript(
-                        "window.__NativeMobileBridge.keyboard._callScheduledAfterAnimationCallbacks()"
-                    )
-                } : nil
+            alsoCallScheduledAfterKeyboardAnimationCallbacks:
+                alsoCallScheduledAfterKeyboardAnimationCallbacks
         )
     }
 
@@ -1654,7 +1680,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     private func updateWebViewSafeAreaInsets(
         alsoCallFrameChangeListeners: (Double, Double, Bool, Bool)? = nil,
-        completion: (() -> Void)? = nil
+        alsoCallScheduledAfterKeyboardAnimationCallbacks: Bool = false
     ) {
         let safeAreaInsets = getSafeAreaInsets()
 
@@ -1674,6 +1700,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 "\n    window.__NativeMobileBridge.keyboard._callFrameChangeListeners(\(alsoCallFrameChangeListeners.0), \(alsoCallFrameChangeListeners.1), \(alsoCallFrameChangeListeners.2), \(alsoCallFrameChangeListeners.3));\n"
             } else { "" }
 
+        let alsoCallScheduledAfterKeyboardAnimationCallbacksSource =
+            if alsoCallScheduledAfterKeyboardAnimationCallbacks {
+                "\n    window.__NativeMobileBridge.keyboard._callScheduledAfterAnimationCallbacks();\n"
+            } else { "" }
+
         let source = """
             {
                 const styleString = `\(styleString)`;
@@ -1687,13 +1718,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     styleElement.innerHTML = styleString;
                     document.head.appendChild(styleElement);
                 }
-            \(alsoCallFromChangeListenersSource)}
+            \(alsoCallFromChangeListenersSource)\(alsoCallScheduledAfterKeyboardAnimationCallbacksSource)}
             """
 
-        let completionHandler: ((Any?, Error?) -> Void)? =
-            if let completion = completion { { (_, _) in completion() } } else { nil }
-
-        webView.evaluateJavaScript(source, completionHandler: completionHandler)
+        webView.evaluateJavaScript(source)
     }
 
     private func setAllWebScrollViewScrollIndicatorInsets() {
@@ -2154,6 +2182,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
             completion?()
         }
+
+        // Add some tolerance to reduce timer energy impact.
+        timer.tolerance = 0.05
 
         keyboardWebSubstituteState = .opening(oldKeyboardOffset: oldKeyboardOffset, timer: timer)
         shouldDisableScrollFromKeyboardFrameChange += 1
