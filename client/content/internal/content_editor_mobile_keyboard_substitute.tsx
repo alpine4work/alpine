@@ -93,6 +93,8 @@ function ContentEditorMobileKeyboardSubstitute(
     },
     ref: Ref<ContentEditorMobileKeyboardSubstituteRef>,
 ) {
+    const {schema} = state;
+
     const rootPortalElement = assertExists(
         useOverlayRootPortalElement(),
         "Can't server render `<ContentEditorMobileKeyboardSubstitute>`",
@@ -162,6 +164,7 @@ function ContentEditorMobileKeyboardSubstitute(
     );
 
     const [isHighlightSelectorOpen, setIsHighlightSelectorOpen] = useState(false);
+    if (!schema.marks.highlight && isHighlightSelectorOpen) setIsHighlightSelectorOpen(false);
 
     const selectionMarks = useMemo(
         () => getMarksSpanningAcrossEntireRange(state.doc, state.selection),
@@ -169,11 +172,16 @@ function ContentEditorMobileKeyboardSubstitute(
     );
 
     const activeHighlightMark = useMemo(
-        () => selectionMarks.find(mark => mark.type.name === "highlight") ?? null,
-        [selectionMarks],
+        () =>
+            schema.marks.highlight
+                ? selectionMarks.find(mark => mark.type.name === "highlight") ?? null
+                : null,
+        [schema.marks.highlight, selectionMarks],
     );
 
     const selectHighlightColor = (highlightColor: HighlightColor | null) => {
+        if (!schema.marks.highlight) return;
+
         const view = assertExists(viewRef.current);
         const {state} = view;
 
@@ -186,7 +194,7 @@ function ContentEditorMobileKeyboardSubstitute(
                 state.tr.addMark(
                     range.from,
                     range.to,
-                    state.schema.mark("highlight", {
+                    schema.mark("highlight", {
                         color: highlightColor,
                     }),
                 ),
@@ -196,7 +204,7 @@ function ContentEditorMobileKeyboardSubstitute(
                 state.tr.removeMark(
                     state.selection.from,
                     state.selection.to,
-                    state.schema.marks.highlight,
+                    schema.marks.highlight,
                 ),
             );
         }
@@ -299,11 +307,13 @@ function ContentEditorMobileKeyboardSubstituteMain({
     onHighlightSelectorOpen: () => void;
     onSelectHighlightColor: (highlightColor: HighlightColor | null) => void;
 }) {
+    const {schema} = state;
+
     const {isBoldActive, isItalicActive, isStrikeActive, isCodeActive} = useMemo(() => {
-        const boldMark = state.schema.mark("bold");
-        const italicMark = state.schema.mark("italic");
-        const strikeMark = state.schema.mark("strike");
-        const codeMark = state.schema.mark("code");
+        const boldMark = schema.mark("bold");
+        const italicMark = schema.mark("italic");
+        const strikeMark = schema.mark("strike");
+        const codeMark = schema.mark("code");
 
         return {
             isBoldActive:
@@ -319,56 +329,50 @@ function ContentEditorMobileKeyboardSubstituteMain({
                 codeMark.isInSet(selectionMarks) ||
                 (!!state.storedMarks && codeMark.isInSet(state.storedMarks)),
         };
-    }, [selectionMarks, state.schema, state.storedMarks]);
+    }, [selectionMarks, schema, state.storedMarks]);
 
     const isUnorderedListItemActive = useMemo(
-        () =>
-            areAllNodesListItemType(
-                state.doc,
-                state.selection,
-                state.schema.nodes.unorderedListItem,
-            ),
-        [state.doc, state.schema.nodes.unorderedListItem, state.selection],
+        () => areAllNodesListItemType(state.doc, state.selection, schema.nodes.unorderedListItem),
+        [state.doc, schema.nodes.unorderedListItem, state.selection],
     );
 
     const isOrderedListItemActive = useMemo(
-        () =>
-            areAllNodesListItemType(state.doc, state.selection, state.schema.nodes.orderedListItem),
-        [state.doc, state.schema.nodes.orderedListItem, state.selection],
+        () => areAllNodesListItemType(state.doc, state.selection, schema.nodes.orderedListItem),
+        [state.doc, schema.nodes.orderedListItem, state.selection],
     );
 
     const isCheckListItemActive = useMemo(
         () =>
-            !!state.schema.nodes.checkListItem &&
-            areAllNodesListItemType(state.doc, state.selection, state.schema.nodes.checkListItem),
-        [state.doc, state.schema.nodes.checkListItem, state.selection],
+            !!schema.nodes.checkListItem &&
+            areAllNodesListItemType(state.doc, state.selection, schema.nodes.checkListItem),
+        [state.doc, schema.nodes.checkListItem, state.selection],
     );
 
     const isHeadingLevel1Active = useMemo(
         () =>
-            !!state.schema.nodes.heading &&
-            areAllNodesBlockType(state.doc, state.selection, state.schema.nodes.heading, {
+            !!schema.nodes.heading &&
+            areAllNodesBlockType(state.doc, state.selection, schema.nodes.heading, {
                 level: 1,
             }),
-        [state.doc, state.schema.nodes.heading, state.selection],
+        [state.doc, schema.nodes.heading, state.selection],
     );
 
     const isHeadingLevel2Active = useMemo(
         () =>
-            !!state.schema.nodes.heading &&
-            areAllNodesBlockType(state.doc, state.selection, state.schema.nodes.heading, {
+            !!schema.nodes.heading &&
+            areAllNodesBlockType(state.doc, state.selection, schema.nodes.heading, {
                 level: 2,
             }),
-        [state.doc, state.schema.nodes.heading, state.selection],
+        [state.doc, schema.nodes.heading, state.selection],
     );
 
     const isHeadingLevel3Active = useMemo(
         () =>
-            !!state.schema.nodes.heading &&
-            areAllNodesBlockType(state.doc, state.selection, state.schema.nodes.heading, {
+            !!schema.nodes.heading &&
+            areAllNodesBlockType(state.doc, state.selection, schema.nodes.heading, {
                 level: 3,
             }),
-        [state.doc, state.schema.nodes.heading, state.selection],
+        [state.doc, schema.nodes.heading, state.selection],
     );
 
     const linkSelection = useMemo(
@@ -379,10 +383,20 @@ function ContentEditorMobileKeyboardSubstituteMain({
     return (
         <Box
             flexGrow="1"
+            paddingBottom={
+                // If there are fewer available styles, add some padding to the end so the
+                // existing style buttons aren't too big.
+                !schema.marks.highlight && !schema.nodes.checkListItem ? "4" : undefined
+            }
             style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(2, 1fr)",
-                gridTemplateRows: "repeat(6, 1fr)",
+                gridTemplateRows:
+                    // We need different grid layouts depending on the available styles. Documents
+                    // need 6 rows whereas task notes only need 5 rows.
+                    !schema.marks.highlight && !schema.nodes.checkListItem
+                        ? "repeat(5, 1fr)"
+                        : "repeat(6, 1fr)",
                 gridAutoFlow: "column",
                 // Simple border down the middle with gradient. Solution inspired by:
                 // https://stackoverflow.com/a/61678228/1568890
@@ -394,14 +408,14 @@ function ContentEditorMobileKeyboardSubstituteMain({
                 label="Bold"
                 labelProps={{fontStyle: "extra-bold"}}
                 isActive={isBoldActive}
-                onPress={fromCommand(viewRef, createToggleMarkCommand(state.schema.mark("bold")))}
+                onPress={fromCommand(viewRef, createToggleMarkCommand(schema.mark("bold")))}
             />
             <ContentEditorMobileKeyboardSubstituteButton
                 icon={<TextItalic />}
                 label="Italic"
                 labelProps={{className: contentSchemaStyles.italicClassName}}
                 isActive={isItalicActive}
-                onPress={fromCommand(viewRef, createToggleMarkCommand(state.schema.mark("italic")))}
+                onPress={fromCommand(viewRef, createToggleMarkCommand(schema.mark("italic")))}
             />
             <ContentEditorMobileKeyboardSubstituteButton
                 icon={<LinkIcon />}
@@ -452,31 +466,33 @@ function ContentEditorMobileKeyboardSubstituteMain({
                     });
                 }}
             />
-            <ContentEditorMobileKeyboardSubstituteButton
-                icon={<Palette />}
-                label="Highlight"
-                isActive={!!activeHighlightMark}
-                onPress={
-                    activeHighlightMark
-                        ? () => onSelectHighlightColor(null)
-                        : onHighlightSelectorOpen
-                }
-            />
+            {schema.marks.highlight && (
+                <ContentEditorMobileKeyboardSubstituteButton
+                    icon={<Palette />}
+                    label="Highlight"
+                    isActive={!!activeHighlightMark}
+                    onPress={
+                        activeHighlightMark
+                            ? () => onSelectHighlightColor(null)
+                            : onHighlightSelectorOpen
+                    }
+                />
+            )}
             <ContentEditorMobileKeyboardSubstituteButton
                 icon={<TextStrikethrough />}
                 label="Strikethrough"
                 labelProps={{className: contentSchemaStyles.strikeClassName}}
                 isActive={isStrikeActive}
-                onPress={fromCommand(viewRef, createToggleMarkCommand(state.schema.mark("strike")))}
+                onPress={fromCommand(viewRef, createToggleMarkCommand(schema.mark("strike")))}
             />
             <ContentEditorMobileKeyboardSubstituteButton
                 icon={<Code />}
                 label="Code"
                 labelProps={{className: contentSchemaStyles.codeClassName}}
                 isActive={isCodeActive}
-                onPress={fromCommand(viewRef, createToggleMarkCommand(state.schema.mark("code")))}
+                onPress={fromCommand(viewRef, createToggleMarkCommand(schema.mark("code")))}
             />
-            {state.schema.nodes.heading && (
+            {schema.nodes.heading && (
                 <>
                     <ContentEditorMobileKeyboardSubstituteButton
                         icon={<TextHOne />}
@@ -491,7 +507,7 @@ function ContentEditorMobileKeyboardSubstituteMain({
                         isActive={isHeadingLevel1Active}
                         onPress={fromCommand(
                             viewRef,
-                            createToggleBlockTypeCommand(state.schema.nodes.heading, {
+                            createToggleBlockTypeCommand(schema.nodes.heading, {
                                 level: 1,
                             }),
                         )}
@@ -509,7 +525,7 @@ function ContentEditorMobileKeyboardSubstituteMain({
                         isActive={isHeadingLevel2Active}
                         onPress={fromCommand(
                             viewRef,
-                            createToggleBlockTypeCommand(state.schema.nodes.heading, {
+                            createToggleBlockTypeCommand(schema.nodes.heading, {
                                 level: 2,
                             }),
                         )}
@@ -521,7 +537,7 @@ function ContentEditorMobileKeyboardSubstituteMain({
                         isActive={isHeadingLevel3Active}
                         onPress={fromCommand(
                             viewRef,
-                            createToggleBlockTypeCommand(state.schema.nodes.heading, {
+                            createToggleBlockTypeCommand(schema.nodes.heading, {
                                 level: 3,
                             }),
                         )}
@@ -534,7 +550,7 @@ function ContentEditorMobileKeyboardSubstituteMain({
                 isActive={isUnorderedListItemActive}
                 onPress={fromCommand(
                     viewRef,
-                    createToggleListItemsCommand(state.schema.nodes.unorderedListItem),
+                    createToggleListItemsCommand(schema.nodes.unorderedListItem),
                 )}
             />
             <ContentEditorMobileKeyboardSubstituteButton
@@ -543,17 +559,17 @@ function ContentEditorMobileKeyboardSubstituteMain({
                 isActive={isOrderedListItemActive}
                 onPress={fromCommand(
                     viewRef,
-                    createToggleListItemsCommand(state.schema.nodes.orderedListItem),
+                    createToggleListItemsCommand(schema.nodes.orderedListItem),
                 )}
             />
-            {state.schema.nodes.checkListItem && (
+            {schema.nodes.checkListItem && (
                 <ContentEditorMobileKeyboardSubstituteButton
                     icon={<ListChecks />}
                     label="Check list"
                     isActive={isCheckListItemActive}
                     onPress={fromCommand(
                         viewRef,
-                        createToggleListItemsCommand(state.schema.nodes.checkListItem),
+                        createToggleListItemsCommand(schema.nodes.checkListItem),
                     )}
                 />
             )}

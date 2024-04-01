@@ -103,7 +103,7 @@ function ContentEditorMobileKeyboardToolbar(
     },
     ref: Ref<ContentEditorMobileKeyboardToolbarRef>,
 ) {
-    const {schema} = state.doc.type;
+    const {schema} = state;
 
     const isMounted = useIsMounted();
     const {isNativeMobile} = useClientInfo();
@@ -118,6 +118,7 @@ function ContentEditorMobileKeyboardToolbar(
 
     const [isSubstituteOpen, setIsSubstituteOpen] = useState(false);
     const [isCommentInputOpen, setIsCommentInputOpen] = useState(false);
+    if (!schema.marks.comment && isCommentInputOpen) setIsCommentInputOpen(false);
     const [linkModalState, setLinkModalState] = useState<ContentEditorMobileLinkModalState | null>(
         null,
     );
@@ -128,7 +129,10 @@ function ContentEditorMobileKeyboardToolbar(
             openCommentInput: () => {
                 const view = assertExists(viewRef.current);
 
-                if (view.state.selection.from !== view.state.selection.to) {
+                if (
+                    view.state.schema.marks.comment &&
+                    view.state.selection.from !== view.state.selection.to
+                ) {
                     setIsCommentInputOpen(true);
                 }
             },
@@ -240,8 +244,8 @@ function ContentEditorMobileKeyboardToolbar(
     const {isBoldActive, isItalicActive} = useMemo(() => {
         const marks = getMarksSpanningAcrossEntireRange(state.doc, state.selection);
 
-        const boldMark = state.schema.mark("bold");
-        const italicMark = state.schema.mark("italic");
+        const boldMark = schema.mark("bold");
+        const italicMark = schema.mark("italic");
 
         return {
             isBoldActive:
@@ -251,29 +255,23 @@ function ContentEditorMobileKeyboardToolbar(
                 italicMark.isInSet(marks) ||
                 (!!state.storedMarks && italicMark.isInSet(state.storedMarks)),
         };
-    }, [state.doc, state.schema, state.selection, state.storedMarks]);
+    }, [state.doc, schema, state.selection, state.storedMarks]);
 
     const isUnorderedListItemActive = useMemo(
-        () =>
-            areAllNodesListItemType(
-                state.doc,
-                state.selection,
-                state.schema.nodes.unorderedListItem,
-            ),
-        [state.doc, state.schema.nodes.unorderedListItem, state.selection],
+        () => areAllNodesListItemType(state.doc, state.selection, schema.nodes.unorderedListItem),
+        [state.doc, schema.nodes.unorderedListItem, state.selection],
     );
 
     const isOrderedListItemActive = useMemo(
-        () =>
-            areAllNodesListItemType(state.doc, state.selection, state.schema.nodes.orderedListItem),
-        [state.doc, state.schema.nodes.orderedListItem, state.selection],
+        () => areAllNodesListItemType(state.doc, state.selection, schema.nodes.orderedListItem),
+        [state.doc, schema.nodes.orderedListItem, state.selection],
     );
 
     const isCheckListItemActive = useMemo(
         () =>
-            !!state.schema.nodes.checkListItem &&
-            areAllNodesListItemType(state.doc, state.selection, state.schema.nodes.checkListItem),
-        [state.doc, state.schema.nodes.checkListItem, state.selection],
+            !!schema.nodes.checkListItem &&
+            areAllNodesListItemType(state.doc, state.selection, schema.nodes.checkListItem),
+        [state.doc, schema.nodes.checkListItem, state.selection],
     );
 
     const isIndentListItemEnabled = useMemo(
@@ -291,8 +289,11 @@ function ContentEditorMobileKeyboardToolbar(
     );
 
     const commentSelection = useMemo(
-        () => expandSelectionAroundMark(state.doc, state.selection, "comment"),
-        [state],
+        () =>
+            schema.marks.comment
+                ? expandSelectionAroundMark(state.doc, state.selection, "comment")
+                : null,
+        [schema, state],
     );
 
     return (
@@ -402,7 +403,7 @@ function ContentEditorMobileKeyboardToolbar(
                             isActive={isBoldActive}
                             onPress={fromCommand(
                                 viewRef,
-                                createToggleMarkCommand(state.schema.mark("bold")),
+                                createToggleMarkCommand(schema.mark("bold")),
                             )}
                         >
                             <TextBolder />
@@ -413,7 +414,7 @@ function ContentEditorMobileKeyboardToolbar(
                             isActive={isItalicActive}
                             onPress={fromCommand(
                                 viewRef,
-                                createToggleMarkCommand(state.schema.mark("italic")),
+                                createToggleMarkCommand(schema.mark("italic")),
                             )}
                         >
                             <TextItalic />
@@ -425,9 +426,7 @@ function ContentEditorMobileKeyboardToolbar(
                                 isActive={isUnorderedListItemActive}
                                 onPress={fromCommand(
                                     viewRef,
-                                    createToggleListItemsCommand(
-                                        state.schema.nodes.unorderedListItem,
-                                    ),
+                                    createToggleListItemsCommand(schema.nodes.unorderedListItem),
                                 )}
                             >
                                 <ListBullets />
@@ -441,22 +440,20 @@ function ContentEditorMobileKeyboardToolbar(
                                 isActive={isOrderedListItemActive}
                                 onPress={fromCommand(
                                     viewRef,
-                                    createToggleListItemsCommand(
-                                        state.schema.nodes.orderedListItem,
-                                    ),
+                                    createToggleListItemsCommand(schema.nodes.orderedListItem),
                                 )}
                             >
                                 <ListNumbers />
                             </ContentEditorMobileKeyboardToolbarButton>
                         )}
-                        {state.schema.nodes.checkListItem && isCheckListItemActive && (
+                        {schema.nodes.checkListItem && isCheckListItemActive && (
                             <ContentEditorMobileKeyboardToolbarButton
                                 label="Check list"
                                 dividerLeft
                                 isActive={isCheckListItemActive}
                                 onPress={fromCommand(
                                     viewRef,
-                                    createToggleListItemsCommand(state.schema.nodes.checkListItem),
+                                    createToggleListItemsCommand(schema.nodes.checkListItem),
                                 )}
                             >
                                 <ListChecks />
@@ -485,37 +482,41 @@ function ContentEditorMobileKeyboardToolbar(
                                 </ContentEditorMobileKeyboardToolbarButton>
                             </>
                         )}
-                        <ContentEditorMobileKeyboardToolbarButton
-                            label="Comment"
-                            dividerLeft
-                            isActive={!!commentSelection}
-                            isDisabled={
-                                state.selection.from === state.selection.to && !wordSelectionIfEmpty
-                            }
-                            onPress={() => {
-                                if (commentSelection) {
-                                    void openCommentThread?.(
-                                        assertId<DocumentCommentThreadId>(
-                                            commentSelection.mark.attrs.commentThreadId,
-                                        ),
-                                    );
-                                    return;
+                        {schema.marks.comment && (
+                            <ContentEditorMobileKeyboardToolbarButton
+                                label="Comment"
+                                dividerLeft
+                                isActive={!!commentSelection}
+                                isDisabled={
+                                    state.selection.from === state.selection.to &&
+                                    !wordSelectionIfEmpty
                                 }
+                                onPress={() => {
+                                    if (commentSelection) {
+                                        void openCommentThread?.(
+                                            assertId<DocumentCommentThreadId>(
+                                                commentSelection.mark.attrs.commentThreadId,
+                                            ),
+                                        );
+                                        return;
+                                    }
 
-                                // Set the selection after the comment input opens so the mobile selection
-                                // renderer doesn't flash in/out.
-                                if (wordSelectionIfEmpty) {
-                                    setSelectionAfterCommentInputOpenRef.current =
-                                        wordSelectionIfEmpty;
-                                }
+                                    // Set the selection after the comment input opens so the mobile selection
+                                    // renderer doesn't flash in/out.
+                                    if (wordSelectionIfEmpty) {
+                                        setSelectionAfterCommentInputOpenRef.current =
+                                            wordSelectionIfEmpty;
+                                    }
 
-                                setIsCommentInputOpen(true);
-                            }}
-                        >
-                            <ChatCircleText />
-                        </ContentEditorMobileKeyboardToolbarButton>
+                                    setIsCommentInputOpen(true);
+                                }}
+                            >
+                                <ChatCircleText />
+                            </ContentEditorMobileKeyboardToolbarButton>
+                        )}
                         <ContentEditorMobileKeyboardToolbarButton
                             label="More"
+                            dividerLeft={!schema.marks.comment}
                             isActive={false}
                             onPress={() => {
                                 if (!NativeMobileBridge) {
