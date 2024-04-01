@@ -54,7 +54,7 @@ import {
     mobileModalAnimationDurationMs,
     mobileModalAnimationEasingParsedCubicBezier,
 } from "~/client/design/mobile_modal.js";
-import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
+import {useOverlayMobileKeyboardPortalElement} from "~/client/design/overlay_mobile_keyboard_sink_context_provider.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
@@ -95,8 +95,8 @@ function ContentEditorMobileKeyboardSubstitute(
 ) {
     const {schema} = state;
 
-    const rootPortalElement = assertExists(
-        useOverlayRootPortalElement(),
+    const portalElement = assertExists(
+        useOverlayMobileKeyboardPortalElement(),
         "Can't server render `<ContentEditorMobileKeyboardSubstitute>`",
     );
 
@@ -213,7 +213,7 @@ function ContentEditorMobileKeyboardSubstitute(
     return createPortal(
         <Box
             ref={substituteRef}
-            position="fixed"
+            position="absolute"
             // Render above everything on the page including toolbar.
             zIndex="70"
             left="0"
@@ -286,7 +286,7 @@ function ContentEditorMobileKeyboardSubstitute(
         </Box>,
         // Portal into the root element so we aren't affected by whatever scroll view
         // this is rendered in.
-        rootPortalElement,
+        portalElement,
     );
 }
 

@@ -264,7 +264,7 @@ export function NativeMobileOutlet({
                 // While inert, remove the document from the content flow and make
                 // it invisible. `bottom: 0` is so that a tall inert route doesn't grow
                 // our `<body>`'s height.
-                position: isInert ? "absolute" : undefined,
+                position: isInert ? "absolute" : "relative",
                 bottom: isInert ? "0" : undefined,
                 visibility: isInert ? "hidden" : undefined,
                 // A `<div>` positioned relatively is implicitly `width: 100%`. Make sure the

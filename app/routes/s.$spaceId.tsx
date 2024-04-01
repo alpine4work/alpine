@@ -12,6 +12,7 @@ import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {ContextMenuManager} from "~/client/design/context_menu.js";
+import {OverlayMobileKeyboardSinkContextProvider} from "~/client/design/overlay_mobile_keyboard_sink_context_provider.js";
 import {emitMobileKeyboardFrameChangeIfNotNative} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
 import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
 import {
@@ -265,34 +266,21 @@ export default function SpaceLayoutRoute() {
     if (!nativeMobileRouterState) {
         nodes.push(
             <div key={nodeKey++} className={outletContainerClassName} style={outletContainerStyle}>
-                {!isMobile && (
-                    <SpaceLayoutSideBar
-                        space={space}
-                        initialInbox={inbox}
-                        onSearchPress={() => {
-                            setSearchState(searchState => {
-                                if (searchState) return searchState;
-                                return {initialQueryText: ""};
-                            });
-                        }}
-                    />
-                )}
-                {error !== undefined ? <SpaceRouteErrorRenderer error={error} /> : <Outlet />}
-                {/* NOCOMMIT: {!isMobile && (
-                    <SpaceLayoutTopBar
-                        space={space}
-                        initialInbox={inbox}
-                        onSearchInputPress={() => {
-                            // Don't open the search modal on mobile.
-                            if (isMobile) return;
-
-                            setSearchState(searchState => {
-                                if (searchState) return searchState;
-                                return {initialQueryText: ""};
-                            });
-                        }}
-                    />
-                )} */}
+                <OverlayMobileKeyboardSinkContextProvider>
+                    {!isMobile && (
+                        <SpaceLayoutSideBar
+                            space={space}
+                            initialInbox={inbox}
+                            onSearchPress={() => {
+                                setSearchState(searchState => {
+                                    if (searchState) return searchState;
+                                    return {initialQueryText: ""};
+                                });
+                            }}
+                        />
+                    )}
+                    {error !== undefined ? <SpaceRouteErrorRenderer error={error} /> : <Outlet />}
+                </OverlayMobileKeyboardSinkContextProvider>
             </div>,
         );
     } else {

@@ -10,7 +10,7 @@ import {
 import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {Box} from "~/client/design/box.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
+import {useOverlayMobileKeyboardPortalElement} from "~/client/design/overlay_mobile_keyboard_sink_context_provider.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -30,8 +30,8 @@ export function ContentEditorMobileCommentInputBottomBar({
     viewRef: RefObject<EditorView | null>;
     onClose: () => void;
 }) {
-    const rootPortalElement = assertExists(
-        useOverlayRootPortalElement(),
+    const portalElement = assertExists(
+        useOverlayMobileKeyboardPortalElement(),
         "Can't server render `<ContentEditorMobileCommentInputBottomBar>`",
     );
 
@@ -113,16 +113,14 @@ export function ContentEditorMobileCommentInputBottomBar({
             />
             {createPortal(
                 <Box
-                    position="fixed"
+                    position="absolute"
                     // Render above everything on the page.
                     zIndex="80"
                     left="0"
                     right="0"
                     style={{
-                        // `bottom: "-" + mobileBottomBarKeyboardToolbarHeightRem + "rem"` also
-                        // works except for in our Safari app keyboard support which limits the outlet
-                        // height to what's visible above the keyboard.
-                        bottom: `calc(100svh - var(--space-outlet-height, 100svh))`,
+                        top: `var(--space-outlet-height, 100svh)`,
+                        transform: "translateY(-100%)",
                     }}
                     // Bottom bar message input expects to be rendered in a flex context. Or else
                     // some layout bits (like the bottom bar safe area cover) won't work
@@ -146,7 +144,7 @@ export function ContentEditorMobileCommentInputBottomBar({
                         onSend={sendComment}
                     />
                 </Box>,
-                rootPortalElement,
+                portalElement,
             )}
             {shouldShowConfirmCloseDialog && (
                 // Because in our native mobile app `onClose` is never called, the cancel

@@ -36,6 +36,7 @@ import {Store} from "~/client/helpers/store/store.js";
 import {undefinedStore} from "~/client/helpers/store/undefined_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
+import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
@@ -353,6 +354,7 @@ export function useTaskGridViewVirtualizedList({
     const {isAppleDevice} = useClientInfo();
     const context = useAppContext();
     const remPx = useRemPx();
+    const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
 
     const mobileKeyboardToolbarPortalRef = useRef<HTMLDivElement>(null);
 
@@ -2138,7 +2140,7 @@ export function useTaskGridViewVirtualizedList({
                         onAfterDelete={taskDeleteConfirmationState.onAfterDelete}
                     />
                 )}
-                {!isInitialAppRender && isMobile && (
+                {!isInitialAppRender && isMobile && !isInertNativeMobileRoute && (
                     // The mobile keyboard toolbar is modal-ish? Maybe we should rename this prop.
                     <TaskGridViewMobileKeyboardToolbarContainer
                         portalRef={mobileKeyboardToolbarPortalRef}

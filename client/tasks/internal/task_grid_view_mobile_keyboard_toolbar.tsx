@@ -9,7 +9,7 @@ import {
     mobileBottomBarKeyboardToolbarHeight,
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
-import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
+import {useOverlayMobileKeyboardPortalElement} from "~/client/design/overlay_mobile_keyboard_sink_context_provider.js";
 import {useRegisterBottomBarMobileKeyboardToolbarFrame} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -111,8 +111,8 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
     portalRef: Ref<HTMLDivElement>;
 }) {
     const {isNativeMobile} = useClientInfo();
-    const rootPortalElement = assertExists(
-        useOverlayRootPortalElement(),
+    const portalElement = assertExists(
+        useOverlayMobileKeyboardPortalElement(),
         "Can't server render `<TaskGridViewMobileKeyboardToolbar>`",
     );
 
@@ -230,15 +230,12 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
             pointerEvents="none"
             paddingTop="2"
             marginTop="-2"
-            position="fixed"
+            position="absolute"
             // Render above everything on the page
             zIndex="60"
             left="0"
             right="0"
             style={{
-                // `bottom: "-" + mobileBottomBarKeyboardToolbarHeightRem + "rem"` also
-                // works except for in our Safari app keyboard support which limits the outlet
-                // height to what's visible above the keyboard.
                 top: `var(--space-outlet-height, 100svh)`,
                 // Our native mobile wrapper looks for compositing layers created from an
                 // element with an ID that starts with `nmbb-` and ties their position to
@@ -298,7 +295,7 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
                 )}
             </Box>
         </Box>,
-        rootPortalElement,
+        portalElement,
     );
 }
 

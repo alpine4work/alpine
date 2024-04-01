@@ -40,7 +40,7 @@ import {
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {sprinkles} from "~/shared/styles/styles.js";
+import {Sprinkles, sprinkles} from "~/shared/styles/styles.js";
 
 /**
  * Where should the overlay content be placed relative to the target element?
@@ -580,37 +580,36 @@ export function OverlayScopeContextProvider({
             )}
         >
             {children}
-            <Box
-                ref={portalRef}
-                position="absolute"
-                top="0"
-                left="0"
-                right="0"
-                // The root portal element has a height of 0 because when you use it in a
-                // nested scroll view we don't want the overlay height to extend from the top
-                // to the bottom of the nested scroll view which is not the scroll view's
-                // content height.
-                height="0"
-                // Render above anything on the page.
-                zIndex="50"
-            />
-            {!parentOverlaySink && (
-                <Box
-                    ref={blockingPortalRef}
-                    position="absolute"
-                    top="0"
-                    left="0"
-                    right="0"
-                    // The root portal element has a height of 0 because when you use it in a
-                    // nested scroll view we don't want the overlay height to extend from the top
-                    // to the bottom of the nested scroll view which is not the scroll view's
-                    // content height.
-                    height="0"
+            {renderOverlayPortal(portalRef)}
+            {!parentOverlaySink &&
+                renderOverlayPortal(
+                    blockingPortalRef,
                     // Render at the absolute top of the page. Even over other overlays.
-                    zIndex="70"
-                />
-            )}
+                    "70",
+                )}
         </OverlaySinkContext.Provider>
+    );
+}
+
+export function renderOverlayPortal(
+    ref: RefObject<HTMLDivElement>,
+    zIndex: Sprinkles["zIndex"] = "50",
+) {
+    return (
+        <Box
+            ref={ref}
+            position="absolute"
+            top="0"
+            left="0"
+            right="0"
+            // The overlay portal element has a height of 0 because when you use it in a
+            // nested scroll view we don't want the overlay height to extend from the top
+            // to the bottom of the nested scroll view which is not the scroll view's
+            // content height.
+            height="0"
+            // Render above anything on the page.
+            zIndex={zIndex}
+        />
     );
 }
 
