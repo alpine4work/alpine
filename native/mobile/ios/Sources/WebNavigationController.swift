@@ -970,6 +970,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
                 completion()
             }
+        } else if messageBody == "navigation.requestExternalPop" {
+            // Initiate a pop navigation from native code...
+            let _ = popViewController(animated: true)
         } else if messageBody.starts(with: "navigation.replace:") {
             let urlString = messageBody.suffix(
                 from: messageBody.index(messageBody.startIndex, offsetBy: 19)
@@ -2809,6 +2812,9 @@ private let webBridgeSource = """
                 },
                 pop: url => {
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.pop:${url}`);
+                },
+                requestExternalPop: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.requestExternalPop");
                 },
                 replace: url => {
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replace:${url}`);

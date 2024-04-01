@@ -261,6 +261,16 @@ export const NativeMobileBridge: {
         pop(url: URL): void;
 
         /**
+         * Ask native to perform a pop navigation if it can. We call this when a pop
+         * navigation is initiated in web code but web code doesn't have a previous
+         * route state. Native likely has a previous route state then.
+         *
+         * This happens when the page reloads so web code loses its previous navigation
+         * states but native remembers.
+         */
+        requestExternalPop(): void;
+
+        /**
          * When web code performs a replace navigation, we need to update native code's
          * navigation state to match the new URL. Otherwise native code's navigation
          * state and web code's navigation state will be incompatible.

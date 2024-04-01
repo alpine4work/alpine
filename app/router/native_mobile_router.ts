@@ -390,6 +390,14 @@ class NativeMobileMemoryHistory implements History {
         if (-delta > this._pastEntries.length) {
             // If this is not a navigation from native, clamp `delta`.
             if (urlFromExternal === null) {
+                // If web code doesn't know about any past entries we can't perform a pop.
+                // Request native code to perform a pop since it may know about previous
+                // navigation entries if our web view reloaded.
+                if (this._pastEntries.length === 0) {
+                    NativeMobileBridge!.navigation.requestExternalPop();
+                    return;
+                }
+
                 delta = -this._pastEntries.length;
             }
             // If native is asking us to go back further than the entries we have in
