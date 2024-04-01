@@ -2141,7 +2141,8 @@ export function useTaskGridViewVirtualizedList({
                     />
                 )}
                 {!isInitialAppRender && isMobile && !isInertNativeMobileRoute && (
-                    // The mobile keyboard toolbar is modal-ish? Maybe we should rename this prop.
+                    // The mobile keyboard toolbar is only modal-ish? Maybe we should rename
+                    // this prop.
                     <TaskGridViewMobileKeyboardToolbarContainer
                         portalRef={mobileKeyboardToolbarPortalRef}
                     />

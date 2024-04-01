@@ -11,9 +11,11 @@ import {
 } from "~/client/design/mobile_bottom_bar.js";
 import {useOverlayMobileKeyboardPortalElement} from "~/client/design/overlay_mobile_keyboard_sink_context_provider.js";
 import {useRegisterBottomBarMobileKeyboardToolbarFrame} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {TaskRowTitleInputRef} from "~/client/tasks/internal/task_row_title_input.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
@@ -121,8 +123,6 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
 
     const id = useId();
 
-    useRegisterBottomBarMobileKeyboardToolbarFrame();
-
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
@@ -161,33 +161,56 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
         };
     }, []);
 
-    const lastIsVisibleRef = useRef(isVisible);
+    const [isCompletelyHiddenFromState, setIsCompletelyHidden] = useState(true);
+    const isCompletelyHidden = isCompletelyHiddenFromState && !isVisible;
+    if (isCompletelyHidden !== isCompletelyHiddenFromState)
+        setIsCompletelyHidden(isCompletelyHidden);
+
+    const isAnimatingShowRef = useRef(false);
     useEffect(() => {
         // In our native mobile app, the native mobile wrapper is responsible for
         // making this toolbar visible.
-        if (isNativeMobile) return;
+        if (NativeMobileBridge) return;
 
-        if (lastIsVisibleRef.current === isVisible) return;
-        lastIsVisibleRef.current = isVisible;
+        if (!isVisible) {
+            isAnimatingShowRef.current = false;
+            return;
+        }
+
+        if (isAnimatingShowRef.current) return;
+        isAnimatingShowRef.current = true;
 
         const toolbarElement = assertExists(toolbarRef.current);
 
-        if (isVisible) {
-            animate(
-                toolbarElement,
-                {
-                    y: [0, `-${mobileBottomBarKeyboardToolbarHeightRem}rem`],
-                },
-                {
-                    duration: 0.2,
-                    // Make sure we use hardware acceleration for this animation in WebKit. By
-                    // default `motion` turns it off.
-                    // https://motion.dev/guides/performance#webkits-exceptions
-                    allowWebkitAcceleration: true,
-                },
-            );
-        } else {
-            animate(
+        animate(
+            toolbarElement,
+            {
+                y: [0, `-${mobileBottomBarKeyboardToolbarHeightRem}rem`],
+            },
+            {
+                duration: 0.2,
+                // Make sure we use hardware acceleration for this animation in WebKit. By
+                // default `motion` turns it off.
+                // https://motion.dev/guides/performance#webkits-exceptions
+                allowWebkitAcceleration: true,
+            },
+        );
+    }, [isNativeMobile, isVisible]);
+
+    const isAnimatingHideRef = useRef(false);
+    useEffect(() => {
+        if (isVisible || isCompletelyHiddenFromState) {
+            isAnimatingHideRef.current = false;
+            return;
+        }
+
+        if (isAnimatingHideRef.current) return;
+        isAnimatingHideRef.current = true;
+
+        const toolbarElement = assertExists(toolbarRef.current);
+
+        if (!NativeMobileBridge) {
+            const animation = animate(
                 toolbarElement,
                 {
                     y: [`-${mobileBottomBarKeyboardToolbarHeightRem}rem`, 0],
@@ -200,8 +223,18 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
                     allowWebkitAcceleration: true,
                 },
             );
+
+            animation.finished.finally(() => {
+                setIsCompletelyHidden(true);
+            });
+        } else {
+            NativeMobileBridge.keyboard.scheduleAfterAnimation(() => {
+                setIsCompletelyHidden(true);
+            });
         }
-    }, [isVisible, isNativeMobile]);
+    }, [isCompletelyHiddenFromState, isVisible]);
+
+    useRegisterBottomBarMobileKeyboardToolbarFrame({isDisabled: isCompletelyHidden});
 
     return createPortal(
         <Box
@@ -237,6 +270,12 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
             right="0"
             style={{
                 top: `var(--space-outlet-height, 100svh)`,
+                transition:
+                    // Animate after `--space-outlet-height` changes when the keyboard opens in
+                    // mobile Safari (not our native app). This is a little hacky. Ideally we'd run
+                    // the animation in our effect again but this is simple and we don't care too
+                    // much about mobile Safari (we care a lot about our native app).
+                    isVisible && isMobileWebKit && !isNativeMobile ? `top 250ms ease` : undefined,
                 // Our native mobile wrapper looks for compositing layers created from an
                 // element with an ID that starts with `nmbb-` and ties their position to
                 // the tab bar and software keyboard. So we get smooth animations while the
@@ -255,7 +294,22 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
                 // is a keyboard toolbar (configured with `kt-` in the ID) it doesn't move with
                 // the tab bar.
                 transform: isNativeMobile ? "translateY(0px)" : undefined,
+                // We don't unmount the grid view keyboard toolbar when it's completely hidden,
+                // only hide it visually. So for instance if you're in a task detail view
+                // focused on the title, the grid view keyboard toolbar will technically be in
+                // the DOM you just won't see it. We need to keep this element in the DOM so
+                // siblings can portal in actual toolbar implementations.
+                visibility: isCompletelyHidden ? "hidden" : undefined,
+                pointerEvents: isCompletelyHidden ? "none" : undefined,
             }}
+            // TypeScript doesn't know about this property yet. True is the [empty string
+            // and false is null][3].
+            //
+            // [3]: https://github.com/WICG/inert/issues/58#issuecomment-618016847
+            //
+            // @ts-expect-error
+            inert={isCompletelyHidden ? "" : null}
+            aria-hidden={isCompletelyHidden ? "true" : undefined}
             // Suppress React hydration warnings in our native mobile app. The native
             // mobile app sets the `transform` property on this element. Sometimes before
             // React finishes hydrating. This is expected, React can ignore the difference.

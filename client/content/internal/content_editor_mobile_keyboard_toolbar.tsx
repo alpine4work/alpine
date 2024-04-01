@@ -230,7 +230,7 @@ function ContentEditorMobileKeyboardToolbar(
         };
     }, [isSubstituteOpen, isMounted]);
 
-    useRegisterBottomBarMobileKeyboardToolbarFrame();
+    useRegisterBottomBarMobileKeyboardToolbarFrame({isDisabled: !isToolbarRendered});
 
     const wordSelectionIfEmpty = useMemo(
         () => expandEmptySelectionAroundWord(state.doc, state.selection),
@@ -370,7 +370,7 @@ function ContentEditorMobileKeyboardToolbar(
                                 // the animation in our effect again but this is simple and we don't care too
                                 // much about mobile Safari (we care a lot about our native app).
                                 isFocused && isMobileWebKit && !isNativeMobile
-                                    ? `top 400ms ease`
+                                    ? `top 250ms ease`
                                     : undefined,
                             // Our native mobile wrapper looks for compositing layers created from an
                             // element with an ID that starts with `nmbb-` and ties their position to

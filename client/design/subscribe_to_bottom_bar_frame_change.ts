@@ -38,12 +38,16 @@ export function getCurrentBottomBarHeight(): {
  */
 export function useRegisterBottomBarFrame<Element extends HTMLElement>(
     elementRef: RefObject<Element>,
-    {withMobileKeyboardToolbar = false}: {withMobileKeyboardToolbar?: boolean} = {},
+    {
+        isDisabled = false,
+        withMobileKeyboardToolbar = false,
+    }: {isDisabled?: boolean; withMobileKeyboardToolbar?: boolean} = {},
 ) {
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (isInertNativeMobileRoute) return;
+        if (isDisabled) return;
 
         const element = assertExists(elementRef.current);
 
@@ -108,18 +112,21 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
                 unregister?.();
             });
         };
-    }, [elementRef, isInertNativeMobileRoute, withMobileKeyboardToolbar]);
+    }, [elementRef, isDisabled, isInertNativeMobileRoute, withMobileKeyboardToolbar]);
 }
 
 /**
  * Register a mobile bottom bar that just provides a keyboard toolbar for the
  * height calculations of `subscribeToMobilBottomBarFrameChange()`.
  */
-export function useRegisterBottomBarMobileKeyboardToolbarFrame() {
+export function useRegisterBottomBarMobileKeyboardToolbarFrame({
+    isDisabled = false,
+}: {isDisabled?: boolean} = {}) {
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (isInertNativeMobileRoute) return;
+        if (isDisabled) return;
 
         let isCancelled = false;
         let unregister: (() => void) | null = null;
@@ -145,7 +152,7 @@ export function useRegisterBottomBarMobileKeyboardToolbarFrame() {
                 unregister?.();
             });
         };
-    }, [isInertNativeMobileRoute]);
+    }, [isDisabled, isInertNativeMobileRoute]);
 }
 
 /**
