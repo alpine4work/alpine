@@ -267,6 +267,10 @@ export function NativeMobileOutlet({
                 position: isInert ? "absolute" : undefined,
                 bottom: isInert ? "0" : undefined,
                 visibility: isInert ? "hidden" : undefined,
+                // A `<div>` positioned relatively is implicitly `width: 100%`. Make sure the
+                // absolutely positioned inert route gets the same width.
+                left: isInert ? "0" : undefined,
+                right: isInert ? "0" : undefined,
             }}
             // The [`<Offscreen>` component][1] React claims is coming may be a better
             // fit here so we don't actually render content in the DOM. `inert` has good
