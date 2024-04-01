@@ -1390,6 +1390,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             // grab the superview from `superlayer.delegate`.
             ?? webSubview.layer.superlayer?.delegate as? UIView,
             type(of: webSuperview).description() == "WKContentView_Custom"
+                && !type(of: webSubview).description().starts(with: "WKInspector")
                 && webSubview.layer.name != "FixedClipping"
         {
             let layerMasker = CALayerMasker(
