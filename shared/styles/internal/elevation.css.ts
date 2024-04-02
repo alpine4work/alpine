@@ -72,6 +72,22 @@ export const elevation = {
             },
         ],
     }),
+    "elevation-20-with-grey-10-border": createElevation({
+        lightBorderColor: "grey-10",
+        darkBorderColor: "grey-70",
+        shadows: [
+            {
+                shadow: "0px 4px 8px -2px",
+                lightColor: "rgb(18 18 20 / 0.12)",
+                darkColor: "rgb(0 0 0 / 0.3)",
+            },
+            {
+                shadow: "0px 2px 4px -2px",
+                lightColor: "rgb(18 18 20 / 0.06)",
+                darkColor: "rgb(0 0 0 / 0.18)",
+            },
+        ],
+    }),
     "elevation-30": createElevation({
         lightBorderColor: "rgb(0 0 0 / 0.09)",
         darkBorderColor: "grey-70",

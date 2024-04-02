@@ -1,244 +1,132 @@
-import {DndContext, DragOverlay, closestCenter, useDndContext} from "@dnd-kit/core";
+import {
+    DndContext,
+    DragOverlay,
+    KeyboardSensor,
+    MouseSensor,
+    TouchSensor,
+    closestCenter,
+    useDndContext,
+    useSensor,
+    useSensors,
+} from "@dnd-kit/core";
 import {SortableContext, arrayMove, useSortable} from "@dnd-kit/sortable";
-import {CaretDown, DotsSixVertical, Plus, X} from "phosphor-react";
-import {Fragment, Key, ReactNode, useMemo, useState} from "react";
+import {CaretDown, DotsSixVertical, X} from "phosphor-react";
+import {Fragment, Key, ReactNode} from "react";
 import {mergeProps} from "react-aria";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {Spacer} from "~/client/design/spacer.js";
 import {TaskMissingAccountAvatar} from "~/client/tasks/internal/task_missing_account_avatar.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
-import {greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
+import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
-let nextSortId = 1;
-
 export function TaskQuerySortsEditor({
-    sorts,
-    onSortsChange,
+    withMobileLayout,
+    sortsWithId,
+    onSortsWithIdChange,
     defaultOrderSentence,
 }: {
-    sorts: ReadonlyArray<TaskQuerySort>;
-    onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
+    withMobileLayout: boolean;
+    sortsWithId: Array<{id: number; sort: TaskQuerySort}>;
+    onSortsWithIdChange: (sorts: Array<{id: number; sort: TaskQuerySort}>) => void;
     defaultOrderSentence: string;
 }) {
-    const [sortsWithId, _setSortsWithId] = useState<
-        Array<{readonly id: Key; readonly sort: TaskQuerySort}>
-    >(() => sorts.map(sort => ({id: nextSortId++, sort})));
+    // By default `<DndContext>` uses `PointerSensor` and `KeyboardSensor` but
+    // `PointerSensor` can't stop scroll when dragging with touch. So instead we
+    // want to directly use `MouseSensor` and `TouchSensor`.
+    const sensors = useSensors(
+        useSensor(MouseSensor),
+        useSensor(TouchSensor),
+        useSensor(KeyboardSensor),
+    );
 
-    const setSortsWithId = (
-        sortsWithId: Array<{readonly id: Key; readonly sort: TaskQuerySort}>,
-    ) => {
-        _setSortsWithId(sortsWithId);
-        onSortsChange(sortsWithId.map(({sort}) => sort));
-    };
+    return sortsWithId.length === 0 ? (
+        <Box color="grey-50">No sorts. {defaultOrderSentence}</Box>
+    ) : (
+        <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={event => {
+                const {active, over} = event;
 
-    // We assign IDs to sort objects within this function. If we receive new sorts
-    // from props that don't match our state then reset our state and
-    // regenerate IDs.
-    if (
-        !useMemo(
-            () =>
-                isDeepEqual(
-                    sortsWithId.map(({sort}) => sort),
-                    sorts,
-                ),
-            [sorts, sortsWithId],
-        )
-    ) {
-        setSortsWithId(sorts.map(sort => ({id: nextSortId++, sort})));
-    }
+                if (over && active.id !== over.id) {
+                    const oldIndex = sortsWithId.findIndex(
+                        sortWithId => sortWithId.id === active.id,
+                    );
+                    const newIndex = sortsWithId.findIndex(sortWithId => sortWithId.id === over.id);
 
-    const addSort = (sort: TaskQuerySort) => {
-        const newSortsWithId = [...sortsWithId, {id: nextSortId++, sort}];
-        setSortsWithId(newSortsWithId);
-    };
+                    assert(oldIndex >= 0);
+                    assert(newIndex >= 0);
 
-    return (
-        <Box width="96" padding="4" overflow="hidden">
-            {sortsWithId.length === 0 ? (
-                <Box color="grey-50" height="4">
-                    No sorts. {defaultOrderSentence}
-                </Box>
-            ) : (
-                <DndContext
-                    collisionDetection={closestCenter}
-                    onDragEnd={event => {
-                        const {active, over} = event;
-
-                        if (over && active.id !== over.id) {
-                            const oldIndex = sortsWithId.findIndex(
-                                sortWithId => sortWithId.id === active.id,
-                            );
-                            const newIndex = sortsWithId.findIndex(
-                                sortWithId => sortWithId.id === over.id,
-                            );
-
-                            assert(oldIndex >= 0);
-                            assert(newIndex >= 0);
-
-                            setSortsWithId(arrayMove(sortsWithId, oldIndex, newIndex));
-                        }
-                    }}
+                    onSortsWithIdChange(arrayMove(sortsWithId, oldIndex, newIndex));
+                }
+            }}
+        >
+            <SortableContext items={sortsWithId}>
+                <TaskQuerySortsEditorDragPortals
+                    sortsWithId={sortsWithId}
+                    withMobileLayout={withMobileLayout}
+                />
+                <Box
+                    position="relative"
+                    zIndex="0"
+                    marginY={!withMobileLayout ? "-2" : undefined}
+                    marginX={!withMobileLayout ? "-2.5" : undefined}
                 >
-                    <SortableContext items={sortsWithId}>
-                        <TaskQuerySortsEditorDragPortals sortsWithId={sortsWithId} />
-                        <Box position="relative" zIndex="0" marginY="-2" marginX="-2.5">
-                            {sortsWithId.map(({sort, id}, index) => (
-                                <Fragment key={id}>
-                                    {index !== 0 && (
-                                        <Box
-                                            position="relative"
-                                            zIndex="10" // Renders under rows
-                                            borderTop="grey-5"
-                                            marginX="2.5"
-                                        />
-                                    )}
-                                    <TaskQuerySortsEditorRow
-                                        id={id}
-                                        sort={sort}
-                                        isDragOverlay={false}
-                                        onSortChange={newSort => {
-                                            const newSortsWithKey = [...sortsWithId];
-                                            newSortsWithKey[index] = {id, sort: newSort};
-                                            setSortsWithId(newSortsWithKey);
-                                        }}
-                                        onSortDelete={() => {
-                                            const newSortsWithKey = [...sortsWithId];
-                                            newSortsWithKey.splice(index, 1);
-                                            setSortsWithId(newSortsWithKey);
-                                        }}
+                    {sortsWithId.map(({sort, id}, index) => (
+                        <Fragment key={id}>
+                            {index !== 0 &&
+                                (withMobileLayout ? (
+                                    <Box
+                                        position="relative"
+                                        zIndex="10" // Renders under rows
+                                        height="2"
                                     />
-                                </Fragment>
-                            ))}
-                        </Box>
-                    </SortableContext>
-                </DndContext>
-            )}
-            <Spacer space="4" />
-            <MenuButton
-                actions={[
-                    [
-                        {
-                            label: "Status",
-                            onPress: () => {
-                                addSort({
-                                    type: "DisplayStatus",
-                                    direction: "Ascending",
-                                });
-                            },
-                        },
-                        {
-                            label: "Priority",
-                            onPress: () => {
-                                addSort({
-                                    type: "Priority",
-                                    direction: "Descending",
-                                });
-                            },
-                        },
-                    ],
-                    [
-                        {
-                            label: "Assignee",
-                            onPress: () => {
-                                addSort({
-                                    type: "Assignee",
-                                    missing: "Last",
-                                });
-                            },
-                        },
-                        {
-                            label: "Creator",
-                            onPress: () => {
-                                addSort({type: "Creator"});
-                            },
-                        },
-                        {
-                            label: "Assigner",
-                            onPress: () => {
-                                addSort({
-                                    type: "Assigner",
-                                    missing: "Last",
-                                });
-                            },
-                        },
-                    ],
-                    [
-                        {
-                            label: "Due date",
-                            onPress: () => {
-                                addSort({
-                                    type: "DueDate",
-                                    direction: "Ascending",
-                                });
-                            },
-                        },
-                        {
-                            label: "Created date",
-                            onPress: () => {
-                                addSort({
-                                    type: "CreatedTime",
-                                    direction: "Ascending",
-                                });
-                            },
-                        },
-                        {
-                            label: "Assigned date",
-                            onPress: () => {
-                                addSort({
-                                    type: "AssignedTime",
-                                    direction: "Ascending",
-                                });
-                            },
-                        },
-                        {
-                            label: "Closed date",
-                            onPress: () => {
-                                addSort({
-                                    type: "ClosedTime",
-                                    direction: "Ascending",
-                                });
-                            },
-                        },
-                        {
-                            label: "Active date",
-                            onPress: () => {
-                                addSort({
-                                    type: "ActivatedTime",
-                                    direction: "Ascending",
-                                });
-                            },
-                        },
-                    ],
-                ]}
-            >
-                <Button
-                    variant="outline"
-                    icon={<Plus />}
-                    height="6"
-                    paddingX="2"
-                    isDisabled={sortsWithId.length >= 5}
-                >
-                    Add sort
-                </Button>
-            </MenuButton>
-        </Box>
+                                ) : (
+                                    <Box
+                                        position="relative"
+                                        zIndex="10" // Renders under rows
+                                        borderTop="grey-5"
+                                        marginX="2.5"
+                                    />
+                                ))}
+                            <TaskQuerySortsEditorRow
+                                id={id}
+                                sort={sort}
+                                isDragOverlay={false}
+                                withMobileLayout={withMobileLayout}
+                                onSortChange={newSort => {
+                                    const newSortsWithKey = [...sortsWithId];
+                                    newSortsWithKey[index] = {id, sort: newSort};
+                                    onSortsWithIdChange(newSortsWithKey);
+                                }}
+                                onSortDelete={() => {
+                                    const newSortsWithKey = [...sortsWithId];
+                                    newSortsWithKey.splice(index, 1);
+                                    onSortsWithIdChange(newSortsWithKey);
+                                }}
+                            />
+                        </Fragment>
+                    ))}
+                </Box>
+            </SortableContext>
+        </DndContext>
     );
 }
 
 function TaskQuerySortsEditorDragPortals({
     sortsWithId,
+    withMobileLayout,
 }: {
     sortsWithId: Array<{id: Key; sort: TaskQuerySort}>;
+    withMobileLayout: boolean;
 }) {
     const {active, activatorEvent} = useDndContext();
 
@@ -263,6 +151,7 @@ function TaskQuerySortsEditorDragPortals({
                                 ).sort
                             }
                             isDragOverlay={true}
+                            withMobileLayout={withMobileLayout}
                             onSortChange={noop}
                             onSortDelete={noop}
                         />
@@ -277,12 +166,14 @@ function TaskQuerySortsEditorRow({
     id,
     sort,
     isDragOverlay,
+    withMobileLayout,
     onSortChange,
     onSortDelete,
 }: {
     id: Key;
     sort: TaskQuerySort;
     isDragOverlay: boolean;
+    withMobileLayout: boolean;
     onSortChange: (sort: TaskQuerySort) => void;
     onSortDelete: () => void;
 }) {
@@ -294,10 +185,12 @@ function TaskQuerySortsEditorRow({
                     name="Status"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
+                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowStatusDirection
                         direction={sort.direction}
                         onDirectionChange={direction => onSortChange({...sort, direction})}
+                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -309,10 +202,12 @@ function TaskQuerySortsEditorRow({
                     name="Priority"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
+                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowPriorityDirection
                         direction={sort.direction}
                         onDirectionChange={direction => onSortChange({...sort, direction})}
+                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -324,10 +219,12 @@ function TaskQuerySortsEditorRow({
                     name="Assignee"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
+                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowAccountMissing
                         missing={sort.missing}
                         onMissingChange={missing => onSortChange({...sort, missing})}
+                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -339,6 +236,7 @@ function TaskQuerySortsEditorRow({
                     name="Creator"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
+                    withMobileLayout={withMobileLayout}
                 />
             );
         }
@@ -349,10 +247,12 @@ function TaskQuerySortsEditorRow({
                     name="Assigner"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
+                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowAccountMissing
                         missing={sort.missing}
                         onMissingChange={missing => onSortChange({...sort, missing})}
+                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -364,10 +264,12 @@ function TaskQuerySortsEditorRow({
                     name="Due date"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
+                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowDateDirection
                         direction={sort.direction}
                         onDirectionChange={direction => onSortChange({...sort, direction})}
+                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -379,10 +281,12 @@ function TaskQuerySortsEditorRow({
                     name="Created date"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
+                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowDateDirection
                         direction={sort.direction}
                         onDirectionChange={direction => onSortChange({...sort, direction})}
+                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -394,10 +298,12 @@ function TaskQuerySortsEditorRow({
                     name="Assigned date"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
+                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowDateDirection
                         direction={sort.direction}
                         onDirectionChange={direction => onSortChange({...sort, direction})}
+                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -409,10 +315,12 @@ function TaskQuerySortsEditorRow({
                     name="Closed date"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
+                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowDateDirection
                         direction={sort.direction}
                         onDirectionChange={direction => onSortChange({...sort, direction})}
+                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -424,10 +332,12 @@ function TaskQuerySortsEditorRow({
                     name="Active date"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
+                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowDateDirection
                         direction={sort.direction}
                         onDirectionChange={direction => onSortChange({...sort, direction})}
+                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -442,12 +352,14 @@ function TaskQuerySortsEditorRowBase({
     name,
     onDelete,
     isDragOverlay,
+    withMobileLayout,
     children,
 }: {
     id: Key;
     name: string;
     onDelete: () => void;
     isDragOverlay: boolean;
+    withMobileLayout: boolean;
     children?: ReactNode;
 }) {
     const {
@@ -465,13 +377,19 @@ function TaskQuerySortsEditorRowBase({
             className={greyElevated2ClassName}
             position="relative"
             zIndex="20" // Renders over dividers
-            height="8"
-            paddingX="2.5"
+            paddingLeft="2.5"
+            paddingRight={withMobileLayout ? "1.5" : "2.5"}
             display="flex"
-            gap="3"
+            alignItems="center"
             backgroundColor={isDragOverlay ? "grey-0" : undefined}
-            boxShadow={isDragOverlay ? "elevation-30" : undefined}
-            borderRadius={isDragOverlay ? "base" : undefined}
+            boxShadow={
+                isDragOverlay
+                    ? withMobileLayout
+                        ? "elevation-20-with-grey-10-border"
+                        : "elevation-30"
+                    : undefined
+            }
+            borderRadius={withMobileLayout || isDragOverlay ? "base" : undefined}
             style={{
                 transform: sortableTransform
                     ? `translate(${sortableTransform.x}px, ${sortableTransform.y}px)`
@@ -479,23 +397,44 @@ function TaskQuerySortsEditorRowBase({
                 transition: sortableTransition,
                 opacity: isDragging ? 0 : undefined,
 
-                // Add 2px of height when this is a drag overlay so it covers the dividers.
-                height: isDragOverlay ? `calc(${spacing["8"]} + 2px)` : spacing["8"],
-                paddingTop: isDragOverlay ? `calc(${spacing["2"]} + 1px)` : spacing["2"],
-                paddingBottom: isDragOverlay ? `calc(${spacing["2"]} + 1px)` : spacing["2"],
-                marginTop: isDragOverlay ? -1 : 0,
+                height: withMobileLayout
+                    ? spacing["9"]
+                    : // Add 2px of height when this is a drag overlay so it covers the dividers.
+                    isDragOverlay
+                    ? `calc(${spacing["8"]} + 2px)`
+                    : spacing["8"],
+                marginTop: isDragOverlay && !withMobileLayout ? -1 : 0,
+
+                boxShadow:
+                    withMobileLayout && !isDragOverlay
+                        ? `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`
+                        : undefined,
             }}
         >
             <Box flexShrink="0">{name}</Box>
-            <Box flexGrow="1" />
-            {children && <Box flexShrink="0">{children}</Box>}
-            <Box flexShrink="0" display="flex" alignItems="center" gap="0.5">
+            {!withMobileLayout && <Box flexGrow="1" />}
+            {children && (
+                <Box flexShrink="0" paddingLeft="2">
+                    {children}
+                </Box>
+            )}
+            {withMobileLayout && <Box flexGrow="1" />}
+            <Box
+                flexShrink="0"
+                display="flex"
+                alignItems="center"
+                gap={withMobileLayout ? "1" : "0.5"}
+                paddingLeft="3"
+            >
                 <button
                     {...mergeProps(sortableAttributes, sortableListeners ?? {})}
                     className={sprinkles({
-                        width: "4",
-                        height: "4",
-                        padding: "0.5",
+                        width: withMobileLayout ? "9" : "4",
+                        height: withMobileLayout ? "9" : "4",
+                        margin: withMobileLayout ? "-1.5" : undefined,
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
                         borderRadius: "full",
                         cursor: "grab",
                     })}
@@ -503,9 +442,14 @@ function TaskQuerySortsEditorRowBase({
                     // not done with tab navigation.
                     tabIndex={-1}
                 >
-                    <DotsSixVertical size={spacing["3"]} />
+                    <DotsSixVertical size={spacing[withMobileLayout ? "4" : "3"]} />
                 </button>
-                <IconButton size="xs" description="Delete" withoutTooltip={true} onPress={onDelete}>
+                <IconButton
+                    size={withMobileLayout ? "md" : "xs"}
+                    description="Delete"
+                    withoutTooltip={true}
+                    onPress={onDelete}
+                >
                     <X />
                 </IconButton>
             </Box>
@@ -516,159 +460,159 @@ function TaskQuerySortsEditorRowBase({
 function TaskQuerySortsEditorRowStatusDirection({
     direction,
     onDirectionChange,
+    withMobileLayout,
 }: {
     direction: "Ascending" | "Descending";
     onDirectionChange: (direction: "Ascending" | "Descending") => void;
+    withMobileLayout: boolean;
 }) {
     const ascendingLabel = "Open → Closed";
     const descendingLabel = "Closed → Open";
 
     return (
-        <Box marginTop="-0.5">
-            <MenuButton
-                actions={[
-                    {
-                        label: ascendingLabel,
-                        isSelected: direction === "Ascending",
-                        onPress: () => onDirectionChange("Ascending"),
-                    },
-                    {
-                        label: descendingLabel,
-                        isSelected: direction === "Descending",
-                        onPress: () => onDirectionChange("Descending"),
-                    },
-                ]}
+        <MenuButton
+            actions={[
+                {
+                    label: ascendingLabel,
+                    isSelected: direction === "Ascending",
+                    onPress: () => onDirectionChange("Ascending"),
+                },
+                {
+                    label: descendingLabel,
+                    isSelected: direction === "Descending",
+                    onPress: () => onDirectionChange("Descending"),
+                },
+            ]}
+        >
+            <Button
+                variant="quieter"
+                height={withMobileLayout ? "6" : "5"}
+                paddingX={withMobileLayout ? "2" : "1.5"}
+                icon={<CaretDown />}
+                iconPlacement="end"
             >
-                <Button
-                    variant="quieter"
-                    height="5"
-                    paddingX="1.5"
-                    icon={<CaretDown />}
-                    iconPlacement="end"
-                >
-                    {direction === "Ascending" ? ascendingLabel : descendingLabel}
-                </Button>
-            </MenuButton>
-        </Box>
+                {direction === "Ascending" ? ascendingLabel : descendingLabel}
+            </Button>
+        </MenuButton>
     );
 }
 
 function TaskQuerySortsEditorRowPriorityDirection({
     direction,
     onDirectionChange,
+    withMobileLayout,
 }: {
     direction: "Ascending" | "Descending";
     onDirectionChange: (direction: "Ascending" | "Descending") => void;
+    withMobileLayout: boolean;
 }) {
     const ascendingLabel = "Low → High";
     const descendingLabel = "High → Low";
 
     return (
-        <Box marginTop="-0.5">
-            <MenuButton
-                actions={[
-                    {
-                        label: descendingLabel,
-                        isSelected: direction === "Descending",
-                        onPress: () => onDirectionChange("Descending"),
-                    },
-                    {
-                        label: ascendingLabel,
-                        isSelected: direction === "Ascending",
-                        onPress: () => onDirectionChange("Ascending"),
-                    },
-                ]}
+        <MenuButton
+            actions={[
+                {
+                    label: descendingLabel,
+                    isSelected: direction === "Descending",
+                    onPress: () => onDirectionChange("Descending"),
+                },
+                {
+                    label: ascendingLabel,
+                    isSelected: direction === "Ascending",
+                    onPress: () => onDirectionChange("Ascending"),
+                },
+            ]}
+        >
+            <Button
+                variant="quieter"
+                height={withMobileLayout ? "6" : "5"}
+                paddingX={withMobileLayout ? "2" : "1.5"}
+                icon={<CaretDown />}
+                iconPlacement="end"
             >
-                <Button
-                    variant="quieter"
-                    height="5"
-                    paddingX="1.5"
-                    icon={<CaretDown />}
-                    iconPlacement="end"
-                >
-                    {direction === "Ascending" ? ascendingLabel : descendingLabel}
-                </Button>
-            </MenuButton>
-        </Box>
+                {direction === "Ascending" ? ascendingLabel : descendingLabel}
+            </Button>
+        </MenuButton>
     );
 }
 
 function TaskQuerySortsEditorRowAccountMissing({
     missing,
     onMissingChange,
+    withMobileLayout,
 }: {
     missing: "First" | "Last";
     onMissingChange: (missing: "First" | "Last") => void;
+    withMobileLayout: boolean;
 }) {
     return (
-        <Box marginTop="-0.5">
-            <MenuButton
-                actions={[
-                    {
-                        label: "Nobody last",
-                        isSelected: missing === "Last",
-                        onPress: () => onMissingChange("Last"),
-                    },
-                    {
-                        label: "Nobody first",
-                        isSelected: missing === "First",
-                        onPress: () => onMissingChange("First"),
-                    },
-                ]}
+        <MenuButton
+            actions={[
+                {
+                    label: "Nobody last",
+                    isSelected: missing === "Last",
+                    onPress: () => onMissingChange("Last"),
+                },
+                {
+                    label: "Nobody first",
+                    isSelected: missing === "First",
+                    onPress: () => onMissingChange("First"),
+                },
+            ]}
+        >
+            <Button
+                variant="quieter"
+                height={withMobileLayout ? "6" : "5"}
+                paddingX={withMobileLayout ? "2" : "1.5"}
+                icon={<CaretDown />}
+                iconPlacement="end"
             >
-                <Button
-                    variant="quieter"
-                    height="5"
-                    paddingX="1.5"
-                    icon={<CaretDown />}
-                    iconPlacement="end"
-                >
-                    <Box display="flex" alignItems="center" gap="1">
-                        <TaskMissingAccountAvatar size="3" />
-                        <Box>Nobody {missing === "First" ? "first" : "last"}</Box>
-                    </Box>
-                </Button>
-            </MenuButton>
-        </Box>
+                <Box display="flex" alignItems="center" gap="1">
+                    <TaskMissingAccountAvatar size="3" />
+                    <Box>Nobody {missing === "First" ? "first" : "last"}</Box>
+                </Box>
+            </Button>
+        </MenuButton>
     );
 }
 
 function TaskQuerySortsEditorRowDateDirection({
     direction,
     onDirectionChange,
+    withMobileLayout,
 }: {
     direction: "Ascending" | "Descending";
     onDirectionChange: (direction: "Ascending" | "Descending") => void;
+    withMobileLayout: boolean;
 }) {
     const ascendingLabel = "Jan 1 → Dec 31";
     const descendingLabel = "Dec 31 → Jan 1";
 
     return (
-        <Box marginTop="-0.5">
-            <MenuButton
-                actions={[
-                    {
-                        label: ascendingLabel,
-                        isSelected: direction === "Ascending",
-                        onPress: () => onDirectionChange("Ascending"),
-                    },
-                    {
-                        label: descendingLabel,
-                        isSelected: direction === "Descending",
-                        onPress: () => onDirectionChange("Descending"),
-                    },
-                ]}
+        <MenuButton
+            actions={[
+                {
+                    label: ascendingLabel,
+                    isSelected: direction === "Ascending",
+                    onPress: () => onDirectionChange("Ascending"),
+                },
+                {
+                    label: descendingLabel,
+                    isSelected: direction === "Descending",
+                    onPress: () => onDirectionChange("Descending"),
+                },
+            ]}
+        >
+            <Button
+                variant="quieter"
+                height={withMobileLayout ? "6" : "5"}
+                paddingX={withMobileLayout ? "2" : "1.5"}
+                icon={<CaretDown />}
+                iconPlacement="end"
             >
-                <Button
-                    variant="quieter"
-                    height="5"
-                    paddingX="1.5"
-                    icon={<CaretDown />}
-                    iconPlacement="end"
-                >
-                    {direction === "Ascending" ? ascendingLabel : descendingLabel}
-                </Button>
-            </MenuButton>
-        </Box>
+                {direction === "Ascending" ? ascendingLabel : descendingLabel}
+            </Button>
+        </MenuButton>
     );
 }

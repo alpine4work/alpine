@@ -1,13 +1,15 @@
 import {Plus, SortAscending} from "phosphor-react";
-import {Ref, forwardRef, useImperativeHandle, useRef} from "react";
+import {Ref, forwardRef, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {MenuButton} from "~/client/design/menu_button.js";
 import {
     OverlayTriggerButton,
     OverlayTriggerButtonRef,
 } from "~/client/design/overlay_trigger_button.js";
+import {Spacer} from "~/client/design/spacer.js";
+import {TaskQueryAddFilterMenuButton} from "~/client/tasks/internal/task_query_add_filter_menu_button.js";
+import {TaskQueryAddSortMenuButton} from "~/client/tasks/internal/task_query_add_sort_menu_button.js";
 import {
     TaskQueryFilterEditor,
     taskQueryFilterEditorHeight,
@@ -16,6 +18,7 @@ import {TaskQuerySortsEditor} from "~/client/tasks/internal/task_query_sorts_edi
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {greyElevated2ClassName} from "~/shared/styles/styles.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
@@ -55,10 +58,6 @@ function TaskQueryViewCustomizationBar(
     },
     ref: Ref<TaskQueryViewCustomizationBarRef>,
 ) {
-    const addFilter = (filter: TaskQueryFilter) => {
-        onFiltersChange([...filters, filter]);
-    };
-
     const shouldCollapse = shouldCollapseWhenFiltersAreEmpty && filters.length === 0;
 
     const firstCollectionsFilterOperationValueTriggerButtonRef =
@@ -130,172 +129,10 @@ function TaskQueryViewCustomizationBar(
                     );
                 })}
                 <Box height={taskQueryFilterEditorHeight} display="flex" alignItems="center">
-                    <MenuButton
-                        actions={[
-                            [
-                                {
-                                    label: "Status",
-                                    onPress: () => {
-                                        addFilter({
-                                            type: "DisplayStatus",
-                                            operation: {
-                                                type: "OneOf",
-                                                displayStatuses: new Set([]),
-                                            },
-                                        });
-                                    },
-                                },
-                                {
-                                    label: "Collections",
-                                    onPress: () => {
-                                        addFilter({
-                                            type: "Collections",
-                                            operation: {
-                                                type: "IncludesAllOf",
-                                                collectionIds: new Set(),
-                                            },
-                                        });
-                                    },
-                                },
-                                {
-                                    label: "Priority",
-                                    onPress: () => {
-                                        addFilter({
-                                            type: "Priority",
-                                            operation: {
-                                                type: "OneOf",
-                                                priorities: new Set(),
-                                            },
-                                        });
-                                    },
-                                },
-                                {
-                                    label: "Title",
-                                    onPress: () => {
-                                        addFilter({
-                                            type: "Title",
-                                            operation: {
-                                                type: "Includes",
-                                                titleQuery: "",
-                                            },
-                                        });
-                                    },
-                                },
-                            ],
-                            [
-                                {
-                                    label: "Assignee",
-                                    onPress: () => {
-                                        addFilter({
-                                            type: "Assignee",
-                                            operation: {
-                                                type: "OneOf",
-                                                accounts: [{type: "CurrentAccount"}],
-                                            },
-                                        });
-                                    },
-                                },
-                                {
-                                    label: "Creator",
-                                    onPress: () => {
-                                        addFilter({
-                                            type: "Creator",
-                                            operation: {
-                                                type: "OneOf",
-                                                accounts: [{type: "CurrentAccount"}],
-                                            },
-                                        });
-                                    },
-                                },
-                                {
-                                    label: "Assigner",
-                                    onPress: () => {
-                                        addFilter({
-                                            type: "Assigner",
-                                            operation: {
-                                                type: "OneOf",
-                                                accounts: [{type: "CurrentAccount"}],
-                                            },
-                                        });
-                                    },
-                                },
-                            ],
-                            [
-                                {
-                                    label: "Due date",
-                                    onPress: () => {
-                                        addFilter({
-                                            type: "DueDate",
-                                            operation: {type: "Overdue"},
-                                        });
-                                    },
-                                },
-                                {
-                                    label: "Created date",
-                                    onPress: () => {
-                                        addFilter({
-                                            type: "CreatedDate",
-                                            operation: {
-                                                type: "GreaterThan",
-                                                date: {
-                                                    type: "RelativeBeforeToday",
-                                                    duration: {type: "Weeks", count: 1},
-                                                },
-                                            },
-                                        });
-                                    },
-                                },
-                                {
-                                    label: "Assigned date",
-                                    onPress: () => {
-                                        addFilter({
-                                            type: "AssignedDate",
-                                            operation: {
-                                                type: "GreaterThan",
-                                                date: {
-                                                    type: "RelativeBeforeToday",
-                                                    duration: {type: "Weeks", count: 1},
-                                                },
-                                            },
-                                        });
-                                    },
-                                },
-                                {
-                                    label: "Closed date",
-                                    onPress: () => {
-                                        addFilter({
-                                            type: "ClosedDate",
-                                            operation: {
-                                                type: "GreaterThan",
-                                                date: {
-                                                    type: "RelativeBeforeToday",
-                                                    duration: {type: "Weeks", count: 1},
-                                                },
-                                            },
-                                        });
-                                    },
-                                },
-                                {
-                                    // NOTE(calebmer): I feel like "Active date" is better copy here than
-                                    // "Activated date" since it's more inline with "Active" task branding. I don't
-                                    // know if people will think of themselves as "activating" a task or more like
-                                    // "setting a task as active".
-                                    label: "Active date",
-                                    onPress: () => {
-                                        addFilter({
-                                            type: "ActivatedDate",
-                                            operation: {
-                                                type: "GreaterThan",
-                                                date: {
-                                                    type: "RelativeBeforeToday",
-                                                    duration: {type: "Weeks", count: 1},
-                                                },
-                                            },
-                                        });
-                                    },
-                                },
-                            ],
-                        ]}
+                    <TaskQueryAddFilterMenuButton
+                        onAddFilter={filter => {
+                            onFiltersChange([...filters, filter]);
+                        }}
                     >
                         {filters.length > 0 ? (
                             <IconButton size="sm" description="Add filter" withoutTooltip>
@@ -311,7 +148,7 @@ function TaskQueryViewCustomizationBar(
                                 Add filter
                             </Button>
                         )}
-                    </MenuButton>
+                    </TaskQueryAddFilterMenuButton>
                 </Box>
             </Box>
             <Box paddingLeft={!shouldCollapse ? "5" : "2"}>
@@ -325,7 +162,7 @@ function TaskQueryViewCustomizationBar(
                             backgroundColor="grey-0"
                             boxShadow="elevation-20"
                         >
-                            <TaskQuerySortsEditor
+                            <TaskQueryViewCustomizationBarSortsOverlay
                                 sorts={sorts}
                                 onSortsChange={onSortsChange}
                                 defaultOrderSentence={defaultOrderSentence}
@@ -346,6 +183,71 @@ function TaskQueryViewCustomizationBar(
                     </Button>
                 </OverlayTriggerButton>
             </Box>
+        </Box>
+    );
+}
+
+let nextSortId = 1;
+
+function TaskQueryViewCustomizationBarSortsOverlay({
+    sorts,
+    onSortsChange,
+    defaultOrderSentence,
+}: {
+    sorts: ReadonlyArray<TaskQuerySort>;
+    onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
+    defaultOrderSentence: string;
+}) {
+    const [sortsWithId, _setSortsWithId] = useState<Array<{id: number; sort: TaskQuerySort}>>(() =>
+        sorts.map(sort => ({id: nextSortId++, sort})),
+    );
+
+    const setSortsWithId = (sortsWithId: Array<{id: number; sort: TaskQuerySort}>) => {
+        _setSortsWithId(sortsWithId);
+        onSortsChange(sortsWithId.map(({sort}) => sort));
+    };
+
+    // We assign IDs to sort objects within this function. If we receive new sorts
+    // from props that don't match our state then reset our state and
+    // regenerate IDs.
+    if (
+        !useMemo(
+            () =>
+                isDeepEqual(
+                    sortsWithId.map(({sort}) => sort),
+                    sorts,
+                ),
+            [sorts, sortsWithId],
+        )
+    ) {
+        setSortsWithId(sorts.map(sort => ({id: nextSortId++, sort})));
+    }
+
+    const addSort = (sort: TaskQuerySort) => {
+        const newSortsWithId = [...sortsWithId, {id: nextSortId++, sort}];
+        setSortsWithId(newSortsWithId);
+    };
+
+    return (
+        <Box width="96" padding="4" overflow="hidden">
+            <TaskQuerySortsEditor
+                withMobileLayout={false}
+                sortsWithId={sortsWithId}
+                onSortsWithIdChange={setSortsWithId}
+                defaultOrderSentence={defaultOrderSentence}
+            />
+            <Spacer space="4" />
+            <TaskQueryAddSortMenuButton onAddSort={addSort}>
+                <Button
+                    variant="outline"
+                    icon={<Plus />}
+                    height="6"
+                    paddingX="2"
+                    isDisabled={sortsWithId.length >= 5}
+                >
+                    Add sort
+                </Button>
+            </TaskQueryAddSortMenuButton>
         </Box>
     );
 }

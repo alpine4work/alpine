@@ -47,6 +47,7 @@ export function TaskCollectionViewHeader({
     affinityManager,
     createCollection,
     isReadOnly,
+    defaultOrderSentence,
     filters,
     filterReferences,
     onFiltersChange,
@@ -62,6 +63,7 @@ export function TaskCollectionViewHeader({
     affinityManager: TaskClientStoreSearchAffinityManager;
     createCollection: Memo<(name: string) => Promise<void>>;
     isReadOnly: boolean;
+    defaultOrderSentence: string;
     filters: ReadonlyArray<TaskQueryFilter>;
     filterReferences: TaskQueryFilterReferences;
     onFiltersChange: (
@@ -272,11 +274,7 @@ export function TaskCollectionViewHeader({
                     <TaskQueryViewCustomizationBar
                         store={store}
                         shouldCollapseWhenFiltersAreEmpty={true}
-                        defaultOrderSentence={
-                            filters.length > 0
-                                ? "When filtered, tasks are ordered by created date."
-                                : "You can order tasks manually by dragging them."
-                        }
+                        defaultOrderSentence={defaultOrderSentence}
                         filters={filters}
                         filterReferences={filterReferences}
                         onFiltersChange={onFiltersChange}

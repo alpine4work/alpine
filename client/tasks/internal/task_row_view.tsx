@@ -207,12 +207,19 @@ const marginLeftContainerClassName = sprinkles({
 });
 
 const dragHandleContainerClassName = `${pointerEventsNoneNotInheritedClassName} ${sprinkles({
+    position: "relative",
     width: taskRowViewDragHandleWidth,
     height: taskRowViewMinHeight,
     paddingX: "0.5",
     display: "flex",
     alignItems: "center",
 })}`;
+
+const dragHandleContainerIfPrimaryInputCanNotHoverClassName = `${dragHandleContainerClassName} ${sprinkles(
+    {
+        left: "-1.5",
+    },
+)}`;
 
 const expandButtonContainerClassName = `${pointerEventsNoneNotInheritedClassName} ${sprinkles({
     width: taskRowViewExpandButtonWidth,
@@ -1123,6 +1130,7 @@ function TaskRowView(
     const isMobileExpandButtonVisible =
         hasTask &&
         !capabilities.hasColumns &&
+        !canPrimaryInputHover &&
         (isTextInputWithinFocusedIfMobile || isMobileExpandButtonPending);
 
     // Is the entire row draggable after a long touch? True if the query is
@@ -1243,7 +1251,7 @@ function TaskRowView(
                   parents.length +
               // On mobile we don't show the expand button, but if the query is auto-sorted
               // we still want to render row numbers in the expand button space.
-              (!isMobile || (hasTask && !isQueryManuallySorted)
+              (!isMobile || canPrimaryInputHover
                   ? taskRowViewDragHandleWidthRem + taskRowViewExpandButtonWidthRem
                   : taskRowViewPaddingXRem.mobile +
                     // Hardcoded `spacing["2.5"]`
@@ -1382,7 +1390,13 @@ function TaskRowView(
                             isHovered={isHovered}
                         />
                     ) : (
-                        <div className={dragHandleContainerClassName}>
+                        <div
+                            className={
+                                !canPrimaryInputHover
+                                    ? dragHandleContainerIfPrimaryInputCanNotHoverClassName
+                                    : dragHandleContainerClassName
+                            }
+                        >
                             {hasTask && !isQueryManuallySorted && (
                                 <div className={tasksStyles.rowNumberClassName} />
                             )}

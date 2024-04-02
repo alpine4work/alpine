@@ -30,6 +30,15 @@ import {
     isTaskQueryManuallySorted,
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {taskQueryFilterEditorHeight} from "~/client/tasks/internal/task_query_filter_editor.js";
+import {
+    TaskQueryViewCustomizationBar,
+    TaskQueryViewCustomizationBarRef,
+} from "~/client/tasks/internal/task_query_view_customization_bar.js";
+import {
+    TaskQueryViewCustomizationMobileSection,
+    TaskQueryViewCustomizationMobileSectionRef,
+} from "~/client/tasks/internal/task_query_view_customization_mobile_section.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
@@ -38,12 +47,13 @@ import {
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/task_client_store.js";
 import {createTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/task_query_view.js";
+import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -124,6 +134,11 @@ export function TaskCollectionView({
             lastFiltersRef.current = filters;
         }
     }, [filters, onFiltersChange]);
+
+    const defaultOrderSentence =
+        filters.length > 0
+            ? "When filtered, tasks are ordered by created date."
+            : "You can order tasks by dragging them.";
 
     const [sorts, _setSorts] = useState(initialSorts);
 
@@ -488,6 +503,7 @@ export function TaskCollectionView({
                             affinityManager={affinityManager}
                             createCollection={createCollection}
                             isReadOnly={isReadOnly}
+                            defaultOrderSentence={defaultOrderSentence}
                             filters={filters}
                             filterReferences={filterReferences}
                             onFiltersChange={updateFilters}
@@ -502,6 +518,7 @@ export function TaskCollectionView({
             collectionId,
             collectionSubscription,
             createCollection,
+            defaultOrderSentence,
             filterReferences,
             filters,
             isMobile,
@@ -515,7 +532,18 @@ export function TaskCollectionView({
         ]),
     });
 
+    const queryCustomizationMobileSectionRef =
+        useRef<TaskQueryViewCustomizationMobileSectionRef>(null);
+    const [queryCustomizationMobileSectionState, setQueryCustomizationMobileSectionState] =
+        useState<{initiallyFocus: "AddFilter" | "AddSort" | null} | null>(
+            filters.length > 0 || sorts.length > 0 ? {initiallyFocus: null} : null,
+        );
+    if (!queryCustomizationMobileSectionState && (filters.length > 0 || sorts.length > 0)) {
+        setQueryCustomizationMobileSectionState({initiallyFocus: null});
+    }
+
     // NOCOMMIT: Put undo/redo in more actions
+    // NOCOMMIT: Menu actions like copy link and edit color
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         isDisabled: !withMobileLayout,
         withMobileLayout,
@@ -526,6 +554,40 @@ export function TaskCollectionView({
             />
         ),
         shareButton: {},
+        menuActions: [
+            [
+                {
+                    label: "Add filter",
+                    onPress: () => {
+                        // Make sure the filter/sort section is visible.
+                        assertExists(viewRef.current).setScrollOffset(0);
+
+                        if (!queryCustomizationMobileSectionState) {
+                            setQueryCustomizationMobileSectionState({initiallyFocus: "AddFilter"});
+                        } else {
+                            assertExists(
+                                queryCustomizationMobileSectionRef.current,
+                            ).openAddFilterMenu();
+                        }
+                    },
+                },
+                {
+                    label: "Add sort",
+                    onPress: () => {
+                        // Make sure the filter/sort section is visible.
+                        assertExists(viewRef.current).setScrollOffset(0);
+
+                        if (!queryCustomizationMobileSectionState) {
+                            setQueryCustomizationMobileSectionState({initiallyFocus: "AddSort"});
+                        } else {
+                            assertExists(
+                                queryCustomizationMobileSectionRef.current,
+                            ).openAddSortsMenu();
+                        }
+                    },
+                },
+            ],
+        ],
     });
 
     return (
@@ -556,10 +618,24 @@ export function TaskCollectionView({
                     itemCount={itemCountBeforeGridView + gridViewItemCount}
                     alwaysRenderAdditionalItemIndexes={useMemo(
                         () =>
-                            alwaysRenderAdditionalGridViewItemIndexes.map(
-                                index => index + itemCountBeforeGridView,
-                            ),
-                        [alwaysRenderAdditionalGridViewItemIndexes, itemCountBeforeGridView],
+                            withMobileLayout
+                                ? [
+                                      // Always render `<TaskQueryViewCustomizationMobileSection>`
+                                      // regardless of where we've scrolled. We can return focus there at
+                                      // any moment.
+                                      0,
+                                      ...alwaysRenderAdditionalGridViewItemIndexes.map(
+                                          index => index + itemCountBeforeGridView,
+                                      ),
+                                  ]
+                                : alwaysRenderAdditionalGridViewItemIndexes.map(
+                                      index => index + itemCountBeforeGridView,
+                                  ),
+                        [
+                            alwaysRenderAdditionalGridViewItemIndexes,
+                            itemCountBeforeGridView,
+                            withMobileLayout,
+                        ],
                     )}
                     scrollbarInsetTop={
                         isMobile
@@ -587,6 +663,19 @@ export function TaskCollectionView({
                                             style={{paddingTop: "var(--safe-area-inset-top, 0px)"}}
                                         >
                                             <Box height={navigationBarHeight} />
+                                            {queryCustomizationMobileSectionState && (
+                                                <TaskQueryViewCustomizationMobileSection
+                                                    ref={queryCustomizationMobileSectionRef}
+                                                    initiallyFocus={
+                                                        queryCustomizationMobileSectionState.initiallyFocus
+                                                    }
+                                                    defaultOrderSentence={defaultOrderSentence}
+                                                    filters={filters}
+                                                    onFiltersChange={updateFilters}
+                                                    sorts={sorts}
+                                                    onSortsChange={setSorts}
+                                                />
+                                            )}
                                         </Box>
                                     ),
                                 };
@@ -594,7 +683,18 @@ export function TaskCollectionView({
 
                             return renderGridViewItem(index - itemCountBeforeGridView);
                         },
-                        [isMobile, itemCountBeforeGridView, renderGridViewItem, withMobileLayout],
+                        [
+                            defaultOrderSentence,
+                            filters,
+                            isMobile,
+                            itemCountBeforeGridView,
+                            queryCustomizationMobileSectionState,
+                            renderGridViewItem,
+                            setSorts,
+                            sorts,
+                            updateFilters,
+                            withMobileLayout,
+                        ],
                     )}
                     onRenderedRangeChange={range => {
                         onGridViewRenderedRangeChange(shiftRenderedRangeForGridView(range));
