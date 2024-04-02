@@ -1,8 +1,19 @@
 import {IconContext, Trash} from "phosphor-react";
-import {Memo, ReactNode, useEffect, useMemo, useRef, useState} from "react";
+import {
+    Memo,
+    ReactNode,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {Box} from "~/client/design/box.js";
-import {navigationBarHeight} from "~/client/design/navigation_bar.js";
+import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
+import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
@@ -15,6 +26,7 @@ import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/interna
 import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
 import {TaskCollectionViewHeader} from "~/client/tasks/internal/task_collection_view_header.js";
 import {
+    TaskGridViewVirtualizedListViewRef,
     isTaskQueryManuallySorted,
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
@@ -33,9 +45,11 @@ import {
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {invertSelectionColorsClassName, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
@@ -54,8 +68,13 @@ import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 export {newTaskCollectionNamePlaceholder} from "~/client/tasks/internal/task_collection_view_header_name.js";
 
+const safeAreaOnlyScrollbarInsetTop: ScrollbarInsetDynamic = markMemoIfNotRendering([
+    0,
+    {withSafeArea: true},
+]);
+
 export function TaskCollectionView({
-    withMobileLayout,
+    withMobileLayout: withMobileLayoutProp,
     store,
     collectionId,
     collectionSubscription,
@@ -90,6 +109,8 @@ export function TaskCollectionView({
     const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
     const currentDate = useCurrentDate();
+
+    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const [{filters, filterReferences}, _setFiltersState] = useState({
         filters: initialFilters,
@@ -253,6 +274,73 @@ export function TaskCollectionView({
     const isReadOnly = readOnlyReason !== null;
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
+    const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
+
+    const itemCountBeforeGridView = withMobileLayout ? 1 : 0;
+
+    const shiftRenderedRangeForGridView = useCallback(
+        (range: {startIndex: number; endIndex: number} | null) => {
+            if (!range) {
+                return null;
+            } else {
+                const startIndex = range.startIndex - itemCountBeforeGridView;
+                const endIndex = range.endIndex - itemCountBeforeGridView;
+                if (endIndex < 0) {
+                    return null;
+                } else {
+                    return {
+                        startIndex: Math.max(0, startIndex),
+                        endIndex,
+                    };
+                }
+            }
+        },
+        [itemCountBeforeGridView],
+    );
+
+    // Offset all the methods on our `VirtualizedScrollViewRef` by the number of
+    // items which precede our children grid view.
+    useImperativeHandle(
+        gridViewRef,
+        () => ({
+            getHeight: () => assertExists(viewRef.current).getHeight(),
+            getContentHeight: () => assertExists(viewRef.current).getContentHeight(),
+            getScrollOffset: () => assertExists(viewRef.current).getScrollOffset(),
+            setScrollOffset: scrollOffset =>
+                assertExists(viewRef.current).setScrollOffset(scrollOffset),
+            scrollToIndex: (index, options) =>
+                assertExists(viewRef.current).scrollToIndex(
+                    index + itemCountBeforeGridView,
+                    options,
+                ),
+            getRenderedRange: () =>
+                shiftRenderedRangeForGridView(assertExists(viewRef.current).getRenderedRange()),
+            getKeyByIndexIfExists: index =>
+                assertExists(viewRef.current).getKeyByIndexIfExists(
+                    index + itemCountBeforeGridView,
+                ),
+            getIndexByKeyIfExists: key => {
+                const index = assertExists(viewRef.current).getIndexByKeyIfExists(key);
+                if (index === null) return index;
+                return index - itemCountBeforeGridView;
+            },
+            getPositionByIndex: index =>
+                assertExists(viewRef.current).getPositionByIndex(index + itemCountBeforeGridView),
+            getPositionByKeyIfExists: key =>
+                assertExists(viewRef.current).getPositionByKeyIfExists(key),
+            peekRenderedRangeAfterSetScrollOffset: scrollOffset =>
+                shiftRenderedRangeForGridView(
+                    assertExists(viewRef.current).peekRenderedRangeAfterSetScrollOffset(
+                        scrollOffset,
+                    ),
+                ),
+            getElement: () => assertExists(viewRef.current).getElement(),
+            getContentElement: () => assertExists(viewRef.current).getContentElement(),
+            getElementByKeyIfExists: key =>
+                assertExists(viewRef.current).getElementByKeyIfExists(key),
+        }),
+        [itemCountBeforeGridView, shiftRenderedRangeForGridView],
+    );
 
     const {
         stateKey: gridViewStateKey,
@@ -286,7 +374,7 @@ export function TaskCollectionView({
                 };
             }
         }, [isReadOnly, withMobileLayout]),
-        viewRef,
+        viewRef: itemCountBeforeGridView !== 0 ? gridViewRef : viewRef,
         store,
         query: queryState.activeQuery.query,
         affinityManager,
@@ -360,6 +448,13 @@ export function TaskCollectionView({
             ];
         },
         columnHeaderControls: useMemo(() => {
+            // We don't have sticky column header controls when rendering in a mobile
+            // layout. Instead we render a navigation bar and render filters/sorts at the
+            // top of the view in a non-sticky manner.
+            //
+            // We do this for peeks too.
+            if (withMobileLayout) return;
+
             return {
                 minHeight:
                     spacing[isMobile ? navigationBarHeight.mobile : navigationBarHeight.desktop],
@@ -420,6 +515,19 @@ export function TaskCollectionView({
         ]),
     });
 
+    // NOCOMMIT: Put undo/redo in more actions
+    const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
+        isDisabled: !withMobileLayout,
+        withMobileLayout,
+        withoutDisappearingTitle: true,
+        title: (
+            <TaskCollectionViewMobileNavigationBarTitle
+                collectionSubscription={collectionSubscription}
+            />
+        ),
+        shareButton: {},
+    });
+
     return (
         <Box
             flexGrow="1"
@@ -442,16 +550,88 @@ export function TaskCollectionView({
             <GlobalKeyDownEvent onGlobalKeyDown={onGridViewGlobalKeyDown}>
                 <VirtualizedScrollView
                     ref={viewRef}
+                    elementRef={scrollViewRef}
                     stateKey={gridViewStateKey}
                     bufferedItemHeight={gridViewBufferedItemHeight}
-                    itemCount={gridViewItemCount}
-                    alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalGridViewItemIndexes}
-                    scrollbarInsetTopItemIndex={scrollbarInsetTopGridViewItemIndex}
-                    renderItem={renderGridViewItem}
-                    onRenderedRangeChange={onGridViewRenderedRangeChange}
-                    onRenderedRangeLayoutChange={onGridViewRenderedRangeLayoutChange}
+                    itemCount={itemCountBeforeGridView + gridViewItemCount}
+                    alwaysRenderAdditionalItemIndexes={useMemo(
+                        () =>
+                            alwaysRenderAdditionalGridViewItemIndexes.map(
+                                index => index + itemCountBeforeGridView,
+                            ),
+                        [alwaysRenderAdditionalGridViewItemIndexes, itemCountBeforeGridView],
+                    )}
+                    scrollbarInsetTop={
+                        isMobile
+                            ? scrollbarInsetTop
+                            : withMobileLayout
+                            ? safeAreaOnlyScrollbarInsetTop
+                            : undefined
+                    }
+                    scrollbarInsetTopItemIndex={
+                        !withMobileLayout && scrollbarInsetTopGridViewItemIndex !== undefined
+                            ? scrollbarInsetTopGridViewItemIndex + itemCountBeforeGridView
+                            : undefined
+                    }
+                    renderItem={useCallback(
+                        index => {
+                            if (withMobileLayout && index === 0) {
+                                return {
+                                    key: "CustomizationBar",
+                                    minHeight:
+                                        spacing[
+                                            navigationBarHeight[isMobile ? "mobile" : "desktop"]
+                                        ],
+                                    node: (
+                                        <Box
+                                            style={{paddingTop: "var(--safe-area-inset-top, 0px)"}}
+                                        >
+                                            <Box height={navigationBarHeight} />
+                                        </Box>
+                                    ),
+                                };
+                            }
+
+                            return renderGridViewItem(index - itemCountBeforeGridView);
+                        },
+                        [isMobile, itemCountBeforeGridView, renderGridViewItem, withMobileLayout],
+                    )}
+                    onRenderedRangeChange={range => {
+                        onGridViewRenderedRangeChange(shiftRenderedRangeForGridView(range));
+                    }}
+                    onRenderedRangeLayoutChange={range => {
+                        onGridViewRenderedRangeLayoutChange(shiftRenderedRangeForGridView(range));
+                    }}
+                    extraChildren={navigationBar}
                 />
             </GlobalKeyDownEvent>
         </Box>
+    );
+}
+
+function TaskCollectionViewMobileNavigationBarTitle({
+    collectionSubscription,
+}: {
+    collectionSubscription: TaskClientCollectionSubscription | null;
+}) {
+    const collectionEntry = useStore(collectionSubscription?.collectionEntryStore ?? null);
+    const collection = collectionEntry?.collection;
+    return (
+        <>
+            <Box
+                display="inline-flex"
+                alignItems="center"
+                marginRight="1.5"
+                style={{height: "1lh", verticalAlign: "top"}}
+            >
+                <Box
+                    width="2"
+                    height="2"
+                    borderRadius="full"
+                    backgroundColor={getTaskCollectionColor(collection?.getColor() ?? null)}
+                />
+            </Box>
+            {collection?.getName() ?? ""}
+        </>
     );
 }

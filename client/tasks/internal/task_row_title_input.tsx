@@ -233,6 +233,7 @@ function TaskRowTitleInput(
         parentTaskEntryStore,
         areChildTasksExpanded,
         onAreChildTasksExpandedToggle,
+        isMobileExpandButtonVisible,
         createTaskAbove,
         createTaskBelowAndFocus,
         nestWithPreviousTaskRowIfExistsAndExpand,
@@ -261,6 +262,7 @@ function TaskRowTitleInput(
         parentTaskEntryStore: Store<TaskClientStoreTaskEntry> | null;
         areChildTasksExpanded: boolean;
         onAreChildTasksExpandedToggle: () => void;
+        isMobileExpandButtonVisible: boolean;
         createTaskAbove: () => void;
         createTaskBelowAndFocus: () => void;
         nestWithPreviousTaskRowIfExistsAndExpand: (selection: Selection) => void;
@@ -494,15 +496,34 @@ function TaskRowTitleInput(
         isDualModalityRef.current = isDualModality;
     });
 
-    const onLayoutEffectCallbacksRef = useRef<Array<() => void>>([]);
+    const onNextLayoutEffectCallbacksRef = useRef<Array<() => void>>([]);
     useLayoutEffectWithoutServerSideWarning(() => {
-        const callbacks = onLayoutEffectCallbacksRef.current;
-        onLayoutEffectCallbacksRef.current = [];
+        const callbacks = onNextLayoutEffectCallbacksRef.current;
+        onNextLayoutEffectCallbacksRef.current = [];
 
         for (const callback of callbacks) {
             callback();
         }
     });
+
+    const isInitialIsMobileExpandButtonVisibleLayoutEffectCallback = useRef(true);
+    const onIsMobileExpandButtonVisibleLayoutEffectCallbacksRef = useRef(new Set<() => void>());
+    useLayoutEffectWithoutServerSideWarning(() => {
+        // Skip the first time this callback is called.
+        if (isInitialIsMobileExpandButtonVisibleLayoutEffectCallback.current) {
+            isInitialIsMobileExpandButtonVisibleLayoutEffectCallback.current = false;
+            return;
+        }
+
+        // We want this effect to run whenever this prop changes.
+        //
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        isMobileExpandButtonVisible;
+
+        for (const callback of onIsMobileExpandButtonVisibleLayoutEffectCallbacksRef.current) {
+            callback();
+        }
+    }, [isMobileExpandButtonVisible]);
 
     // We initially consider ourselves to be fully scrolled to the left and to the
     // right. This means on server-render we won't see gradients. They will flash
@@ -773,7 +794,7 @@ function TaskRowTitleInput(
 
             // This reads from the DOM (`scrollLeft`). We can't run this during React's
             // insertion phase. It has to run in a layout effect.
-            onLayoutEffectCallbacksRef.current.push(() => {
+            onNextLayoutEffectCallbacksRef.current.push(() => {
                 if (view.isDestroyed) return;
                 updateFullyScrolledState(true);
             });
@@ -868,10 +889,22 @@ function TaskRowTitleInput(
             if (hasMultilineTitleAndShouldShowMarginRightContent) {
                 // This reads from the DOM (`getBoundingClientRect`). We can't run this during
                 // React's insertion phase. It has to run in a layout effect.
-                onLayoutEffectCallbacksRef.current.push(() => {
+                onNextLayoutEffectCallbacksRef.current.push(() => {
                     if (view.isDestroyed) return;
                     updateMultilineState(true);
                 });
+            }
+
+            // When `isMobileExpandButtonVisible` changes it effects our task row title
+            // width so we want to update our multiline state.
+            const handleIsMobileExpandButtonVisibleLayoutEffect = () => {
+                updateMultilineState(false);
+            };
+
+            if (hasMultilineTitleAndShouldShowMarginRightContent) {
+                onIsMobileExpandButtonVisibleLayoutEffectCallbacksRef.current.add(
+                    handleIsMobileExpandButtonVisibleLayoutEffect,
+                );
             }
 
             // When the window resizes, re-evaluate state that depends on task
@@ -1008,6 +1041,12 @@ function TaskRowTitleInput(
             }
 
             return () => {
+                if (hasMultilineTitleAndShouldShowMarginRightContent) {
+                    onIsMobileExpandButtonVisibleLayoutEffectCallbacksRef.current.delete(
+                        handleIsMobileExpandButtonVisibleLayoutEffect,
+                    );
+                }
+
                 window.removeEventListener("resize", handleWindowResize);
                 document.addEventListener("selectionchange", handleSelectionChange);
 

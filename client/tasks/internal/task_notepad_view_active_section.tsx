@@ -24,6 +24,7 @@ import {
     TaskGridViewDraggableData,
     TaskGridViewDroppableData,
 } from "~/client/tasks/task_grid_view_dnd_context.js";
+import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -93,14 +94,12 @@ export {TaskNotepadViewActiveSectionMemo as TaskNotepadViewActiveSection};
 
 function TaskNotepadViewActiveSection({
     withMobileLayout,
-    paddingX,
     affinityManager,
     assigneeActiveQuery,
     activeDraggableData,
     overDroppableData,
 }: {
     withMobileLayout: boolean;
-    paddingX: Spacing;
     affinityManager: TaskClientStoreSearchAffinityManager;
     assigneeActiveQuery: TaskClientQuery;
     activeDraggableData: TaskGridViewDraggableData | undefined;
@@ -217,7 +216,7 @@ function TaskNotepadViewActiveSection({
             }}
         >
             <Box
-                paddingX={paddingX}
+                paddingX={taskRowViewPaddingX}
                 fontSize={taskNotepadViewActiveSectionTitleFontSize}
                 fontStyle="semi-bold"
             >
@@ -225,7 +224,7 @@ function TaskNotepadViewActiveSection({
             </Box>
             <Box
                 data-scrollbar="false"
-                paddingX={paddingX}
+                paddingX={taskRowViewPaddingX}
                 paddingY={taskNotepadViewActiveSectionPaddingY}
                 overflowX="scroll"
                 overflowY="hidden"
@@ -299,7 +298,7 @@ function TaskNotepadViewActiveSection({
                     bottom="2"
                     left="0"
                     right="0"
-                    paddingX={paddingX}
+                    paddingX={taskRowViewPaddingX}
                     display="flex"
                     gap={taskNotepadViewActiveSectionCardGap}
                 >
@@ -386,8 +385,8 @@ function TaskNotepadViewActiveSection({
                         zIndex="-10"
                         top="2"
                         bottom="2"
-                        left={paddingX}
-                        right={paddingX}
+                        left={taskRowViewPaddingX}
+                        right={taskRowViewPaddingX}
                         display="flex"
                         gap={taskNotepadViewActiveSectionCardGap}
                     >

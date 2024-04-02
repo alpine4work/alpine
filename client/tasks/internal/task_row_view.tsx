@@ -1120,6 +1120,11 @@ function TaskRowView(
         );
     };
 
+    const isMobileExpandButtonVisible =
+        hasTask &&
+        !capabilities.hasColumns &&
+        (isTextInputWithinFocusedIfMobile || isMobileExpandButtonPending);
+
     // Is the entire row draggable after a long touch? True if the query is
     // manually sorted and we're on a mobile device.
     //
@@ -1529,6 +1534,7 @@ function TaskRowView(
                         parentTaskEntryStore={parentTaskEntryStore}
                         areChildTasksExpanded={areChildTasksExpanded}
                         onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
+                        isMobileExpandButtonVisible={isMobileExpandButtonVisible}
                         createTaskAbove={createTaskAbove}
                         createTaskBelowAndFocus={createTaskBelowAndFocus}
                         nestWithPreviousTaskRowIfExistsAndExpand={
@@ -1607,41 +1613,37 @@ function TaskRowView(
                     />
                 </>
             )}
-            {hasTask &&
-                !capabilities.hasColumns &&
-                (isTextInputWithinFocusedIfMobile || isMobileExpandButtonPending) && (
-                    <div style={{flexShrink: 0}} {...marginRightOutOfBoundsClickSelectionProps}>
-                        <div className={mobileExpandButtonContainerClassName}>
-                            <IconButton
-                                size="md"
-                                description="Open"
-                                // Non-focusable so it doesn't close the software keyboard when pressed.
-                                isFocusable={false}
-                                isPending={isMobileExpandButtonPending}
-                                onPress={() => {
-                                    // Make sure as the text input loses focus the pending state in this component
-                                    // is true so we keep rendering the expand button.
-                                    flushSync(() => setIsMobileExpandButtonPending(true));
+            {isMobileExpandButtonVisible && (
+                <div style={{flexShrink: 0}} {...marginRightOutOfBoundsClickSelectionProps}>
+                    <div className={mobileExpandButtonContainerClassName}>
+                        <IconButton
+                            size="md"
+                            description="Open"
+                            // Non-focusable so it doesn't close the software keyboard when pressed.
+                            isFocusable={false}
+                            isPending={isMobileExpandButtonPending}
+                            onPress={() => {
+                                // Make sure as the text input loses focus the pending state in this component
+                                // is true so we keep rendering the expand button.
+                                flushSync(() => setIsMobileExpandButtonPending(true));
 
-                                    if (document.activeElement instanceof HTMLElement)
-                                        document.activeElement.blur();
+                                if (document.activeElement instanceof HTMLElement)
+                                    document.activeElement.blur();
 
-                                    runPromiseWithoutAwaiting(async () => {
-                                        try {
-                                            await navigate(
-                                                `/s/${task.getSpaceId()}/tasks/${task.id}`,
-                                            );
-                                        } finally {
-                                            setIsMobileExpandButtonPending(false);
-                                        }
-                                    });
-                                }}
-                            >
-                                <ArrowsOutSimple />
-                            </IconButton>
-                        </div>
+                                runPromiseWithoutAwaiting(async () => {
+                                    try {
+                                        await navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`);
+                                    } finally {
+                                        setIsMobileExpandButtonPending(false);
+                                    }
+                                });
+                            }}
+                        >
+                            <ArrowsOutSimple />
+                        </IconButton>
                     </div>
-                )}
+                </div>
+            )}
             <div
                 style={{
                     flexShrink: 0,

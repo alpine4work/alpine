@@ -1190,7 +1190,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                             <ShareButton />
                                         </Box>
                                     )}
-                                    {menuActions.length > 0 ? (
+                                    {menuActions.length > 0 || (shareButton && withMobileLayout) ? (
                                         <MenuButton
                                             actions={
                                                 shareButton && withMobileLayout

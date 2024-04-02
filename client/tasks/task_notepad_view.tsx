@@ -31,12 +31,13 @@ import {
     TaskGridViewDraggableData,
     TaskGridViewDroppableData,
 } from "~/client/tasks/task_grid_view_dnd_context.js";
+import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -87,7 +88,6 @@ export function TaskNotepadView({
     const {currentAccount} = useSpaceContext();
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
-    const paddingX: Spacing = isMobile ? "4" : "5";
 
     // Retain `assigneeActiveQuery`. We can't retain it in
     // `<TaskNotepadViewActiveSection>` since that component may be scrolled
@@ -300,7 +300,7 @@ export function TaskNotepadView({
         renderItem: renderGridViewItem,
         onRenderedRangeChange: onGridViewRenderedRangeChange,
         onRenderedRangeLayoutChange: onGridViewRenderedRangeLayoutChange,
-        alwaysRenderAdditionalItemIndexes: alwaysRenderGridViewItemIndexes,
+        alwaysRenderAdditionalItemIndexes: alwaysRenderAdditionalGridViewItemIndexes,
         scrollbarInsetTopItemIndex: scrollbarInsetTopGridViewItemIndex,
         onGlobalKeyDown: onGridViewGlobalKeyDown,
         focusEnd: focusGridViewEnd,
@@ -355,7 +355,7 @@ export function TaskNotepadView({
                 minHeight: height,
                 node: (
                     <Box
-                        paddingX={paddingX}
+                        paddingX={taskRowViewPaddingX}
                         display="flex"
                         alignItems="center"
                         justifyContent="space-between"
@@ -404,7 +404,7 @@ export function TaskNotepadView({
                     </Box>
                 ),
             };
-        }, [allNotepadPageIds, isMobile, notepadPageState.notepadPageId, paddingX, store]),
+        }, [allNotepadPageIds, isMobile, notepadPageState.notepadPageId, store]),
     });
 
     // NOCOMMIT: Put undo/redo in more actions
@@ -459,8 +459,8 @@ export function TaskNotepadView({
                     bufferedItemHeight={gridViewBufferedItemHeight}
                     itemCount={1 + gridViewItemCount}
                     alwaysRenderAdditionalItemIndexes={useMemo(
-                        () => alwaysRenderGridViewItemIndexes.map(index => index + 1),
-                        [alwaysRenderGridViewItemIndexes],
+                        () => alwaysRenderAdditionalGridViewItemIndexes.map(index => index + 1),
+                        [alwaysRenderAdditionalGridViewItemIndexes],
                     )}
                     scrollbarInsetTop={
                         isMobile
@@ -491,7 +491,6 @@ export function TaskNotepadView({
                                         <>
                                             <TaskNotepadViewActiveSection
                                                 withMobileLayout={withMobileLayout}
-                                                paddingX={paddingX}
                                                 affinityManager={affinityManager}
                                                 assigneeActiveQuery={assigneeActiveQuery}
                                                 activeDraggableData={activeDraggableData}
@@ -558,7 +557,6 @@ export function TaskNotepadView({
                             isMobile,
                             notepadPageState.notepadPageId,
                             overDroppableData,
-                            paddingX,
                             renderGridViewItem,
                             store,
                             withMobileLayout,
