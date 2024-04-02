@@ -1315,6 +1315,10 @@ function TaskRowTitleInput(
                     !isFullyScrolledRight &&
                         tasksStyles.rowTitleInputOverflowGradientRightContainerClassName,
                 )}
+                style={{
+                    // Make sure margin right can never completely hide the input text.
+                    minWidth: "1ch",
+                }}
                 onBlur={() => {
                     runWhenViewIsReady(view => {
                         // Reset scroll position when focus leaves the input.
