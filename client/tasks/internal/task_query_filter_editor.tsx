@@ -21,6 +21,8 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 
+export const taskQueryFilterEditorHeight = "6";
+
 export function TaskQueryFilterEditor({
     store,
     filter,
@@ -329,7 +331,13 @@ function TaskQueryFilterEditorBase({
     onFilterRemove: () => void;
 }) {
     return (
-        <Box height="6" display="flex" alignItems="center" borderRadius="base" border="grey-10">
+        <Box
+            height={taskQueryFilterEditorHeight}
+            display="flex"
+            alignItems="center"
+            borderRadius="base"
+            border="grey-10"
+        >
             <Box paddingLeft="2" paddingRight="1">
                 {name}
             </Box>

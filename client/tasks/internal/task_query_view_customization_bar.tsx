@@ -8,7 +8,10 @@ import {
     OverlayTriggerButton,
     OverlayTriggerButtonRef,
 } from "~/client/design/overlay_trigger_button.js";
-import {TaskQueryFilterEditor} from "~/client/tasks/internal/task_query_filter_editor.js";
+import {
+    TaskQueryFilterEditor,
+    taskQueryFilterEditorHeight,
+} from "~/client/tasks/internal/task_query_filter_editor.js";
 import {TaskQuerySortsEditor} from "~/client/tasks/internal/task_query_sorts_editor.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {spacing} from "~/shared/design/spacing.js";
@@ -17,8 +20,6 @@ import {greyElevated2ClassName} from "~/shared/styles/styles.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
-
-export const taskQueryViewCustomizationBarMinHeight = "1.5rem";
 
 export type TaskQueryViewCustomizationBarRef = {
     // Throws if no collection filter editor component is mounted. So be careful
@@ -77,7 +78,7 @@ function TaskQueryViewCustomizationBar(
         <Box
             display="flex"
             alignItems="flex-start"
-            style={{minHeight: taskQueryViewCustomizationBarMinHeight}}
+            style={{minHeight: taskQueryFilterEditorHeight}}
         >
             {filters.length > 0 && (
                 <Box height="6" display="flex" alignItems="center" paddingRight="2">
@@ -128,221 +129,222 @@ function TaskQueryViewCustomizationBar(
                         />
                     );
                 })}
-                <MenuButton
-                    actions={[
-                        [
-                            {
-                                label: "Status",
-                                onPress: () => {
-                                    addFilter({
-                                        type: "DisplayStatus",
-                                        operation: {
-                                            type: "OneOf",
-                                            displayStatuses: new Set([]),
-                                        },
-                                    });
-                                },
-                            },
-                            {
-                                label: "Collections",
-                                onPress: () => {
-                                    addFilter({
-                                        type: "Collections",
-                                        operation: {
-                                            type: "IncludesAllOf",
-                                            collectionIds: new Set(),
-                                        },
-                                    });
-                                },
-                            },
-                            {
-                                label: "Priority",
-                                onPress: () => {
-                                    addFilter({
-                                        type: "Priority",
-                                        operation: {
-                                            type: "OneOf",
-                                            priorities: new Set(),
-                                        },
-                                    });
-                                },
-                            },
-                            {
-                                label: "Title",
-                                onPress: () => {
-                                    addFilter({
-                                        type: "Title",
-                                        operation: {
-                                            type: "Includes",
-                                            titleQuery: "",
-                                        },
-                                    });
-                                },
-                            },
-                        ],
-                        [
-                            {
-                                label: "Assignee",
-                                onPress: () => {
-                                    addFilter({
-                                        type: "Assignee",
-                                        operation: {
-                                            type: "OneOf",
-                                            accounts: [{type: "CurrentAccount"}],
-                                        },
-                                    });
-                                },
-                            },
-                            {
-                                label: "Creator",
-                                onPress: () => {
-                                    addFilter({
-                                        type: "Creator",
-                                        operation: {
-                                            type: "OneOf",
-                                            accounts: [{type: "CurrentAccount"}],
-                                        },
-                                    });
-                                },
-                            },
-                            {
-                                label: "Assigner",
-                                onPress: () => {
-                                    addFilter({
-                                        type: "Assigner",
-                                        operation: {
-                                            type: "OneOf",
-                                            accounts: [{type: "CurrentAccount"}],
-                                        },
-                                    });
-                                },
-                            },
-                        ],
-                        [
-                            {
-                                label: "Due date",
-                                onPress: () => {
-                                    addFilter({
-                                        type: "DueDate",
-                                        operation: {type: "Overdue"},
-                                    });
-                                },
-                            },
-                            {
-                                label: "Created date",
-                                onPress: () => {
-                                    addFilter({
-                                        type: "CreatedDate",
-                                        operation: {
-                                            type: "GreaterThan",
-                                            date: {
-                                                type: "RelativeBeforeToday",
-                                                duration: {type: "Weeks", count: 1},
+                <Box height={taskQueryFilterEditorHeight} display="flex" alignItems="center">
+                    <MenuButton
+                        actions={[
+                            [
+                                {
+                                    label: "Status",
+                                    onPress: () => {
+                                        addFilter({
+                                            type: "DisplayStatus",
+                                            operation: {
+                                                type: "OneOf",
+                                                displayStatuses: new Set([]),
                                             },
-                                        },
-                                    });
+                                        });
+                                    },
                                 },
-                            },
-                            {
-                                label: "Assigned date",
-                                onPress: () => {
-                                    addFilter({
-                                        type: "AssignedDate",
-                                        operation: {
-                                            type: "GreaterThan",
-                                            date: {
-                                                type: "RelativeBeforeToday",
-                                                duration: {type: "Weeks", count: 1},
+                                {
+                                    label: "Collections",
+                                    onPress: () => {
+                                        addFilter({
+                                            type: "Collections",
+                                            operation: {
+                                                type: "IncludesAllOf",
+                                                collectionIds: new Set(),
                                             },
-                                        },
-                                    });
+                                        });
+                                    },
                                 },
-                            },
-                            {
-                                label: "Closed date",
-                                onPress: () => {
-                                    addFilter({
-                                        type: "ClosedDate",
-                                        operation: {
-                                            type: "GreaterThan",
-                                            date: {
-                                                type: "RelativeBeforeToday",
-                                                duration: {type: "Weeks", count: 1},
+                                {
+                                    label: "Priority",
+                                    onPress: () => {
+                                        addFilter({
+                                            type: "Priority",
+                                            operation: {
+                                                type: "OneOf",
+                                                priorities: new Set(),
                                             },
-                                        },
-                                    });
+                                        });
+                                    },
                                 },
-                            },
-                            {
-                                // NOTE(calebmer): I feel like "Active date" is better copy here than
-                                // "Activated date" since it's more inline with "Active" task branding. I don't
-                                // know if people will think of themselves as "activating" a task or more like
-                                // "setting a task as active".
-                                label: "Active date",
-                                onPress: () => {
-                                    addFilter({
-                                        type: "ActivatedDate",
-                                        operation: {
-                                            type: "GreaterThan",
-                                            date: {
-                                                type: "RelativeBeforeToday",
-                                                duration: {type: "Weeks", count: 1},
+                                {
+                                    label: "Title",
+                                    onPress: () => {
+                                        addFilter({
+                                            type: "Title",
+                                            operation: {
+                                                type: "Includes",
+                                                titleQuery: "",
                                             },
-                                        },
-                                    });
+                                        });
+                                    },
                                 },
-                            },
-                        ],
-                    ]}
-                >
-                    {filters.length > 0 ? (
-                        <IconButton size="sm" description="Add filter" withoutTooltip>
-                            <Plus size={spacing["3"]} />
-                        </IconButton>
-                    ) : (
-                        <Button
-                            variant={shouldCollapse ? "quiet" : "neutral"}
-                            icon={<Plus />}
-                            height="6"
-                            paddingX="2"
-                        >
-                            Add filter
-                        </Button>
-                    )}
-                </MenuButton>
+                            ],
+                            [
+                                {
+                                    label: "Assignee",
+                                    onPress: () => {
+                                        addFilter({
+                                            type: "Assignee",
+                                            operation: {
+                                                type: "OneOf",
+                                                accounts: [{type: "CurrentAccount"}],
+                                            },
+                                        });
+                                    },
+                                },
+                                {
+                                    label: "Creator",
+                                    onPress: () => {
+                                        addFilter({
+                                            type: "Creator",
+                                            operation: {
+                                                type: "OneOf",
+                                                accounts: [{type: "CurrentAccount"}],
+                                            },
+                                        });
+                                    },
+                                },
+                                {
+                                    label: "Assigner",
+                                    onPress: () => {
+                                        addFilter({
+                                            type: "Assigner",
+                                            operation: {
+                                                type: "OneOf",
+                                                accounts: [{type: "CurrentAccount"}],
+                                            },
+                                        });
+                                    },
+                                },
+                            ],
+                            [
+                                {
+                                    label: "Due date",
+                                    onPress: () => {
+                                        addFilter({
+                                            type: "DueDate",
+                                            operation: {type: "Overdue"},
+                                        });
+                                    },
+                                },
+                                {
+                                    label: "Created date",
+                                    onPress: () => {
+                                        addFilter({
+                                            type: "CreatedDate",
+                                            operation: {
+                                                type: "GreaterThan",
+                                                date: {
+                                                    type: "RelativeBeforeToday",
+                                                    duration: {type: "Weeks", count: 1},
+                                                },
+                                            },
+                                        });
+                                    },
+                                },
+                                {
+                                    label: "Assigned date",
+                                    onPress: () => {
+                                        addFilter({
+                                            type: "AssignedDate",
+                                            operation: {
+                                                type: "GreaterThan",
+                                                date: {
+                                                    type: "RelativeBeforeToday",
+                                                    duration: {type: "Weeks", count: 1},
+                                                },
+                                            },
+                                        });
+                                    },
+                                },
+                                {
+                                    label: "Closed date",
+                                    onPress: () => {
+                                        addFilter({
+                                            type: "ClosedDate",
+                                            operation: {
+                                                type: "GreaterThan",
+                                                date: {
+                                                    type: "RelativeBeforeToday",
+                                                    duration: {type: "Weeks", count: 1},
+                                                },
+                                            },
+                                        });
+                                    },
+                                },
+                                {
+                                    // NOTE(calebmer): I feel like "Active date" is better copy here than
+                                    // "Activated date" since it's more inline with "Active" task branding. I don't
+                                    // know if people will think of themselves as "activating" a task or more like
+                                    // "setting a task as active".
+                                    label: "Active date",
+                                    onPress: () => {
+                                        addFilter({
+                                            type: "ActivatedDate",
+                                            operation: {
+                                                type: "GreaterThan",
+                                                date: {
+                                                    type: "RelativeBeforeToday",
+                                                    duration: {type: "Weeks", count: 1},
+                                                },
+                                            },
+                                        });
+                                    },
+                                },
+                            ],
+                        ]}
+                    >
+                        {filters.length > 0 ? (
+                            <IconButton size="sm" description="Add filter" withoutTooltip>
+                                <Plus size={spacing["3"]} />
+                            </IconButton>
+                        ) : (
+                            <Button
+                                variant={shouldCollapse ? "quiet" : "neutral"}
+                                icon={<Plus />}
+                                height={taskQueryFilterEditorHeight}
+                                paddingX="2"
+                            >
+                                Add filter
+                            </Button>
+                        )}
+                    </MenuButton>
+                </Box>
             </Box>
             <Box paddingLeft={!shouldCollapse ? "5" : "2"}>
-                <Box
-                    borderLeft={!shouldCollapse ? "grey-5" : undefined}
-                    paddingLeft={!shouldCollapse ? "5" : undefined}
+                <OverlayTriggerButton
+                    aria-haspopup={true}
+                    overlay={
+                        <Box
+                            className={greyElevated2ClassName}
+                            overflow="hidden"
+                            borderRadius="md"
+                            backgroundColor="grey-0"
+                            boxShadow="elevation-20"
+                        >
+                            <TaskQuerySortsEditor
+                                sorts={sorts}
+                                onSortsChange={onSortsChange}
+                                defaultOrderSentence={defaultOrderSentence}
+                            />
+                        </Box>
+                    }
                 >
-                    <OverlayTriggerButton
-                        aria-haspopup={true}
-                        overlay={
-                            <Box
-                                className={greyElevated2ClassName}
-                                overflow="hidden"
-                                borderRadius="md"
-                                backgroundColor="grey-0"
-                                boxShadow="elevation-20"
-                            >
-                                <TaskQuerySortsEditor
-                                    sorts={sorts}
-                                    onSortsChange={onSortsChange}
-                                    defaultOrderSentence={defaultOrderSentence}
-                                />
-                            </Box>
-                        }
+                    <Button
+                        icon={<SortAscending />}
+                        height={taskQueryFilterEditorHeight}
+                        paddingX="2"
                     >
-                        <Button icon={<SortAscending />} height="6" paddingX="2">
-                            {sorts.length === 0
-                                ? "Sort"
-                                : sorts.length === 1
-                                ? "Sort: 1"
-                                : `Sorts: ${sorts.length}`}
-                        </Button>
-                    </OverlayTriggerButton>
-                </Box>
+                        {sorts.length === 0
+                            ? "Sort"
+                            : sorts.length === 1
+                            ? "Sort: 1"
+                            : `Sorts: ${sorts.length}`}
+                    </Button>
+                </OverlayTriggerButton>
             </Box>
         </Box>
     );

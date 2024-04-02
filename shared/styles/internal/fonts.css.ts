@@ -15,8 +15,10 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 // https://fontdrop.info
 const interFontAscender = 2728;
 const interFontDescender = 680;
-const interFontAscenderPercentage = interFontAscender / (interFontAscender + interFontDescender);
-const interFontDescenderPercentage = interFontDescender / (interFontAscender + interFontDescender);
+export const interFontAscenderPercentage =
+    interFontAscender / (interFontAscender + interFontDescender);
+export const interFontDescenderPercentage =
+    interFontDescender / (interFontAscender + interFontDescender);
 
 const formatPercentage = (percentage: number) => `${Math.round(percentage * 100 * 1000) / 1000}%`;
 

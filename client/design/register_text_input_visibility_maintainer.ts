@@ -84,7 +84,23 @@ export function registerTextInputVisibilityMaintainer() {
 
         let scrollableElement = event.target.parentElement;
         while (scrollableElement !== null) {
-            const {overflowY} = getComputedStyle(scrollableElement);
+            const {position, overflowY} = getComputedStyle(scrollableElement);
+
+            // If the element is inside a container that doesn't scroll with its parent
+            // scrollable element bail out.
+            //
+            // You can test this with `<TaskCollectionViewHeader>`. Try scrolling then
+            // editing the collection name. Since the header is `position: sticky` we
+            // shouldn't scroll the underlying task scroll view.
+            //
+            // NOTE(calebmer): Technically this should only apply if a `position: sticky`
+            // element is "stuck". Sometimes a sticky element scrolls with its parent and
+            // sometimes a sticky element stays in place while the view scrolls. If the
+            // element is not stuck ideally we'd still adjust scroll.
+            if (position === "fixed" || position === "sticky") {
+                scrollableElement = null;
+                break;
+            }
 
             // We found our scrollable element!
             if (overflowY === "scroll" || overflowY === "auto") break;
@@ -114,7 +130,7 @@ export function registerTextInputVisibilityMaintainer() {
             // Only scroll whole pixels. In case there are subpixel rounding issues when we
             // perform the first scroll for an input.
             if (Math.abs(scrollDelta) >= 1) {
-                const scrollTop = scrollableElement.scrollTop + scrollDelta;
+                const scrollTop = scrollableElement.scrollTop + Math.round(scrollDelta);
 
                 // NOTE(calebmer): Mobile WebKit appears to have a bug where updating
                 // `scrollTop` in this event updates `scrollTop` in JavaScript but doesn't
@@ -134,7 +150,7 @@ export function registerTextInputVisibilityMaintainer() {
             // Only scroll whole pixels. In case there are subpixel rounding issues when we
             // perform the first scroll for an input.
             if (Math.abs(scrollDelta) >= 1) {
-                const scrollTop = scrollableElement.scrollTop + scrollDelta;
+                const scrollTop = scrollableElement.scrollTop + Math.round(scrollDelta);
 
                 // NOTE(calebmer): Mobile WebKit appears to have a bug where updating
                 // `scrollTop` in this event updates `scrollTop` in JavaScript but doesn't

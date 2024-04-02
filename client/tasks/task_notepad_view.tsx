@@ -11,7 +11,6 @@ import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/interna
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {
     TaskGridViewVirtualizedListViewRef,
-    taskGridViewColumnHeaderHeight,
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {
@@ -37,13 +36,7 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {
-    RemLength,
-    Spacing,
-    addRemLengths,
-    spacing,
-    subtractRemLengths,
-} from "~/shared/design/spacing.js";
+import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -355,12 +348,8 @@ export function TaskNotepadView({
             // devices. Instead we render a navigation bar.
             if (isMobile) return;
 
-            let height: RemLength =
+            const height =
                 spacing[isMobile ? navigationBarHeight.mobile : navigationBarHeight.desktop];
-
-            if (gridViewCapabilities.hasColumns) {
-                height = subtractRemLengths(height, spacing[taskGridViewColumnHeaderHeight]);
-            }
 
             return {
                 minHeight: height,
@@ -415,14 +404,7 @@ export function TaskNotepadView({
                     </Box>
                 ),
             };
-        }, [
-            allNotepadPageIds,
-            gridViewCapabilities.hasColumns,
-            isMobile,
-            notepadPageState.notepadPageId,
-            paddingX,
-            store,
-        ]),
+        }, [allNotepadPageIds, isMobile, notepadPageState.notepadPageId, paddingX, store]),
     });
 
     // NOCOMMIT: Put undo/redo in more actions

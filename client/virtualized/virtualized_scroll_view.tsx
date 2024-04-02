@@ -711,11 +711,12 @@ function VirtualizedScrollView(
         {
             const contentElement = assertExists(contentRef.current);
             let selectedElement: HTMLElement | null = null;
+            let selectedKey: Key | null = null;
 
             // NOTE(calebmer): There's room to optimize this algorithm. If we keep our item
             // refs in sorted order we can break after we find the first item within the
             // scroll window.
-            for (const [, elementRef] of iterateItemRefs()) {
+            for (const [key, elementRef] of iterateItemRefs()) {
                 // Ignore elements that are positioned within an element other than our
                 // absolutely positioned content element. This could happen for items using
                 // custom layout.
@@ -726,6 +727,7 @@ function VirtualizedScrollView(
                     selectedElement === null ||
                     elementRef.element.offsetTop > selectedElement.offsetTop
                 ) {
+                    selectedKey = key;
                     selectedElement = elementRef.element;
                 }
             }
@@ -734,6 +736,7 @@ function VirtualizedScrollView(
                 const scrollAnchorElement = selectedElement;
 
                 scrollAnchorRef.current = {
+                    keyForDebugging: selectedKey!,
                     // Use the last element as the anchor until it is scrolled offscreen. Then
                     // resume regular anchor selection. (First visible element.)
                     shouldAnchorWhileVisible: true,
@@ -960,6 +963,13 @@ function VirtualizedScrollView(
     state = newStateAfterRender;
 
     const scrollAnchorRef = useRef<{
+        // NOTE(calebmer, 2024-04-02): Added the scroll anchor element key to aid in
+        // debugging. It's not currently used to control any virtualized scroll view
+        // behavior. The original design goal of the scroll anchor type was to have no
+        // knowledge of virtualized scroll view state and anchor only based on
+        // information from the DOM. It's ok if this changes but for now only use the
+        // key while debugging.
+        keyForDebugging: Key;
         // If you manually set a scroll anchor you can set this flag so it won't change
         // on scroll and will continue to be the anchor as long as it is in the
         // scroll window.
@@ -1018,11 +1028,12 @@ function VirtualizedScrollView(
         }
 
         let selectedElement: HTMLElement | null = null;
+        let selectedKey: Key | null = null;
 
         // NOTE(calebmer): There's room to optimize this algorithm. If we keep our item
         // refs in sorted order we can break after we find the first item within the
         // scroll window.
-        for (const [, elementRef] of iterateItemRefs()) {
+        for (const [key, elementRef] of iterateItemRefs()) {
             // Ignore elements that are positioned within an element other than our
             // absolutely positioned content element. This could happen for items using
             // custom layout.
@@ -1038,6 +1049,7 @@ function VirtualizedScrollView(
                 (selectedElement.offsetTop + selectedElement.offsetHeight < scrollTop &&
                     elementRef.element.offsetTop < scrollTop + clientHeight)
             ) {
+                selectedKey = key;
                 selectedElement = elementRef.element;
             }
         }
@@ -1048,6 +1060,7 @@ function VirtualizedScrollView(
             const scrollAnchorElement = selectedElement;
 
             scrollAnchorRef.current = {
+                keyForDebugging: selectedKey!,
                 shouldAnchorWhileVisible: false,
                 lastPosition: getElementPosition(
                     scrollElement,
@@ -1576,6 +1589,7 @@ function VirtualizedScrollView(
                         // the computed position which is why we need to capture the computed
                         // position here.
                         scrollAnchorRef.current = {
+                            keyForDebugging: key,
                             shouldAnchorWhileVisible: true,
                             lastPosition: initialElement
                                 ? getElementPosition(

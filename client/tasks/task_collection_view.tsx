@@ -1,12 +1,14 @@
 import {IconContext, Trash} from "phosphor-react";
 import {Memo, ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskCollectionEntryAccess} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
@@ -16,7 +18,6 @@ import {
     isTaskQueryManuallySorted,
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
-import {TaskQueryViewCustomizationBar} from "~/client/tasks/internal/task_query_view_customization_bar.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
@@ -25,13 +26,12 @@ import {
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/task_client_store.js";
 import {createTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/task_query_view.js";
-import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
@@ -52,7 +52,7 @@ import {
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
-export {newTaskCollectionNamePlaceholder} from "~/client/tasks/internal/task_collection_view_header.js";
+export {newTaskCollectionNamePlaceholder} from "~/client/tasks/internal/task_collection_view_header_name.js";
 
 export function TaskCollectionView({
     withMobileLayout,
@@ -87,6 +87,7 @@ export function TaskCollectionView({
     onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
     createCollection: Memo<(name: string) => Promise<void>>;
 }) {
+    const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
     const currentDate = useCurrentDate();
 
@@ -360,10 +361,12 @@ export function TaskCollectionView({
         },
         columnHeaderControls: useMemo(() => {
             return {
-                minHeight: withMobileLayout ? "2.75rem" : "3rem",
+                minHeight:
+                    spacing[isMobile ? navigationBarHeight.mobile : navigationBarHeight.desktop],
                 node: (
                     <>
                         {readOnlyReason?.message && (
+                            // NOCOMMIT: How do read-only messages work on mobile?
                             <Box
                                 className={invertSelectionColorsClassName}
                                 height="8"
@@ -382,58 +385,20 @@ export function TaskCollectionView({
                                 <Box userSelect="text">{readOnlyReason.message}</Box>
                             </Box>
                         )}
-                        <Box display="flex" paddingX={taskRowViewPaddingX}>
-                            <Box
-                                paddingTop="2"
-                                // Make sure `paddingBottom` is the same as `paddingTop` when in a mobile
-                                // layout when we don't have column headers.
-                                paddingBottom={withMobileLayout ? "2" : "3"}
-                                maxWidth="1/2"
-                            >
-                                <TaskCollectionViewHeader
-                                    isReadOnly={isReadOnly}
-                                    store={store}
-                                    affinityManager={affinityManager}
-                                    collectionId={collectionId}
-                                    collectionSubscription={collectionSubscription}
-                                    createCollection={createCollection}
-                                />
-                            </Box>
-                            <Box
-                                flexGrow="1"
-                                paddingLeft="5"
-                                paddingTop="2.5"
-                                style={{
-                                    // Make sure `paddingBottom` is the same as `paddingTop` when in a mobile
-                                    // layout when we don't have column headers.
-                                    paddingBottom: withMobileLayout
-                                        ? spacing["2.5"]
-                                        : addRemLengths(spacing["3"], spacing["0.5"]),
-                                }}
-                            >
-                                {!withMobileLayout && (
-                                    // TODO(calebmer): Create an interface for adding filters/sorts in a mobile
-                                    // layout. We can't use our pill design since we don't have the
-                                    // horizontal space.
-                                    <Box borderLeft="grey-5" paddingLeft="5">
-                                        <TaskQueryViewCustomizationBar
-                                            store={store}
-                                            shouldCollapseWhenFiltersAreEmpty={true}
-                                            defaultOrderSentence={
-                                                filters.length > 0
-                                                    ? "When filtered, tasks are ordered by created date."
-                                                    : "You can order tasks manually by dragging them."
-                                            }
-                                            filters={filters}
-                                            filterReferences={filterReferences}
-                                            onFiltersChange={updateFilters}
-                                            sorts={sorts}
-                                            onSortsChange={setSorts}
-                                        />
-                                    </Box>
-                                )}
-                            </Box>
-                        </Box>
+                        <TaskCollectionViewHeader
+                            withMobileLayout={withMobileLayout}
+                            store={store}
+                            collectionId={collectionId}
+                            collectionSubscription={collectionSubscription}
+                            affinityManager={affinityManager}
+                            createCollection={createCollection}
+                            isReadOnly={isReadOnly}
+                            filters={filters}
+                            filterReferences={filterReferences}
+                            onFiltersChange={updateFilters}
+                            sorts={sorts}
+                            onSortsChange={setSorts}
+                        />
                     </>
                 ),
             };
@@ -444,6 +409,7 @@ export function TaskCollectionView({
             createCollection,
             filterReferences,
             filters,
+            isMobile,
             isReadOnly,
             readOnlyReason,
             setSorts,
