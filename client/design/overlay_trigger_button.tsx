@@ -251,10 +251,9 @@ function OverlayTriggerButton(
                 }
             }
 
-            function handlePointerDown(event: MouseEvent) {
-                if (overlayTriggerElement.disabled) return;
-                if (isRightClick(event)) return;
+            let isPointerDown = false;
 
+            function pointerExpand() {
                 // If we expand an overlay by clicking then other overlays that go away on
                 // outside press should not animate out.
                 if (!state.isExpanded) {
@@ -284,6 +283,36 @@ function OverlayTriggerButton(
                         };
                     }
                 });
+            }
+
+            function handlePointerDown(event: PointerEvent) {
+                if (overlayTriggerElement.disabled) return;
+                if (isRightClick(event)) return;
+
+                isPointerDown = true;
+
+                // Expand on `pointerdown` if this is the mouse. Expand on `pointerup` if this
+                // is touch. Because a touch press gesture might actually be a scroll. If the
+                // user starts scrolling that cancels our press.
+                if (event.pointerType === "mouse") {
+                    pointerExpand();
+                }
+            }
+
+            function handlePointerUp(event: PointerEvent) {
+                const wasPointerDown = isPointerDown;
+                isPointerDown = false;
+
+                // Expand on `pointerdown` if this is the mouse. Expand on `pointerup` if this
+                // is touch. Because a touch press gesture might actually be a scroll. If the
+                // user starts scrolling that cancels our press.
+                if (wasPointerDown && event.pointerType !== "mouse") {
+                    pointerExpand();
+                }
+            }
+
+            function handlePointerCancel() {
+                isPointerDown = false;
             }
 
             const overlayId = overlayElement?.getAttribute("id") ?? null;
@@ -335,6 +364,16 @@ function OverlayTriggerButton(
             overlayTriggerElement.addEventListener("pointerdown", handlePointerDown, {
                 capture: true,
             });
+            overlayTriggerElement.addEventListener("pointerup", handlePointerUp, {
+                capture: true,
+            });
+            overlayTriggerElement.addEventListener("pointermove", handlePointerCancel, {
+                capture: true,
+            });
+            overlayTriggerElement.addEventListener("pointercancel", handlePointerCancel, {
+                capture: true,
+            });
+            overlayTriggerElement.addEventListener("dragstart", handlePointerCancel);
             overlayTriggerElement.addEventListener("keydown", handleKeyDown);
 
             return () => {
