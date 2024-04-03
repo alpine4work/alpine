@@ -1,5 +1,12 @@
 import {animate} from "motion";
-import {CalendarBlank, IconContext, TextIndent, TextOutdent, User} from "phosphor-react";
+import {
+    CalendarBlank,
+    IconContext,
+    SpinnerGap,
+    TextIndent,
+    TextOutdent,
+    User,
+} from "phosphor-react";
 import {Selection} from "prosemirror-state";
 import {ReactNode, Ref, RefObject, useEffect, useId, useRef, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
@@ -11,17 +18,23 @@ import {
 } from "~/client/design/mobile_bottom_bar.js";
 import {useOverlayMobileKeyboardPortalElement} from "~/client/design/overlay_mobile_keyboard_sink_context_provider.js";
 import {useRegisterBottomBarMobileKeyboardToolbarFrame} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
+import {useShowToast} from "~/client/design/toast.js";
+import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {TaskRowTitleInputRef} from "~/client/tasks/internal/task_row_title_input.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {spinAnimationClassName} from "~/shared/styles/styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 
@@ -75,6 +88,8 @@ export function TaskGridViewMobileKeyboardToolbar({
         "Must render after `<TaskGridViewMobileKeyboardToolbarContainer>` has been rendered",
     );
 
+    const navigate = useNavigate();
+
     return createPortal(
         <TaskGridViewMobileKeyboardToolbarContent
             onDedentPress={
@@ -102,6 +117,10 @@ export function TaskGridViewMobileKeyboardToolbar({
             onPriorityPress={focusPriorityInput}
             isDueDateActive={!!task?.getDueDate()}
             onDueDatePress={focusDueDateInput}
+            onOpenPress={async () => {
+                if (!task) return;
+                await navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`);
+            }}
         />,
         portalElement,
     );
@@ -344,6 +363,7 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
                             onPriorityPress={null}
                             isDueDateActive={false}
                             onDueDatePress={null}
+                            onOpenPress={null}
                         />
                     </Box>
                 )}
@@ -362,6 +382,7 @@ function TaskGridViewMobileKeyboardToolbarContent({
     onPriorityPress,
     isDueDateActive,
     onDueDatePress,
+    onOpenPress,
 }: {
     onDedentPress: (() => void) | null;
     onIndentPress: (() => void) | null;
@@ -371,6 +392,7 @@ function TaskGridViewMobileKeyboardToolbarContent({
     onPriorityPress: (() => void) | null;
     isDueDateActive: boolean;
     onDueDatePress: (() => void) | null;
+    onOpenPress: (() => Promise<void>) | null;
 }) {
     return (
         <Box
@@ -429,18 +451,15 @@ function TaskGridViewMobileKeyboardToolbarContent({
             </TaskGridViewMobileKeyboardToolbarButton>
             <TaskGridViewMobileKeyboardToolbarButton
                 dividerLeft
-                label="Done"
+                label="Open"
                 isActive={false}
                 flexGrow={1.2}
-                onPress={() => {
-                    // Close the keyboard...
-                    if (document.activeElement instanceof HTMLElement) {
-                        document.activeElement.blur();
-                    }
-                }}
+                isDisabled={!onOpenPress}
+                pressErrorTitle="Couldn’t open task"
+                onPress={onOpenPress ?? noop}
             >
                 <Box fontSize="100" fontStyle="semi-bold">
-                    Done
+                    Open
                 </Box>
             </TaskGridViewMobileKeyboardToolbarButton>
         </Box>
@@ -455,6 +474,7 @@ function TaskGridViewMobileKeyboardToolbarButton({
     isActive,
     isDisabled,
     flexGrow,
+    pressErrorTitle,
     onPress,
 }: {
     label: string;
@@ -464,12 +484,59 @@ function TaskGridViewMobileKeyboardToolbarButton({
     isActive: boolean;
     isDisabled?: boolean;
     flexGrow?: number;
-    onPress: () => void;
+    pressErrorTitle?: string;
+    onPress: () => MaybePromise<void>;
 }) {
+    const showToast = useShowToast();
+
+    const [isPending, setIsPending] = useState(false);
+
     const {isHovered, hoverProps} = useHover({});
+
     const {isPressed, pressProps} = usePress({
         isDisabled,
-        onPress,
+        onPress: event => {
+            const defaultPressErrorTitle = "The button you pressed didn’t work";
+
+            let promise;
+            try {
+                promise = onPress?.();
+            } catch (error) {
+                showToast({
+                    type: "Error",
+                    title: pressErrorTitle ?? defaultPressErrorTitle,
+                    error,
+                });
+                return;
+            }
+
+            // If the press returns a promise:
+            //
+            // - Show a loading spinner after a short delay
+            // - Show a toast if there was an error
+            if (promise instanceof Promise) {
+                setIsPending(true);
+
+                assert(
+                    pressErrorTitle,
+                    "If `onPress` returns a promise then the `pressErrorTitle` prop is required",
+                );
+
+                promise.then(
+                    () => {
+                        setIsPending(false);
+                    },
+                    error => {
+                        setIsPending(false);
+                        showToast({
+                            type: "Error",
+                            title: pressErrorTitle,
+                            error,
+                        });
+                    },
+                );
+            }
+        },
     });
 
     const pressAndHoverProps = mergeProps(hoverProps, pressProps);
@@ -480,6 +547,10 @@ function TaskGridViewMobileKeyboardToolbarButton({
         (isPressed: boolean) => isPressed && isActive,
         [isPressed],
     );
+
+    // We wait a bit before showing our pending spinner. Some actions are very fast so we
+    // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
+    const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
 
     return (
         <>
@@ -505,8 +576,20 @@ function TaskGridViewMobileKeyboardToolbarButton({
                 display="flex"
                 justifyContent="center"
                 alignItems="center"
+                position="relative"
                 style={{flexGrow: flexGrow ?? 1}}
             >
+                {shouldShowPendingSpinner && (
+                    <Box
+                        position="absolute"
+                        inset="0"
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                    >
+                        <SpinnerGap className={spinAnimationClassName} size={spacing["5"]} />
+                    </Box>
+                )}
                 <Box
                     width="full"
                     height="full"
@@ -526,6 +609,7 @@ function TaskGridViewMobileKeyboardToolbarButton({
                     display="flex"
                     justifyContent="center"
                     alignItems="center"
+                    opacity={shouldShowPendingSpinner ? "0" : undefined}
                 >
                     <IconContext.Provider
                         value={{

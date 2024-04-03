@@ -233,7 +233,6 @@ function TaskRowTitleInput(
         parentTaskEntryStore,
         areChildTasksExpanded,
         onAreChildTasksExpandedToggle,
-        isMobileExpandButtonVisible,
         createTaskAbove,
         createTaskBelowAndFocus,
         nestWithPreviousTaskRowIfExistsAndExpand,
@@ -262,7 +261,6 @@ function TaskRowTitleInput(
         parentTaskEntryStore: Store<TaskClientStoreTaskEntry> | null;
         areChildTasksExpanded: boolean;
         onAreChildTasksExpandedToggle: () => void;
-        isMobileExpandButtonVisible: boolean;
         createTaskAbove: () => void;
         createTaskBelowAndFocus: () => void;
         nestWithPreviousTaskRowIfExistsAndExpand: (selection: Selection) => void;
@@ -505,25 +503,6 @@ function TaskRowTitleInput(
             callback();
         }
     });
-
-    const isInitialIsMobileExpandButtonVisibleLayoutEffectCallback = useRef(true);
-    const onIsMobileExpandButtonVisibleLayoutEffectCallbacksRef = useRef(new Set<() => void>());
-    useLayoutEffectWithoutServerSideWarning(() => {
-        // Skip the first time this callback is called.
-        if (isInitialIsMobileExpandButtonVisibleLayoutEffectCallback.current) {
-            isInitialIsMobileExpandButtonVisibleLayoutEffectCallback.current = false;
-            return;
-        }
-
-        // We want this effect to run whenever this prop changes.
-        //
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        isMobileExpandButtonVisible;
-
-        for (const callback of onIsMobileExpandButtonVisibleLayoutEffectCallbacksRef.current) {
-            callback();
-        }
-    }, [isMobileExpandButtonVisible]);
 
     // We initially consider ourselves to be fully scrolled to the left and to the
     // right. This means on server-render we won't see gradients. They will flash
@@ -895,18 +874,6 @@ function TaskRowTitleInput(
                 });
             }
 
-            // When `isMobileExpandButtonVisible` changes it effects our task row title
-            // width so we want to update our multiline state.
-            const handleIsMobileExpandButtonVisibleLayoutEffect = () => {
-                updateMultilineState(false);
-            };
-
-            if (hasMultilineTitleAndShouldShowMarginRightContent) {
-                onIsMobileExpandButtonVisibleLayoutEffectCallbacksRef.current.add(
-                    handleIsMobileExpandButtonVisibleLayoutEffect,
-                );
-            }
-
             // When the window resizes, re-evaluate state that depends on task
             // container size.
             const handleWindowResize = () => {
@@ -1041,12 +1008,6 @@ function TaskRowTitleInput(
             }
 
             return () => {
-                if (hasMultilineTitleAndShouldShowMarginRightContent) {
-                    onIsMobileExpandButtonVisibleLayoutEffectCallbacksRef.current.delete(
-                        handleIsMobileExpandButtonVisibleLayoutEffect,
-                    );
-                }
-
                 window.removeEventListener("resize", handleWindowResize);
                 document.addEventListener("selectionchange", handleSelectionChange);
 

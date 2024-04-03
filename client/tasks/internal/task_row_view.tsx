@@ -18,7 +18,6 @@ import {
     useState,
 } from "react";
 import {mergeProps} from "react-aria";
-import {flushSync} from "react-dom";
 import * as Y from "yjs";
 import {useAppContext} from "~/client/context/app_context.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
@@ -90,7 +89,6 @@ import {
     taskRowViewPaddingXRem,
 } from "~/client/tasks/task_row_shared_styles.js";
 import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -279,15 +277,6 @@ const paddingBottomClassName = sprinkles({
     width: "full",
     height: paddingBottomHeight,
 });
-
-const mobileExpandButtonContainerClassName = `${pointerEventsNoneNotInheritedClassName} ${sprinkles(
-    {
-        height: taskRowViewMinHeight,
-        display: "flex",
-        alignItems: "center",
-        paddingLeft: "2",
-    },
-)}`;
 
 function TaskRowView(
     {
@@ -1042,7 +1031,6 @@ function TaskRowView(
     const mergedContainerRef = useMergedRefs<HTMLDivElement>(containerRef, hoverRef);
 
     const [isExpandButtonFocused, setIsExpandButtonFocused] = useState(false);
-    const [isMobileExpandButtonPending, setIsMobileExpandButtonPending] = useState(false);
 
     const contextMenuActions = (() => {
         const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
@@ -1126,12 +1114,6 @@ function TaskRowView(
                 event.currentTarget.contains(document.activeElement),
         );
     };
-
-    const isMobileExpandButtonVisible =
-        hasTask &&
-        !capabilities.hasColumns &&
-        !canPrimaryInputHover &&
-        (isTextInputWithinFocusedIfMobile || isMobileExpandButtonPending);
 
     // Is the entire row draggable after a long touch? True if the query is
     // manually sorted and we're on a mobile device.
@@ -1548,7 +1530,6 @@ function TaskRowView(
                         parentTaskEntryStore={parentTaskEntryStore}
                         areChildTasksExpanded={areChildTasksExpanded}
                         onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
-                        isMobileExpandButtonVisible={isMobileExpandButtonVisible}
                         createTaskAbove={createTaskAbove}
                         createTaskBelowAndFocus={createTaskBelowAndFocus}
                         nestWithPreviousTaskRowIfExistsAndExpand={
@@ -1626,37 +1607,6 @@ function TaskRowView(
                         commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
                     />
                 </>
-            )}
-            {isMobileExpandButtonVisible && (
-                <div style={{flexShrink: 0}} {...marginRightOutOfBoundsClickSelectionProps}>
-                    <div className={mobileExpandButtonContainerClassName}>
-                        <IconButton
-                            size="md"
-                            description="Open"
-                            // Non-focusable so it doesn't close the software keyboard when pressed.
-                            isFocusable={false}
-                            isPending={isMobileExpandButtonPending}
-                            onPress={() => {
-                                // Make sure as the text input loses focus the pending state in this component
-                                // is true so we keep rendering the expand button.
-                                flushSync(() => setIsMobileExpandButtonPending(true));
-
-                                if (document.activeElement instanceof HTMLElement)
-                                    document.activeElement.blur();
-
-                                runPromiseWithoutAwaiting(async () => {
-                                    try {
-                                        await navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`);
-                                    } finally {
-                                        setIsMobileExpandButtonPending(false);
-                                    }
-                                });
-                            }}
-                        >
-                            <ArrowsOutSimple />
-                        </IconButton>
-                    </div>
-                </div>
             )}
             <div
                 style={{
