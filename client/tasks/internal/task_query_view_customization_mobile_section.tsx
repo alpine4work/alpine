@@ -120,7 +120,6 @@ function TaskQueryViewCustomizationMobileSection(
             display="flex"
             flexDirection="column"
             gap="4"
-            paddingTop="1"
             paddingBottom="8"
         >
             {areFiltersVisible && (

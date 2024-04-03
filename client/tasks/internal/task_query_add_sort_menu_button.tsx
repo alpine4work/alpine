@@ -24,6 +24,9 @@ function TaskQueryAddSortMenuButton(
     return (
         <MenuButton
             ref={ref}
+            placement="bottom-end"
+            offset="2"
+            offsetAlong="1"
             onStateChange={onStateChange}
             actions={[
                 [
