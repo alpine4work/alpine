@@ -202,31 +202,21 @@ export default function TaskRoute({withMobileLayout = false}: {withMobileLayout?
             zIndex="0"
             display="flex"
             justifyContent="center"
-            padding={!withMobileLayout ? {desktop: "4"} : undefined}
         >
-            <Box
-                width="full"
-                maxWidth={taskDetailViewMaxWidth}
-                overflow="hidden"
-                borderRadius={!withMobileLayout ? {desktop: "md"} : undefined}
-                boxShadow={!withMobileLayout ? {desktop: "elevation-5"} : undefined}
-                backgroundColor="grey-0"
-            >
-                <TaskGridViewDndContext store={taskSubscription.store}>
-                    <TaskDetailView
-                        // Remount when the `TaskId` changes.
-                        key={taskSubscription.taskId}
-                        withMobileLayout={withMobileLayout}
-                        taskSubscription={taskSubscription}
-                        childrenQuery={childrenQuery}
-                        affinityManager={affinityManager}
-                        initialChildrenGridViewExpansionState={childrenGridViewExpansionState}
-                        initialBottomGhostTaskId={initialBottomGhostTaskId}
-                        initialNotesVersion={initialNotesVersion}
-                        initialNotesContent={initialNotesContent}
-                    />
-                </TaskGridViewDndContext>
-            </Box>
+            <TaskGridViewDndContext store={taskSubscription.store}>
+                <TaskDetailView
+                    // Remount when the `TaskId` changes.
+                    key={taskSubscription.taskId}
+                    withMobileLayout={withMobileLayout}
+                    taskSubscription={taskSubscription}
+                    childrenQuery={childrenQuery}
+                    affinityManager={affinityManager}
+                    initialChildrenGridViewExpansionState={childrenGridViewExpansionState}
+                    initialBottomGhostTaskId={initialBottomGhostTaskId}
+                    initialNotesVersion={initialNotesVersion}
+                    initialNotesContent={initialNotesContent}
+                />
+            </TaskGridViewDndContext>
         </Box>
     );
 }

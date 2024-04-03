@@ -89,7 +89,13 @@ import {
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {RemLength, addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {
+    RemLength,
+    Spacing,
+    addRemLengths,
+    convertRemLengthToPx,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
@@ -235,6 +241,7 @@ export function useTaskGridViewVirtualizedList({
     getMoveTaskToQueryActions: getMoveTaskToRootQueryActions,
     getMaybeRemoveTaskFromQueryActions: getMaybeRemoveTaskFromRootQueryActions,
     columnHeaderControls,
+    rowMaxWidth = null,
     onApplyUndoStackEntry,
     getAnchorPosition,
 }: {
@@ -253,6 +260,7 @@ export function useTaskGridViewVirtualizedList({
     ) => Array<TaskAction>;
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
     columnHeaderControls?: Memo<{minHeight: RemLength | number; node: ReactNode}>;
+    rowMaxWidth?: Spacing | null;
     onApplyUndoStackEntry?: (options: {
         type: "Undo" | "Redo";
         entry: DistributiveOmit<TaskUndoStackEntry, "release">;
@@ -1940,6 +1948,7 @@ export function useTaskGridViewVirtualizedList({
                         node: (
                             <TaskGridViewMoreUnloadedTasksMemo
                                 capabilities={capabilities}
+                                rowMaxWidth={rowMaxWidth}
                                 focusPreviousTaskTitleEnd={events.focusPreviousTaskTitleEnd}
                                 focusPreviousTaskTitleAll={events.focusPreviousTaskTitleAll}
                             />
@@ -1972,6 +1981,7 @@ export function useTaskGridViewVirtualizedList({
                                         cursor={null}
                                         ghostTaskId={bottomGhostTaskId}
                                         parents={emptyArray}
+                                        rowMaxWidth={rowMaxWidth}
                                         // Don't disable expensive features while auto-scrolling during drag since one
                                         // of the expensive features this flag disables is droppable zones. The user
                                         // still needs to be able to reach droppable zones during a drag auto-scroll.
@@ -2057,6 +2067,7 @@ export function useTaskGridViewVirtualizedList({
                                 gridKey={gridKey}
                                 cursor={item.cursor}
                                 parents={item.parents}
+                                rowMaxWidth={rowMaxWidth}
                                 // Don't disable expensive features while auto-scrolling during drag since one
                                 // of the expensive features this flag disables is droppable zones. The user
                                 // still needs to be able to reach droppable zones during a drag auto-scroll.
@@ -2109,6 +2120,7 @@ export function useTaskGridViewVirtualizedList({
                     node: (
                         <TaskGridViewUnloadedChildTaskMemo
                             capabilities={capabilities}
+                            rowMaxWidth={rowMaxWidth}
                             parentGridKey={parentGridKey}
                             unloadedChildTaskIndex={item.unloadedChildTaskIndex}
                             indentation={item.parents.length}
@@ -2137,6 +2149,7 @@ export function useTaskGridViewVirtualizedList({
         maxGridExpandableTaskDepth,
         remPx,
         rootQuery,
+        rowMaxWidth,
         state,
         stateItemCount,
         stateKey,
@@ -2565,10 +2578,12 @@ function TaskGridViewColumnHeader(
 
 const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreUnloadedTasksMemo({
     capabilities,
+    rowMaxWidth,
     focusPreviousTaskTitleEnd,
     focusPreviousTaskTitleAll,
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
+    rowMaxWidth: Spacing | null;
     focusPreviousTaskTitleEnd: Memo<(key: string) => void>;
     focusPreviousTaskTitleAll: Memo<(key: string) => void>;
 }) {
@@ -2576,6 +2591,7 @@ const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreUnloaded
         <>
             <TaskRowShimmer
                 capabilities={capabilities}
+                rowMaxWidth={rowMaxWidth}
                 randomSeed="MoreUnloadedTasks"
                 index={0}
                 indentation={0}
@@ -2584,6 +2600,7 @@ const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreUnloaded
             />
             <TaskRowShimmer
                 capabilities={capabilities}
+                rowMaxWidth={rowMaxWidth}
                 randomSeed="MoreUnloadedTasks"
                 index={1}
                 indentation={0}
@@ -2592,6 +2609,7 @@ const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreUnloaded
             />
             <TaskRowShimmer
                 capabilities={capabilities}
+                rowMaxWidth={rowMaxWidth}
                 randomSeed="MoreUnloadedTasks"
                 index={2}
                 indentation={0}
@@ -2677,6 +2695,7 @@ const TaskGridViewDecorativeGhostTaskMemo = memo(function TaskGridViewDecorative
 
 const TaskGridViewUnloadedChildTaskMemo = memo(function TaskGridViewUnloadedChildTaskMemo({
     capabilities,
+    rowMaxWidth,
     parentGridKey,
     unloadedChildTaskIndex,
     indentation,
@@ -2684,6 +2703,7 @@ const TaskGridViewUnloadedChildTaskMemo = memo(function TaskGridViewUnloadedChil
     focusPreviousTaskTitleAll,
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
+    rowMaxWidth: Spacing | null;
     parentGridKey: TaskGridViewTaskKey;
     unloadedChildTaskIndex: number;
     indentation: number;
@@ -2693,6 +2713,7 @@ const TaskGridViewUnloadedChildTaskMemo = memo(function TaskGridViewUnloadedChil
     return (
         <TaskRowShimmer
             capabilities={capabilities}
+            rowMaxWidth={rowMaxWidth}
             randomSeed={parentGridKey}
             index={unloadedChildTaskIndex}
             indentation={indentation}
@@ -2723,6 +2744,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     cursor,
     ghostTaskId,
     parents,
+    rowMaxWidth,
     disableExpensiveFeaturesDuringScroll,
     isFirstRow,
     isFirstTaskInQuery,
@@ -2752,6 +2774,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     cursor: TaskQuerySortCursor | null;
     ghostTaskId?: TaskId | null;
     parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
+    rowMaxWidth: Spacing | null;
     disableExpensiveFeaturesDuringScroll: boolean;
     isFirstRow: boolean;
     isFirstTaskInQuery: boolean;
@@ -3418,6 +3441,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             onGhostTaskCreated={events.onGhostTaskCreated}
             gridKey={gridKey}
             parents={parents}
+            rowMaxWidth={rowMaxWidth}
             disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
             titlePlaceholder={titlePlaceholder}
             isFirstRow={isFirstRow}

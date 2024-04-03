@@ -290,6 +290,7 @@ export function TaskDetailView({
             initialBottomGhostTaskId,
         },
         affinityManager,
+        rowMaxWidth: taskDetailViewMaxWidth,
         viewRef: childrenGridViewRef,
         getMoveTaskToQueryActions: (taskId, position) => {
             const time1 = store.clock.now();
@@ -664,6 +665,7 @@ export function TaskDetailView({
         title: <TaskDetailViewNavigationBarTitle taskSubscription={taskSubscription} />,
         titleBoundaryRef: titleInputElementRef,
         menuActions: contextMenuActions,
+        desktopTitleMaxWidth: taskDetailViewMaxWidth,
         desktopControls: (
             <TaskDetailViewStatusButton
                 elementRef={statusButtonRef}
@@ -1041,12 +1043,13 @@ function TaskDetailViewMain(
             )}
             <Box
                 data-testid="TaskDetailViewMain"
-                width="full"
                 overflow="hidden"
+                width="full"
                 maxWidth={taskDetailViewMaxWidth}
                 display="flex"
                 flexDirection="column"
                 position="relative"
+                style={{margin: "0 auto"}}
             >
                 {isMobile && (
                     // On mobile, create some space for the navigation bar since it's back button

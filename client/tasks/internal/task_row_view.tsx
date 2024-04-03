@@ -88,7 +88,7 @@ import {
     taskRowViewPaddingX,
     taskRowViewPaddingXRem,
 } from "~/client/tasks/task_row_shared_styles.js";
-import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -292,6 +292,7 @@ function TaskRowView(
         onGhostTaskCreated,
         gridKey,
         parents,
+        rowMaxWidth,
         disableExpensiveFeaturesDuringScroll,
         isFirstRow,
         isFirstTaskInQuery,
@@ -337,6 +338,7 @@ function TaskRowView(
         onGhostTaskCreated?: () => void;
         gridKey: TaskGridViewTaskKey;
         parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
+        rowMaxWidth: Spacing | null;
         disableExpensiveFeaturesDuringScroll: boolean;
         isFirstRow: boolean;
         isFirstTaskInQuery: boolean;
@@ -1312,6 +1314,12 @@ function TaskRowView(
             }
             data-indentation={!capabilities.hasDenseFields ? parents.length : undefined}
             style={{
+                width: !capabilities.hasDenseFields ? "100%" : undefined,
+                maxWidth:
+                    !capabilities.hasDenseFields && rowMaxWidth !== null
+                        ? spacing[rowMaxWidth]
+                        : undefined,
+                margin: !capabilities.hasDenseFields ? "0 auto" : undefined,
                 minHeight: spacing[taskRowViewMinHeight],
                 position: "relative",
                 zIndex: "0",
@@ -1647,7 +1655,10 @@ function TaskRowView(
                         }
                         data-indentation={parents.length}
                         style={{
+                            width: "100%",
+                            maxWidth: rowMaxWidth !== null ? spacing[rowMaxWidth] : undefined,
                             minHeight: spacing[taskRowViewMinHeight],
+                            margin: "0 auto",
                             position: "relative",
                             zIndex: "0",
                             backgroundColor: colorSchemeVars["grey-0"],

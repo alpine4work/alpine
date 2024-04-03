@@ -5,20 +5,14 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {
-    desktopTaskRowViewIndentation,
     desktopTaskRowViewIndentationRem,
-    mobileTaskRowViewIndentation,
     mobileTaskRowViewIndentationRem,
     taskRowViewMinHeight,
 } from "~/client/tasks/task_row_shared_styles.js";
 import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {
-    colorSchemeVars,
-    contentSchemaStyles,
-    pulseAnimationClassName,
-} from "~/shared/styles/styles.js";
+import {colorSchemeVars, pulseAnimationClassName} from "~/shared/styles/styles.js";
 
 const taskRowShimmerWidths: Array<Spacing> = [
     // 2x frequency
@@ -49,6 +43,7 @@ const taskRowShimmerWidths: Array<Spacing> = [
 
 export function TaskRowShimmer({
     capabilities,
+    rowMaxWidth,
     randomSeed,
     index,
     indentation,
@@ -56,6 +51,7 @@ export function TaskRowShimmer({
     focusPreviousTaskTitleAll,
 }: {
     capabilities: TaskGridViewCapabilities;
+    rowMaxWidth: Spacing | null;
     randomSeed: string;
     index: number;
     indentation: number;
@@ -92,6 +88,8 @@ export function TaskRowShimmer({
 
     return (
         <Box
+            width="full"
+            maxWidth={rowMaxWidth ?? undefined}
             height={taskRowViewMinHeight}
             position="relative"
             // NOTE(calebmer): Setting z-index here creates a new stacking context which
@@ -99,6 +97,7 @@ export function TaskRowShimmer({
             // adjacent rows.
             zIndex={undefined}
             cursor={!capabilities.isReadOnly ? "text" : undefined}
+            style={{margin: "0 auto"}}
             {...useOutOfBoundsClickSelection({
                 isDisabled: capabilities.isReadOnly,
                 onSelect: focusPreviousTaskTitleEnd,
