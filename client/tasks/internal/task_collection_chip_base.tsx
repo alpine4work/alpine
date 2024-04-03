@@ -3,14 +3,18 @@ import {ReactNode, Ref, forwardRef} from "react";
 import {usePress} from "react-aria";
 import {IconButton} from "~/client/design/icon_button.js";
 import {Spacer} from "~/client/design/spacer.js";
-import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {Sprinkles, colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
-export const taskCollectionChipHeight: Spacing = "5";
+export const taskCollectionChipHeight: {desktop: Spacing; mobile: Spacing} = {
+    desktop: "5",
+    mobile: "7",
+};
 export const taskCollectionChipPaddingY: Spacing = "0.5";
 export const taskCollectionChipBorderRadius = "base";
 
@@ -36,6 +40,7 @@ const chipClassName = sprinkles({
 const colorDotContainerClassName = sprinkles({
     flexShrink: "0",
     width: "5",
+    marginLeft: {mobile: "1"},
     display: "flex",
     justifyContent: "center",
 });
@@ -81,6 +86,8 @@ function TaskCollectionChipBase(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
+    const isMobile = useIsMobile();
+
     const isDisabled = !onPress;
     const {pressProps, isPressed} = usePress({isDisabled, onPress});
 
@@ -98,7 +105,7 @@ function TaskCollectionChipBase(
             }}
         >
             {color === null ? (
-                <Spacer space="1.5" />
+                <Spacer space={{desktop: "1.5", mobile: "2.5"}} />
             ) : (
                 <div className={colorDotContainerClassName}>
                     <div
@@ -112,7 +119,7 @@ function TaskCollectionChipBase(
             {onRemove && (
                 <div style={{paddingLeft: spacing["0.5"]}}>
                     <IconButton
-                        size="xs"
+                        size={isMobile ? "md" : "xs"}
                         variant="quiet-above-grey-5-background"
                         borderRadius="sm"
                         // The user focuses the pill as a whole and hits the delete key to delete using
@@ -122,7 +129,7 @@ function TaskCollectionChipBase(
                         withoutTooltip={true}
                         onPress={onRemove}
                     >
-                        <X size={addRemLengths(spacing["2"], spacing["0.5"])} />
+                        <X size={isMobile ? spacing["3"] : spacing["2.5"]} />
                     </IconButton>
                 </div>
             )}

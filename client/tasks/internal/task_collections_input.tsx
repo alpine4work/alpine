@@ -558,9 +558,9 @@ function TaskCollectionsInput(
                 <Box
                     ref={collectionRefs[index]}
                     overflow="hidden"
-                    // Chips have a height of 5 but a single-line field input should have a height
-                    // of 4. Use negative margin to position correctly.
-                    marginY="-0.5"
+                    // Chips have a height of 5 (on desktop, 7 on mobile) but a single-line field
+                    // input should have a height of 4. Use negative margin to position correctly.
+                    marginY={{desktop: "-0.5", mobile: "-1.5"}}
                     // Use horizontal margin to properly align collection ships vertically with
                     // other detail view input fields like assignee and due date.
                     marginLeft="-0.5"
@@ -639,7 +639,7 @@ function TaskCollectionsInput(
             display="flex"
             alignItems="center"
             flexWrap="wrap"
-            rowGap="3"
+            rowGap={{desktop: "3", mobile: "5"}}
             columnGap="2.5"
             paddingX={paddingX}
             paddingY={paddingY}
