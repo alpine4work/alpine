@@ -1,13 +1,10 @@
 import {CalendarDate} from "@internationalized/date";
 import classNames from "classnames";
 import {CalendarBlank} from "phosphor-react";
-import {useEffect, useMemo, useRef, useState} from "react";
+import {useMemo, useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
-import {getNavigationBarHeightPxWithoutListening} from "~/client/design/navigation_bar.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
-import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -16,7 +13,7 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
 import {TaskDateInputCalendar} from "~/client/tasks/internal/task_date_input_calendar.js";
 import {TaskDateInputText} from "~/client/tasks/internal/task_date_input_text.js";
-import {RemLength, Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {RemLength, Spacing, spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -104,56 +101,6 @@ export function TaskDateInput({
     const [isFocusWithinOverlay, setIsFocusWithinOverlay] = useState(false);
 
     const isEditing = !isReadOnly && (isFocusWithinInput || isFocusWithinOverlay);
-
-    // When our calendar overlay opens on mobile we need to scroll it into view if
-    // it's rendered offscreen. Since the calendar will only render above the input
-    // on mobile (since the keyboard will cover the bottom portion of the screen).
-    //
-    // `useScrollToAvoidBottomBarsAndMobileKeyboard()` handles scrolling down to
-    // avoid the keyboard (when the input would be behind the keyboard) and this
-    // hook handles scrolling up to make sure the calendar is onscreen (when the
-    // calendar would otherwise be offscreen). For a date input, the "safe" range
-    // of the screen where we won't need to scroll is narrow.
-    const lastIsEditingRef = useRef(isEditing);
-    useEffect(() => {
-        if (lastIsEditingRef.current === isEditing) return;
-        lastIsEditingRef.current = isEditing;
-
-        if (!isMobile) return;
-        if (!isEditing) return;
-
-        const overlayElement = assertExists(overlayRef.current);
-
-        let scrollableElement: HTMLElement | null = overlayElement.parentElement;
-        while (scrollableElement !== null) {
-            const {overflowY} = getComputedStyle(scrollableElement);
-
-            // We found our scrollable element!
-            if (overflowY === "scroll" || overflowY === "auto") break;
-
-            scrollableElement = scrollableElement.parentElement;
-        }
-
-        if (scrollableElement === null) return;
-
-        const overlayRect = overlayElement.getBoundingClientRect();
-        const scrollableRect = scrollableElement.getBoundingClientRect();
-
-        const clearanceTop =
-            scrollableRect.top +
-            getElementSafeAreaInsetTopPx(scrollableElement) +
-            getNavigationBarHeightPxWithoutListening() +
-            convertRemLengthToPx(spacing["1"], getRemPxWithoutListening());
-
-        if (overlayRect.top >= clearanceTop) return;
-
-        const scrollDelta = clearanceTop - overlayRect.top;
-
-        scrollableElement.scrollTo({
-            top: scrollableElement.scrollTop - scrollDelta,
-            behavior: "smooth",
-        });
-    }, [isEditing, isMobile]);
 
     const insetMarginY = height === "full" ? undefined : isMobile ? "2.5" : undefined;
 
@@ -302,12 +249,9 @@ export function TaskDateInput({
                 // Focusing is a direct user interaction so don't animate. To focus out the
                 // user clicks somewhere else which is an indirect interaction so animate.
                 disableAnimationIn
-                // Prefer rendering the overlay above the input on mobile since the keyboard
-                // will open below the input causing an overlay rendered below to jump up.
-                //
-                // On mobile we only allow rendering the overlay above the input. The view must
+                // On mobile we only allow rendering the overlay below the input. The view must
                 // scroll to fit it.
-                placement={isMobile ? "top" : "bottom"}
+                placement="bottom"
                 fallbackPlacements={isMobile ? emptyArray : undefined}
                 offset={overlayOffset}
                 overlay={

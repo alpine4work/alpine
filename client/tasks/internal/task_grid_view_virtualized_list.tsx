@@ -1829,16 +1829,29 @@ export function useTaskGridViewVirtualizedList({
                     if (ownedElement) {
                         const ownedRect = ownedElement.getBoundingClientRect();
 
-                        const top = Math.min(activeRect.top, ownedRect.top);
+                        const top =
+                            Math.min(activeRect.top, ownedRect.top) -
+                            // If this is a date input in a task row, we'd like to make sure some of the
+                            // task's content remains visible so the user doesn't lose context. If this is
+                            // a date or collection input in detail view fields, its fine to have a bit of
+                            // top margin.
+                            convertRemLengthToPx(
+                                spacing[taskRowViewMinHeight],
+                                getRemPxWithoutListening(),
+                            );
+
                         const bottom = Math.max(activeRect.bottom, ownedRect.bottom);
 
-                        return {top, height: bottom - top};
+                        return {
+                            top,
+                            height: bottom - top,
+                        };
                     }
                 }
 
                 return activeRect;
             },
-            [viewRef],
+            [getAnchorPosition, viewRef],
         ),
     });
 

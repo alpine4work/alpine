@@ -356,6 +356,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 }
             }
 
+            const anchorPositionBottom = anchorPosition.top + anchorPosition.height;
             const anchorPositionMiddle = anchorPosition.top + anchorPosition.height / 2;
 
             const constrainedOldVisibleRect = {
@@ -404,6 +405,31 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
 
             // Rounding gives us consistent scroll deltas as the keyboard opens and closes.
             let scrollDelta = Math.round(anchorPositionY - newAnchorPositionY);
+
+            // Make sure if the bottom of the anchor is offscreen, we scroll enough to
+            // bring it into the new visible rect. Even if our original layout calculation
+            // undershoots a little. This may happen with large anchors (e.g. task date
+            // inputs which include the height of their calendar overlay).
+            //
+            // NOTE(calebmer): We only apply this scroll delta constraint if the keyboard
+            // height changes. Since the bottom bar frame may change right before the
+            // keyboard opens (since we mount a keyboard toolbar) I found this logic was
+            // causing weirdness when double applied. This whole condition doesn't seem
+            // particularly principled.
+            if (
+                oldMobileKeyboardHeight !== newMobileKeyboardHeight &&
+                anchorPositionBottom > newVisibleRect.bottom
+            ) {
+                scrollDelta = Math.max(
+                    scrollDelta,
+                    Math.round(
+                        anchorPositionBottom -
+                            newVisibleRect.bottom +
+                            // Hardcoded `spacing["1"]`
+                            0.25 * remPx,
+                    ),
+                );
+            }
 
             // If our visible rect is growing then we need to make sure we scroll at least
             // the same number of pixels as it took to grow the visible rect. Otherwise, if
@@ -520,6 +546,21 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
 
                 // Rounding gives us consistent scroll deltas as the keyboard opens and closes.
                 let scrollDelta = Math.round(anchorPositionY - newAnchorPositionY);
+
+                if (
+                    oldMobileKeyboardHeight !== newMobileKeyboardHeight &&
+                    anchorPositionBottom > newVisibleRect.bottom
+                ) {
+                    scrollDelta = Math.max(
+                        scrollDelta,
+                        Math.round(
+                            anchorPositionBottom -
+                                newVisibleRect.bottom +
+                                // Hardcoded `spacing["1"]`
+                                0.25 * remPx,
+                        ),
+                    );
+                }
 
                 const minScrollDelta =
                     newVisibleRect.bottom > oldVisibleRect.bottom
