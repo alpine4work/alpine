@@ -587,6 +587,23 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     scrollDebounceTimeout = null;
                 },
                 onScroll: (element: HTMLElement) => {
+                    // Web code only: I've observed in mobile Safari if focus changes because the
+                    // focused element was removed from the DOM a `focusout` event is not
+                    // dispatched. So we manually check on scroll events if the focused element is
+                    // still in the DOM.
+                    //
+                    // We check on scroll events since the main reason a focused element would
+                    // unmount is a `<VirtualizedScrollView>` scrolls the element out of the
+                    // virtualization window.
+                    if (
+                        focusedTextInputIfMobileRef.current &&
+                        document.activeElement !== focusedTextInputIfMobileRef.current &&
+                        !document.body.contains(focusedTextInputIfMobileRef.current)
+                    ) {
+                        setIsTextInputFocusedIfMobile(false);
+                        focusedTextInputIfMobileRef.current = null;
+                    }
+
                     // Clamp scroll offset so it's not affected by overscroll at the top of the
                     // scroll view. Overscroll at the bottom of the scroll view is desired! We want
                     // the top bar (which should be collapsed) to continue with the scroll window
@@ -989,15 +1006,20 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
     const [isTextInputFocusedIfMobile, setIsTextInputFocusedIfMobile] = useState(false);
     if (isTextInputFocusedIfMobile && !isMobile) setIsTextInputFocusedIfMobile(false);
+    const focusedTextInputIfMobileRef = useRef<Element | null>(null);
 
     useEffect(() => {
         if (!isMobile) return;
 
         const handleFocusChange = () => {
-            setIsTextInputFocusedIfMobile(
+            const newIsTextInputFocusedIfMobile =
                 document.activeElement instanceof Element &&
-                    isTextInputElement(document.activeElement),
-            );
+                isTextInputElement(document.activeElement);
+
+            setIsTextInputFocusedIfMobile(newIsTextInputFocusedIfMobile);
+            focusedTextInputIfMobileRef.current = newIsTextInputFocusedIfMobile
+                ? document.activeElement
+                : null;
         };
 
         // Initialize our state.
