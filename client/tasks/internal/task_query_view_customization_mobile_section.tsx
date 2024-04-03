@@ -10,6 +10,7 @@ import {TaskQuerySortsEditor} from "~/client/tasks/internal/task_query_sorts_edi
 import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {colorSchemeVars} from "~/shared/styles/styles.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
@@ -104,6 +105,7 @@ function TaskQueryViewCustomizationMobileSection(
             display="flex"
             flexDirection="column"
             gap="4"
+            paddingTop="1"
             paddingBottom="6"
         >
             {areFiltersVisible && (
@@ -128,7 +130,18 @@ function TaskQueryViewCustomizationMobileSection(
                             </Button>
                         </TaskQueryAddFilterMenuButton>
                     </Box>
-                    <Box color="grey-50">No filters. Tasks are hidden when closed.</Box>
+                    <Box
+                        height="9"
+                        paddingX="3"
+                        display="flex"
+                        alignItems="center"
+                        borderRadius="base"
+                        color="grey-40"
+                        fontSize="50"
+                        style={{boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-5"]}`}}
+                    >
+                        No filters. Tasks are hidden when closed.
+                    </Box>
                 </Box>
             )}
             {areSortsVisible && (

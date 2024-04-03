@@ -30,11 +30,6 @@ import {
     isTaskQueryManuallySorted,
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
-import {taskQueryFilterEditorHeight} from "~/client/tasks/internal/task_query_filter_editor.js";
-import {
-    TaskQueryViewCustomizationBar,
-    TaskQueryViewCustomizationBarRef,
-} from "~/client/tasks/internal/task_query_view_customization_bar.js";
 import {
     TaskQueryViewCustomizationMobileSection,
     TaskQueryViewCustomizationMobileSectionRef,
@@ -47,13 +42,12 @@ import {
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/task_client_store.js";
 import {createTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/task_query_view.js";
-import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -137,7 +131,7 @@ export function TaskCollectionView({
 
     const defaultOrderSentence =
         filters.length > 0
-            ? "When filtered, tasks are ordered by created date."
+            ? "Tasks are ordered by created date."
             : "You can order tasks by dragging them.";
 
     const [sorts, _setSorts] = useState(initialSorts);

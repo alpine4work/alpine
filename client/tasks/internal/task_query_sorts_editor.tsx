@@ -48,7 +48,22 @@ export function TaskQuerySortsEditor({
     );
 
     return sortsWithId.length === 0 ? (
-        <Box color="grey-50">No sorts. {defaultOrderSentence}</Box>
+        !withMobileLayout ? (
+            <Box color="grey-50">No sorts. {defaultOrderSentence}</Box>
+        ) : (
+            <Box
+                height="9"
+                paddingX="3"
+                display="flex"
+                alignItems="center"
+                borderRadius="base"
+                color="grey-40"
+                fontSize="50"
+                style={{boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-5"]}`}}
+            >
+                No sorts. {defaultOrderSentence}
+            </Box>
+        )
     ) : (
         <DndContext
             sensors={sensors}
@@ -377,7 +392,7 @@ function TaskQuerySortsEditorRowBase({
             className={greyElevated2ClassName}
             position="relative"
             zIndex="20" // Renders over dividers
-            paddingLeft="2.5"
+            paddingLeft={withMobileLayout ? "3" : "2.5"}
             paddingRight={withMobileLayout ? "1.5" : "2.5"}
             display="flex"
             alignItems="center"
