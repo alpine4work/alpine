@@ -7,11 +7,13 @@ import {
     RefCallback,
     RefObject,
     useCallback,
+    useEffect,
     useImperativeHandle,
     useRef,
     useState,
 } from "react";
 import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
@@ -23,6 +25,7 @@ import {
 } from "~/client/design/scrollbar.js";
 import {ShareButton, createShareMenuItem} from "~/client/design/share_button.js";
 import {useShowToast} from "~/client/design/toast.js";
+import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
@@ -984,6 +987,30 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
         });
     }, [scrollDirectionState]);
 
+    const [isTextInputFocusedIfMobile, setIsTextInputFocusedIfMobile] = useState(false);
+    if (isTextInputFocusedIfMobile && !isMobile) setIsTextInputFocusedIfMobile(false);
+
+    useEffect(() => {
+        if (!isMobile) return;
+
+        const handleFocusChange = () => {
+            setIsTextInputFocusedIfMobile(
+                document.activeElement instanceof Element &&
+                    isTextInputElement(document.activeElement),
+            );
+        };
+
+        // Initialize our state.
+        handleFocusChange();
+
+        document.addEventListener("focusin", handleFocusChange);
+        document.addEventListener("focusout", handleFocusChange);
+        return () => {
+            document.removeEventListener("focusin", handleFocusChange);
+            document.removeEventListener("focusout", handleFocusChange);
+        };
+    }, [isMobile]);
+
     const desktopTitleMaxWidth =
         desktopTitleMaxWidthProp !== undefined
             ? isSpacing(desktopTitleMaxWidthProp)
@@ -1097,6 +1124,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                         display="flex"
                                         justifyContent="flex-start"
                                         alignItems="center"
+                                        style={{flexBasis: spacing["7"]}}
                                         // Gives children `pointer-events: initial` so the user can interact with them.
                                         className={pointerEventsNoneNotInheritedClassName}
                                     >
@@ -1184,40 +1212,65 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                     gap={isMobile ? "0.5" : "2"}
                                     // Gives children `pointer-events: initial` so the user can interact with them.
                                     className={pointerEventsNoneNotInheritedClassName}
+                                    style={{flexBasis: spacing["7"]}}
                                 >
                                     {shareButton && !withMobileLayout && (
                                         <Box paddingRight="3">
                                             <ShareButton />
                                         </Box>
                                     )}
-                                    {menuActions.length > 0 || (shareButton && withMobileLayout) ? (
-                                        <MenuButton
-                                            actions={
-                                                shareButton && withMobileLayout
-                                                    ? [
-                                                          [createShareMenuItem({showToast})],
-                                                          ...menuActions,
-                                                      ]
-                                                    : menuActions
-                                            }
+                                    {isTextInputFocusedIfMobile ? (
+                                        // If a text input is focused then we hide menu actions and replace it with a
+                                        // "Done" button. This helps the user see how to end their editing session.
+                                        // Opening menu actions would cause the text input to unfocus anyway.
+                                        <Button
+                                            fontSize="100"
+                                            // Don't remove focus from the current text input element
+                                            // on press start. Remove focus on press finish.
+                                            isFocusable={false}
+                                            onPress={() => {
+                                                if (document.activeElement instanceof HTMLElement) {
+                                                    document.activeElement.blur();
+                                                }
+                                            }}
                                         >
-                                            <IconButton
-                                                size={isMobile ? "base" : "md"}
-                                                description="More"
-                                                withoutTooltip={true}
+                                            <Box
+                                                display="inline"
+                                                fontStyle="semi-bold"
+                                                color="grey-70"
                                             >
-                                                <DotsThreeVertical
-                                                // Vertical dots create better visual balance on mobile because:
-                                                //
-                                                // 1. On mobile we have a back button on the left and we want this button to
-                                                //    look aligned with that
-                                                // 2. The title might be truncated with ellipsis which looks like horizontal
-                                                //    dots
-                                                />
-                                            </IconButton>
-                                        </MenuButton>
+                                                Done
+                                            </Box>
+                                        </Button>
                                     ) : (
-                                        <Box width="7" height="7" />
+                                        (menuActions.length > 0 ||
+                                            (shareButton && withMobileLayout)) && (
+                                            <MenuButton
+                                                actions={
+                                                    shareButton && withMobileLayout
+                                                        ? [
+                                                              [createShareMenuItem({showToast})],
+                                                              ...menuActions,
+                                                          ]
+                                                        : menuActions
+                                                }
+                                            >
+                                                <IconButton
+                                                    size={isMobile ? "base" : "md"}
+                                                    description="More"
+                                                    withoutTooltip={true}
+                                                >
+                                                    <DotsThreeVertical
+                                                    // Vertical dots create better visual balance on mobile because:
+                                                    //
+                                                    // 1. On mobile we have a back button on the left and we want this button to
+                                                    //    look aligned with that
+                                                    // 2. The title might be truncated with ellipsis which looks like horizontal
+                                                    //    dots
+                                                    />
+                                                </IconButton>
+                                            </MenuButton>
+                                        )
                                     )}
                                 </Box>
                             </OverlayScopeContextProvider>
