@@ -12,7 +12,7 @@ import {TaskQueryAddFilterMenuButton} from "~/client/tasks/internal/task_query_a
 import {TaskQueryAddSortMenuButton} from "~/client/tasks/internal/task_query_add_sort_menu_button.js";
 import {
     TaskQueryFilterEditor,
-    taskQueryFilterEditorHeight,
+    desktopTaskQueryFilterEditorHeight,
 } from "~/client/tasks/internal/task_query_filter_editor.js";
 import {TaskQuerySortsEditor} from "~/client/tasks/internal/task_query_sorts_editor.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
@@ -77,7 +77,7 @@ function TaskQueryViewCustomizationBar(
         <Box
             display="flex"
             alignItems="flex-start"
-            style={{minHeight: taskQueryFilterEditorHeight}}
+            style={{minHeight: desktopTaskQueryFilterEditorHeight}}
         >
             {filters.length > 0 && (
                 <Box height="6" display="flex" alignItems="center" paddingRight="2">
@@ -107,6 +107,7 @@ function TaskQueryViewCustomizationBar(
                     return (
                         <TaskQueryFilterEditor
                             key={index}
+                            withMobileLayout={false}
                             store={store}
                             filter={filter}
                             filterReferences={filterReferences}
@@ -128,7 +129,7 @@ function TaskQueryViewCustomizationBar(
                         />
                     );
                 })}
-                <Box height={taskQueryFilterEditorHeight} display="flex" alignItems="center">
+                <Box height={desktopTaskQueryFilterEditorHeight} display="flex" alignItems="center">
                     <TaskQueryAddFilterMenuButton
                         onAddFilter={filter => {
                             onFiltersChange([...filters, filter]);
@@ -142,7 +143,7 @@ function TaskQueryViewCustomizationBar(
                             <Button
                                 variant={shouldCollapse ? "quiet" : "neutral"}
                                 icon={<Plus />}
-                                height={taskQueryFilterEditorHeight}
+                                height={desktopTaskQueryFilterEditorHeight}
                                 paddingX="2"
                             >
                                 Add filter
@@ -172,7 +173,7 @@ function TaskQueryViewCustomizationBar(
                 >
                     <Button
                         icon={<SortAscending />}
-                        height={taskQueryFilterEditorHeight}
+                        height={desktopTaskQueryFilterEditorHeight}
                         paddingX="2"
                     >
                         {sorts.length === 0

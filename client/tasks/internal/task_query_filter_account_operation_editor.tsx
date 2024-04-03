@@ -59,12 +59,14 @@ type TaskQueryFilterAccountOperationEditorMultiSelectComboBoxItem =
       };
 
 export function TaskQueryFilterAccountOperationEditor({
+    withMobileLayout,
     inputLabel,
     shouldHideMissingAccountItem = false,
     filterReferences,
     operation,
     onOperationChange,
 }: {
+    withMobileLayout: boolean;
     inputLabel: string;
     shouldHideMissingAccountItem?: boolean;
     filterReferences: TaskQueryFilterReferences;
@@ -117,6 +119,7 @@ export function TaskQueryFilterAccountOperationEditor({
     return (
         <>
             <TaskQueryFilterOperatorEditor
+                withMobileLayout={withMobileLayout}
                 operatorLabel={
                     operation.type === "OneOf" ? oneOfOperatorLabel : noneOfOperatorLabel
                 }
@@ -144,6 +147,7 @@ export function TaskQueryFilterAccountOperationEditor({
                 ]}
             />
             <TaskQueryFilterEditorMultiSelectComboBox<TaskQueryFilterAccountOperationEditorMultiSelectComboBoxItem>
+                withMobileLayout={withMobileLayout}
                 inputLabel={inputLabel}
                 preview={
                     <TaskQueryFilterAccountOperationEditorPreview

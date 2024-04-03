@@ -1,0 +1,100 @@
+diff --git a/dist/import.mjs b/dist/import.mjs
+index 1d63ca37bdd9ee77782f945e4bb367cb7e83b033..4c30a52dbae20e3352ffdd88fa4cfe8c0e66f56c 100644
+--- a/dist/import.mjs
++++ b/dist/import.mjs
+@@ -88,7 +88,10 @@ function $7af3f5b51489e0b5$export$253fe78d46329472(props) {
+     }, [
+         selectionBehaviorProp
+     ]);
+-    return {
++    // NOTE(calebmer): Memoize selection state so that anything which depends on
++    // selection state downstream (like when calling `new SelectionManager()`) can
++    // avoid updating whenever the component re-renders.
++    return (0, $Qsto2$useMemo)(() => ({
+         selectionMode: selectionMode,
+         disallowEmptySelection: disallowEmptySelection,
+         selectionBehavior: selectionBehavior,
+@@ -117,7 +120,7 @@ function $7af3f5b51489e0b5$export$253fe78d46329472(props) {
+         },
+         disabledKeys: disabledKeysProp,
+         disabledBehavior: disabledBehavior
+-    };
++    }), [allowDuplicateSelectionEvents, disabledBehavior, disabledKeysProp, disallowEmptySelection, selectedKeys, selectionBehavior, selectionMode, setSelectedKeys]);
+ }
+ function $7af3f5b51489e0b5$var$convertSelection(selection, defaultValue) {
+     if (!selection) return defaultValue;
+diff --git a/dist/main.js b/dist/main.js
+index d227160ad8177126fe51cb0015429a0db0b9d363..9fc5c5a65c4a69ef1a1dee61b8b410bf2cf81423 100644
+--- a/dist/main.js
++++ b/dist/main.js
+@@ -94,7 +94,10 @@ function $1adc19da2128bba9$export$253fe78d46329472(props) {
+     }, [
+         selectionBehaviorProp
+     ]);
+-    return {
++    // NOTE(calebmer): Memoize selection state so that anything which depends on
++    // selection state downstream (like when calling `new SelectionManager()`) can
++    // avoid updating whenever the component re-renders.
++    return (0, $83d9f$react.useMemo)(() => ({
+         selectionMode: selectionMode,
+         disallowEmptySelection: disallowEmptySelection,
+         selectionBehavior: selectionBehavior,
+@@ -123,7 +126,7 @@ function $1adc19da2128bba9$export$253fe78d46329472(props) {
+         },
+         disabledKeys: disabledKeysProp,
+         disabledBehavior: disabledBehavior
+-    };
++    }), [allowDuplicateSelectionEvents, disabledBehavior, disabledKeysProp, disallowEmptySelection, selectedKeys, selectionBehavior, selectionMode, setSelectedKeys]);
+ }
+ function $1adc19da2128bba9$var$convertSelection(selection, defaultValue) {
+     if (!selection) return defaultValue;
+diff --git a/dist/module.js b/dist/module.js
+index 1d63ca37bdd9ee77782f945e4bb367cb7e83b033..e3142204a2d534777d2adc7bb84bc8a039c1b514 100644
+--- a/dist/module.js
++++ b/dist/module.js
+@@ -88,7 +88,10 @@ function $7af3f5b51489e0b5$export$253fe78d46329472(props) {
+     }, [
+         selectionBehaviorProp
+     ]);
+-    return {
++    // NOTE(calebmer): Memoize selection state so that anything which depends on
++    // selection state downstream (like when calling `new SelectionManager()`) can
++    // avoid updating whenever the component re-renders.
++    return (0, $Qsto2$useMemo)(() => ({
+         selectionMode: selectionMode,
+         disallowEmptySelection: disallowEmptySelection,
+         selectionBehavior: selectionBehavior,
+@@ -117,7 +120,7 @@ function $7af3f5b51489e0b5$export$253fe78d46329472(props) {
+         },
+         disabledKeys: disabledKeysProp,
+         disabledBehavior: disabledBehavior
+-    };
++    }), [allowDuplicateSelectionEvents, disabledBehavior, disabledKeysProp, disallowEmptySelection, selectedKeys, selectionBehavior, selectionMode, setSelectedKeys]);
+ }
+ function $7af3f5b51489e0b5$var$convertSelection(selection, defaultValue) {
+     if (!selection) return defaultValue;
+diff --git a/src/useMultipleSelectionState.ts b/src/useMultipleSelectionState.ts
+index b3a4f30b258d1ab24c301b5a32c050cd1594dabd..5050e3ca9ea63628020084eee6ce906bcd3b8464 100644
+--- a/src/useMultipleSelectionState.ts
++++ b/src/useMultipleSelectionState.ts
+@@ -85,7 +85,10 @@ export function useMultipleSelectionState(props: MultipleSelectionStateProps): M
+     }
+   }, [selectionBehaviorProp]);
+ 
+-  return {
++  // NOTE(calebmer): Memoize selection state so that anything which depends on
++  // selection state downstream (like when calling `new SelectionManager()`) can
++  // avoid updating whenever the component re-renders.
++  return useMemo(() => ({
+     selectionMode,
+     disallowEmptySelection,
+     selectionBehavior,
+@@ -116,7 +119,7 @@ export function useMultipleSelectionState(props: MultipleSelectionStateProps): M
+     },
+     disabledKeys: disabledKeysProp,
+     disabledBehavior
+-  };
++  }), [allowDuplicateSelectionEvents, disabledBehavior, disabledKeysProp, disallowEmptySelection, selectedKeys, selectionBehavior, selectionMode, setSelectedKeys]);
+ }
+ 
+ function convertSelection(selection: 'all' | Iterable<Key>, defaultValue?: Selection): 'all' | Set<Key> {

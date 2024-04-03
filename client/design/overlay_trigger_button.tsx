@@ -27,6 +27,8 @@ import {
     defaultTooltipOffset,
     useShouldDisableTooltips,
 } from "~/client/design/tooltip.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
@@ -107,6 +109,7 @@ function OverlayTriggerButton(
         overlay,
         "aria-haspopup": ariaHasPopup,
         placement = "bottom-start",
+        fallbackPlacements,
         offset = defaultTooltipOffset,
         offsetAlong,
         children: actualChildren,
@@ -129,6 +132,16 @@ function OverlayTriggerButton(
          * Defaults to `bottom-start`.
          */
         placement?: OverlayPlacement;
+
+        /**
+         * Placements to try if `placement` would put the overlay out of bounds. If
+         * it's an empty array then the overlay will never flip from `placement`.
+         *
+         * If undefined the overlay can flip anywhere.
+         *
+         * Does not work with the special `center` placement.
+         */
+        fallbackPlacements?: ReadonlyArray<OverlayPlacement>;
 
         /**
          * Offset of the overlay from the target.
@@ -401,6 +414,17 @@ function OverlayTriggerButton(
         if (overlayTriggerElement?.contains(targetElement)) return;
         if (overlayElement?.contains(targetElement)) return;
 
+        // Courtesy blur call if the focused element is in the overlay. Useful on
+        // mobile Safari since if the focused element is removed from the DOM there
+        // won't be a `focusout` event.
+        if (
+            overlayElement &&
+            document.activeElement instanceof HTMLElement &&
+            isElementOwnedBy(overlayElement, document.activeElement)
+        ) {
+            document.activeElement.blur();
+        }
+
         setState({
             isExpanded: false,
             // If we expanded an overlay trigger with a pointer click recently, we don't
@@ -485,6 +509,7 @@ function OverlayTriggerButton(
             isBlocking={true}
             isVisible={state.isExpanded}
             placement={placement}
+            fallbackPlacements={fallbackPlacements}
             offset={offset}
             offsetAlong={offsetAlong}
             disableAnimationIn={true}
@@ -590,15 +615,39 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
                 // Intentional fallthrough to next case...
             }
             case "FirstFocusableElement": {
-                getNextFocusableElementIfExists(null, {
-                    withinElement: overlayElement,
-                })?.focus({preventScroll: true});
+                // NOTE(calebmer): For some reason for iOS Safari to render the text caret in
+                // a focused input we need to wait an animation frame before calling `focus()`.
+                // Otherwise we focus but don't show the cursor. This happens with the task
+                // collection filter editor.
+                if (!isMobileWebKit) {
+                    getNextFocusableElementIfExists(null, {
+                        withinElement: overlayElement,
+                    })?.focus({preventScroll: true});
+                } else {
+                    requestAnimationFrame(() => {
+                        getNextFocusableElementIfExists(null, {
+                            withinElement: overlayElement,
+                        })?.focus({preventScroll: true});
+                    });
+                }
                 break;
             }
             case "LastFocusableElement": {
-                getLastFocusableElementIfExists({withinElement: overlayElement})?.focus({
-                    preventScroll: true,
-                });
+                // NOTE(calebmer): For some reason for iOS Safari to render the text caret in
+                // a focused input we need to wait an animation frame before calling `focus()`.
+                // Otherwise we focus but don't show the cursor. This happens with the task
+                // collection filter editor.
+                if (!isMobileWebKit) {
+                    getLastFocusableElementIfExists({withinElement: overlayElement})?.focus({
+                        preventScroll: true,
+                    });
+                } else {
+                    requestAnimationFrame(() => {
+                        getLastFocusableElementIfExists({withinElement: overlayElement})?.focus({
+                            preventScroll: true,
+                        });
+                    });
+                }
                 break;
             }
             default:

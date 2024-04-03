@@ -10,15 +10,18 @@ import {sprinkles} from "~/shared/styles/styles.js";
 import {TaskQueryTitleFilter} from "~/shared/tasks/task_query_filter.js";
 
 export function TaskQueryTitleFilterOperationEditor({
+    withMobileLayout,
     filter,
     onFilterChange,
 }: {
+    withMobileLayout: boolean;
     filter: TaskQueryTitleFilter;
     onFilterChange: (filter: TaskQueryTitleFilter) => void;
 }) {
     return (
         <>
             <TaskQueryFilterOperatorEditor
+                withMobileLayout={withMobileLayout}
                 operatorLabel={filter.operation.type === "Includes" ? "includes" : "excludes"}
                 allOperators={[
                     {
@@ -44,6 +47,7 @@ export function TaskQueryTitleFilterOperationEditor({
                 ]}
             />
             <TaskQueryTitleFilterOperationEditorValueEditor
+                withMobileLayout={withMobileLayout}
                 titleQuery={filter.operation.titleQuery}
                 onTitleQueryChange={titleQuery =>
                     onFilterChange({
@@ -57,9 +61,11 @@ export function TaskQueryTitleFilterOperationEditor({
 }
 
 function TaskQueryTitleFilterOperationEditorValueEditor({
+    withMobileLayout,
     titleQuery,
     onTitleQueryChange,
 }: {
+    withMobileLayout: boolean;
     titleQuery: string;
     onTitleQueryChange: (filter: string) => void;
 }) {
@@ -88,7 +94,14 @@ function TaskQueryTitleFilterOperationEditorValueEditor({
     const inputPlaceholder = "anything";
 
     return (
-        <Box {...hoverProps} height="full" maxWidth="48" position="relative" zIndex="0">
+        <Box
+            {...hoverProps}
+            height="full"
+            maxWidth={withMobileLayout ? undefined : "48"}
+            overflow={withMobileLayout ? "hidden" : undefined}
+            position="relative"
+            zIndex="0"
+        >
             <FocusRing offset="0">
                 <InputWithAutoGrowingWidth
                     ref={inputRef}
@@ -98,6 +111,7 @@ function TaskQueryTitleFilterOperationEditorValueEditor({
                     textClassName={sprinkles({
                         height: "full",
                         paddingX: "1",
+                        fontSize: "75",
                     })}
                     className={sprinkles({
                         backgroundColor: "transparent",

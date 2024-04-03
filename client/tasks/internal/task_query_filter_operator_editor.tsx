@@ -5,9 +5,11 @@ import {MenuButton} from "~/client/design/menu_button.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskQueryFilterOperatorEditor({
+    withMobileLayout,
     operatorLabel,
     allOperators,
 }: {
+    withMobileLayout: boolean;
     operatorLabel: string;
     allOperators:
         | ReadonlyArray<{label: string; isSelected: boolean; onPress: () => void}>
@@ -19,41 +21,43 @@ export function TaskQueryFilterOperatorEditor({
 
     return (
         <MenuButton actions={allOperators}>
-            <FocusRing offset="0">
-                <button
-                    {...mergeProps(buttonProps, hoverProps)}
-                    ref={buttonRef}
-                    className={sprinkles({
-                        height: "full",
-                    })}
-                    style={{
-                        paddingTop: 1,
-                        paddingBottom: 1,
-                    }}
-                >
-                    <span
+            {({isVisible}) => (
+                <FocusRing offset="0">
+                    <button
+                        {...mergeProps(buttonProps, hoverProps)}
+                        ref={buttonRef}
                         className={sprinkles({
                             height: "full",
-                            minWidth: "4",
-                            paddingX: "1",
-                            display: "flex",
-                            alignItems: "center",
-                            // The hit radius for this button extends within the entire filter editor but
-                            // the background color style has some inset.
-                            backgroundColor: isPressed
-                                ? "grey-10"
-                                : isHovered
-                                ? "grey-5"
-                                : undefined,
-                            borderRadius: "sm",
-                            fontStyle: "truncate",
-                            color: "grey-60",
                         })}
+                        style={{
+                            paddingTop: 1,
+                            paddingBottom: 1,
+                        }}
                     >
-                        {operatorLabel}
-                    </span>
-                </button>
-            </FocusRing>
+                        <span
+                            className={sprinkles({
+                                height: "full",
+                                minWidth: "4",
+                                paddingX: withMobileLayout ? "2" : "1",
+                                display: "flex",
+                                alignItems: "center",
+                                // The hit radius for this button extends within the entire filter editor but
+                                // the background color style has some inset.
+                                backgroundColor: isPressed
+                                    ? "grey-10"
+                                    : isHovered || isVisible
+                                    ? "grey-5"
+                                    : undefined,
+                                borderRadius: "sm",
+                                fontStyle: "truncate",
+                                color: "grey-60",
+                            })}
+                        >
+                            {operatorLabel}
+                        </span>
+                    </button>
+                </FocusRing>
+            )}
         </MenuButton>
     );
 }

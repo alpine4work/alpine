@@ -17,7 +17,10 @@ import {Button} from "~/client/design/button.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {
+    OverlayScopeContextProvider,
+    useOverlayRootBlockingPortalElement,
+} from "~/client/design/overlay.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {
     ScrollbarInsetDynamic,
@@ -1004,6 +1007,8 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
         });
     }, [scrollDirectionState]);
 
+    const rootBlockingPortalElement = useOverlayRootBlockingPortalElement();
+
     const [isTextInputFocusedIfMobile, setIsTextInputFocusedIfMobile] = useState(false);
     if (isTextInputFocusedIfMobile && !isMobile) setIsTextInputFocusedIfMobile(false);
     const focusedTextInputIfMobileRef = useRef<Element | null>(null);
@@ -1014,7 +1019,15 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
         const handleFocusChange = () => {
             const newIsTextInputFocusedIfMobile =
                 document.activeElement instanceof Element &&
-                isTextInputElement(document.activeElement);
+                isTextInputElement(document.activeElement) &&
+                // Don't show "Done" button if the focused text input is in the blocking
+                // overlay container. Since any press outside the blocking overlay will unfocus
+                // the element (by closing the overlay). Furthermore, if we showed the done
+                // button it wouldn't be visible.
+                //
+                // The case we added this for is the assignee task filter. It has a search
+                // input in a blocking overlay.
+                !rootBlockingPortalElement?.contains(document.activeElement);
 
             setIsTextInputFocusedIfMobile(newIsTextInputFocusedIfMobile);
             focusedTextInputIfMobileRef.current = newIsTextInputFocusedIfMobile
@@ -1031,7 +1044,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
             document.removeEventListener("focusin", handleFocusChange);
             document.removeEventListener("focusout", handleFocusChange);
         };
-    }, [isMobile]);
+    }, [isMobile, rootBlockingPortalElement]);
 
     const desktopTitleMaxWidth =
         desktopTitleMaxWidthProp !== undefined

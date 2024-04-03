@@ -660,11 +660,13 @@ export function TaskCollectionView({
                                             {queryCustomizationMobileSectionState && (
                                                 <TaskQueryViewCustomizationMobileSection
                                                     ref={queryCustomizationMobileSectionRef}
+                                                    store={store}
                                                     initiallyFocus={
                                                         queryCustomizationMobileSectionState.initiallyFocus
                                                     }
                                                     defaultOrderSentence={defaultOrderSentence}
                                                     filters={filters}
+                                                    filterReferences={filterReferences}
                                                     onFiltersChange={updateFilters}
                                                     sorts={sorts}
                                                     onSortsChange={setSorts}
@@ -679,6 +681,7 @@ export function TaskCollectionView({
                         },
                         [
                             defaultOrderSentence,
+                            filterReferences,
                             filters,
                             isMobile,
                             itemCountBeforeGridView,
@@ -686,6 +689,7 @@ export function TaskCollectionView({
                             renderGridViewItem,
                             setSorts,
                             sorts,
+                            store,
                             updateFilters,
                             withMobileLayout,
                         ],

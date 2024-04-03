@@ -19,15 +19,18 @@ export const taskQueryFilterDateOperationLessThanOperatorLabel = "is before";
 export const taskQueryFilterDateOperationGreaterThanOperatorLabel = "is after";
 
 export function TaskQueryFilterDateOperationEditor({
+    withMobileLayout,
     operation,
     onOperationChange,
 }: {
+    withMobileLayout: boolean;
     operation: TaskQueryFilterDateOperation;
     onOperationChange: (operation: TaskQueryFilterDateOperation) => void;
 }) {
     return (
         <>
             <TaskQueryFilterOperatorEditor
+                withMobileLayout={withMobileLayout}
                 operatorLabel={
                     operation.type === "LessThan"
                         ? taskQueryFilterDateOperationLessThanOperatorLabel
@@ -57,6 +60,7 @@ export function TaskQueryFilterDateOperationEditor({
                 ]}
             />
             <TaskQueryFilterDateOperationValueEditor
+                withMobileLayout={withMobileLayout}
                 operation={operation}
                 onOperationChange={onOperationChange}
             />
@@ -65,9 +69,11 @@ export function TaskQueryFilterDateOperationEditor({
 }
 
 export function TaskQueryFilterDateOperationValueEditor({
+    withMobileLayout,
     operation,
     onOperationChange,
 }: {
+    withMobileLayout: boolean;
     operation: TaskQueryFilterDateOperation;
     onOperationChange: (operation: TaskQueryFilterDateOperation) => void;
 }) {
@@ -146,239 +152,253 @@ export function TaskQueryFilterDateOperationValueEditor({
                     }}
                 />
             ) : null}
-            <TaskQueryFilterOperatorEditor
-                operatorLabel={
-                    operation.date.type === "Absolute"
-                        ? absoluteDateLabel
-                        : operation.date.type === "RelativeToday"
-                        ? relativeTodayDateLabel
-                        : operation.date.type === "RelativeBeforeToday"
-                        ? operation.date.duration.count === 1
-                            ? relativeBeforeTodaySingularLabelByDurationType[
-                                  operation.date.duration.type
-                              ]
-                            : relativeBeforeTodayPluralLabelByDurationType[
-                                  operation.date.duration.type
-                              ]
-                        : operation.date.duration.count === 1
-                        ? relativeAfterTodaySingularLabelByDurationType[
-                              operation.date.duration.type
-                          ]
-                        : relativeAfterTodayPluralLabelByDurationType[operation.date.duration.type]
+            <Box
+                height="full"
+                minWidth={withMobileLayout && operation.date.type === "Absolute" ? "0" : undefined}
+                flexShrink={
+                    withMobileLayout && operation.date.type === "Absolute" ? "1" : undefined
                 }
-                allOperators={[
-                    [
-                        {
-                            label: relativeTodayDateLabel,
-                            isSelected: operation.date.type === "RelativeToday",
-                            onPress: () => {
-                                onOperationChange({
-                                    type: operation.type,
-                                    date: {type: "RelativeToday"},
-                                });
+                overflow={
+                    withMobileLayout && operation.date.type === "Absolute" ? "hidden" : undefined
+                }
+            >
+                <TaskQueryFilterOperatorEditor
+                    withMobileLayout={withMobileLayout}
+                    operatorLabel={
+                        operation.date.type === "Absolute"
+                            ? absoluteDateLabel
+                            : operation.date.type === "RelativeToday"
+                            ? relativeTodayDateLabel
+                            : operation.date.type === "RelativeBeforeToday"
+                            ? operation.date.duration.count === 1
+                                ? relativeBeforeTodaySingularLabelByDurationType[
+                                      operation.date.duration.type
+                                  ]
+                                : relativeBeforeTodayPluralLabelByDurationType[
+                                      operation.date.duration.type
+                                  ]
+                            : operation.date.duration.count === 1
+                            ? relativeAfterTodaySingularLabelByDurationType[
+                                  operation.date.duration.type
+                              ]
+                            : relativeAfterTodayPluralLabelByDurationType[
+                                  operation.date.duration.type
+                              ]
+                    }
+                    allOperators={[
+                        [
+                            {
+                                label: relativeTodayDateLabel,
+                                isSelected: operation.date.type === "RelativeToday",
+                                onPress: () => {
+                                    onOperationChange({
+                                        type: operation.type,
+                                        date: {type: "RelativeToday"},
+                                    });
+                                },
                             },
-                        },
-                        {
-                            label: absoluteDateLabel,
-                            isSelected: operation.date.type === "Absolute",
-                            onPress: () => {
-                                onOperationChange({
-                                    type: operation.type,
-                                    date: {type: "Absolute", date: null},
-                                });
+                            {
+                                label: absoluteDateLabel,
+                                isSelected: operation.date.type === "Absolute",
+                                onPress: () => {
+                                    onOperationChange({
+                                        type: operation.type,
+                                        date: {type: "Absolute", date: null},
+                                    });
+                                },
                             },
-                        },
-                    ],
-                    [
-                        {
-                            label: relativeBeforeTodayPluralLabelByDurationType["Days"],
-                            isSelected:
-                                operation.date.type === "RelativeBeforeToday" &&
-                                operation.date.duration.type === "Days",
-                            onPress: () => {
-                                onOperationChange({
-                                    type: operation.type,
-                                    date: {
-                                        type: "RelativeBeforeToday",
-                                        duration: {
-                                            type: "Days",
-                                            count:
-                                                operation.date.type !== "Absolute" &&
-                                                operation.date.type !== "RelativeToday" &&
-                                                operation.date.duration.type === "Days"
-                                                    ? operation.date.duration.count
-                                                    : 1,
+                        ],
+                        [
+                            {
+                                label: relativeBeforeTodayPluralLabelByDurationType["Days"],
+                                isSelected:
+                                    operation.date.type === "RelativeBeforeToday" &&
+                                    operation.date.duration.type === "Days",
+                                onPress: () => {
+                                    onOperationChange({
+                                        type: operation.type,
+                                        date: {
+                                            type: "RelativeBeforeToday",
+                                            duration: {
+                                                type: "Days",
+                                                count:
+                                                    operation.date.type !== "Absolute" &&
+                                                    operation.date.type !== "RelativeToday" &&
+                                                    operation.date.duration.type === "Days"
+                                                        ? operation.date.duration.count
+                                                        : 1,
+                                            },
                                         },
-                                    },
-                                });
+                                    });
+                                },
                             },
-                        },
-                        {
-                            label: relativeBeforeTodayPluralLabelByDurationType["Weeks"],
-                            isSelected:
-                                operation.date.type === "RelativeBeforeToday" &&
-                                operation.date.duration.type === "Weeks",
-                            onPress: () => {
-                                onOperationChange({
-                                    type: operation.type,
-                                    date: {
-                                        type: "RelativeBeforeToday",
-                                        duration: {
-                                            type: "Weeks",
-                                            count:
-                                                operation.date.type !== "Absolute" &&
-                                                operation.date.type !== "RelativeToday" &&
-                                                operation.date.duration.type === "Weeks"
-                                                    ? operation.date.duration.count
-                                                    : 1,
+                            {
+                                label: relativeBeforeTodayPluralLabelByDurationType["Weeks"],
+                                isSelected:
+                                    operation.date.type === "RelativeBeforeToday" &&
+                                    operation.date.duration.type === "Weeks",
+                                onPress: () => {
+                                    onOperationChange({
+                                        type: operation.type,
+                                        date: {
+                                            type: "RelativeBeforeToday",
+                                            duration: {
+                                                type: "Weeks",
+                                                count:
+                                                    operation.date.type !== "Absolute" &&
+                                                    operation.date.type !== "RelativeToday" &&
+                                                    operation.date.duration.type === "Weeks"
+                                                        ? operation.date.duration.count
+                                                        : 1,
+                                            },
                                         },
-                                    },
-                                });
+                                    });
+                                },
                             },
-                        },
-                        {
-                            label: relativeBeforeTodayPluralLabelByDurationType["Months"],
-                            isSelected:
-                                operation.date.type === "RelativeBeforeToday" &&
-                                operation.date.duration.type === "Months",
-                            onPress: () => {
-                                onOperationChange({
-                                    type: operation.type,
-                                    date: {
-                                        type: "RelativeBeforeToday",
-                                        duration: {
-                                            type: "Months",
-                                            count:
-                                                operation.date.type !== "Absolute" &&
-                                                operation.date.type !== "RelativeToday" &&
-                                                operation.date.duration.type === "Months"
-                                                    ? operation.date.duration.count
-                                                    : 1,
+                            {
+                                label: relativeBeforeTodayPluralLabelByDurationType["Months"],
+                                isSelected:
+                                    operation.date.type === "RelativeBeforeToday" &&
+                                    operation.date.duration.type === "Months",
+                                onPress: () => {
+                                    onOperationChange({
+                                        type: operation.type,
+                                        date: {
+                                            type: "RelativeBeforeToday",
+                                            duration: {
+                                                type: "Months",
+                                                count:
+                                                    operation.date.type !== "Absolute" &&
+                                                    operation.date.type !== "RelativeToday" &&
+                                                    operation.date.duration.type === "Months"
+                                                        ? operation.date.duration.count
+                                                        : 1,
+                                            },
                                         },
-                                    },
-                                });
+                                    });
+                                },
                             },
-                        },
-                        {
-                            label: relativeBeforeTodayPluralLabelByDurationType["Years"],
-                            isSelected:
-                                operation.date.type === "RelativeBeforeToday" &&
-                                operation.date.duration.type === "Years",
-                            onPress: () => {
-                                onOperationChange({
-                                    type: operation.type,
-                                    date: {
-                                        type: "RelativeBeforeToday",
-                                        duration: {
-                                            type: "Years",
-                                            count:
-                                                operation.date.type !== "Absolute" &&
-                                                operation.date.type !== "RelativeToday" &&
-                                                operation.date.duration.type === "Years"
-                                                    ? operation.date.duration.count
-                                                    : 1,
+                            {
+                                label: relativeBeforeTodayPluralLabelByDurationType["Years"],
+                                isSelected:
+                                    operation.date.type === "RelativeBeforeToday" &&
+                                    operation.date.duration.type === "Years",
+                                onPress: () => {
+                                    onOperationChange({
+                                        type: operation.type,
+                                        date: {
+                                            type: "RelativeBeforeToday",
+                                            duration: {
+                                                type: "Years",
+                                                count:
+                                                    operation.date.type !== "Absolute" &&
+                                                    operation.date.type !== "RelativeToday" &&
+                                                    operation.date.duration.type === "Years"
+                                                        ? operation.date.duration.count
+                                                        : 1,
+                                            },
                                         },
-                                    },
-                                });
+                                    });
+                                },
                             },
-                        },
-                    ],
-                    [
-                        {
-                            label: relativeAfterTodayPluralLabelByDurationType["Days"],
-                            isSelected:
-                                operation.date.type === "RelativeAfterToday" &&
-                                operation.date.duration.type === "Days",
-                            onPress: () => {
-                                onOperationChange({
-                                    type: operation.type,
-                                    date: {
-                                        type: "RelativeAfterToday",
-                                        duration: {
-                                            type: "Days",
-                                            count:
-                                                operation.date.type !== "Absolute" &&
-                                                operation.date.type !== "RelativeToday" &&
-                                                operation.date.duration.type === "Days"
-                                                    ? operation.date.duration.count
-                                                    : 1,
+                        ],
+                        [
+                            {
+                                label: relativeAfterTodayPluralLabelByDurationType["Days"],
+                                isSelected:
+                                    operation.date.type === "RelativeAfterToday" &&
+                                    operation.date.duration.type === "Days",
+                                onPress: () => {
+                                    onOperationChange({
+                                        type: operation.type,
+                                        date: {
+                                            type: "RelativeAfterToday",
+                                            duration: {
+                                                type: "Days",
+                                                count:
+                                                    operation.date.type !== "Absolute" &&
+                                                    operation.date.type !== "RelativeToday" &&
+                                                    operation.date.duration.type === "Days"
+                                                        ? operation.date.duration.count
+                                                        : 1,
+                                            },
                                         },
-                                    },
-                                });
+                                    });
+                                },
                             },
-                        },
-                        {
-                            label: relativeAfterTodayPluralLabelByDurationType["Weeks"],
-                            isSelected:
-                                operation.date.type === "RelativeAfterToday" &&
-                                operation.date.duration.type === "Weeks",
-                            onPress: () => {
-                                onOperationChange({
-                                    type: operation.type,
-                                    date: {
-                                        type: "RelativeAfterToday",
-                                        duration: {
-                                            type: "Weeks",
-                                            count:
-                                                operation.date.type !== "Absolute" &&
-                                                operation.date.type !== "RelativeToday" &&
-                                                operation.date.duration.type === "Weeks"
-                                                    ? operation.date.duration.count
-                                                    : 1,
+                            {
+                                label: relativeAfterTodayPluralLabelByDurationType["Weeks"],
+                                isSelected:
+                                    operation.date.type === "RelativeAfterToday" &&
+                                    operation.date.duration.type === "Weeks",
+                                onPress: () => {
+                                    onOperationChange({
+                                        type: operation.type,
+                                        date: {
+                                            type: "RelativeAfterToday",
+                                            duration: {
+                                                type: "Weeks",
+                                                count:
+                                                    operation.date.type !== "Absolute" &&
+                                                    operation.date.type !== "RelativeToday" &&
+                                                    operation.date.duration.type === "Weeks"
+                                                        ? operation.date.duration.count
+                                                        : 1,
+                                            },
                                         },
-                                    },
-                                });
+                                    });
+                                },
                             },
-                        },
-                        {
-                            label: relativeAfterTodayPluralLabelByDurationType["Months"],
-                            isSelected:
-                                operation.date.type === "RelativeAfterToday" &&
-                                operation.date.duration.type === "Months",
-                            onPress: () => {
-                                onOperationChange({
-                                    type: operation.type,
-                                    date: {
-                                        type: "RelativeAfterToday",
-                                        duration: {
-                                            type: "Months",
-                                            count:
-                                                operation.date.type !== "Absolute" &&
-                                                operation.date.type !== "RelativeToday" &&
-                                                operation.date.duration.type === "Months"
-                                                    ? operation.date.duration.count
-                                                    : 1,
+                            {
+                                label: relativeAfterTodayPluralLabelByDurationType["Months"],
+                                isSelected:
+                                    operation.date.type === "RelativeAfterToday" &&
+                                    operation.date.duration.type === "Months",
+                                onPress: () => {
+                                    onOperationChange({
+                                        type: operation.type,
+                                        date: {
+                                            type: "RelativeAfterToday",
+                                            duration: {
+                                                type: "Months",
+                                                count:
+                                                    operation.date.type !== "Absolute" &&
+                                                    operation.date.type !== "RelativeToday" &&
+                                                    operation.date.duration.type === "Months"
+                                                        ? operation.date.duration.count
+                                                        : 1,
+                                            },
                                         },
-                                    },
-                                });
+                                    });
+                                },
                             },
-                        },
-                        {
-                            label: relativeAfterTodayPluralLabelByDurationType["Years"],
-                            isSelected:
-                                operation.date.type === "RelativeAfterToday" &&
-                                operation.date.duration.type === "Years",
-                            onPress: () => {
-                                onOperationChange({
-                                    type: operation.type,
-                                    date: {
-                                        type: "RelativeAfterToday",
-                                        duration: {
-                                            type: "Years",
-                                            count:
-                                                operation.date.type !== "Absolute" &&
-                                                operation.date.type !== "RelativeToday" &&
-                                                operation.date.duration.type === "Years"
-                                                    ? operation.date.duration.count
-                                                    : 1,
+                            {
+                                label: relativeAfterTodayPluralLabelByDurationType["Years"],
+                                isSelected:
+                                    operation.date.type === "RelativeAfterToday" &&
+                                    operation.date.duration.type === "Years",
+                                onPress: () => {
+                                    onOperationChange({
+                                        type: operation.type,
+                                        date: {
+                                            type: "RelativeAfterToday",
+                                            duration: {
+                                                type: "Years",
+                                                count:
+                                                    operation.date.type !== "Absolute" &&
+                                                    operation.date.type !== "RelativeToday" &&
+                                                    operation.date.duration.type === "Years"
+                                                        ? operation.date.duration.count
+                                                        : 1,
+                                            },
                                         },
-                                    },
-                                });
+                                    });
+                                },
                             },
-                        },
-                    ],
-                ]}
-            />
+                        ],
+                    ]}
+                />
+            </Box>
         </>
     );
 }
@@ -471,7 +491,7 @@ function TaskQueryFilterDateOperationEditorDurationCount({
     const inputPlaceholder = "0";
 
     return (
-        <Box {...hoverProps} height="full" position="relative" zIndex="0">
+        <Box {...hoverProps} height="full" minWidth="0" position="relative" zIndex="0">
             <FocusRing offset="0">
                 <input
                     ref={inputRef}
@@ -484,6 +504,7 @@ function TaskQueryFilterDateOperationEditorDurationCount({
                     })}
                     style={{fontVariantNumeric: "tabular-nums"}}
                     placeholder={inputPlaceholder}
+                    inputMode="numeric"
                     value={inputValue}
                     onChange={event => {
                         if (!state.isFocused) return;
@@ -582,6 +603,22 @@ function TaskQueryFilterDateOperationEditorDurationCount({
                 style={{fontVariantNumeric: "tabular-nums"}}
             >
                 {inputValue.length === 0 ? inputPlaceholder : inputValue}
+                <span
+                    style={{
+                        display: "inline-block",
+                        // NOTE(calebmer): I've found adding a bit of extra width helps sub-pixel
+                        // rendering (which sometimes clips the text) and the iOS Safari cursor which
+                        // seems to add ~2px of width to input content. Can't use `paddingRight` since
+                        // `textClassName` or `textStyle` may add padding we don't want to override.
+                        //
+                        // To see the issues the [iOS Safari cursor causes here's a bug repro][1].
+                        // Notice how the input text shifts to the left and is clipped. This seems to
+                        // be because the iOS cursor takes horizontal space in the input.
+                        //
+                        // [1]: https://gist.github.com/calebmer/cfaa91c91a53e893a43e30d65d1c6b80
+                        width: 2,
+                    }}
+                />
             </Box>
             {isHovered && (
                 <Box

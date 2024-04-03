@@ -53,7 +53,7 @@ export function TaskPriorityIcon({
             // Derived from Phosphor's `<WarningCircle>` icon but we made the exclamation
             // mark bigger and duotone.
             return (
-                <div className={sprinkles({position: "relative", zIndex: "0"})}>
+                <div className={sprinkles({flexShrink: "0", position: "relative", zIndex: "0"})}>
                     {shouldHighlightUrgent && (
                         <div
                             className={classNames(
@@ -115,6 +115,7 @@ export function TaskPriorityIcon({
         <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 32 32"
+            className={sprinkles({flexShrink: "0"})}
             // Safari doesn't like `width` and `height` attributes being set to rem units
             // so use `style` instead.
             style={{

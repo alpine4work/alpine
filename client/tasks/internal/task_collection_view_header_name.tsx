@@ -26,7 +26,6 @@ import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/task_client_store.js";
-import {spacing} from "~/shared/design/spacing.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -265,10 +264,6 @@ function TaskCollectionViewHeaderNameEditor({
                             fontStyle: "semi-bold",
                             paddingX: "1",
                         })}
-                        textStyle={{
-                            // Override inline `paddingRight` style.
-                            paddingRight: spacing["1"],
-                        }}
                         onKeyDown={event => {
                             switch (event.key) {
                                 case "Enter": {

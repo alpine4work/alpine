@@ -19,7 +19,7 @@ import {
     TaskCollectionViewHeaderName,
     TaskCollectionViewHeaderNameRef,
 } from "~/client/tasks/internal/task_collection_view_header_name.js";
-import {taskQueryFilterEditorHeight} from "~/client/tasks/internal/task_query_filter_editor.js";
+import {desktopTaskQueryFilterEditorHeight} from "~/client/tasks/internal/task_query_filter_editor.js";
 import {TaskQueryViewCustomizationBar} from "~/client/tasks/internal/task_query_view_customization_bar.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {
@@ -205,7 +205,7 @@ export function TaskCollectionViewHeader({
     const customizationBarMarginY = useMemo(() => {
         return `${
             ((isMobile ? mobileNavigationBarHeightRem : desktopNavigationBarHeightRem) -
-                parseRemLengthNumber(spacing[taskQueryFilterEditorHeight])) /
+                parseRemLengthNumber(spacing[desktopTaskQueryFilterEditorHeight])) /
             2
         }rem`;
     }, [isMobile]);

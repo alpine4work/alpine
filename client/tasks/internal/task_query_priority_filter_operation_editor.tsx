@@ -7,13 +7,15 @@ import {TaskCheckbox} from "~/client/tasks/internal/task_checkbox.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
 import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
-import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
+import {colorSchemeVars, inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 import {TaskQueryPriorityFilter} from "~/shared/tasks/task_query_filter.js";
 
 export function TaskQueryPriorityFilterOperationEditor({
+    withMobileLayout,
     filter,
     onFilterChange,
 }: {
+    withMobileLayout: boolean;
     filter: TaskQueryPriorityFilter;
     onFilterChange: (filter: TaskQueryPriorityFilter) => void;
 }) {
@@ -57,6 +59,7 @@ export function TaskQueryPriorityFilterOperationEditor({
     return (
         <>
             <TaskQueryFilterOperatorEditor
+                withMobileLayout={withMobileLayout}
                 operatorLabel={filter.operation.type === "OneOf" ? "is" : "is not"}
                 allOperators={[
                     {
@@ -208,101 +211,131 @@ export function TaskQueryPriorityFilterOperationEditor({
                     },
                 ]}
             >
-                <FocusRing offset="0">
-                    <button
-                        {...mergeProps(buttonProps, hoverProps)}
-                        ref={buttonRef}
-                        className={sprinkles({
-                            height: "full",
-                        })}
-                        style={{
-                            paddingTop: 1,
-                            paddingBottom: 1,
-                        }}
-                    >
-                        <span
+                {({isVisible}) => (
+                    <FocusRing offset="0">
+                        <button
+                            {...mergeProps(buttonProps, hoverProps)}
+                            ref={buttonRef}
                             className={sprinkles({
+                                position: "relative",
+                                zIndex: "0",
+                                flexShrink: "1",
                                 height: "full",
-                                minWidth: "4",
-                                paddingX: "1",
-                                display: "flex",
-                                alignItems: "center",
-                                // The hit radius for this button extends within the entire filter editor but
-                                // the background color style has some inset.
-                                backgroundColor: isPressed
-                                    ? "grey-10"
-                                    : isHovered
-                                    ? "grey-5"
-                                    : undefined,
-                                borderRadius: "sm",
+                                overflow: withMobileLayout ? "hidden" : undefined,
                             })}
+                            style={{
+                                paddingTop: 1,
+                                paddingBottom: 1,
+                            }}
                         >
-                            {priorities.length === 0 ? (
-                                <Box style={inputPlaceholderStyles}>
-                                    {filter.operation.type === "OneOf" ? "anything" : "nothing"}
-                                </Box>
-                            ) : priorities.length === 1 ? (
-                                priorities[0]
-                            ) : priorities.length === 2 ? (
-                                <>
-                                    {priorities[0]}
-                                    <Box paddingLeft="1" paddingRight="1.5" color="grey-60">
-                                        or
+                            {withMobileLayout && (
+                                <span
+                                    className={sprinkles({
+                                        position: "absolute",
+                                        zIndex: "20",
+                                        right: "0",
+                                        width: "2",
+                                        borderRightRadius: "sm",
+                                    })}
+                                    style={{
+                                        top: 1,
+                                        bottom: 1,
+                                        background: `linear-gradient(to right, transparent, ${
+                                            colorSchemeVars[
+                                                isPressed
+                                                    ? "grey-10"
+                                                    : isHovered || isVisible
+                                                    ? "grey-5"
+                                                    : "grey-0"
+                                            ]
+                                        })`,
+                                    }}
+                                />
+                            )}
+                            <span
+                                className={sprinkles({
+                                    height: "full",
+                                    minWidth: "4",
+                                    paddingX: "1",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    // The hit radius for this button extends within the entire filter editor but
+                                    // the background color style has some inset.
+                                    backgroundColor: isPressed
+                                        ? "grey-10"
+                                        : isHovered || isVisible
+                                        ? "grey-5"
+                                        : undefined,
+                                    borderRadius: "sm",
+                                })}
+                            >
+                                {priorities.length === 0 ? (
+                                    <Box style={inputPlaceholderStyles}>
+                                        {filter.operation.type === "OneOf" ? "anything" : "nothing"}
                                     </Box>
-                                    {priorities[1]}
-                                </>
-                            ) : priorities.length === 3 ? (
-                                <>
-                                    {priorities[0]}
-                                    <Box color="grey-60" paddingRight="1">
-                                        ,
-                                    </Box>
-                                    {priorities[1]}
-                                    <Box paddingRight="1.5" color="grey-60">
-                                        ,&nbsp;or
-                                    </Box>
-                                    {priorities[2]}
-                                </>
-                            ) : priorities.length === 4 ? (
-                                <>
-                                    {priorities[0]}
-                                    <Box color="grey-60" paddingRight="1">
-                                        ,
-                                    </Box>
-                                    {priorities[1]}
-                                    <Box color="grey-60" paddingRight="1">
-                                        ,
-                                    </Box>
-                                    {priorities[2]}
-                                    <Box paddingRight="1.5" color="grey-60">
-                                        ,&nbsp;or
-                                    </Box>
-                                    {priorities[3]}
-                                </>
-                            ) : priorities.length === 5 ? (
-                                <>
-                                    {priorities[0]}
-                                    <Box color="grey-60" paddingRight="1">
-                                        ,
-                                    </Box>
-                                    {priorities[1]}
-                                    <Box color="grey-60" paddingRight="1">
-                                        ,
-                                    </Box>
-                                    {priorities[2]}
-                                    <Box color="grey-60" paddingRight="1">
-                                        ,
-                                    </Box>
-                                    {priorities[3]}
-                                    <Box paddingRight="1.5" color="grey-60">
-                                        ,&nbsp;or
-                                    </Box>
-                                    {priorities[4]}
-                                </>
-                            ) : null}
-                        </span>
-                    </button>
-                </FocusRing>
+                                ) : priorities.length === 1 ? (
+                                    priorities[0]
+                                ) : priorities.length === 2 ? (
+                                    <>
+                                        {priorities[0]}
+                                        <Box paddingLeft="1" paddingRight="1.5" color="grey-60">
+                                            or
+                                        </Box>
+                                        {priorities[1]}
+                                    </>
+                                ) : priorities.length === 3 ? (
+                                    <>
+                                        {priorities[0]}
+                                        <Box color="grey-60" paddingRight="1">
+                                            ,
+                                        </Box>
+                                        {priorities[1]}
+                                        <Box paddingRight="1.5" color="grey-60">
+                                            ,&nbsp;or
+                                        </Box>
+                                        {priorities[2]}
+                                    </>
+                                ) : priorities.length === 4 ? (
+                                    <>
+                                        {priorities[0]}
+                                        <Box color="grey-60" paddingRight="1">
+                                            ,
+                                        </Box>
+                                        {priorities[1]}
+                                        <Box color="grey-60" paddingRight="1">
+                                            ,
+                                        </Box>
+                                        {priorities[2]}
+                                        <Box paddingRight="1.5" color="grey-60">
+                                            ,&nbsp;or
+                                        </Box>
+                                        {priorities[3]}
+                                    </>
+                                ) : priorities.length === 5 ? (
+                                    <>
+                                        {priorities[0]}
+                                        <Box color="grey-60" paddingRight="1">
+                                            ,
+                                        </Box>
+                                        {priorities[1]}
+                                        <Box color="grey-60" paddingRight="1">
+                                            ,
+                                        </Box>
+                                        {priorities[2]}
+                                        <Box color="grey-60" paddingRight="1">
+                                            ,
+                                        </Box>
+                                        {priorities[3]}
+                                        <Box paddingRight="1.5" color="grey-60">
+                                            ,&nbsp;or
+                                        </Box>
+                                        {priorities[4]}
+                                    </>
+                                ) : null}
+                            </span>
+                        </button>
+                    </FocusRing>
+                )}
             </MenuButton>
         </>
     );

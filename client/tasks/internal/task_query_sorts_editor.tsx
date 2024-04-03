@@ -429,7 +429,11 @@ function TaskQuerySortsEditorRowBase({
             <Box flexShrink="0">{name}</Box>
             {!withMobileLayout && <Box flexGrow="1" />}
             {children && (
-                <Box flexShrink="0" paddingLeft="2">
+                <Box
+                    flexShrink="0"
+                    paddingLeft={withMobileLayout ? "1" : "2"}
+                    style={{height: withMobileLayout ? `calc(${spacing["9"]} - 4px)` : undefined}}
+                >
                     {children}
                 </Box>
             )}
@@ -461,6 +465,7 @@ function TaskQuerySortsEditorRowBase({
                 </button>
                 <IconButton
                     size={withMobileLayout ? "md" : "xs"}
+                    borderRadius={withMobileLayout ? "sm" : undefined}
                     description="Delete"
                     withoutTooltip={true}
                     onPress={onDelete}
@@ -501,7 +506,7 @@ function TaskQuerySortsEditorRowStatusDirection({
         >
             <Button
                 variant="quieter"
-                height={withMobileLayout ? "6" : "5"}
+                height={withMobileLayout ? "full" : "5"}
                 paddingX={withMobileLayout ? "2" : "1.5"}
                 icon={<CaretDown />}
                 iconPlacement="end"
@@ -541,7 +546,7 @@ function TaskQuerySortsEditorRowPriorityDirection({
         >
             <Button
                 variant="quieter"
-                height={withMobileLayout ? "6" : "5"}
+                height={withMobileLayout ? "full" : "5"}
                 paddingX={withMobileLayout ? "2" : "1.5"}
                 icon={<CaretDown />}
                 iconPlacement="end"
@@ -578,7 +583,7 @@ function TaskQuerySortsEditorRowAccountMissing({
         >
             <Button
                 variant="quieter"
-                height={withMobileLayout ? "6" : "5"}
+                height={withMobileLayout ? "full" : "5"}
                 paddingX={withMobileLayout ? "2" : "1.5"}
                 icon={<CaretDown />}
                 iconPlacement="end"
@@ -621,7 +626,7 @@ function TaskQuerySortsEditorRowDateDirection({
         >
             <Button
                 variant="quieter"
-                height={withMobileLayout ? "6" : "5"}
+                height={withMobileLayout ? "full" : "5"}
                 paddingX={withMobileLayout ? "2" : "1.5"}
                 icon={<CaretDown />}
                 iconPlacement="end"

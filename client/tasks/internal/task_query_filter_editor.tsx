@@ -21,16 +21,18 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 
-export const taskQueryFilterEditorHeight = "6";
+export const desktopTaskQueryFilterEditorHeight = "6";
 
 export function TaskQueryFilterEditor({
+    withMobileLayout,
     store,
     filter,
     filterReferences,
     onFilterChange,
     onFilterRemove,
-    collectionsOperationValueTriggerButtonRef,
+    collectionsOperationValueTriggerButtonRef = null,
 }: {
+    withMobileLayout: boolean;
     store: TaskClientStore;
     filter: TaskQueryFilter;
     filterReferences: TaskQueryFilterReferences;
@@ -39,15 +41,17 @@ export function TaskQueryFilterEditor({
         options?: {mergeFilterReferences?: TaskQueryFilterReferences},
     ) => void;
     onFilterRemove: () => void;
-    collectionsOperationValueTriggerButtonRef: Ref<OverlayTriggerButtonRef> | null;
+    collectionsOperationValueTriggerButtonRef?: Ref<OverlayTriggerButtonRef> | null;
 }) {
     switch (filter.type) {
         case "DisplayStatus": {
             return (
                 <TaskQueryFilterEditorBase
+                    withMobileLayout={withMobileLayout}
                     name="Status"
                     operation={
                         <TaskQueryDisplayStatusFilterOperationEditor
+                            withMobileLayout={withMobileLayout}
                             filter={filter}
                             onFilterChange={onFilterChange}
                         />
@@ -59,9 +63,11 @@ export function TaskQueryFilterEditor({
         case "Collections": {
             return (
                 <TaskQueryFilterEditorBase
+                    withMobileLayout={withMobileLayout}
                     name="Collections"
                     operation={
                         <TaskQueryCollectionsFilterOperationEditor
+                            withMobileLayout={withMobileLayout}
                             store={store}
                             filter={filter}
                             filterReferences={filterReferences}
@@ -76,9 +82,11 @@ export function TaskQueryFilterEditor({
         case "Priority": {
             return (
                 <TaskQueryFilterEditorBase
+                    withMobileLayout={withMobileLayout}
                     name="Priority"
                     operation={
                         <TaskQueryPriorityFilterOperationEditor
+                            withMobileLayout={withMobileLayout}
                             filter={filter}
                             onFilterChange={onFilterChange}
                         />
@@ -90,9 +98,11 @@ export function TaskQueryFilterEditor({
         case "Title": {
             return (
                 <TaskQueryFilterEditorBase
+                    withMobileLayout={withMobileLayout}
                     name="Title"
                     operation={
                         <TaskQueryTitleFilterOperationEditor
+                            withMobileLayout={withMobileLayout}
                             filter={filter}
                             onFilterChange={onFilterChange}
                         />
@@ -104,9 +114,11 @@ export function TaskQueryFilterEditor({
         case "Assignee": {
             return (
                 <TaskQueryFilterEditorBase
+                    withMobileLayout={withMobileLayout}
                     name="Assignee"
                     operation={
                         <TaskQueryFilterAccountOperationEditor
+                            withMobileLayout={withMobileLayout}
                             inputLabel="Assignee"
                             filterReferences={filterReferences}
                             operation={filter.operation}
@@ -122,9 +134,11 @@ export function TaskQueryFilterEditor({
         case "Creator": {
             return (
                 <TaskQueryFilterEditorBase
+                    withMobileLayout={withMobileLayout}
                     name="Creator"
                     operation={
                         <TaskQueryFilterAccountOperationEditor
+                            withMobileLayout={withMobileLayout}
                             inputLabel="Creator"
                             // Tasks always have a creator so hide the `MissingAccount` filter option.
                             shouldHideMissingAccountItem={true}
@@ -142,9 +156,11 @@ export function TaskQueryFilterEditor({
         case "Assigner": {
             return (
                 <TaskQueryFilterEditorBase
+                    withMobileLayout={withMobileLayout}
                     name="Assigner"
                     operation={
                         <TaskQueryFilterAccountOperationEditor
+                            withMobileLayout={withMobileLayout}
                             inputLabel="Assigner"
                             filterReferences={filterReferences}
                             operation={filter.operation}
@@ -163,10 +179,12 @@ export function TaskQueryFilterEditor({
 
             return (
                 <TaskQueryFilterEditorBase
+                    withMobileLayout={withMobileLayout}
                     name="Due date"
                     operation={
                         <>
                             <TaskQueryFilterOperatorEditor
+                                withMobileLayout={withMobileLayout}
                                 operatorLabel={
                                     filter.operation.type === "Overdue"
                                         ? overdueOperatorLabel
@@ -248,6 +266,7 @@ export function TaskQueryFilterEditor({
                             {filter.operation.type !== "Overdue" &&
                                 filter.operation.type !== "IsEmpty" && (
                                     <TaskQueryFilterDateOperationValueEditor
+                                        withMobileLayout={withMobileLayout}
                                         operation={filter.operation}
                                         onOperationChange={operation =>
                                             onFilterChange({...filter, operation})
@@ -263,9 +282,11 @@ export function TaskQueryFilterEditor({
         case "CreatedDate": {
             return (
                 <TaskQueryFilterEditorBase
+                    withMobileLayout={withMobileLayout}
                     name="Created date"
                     operation={
                         <TaskQueryFilterDateOperationEditor
+                            withMobileLayout={withMobileLayout}
                             operation={filter.operation}
                             onOperationChange={operation => onFilterChange({...filter, operation})}
                         />
@@ -277,9 +298,11 @@ export function TaskQueryFilterEditor({
         case "AssignedDate": {
             return (
                 <TaskQueryFilterEditorBase
+                    withMobileLayout={withMobileLayout}
                     name="Assigned date"
                     operation={
                         <TaskQueryFilterDateOperationEditor
+                            withMobileLayout={withMobileLayout}
                             operation={filter.operation}
                             onOperationChange={operation => onFilterChange({...filter, operation})}
                         />
@@ -291,9 +314,11 @@ export function TaskQueryFilterEditor({
         case "ClosedDate": {
             return (
                 <TaskQueryFilterEditorBase
+                    withMobileLayout={withMobileLayout}
                     name="Closed date"
                     operation={
                         <TaskQueryFilterDateOperationEditor
+                            withMobileLayout={withMobileLayout}
                             operation={filter.operation}
                             onOperationChange={operation => onFilterChange({...filter, operation})}
                         />
@@ -305,9 +330,11 @@ export function TaskQueryFilterEditor({
         case "ActivatedDate": {
             return (
                 <TaskQueryFilterEditorBase
+                    withMobileLayout={withMobileLayout}
                     name="Active date"
                     operation={
                         <TaskQueryFilterDateOperationEditor
+                            withMobileLayout={withMobileLayout}
                             operation={filter.operation}
                             onOperationChange={operation => onFilterChange({...filter, operation})}
                         />
@@ -322,36 +349,46 @@ export function TaskQueryFilterEditor({
 }
 
 function TaskQueryFilterEditorBase({
+    withMobileLayout,
     name,
     operation,
     onFilterRemove,
 }: {
+    withMobileLayout: boolean;
     name: string;
     operation: ReactNode;
     onFilterRemove: () => void;
 }) {
     return (
         <Box
-            height={taskQueryFilterEditorHeight}
+            overflow="hidden"
+            width={withMobileLayout ? "full" : undefined}
+            height={withMobileLayout ? "9" : desktopTaskQueryFilterEditorHeight}
             display="flex"
             alignItems="center"
             borderRadius="base"
             border="grey-10"
         >
-            <Box paddingLeft="2" paddingRight="1">
+            <Box
+                paddingLeft={withMobileLayout ? "3" : "2"}
+                paddingRight="1"
+                style={{whiteSpace: "nowrap"}}
+            >
                 {name}
             </Box>
             {operation}
+            {withMobileLayout && <Box flexGrow="1" />}
             <Box
+                flexShrink="0"
                 paddingLeft="1.5"
                 style={{
                     // Subtract 1px from our right padding since that's the border width. That
                     // will give us good margin on all sides of the button.
-                    paddingRight: `calc(${spacing["1"]} - 1px)`,
+                    paddingRight: `calc(${spacing[withMobileLayout ? "1.5" : "1"]} - 1px)`,
                 }}
             >
                 <IconButton
-                    size="xs"
+                    size={withMobileLayout ? "md" : "xs"}
                     description="Remove"
                     withoutTooltip
                     borderRadius="sm"

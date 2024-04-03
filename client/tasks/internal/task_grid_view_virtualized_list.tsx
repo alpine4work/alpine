@@ -27,6 +27,7 @@ import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_re
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {MemoObject, useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -1792,7 +1793,7 @@ export function useTaskGridViewVirtualizedList({
 
                 if (
                     !(activeElement instanceof Element) ||
-                    !viewContentElement.contains(document.activeElement)
+                    !isElementOwnedBy(viewContentElement, activeElement)
                 ) {
                     return null;
                 }
@@ -1841,6 +1842,27 @@ export function useTaskGridViewVirtualizedList({
                             );
 
                         const bottom = Math.max(activeRect.bottom, ownedRect.bottom);
+
+                        return {
+                            top,
+                            height: bottom - top,
+                        };
+                    }
+                }
+
+                // If we focused on a listbox, scroll to make sure the element the listbox
+                // controls is visible. For example, the collections combobox opened by the
+                // collection filter (`<TaskQueryCollectionsFilterOperationEditor>`).
+                const ariaControlsAttribute = activeElement.getAttribute("aria-controls");
+                if (ariaControlsAttribute) {
+                    const ariaOwns = ariaControlsAttribute.split(" ")[0]!;
+                    const controlsElement = document.getElementById(ariaOwns);
+
+                    if (controlsElement) {
+                        const controlsRect = controlsElement.getBoundingClientRect();
+
+                        const top = Math.min(activeRect.top, controlsRect.top);
+                        const bottom = Math.max(activeRect.bottom, controlsRect.bottom);
 
                         return {
                             top,

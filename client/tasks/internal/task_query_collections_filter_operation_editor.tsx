@@ -116,12 +116,14 @@ type TaskQueryCollectionsFilterOperationEditorMultiSelectComboBoxItem = {
 };
 
 export function TaskQueryCollectionsFilterOperationEditor({
+    withMobileLayout,
     store,
     filter,
     filterReferences,
     onFilterChange,
     valueTriggerButtonRef,
 }: {
+    withMobileLayout: boolean;
     store: TaskClientStore;
     filter: TaskQueryCollectionsFilter;
     filterReferences: TaskQueryFilterReferences;
@@ -201,6 +203,7 @@ export function TaskQueryCollectionsFilterOperationEditor({
     return (
         <>
             <TaskQueryFilterOperatorEditor
+                withMobileLayout={withMobileLayout}
                 operatorLabel={
                     filter.operation.type === "IncludesOneOf"
                         ? includesOneOfOperatorLabel
@@ -300,10 +303,12 @@ export function TaskQueryCollectionsFilterOperationEditor({
             />
             {filter.operation.type !== "IsEmpty" && (
                 <TaskQueryFilterEditorMultiSelectComboBox<TaskQueryCollectionsFilterOperationEditorMultiSelectComboBoxItem>
+                    withMobileLayout={withMobileLayout}
                     inputLabel="Collection"
                     triggerButtonRef={valueTriggerButtonRef}
                     preview={
                         <TaskQueryCollectionsFilterOperationEditorPreview
+                            withMobileLayout={withMobileLayout}
                             conjunction={filter.operation.type === "IncludesOneOf" ? "or" : "and"}
                             collectionResults={collectionResults}
                         />
@@ -368,9 +373,11 @@ export function TaskQueryCollectionsFilterOperationEditor({
 }
 
 function TaskQueryCollectionsFilterOperationEditorPreview({
+    withMobileLayout,
     conjunction,
     collectionResults,
 }: {
+    withMobileLayout: boolean;
     conjunction: "or" | "and";
     collectionResults: ReadonlyArray<TaskCollectionModelSearchResult>;
 }) {
@@ -420,18 +427,32 @@ function TaskQueryCollectionsFilterOperationEditorPreview({
                 {previewCollections[1]}
             </>
         );
+    } else if (withMobileLayout) {
+        return (
+            <>
+                {previewCollections[0]}
+                <Box color="grey-60" paddingX="1" style={{whiteSpace: "nowrap"}}>
+                    {conjunction}
+                </Box>
+                <Box style={{whiteSpace: "nowrap"}}>
+                    <PrettyNumber number={collectionResults.length - 1} label="other" />
+                </Box>
+            </>
+        );
     } else {
         return (
             <>
                 {previewCollections[0]}
-                <Box color="grey-60" paddingRight="1.5">
+                <Box color="grey-60" paddingRight="1.5" style={{whiteSpace: "nowrap"}}>
                     ,
                 </Box>
                 {previewCollections[1]}
-                <Box color="grey-60" paddingRight="1">
+                <Box color="grey-60" paddingRight="1" style={{whiteSpace: "nowrap"}}>
                     , {conjunction}
                 </Box>
-                <PrettyNumber number={collectionResults.length - 2} label="other" />
+                <Box style={{whiteSpace: "nowrap"}}>
+                    <PrettyNumber number={collectionResults.length - 2} label="other" />
+                </Box>
             </>
         );
     }

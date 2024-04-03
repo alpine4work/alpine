@@ -1,7 +1,7 @@
 import {isFocusVisible, usePress} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import {MagnifyingGlass, SpinnerGap} from "phosphor-react";
-import {ReactNode, Ref, RefObject, useRef, useState} from "react";
+import {Memo, ReactNode, Ref, RefObject, useCallback, useMemo, useRef, useState} from "react";
 import {
     AriaListBoxOptions,
     mergeProps,
@@ -10,7 +10,7 @@ import {
     useListBox,
     useOption,
 } from "react-aria";
-import {ComboBoxState, Item, useListState} from "react-stately";
+import {ComboBoxState, Item, ListState, useListState} from "react-stately";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {
@@ -18,6 +18,7 @@ import {
     OverlayTriggerButtonRef,
 } from "~/client/design/overlay_trigger_button.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {TaskCheckbox} from "~/client/tasks/internal/task_checkbox.js";
@@ -40,6 +41,7 @@ export type TaskQueryFilterEditorMultiSelectComboBoxItemBase = {
 export function TaskQueryFilterEditorMultiSelectComboBox<
     Item extends TaskQueryFilterEditorMultiSelectComboBoxItemBase,
 >({
+    withMobileLayout,
     inputLabel,
     triggerButtonRef,
     preview,
@@ -48,6 +50,7 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
     useSearchedItems,
     optionCheckboxMarginTop,
 }: {
+    withMobileLayout: boolean;
     inputLabel: string;
     triggerButtonRef?: Ref<OverlayTriggerButtonRef> | null;
     preview: ReactNode;
@@ -72,11 +75,15 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
         <OverlayTriggerButton
             ref={triggerButtonRef}
             aria-haspopup="listbox"
+            placement="bottom-start"
+            // Allow flipping vertically but not horizontally on mobile. Flipping
+            // horizontally on mobile can happen easily and be disruptive.
+            fallbackPlacements={withMobileLayout ? ["top-start"] : undefined}
             overlay={({onCloseWithoutAnimation}) => (
                 <Box
                     className={greyElevated2ClassName}
                     width="64"
-                    maxHeight="96"
+                    maxHeight={withMobileLayout ? "64" : "96"}
                     overflow="hidden"
                     borderRadius="md"
                     backgroundColor="grey-0"
@@ -95,38 +102,44 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
                 </Box>
             )}
         >
-            <FocusRing offset="0">
-                <button
-                    {...mergeProps(pressProps, hoverProps)}
-                    className={sprinkles({
-                        height: "full",
-                    })}
-                    style={{
-                        paddingTop: 1,
-                        paddingBottom: 1,
-                    }}
-                >
-                    <span
+            {({isVisible}) => (
+                <FocusRing offset="0">
+                    <button
+                        {...mergeProps(pressProps, hoverProps)}
                         className={sprinkles({
+                            position: "relative",
+                            zIndex: "0",
+                            flexShrink: "1",
                             height: "full",
-                            minWidth: "4",
-                            paddingX: "1",
-                            display: "flex",
-                            alignItems: "center",
-                            // The hit radius for this button extends within the entire filter editor but
-                            // the background color style has some inset.
-                            backgroundColor: isPressed
-                                ? "grey-10"
-                                : isHovered
-                                ? "grey-5"
-                                : undefined,
-                            borderRadius: "sm",
+                            overflow: withMobileLayout ? "hidden" : undefined,
                         })}
+                        style={{
+                            paddingTop: 1,
+                            paddingBottom: 1,
+                        }}
                     >
-                        {preview}
-                    </span>
-                </button>
-            </FocusRing>
+                        <span
+                            className={sprinkles({
+                                height: "full",
+                                minWidth: "4",
+                                paddingX: "1",
+                                display: "flex",
+                                alignItems: "center",
+                                // The hit radius for this button extends within the entire filter editor but
+                                // the background color style has some inset.
+                                backgroundColor: isPressed
+                                    ? "grey-10"
+                                    : isHovered || isVisible
+                                    ? "grey-5"
+                                    : undefined,
+                                borderRadius: "sm",
+                            })}
+                        >
+                            {preview}
+                        </span>
+                    </button>
+                </FocusRing>
+            )}
         </OverlayTriggerButton>
     );
 }
@@ -167,9 +180,9 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
     const shouldShowSearchLoadingIndicator =
         !searchedItemsResult.isLoading && !!searchedItemsResult.shouldShowSearchLoadingIndicator;
 
-    const renderItem = (item: TaskQueryFilterEditorMultiSelectComboBoxItemBase) => (
-        <Item textValue={item.textValue}>{item.node}</Item>
-    );
+    const renderItem = useCallback((item: TaskQueryFilterEditorMultiSelectComboBoxItemBase) => {
+        return <Item textValue={item.textValue}>{item.node}</Item>;
+    }, []);
 
     const {collection, selectionManager, disabledKeys} = useListState({
         items: searchedItems,
@@ -177,13 +190,24 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
 
         selectionMode: "multiple",
         selectedKeys,
-        onSelectionChange: selectedKeys => {
+        onSelectionChange: useEvent(selectedKeys => {
             // Ignore "all" selections. Doesn't make sense for this input.
             if (selectedKeys === "all") return;
 
             onSelectedKeysChange(selectedKeys as Set<Item["key"]>, searchedItems);
-        },
+        }),
     });
+
+    // Memoized list state object we can use to avoid re-renders if list
+    // doesn't change.
+    const listState = useMemo(
+        (): ListState<TaskQueryFilterEditorMultiSelectComboBoxItemBase> => ({
+            collection,
+            disabledKeys,
+            selectionManager,
+        }),
+        [collection, disabledKeys, selectionManager],
+    );
 
     const inputRef = useRef<HTMLInputElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
@@ -254,6 +278,7 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
                             paddingRight: shouldShowSearchLoadingIndicator ? "7" : "2.5",
                             backgroundColor: "transparent",
                             borderTopRadius: "md",
+                            borderBottomRadius: "none",
                             borderBottom: "grey-10",
                         })}
                         placeholder={inputLabel}
@@ -306,7 +331,7 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
                     </Box>
                 ) : (
                     <TaskQueryFilterEditorMultiSelectListBox
-                        comboBoxState={comboBoxState}
+                        listState={listState}
                         listBoxRef={listBoxRef}
                         listBoxProps={listBoxProps}
                         optionCheckboxMarginTop={optionCheckboxMarginTop}
@@ -318,21 +343,17 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
 }
 
 function TaskQueryFilterEditorMultiSelectListBox({
-    comboBoxState,
+    listState,
     listBoxRef,
     listBoxProps: _listBoxProps,
     optionCheckboxMarginTop,
 }: {
-    comboBoxState: ComboBoxState<TaskQueryFilterEditorMultiSelectComboBoxItemBase>;
+    listState: Memo<ListState<TaskQueryFilterEditorMultiSelectComboBoxItemBase>>;
     listBoxRef: RefObject<HTMLUListElement>;
     listBoxProps: AriaListBoxOptions<TaskQueryFilterEditorMultiSelectComboBoxItemBase>;
     optionCheckboxMarginTop: Spacing | null;
 }) {
-    const {listBoxProps} = useListBox(
-        {..._listBoxProps, autoFocus: false},
-        comboBoxState,
-        listBoxRef,
-    );
+    const {listBoxProps} = useListBox({..._listBoxProps, autoFocus: false}, listState, listBoxRef);
 
     return (
         <ul
@@ -346,33 +367,37 @@ function TaskQueryFilterEditorMultiSelectListBox({
                 overflowY: "auto",
             })}
         >
-            {comboBoxState.collection.size === 0 ? (
-                <Box padding="1.5" display="flex" alignItems="center" gap="1.5" color="grey-70">
-                    <Box padding="0.5">
-                        <MagnifyingGlass size={spacing["4"]} />
+            {useMemo(() => {
+                // The list of collection items shouldn't need to re-render whenever the
+                // combobox opens, closes, or animates. Hence the `useMemo()`.
+                return listState.collection.size === 0 ? (
+                    <Box padding="1.5" display="flex" alignItems="center" gap="1.5" color="grey-70">
+                        <Box padding="0.5">
+                            <MagnifyingGlass size={spacing["4"]} />
+                        </Box>
+                        <Box>No results</Box>
                     </Box>
-                    <Box>No results</Box>
-                </Box>
-            ) : (
-                Array.from(comboBoxState.collection, item => (
-                    <TaskQueryFilterEditorMultiSelectListBoxOption
-                        key={item.key}
-                        comboBoxState={comboBoxState}
-                        item={item}
-                        optionCheckboxMarginTop={optionCheckboxMarginTop}
-                    />
-                ))
-            )}
+                ) : (
+                    Array.from(listState.collection, item => (
+                        <TaskQueryFilterEditorMultiSelectListBoxOption
+                            key={item.key}
+                            listState={listState}
+                            item={item}
+                            optionCheckboxMarginTop={optionCheckboxMarginTop}
+                        />
+                    ))
+                );
+            }, [listState, optionCheckboxMarginTop])}
         </ul>
     );
 }
 
 function TaskQueryFilterEditorMultiSelectListBoxOption({
-    comboBoxState,
+    listState,
     item,
     optionCheckboxMarginTop,
 }: {
-    comboBoxState: ComboBoxState<TaskQueryFilterEditorMultiSelectComboBoxItemBase>;
+    listState: Memo<ListState<TaskQueryFilterEditorMultiSelectComboBoxItemBase>>;
     item: Node<TaskQueryFilterEditorMultiSelectComboBoxItemBase>;
     optionCheckboxMarginTop: Spacing | null;
 }) {
@@ -389,7 +414,7 @@ function TaskQueryFilterEditorMultiSelectListBoxOption({
             // feels broken.
             disallowsDifferentPressOrigin: true,
         },
-        comboBoxState,
+        listState,
         optionRef,
     );
 

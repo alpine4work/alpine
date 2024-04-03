@@ -1,12 +1,23 @@
 import {Plus} from "phosphor-react";
-import {Ref, RefObject, forwardRef, useImperativeHandle, useMemo, useRef, useState} from "react";
+import {
+    Fragment,
+    Ref,
+    RefObject,
+    forwardRef,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {OverlayTriggerButtonRef} from "~/client/design/overlay_trigger_button.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {TaskQueryAddFilterMenuButton} from "~/client/tasks/internal/task_query_add_filter_menu_button.js";
 import {TaskQueryAddSortMenuButton} from "~/client/tasks/internal/task_query_add_sort_menu_button.js";
+import {TaskQueryFilterEditor} from "~/client/tasks/internal/task_query_filter_editor.js";
 import {TaskQuerySortsEditor} from "~/client/tasks/internal/task_query_sorts_editor.js";
+import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -27,16 +38,20 @@ export {TaskQueryViewCustomizationMobileSectionForwardRef as TaskQueryViewCustom
 
 function TaskQueryViewCustomizationMobileSection(
     {
+        store,
         initiallyFocus,
         defaultOrderSentence,
         filters,
+        filterReferences,
         onFiltersChange,
         sorts,
         onSortsChange,
     }: {
+        store: TaskClientStore;
         initiallyFocus: "AddFilter" | "AddSort" | null;
         defaultOrderSentence: string;
         filters: ReadonlyArray<TaskQueryFilter>;
+        filterReferences: TaskQueryFilterReferences;
         onFiltersChange: (
             filters: ReadonlyArray<TaskQueryFilter>,
             options?: {mergeFilterReferences?: TaskQueryFilterReferences},
@@ -106,43 +121,16 @@ function TaskQueryViewCustomizationMobileSection(
             flexDirection="column"
             gap="4"
             paddingTop="1"
-            paddingBottom="6"
+            paddingBottom="8"
         >
             {areFiltersVisible && (
-                <Box>
-                    <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
-                        paddingY="1"
-                    >
-                        <Box fontSize="100" color="grey-80" fontStyle="semi-bold">
-                            Filters
-                        </Box>
-                        <TaskQueryAddFilterMenuButton
-                            ref={addFilterMenuRef}
-                            onAddFilter={filter => {
-                                onFiltersChange([filter, ...filters]);
-                            }}
-                        >
-                            <Button icon={<Plus />} paddingX="2" height="6">
-                                Add
-                            </Button>
-                        </TaskQueryAddFilterMenuButton>
-                    </Box>
-                    <Box
-                        height="9"
-                        paddingX="3"
-                        display="flex"
-                        alignItems="center"
-                        borderRadius="base"
-                        color="grey-40"
-                        fontSize="50"
-                        style={{boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-5"]}`}}
-                    >
-                        No filters. Tasks are hidden when closed.
-                    </Box>
-                </Box>
+                <TaskQueryViewCustomizationMobileSectionFilters
+                    store={store}
+                    addFilterMenuRef={addFilterMenuRef}
+                    filters={filters}
+                    filterReferences={filterReferences}
+                    onFiltersChange={onFiltersChange}
+                />
             )}
             {areSortsVisible && (
                 <TaskQueryViewCustomizationMobileSectionSorts
@@ -151,6 +139,84 @@ function TaskQueryViewCustomizationMobileSection(
                     sorts={sorts}
                     onSortsChange={onSortsChange}
                 />
+            )}
+        </Box>
+    );
+}
+
+function TaskQueryViewCustomizationMobileSectionFilters({
+    store,
+    addFilterMenuRef,
+    filters,
+    filterReferences,
+    onFiltersChange,
+}: {
+    store: TaskClientStore;
+    addFilterMenuRef: RefObject<OverlayTriggerButtonRef>;
+    filters: ReadonlyArray<TaskQueryFilter>;
+    filterReferences: TaskQueryFilterReferences;
+    onFiltersChange: (
+        filters: ReadonlyArray<TaskQueryFilter>,
+        options?: {mergeFilterReferences?: TaskQueryFilterReferences},
+    ) => void;
+}) {
+    return (
+        <Box>
+            <Box display="flex" justifyContent="space-between" alignItems="center" paddingY="1">
+                <Box fontSize="100" color="grey-80" fontStyle="semi-bold">
+                    Filters
+                </Box>
+                <TaskQueryAddFilterMenuButton
+                    ref={addFilterMenuRef}
+                    onAddFilter={filter => {
+                        onFiltersChange([filter, ...filters]);
+                    }}
+                >
+                    <Button icon={<Plus />} paddingX="2" height="6">
+                        Add
+                    </Button>
+                </TaskQueryAddFilterMenuButton>
+            </Box>
+            {filters.length === 0 ? (
+                <Box
+                    height="9"
+                    paddingX="3"
+                    display="flex"
+                    alignItems="center"
+                    borderRadius="base"
+                    color="grey-40"
+                    fontSize="50"
+                    style={{boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-5"]}`}}
+                >
+                    No filters. Tasks are hidden when closed.
+                </Box>
+            ) : (
+                filters.map((filter, index) => {
+                    return (
+                        <Fragment key={index}>
+                            {index !== 0 && <Box height="2" />}
+                            <TaskQueryFilterEditor
+                                key={index}
+                                withMobileLayout={true}
+                                store={store}
+                                filter={filter}
+                                filterReferences={filterReferences}
+                                onFilterChange={(filter, options) => {
+                                    const newFilters = [...filters];
+                                    newFilters[index] = filter;
+
+                                    onFiltersChange(newFilters, options);
+                                }}
+                                onFilterRemove={() => {
+                                    const newFilters = [...filters];
+                                    newFilters.splice(index, 1);
+
+                                    onFiltersChange(newFilters);
+                                }}
+                            />
+                        </Fragment>
+                    );
+                })
             )}
         </Box>
     );

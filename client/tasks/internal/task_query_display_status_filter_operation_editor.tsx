@@ -12,9 +12,11 @@ import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 import {TaskQueryDisplayStatusFilter} from "~/shared/tasks/task_query_filter.js";
 
 export function TaskQueryDisplayStatusFilterOperationEditor({
+    withMobileLayout,
     filter,
     onFilterChange,
 }: {
+    withMobileLayout: boolean;
     filter: TaskQueryDisplayStatusFilter;
     onFilterChange: (filter: TaskQueryDisplayStatusFilter) => void;
 }) {
@@ -53,6 +55,7 @@ export function TaskQueryDisplayStatusFilterOperationEditor({
     return (
         <>
             <TaskQueryFilterOperatorEditor
+                withMobileLayout={withMobileLayout}
                 operatorLabel={filter.operation.type === "OneOf" ? "is" : "is not"}
                 allOperators={[
                     {
@@ -261,65 +264,67 @@ export function TaskQueryDisplayStatusFilterOperationEditor({
                     },
                 ]}
             >
-                <FocusRing offset="0">
-                    <button
-                        {...mergeProps(buttonProps, hoverProps)}
-                        ref={buttonRef}
-                        className={sprinkles({
-                            height: "full",
-                        })}
-                        style={{
-                            paddingTop: 1,
-                            paddingBottom: 1,
-                        }}
-                    >
-                        <span
+                {({isVisible}) => (
+                    <FocusRing offset="0">
+                        <button
+                            {...mergeProps(buttonProps, hoverProps)}
+                            ref={buttonRef}
                             className={sprinkles({
                                 height: "full",
-                                minWidth: "4",
-                                paddingX: "1",
-                                display: "flex",
-                                alignItems: "center",
-                                // The hit radius for this button extends within the entire filter editor but
-                                // the background color style has some inset.
-                                backgroundColor: isPressed
-                                    ? "grey-10"
-                                    : isHovered
-                                    ? "grey-5"
-                                    : undefined,
-                                borderRadius: "sm",
                             })}
+                            style={{
+                                paddingTop: 1,
+                                paddingBottom: 1,
+                            }}
                         >
-                            {statuses.length === 0 ? (
-                                <Box style={inputPlaceholderStyles}>
-                                    {filter.operation.type === "OneOf" ? "open" : "closed"}
-                                </Box>
-                            ) : statuses.length === 1 ? (
-                                statuses[0]
-                            ) : statuses.length === 2 ? (
-                                <>
-                                    {statuses[0]}
-                                    <Box paddingLeft="1" paddingRight="1.5" color="grey-60">
-                                        or
+                            <span
+                                className={sprinkles({
+                                    height: "full",
+                                    minWidth: "4",
+                                    paddingX: "1",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    // The hit radius for this button extends within the entire filter editor but
+                                    // the background color style has some inset.
+                                    backgroundColor: isPressed
+                                        ? "grey-10"
+                                        : isHovered || isVisible
+                                        ? "grey-5"
+                                        : undefined,
+                                    borderRadius: "sm",
+                                })}
+                            >
+                                {statuses.length === 0 ? (
+                                    <Box style={inputPlaceholderStyles}>
+                                        {filter.operation.type === "OneOf" ? "open" : "closed"}
                                     </Box>
-                                    {statuses[1]}
-                                </>
-                            ) : statuses.length === 3 ? (
-                                <>
-                                    {statuses[0]}
-                                    <Box color="grey-60" paddingRight="1">
-                                        ,
-                                    </Box>
-                                    {statuses[1]}
-                                    <Box paddingRight="1.5" color="grey-60">
-                                        , or
-                                    </Box>
-                                    {statuses[2]}
-                                </>
-                            ) : null}
-                        </span>
-                    </button>
-                </FocusRing>
+                                ) : statuses.length === 1 ? (
+                                    statuses[0]
+                                ) : statuses.length === 2 ? (
+                                    <>
+                                        {statuses[0]}
+                                        <Box paddingLeft="1" paddingRight="1.5" color="grey-60">
+                                            or
+                                        </Box>
+                                        {statuses[1]}
+                                    </>
+                                ) : statuses.length === 3 ? (
+                                    <>
+                                        {statuses[0]}
+                                        <Box color="grey-60" paddingRight="1">
+                                            ,
+                                        </Box>
+                                        {statuses[1]}
+                                        <Box paddingRight="1.5" color="grey-60">
+                                            , or
+                                        </Box>
+                                        {statuses[2]}
+                                    </>
+                                ) : null}
+                            </span>
+                        </button>
+                    </FocusRing>
+                )}
             </MenuButton>
         </>
     );

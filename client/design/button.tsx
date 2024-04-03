@@ -117,7 +117,7 @@ function Button(
         /**
          * How tall is this button? Default is `7`.
          */
-        height?: "5" | "6" | "7";
+        height?: "5" | "6" | "7" | "full";
 
         /**
          * The font size of the button. Defaults to `75`.

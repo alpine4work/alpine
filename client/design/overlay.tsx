@@ -704,6 +704,26 @@ export function useOverlayRootPortalElement() {
 }
 
 /**
+ * Get the _blocking_ overlay portal element at the root of our app. We may
+ * have nested portal overlay elements in, for instance, scroll views so
+ * overlays move with the scroll view and can't escape.
+ */
+export function useOverlayRootBlockingPortalElement() {
+    const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
+    assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
+
+    const [rootBlockingPortalElement, setRootBlockingPortalElement] = useState(
+        overlaySink.rootBlockingPortalRef.current,
+    );
+
+    useEffect(() => {
+        setRootBlockingPortalElement(overlaySink.rootBlockingPortalRef.current);
+    }, [overlaySink.rootBlockingPortalRef]);
+
+    return rootBlockingPortalElement;
+}
+
+/**
  * If you have an `<Overlay>` element with a ref on the `overlay` prop then you
  * will not be able to access the ref until the overlay portal is ready. You
  * may use this hook for detecting this edge case.
