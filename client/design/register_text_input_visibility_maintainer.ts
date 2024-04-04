@@ -5,8 +5,25 @@ import {getCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_botto
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 
 const marginYRem = parseRemLengthNumber(spacing["5"]);
+
+const maintainTextInputVisibilityEmitter = new EventEmitter<HTMLElement>();
+
+/**
+ * Normally `registerTextInputVisibilityMaintainer()` will make sure text
+ * inputs remain visible by listening to the `input` event. However, if you
+ * make a change that doesn't trigger an `input` event and you need to make
+ * sure the text input remains visible you may manually call this function.
+ *
+ * One case where this is used is when a task grid view hits enter to create a
+ * new task. We want to make sure the new task is visible but no `input` event
+ * is dispatched.
+ */
+export function maintainTextInputVisibility(targetElement: HTMLElement) {
+    maintainTextInputVisibilityEmitter.emit(targetElement);
+}
 
 /**
  * When the user types in a text input that's offscreen we want to scroll the
@@ -27,12 +44,16 @@ export function registerTextInputVisibilityMaintainer() {
         if (!(event.target instanceof HTMLElement)) return;
         if (!isTextInputElement(event.target)) return;
 
+        maintainTextInputVisibility(event.target);
+    };
+
+    const maintainTextInputVisibility = (targetElement: HTMLElement) => {
         let inputRect: {top: number; bottom: number} | undefined;
 
         // For `<input>`:
-        if (event.target instanceof HTMLInputElement) {
-            const fullInputRect = event.target.getBoundingClientRect();
-            const inputComputedStyle = getComputedStyle(event.target);
+        if (targetElement instanceof HTMLInputElement) {
+            const fullInputRect = targetElement.getBoundingClientRect();
+            const inputComputedStyle = getComputedStyle(targetElement);
             const paddingTop = parseFloat(inputComputedStyle.paddingTop);
             const paddingBottom = parseFloat(inputComputedStyle.paddingBottom);
 
@@ -82,7 +103,7 @@ export function registerTextInputVisibilityMaintainer() {
         // We couldn't figure out the bottom position of this input event...
         if (inputRect === undefined) return;
 
-        let scrollableElement = event.target.parentElement;
+        let scrollableElement = targetElement.parentElement;
         while (scrollableElement !== null) {
             const {position, overflowY} = getComputedStyle(scrollableElement);
 
@@ -119,7 +140,7 @@ export function registerTextInputVisibilityMaintainer() {
         const viewportHeight = document.documentElement.getBoundingClientRect().height;
 
         const visibleTop =
-            getElementSafeAreaInsetTopPx(event.target) +
+            getElementSafeAreaInsetTopPx(targetElement) +
             getNavigationBarHeightRemWithoutListening() * remPx;
 
         const visibleBottom = viewportHeight - getCurrentCoveredHeight();
@@ -168,7 +189,9 @@ export function registerTextInputVisibilityMaintainer() {
     };
 
     document.addEventListener("input", handleInput, {capture: true});
+    const unsubscribe = maintainTextInputVisibilityEmitter.subscribe(maintainTextInputVisibility);
     return () => {
         document.removeEventListener("input", handleInput, {capture: true});
+        unsubscribe();
     };
 }

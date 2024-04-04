@@ -719,6 +719,17 @@ function TaskRowTitleInput(
                         return event.defaultPrevented;
                     },
 
+                    handleKeyPress: (view, event) => {
+                        // NOTE(calebmer): Looks like mobile Safari doesn't respect when we call
+                        // `event.preventDefault()` for the `Enter` `keydown` event but it will respect
+                        // calling `event.preventDefault()` in `keypress`.
+                        if (event.key === "Enter") {
+                            event.preventDefault();
+                        }
+
+                        return event.defaultPrevented;
+                    },
+
                     dispatchTransaction: transaction => {
                         const oldTitleState = view.state;
                         const newTitleState = oldTitleState.apply(transaction);

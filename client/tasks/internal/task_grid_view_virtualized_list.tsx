@@ -25,9 +25,11 @@ import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {maintainTextInputVisibility} from "~/client/design/register_text_input_visibility_maintainer.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
+import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {MemoObject, useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -3024,13 +3026,25 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
                 );
 
                 onLayoutEffectCallbacksRef.current.push(() => {
-                    if (parents.length === 0) {
-                        events.focusTaskTitleStart(`${task.id}-${newTaskId}`);
-                    } else {
-                        events.focusTaskTitleStart(
-                            `${getTaskQuerySortCursorTaskId(parents[0]!.cursor)}-${newTaskId}`,
-                        );
-                    }
+                    // This may call `flushSync()` which can't be called during React lifecycle
+                    // methods. So we wrap in a microtask.
+                    scheduleMicrotask(() => {
+                        if (parents.length === 0) {
+                            events.focusTaskTitleStart(`${task.id}-${newTaskId}`);
+                        } else {
+                            events.focusTaskTitleStart(
+                                `${getTaskQuerySortCursorTaskId(parents[0]!.cursor)}-${newTaskId}`,
+                            );
+                        }
+
+                        // Make sure the new task is visible...
+                        if (
+                            document.activeElement instanceof HTMLElement &&
+                            isTextInputElement(document.activeElement)
+                        ) {
+                            maintainTextInputVisibility(document.activeElement);
+                        }
+                    });
                 });
                 return;
             }
@@ -3057,13 +3071,25 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
         );
 
         onLayoutEffectCallbacksRef.current.push(() => {
-            if (parents.length === 0) {
-                events.focusTaskTitleStart(newTaskId);
-            } else {
-                events.focusTaskTitleStart(
-                    `${getTaskQuerySortCursorTaskId(parents[0]!.cursor)}-${newTaskId}`,
-                );
-            }
+            // This may call `flushSync()` which can't be called during React lifecycle
+            // methods. So we wrap in a microtask.
+            scheduleMicrotask(() => {
+                if (parents.length === 0) {
+                    events.focusTaskTitleStart(newTaskId);
+                } else {
+                    events.focusTaskTitleStart(
+                        `${getTaskQuerySortCursorTaskId(parents[0]!.cursor)}-${newTaskId}`,
+                    );
+                }
+
+                // Make sure the new task is visible...
+                if (
+                    document.activeElement instanceof HTMLElement &&
+                    isTextInputElement(document.activeElement)
+                ) {
+                    maintainTextInputVisibility(document.activeElement);
+                }
+            });
         });
     };
 
