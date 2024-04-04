@@ -109,6 +109,8 @@ import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
 export const taskDetailViewMaxWidth: Spacing = "160";
 
+const taskDetailViewReadOnlyReasonStickyBannerHeight = "8";
+
 export function TaskDetailView({
     withMobileLayout,
     taskSubscription,
@@ -128,6 +130,7 @@ export function TaskDetailView({
     initialNotesVersion: number;
     initialNotesContent: TaskNotesContentWithReferences;
 }) {
+    const isMobile = useIsMobile();
     const navigate = useNavigate();
     const context = useAppContext();
     const {timeZone, isAppleDevice} = useClientInfo();
@@ -698,6 +701,25 @@ export function TaskDetailView({
                 contextMenuActions={contextMenuActions}
             />
         ),
+        // The open/close button with the title looks a little weird?
+        withoutDisappearingTitle: !!readOnlyReason && !isMobile,
+        stickyBanner: readOnlyReason && (
+            <Box
+                className={invertSelectionColorsClassName}
+                height={taskDetailViewReadOnlyReasonStickyBannerHeight}
+                paddingX="2"
+                color="grey-0"
+                backgroundColor={{light: "grey-80", dark: "grey-90"}}
+                display="flex"
+                alignItems="center"
+                gap="1.5"
+            >
+                <IconContext.Provider value={{color: "currentColor", size: spacing["4"]}}>
+                    {readOnlyReason.icon}
+                </IconContext.Provider>
+                <Box userSelect="text">{readOnlyReason.message}</Box>
+            </Box>
+        ),
     });
 
     return (
@@ -1039,28 +1061,12 @@ function TaskDetailViewMain(
 
     return (
         <>
-            <Box
-                // NOCOMMIT: How does this look with the read-only bar?
-                style={{height: "var(--safe-area-inset-top)"}}
-            />
+            <Box style={{height: "var(--safe-area-inset-top)"}} />
             {readOnlyReason && (
-                // TODO(calebmer): This should really be a sticky header. We should probably
-                // have a sticky header for the task title too.
-                <Box
-                    className={invertSelectionColorsClassName}
-                    height="8"
-                    paddingX="2"
-                    color="grey-0"
-                    backgroundColor={{light: "grey-80", dark: "grey-90"}}
-                    display="flex"
-                    alignItems="center"
-                    gap="1.5"
-                >
-                    <IconContext.Provider value={{color: "currentColor", size: spacing["4"]}}>
-                        {readOnlyReason.icon}
-                    </IconContext.Provider>
-                    <Box userSelect="text">{readOnlyReason.message}</Box>
-                </Box>
+                <>
+                    <Spacer space={taskDetailViewReadOnlyReasonStickyBannerHeight} />
+                    <Spacer space="5" />
+                </>
             )}
             <Box
                 data-testid="TaskDetailViewMain"
