@@ -245,10 +245,13 @@ export class TaskTitleModel {
                 this._preparedYDoc = this._createAndRetainYDoc();
             }
 
-            this._prosemirrorNode = yXmlFragmentToProsemirror(
-                TaskTitleProsemirrorSchema,
-                this._preparedYDoc.getXmlFragment("doc"),
-            );
+            // `_createAndRetainYDoc()` may initialize the ProseMirror node.
+            if (this._prosemirrorNode === null) {
+                this._prosemirrorNode = yXmlFragmentToProsemirror(
+                    TaskTitleProsemirrorSchema,
+                    this._preparedYDoc.getXmlFragment("doc"),
+                );
+            }
         }
 
         return this._prosemirrorNode;

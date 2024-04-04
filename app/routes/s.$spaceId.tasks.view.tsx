@@ -47,7 +47,7 @@ const LoaderSchema = Schema.object({
     initialBottomGhostTaskId: Schema.id<TaskId>(),
 });
 
-export const meta = createMetaFunction(LoaderSchema, () => [{title: "Tasks"}]);
+export const meta = createMetaFunction(LoaderSchema, () => [{title: "Task view"}]);
 
 export async function loader({request, params, context: _context}: LoaderArgs) {
     const context = (await _context.actor.authenticate()).actor.authorizeSession();
@@ -143,18 +143,19 @@ export async function clientLoader({
     clientLoaderTaskStoreLoaderData(spaceId, data);
 }
 
-export default function TaskQueryRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
+export default function TaskQueryRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
     const {key} = useLoaderDataWithSchema(LoaderSchema);
 
     return (
         <TaskQueryRouteInner
             // Completely re-mount the route when we get new data from the server.
             key={key}
+            withMobileLayout={withMobileLayout}
         />
     );
 }
 
-function TaskQueryRouteInner() {
+function TaskQueryRouteInner({withMobileLayout}: {withMobileLayout: boolean}) {
     const [searchParams, setSearchParams] = useSearchParams();
     const {initialGridViewExpansionState, initialBottomGhostTaskId} =
         useLoaderDataWithSchema(LoaderSchema);
@@ -185,6 +186,7 @@ function TaskQueryRouteInner() {
     return (
         <TaskGridViewDndContext store={store}>
             <TaskQueryView
+                withMobileLayout={withMobileLayout}
                 store={store}
                 affinityManager={affinityManager}
                 initialQuery={

@@ -2,9 +2,7 @@ import {useDndContext} from "@dnd-kit/core";
 import {Memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
-import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
-import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
@@ -55,11 +53,6 @@ import {
 } from "~/shared/tasks/task_notepad_page_id.js";
 
 export {taskNotepadAssigneeActiveLoadLimit} from "~/client/tasks/internal/task_notepad_view_active_section.js";
-
-const safeAreaOnlyScrollbarInsetTop: ScrollbarInsetDynamic = markMemoIfNotRendering([
-    0,
-    {withSafeArea: true},
-]);
 
 export function TaskNotepadView({
     withMobileLayout: withMobileLayoutProp,
@@ -462,13 +455,7 @@ export function TaskNotepadView({
                         () => alwaysRenderAdditionalGridViewItemIndexes.map(index => index + 1),
                         [alwaysRenderAdditionalGridViewItemIndexes],
                     )}
-                    scrollbarInsetTop={
-                        isMobile
-                            ? scrollbarInsetTop
-                            : withMobileLayout
-                            ? safeAreaOnlyScrollbarInsetTop
-                            : undefined
-                    }
+                    scrollbarInsetTop={withMobileLayout ? scrollbarInsetTop : undefined}
                     scrollbarInsetTopItemIndex={
                         !withMobileLayout && scrollbarInsetTopGridViewItemIndex !== undefined
                             ? scrollbarInsetTopGridViewItemIndex + 1

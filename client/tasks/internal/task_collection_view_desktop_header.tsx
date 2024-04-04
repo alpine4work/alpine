@@ -4,11 +4,7 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
-import {
-    desktopNavigationBarHeightRem,
-    mobileNavigationBarHeightRem,
-    navigationBarHeight,
-} from "~/client/design/navigation_bar.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {ShareButton} from "~/client/design/share_button.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
@@ -16,18 +12,19 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    TaskCollectionViewHeaderName,
-    TaskCollectionViewHeaderNameRef,
-} from "~/client/tasks/internal/task_collection_view_header_name.js";
-import {desktopTaskQueryFilterEditorHeight} from "~/client/tasks/internal/task_query_filter_editor.js";
-import {TaskQueryViewCustomizationBar} from "~/client/tasks/internal/task_query_view_customization_bar.js";
+    TaskCollectionViewDesktopHeaderName,
+    TaskCollectionViewDesktopHeaderNameRef,
+} from "~/client/tasks/internal/task_collection_view_desktop_header_name.js";
+import {
+    TaskQueryViewCustomizationBar,
+    desktopTaskQueryViewCustomizationBarMarginY,
+} from "~/client/tasks/internal/task_query_view_customization_bar.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/task_client_store.js";
 import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {
@@ -39,7 +36,7 @@ import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
-export function TaskCollectionViewHeader({
+export function TaskCollectionViewDesktopHeader({
     withMobileLayout,
     store,
     collectionId,
@@ -78,7 +75,7 @@ export function TaskCollectionViewHeader({
     const {space, currentAccount} = useSpaceContext();
     const navigate = useNavigate();
 
-    const nameRef = useRef<TaskCollectionViewHeaderNameRef>(null);
+    const nameRef = useRef<TaskCollectionViewDesktopHeaderNameRef>(null);
 
     const collectionEntry = useStore(collectionSubscription?.collectionEntryStore ?? null);
     const collection = collectionEntry?.collection ?? null;
@@ -202,14 +199,6 @@ export function TaskCollectionViewHeader({
         ]);
     }
 
-    const customizationBarMarginY = useMemo(() => {
-        return `${
-            ((isMobile ? mobileNavigationBarHeightRem : desktopNavigationBarHeightRem) -
-                parseRemLengthNumber(spacing[desktopTaskQueryFilterEditorHeight])) /
-            2
-        }rem`;
-    }, [isMobile]);
-
     // We want to baseline align our `fontSize="200"` collection name with our
     // centered `fontSize="75"` customization bar (filters and sort). Calculate
     // the offset for center aligned `fontSize="200"` using font metrics.
@@ -242,7 +231,7 @@ export function TaskCollectionViewHeader({
                 maxWidth="1/3"
                 style={{marginTop: nameBaselineAlignmentMarginTop}}
             >
-                <TaskCollectionViewHeaderName
+                <TaskCollectionViewDesktopHeaderName
                     ref={nameRef}
                     isReadOnly={isReadOnly}
                     store={store}
@@ -263,8 +252,8 @@ export function TaskCollectionViewHeader({
             <Box
                 flexGrow="1"
                 style={{
-                    paddingTop: customizationBarMarginY,
-                    paddingBottom: customizationBarMarginY,
+                    paddingTop: desktopTaskQueryViewCustomizationBarMarginY,
+                    paddingBottom: desktopTaskQueryViewCustomizationBarMarginY,
                 }}
             >
                 {!withMobileLayout && (

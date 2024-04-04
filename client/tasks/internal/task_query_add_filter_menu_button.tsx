@@ -1,9 +1,11 @@
 import {ReactElement, Ref, forwardRef} from "react";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {OverlayPlacement} from "~/client/design/overlay.js";
 import {
     OverlayTriggerButtonRef,
     OverlayTriggerButtonState,
 } from "~/client/design/overlay_trigger_button.js";
+import {Spacing} from "~/shared/design/spacing.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 
 const TaskQueryAddFilterMenuButtonForwardRef = forwardRef(TaskQueryAddFilterMenuButton);
@@ -12,10 +14,16 @@ export {TaskQueryAddFilterMenuButtonForwardRef as TaskQueryAddFilterMenuButton};
 function TaskQueryAddFilterMenuButton(
     {
         onAddFilter,
+        placement,
+        offset,
+        offsetAlong,
         onStateChange,
         children,
     }: {
         onAddFilter: (filter: TaskQueryFilter) => void;
+        placement?: OverlayPlacement;
+        offset?: Spacing;
+        offsetAlong?: Spacing;
         onStateChange?: (state: OverlayTriggerButtonState) => void;
         children: ReactElement;
     },
@@ -24,9 +32,9 @@ function TaskQueryAddFilterMenuButton(
     return (
         <MenuButton
             ref={ref}
-            placement="bottom-end"
-            offset="2"
-            offsetAlong="1"
+            placement={placement}
+            offset={offset}
+            offsetAlong={offsetAlong}
             onStateChange={onStateChange}
             actions={[
                 [

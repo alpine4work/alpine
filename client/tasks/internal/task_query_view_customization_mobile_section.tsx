@@ -29,6 +29,7 @@ import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 export type TaskQueryViewCustomizationMobileSectionRef = {
     openAddFilterMenu(): void;
     openAddSortsMenu(): void;
+    openFirstCollectionsFilterOperationValue(): void;
 };
 
 const TaskQueryViewCustomizationMobileSectionForwardRef = forwardRef(
@@ -39,7 +40,9 @@ export {TaskQueryViewCustomizationMobileSectionForwardRef as TaskQueryViewCustom
 function TaskQueryViewCustomizationMobileSection(
     {
         store,
-        initiallyFocus,
+        initialAreFiltersVisible = false,
+        initialAreSortsVisible = false,
+        initiallyFocus = null,
         defaultOrderSentence,
         filters,
         filterReferences,
@@ -48,7 +51,9 @@ function TaskQueryViewCustomizationMobileSection(
         onSortsChange,
     }: {
         store: TaskClientStore;
-        initiallyFocus: "AddFilter" | "AddSort" | null;
+        initialAreFiltersVisible?: boolean;
+        initialAreSortsVisible?: boolean;
+        initiallyFocus?: "AddFilter" | "AddSort" | null;
         defaultOrderSentence: string;
         filters: ReadonlyArray<TaskQueryFilter>;
         filterReferences: TaskQueryFilterReferences;
@@ -65,12 +70,12 @@ function TaskQueryViewCustomizationMobileSection(
     const addSortMenuRef = useRef<OverlayTriggerButtonRef>(null);
 
     const [areFiltersVisible, setAreFiltersVisible] = useState(
-        initiallyFocus === "AddFilter" || filters.length > 0,
+        initialAreFiltersVisible || initiallyFocus === "AddFilter" || filters.length > 0,
     );
     if (!areFiltersVisible && filters.length > 0) setAreFiltersVisible(true);
 
     const [areSortsVisible, setAreSortsVisible] = useState(
-        initiallyFocus === "AddSort" || sorts.length > 0,
+        initialAreSortsVisible || initiallyFocus === "AddSort" || sorts.length > 0,
     );
     if (!areSortsVisible && sorts.length > 0) setAreSortsVisible(true);
 
@@ -91,6 +96,9 @@ function TaskQueryViewCustomizationMobileSection(
         }
     }, [areSortsVisible]);
 
+    const firstCollectionsFilterOperationValueTriggerButtonRef =
+        useRef<OverlayTriggerButtonRef>(null);
+
     useImperativeHandle(
         ref,
         () => ({
@@ -110,6 +118,9 @@ function TaskQueryViewCustomizationMobileSection(
                     setAreSortsVisible(true);
                 }
             },
+            openFirstCollectionsFilterOperationValue: () => {
+                assertExists(firstCollectionsFilterOperationValueTriggerButtonRef.current).open();
+            },
         }),
         [areFiltersVisible, areSortsVisible],
     );
@@ -120,7 +131,7 @@ function TaskQueryViewCustomizationMobileSection(
             display="flex"
             flexDirection="column"
             gap="4"
-            paddingBottom="8"
+            paddingBottom="7"
         >
             {areFiltersVisible && (
                 <TaskQueryViewCustomizationMobileSectionFilters
@@ -129,6 +140,9 @@ function TaskQueryViewCustomizationMobileSection(
                     filters={filters}
                     filterReferences={filterReferences}
                     onFiltersChange={onFiltersChange}
+                    firstCollectionsFilterOperationValueTriggerButtonRef={
+                        firstCollectionsFilterOperationValueTriggerButtonRef
+                    }
                 />
             )}
             {areSortsVisible && (
@@ -149,6 +163,7 @@ function TaskQueryViewCustomizationMobileSectionFilters({
     filters,
     filterReferences,
     onFiltersChange,
+    firstCollectionsFilterOperationValueTriggerButtonRef,
 }: {
     store: TaskClientStore;
     addFilterMenuRef: RefObject<OverlayTriggerButtonRef>;
@@ -158,20 +173,37 @@ function TaskQueryViewCustomizationMobileSectionFilters({
         filters: ReadonlyArray<TaskQueryFilter>,
         options?: {mergeFilterReferences?: TaskQueryFilterReferences},
     ) => void;
+    firstCollectionsFilterOperationValueTriggerButtonRef: RefObject<OverlayTriggerButtonRef>;
 }) {
+    let hasUsedFirstCollectionsFilterOperationValueTriggerButtonRef = false;
+
     return (
         <Box>
-            <Box display="flex" justifyContent="space-between" alignItems="center" paddingY="1">
+            <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                paddingBottom="0.5"
+            >
                 <Box fontSize="100" color="grey-80" fontStyle="semi-bold">
                     Filters
                 </Box>
                 <TaskQueryAddFilterMenuButton
                     ref={addFilterMenuRef}
+                    placement="bottom-end"
+                    offsetAlong="1"
                     onAddFilter={filter => {
                         onFiltersChange([filter, ...filters]);
                     }}
                 >
-                    <Button icon={<Plus />} paddingX="2" height="6">
+                    <Button
+                        icon={<Plus />}
+                        // Icon placed at the end since otherwise we'd have the text "Add" and it
+                        // wouldn't be flush with the right border of our filters.
+                        iconPlacement="end"
+                        paddingX="1.5"
+                        height="6"
+                    >
                         Add
                     </Button>
                 </TaskQueryAddFilterMenuButton>
@@ -191,6 +223,17 @@ function TaskQueryViewCustomizationMobileSectionFilters({
                 </Box>
             ) : (
                 filters.map((filter, index) => {
+                    // The first collections filter should get our ref.
+                    let collectionsOperationValueTriggerButtonRef = null;
+                    if (
+                        filter.type === "Collections" &&
+                        !hasUsedFirstCollectionsFilterOperationValueTriggerButtonRef
+                    ) {
+                        hasUsedFirstCollectionsFilterOperationValueTriggerButtonRef = true;
+                        collectionsOperationValueTriggerButtonRef =
+                            firstCollectionsFilterOperationValueTriggerButtonRef;
+                    }
+
                     return (
                         <Fragment key={index}>
                             {index !== 0 && <Box height="2" />}
@@ -212,6 +255,9 @@ function TaskQueryViewCustomizationMobileSectionFilters({
 
                                     onFiltersChange(newFilters);
                                 }}
+                                collectionsOperationValueTriggerButtonRef={
+                                    collectionsOperationValueTriggerButtonRef
+                                }
                             />
                         </Fragment>
                     );
@@ -266,14 +312,27 @@ function TaskQueryViewCustomizationMobileSectionSorts({
 
     return (
         <Box>
-            <Box display="flex" justifyContent="space-between" alignItems="center" paddingY="1">
+            <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                paddingBottom="0.5"
+            >
                 <Box fontSize="100" color="grey-80" fontStyle="semi-bold">
                     Sorts
                 </Box>
-                <TaskQueryAddSortMenuButton ref={addSortMenuRef} onAddSort={addSort}>
+                <TaskQueryAddSortMenuButton
+                    ref={addSortMenuRef}
+                    placement="bottom-end"
+                    offsetAlong="1"
+                    onAddSort={addSort}
+                >
                     <Button
                         icon={<Plus />}
-                        paddingX="2"
+                        // Icon placed at the end since otherwise we'd have the text "Add" and it
+                        // wouldn't be flush with the right border of our filters.
+                        iconPlacement="end"
+                        paddingX="1.5"
                         height="6"
                         isDisabled={sortsWithId.length >= 5}
                     >

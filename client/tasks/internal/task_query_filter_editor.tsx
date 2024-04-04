@@ -3,6 +3,7 @@ import {ReactNode, Ref} from "react";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {OverlayTriggerButtonRef} from "~/client/design/overlay_trigger_button.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {TaskQueryCollectionsFilterOperationEditor} from "~/client/tasks/internal/task_query_collections_filter_operation_editor.js";
 import {TaskQueryDisplayStatusFilterOperationEditor} from "~/client/tasks/internal/task_query_display_status_filter_operation_editor.js";
 import {TaskQueryFilterAccountOperationEditor} from "~/client/tasks/internal/task_query_filter_account_operation_editor.js";
@@ -359,6 +360,8 @@ function TaskQueryFilterEditorBase({
     operation: ReactNode;
     onFilterRemove: () => void;
 }) {
+    const isMobile = useIsMobile();
+
     return (
         <Box
             overflow="hidden"
@@ -384,11 +387,13 @@ function TaskQueryFilterEditorBase({
                 style={{
                     // Subtract 1px from our right padding since that's the border width. That
                     // will give us good margin on all sides of the button.
-                    paddingRight: `calc(${spacing[withMobileLayout ? "1.5" : "1"]} - 1px)`,
+                    paddingRight: `calc(${
+                        spacing[withMobileLayout ? (isMobile ? "1.5" : "2.5") : "1"]
+                    } - 1px)`,
                 }}
             >
                 <IconButton
-                    size={withMobileLayout ? "md" : "xs"}
+                    size={isMobile ? "md" : "xs"}
                     description="Remove"
                     withoutTooltip
                     borderRadius="sm"

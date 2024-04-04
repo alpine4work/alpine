@@ -6,6 +6,7 @@ import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {nullStore} from "~/client/helpers/store/null_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useTaskCollectionComboBoxSearchState} from "~/client/tasks/internal/task_collection_combo_box_base.js";
 import {TaskCollectionOption} from "~/client/tasks/internal/task_collection_option.js";
 import {TaskQueryFilterEditorMultiSelectComboBox} from "~/client/tasks/internal/task_query_filter_editor_multi_select_combo_box.js";
@@ -381,6 +382,8 @@ function TaskQueryCollectionsFilterOperationEditorPreview({
     conjunction: "or" | "and";
     collectionResults: ReadonlyArray<TaskCollectionModelSearchResult>;
 }) {
+    const isMobile = useIsMobile();
+
     const previewCollections = useMemo(() => {
         const graphemeSplitter = new GraphemeSplitter();
 
@@ -427,7 +430,9 @@ function TaskQueryCollectionsFilterOperationEditorPreview({
                 {previewCollections[1]}
             </>
         );
-    } else if (withMobileLayout) {
+    }
+    // Peeks which have `withMobileLayout: true` can fit three collections.
+    else if (isMobile) {
         return (
             <>
                 {previewCollections[0]}

@@ -1009,7 +1009,7 @@ function TaskRowTitleInput(
 
             return () => {
                 window.removeEventListener("resize", handleWindowResize);
-                document.addEventListener("selectionchange", handleSelectionChange);
+                document.removeEventListener("selectionchange", handleSelectionChange);
 
                 viewRef.current = {isReady: false, callbacks: new Set()};
                 containerElement.removeChild(view.dom);
@@ -1106,8 +1106,8 @@ function TaskRowTitleInput(
         viewElement.addEventListener("focus", handleFocus);
         viewElement.addEventListener("blur", handleBlur);
         return () => {
-            viewElement.addEventListener("focus", handleFocus);
-            viewElement.addEventListener("blur", handleBlur);
+            viewElement.removeEventListener("focus", handleFocus);
+            viewElement.removeEventListener("blur", handleBlur);
         };
     }, [isInitialAppRender]);
 

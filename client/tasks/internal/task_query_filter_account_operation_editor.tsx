@@ -9,6 +9,7 @@ import {Tooltip} from "~/client/design/tooltip.js";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     useExpensivelyLoadAllSpaceAccounts,
@@ -333,6 +334,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
     shouldHideMissingAccountItem: boolean;
     accountIds: ReadonlySet<AccountId | "CurrentAccount" | "MissingAccount">;
 }) {
+    const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
     const accountStore = useAccountClientStore();
     const allUnsortedAccounts = useExpensivelyLoadAllSpaceAccounts();
@@ -374,7 +376,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                                     placement="bottom"
                                 >
                                     <span className={sprinkles({color: "grey-50"})}>
-                                        (dynamic*)
+                                        (dynamic{!isMobile && "*"})
                                     </span>
                                 </Tooltip>
                             </Box>
@@ -445,6 +447,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
         allUnsortedAccounts,
         currentAccount.id,
         initialAccountIds,
+        isMobile,
         shouldHideMissingAccountItem,
     ]);
 

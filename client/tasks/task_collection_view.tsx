@@ -11,9 +11,7 @@ import {
 } from "react";
 import {Box} from "~/client/design/box.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
-import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
-import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
@@ -24,7 +22,7 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskCollectionEntryAccess} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
-import {TaskCollectionViewHeader} from "~/client/tasks/internal/task_collection_view_header.js";
+import {TaskCollectionViewDesktopHeader} from "~/client/tasks/internal/task_collection_view_desktop_header.js";
 import {
     TaskGridViewVirtualizedListViewRef,
     isTaskQueryManuallySorted,
@@ -70,12 +68,7 @@ import {
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
-export {newTaskCollectionNamePlaceholder} from "~/client/tasks/internal/task_collection_view_header_name.js";
-
-const safeAreaOnlyScrollbarInsetTop: ScrollbarInsetDynamic = markMemoIfNotRendering([
-    0,
-    {withSafeArea: true},
-]);
+export {newTaskCollectionNamePlaceholder} from "~/client/tasks/internal/task_collection_view_desktop_header_name.js";
 
 export function TaskCollectionView({
     withMobileLayout: withMobileLayoutProp,
@@ -464,6 +457,8 @@ export function TaskCollectionView({
             // We do this for peeks too.
             if (withMobileLayout) return;
 
+            // NOCOMMIT: Copy link menu action?
+
             return {
                 minHeight:
                     spacing[isMobile ? navigationBarHeight.mobile : navigationBarHeight.desktop],
@@ -489,7 +484,7 @@ export function TaskCollectionView({
                                 <Box userSelect="text">{readOnlyReason.message}</Box>
                             </Box>
                         )}
-                        <TaskCollectionViewHeader
+                        <TaskCollectionViewDesktopHeader
                             withMobileLayout={withMobileLayout}
                             store={store}
                             collectionId={collectionId}
@@ -631,13 +626,7 @@ export function TaskCollectionView({
                             withMobileLayout,
                         ],
                     )}
-                    scrollbarInsetTop={
-                        isMobile
-                            ? scrollbarInsetTop
-                            : withMobileLayout
-                            ? safeAreaOnlyScrollbarInsetTop
-                            : undefined
-                    }
+                    scrollbarInsetTop={withMobileLayout ? scrollbarInsetTop : undefined}
                     scrollbarInsetTopItemIndex={
                         !withMobileLayout && scrollbarInsetTopGridViewItemIndex !== undefined
                             ? scrollbarInsetTopGridViewItemIndex + itemCountBeforeGridView

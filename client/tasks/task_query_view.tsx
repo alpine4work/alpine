@@ -1,28 +1,39 @@
 import {IconContext, Plus, Trash} from "phosphor-react";
-import {ReactNode, useMemo, useRef, useState} from "react";
+import {ReactNode, useCallback, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     TaskAccess,
     getTaskCollectionEntryAccess,
 } from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
-import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {
+    TaskGridViewVirtualizedListViewRef,
+    useTaskGridViewVirtualizedList,
+} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {createTaskQueryCollectionsFilterCollectionResultsStore} from "~/client/tasks/internal/task_query_collections_filter_operation_editor.js";
 import {
     TaskQueryViewCustomizationBar,
     TaskQueryViewCustomizationBarRef,
+    desktopTaskQueryViewCustomizationBarMarginY,
 } from "~/client/tasks/internal/task_query_view_customization_bar.js";
+import {
+    TaskQueryViewCustomizationMobileSection,
+    TaskQueryViewCustomizationMobileSectionRef,
+} from "~/client/tasks/internal/task_query_view_customization_mobile_section.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
@@ -36,7 +47,7 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
-import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -158,6 +169,7 @@ export function createTaskQueryViewReadOnlyReasonStore({
 }
 
 export function TaskQueryView({
+    withMobileLayout: withMobileLayoutProp,
     store,
     affinityManager,
     initialQuery,
@@ -167,6 +179,7 @@ export function TaskQueryView({
     initialSorts,
     onSortsChange,
 }: {
+    withMobileLayout: boolean;
     store: TaskClientStore;
     affinityManager: TaskClientStoreSearchAffinityManager;
     initialQuery: {
@@ -180,11 +193,15 @@ export function TaskQueryView({
     initialSorts: ReadonlyArray<TaskQuerySort>;
     onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
 }) {
+    const isMobile = useIsMobile();
     const remPx = useRemPx();
     const currentDate = useCurrentDate();
     const {currentAccount} = useSpaceContext();
 
+    const withMobileLayout = isMobile || withMobileLayoutProp;
+
     const customizationBarRef = useRef<TaskQueryViewCustomizationBarRef>(null);
+    const customizationMobileSectionRef = useRef<TaskQueryViewCustomizationMobileSectionRef>(null);
 
     const [
         {filters, filterReferences, shouldOpenFirstCollectionsFilterOperationValueRef},
@@ -201,8 +218,14 @@ export function TaskQueryView({
         if (!shouldOpenFirstCollectionsFilterOperationValueRef.current) return;
         shouldOpenFirstCollectionsFilterOperationValueRef.current = false;
 
-        assertExists(customizationBarRef.current).openFirstCollectionsFilterOperationValue();
-    }, [shouldOpenFirstCollectionsFilterOperationValueRef]);
+        if (!withMobileLayout) {
+            assertExists(customizationBarRef.current).openFirstCollectionsFilterOperationValue();
+        } else {
+            assertExists(
+                customizationMobileSectionRef.current,
+            ).openFirstCollectionsFilterOperationValue();
+        }
+    }, [shouldOpenFirstCollectionsFilterOperationValueRef, withMobileLayout]);
 
     const [sorts, _setSorts] = useState(initialSorts);
 
@@ -274,6 +297,75 @@ export function TaskQueryView({
     });
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
+    const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
+
+    const itemCountBeforeGridView = withMobileLayout ? 1 : 0;
+
+    const shiftRenderedRangeForGridView = useCallback(
+        (range: {startIndex: number; endIndex: number} | null) => {
+            if (!range) {
+                return null;
+            } else {
+                const startIndex = range.startIndex - itemCountBeforeGridView;
+                const endIndex = range.endIndex - itemCountBeforeGridView;
+                if (endIndex < 0) {
+                    return null;
+                } else {
+                    return {
+                        startIndex: Math.max(0, startIndex),
+                        endIndex,
+                    };
+                }
+            }
+        },
+        [itemCountBeforeGridView],
+    );
+
+    // Offset all the methods on our `VirtualizedScrollViewRef` by the number of
+    // items which precede our children grid view.
+    useImperativeHandle(
+        gridViewRef,
+        () => ({
+            getHeight: () => assertExists(viewRef.current).getHeight(),
+            getContentHeight: () => assertExists(viewRef.current).getContentHeight(),
+            getScrollOffset: () => assertExists(viewRef.current).getScrollOffset(),
+            setScrollOffset: scrollOffset =>
+                assertExists(viewRef.current).setScrollOffset(scrollOffset),
+            scrollToIndex: (index, options) =>
+                assertExists(viewRef.current).scrollToIndex(
+                    index + itemCountBeforeGridView,
+                    options,
+                ),
+            getRenderedRange: () =>
+                shiftRenderedRangeForGridView(assertExists(viewRef.current).getRenderedRange()),
+            getKeyByIndexIfExists: index =>
+                assertExists(viewRef.current).getKeyByIndexIfExists(
+                    index + itemCountBeforeGridView,
+                ),
+            getIndexByKeyIfExists: key => {
+                const index = assertExists(viewRef.current).getIndexByKeyIfExists(key);
+                if (index === null) return index;
+                return index - itemCountBeforeGridView;
+            },
+            getPositionByIndex: index =>
+                assertExists(viewRef.current).getPositionByIndex(index + itemCountBeforeGridView),
+            getPositionByKeyIfExists: key =>
+                assertExists(viewRef.current).getPositionByKeyIfExists(key),
+            peekRenderedRangeAfterSetScrollOffset: scrollOffset =>
+                shiftRenderedRangeForGridView(
+                    assertExists(viewRef.current).peekRenderedRangeAfterSetScrollOffset(
+                        scrollOffset,
+                    ),
+                ),
+            getElement: () => assertExists(viewRef.current).getElement(),
+            getContentElement: () => assertExists(viewRef.current).getContentElement(),
+            getElementByKeyIfExists: key =>
+                assertExists(viewRef.current).getElementByKeyIfExists(key),
+        }),
+        [itemCountBeforeGridView, shiftRenderedRangeForGridView],
+    );
+
+    const defaultOrderSentence = "Tasks are ordered by created date.";
 
     const {
         stateKey: gridViewStateKey,
@@ -288,20 +380,36 @@ export function TaskQueryView({
         onGlobalKeyDown: onGridViewGlobalKeyDown,
         focusEnd: focusGridViewEnd,
     } = useTaskGridViewVirtualizedList({
-        capabilities: useMemo(
-            () => ({
-                isReadOnly,
-                hasParentTaskTitle: true,
-                hasMultilineTitle: false,
-                hasDenseFields: false,
-                hasColumns: true,
-            }),
-            [isReadOnly],
-        ),
-        viewRef,
+        capabilities: useMemo(() => {
+            if (!withMobileLayout) {
+                return {
+                    isReadOnly,
+                    hasParentTaskTitle: true,
+                    hasMultilineTitle: false,
+                    hasDenseFields: false,
+                    hasColumns: true,
+                };
+            } else {
+                return {
+                    isReadOnly,
+                    hasParentTaskTitle: true,
+                    hasMultilineTitle: true,
+                    hasDenseFields: true,
+                    hasColumns: false,
+                };
+            }
+        }, [isReadOnly, withMobileLayout]),
+        viewRef: itemCountBeforeGridView !== 0 ? gridViewRef : viewRef,
         store,
         affinityManager,
         query: queryState.activeQuery.query,
+        // Don't render the three decorative ghost rows on mobile when we're rendering
+        // the instructional view component. This allows us to visually center the new
+        // view instructions.
+        withoutDecorativeGhostRowsIfEmpty:
+            withMobileLayout &&
+            !queryState.activeQuery.isAvailable &&
+            queryState.activeQuery.isMissingRequiredFilters,
         // NOTE(calebmer): Currently, all updates which use this are disabled in
         // auto-sorted views:
         //
@@ -343,11 +451,20 @@ export function TaskQueryView({
         // level (subtasks are fine) and tab/shift-tab to indent.
         getMaybeRemoveTaskFromQueryActions: () => [],
         columnHeaderControls: useMemo(() => {
+            // We don't have sticky column header controls when rendering in a mobile
+            // layout. Instead we render a navigation bar and render filters/sorts at the
+            // top of the view in a non-sticky manner.
+            //
+            // We do this for peeks too.
+            if (withMobileLayout) return;
+
             return {
-                minHeight: "3rem",
+                minHeight:
+                    spacing[isMobile ? navigationBarHeight.mobile : navigationBarHeight.desktop],
                 node: (
                     <>
                         {readOnlyReason?.message && (
+                            // NOCOMMIT: How do read-only messages work on mobile?
                             <Box
                                 className={invertSelectionColorsClassName}
                                 height="8"
@@ -368,14 +485,16 @@ export function TaskQueryView({
                         )}
                         <Box
                             paddingX={taskRowViewPaddingX}
-                            paddingTop="2.5"
-                            style={{paddingBottom: addRemLengths(spacing["3"], spacing["0.5"])}}
+                            style={{
+                                paddingTop: desktopTaskQueryViewCustomizationBarMarginY,
+                                paddingBottom: desktopTaskQueryViewCustomizationBarMarginY,
+                            }}
                         >
                             <TaskQueryViewCustomizationBar
                                 ref={customizationBarRef}
                                 store={store}
                                 shouldCollapseWhenFiltersAreEmpty={false}
-                                defaultOrderSentence="By default, tasks are ordered by created date."
+                                defaultOrderSentence={defaultOrderSentence}
                                 filters={filters}
                                 filterReferences={filterReferences}
                                 onFiltersChange={updateFilters}
@@ -386,7 +505,26 @@ export function TaskQueryView({
                     </>
                 ),
             };
-        }, [filterReferences, filters, readOnlyReason, setSorts, sorts, store, updateFilters]),
+        }, [
+            filterReferences,
+            filters,
+            isMobile,
+            readOnlyReason,
+            setSorts,
+            sorts,
+            store,
+            updateFilters,
+            withMobileLayout,
+        ]),
+    });
+
+    // NOCOMMIT: Put undo/redo in more actions
+    // NOCOMMIT: Menu actions like copy link
+    const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
+        isDisabled: !withMobileLayout,
+        withMobileLayout,
+        withoutDisappearingTitle: true,
+        title: "Task view",
     });
 
     return (
@@ -414,48 +552,126 @@ export function TaskQueryView({
             <GlobalKeyDownEvent onGlobalKeyDown={onGridViewGlobalKeyDown}>
                 <VirtualizedScrollView
                     ref={viewRef}
+                    elementRef={scrollViewRef}
                     stateKey={gridViewStateKey}
                     bufferedItemHeight={gridViewBufferedItemHeight}
-                    itemCount={gridViewItemCount}
-                    alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalGridViewItemIndexes}
-                    scrollbarInsetTopItemIndex={scrollbarInsetTopGridViewItemIndex}
-                    renderItem={renderGridViewItem}
-                    onRenderedRangeChange={onGridViewRenderedRangeChange}
-                    onRenderedRangeLayoutChange={onGridViewRenderedRangeLayoutChange}
-                    extraChildren={
-                        !queryState.activeQuery.isAvailable &&
-                        queryState.activeQuery.isMissingRequiredFilters
-                            ? ({contentHeight, viewHeight, shouldRenderWithRelativePositioning}) =>
-                                  !shouldRenderWithRelativePositioning && (
-                                      <Box
-                                          position="absolute"
-                                          left="0"
-                                          right="0"
-                                          paddingX={taskRowViewPaddingX}
-                                          pointerEvents="auto"
-                                          style={{
-                                              top: contentHeight,
-                                              height: Math.min(
-                                                  convertRemLengthToPx(spacing["128"], remPx),
-                                                  viewHeight - contentHeight,
-                                              ),
-                                          }}
-                                      >
-                                          <Box
-                                              height="full"
-                                              display="flex"
-                                              justifyContent="center"
-                                              alignItems="center"
-                                          >
-                                              <TaskQueryViewInstructionalPlaceholder
-                                                  filters={filters}
-                                                  onFiltersChange={updateFilters}
-                                              />
-                                          </Box>
-                                      </Box>
-                                  )
+                    itemCount={itemCountBeforeGridView + gridViewItemCount}
+                    alwaysRenderAdditionalItemIndexes={useMemo(
+                        () =>
+                            withMobileLayout
+                                ? [
+                                      // Always render `<TaskQueryViewCustomizationMobileSection>`
+                                      // regardless of where we've scrolled. We can return focus there at
+                                      // any moment.
+                                      0,
+                                      ...alwaysRenderAdditionalGridViewItemIndexes.map(
+                                          index => index + itemCountBeforeGridView,
+                                      ),
+                                  ]
+                                : alwaysRenderAdditionalGridViewItemIndexes.map(
+                                      index => index + itemCountBeforeGridView,
+                                  ),
+                        [
+                            alwaysRenderAdditionalGridViewItemIndexes,
+                            itemCountBeforeGridView,
+                            withMobileLayout,
+                        ],
+                    )}
+                    scrollbarInsetTop={withMobileLayout ? scrollbarInsetTop : undefined}
+                    scrollbarInsetTopItemIndex={
+                        !withMobileLayout && scrollbarInsetTopGridViewItemIndex !== undefined
+                            ? scrollbarInsetTopGridViewItemIndex + itemCountBeforeGridView
                             : undefined
                     }
+                    renderItem={useCallback(
+                        index => {
+                            if (withMobileLayout && index === 0) {
+                                return {
+                                    key: "CustomizationBar",
+                                    minHeight:
+                                        spacing[
+                                            navigationBarHeight[isMobile ? "mobile" : "desktop"]
+                                        ],
+                                    node: (
+                                        <Box
+                                            style={{paddingTop: "var(--safe-area-inset-top, 0px)"}}
+                                        >
+                                            <Box height={navigationBarHeight} />
+                                            <TaskQueryViewCustomizationMobileSection
+                                                ref={customizationMobileSectionRef}
+                                                store={store}
+                                                // Filters and sorts are always visible in a query view.
+                                                initialAreFiltersVisible={true}
+                                                initialAreSortsVisible={true}
+                                                defaultOrderSentence={defaultOrderSentence}
+                                                filters={filters}
+                                                filterReferences={filterReferences}
+                                                onFiltersChange={updateFilters}
+                                                sorts={sorts}
+                                                onSortsChange={setSorts}
+                                            />
+                                        </Box>
+                                    ),
+                                };
+                            }
+
+                            return renderGridViewItem(index - itemCountBeforeGridView);
+                        },
+                        [
+                            filterReferences,
+                            filters,
+                            isMobile,
+                            itemCountBeforeGridView,
+                            renderGridViewItem,
+                            setSorts,
+                            sorts,
+                            store,
+                            updateFilters,
+                            withMobileLayout,
+                        ],
+                    )}
+                    onRenderedRangeChange={onGridViewRenderedRangeChange}
+                    onRenderedRangeLayoutChange={onGridViewRenderedRangeLayoutChange}
+                    extraChildren={({
+                        contentHeight,
+                        viewHeight,
+                        shouldRenderWithRelativePositioning,
+                    }) => (
+                        <>
+                            {navigationBar}
+                            {!queryState.activeQuery.isAvailable &&
+                                queryState.activeQuery.isMissingRequiredFilters &&
+                                !shouldRenderWithRelativePositioning && (
+                                    <Box
+                                        position="absolute"
+                                        left="0"
+                                        right="0"
+                                        paddingX={taskRowViewPaddingX}
+                                        paddingTop="7"
+                                        paddingBottom="14"
+                                        pointerEvents="auto"
+                                        display="flex"
+                                        flexDirection="column"
+                                        justifyContent="center"
+                                        alignItems="center"
+                                        style={{
+                                            top: contentHeight,
+                                            height: !withMobileLayout
+                                                ? convertRemLengthToPx(spacing["128"], remPx)
+                                                : undefined,
+                                            minHeight: withMobileLayout
+                                                ? Math.max(0, viewHeight - contentHeight)
+                                                : undefined,
+                                        }}
+                                    >
+                                        <TaskQueryViewInstructionalPlaceholder
+                                            filters={filters}
+                                            onFiltersChange={updateFilters}
+                                        />
+                                    </Box>
+                                )}
+                        </>
+                    )}
                 />
             </GlobalKeyDownEvent>
         </Box>
@@ -475,7 +691,15 @@ function TaskQueryViewInstructionalPlaceholder({
     const {currentAccount} = useSpaceContext();
 
     return (
-        <Box width="full" maxWidth="96">
+        <Box
+            width="full"
+            maxWidth="96"
+            style={{
+                paddingBottom: `calc(${
+                    NativeMobileBridge?.tabBar.height ?? 0
+                }px + var(--window-safe-area-inset-bottom, 0px))`,
+            }}
+        >
             <Box
                 // TODO(calebmer): Eventually I'd like a real graphic designer to take a look
                 // at this state. We could use a nice illustration here.
@@ -519,7 +743,11 @@ function TaskQueryViewInstructionalPlaceholder({
                 <Button
                     variant="neutral"
                     icon={<Plus />}
+                    // Consistent icon placement with mobile customization section filter/sort add
+                    // buttons.
+                    iconPlacement="end"
                     height="6"
+                    paddingX="1.5"
                     isDisabled={filters.some(
                         filter =>
                             filter.type === "Creator" &&
@@ -545,7 +773,7 @@ function TaskQueryViewInstructionalPlaceholder({
                         display="flex"
                         height="6"
                         alignItems="center"
-                        paddingX="2"
+                        paddingX="1.5"
                         gap="2"
                         border="grey-10"
                         borderRadius="base"
@@ -561,7 +789,11 @@ function TaskQueryViewInstructionalPlaceholder({
                 <Button
                     variant="neutral"
                     icon={<Plus />}
+                    // Consistent icon placement with mobile customization section filter/sort add
+                    // buttons.
+                    iconPlacement="end"
                     height="6"
+                    paddingX="2"
                     isDisabled={filters.some(
                         filter =>
                             filter.type === "Assignee" &&
@@ -600,7 +832,11 @@ function TaskQueryViewInstructionalPlaceholder({
                 <Button
                     variant="neutral"
                     icon={<Plus />}
+                    // Consistent icon placement with mobile customization section filter/sort add
+                    // buttons.
+                    iconPlacement="end"
                     height="6"
+                    paddingX="1.5"
                     // The collection add button doesn't immediately give the user access to the
                     // view. So disable if we have an empty collection filter the user needs to
                     // configure.

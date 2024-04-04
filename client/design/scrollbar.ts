@@ -2,6 +2,7 @@ import {Memo, RefCallback, useCallback} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
+import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {
     addResizeListenerForElement,
@@ -45,6 +46,11 @@ export type ScrollbarInset = RemLength | number;
 export type ScrollbarInsetDynamic =
     | ScrollbarInset
     | Memo<readonly [ScrollbarInset, {readonly withSafeArea?: boolean}]>;
+
+export const safeAreaOnlyScrollbarInsetTop: ScrollbarInsetDynamic = markMemoIfNotRendering([
+    0,
+    {withSafeArea: true},
+]);
 
 /**
  * Duration after scrolling before the scrollbar disappears. We also use this to

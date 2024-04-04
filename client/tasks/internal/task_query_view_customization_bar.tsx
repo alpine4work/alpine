@@ -3,6 +3,7 @@ import {Ref, forwardRef, useImperativeHandle, useMemo, useRef, useState} from "r
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {desktopNavigationBarHeightRem} from "~/client/design/navigation_bar.js";
 import {
     OverlayTriggerButton,
     OverlayTriggerButtonRef,
@@ -16,13 +17,20 @@ import {
 } from "~/client/tasks/internal/task_query_filter_editor.js";
 import {TaskQuerySortsEditor} from "~/client/tasks/internal/task_query_sorts_editor.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {greyElevated2ClassName} from "~/shared/styles/styles.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
+
+const desktopTaskQueryViewCustomizationBarMarginYRem =
+    (desktopNavigationBarHeightRem -
+        parseRemLengthNumber(spacing[desktopTaskQueryFilterEditorHeight])) /
+    2;
+
+export const desktopTaskQueryViewCustomizationBarMarginY = `${desktopTaskQueryViewCustomizationBarMarginYRem}rem`;
 
 export type TaskQueryViewCustomizationBarRef = {
     // Throws if no collection filter editor component is mounted. So be careful

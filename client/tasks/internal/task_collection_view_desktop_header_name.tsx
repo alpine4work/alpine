@@ -36,15 +36,17 @@ import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js
 
 export const newTaskCollectionNamePlaceholder = "New collection";
 
-export type TaskCollectionViewHeaderNameRef = {
+export type TaskCollectionViewDesktopHeaderNameRef = {
     editName(): void;
     editColor(): void;
 };
 
-const TaskCollectionViewHeaderNameForwardRef = forwardRef(TaskCollectionViewHeaderName);
-export {TaskCollectionViewHeaderNameForwardRef as TaskCollectionViewHeaderName};
+const TaskCollectionViewDesktopHeaderNameForwardRef = forwardRef(
+    TaskCollectionViewDesktopHeaderName,
+);
+export {TaskCollectionViewDesktopHeaderNameForwardRef as TaskCollectionViewDesktopHeaderName};
 
-function TaskCollectionViewHeaderName(
+function TaskCollectionViewDesktopHeaderName(
     {
         isReadOnly,
         store,
@@ -62,7 +64,7 @@ function TaskCollectionViewHeaderName(
         createCollection: (name: string) => Promise<void>;
         affinityManager: TaskClientStoreSearchAffinityManager;
     },
-    ref: Ref<TaskCollectionViewHeaderNameRef>,
+    ref: Ref<TaskCollectionViewDesktopHeaderNameRef>,
 ) {
     const context = useAppContext();
     const navigate = useNavigate();
@@ -105,7 +107,7 @@ function TaskCollectionViewHeaderName(
         >
             {!isCreatingCollection && (
                 <Box flexShrink="0" display="flex" justifyContent="center" width="3">
-                    <TaskCollectionViewHeaderColor
+                    <TaskCollectionViewDesktopHeaderColor
                         color={color}
                         onColorSelect={color => {
                             store.commitTaskActionTransaction(
@@ -149,7 +151,7 @@ function TaskCollectionViewHeaderName(
                 </Box>
             ) : (
                 <Box overflow="hidden">
-                    <TaskCollectionViewHeaderNameEditor
+                    <TaskCollectionViewDesktopHeaderNameEditor
                         initialName={name}
                         onCancel={() => {
                             // If we cancel editing an optimistic collection with no name then return to
@@ -199,7 +201,7 @@ function TaskCollectionViewHeaderName(
     );
 }
 
-function TaskCollectionViewHeaderNameEditor({
+function TaskCollectionViewDesktopHeaderNameEditor({
     initialName,
     onCancel,
     onSave,
@@ -342,7 +344,7 @@ function TaskCollectionViewHeaderNameEditor({
     );
 }
 
-function TaskCollectionViewHeaderColor({
+function TaskCollectionViewDesktopHeaderColor({
     color,
     onColorSelect,
     colorSelectorState,
@@ -379,7 +381,7 @@ function TaskCollectionViewHeaderColor({
                     borderRadius="md"
                     boxShadow="elevation-20"
                 >
-                    <TaskCollectionViewHeaderColorSelector
+                    <TaskCollectionViewDesktopHeaderColorSelector
                         onColorSelect={color => {
                             setColorSelectorState({isExpanded: false, isFadingOut: false});
                             onColorSelect(color);
@@ -423,7 +425,7 @@ function TaskCollectionViewHeaderColor({
 
 // This component implements the toolbar role:
 // https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/toolbar_role
-function TaskCollectionViewHeaderColorSelector({
+function TaskCollectionViewDesktopHeaderColorSelector({
     onColorSelect,
 }: {
     onColorSelect: (color: ThemeColor | null) => void;
@@ -493,7 +495,7 @@ function TaskCollectionViewHeaderColorSelector({
                 }
             }}
         >
-            <TaskCollectionViewHeaderColorSelectorButton
+            <TaskCollectionViewDesktopHeaderColorSelectorButton
                 description="None"
                 color={null}
                 onColorSelect={onColorSelect}
@@ -501,7 +503,7 @@ function TaskCollectionViewHeaderColorSelector({
                 wasLastFocused={lastFocusedIndex === 0}
                 onFocus={() => setLastFocusedIndex(0)}
             />
-            <TaskCollectionViewHeaderColorSelectorButton
+            <TaskCollectionViewDesktopHeaderColorSelectorButton
                 description="Red"
                 color="red"
                 onColorSelect={onColorSelect}
@@ -509,7 +511,7 @@ function TaskCollectionViewHeaderColorSelector({
                 wasLastFocused={lastFocusedIndex === 1}
                 onFocus={() => setLastFocusedIndex(1)}
             />
-            <TaskCollectionViewHeaderColorSelectorButton
+            <TaskCollectionViewDesktopHeaderColorSelectorButton
                 description="Orange"
                 color="orange"
                 onColorSelect={onColorSelect}
@@ -517,7 +519,7 @@ function TaskCollectionViewHeaderColorSelector({
                 wasLastFocused={lastFocusedIndex === 2}
                 onFocus={() => setLastFocusedIndex(2)}
             />
-            <TaskCollectionViewHeaderColorSelectorButton
+            <TaskCollectionViewDesktopHeaderColorSelectorButton
                 description="Yellow"
                 color="yellow"
                 onColorSelect={onColorSelect}
@@ -525,7 +527,7 @@ function TaskCollectionViewHeaderColorSelector({
                 wasLastFocused={lastFocusedIndex === 3}
                 onFocus={() => setLastFocusedIndex(3)}
             />
-            <TaskCollectionViewHeaderColorSelectorButton
+            <TaskCollectionViewDesktopHeaderColorSelectorButton
                 description="Green"
                 color="green"
                 onColorSelect={onColorSelect}
@@ -533,7 +535,7 @@ function TaskCollectionViewHeaderColorSelector({
                 wasLastFocused={lastFocusedIndex === 4}
                 onFocus={() => setLastFocusedIndex(4)}
             />
-            <TaskCollectionViewHeaderColorSelectorButton
+            <TaskCollectionViewDesktopHeaderColorSelectorButton
                 description="Blue"
                 color="blue"
                 onColorSelect={onColorSelect}
@@ -541,7 +543,7 @@ function TaskCollectionViewHeaderColorSelector({
                 wasLastFocused={lastFocusedIndex === 5}
                 onFocus={() => setLastFocusedIndex(5)}
             />
-            <TaskCollectionViewHeaderColorSelectorButton
+            <TaskCollectionViewDesktopHeaderColorSelectorButton
                 description="Purple"
                 color="purple"
                 onColorSelect={onColorSelect}
@@ -549,7 +551,7 @@ function TaskCollectionViewHeaderColorSelector({
                 wasLastFocused={lastFocusedIndex === 6}
                 onFocus={() => setLastFocusedIndex(6)}
             />
-            <TaskCollectionViewHeaderColorSelectorButton
+            <TaskCollectionViewDesktopHeaderColorSelectorButton
                 description="Pink"
                 color="pink"
                 onColorSelect={onColorSelect}
@@ -561,7 +563,7 @@ function TaskCollectionViewHeaderColorSelector({
     );
 }
 
-function TaskCollectionViewHeaderColorSelectorButton({
+function TaskCollectionViewDesktopHeaderColorSelectorButton({
     description,
     color,
     onColorSelect,

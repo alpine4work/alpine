@@ -242,6 +242,7 @@ export function useTaskGridViewVirtualizedList({
     getMaybeRemoveTaskFromQueryActions: getMaybeRemoveTaskFromRootQueryActions,
     columnHeaderControls,
     rowMaxWidth = null,
+    withoutDecorativeGhostRowsIfEmpty = false,
     onApplyUndoStackEntry,
     getAnchorPosition,
 }: {
@@ -261,6 +262,7 @@ export function useTaskGridViewVirtualizedList({
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
     columnHeaderControls?: Memo<{minHeight: RemLength | number; node: ReactNode}>;
     rowMaxWidth?: Spacing | null;
+    withoutDecorativeGhostRowsIfEmpty?: boolean;
     onApplyUndoStackEntry?: (options: {
         type: "Undo" | "Redo";
         entry: DistributiveOmit<TaskUndoStackEntry, "release">;
@@ -468,7 +470,10 @@ export function useTaskGridViewVirtualizedList({
         itemCountBeforeState +
         (loadedState !== "FullyLoaded"
             ? stateItemCount + 1
-            : Math.max(stateItemCount + (hasBottomGhostTask ? 1 : 0), 3));
+            : Math.max(
+                  stateItemCount + (hasBottomGhostTask ? 1 : 0),
+                  withoutDecorativeGhostRowsIfEmpty && stateItemCount === 0 ? 0 : 3,
+              ));
 
     const taskRowByGridKeyRef = useRef(new Map<TaskGridViewTaskKey, TaskRowViewRef>());
 

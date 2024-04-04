@@ -1,9 +1,11 @@
 import {ReactElement, Ref, forwardRef} from "react";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {OverlayPlacement} from "~/client/design/overlay.js";
 import {
     OverlayTriggerButtonRef,
     OverlayTriggerButtonState,
 } from "~/client/design/overlay_trigger_button.js";
+import {Spacing} from "~/shared/design/spacing.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 const TaskQueryAddSortMenuButtonForwardRef = forwardRef(TaskQueryAddSortMenuButton);
@@ -12,10 +14,16 @@ export {TaskQueryAddSortMenuButtonForwardRef as TaskQueryAddSortMenuButton};
 function TaskQueryAddSortMenuButton(
     {
         onAddSort,
+        placement,
+        offset,
+        offsetAlong,
         onStateChange,
         children,
     }: {
         onAddSort: (sort: TaskQuerySort) => void;
+        placement?: OverlayPlacement;
+        offset?: Spacing;
+        offsetAlong?: Spacing;
         onStateChange?: (state: OverlayTriggerButtonState) => void;
         children: ReactElement;
     },
@@ -24,9 +32,9 @@ function TaskQueryAddSortMenuButton(
     return (
         <MenuButton
             ref={ref}
-            placement="bottom-end"
-            offset="2"
-            offsetAlong="1"
+            placement={placement}
+            offset={offset}
+            offsetAlong={offsetAlong}
             onStateChange={onStateChange}
             actions={[
                 [

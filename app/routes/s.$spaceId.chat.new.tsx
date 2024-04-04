@@ -97,7 +97,9 @@ export default function NewChatRoute({withMobileLayout = false}: {withMobileLayo
     );
 
     useEffect(() => {
-        const newSearchParams = new URLSearchParams(searchParams);
+        // Use `window.location.search` since we may have silently updated search params
+        // in a way Remix state doesn't know about.
+        const newSearchParams = new URLSearchParams(window.location.search);
         if (selectedAccounts.length === 0) {
             newSearchParams.delete("accounts");
         } else {
