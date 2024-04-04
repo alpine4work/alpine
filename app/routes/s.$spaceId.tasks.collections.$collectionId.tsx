@@ -7,7 +7,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useRootNavigate} from "~/client/remix/use_navigate.js";
+import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
@@ -342,7 +342,7 @@ export default function TaskCollectionRoute({
 }
 
 function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean}) {
-    const rootNavigate = useRootNavigate();
+    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const {collectionId} = useParams();
@@ -485,8 +485,7 @@ function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean
                     const newSearchParams = new URLSearchParams(searchParams);
                     newSearchParams.set("create", name);
 
-                    // Don't open in a peek.
-                    await rootNavigate(
+                    await navigate(
                         `/s/${
                             store.spaceId
                         }/tasks/collections/${collectionId}?${newSearchParams.toString()}`,

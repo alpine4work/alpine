@@ -2395,17 +2395,7 @@ function TaskGridViewColumnHeader(
 
     return (
         <>
-            {shouldRenderWithRelativePositioning ? (
-                <Box
-                    position="absolute"
-                    inset="0"
-                    // Render above overlays which are at `zIndex="50"`
-                    zIndex="80"
-                    pointerEvents="none"
-                >
-                    <Box position="sticky" top="0" left="0" right="0" borderBottom="grey-10" />
-                </Box>
-            ) : (
+            {!shouldRenderWithRelativePositioning && (
                 <>
                     <Box
                         ref={columnHeaderBorderTopRef}

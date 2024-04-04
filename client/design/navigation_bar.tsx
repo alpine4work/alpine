@@ -292,6 +292,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     subtitle,
     menuActions = [],
     shareButton,
+    stickyBanner,
     desktopControls = null,
     desktopTitleMaxWidth,
     desktopTitleFontSize = "200",
@@ -362,6 +363,12 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     // implementation this object will configure updating share properties
     // and such.
     shareButton?: {};
+
+    /**
+     * The sticky banner element will be rendered underneath the navigation bar and
+     * will continue to be visible as the user scrolls.
+     */
+    stickyBanner?: ReactNode;
 
     /**
      * Only rendered on desktop (not mobile).
@@ -464,6 +471,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             subtitle={subtitle}
             menuActions={menuActions}
             shareButton={shareButton}
+            stickyBanner={stickyBanner}
             desktopControls={desktopControls}
             desktopTitleMaxWidth={desktopTitleMaxWidth}
             desktopTitleFontSize={desktopTitleFontSize}
@@ -495,6 +503,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     subtitle,
     menuActions,
     shareButton,
+    stickyBanner,
     desktopControls,
     desktopTitleMaxWidth: desktopTitleMaxWidthProp,
     desktopTitleFontSize,
@@ -515,6 +524,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     subtitle: string | undefined;
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
     shareButton: {} | undefined;
+    stickyBanner: ReactNode;
     desktopControls: ReactNode;
     desktopTitleMaxWidth: Spacing | RemLength | undefined;
     desktopTitleFontSize: FontSize;
@@ -1124,13 +1134,12 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     <Box
                         position="relative"
                         zIndex="0"
-                        display="flex"
-                        justifyContent="center"
                         style={{paddingTop: "var(--safe-area-inset-top)"}}
                     >
                         <Box
                             ref={navigationBarBackgroundRef}
                             position="absolute"
+                            zIndex="-10"
                             inset="0"
                             backgroundColor="grey-0"
                             borderBottom="grey-10"
@@ -1345,6 +1354,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                 </Box>
                             </OverlayScopeContextProvider>
                         </Box>
+                        {stickyBanner}
                     </Box>
                 </div>
             </div>

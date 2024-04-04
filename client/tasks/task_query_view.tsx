@@ -57,6 +57,7 @@ import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
+    VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
@@ -394,6 +395,30 @@ export function TaskQueryView({
         return menuActions;
     }, [filters, isMobile, name, redoEvent, sorts, space.id, undoEvent, withMobileLayout]);
 
+    const readOnlyStickyBannerHeight = "8";
+
+    const readOnlyStickyBanner = useMemo(
+        () =>
+            readOnlyReason?.message && (
+                <Box
+                    className={invertSelectionColorsClassName}
+                    height="8"
+                    paddingX="2"
+                    color="grey-0"
+                    backgroundColor={{light: "grey-80", dark: "grey-90"}}
+                    display="flex"
+                    alignItems="center"
+                    gap="1.5"
+                >
+                    <IconContext.Provider value={{color: "currentColor", size: spacing["4"]}}>
+                        {readOnlyReason.icon}
+                    </IconContext.Provider>
+                    <Box userSelect="text">{readOnlyReason.message}</Box>
+                </Box>
+            ),
+        [readOnlyReason],
+    );
+
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
 
@@ -564,26 +589,7 @@ export function TaskQueryView({
                     spacing[isMobile ? navigationBarHeight.mobile : navigationBarHeight.desktop],
                 node: (
                     <>
-                        {readOnlyReason?.message && (
-                            // NOCOMMIT: How do read-only messages work on mobile?
-                            <Box
-                                className={invertSelectionColorsClassName}
-                                height="8"
-                                paddingX="2"
-                                color="grey-0"
-                                backgroundColor={{light: "grey-80", dark: "grey-90"}}
-                                display="flex"
-                                alignItems="center"
-                                gap="1.5"
-                            >
-                                <IconContext.Provider
-                                    value={{color: "currentColor", size: spacing["4"]}}
-                                >
-                                    {readOnlyReason.icon}
-                                </IconContext.Provider>
-                                <Box userSelect="text">{readOnlyReason.message}</Box>
-                            </Box>
-                        )}
+                        {readOnlyStickyBanner}
                         <TaskQueryViewDesktopHeader
                             ref={desktopHeaderRef}
                             store={store}
@@ -606,7 +612,7 @@ export function TaskQueryView({
             isMobile,
             menuActions,
             name,
-            readOnlyReason,
+            readOnlyStickyBanner,
             setName,
             setSorts,
             sorts,
@@ -630,7 +636,73 @@ export function TaskQueryView({
             />
         ),
         menuActions,
+        stickyBanner: readOnlyStickyBanner,
     });
+
+    const renderItem: VirtualizedScrollViewRenderItem = useCallback(
+        index => {
+            if (withMobileLayout && index === 0) {
+                return {
+                    key: "CustomizationBar",
+                    minHeight: spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
+                    node: (
+                        <Box style={{paddingTop: "var(--safe-area-inset-top, 0px)"}}>
+                            <Box height={navigationBarHeight} />
+                            {readOnlyReason?.message && <Box height={readOnlyStickyBannerHeight} />}
+                            {isMobile ? (
+                                <TaskQueryViewCustomizationMobileSection
+                                    ref={mobileCustomizationSectionRef}
+                                    store={store}
+                                    // Filters and sorts are always visible in a query view.
+                                    initialAreFiltersVisible={true}
+                                    initialAreSortsVisible={true}
+                                    defaultOrderSentence={defaultOrderSentence}
+                                    filters={filters}
+                                    filterReferences={filterReferences}
+                                    onFiltersChange={updateFilters}
+                                    sorts={sorts}
+                                    onSortsChange={setSorts}
+                                />
+                            ) : (
+                                <Box
+                                    paddingX={taskRowViewPaddingX}
+                                    paddingTop="1"
+                                    paddingBottom="6"
+                                >
+                                    <TaskQueryViewCustomizationBar
+                                        ref={desktopCustomizationSectionRef}
+                                        store={store}
+                                        shouldCollapseWhenFiltersAreEmpty={false}
+                                        defaultOrderSentence={defaultOrderSentence}
+                                        filters={filters}
+                                        filterReferences={filterReferences}
+                                        onFiltersChange={updateFilters}
+                                        sorts={sorts}
+                                        onSortsChange={setSorts}
+                                    />
+                                </Box>
+                            )}
+                        </Box>
+                    ),
+                };
+            }
+
+            return renderGridViewItem(index - itemCountBeforeGridView);
+        },
+        [
+            filterReferences,
+            filters,
+            isMobile,
+            itemCountBeforeGridView,
+            readOnlyReason?.message,
+            renderGridViewItem,
+            setSorts,
+            sorts,
+            store,
+            updateFilters,
+            withMobileLayout,
+        ],
+    );
 
     return (
         <Box
@@ -688,73 +760,7 @@ export function TaskQueryView({
                             ? scrollbarInsetTopGridViewItemIndex + itemCountBeforeGridView
                             : undefined
                     }
-                    renderItem={useCallback(
-                        index => {
-                            if (withMobileLayout && index === 0) {
-                                return {
-                                    key: "CustomizationBar",
-                                    minHeight:
-                                        spacing[
-                                            navigationBarHeight[isMobile ? "mobile" : "desktop"]
-                                        ],
-                                    node: (
-                                        <Box
-                                            style={{paddingTop: "var(--safe-area-inset-top, 0px)"}}
-                                        >
-                                            <Box height={navigationBarHeight} />
-                                            {isMobile ? (
-                                                <TaskQueryViewCustomizationMobileSection
-                                                    ref={mobileCustomizationSectionRef}
-                                                    store={store}
-                                                    // Filters and sorts are always visible in a query view.
-                                                    initialAreFiltersVisible={true}
-                                                    initialAreSortsVisible={true}
-                                                    defaultOrderSentence={defaultOrderSentence}
-                                                    filters={filters}
-                                                    filterReferences={filterReferences}
-                                                    onFiltersChange={updateFilters}
-                                                    sorts={sorts}
-                                                    onSortsChange={setSorts}
-                                                />
-                                            ) : (
-                                                <Box
-                                                    paddingX={taskRowViewPaddingX}
-                                                    paddingTop="1"
-                                                    paddingBottom="6"
-                                                >
-                                                    <TaskQueryViewCustomizationBar
-                                                        ref={desktopCustomizationSectionRef}
-                                                        store={store}
-                                                        shouldCollapseWhenFiltersAreEmpty={false}
-                                                        defaultOrderSentence={defaultOrderSentence}
-                                                        filters={filters}
-                                                        filterReferences={filterReferences}
-                                                        onFiltersChange={updateFilters}
-                                                        sorts={sorts}
-                                                        onSortsChange={setSorts}
-                                                    />
-                                                </Box>
-                                            )}
-                                        </Box>
-                                    ),
-                                };
-                            }
-
-                            return renderGridViewItem(index - itemCountBeforeGridView);
-                        },
-                        [
-                            filterReferences,
-                            filters,
-                            isMobile,
-                            itemCountBeforeGridView,
-                            renderGridViewItem,
-                            setSorts,
-                            sorts,
-                            store,
-                            updateFilters,
-                            withMobileLayout,
-                        ],
-                    )}
+                    renderItem={renderItem}
                     onRenderedRangeChange={onGridViewRenderedRangeChange}
                     onRenderedRangeLayoutChange={onGridViewRenderedRangeLayoutChange}
                     extraChildren={({

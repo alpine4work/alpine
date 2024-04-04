@@ -555,6 +555,32 @@ export function TaskCollectionView({
         withMobileLayout,
     ]);
 
+    const readOnlyStickyBannerHeight = "8";
+
+    const readOnlyStickyBanner = useMemo(
+        () =>
+            readOnlyReason?.message && (
+                <Box
+                    className={invertSelectionColorsClassName}
+                    height={readOnlyStickyBannerHeight}
+                    paddingX="2"
+                    color="grey-0"
+                    backgroundColor={{light: "grey-80", dark: "grey-90"}}
+                    display="flex"
+                    alignItems="center"
+                    gap="1.5"
+                >
+                    <IconContext.Provider value={{color: "currentColor", size: spacing["4"]}}>
+                        {readOnlyReason.icon}
+                    </IconContext.Provider>
+                    <Box userSelect="text" fontStyle="truncate">
+                        {readOnlyReason.message}
+                    </Box>
+                </Box>
+            ),
+        [readOnlyReason],
+    );
+
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
 
@@ -744,26 +770,7 @@ export function TaskCollectionView({
                     spacing[isMobile ? navigationBarHeight.mobile : navigationBarHeight.desktop],
                 node: (
                     <>
-                        {readOnlyReason?.message && (
-                            // NOCOMMIT: How do read-only messages work on mobile?
-                            <Box
-                                className={invertSelectionColorsClassName}
-                                height="8"
-                                paddingX="2"
-                                color="grey-0"
-                                backgroundColor={{light: "grey-80", dark: "grey-90"}}
-                                display="flex"
-                                alignItems="center"
-                                gap="1.5"
-                            >
-                                <IconContext.Provider
-                                    value={{color: "currentColor", size: spacing["4"]}}
-                                >
-                                    {readOnlyReason.icon}
-                                </IconContext.Provider>
-                                <Box userSelect="text">{readOnlyReason.message}</Box>
-                            </Box>
-                        )}
+                        {readOnlyStickyBanner}
                         <TaskCollectionViewDesktopHeader
                             ref={desktopHeaderRef}
                             store={store}
@@ -794,7 +801,7 @@ export function TaskCollectionView({
             isMobile,
             isReadOnly,
             menuActions,
-            readOnlyReason,
+            readOnlyStickyBanner,
             setSorts,
             sorts,
             store,
@@ -821,6 +828,7 @@ export function TaskCollectionView({
         desktopTitleLeftSlop: !isMobile ? "2" : undefined,
         shareButton: {},
         menuActions,
+        stickyBanner: readOnlyStickyBanner,
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -832,6 +840,7 @@ export function TaskCollectionView({
                     node: (
                         <Box style={{paddingTop: "var(--safe-area-inset-top, 0px)"}}>
                             <Box height={navigationBarHeight} />
+                            {readOnlyReason?.message && <Box height={readOnlyStickyBannerHeight} />}
                             {customizationState &&
                                 (isMobile ? (
                                     <TaskQueryViewCustomizationMobileSection
@@ -873,18 +882,19 @@ export function TaskCollectionView({
             return renderGridViewItem(index - itemCountBeforeGridView);
         },
         [
-            defaultOrderSentence,
-            filterReferences,
-            filters,
-            isMobile,
-            itemCountBeforeGridView,
-            customizationState,
-            renderGridViewItem,
-            setSorts,
-            sorts,
-            store,
-            updateFilters,
             withMobileLayout,
+            renderGridViewItem,
+            itemCountBeforeGridView,
+            isMobile,
+            readOnlyReason?.message,
+            customizationState,
+            store,
+            defaultOrderSentence,
+            filters,
+            filterReferences,
+            updateFilters,
+            sorts,
+            setSorts,
         ],
     );
 
