@@ -1866,6 +1866,65 @@ test("parses account name then entity type", () => {
             },
         ],
     });
+
+    expect(parseSearchNaturalLanguageQuery("all of my documents", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: [],
+        controlQueryTexts: ["all of my documents"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("all of john's documents", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: [],
+        controlQueryTexts: ["all of john's documents"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("all of my train documents", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["train"],
+        controlQueryTexts: ["all of my", "documents"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("all of john's train documents", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["train"],
+        controlQueryTexts: ["all of john's", "documents"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("all of documents", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["all of documents"],
+        controlQueryTexts: [],
+        filters: [],
+    });
 });
 
 test("parses account name with some text between then entity type", () => {
@@ -1961,13 +2020,13 @@ test("parses account name with some text between then entity type", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("my train documents about georgia", options)).toEqual({
-        isLowConfidence: true,
-        queryTexts: ["my train", "georgia"],
-        controlQueryTexts: ["documents about"],
+        isLowConfidence: false,
+        queryTexts: ["train", "georgia"],
+        controlQueryTexts: ["my", "documents about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                account: null,
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -1976,13 +2035,13 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseSearchNaturalLanguageQuery("john's train documents about georgia", options),
     ).toEqual({
-        isLowConfidence: true,
-        queryTexts: ["john's train", "georgia"],
-        controlQueryTexts: ["documents about"],
+        isLowConfidence: false,
+        queryTexts: ["train", "georgia"],
+        controlQueryTexts: ["john's", "documents about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                account: null,
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1991,13 +2050,13 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseSearchNaturalLanguageQuery("john smith's train documents about georgia", options),
     ).toEqual({
-        isLowConfidence: true,
-        queryTexts: ["john smith's train", "georgia"],
-        controlQueryTexts: ["documents about"],
+        isLowConfidence: false,
+        queryTexts: ["train", "georgia"],
+        controlQueryTexts: ["john smith's", "documents about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                account: null,
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -3851,4 +3910,288 @@ test('parses the word "recently" in dates', () => {
             ],
         },
     );
+});
+
+test('parses "all" then entity type', () => {
+    expect(parseSearchNaturalLanguageQuery("all documents", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: [],
+        controlQueryTexts: ["all documents"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: null,
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("train all documents", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["train"],
+        controlQueryTexts: ["all documents"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: null,
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("all documents train", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["train"],
+        controlQueryTexts: ["all documents"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: null,
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("all documents about trains", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["trains"],
+        controlQueryTexts: ["all documents about"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: null,
+                time: null,
+            },
+        ],
+    });
+});
+
+test('parses "all" with some text between then entity type', () => {
+    expect(parseSearchNaturalLanguageQuery("all train documents", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["train"],
+        controlQueryTexts: ["all", "documents"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: null,
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("all neat documents about georgia", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["neat", "georgia"],
+        controlQueryTexts: ["all", "documents about"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: null,
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("all train documents about georgia", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["train", "georgia"],
+        controlQueryTexts: ["all", "documents about"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: null,
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("all closed tasks", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["closed"],
+        controlQueryTexts: ["all", "tasks"],
+        filters: [
+            {
+                entityTypes: ["Task"],
+                account: null,
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("all green documents", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["green"],
+        controlQueryTexts: ["all", "documents"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: null,
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("all the cat in the hat documents", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["the cat in the hat"],
+        controlQueryTexts: ["all", "documents"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: null,
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("all (the cat in the hat) documents", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["(the cat in the hat)"],
+        controlQueryTexts: ["all", "documents"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: null,
+                time: null,
+            },
+        ],
+    });
+
+    expect(
+        parseSearchNaturalLanguageQuery("all, the cat in the hat, chat messages", options),
+    ).toEqual({
+        isLowConfidence: true,
+        queryTexts: ["all, the cat in the hat,"],
+        controlQueryTexts: ["chat messages"],
+        filters: [
+            {
+                entityTypes: ["ChatMessage"],
+                account: null,
+                time: null,
+            },
+        ],
+    });
+});
+
+test('parses date modifier after "all" then entity type', () => {
+    expect(parseSearchNaturalLanguageQuery("all documents created two days ago", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: [],
+        controlQueryTexts: ["all documents created two days ago"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-02T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-03T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseSearchNaturalLanguageQuery("all green documents created two days ago", options),
+    ).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["green"],
+        controlQueryTexts: ["all", "documents created two days ago"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-02T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-03T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+});
+
+test('parses account name after "all" then entity type', () => {
+    expect(parseSearchNaturalLanguageQuery("all documents by me", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: [],
+        controlQueryTexts: ["all documents by me"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("all train documents by me", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["train"],
+        controlQueryTexts: ["all", "documents by me"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("all documents by me about trains", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["trains"],
+        controlQueryTexts: ["all documents by me about"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("all documents by john", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: [],
+        controlQueryTexts: ["all documents by john"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("all train documents by john", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["train"],
+        controlQueryTexts: ["all", "documents by john"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseSearchNaturalLanguageQuery("all documents by john about trains", options)).toEqual({
+        isLowConfidence: false,
+        queryTexts: ["trains"],
+        controlQueryTexts: ["all documents by john about"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                time: null,
+            },
+        ],
+    });
 });

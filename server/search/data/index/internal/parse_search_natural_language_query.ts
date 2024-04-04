@@ -112,6 +112,8 @@ const matchTermTexts = [
     "that",
     "were",
     "recently",
+    "all",
+    "of",
 ] as const;
 
 const matchTerms = Object.fromEntries(
@@ -164,6 +166,27 @@ class SearchNaturalLanguageParserState {
         this.term = nextTerm;
 
         return lastTerm;
+    }
+}
+
+class SearchNaturalLanguageParserResult {
+    private readonly _filters: Array<SearchNaturalLanguageFilter> = [];
+    public isLowConfidence = true;
+
+    public addFilter(filter: SearchNaturalLanguageFilter) {
+        // We have low confidence the user wants natural language filters if every
+        // filter we parsed only filters on `entityTypes`. These are queries like
+        // "train documents" or simply "channels".
+        //
+        // When we have low confidence natural language filters, we still apply the
+        // filters but we don't rank them as highly.
+        this.isLowConfidence &&= filter.account === null && filter.time === null;
+
+        this._filters.push(filter);
+    }
+
+    public getFilters(): ReadonlyArray<SearchNaturalLanguageFilter> {
+        return this._filters;
     }
 }
 
@@ -223,13 +246,19 @@ export function parseSearchNaturalLanguageQuery(
 } {
     const doc = nlp(queryText);
 
+    let isLowConfidence = true;
     const filters: Array<SearchNaturalLanguageFilter> = [];
     const controlPhrases: Array<View> = [];
 
     // Iterate through each clause independently.
     for (const terms of doc.clauses().docs) {
-        const {filters: currentFilters, controlPhrases: currentControlPhrases} =
-            parseSearchNaturalLanguageFilters(doc, terms, options);
+        const {
+            isLowConfidence: currentIsLowConfidence,
+            filters: currentFilters,
+            controlPhrases: currentControlPhrases,
+        } = parseSearchNaturalLanguageFilters(doc, terms, options);
+
+        isLowConfidence &&= currentIsLowConfidence;
 
         for (const filter of currentFilters) {
             filters.push(filter);
@@ -267,17 +296,7 @@ export function parseSearchNaturalLanguageQuery(
         queryTexts,
         controlQueryTexts,
         filters,
-
-        // We have low confidence the user wants natural language filters if every
-        // filter we parsed only filters on `entityTypes`. These are queries like
-        // "train documents" or simply "channels".
-        //
-        // When we have low confidence natural language filters, we still apply the
-        // filters but we don't rank them as highly.
-        isLowConfidence:
-            filters.length !== 0
-                ? filters.every(filter => filter.account === null && filter.time === null)
-                : false,
+        isLowConfidence: filters.length > 0 ? isLowConfidence : false,
     };
 }
 
@@ -296,11 +315,12 @@ function parseSearchNaturalLanguageFilters(
 ): {
     filters: ReadonlyArray<SearchNaturalLanguageFilter>;
     controlPhrases: ReadonlyArray<View>;
+    isLowConfidence: boolean;
 } {
     const {actorAccountId} = options;
 
     const state = new SearchNaturalLanguageParserState(doc, terms);
-    const filters: Array<SearchNaturalLanguageFilter> = [];
+    const result = new SearchNaturalLanguageParserResult();
     const controlPhrases: Array<View> = [];
 
     while (state.term) {
@@ -353,15 +373,24 @@ function parseSearchNaturalLanguageFilters(
 
             addControlPhrase(filterStartTerm, actualFilterEndTerm);
 
-            filters.push(filter);
+            result.addFilter(filter);
             continue;
         }
 
         const advanceNounChunkAttemptingToParseEntityTypes = (
-            accountIds: ReadonlyArray<AccountId>,
-        ) => {
+            partialFilter: Omit<SearchNaturalLanguageFilter, "entityTypes">,
+        ): {hasAddedFilter: boolean} => {
             const lastTerm = state.terms[state.termIndex - 1];
-            if (lastTerm?.chunk !== "Noun") return;
+
+            if (
+                !lastTerm ||
+                (lastTerm.chunk !== "Noun" &&
+                    // "all" is part of the adjective chunk. If "all" is followed by a noun chunk
+                    // then we're happy.
+                    !matchTerms.all.isFuzzyMatch(lastTerm))
+            ) {
+                return {hasAddedFilter: false};
+            }
 
             // e.g. "my ... documents" or "john's ... documents"
             //
@@ -374,7 +403,7 @@ function parseSearchNaturalLanguageFilters(
             // verb phrase).
             //
             // [1]: https://github.com/spencermountain/compromise/blob/4ef66b3e5798c63f3f0f3b7935ffae1597b6dd3b/src/3-three/chunker/api/chunks.js#L1
-            while (state.term && state.term.chunk === "Noun") {
+            while (state.term) {
                 const firstEntityTypesTerm = state.term;
 
                 const entityTypes = parseSearchEntityTypesIfPossible(state);
@@ -386,15 +415,11 @@ function parseSearchNaturalLanguageFilters(
                                 filterStartTerm: firstEntityTypesTerm,
                                 filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                                 filter: {
+                                    ...partialFilter,
                                     entityTypes,
-                                    account: {
-                                        field: "MajorContributor",
-                                        ids: accountIds,
-                                    },
-                                    time: null,
                                 },
-                                allowAccount: false,
-                                allowTime: true,
+                                allowAccount: partialFilter.account === null,
+                                allowTime: partialFilter.time === null,
                                 isFirstModifier: true,
                             },
                             options,
@@ -413,13 +438,84 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase(startTerm, lastTerm);
                     addControlPhrase(filterStartTerm, actualFilterEndTerm);
 
-                    filters.push(filter);
-                    break;
+                    result.addFilter(filter);
+                    return {hasAddedFilter: true};
                 }
 
-                state.advanceTerm();
+                if (state.term.chunk === "Noun") {
+                    state.advanceTerm();
+                } else {
+                    break;
+                }
             }
+
+            return {hasAddedFilter: false};
         };
+
+        // e.g. "all..."
+        if (matchTerms.all.isFuzzyMatch(state.term)) {
+            state.advanceTerm();
+
+            // e.g. "all of..."
+            if (matchTerms.of.isFuzzyMatch(state.term)) {
+                state.advanceTerm();
+
+                // Intentionally fallthrough! So we can parse "all of my..." or "all of
+                // john's..."
+            } else {
+                // e.g. "all documents" or "all messages"
+                const entityTypes = parseSearchEntityTypesIfPossible(state);
+                if (entityTypes) {
+                    const {filterStartTerm, filterEndTerm, filter} =
+                        parseSearchNaturalLanguageFilterModifiers(
+                            state,
+                            {
+                                filterStartTerm: startTerm,
+                                filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                                filter: {
+                                    entityTypes,
+                                    account: null,
+                                    time: null,
+                                },
+                                allowAccount: true,
+                                allowTime: true,
+                                isFirstModifier: true,
+                            },
+                            options,
+                        );
+
+                    let actualFilterEndTerm = filterEndTerm;
+
+                    // e.g. "my messages about"
+                    if (
+                        filterEndTerm === state.terms[state.termIndex - 1] &&
+                        matchTerms.about.isFuzzyMatch(state.term)
+                    ) {
+                        actualFilterEndTerm = state.advanceTerm();
+                    }
+
+                    addControlPhrase(filterStartTerm, actualFilterEndTerm);
+
+                    result.addFilter(filter);
+
+                    // If we got a filter starting with "all" like "all documents" then we're
+                    // confident the user wanted a natural language filter.
+                    result.isLowConfidence = false;
+                    continue;
+                }
+
+                const {hasAddedFilter} = advanceNounChunkAttemptingToParseEntityTypes({
+                    account: null,
+                    time: null,
+                });
+                if (hasAddedFilter) {
+                    // If we got a filter starting with "all" like "all documents" then we're
+                    // confident the user wanted a natural language filter.
+                    result.isLowConfidence = false;
+                }
+                continue;
+            }
+        }
 
         // e.g. "my..."
         if (matchTerms.my.isFuzzyMatch(state.term)) {
@@ -461,11 +557,17 @@ function parseSearchNaturalLanguageFilters(
 
                 addControlPhrase(filterStartTerm, actualFilterEndTerm);
 
-                filters.push(filter);
+                result.addFilter(filter);
                 continue;
             }
 
-            advanceNounChunkAttemptingToParseEntityTypes([actorAccountId]);
+            advanceNounChunkAttemptingToParseEntityTypes({
+                account: {
+                    field: "MajorContributor",
+                    ids: [actorAccountId],
+                },
+                time: null,
+            });
             continue;
         }
 
@@ -508,11 +610,17 @@ function parseSearchNaturalLanguageFilters(
 
                 addControlPhrase(filterStartTerm, actualFilterEndTerm);
 
-                filters.push(filter);
+                result.addFilter(filter);
                 continue;
             }
 
-            advanceNounChunkAttemptingToParseEntityTypes(accounts.map(account => account.id));
+            advanceNounChunkAttemptingToParseEntityTypes({
+                account: {
+                    field: "MajorContributor",
+                    ids: accounts.map(account => account.id),
+                },
+                time: null,
+            });
             continue;
         }
 
@@ -520,8 +628,9 @@ function parseSearchNaturalLanguageFilters(
     }
 
     return {
-        filters,
+        filters: result.getFilters(),
         controlPhrases,
+        isLowConfidence: result.isLowConfidence,
     };
 }
 
