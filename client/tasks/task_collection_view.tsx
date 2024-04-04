@@ -1,7 +1,8 @@
-import {IconContext, Trash} from "phosphor-react";
+import {IconContext, Lock, LockOpen, Trash} from "phosphor-react";
 import {
     Memo,
     ReactNode,
+    RefObject,
     useCallback,
     useEffect,
     useImperativeHandle,
@@ -9,20 +10,33 @@ import {
     useRef,
     useState,
 } from "react";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
+import {MenuAction} from "~/client/design/menu_button.js";
+import {MobileModal} from "~/client/design/mobile_modal.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
-import {ConstStore} from "~/client/helpers/store/const_store.js";
+import {ConstStore, falseStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskCollectionEntryAccess} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
-import {TaskCollectionViewDesktopHeader} from "~/client/tasks/internal/task_collection_view_desktop_header.js";
+import {
+    TaskCollectionViewDesktopHeader,
+    TaskCollectionViewDesktopHeaderRef,
+} from "~/client/tasks/internal/task_collection_view_desktop_header.js";
+import {
+    TaskCollectionViewDesktopHeaderName,
+    TaskCollectionViewDesktopHeaderNameRef,
+} from "~/client/tasks/internal/task_collection_view_desktop_header_name.js";
+import {TaskCollectionViewEditNameMobileModal} from "~/client/tasks/internal/task_collection_view_edit_name_mobile_modal.js";
 import {
     TaskGridViewVirtualizedListViewRef,
     isTaskQueryManuallySorted,
@@ -54,6 +68,7 @@ import {
 import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -62,7 +77,10 @@ import {invertSelectionColorsClassName, tasksStyles} from "~/shared/styles/style
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
-import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
+import {
+    TaskQueryFilter,
+    serializeTaskQueryFiltersSearchParam,
+} from "~/shared/tasks/task_query_filter.js";
 import {
     TaskQueryFilterReferences,
     mergeTaskQueryFilterReferences,
@@ -72,7 +90,7 @@ import {
     TaskQueryNormalizedSort,
     normalizeTaskQuerySorts,
 } from "~/shared/tasks/task_query_normalized_sort.js";
-import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
+import {TaskQuerySort, serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 
 export {newTaskCollectionNamePlaceholder} from "~/client/tasks/internal/task_collection_view_desktop_header_name.js";
 
@@ -109,8 +127,10 @@ export function TaskCollectionView({
     onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
     createCollection: Memo<(name: string) => Promise<void>>;
 }) {
+    const context = useAppContext();
+    const navigate = useNavigate();
     const isMobile = useIsMobile();
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
     const currentDate = useCurrentDate();
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
@@ -135,7 +155,9 @@ export function TaskCollectionView({
 
     const [sorts, _setSorts] = useState(initialSorts);
 
-    const {updateFilters, setSorts} = useEvents({
+    const {undoEvent, redoEvent, updateFilters, setSorts} = useEvents({
+        undoEvent: () => undo(),
+        redoEvent: () => redo(),
         updateFilters: (
             filters: ReadonlyArray<TaskQueryFilter>,
             {
@@ -281,6 +303,258 @@ export function TaskCollectionView({
     const readOnlyReason = readOnlyReason1 ?? readOnlyReason2;
     const isReadOnly = readOnlyReason !== null;
 
+    const isPrivate = useStore(
+        useMemo(
+            () =>
+                collectionSubscription?.collectionEntryStore.map(
+                    collectionEntry => !collectionEntry.collection?.getAccessPolicy().defaultGrant,
+                ) ?? falseStore,
+            [collectionSubscription?.collectionEntryStore],
+        ),
+    );
+
+    const desktopHeaderRef = useRef<TaskCollectionViewDesktopHeaderRef>(null);
+    const navigationBarDesktopNameRef = useRef<TaskCollectionViewDesktopHeaderNameRef>(null);
+
+    const desktopCustomizationBarRef = useRef<TaskQueryViewCustomizationBarRef>(null);
+    const mobileCustomizationSectionRef = useRef<TaskQueryViewCustomizationMobileSectionRef>(null);
+    const [customizationState, setCustomizationState] = useState<{
+        initiallyFocus: "AddFilter" | "AddSort" | null;
+    } | null>(filters.length > 0 || sorts.length > 0 ? {initiallyFocus: null} : null);
+    if (!customizationState && (filters.length > 0 || sorts.length > 0)) {
+        setCustomizationState({initiallyFocus: null});
+    }
+
+    const [editNameMobileModalState, setEditNameMobileModalState] = useState<{
+        initiallyFocusName: boolean;
+    } | null>(null);
+
+    const menuActions = useMemo(() => {
+        const menuActions: Array<ReadonlyArray<MenuAction>> = [];
+
+        menuActions.push([
+            {
+                label: "Copy link",
+                pressErrorTitle: "Couldn’t copy collection link",
+                onPress: async () => {
+                    const url = new URL(
+                        `/s/${space.id}/tasks/collections/${collectionId}`,
+                        window.location.href,
+                    );
+
+                    if (filters.length > 0) {
+                        url.searchParams.set(
+                            "filter",
+                            serializeTaskQueryFiltersSearchParam(filters),
+                        );
+                    }
+
+                    if (sorts.length > 0) {
+                        url.searchParams.set("sort", serializeTaskQuerySortsSearchParam(sorts));
+                    }
+
+                    await writeTextToClipboard(url.toString());
+                },
+            },
+        ]);
+
+        if (!isReadOnly) {
+            // Even though you can edit the collection name by double clicking and the
+            // color by clicking on the dot, we still include menu items since these
+            // interactions aren't necessarily obvious.
+            //
+            // Also, the color and name are not focusable. So the only way to edit
+            // name/color via keyboard are these menu items.
+            menuActions.push([
+                {
+                    label: "Edit name",
+                    onPress: () => {
+                        if (!withMobileLayout) {
+                            assertExists(desktopHeaderRef.current).editName();
+                        } else if (!isMobile) {
+                            assertExists(navigationBarDesktopNameRef.current).editName();
+                        } else {
+                            setEditNameMobileModalState({initiallyFocusName: true});
+                        }
+                    },
+                },
+                {
+                    label: "Edit color",
+                    onPress: () => {
+                        if (!withMobileLayout) {
+                            assertExists(desktopHeaderRef.current).editColor();
+                        } else if (!isMobile) {
+                            assertExists(navigationBarDesktopNameRef.current).editColor();
+                        } else {
+                            setEditNameMobileModalState({initiallyFocusName: false});
+                        }
+                    },
+                },
+            ]);
+        }
+
+        if (!isReadOnly) {
+            // TODO(calebmer): Collections support more involved permission rules than just
+            // public/private. Eventually I want a full sharing dialog (like in Google
+            // Docs) but I want that sharing dialog to work across all stuff in the space.
+            // Including docs and channels.
+            menuActions.push([
+                {
+                    label: isPrivate ? "Make public" : "Make private",
+                    icon: isPrivate ? <LockOpen /> : <Lock />,
+                    iconPlacement: "end",
+                    onPress: () => {
+                        if (isPrivate) {
+                            store.commitTaskActionTransaction(
+                                context,
+                                [
+                                    {
+                                        type: "UpdateCollection",
+                                        time: store.clock.now(),
+                                        collectionId,
+                                        collectionAction: {
+                                            type: "UpdateAccessPolicy",
+                                            accessPolicy: {
+                                                accountGrantById: new Map([
+                                                    [currentAccount.id, {level: "Manage"}],
+                                                ]),
+                                                defaultGrant: {type: "Space", level: "Manage"},
+                                            },
+                                        },
+                                    },
+                                ],
+                                // Collection changes can't be undone.
+                                {undoManager: null, affinityManager},
+                            );
+                        } else {
+                            store.commitTaskActionTransaction(
+                                context,
+                                [
+                                    {
+                                        type: "UpdateCollection",
+                                        time: store.clock.now(),
+                                        collectionId,
+                                        collectionAction: {
+                                            type: "UpdateAccessPolicy",
+                                            accessPolicy: {
+                                                accountGrantById: new Map([
+                                                    [currentAccount.id, {level: "Manage"}],
+                                                ]),
+                                                defaultGrant: null,
+                                            },
+                                        },
+                                    },
+                                ],
+                                // Collection changes can't be undone.
+                                {undoManager: null, affinityManager},
+                            );
+                        }
+                    },
+                },
+            ]);
+
+            if (withMobileLayout) {
+                menuActions.push([
+                    {
+                        label: "Add filter",
+                        onPress: () => {
+                            // Make sure the filter/sort section is visible.
+                            assertExists(viewRef.current).setScrollOffset(0);
+
+                            if (!customizationState) {
+                                setCustomizationState({initiallyFocus: "AddFilter"});
+                            } else {
+                                if (isMobile) {
+                                    assertExists(
+                                        mobileCustomizationSectionRef.current,
+                                    ).openAddFilterMenu();
+                                } else {
+                                    assertExists(
+                                        desktopCustomizationBarRef.current,
+                                    ).openAddFilterMenu();
+                                }
+                            }
+                        },
+                    },
+                    {
+                        label: "Add sort",
+                        onPress: () => {
+                            // Make sure the filter/sort section is visible.
+                            assertExists(viewRef.current).setScrollOffset(0);
+
+                            if (!customizationState) {
+                                setCustomizationState({initiallyFocus: "AddSort"});
+                            } else {
+                                if (isMobile) {
+                                    assertExists(
+                                        mobileCustomizationSectionRef.current,
+                                    ).openAddSortMenu();
+                                } else {
+                                    assertExists(
+                                        desktopCustomizationBarRef.current,
+                                    ).openAddSortMenu();
+                                }
+                            }
+                        },
+                    },
+                ]);
+            }
+
+            menuActions.push([
+                {
+                    label: "Undo",
+                    onPress: undoEvent,
+                },
+                {
+                    label: "Redo",
+                    onPress: redoEvent,
+                },
+            ]);
+
+            menuActions.push([
+                {
+                    label: "Delete",
+                    onPress: () => {
+                        store.commitTaskActionTransaction(
+                            context,
+                            [
+                                {
+                                    type: "UpdateCollection",
+                                    time: store.clock.now(),
+                                    collectionId,
+                                    collectionAction: {type: "Delete"},
+                                },
+                            ],
+                            // Collection changes can't be undone.
+                            {undoManager: null, affinityManager},
+                        );
+
+                        void navigate(-1);
+                    },
+                },
+            ]);
+        }
+
+        return menuActions;
+    }, [
+        affinityManager,
+        collectionId,
+        context,
+        currentAccount.id,
+        customizationState,
+        filters,
+        isMobile,
+        isPrivate,
+        isReadOnly,
+        navigate,
+        redoEvent,
+        sorts,
+        space.id,
+        store,
+        undoEvent,
+        withMobileLayout,
+    ]);
+
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
 
@@ -362,6 +636,8 @@ export function TaskCollectionView({
         scrollbarInsetTopItemIndex: scrollbarInsetTopGridViewItemIndex,
         onGlobalKeyDown: onGridViewGlobalKeyDown,
         focusEnd: focusGridViewEnd,
+        undo,
+        redo,
     } = useTaskGridViewVirtualizedList({
         capabilities: useMemo(() => {
             if (!withMobileLayout) {
@@ -463,8 +739,6 @@ export function TaskCollectionView({
             // We do this for peeks too.
             if (withMobileLayout) return;
 
-            // NOCOMMIT: Copy link menu action include filters?
-
             return {
                 minHeight:
                     spacing[isMobile ? navigationBarHeight.mobile : navigationBarHeight.desktop],
@@ -491,6 +765,7 @@ export function TaskCollectionView({
                             </Box>
                         )}
                         <TaskCollectionViewDesktopHeader
+                            ref={desktopHeaderRef}
                             store={store}
                             collectionId={collectionId}
                             collectionSubscription={collectionSubscription}
@@ -498,6 +773,7 @@ export function TaskCollectionView({
                             createCollection={createCollection}
                             isReadOnly={isReadOnly}
                             defaultOrderSentence={defaultOrderSentence}
+                            menuActions={menuActions}
                             filters={filters}
                             filterReferences={filterReferences}
                             onFiltersChange={updateFilters}
@@ -517,6 +793,7 @@ export function TaskCollectionView({
             filters,
             isMobile,
             isReadOnly,
+            menuActions,
             readOnlyReason,
             setSorts,
             sorts,
@@ -526,71 +803,24 @@ export function TaskCollectionView({
         ]),
     });
 
-    const desktopCustomizationBarRef = useRef<TaskQueryViewCustomizationBarRef>(null);
-    const mobileCustomizationSectionRef = useRef<TaskQueryViewCustomizationMobileSectionRef>(null);
-    const [customizationState, setCustomizationState] = useState<{
-        initiallyFocus: "AddFilter" | "AddSort" | null;
-    } | null>(filters.length > 0 || sorts.length > 0 ? {initiallyFocus: null} : null);
-    if (!customizationState && (filters.length > 0 || sorts.length > 0)) {
-        setCustomizationState({initiallyFocus: null});
-    }
-
-    // NOCOMMIT: Put undo/redo in more actions
-    // NOCOMMIT: Menu actions like copy link and edit color
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         isDisabled: !withMobileLayout,
         withMobileLayout,
         withoutDisappearingTitle: true,
         title: (
             <TaskCollectionViewMobileNavigationBarTitle
+                isReadOnly={isReadOnly}
+                store={store}
+                collectionId={collectionId}
                 collectionSubscription={collectionSubscription}
+                createCollection={createCollection}
+                affinityManager={affinityManager}
+                desktopNameRef={navigationBarDesktopNameRef}
             />
         ),
+        desktopTitleLeftSlop: !isMobile ? "2" : undefined,
         shareButton: {},
-        menuActions: [
-            [
-                {
-                    label: "Add filter",
-                    onPress: () => {
-                        // Make sure the filter/sort section is visible.
-                        assertExists(viewRef.current).setScrollOffset(0);
-
-                        if (!customizationState) {
-                            setCustomizationState({initiallyFocus: "AddFilter"});
-                        } else {
-                            if (isMobile) {
-                                assertExists(
-                                    mobileCustomizationSectionRef.current,
-                                ).openAddFilterMenu();
-                            } else {
-                                assertExists(
-                                    desktopCustomizationBarRef.current,
-                                ).openAddFilterMenu();
-                            }
-                        }
-                    },
-                },
-                {
-                    label: "Add sort",
-                    onPress: () => {
-                        // Make sure the filter/sort section is visible.
-                        assertExists(viewRef.current).setScrollOffset(0);
-
-                        if (!customizationState) {
-                            setCustomizationState({initiallyFocus: "AddSort"});
-                        } else {
-                            if (isMobile) {
-                                assertExists(
-                                    mobileCustomizationSectionRef.current,
-                                ).openAddSortMenu();
-                            } else {
-                                assertExists(desktopCustomizationBarRef.current).openAddSortMenu();
-                            }
-                        }
-                    },
-                },
-            ],
-        ],
+        menuActions,
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -721,33 +951,118 @@ export function TaskCollectionView({
                     extraChildren={navigationBar}
                 />
             </GlobalKeyDownEvent>
+            {editNameMobileModalState && (
+                <MobileModal onClose={() => setEditNameMobileModalState(null)}>
+                    {({onCloseWithAnimation}) => (
+                        <TaskCollectionViewEditNameMobileModal
+                            initiallyFocusName={editNameMobileModalState.initiallyFocusName}
+                            getInitialName={() =>
+                                collectionSubscription?.collectionEntryStore
+                                    .getSnapshot()
+                                    .collection?.getName() ?? ""
+                            }
+                            getInitialColor={() =>
+                                collectionSubscription?.collectionEntryStore
+                                    .getSnapshot()
+                                    .collection?.getColor() ?? null
+                            }
+                            onSave={({name, hasNameChanged, color, hasColorChanged}) => {
+                                store.commitTaskActionTransaction(
+                                    context,
+                                    [
+                                        ...(hasNameChanged
+                                            ? [
+                                                  cast<TaskAction>({
+                                                      type: "UpdateCollection",
+                                                      time: store.clock.now(),
+                                                      collectionId,
+                                                      collectionAction: {
+                                                          type: "UpdateName",
+                                                          name,
+                                                      },
+                                                  }),
+                                              ]
+                                            : []),
+                                        ...(hasColorChanged
+                                            ? [
+                                                  cast<TaskAction>({
+                                                      type: "UpdateCollection",
+                                                      time: store.clock.now(),
+                                                      collectionId,
+                                                      collectionAction: {
+                                                          type: "UpdateColor",
+                                                          color,
+                                                      },
+                                                  }),
+                                              ]
+                                            : []),
+                                    ],
+                                    // Collection changes can't be undone.
+                                    {undoManager: null, affinityManager},
+                                );
+                            }}
+                            onCloseWithAnimation={onCloseWithAnimation}
+                        />
+                    )}
+                </MobileModal>
+            )}
         </Box>
     );
 }
 
 function TaskCollectionViewMobileNavigationBarTitle({
+    isReadOnly,
+    store,
+    collectionId,
     collectionSubscription,
+    createCollection,
+    affinityManager,
+    desktopNameRef,
 }: {
+    isReadOnly: boolean;
+    store: TaskClientStore;
+    collectionId: TaskCollectionId;
     collectionSubscription: TaskClientCollectionSubscription | null;
+    createCollection: (name: string) => Promise<void>;
+    affinityManager: TaskClientStoreSearchAffinityManager;
+    desktopNameRef: RefObject<TaskCollectionViewDesktopHeaderNameRef>;
 }) {
+    const isMobile = useIsMobile();
+
     const collectionEntry = useStore(collectionSubscription?.collectionEntryStore ?? null);
-    const collection = collectionEntry?.collection;
-    return (
-        <>
-            <Box
-                display="inline-flex"
-                alignItems="center"
-                marginRight="1.5"
-                style={{height: "1lh", verticalAlign: "top"}}
-            >
+    const collection = collectionEntry?.collection ?? null;
+
+    if (isMobile) {
+        return (
+            <>
                 <Box
-                    width="2"
-                    height="2"
-                    borderRadius="full"
-                    backgroundColor={getTaskCollectionColor(collection?.getColor() ?? null)}
-                />
-            </Box>
-            {collection?.getName() ?? ""}
-        </>
+                    display="inline-flex"
+                    alignItems="center"
+                    marginRight="1.5"
+                    style={{height: "1lh", verticalAlign: "top"}}
+                >
+                    <Box
+                        width="2"
+                        height="2"
+                        borderRadius="full"
+                        backgroundColor={getTaskCollectionColor(collection?.getColor() ?? null)}
+                    />
+                </Box>
+                {collection?.getName() ?? ""}
+            </>
+        );
+    }
+
+    return (
+        <TaskCollectionViewDesktopHeaderName
+            ref={desktopNameRef}
+            isReadOnly={isReadOnly}
+            store={store}
+            collectionId={collectionId}
+            isCreatingCollection={!collectionSubscription}
+            collection={collection}
+            createCollection={createCollection}
+            affinityManager={affinityManager}
+        />
     );
 }

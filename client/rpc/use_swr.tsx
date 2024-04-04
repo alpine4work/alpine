@@ -1,10 +1,10 @@
 import {ReactNode, createContext, useContext, useEffect, useRef, useState} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
+import {undefinedStore} from "~/client/helpers/store/const_store.js";
 import {createPromiseStore} from "~/client/helpers/store/promise_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
-import {undefinedStore} from "~/client/helpers/store/undefined_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseState} from "~/shared/helpers/async/promise_state.js";

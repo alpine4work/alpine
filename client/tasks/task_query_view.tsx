@@ -263,7 +263,10 @@ export function TaskQueryView({
 
     const [sorts, _setSorts] = useState(initialSorts);
 
-    const {updateFilters, setSorts} = useEvents({
+    const {undoEvent, redoEvent, updateFilters, setSorts} = useEvents({
+        undoEvent: () => undo(),
+        redoEvent: () => redo(),
+
         updateFilters: (
             filters: ReadonlyArray<TaskQueryFilter>,
             {
@@ -331,9 +334,6 @@ export function TaskQueryView({
     });
 
     const [shouldShowEditNameMobileModal, setShouldShowEditNameMobileModal] = useState(false);
-
-    const undoEvent = useEvent(() => undo());
-    const redoEvent = useEvent(() => redo());
 
     const menuActions = useMemo(() => {
         const menuActions: Array<Array<MenuAction>> = [];

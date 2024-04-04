@@ -1,16 +1,12 @@
-import {DotsThreeVertical, Lock, LockOpen} from "phosphor-react";
-import {Memo, useMemo, useRef} from "react";
-import {useAppContext} from "~/client/context/app_context.js";
+import {DotsThreeVertical} from "phosphor-react";
+import {Memo, Ref, forwardRef, useImperativeHandle, useMemo, useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {ShareButton} from "~/client/design/share_button.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
-import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     TaskCollectionViewDesktopHeaderName,
     TaskCollectionViewDesktopHeaderNameRef,
@@ -36,166 +32,66 @@ import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
-export function TaskCollectionViewDesktopHeader({
-    store,
-    collectionId,
-    collectionSubscription,
-    affinityManager,
-    createCollection,
-    isReadOnly,
-    defaultOrderSentence,
-    filters,
-    filterReferences,
-    onFiltersChange,
-    sorts,
-    onSortsChange,
-}: {
-    store: TaskClientStore;
-    collectionId: TaskCollectionId;
-    // If `collectionSubscription` is null, that means we are creating a
-    // new collection.
-    collectionSubscription: TaskClientCollectionSubscription | null;
-    affinityManager: TaskClientStoreSearchAffinityManager;
-    createCollection: Memo<(name: string) => Promise<void>>;
-    isReadOnly: boolean;
-    defaultOrderSentence: string;
-    filters: ReadonlyArray<TaskQueryFilter>;
-    filterReferences: TaskQueryFilterReferences;
-    onFiltersChange: (
-        filters: ReadonlyArray<TaskQueryFilter>,
-        options?: {mergeFilterReferences?: TaskQueryFilterReferences},
-    ) => void;
-    sorts: ReadonlyArray<TaskQuerySort>;
-    onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
-}) {
+export type TaskCollectionViewDesktopHeaderRef = {
+    editName(): void;
+    editColor(): void;
+};
+
+const TaskCollectionViewDesktopHeaderForwardRef = forwardRef(TaskCollectionViewDesktopHeader);
+export {TaskCollectionViewDesktopHeaderForwardRef as TaskCollectionViewDesktopHeader};
+
+function TaskCollectionViewDesktopHeader(
+    {
+        store,
+        collectionId,
+        collectionSubscription,
+        affinityManager,
+        createCollection,
+        isReadOnly,
+        defaultOrderSentence,
+        menuActions,
+        filters,
+        filterReferences,
+        onFiltersChange,
+        sorts,
+        onSortsChange,
+    }: {
+        store: TaskClientStore;
+        collectionId: TaskCollectionId;
+        // If `collectionSubscription` is null, that means we are creating a
+        // new collection.
+        collectionSubscription: TaskClientCollectionSubscription | null;
+        affinityManager: TaskClientStoreSearchAffinityManager;
+        createCollection: Memo<(name: string) => Promise<void>>;
+        isReadOnly: boolean;
+        defaultOrderSentence: string;
+        menuActions: ReadonlyArray<ReadonlyArray<MenuAction>>;
+        filters: ReadonlyArray<TaskQueryFilter>;
+        filterReferences: TaskQueryFilterReferences;
+        onFiltersChange: (
+            filters: ReadonlyArray<TaskQueryFilter>,
+            options?: {mergeFilterReferences?: TaskQueryFilterReferences},
+        ) => void;
+        sorts: ReadonlyArray<TaskQuerySort>;
+        onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
+    },
+    ref: Ref<TaskCollectionViewDesktopHeaderRef>,
+) {
     const isMobile = useIsMobile();
-    const context = useAppContext();
-    const {space, currentAccount} = useSpaceContext();
-    const navigate = useNavigate();
 
     const nameRef = useRef<TaskCollectionViewDesktopHeaderNameRef>(null);
 
+    useImperativeHandle(
+        ref,
+        () => ({
+            editName: () => assertExists(nameRef.current).editName(),
+            editColor: () => assertExists(nameRef.current).editColor(),
+        }),
+        [],
+    );
+
     const collectionEntry = useStore(collectionSubscription?.collectionEntryStore ?? null);
     const collection = collectionEntry?.collection ?? null;
-
-    const menuActions: Array<ReadonlyArray<MenuAction>> = [];
-
-    menuActions.push([
-        {
-            label: "Copy link",
-            pressErrorTitle: "Couldn’t copy collection link",
-            onPress: async () => {
-                const url = new URL(
-                    `/s/${space.id}/tasks/collections/${collectionId}`,
-                    window.location.href,
-                );
-                await writeTextToClipboard(url.toString());
-            },
-        },
-    ]);
-
-    if (!isReadOnly) {
-        // Even though you can edit the collection name by double clicking and the
-        // color by clicking on the dot, we still include menu items since these
-        // interactions aren't necessarily obvious.
-        //
-        // Also, the color and name are not focusable. So the only way to edit
-        // name/color via keyboard are these menu items.
-        menuActions.push([
-            {
-                label: "Edit name",
-                onPress: () => assertExists(nameRef.current).editName(),
-            },
-            {
-                label: "Edit color",
-                onPress: () => assertExists(nameRef.current).editColor(),
-            },
-        ]);
-
-        const isPrivate = !collection?.getAccessPolicy().defaultGrant;
-
-        // TODO(calebmer): Collections support more involved permission rules than just
-        // public/private. Eventually I want a full sharing dialog (like in Google
-        // Docs) but I want that sharing dialog to work across all stuff in the space.
-        // Including docs and channels.
-        menuActions.push([
-            {
-                label: isPrivate ? "Make public" : "Make private",
-                icon: isPrivate ? <LockOpen /> : <Lock />,
-                iconPlacement: "end",
-                onPress: () => {
-                    if (isPrivate) {
-                        store.commitTaskActionTransaction(
-                            context,
-                            [
-                                {
-                                    type: "UpdateCollection",
-                                    time: store.clock.now(),
-                                    collectionId,
-                                    collectionAction: {
-                                        type: "UpdateAccessPolicy",
-                                        accessPolicy: {
-                                            accountGrantById: new Map([
-                                                [currentAccount.id, {level: "Manage"}],
-                                            ]),
-                                            defaultGrant: {type: "Space", level: "Manage"},
-                                        },
-                                    },
-                                },
-                            ],
-                            // Collection changes can't be undone.
-                            {undoManager: null, affinityManager},
-                        );
-                    } else {
-                        store.commitTaskActionTransaction(
-                            context,
-                            [
-                                {
-                                    type: "UpdateCollection",
-                                    time: store.clock.now(),
-                                    collectionId,
-                                    collectionAction: {
-                                        type: "UpdateAccessPolicy",
-                                        accessPolicy: {
-                                            accountGrantById: new Map([
-                                                [currentAccount.id, {level: "Manage"}],
-                                            ]),
-                                            defaultGrant: null,
-                                        },
-                                    },
-                                },
-                            ],
-                            // Collection changes can't be undone.
-                            {undoManager: null, affinityManager},
-                        );
-                    }
-                },
-            },
-        ]);
-
-        menuActions.push([
-            {
-                label: "Delete",
-                onPress: () => {
-                    store.commitTaskActionTransaction(
-                        context,
-                        [
-                            {
-                                type: "UpdateCollection",
-                                time: store.clock.now(),
-                                collectionId,
-                                collectionAction: {type: "Delete"},
-                            },
-                        ],
-                        // Collection changes can't be undone.
-                        {undoManager: null, affinityManager},
-                    );
-
-                    void navigate(-1);
-                },
-            },
-        ]);
-    }
 
     // We want to baseline align our `fontSize="200"` collection name with our
     // centered `fontSize="75"` customization bar (filters and sort). Calculate

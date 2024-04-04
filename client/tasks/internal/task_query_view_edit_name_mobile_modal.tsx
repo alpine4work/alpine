@@ -65,7 +65,11 @@ export function TaskQueryViewEditNameMobileModal({
                 <Box fontSize="100" fontStyle="semi-bold">
                     Edit name
                 </Box>
-                <Button fontSize="100" isDisabled={!hasNameChanged} onPress={save}>
+                <Button
+                    fontSize="100"
+                    isDisabled={!hasNameChanged || name.trim().length === 0}
+                    onPress={save}
+                >
                     Save
                 </Button>
             </Box>

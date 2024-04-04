@@ -3,8 +3,7 @@ import createTree, {
     Iterator as TreeIterator,
     Node as TreeNode,
 } from "functional-red-black-tree";
-import {ConstStore} from "~/client/helpers/store/const_store.js";
-import {nullStore} from "~/client/helpers/store/null_store.js";
+import {ConstStore, nullStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {flatMapTreeStoreValues} from "~/client/helpers/store/tree_store.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";

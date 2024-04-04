@@ -5,6 +5,7 @@ import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
 import {disableMobileWebKitDefaultScroll} from "~/client/helpers/disable_mobile_web_kit_default_scroll.js";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
@@ -63,6 +64,17 @@ export function MobileModal({
     const lastAnimationForLayoutEffectRef = useRef<MobileModalAnimation>(null);
 
     const onCloseWithAnimation = useCallback(() => {
+        // Courtesy blur call if the focused element is in the overlay. Useful on
+        // mobile Safari since if the focused element is removed from the DOM there
+        // won't be a `focusout` event.
+        if (
+            modalRef.current &&
+            document.activeElement instanceof HTMLElement &&
+            isElementOwnedBy(modalRef.current, document.activeElement)
+        ) {
+            document.activeElement.blur();
+        }
+
         setAnimation("Dismissing");
     }, []);
 

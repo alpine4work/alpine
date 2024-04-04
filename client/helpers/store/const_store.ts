@@ -21,3 +21,8 @@ export class ConstStore<Value> extends Store<Value> {
     public _addWeakImmediateListener() {}
     public _removeWeakImmediateListener() {}
 }
+
+export const nullStore = new ConstStore(null);
+export const undefinedStore = new ConstStore(undefined);
+export const trueStore = new ConstStore(true);
+export const falseStore = new ConstStore(false);

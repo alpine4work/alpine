@@ -296,6 +296,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleMaxWidth,
     desktopTitleFontSize = "200",
     desktopTitleFontWeight = "semi-bold",
+    desktopTitleLeftSlop,
 }: {
     /**
      * A ref for interacting with the navigation bar when mounted.
@@ -390,6 +391,13 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
      * Font weight to use for the title on desktop.
      */
     desktopTitleFontWeight?: "semi-bold" | "bold";
+
+    /**
+     * Slop we add to the left of the title element. You can use this if you don't
+     * want the title's `overflow="hidden"` to clip some UI the title renders to
+     * the left.
+     */
+    desktopTitleLeftSlop?: Spacing;
 }): NavigationBarResult {
     const isMobile = useIsMobile();
 
@@ -460,6 +468,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             desktopTitleMaxWidth={desktopTitleMaxWidth}
             desktopTitleFontSize={desktopTitleFontSize}
             desktopTitleFontWeight={desktopTitleFontWeight}
+            desktopTitleLeftSlop={desktopTitleLeftSlop}
         />
     );
 
@@ -490,6 +499,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleMaxWidth: desktopTitleMaxWidthProp,
     desktopTitleFontSize,
     desktopTitleFontWeight,
+    desktopTitleLeftSlop,
 }: {
     isMobile: boolean;
     withMobileLayout: boolean;
@@ -509,6 +519,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleMaxWidth: Spacing | RemLength | undefined;
     desktopTitleFontSize: FontSize;
     desktopTitleFontWeight: "semi-bold" | "bold";
+    desktopTitleLeftSlop: Spacing | undefined;
 }) {
     const navigate = useNavigate();
     const {isAppleDevice, isNativeMobile} = useClientInfo();
@@ -1219,6 +1230,16 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                         pointerEvents={
                                             withoutDisappearingTitle ? "auto" : undefined
                                         }
+                                        paddingLeft={
+                                            !isMobile && desktopTitleLeftSlop !== undefined
+                                                ? desktopTitleLeftSlop
+                                                : undefined
+                                        }
+                                        marginLeft={
+                                            !isMobile && desktopTitleLeftSlop !== undefined
+                                                ? `-${desktopTitleLeftSlop}`
+                                                : undefined
+                                        }
                                     >
                                         <Box
                                             overflow="hidden"
@@ -1230,6 +1251,16 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                                     : `truncate-${desktopTitleFontWeight}`
                                             }
                                             userSelect={!isMobile ? "text" : undefined}
+                                            paddingLeft={
+                                                !isMobile && desktopTitleLeftSlop !== undefined
+                                                    ? desktopTitleLeftSlop
+                                                    : undefined
+                                            }
+                                            marginLeft={
+                                                !isMobile && desktopTitleLeftSlop !== undefined
+                                                    ? `-${desktopTitleLeftSlop}`
+                                                    : undefined
+                                            }
                                         >
                                             {title}
                                         </Box>

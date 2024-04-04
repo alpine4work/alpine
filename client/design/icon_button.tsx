@@ -131,6 +131,11 @@ function IconButton(
         borderRadius?: "full" | "sm";
 
         /**
+         * Manually override the button's background color.
+         */
+        backgroundColor?: Sprinkles["backgroundColor"];
+
+        /**
          * Don't show a tooltip when hovering over this icon button.
          *
          * Defaults to `false`.
@@ -218,6 +223,7 @@ function IconButton(
         isPending: isPendingFromProps,
         isPressed: isPressedFromProps,
         borderRadius = "full",
+        backgroundColor: backgroundColorFromProps,
         children,
         isDisabled = false,
         withoutTooltip = false,
@@ -471,6 +477,9 @@ function IconButton(
                             position: "relative",
                             zIndex: "0",
                             ...stylesByVariant[variant],
+                            backgroundColor:
+                                backgroundColorFromProps ??
+                                stylesByVariant[variant].backgroundColor,
                         })}
                         style={{
                             // Use a box-shadow for drawing the border so it doesn't affect layout.
