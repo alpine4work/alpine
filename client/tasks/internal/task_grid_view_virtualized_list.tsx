@@ -360,6 +360,16 @@ export function useTaskGridViewVirtualizedList({
     pushRedoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
 
     /**
+     * (Optional) Apply the last undo stack entry.
+     */
+    undo: () => void;
+
+    /**
+     * (Optional) Redo the last undo stack entry.
+     */
+    redo: () => void;
+
+    /**
      * (Optional) Returns the current `remPx` value for convenience.
      */
     remPx: number;
@@ -1747,6 +1757,10 @@ export function useTaskGridViewVirtualizedList({
                     // animations overlap, does a non-linear easing look janky since we restart the
                     // curve whenever there's a new animation?
                     easing: "linear",
+                    // Make sure we use hardware acceleration for this animation in WebKit. By
+                    // default `motion` turns it off.
+                    // https://motion.dev/guides/performance#webkits-exceptions
+                    allowWebkitAcceleration: true,
                 },
             );
 
@@ -2226,6 +2240,8 @@ export function useTaskGridViewVirtualizedList({
         pushUndoStackEntry: events.pushUndoStackEntry,
         pushUndoStackEntryFromRedo: events.pushUndoStackEntryFromRedo,
         pushRedoStackEntry: events.pushRedoStackEntry,
+        undo,
+        redo,
         remPx,
     };
 }

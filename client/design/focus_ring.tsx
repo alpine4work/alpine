@@ -44,6 +44,7 @@ const overlayClassName = sprinkles({
 function FocusRing(
     {
         offset,
+        inset,
         insetX,
         insetY,
         insetBottom,
@@ -69,7 +70,15 @@ function FocusRing(
         offset?: Spacing | "border" | "inset";
 
         /**
-         * How far in on the X axis we should inset our focus ring?
+         * How far in should we inset our focus ring?
+         *
+         * This will be subtracted from `offset`. So the true offset is
+         * `offset - inset`.
+         */
+        inset?: Spacing;
+
+        /**
+         * How far in on the X axis we should we inset our focus ring?
          *
          * This will be subtracted from `offset`. So the true offset on the X axis is
          * `offset - insetX`.
@@ -77,7 +86,7 @@ function FocusRing(
         insetX?: Spacing;
 
         /**
-         * How far in on the Y axis we should inset our focus ring?
+         * How far in on the Y axis we should we inset our focus ring?
          *
          * This will be subtracted from `offset`. So the true offset on the Y axis is
          * `offset - insetY`.
@@ -192,6 +201,7 @@ function FocusRing(
                 >
                     <FocusRingBox
                         offset={offset}
+                        inset={inset}
                         insetX={insetX}
                         insetY={insetY}
                         insetBottom={insetBottom}
@@ -384,6 +394,7 @@ export function useIsChildFocusRingVisible(): [
 
 export function FocusRingBox({
     offset = "0.5",
+    inset: insetProp,
     insetX: insetXProp,
     insetY: insetYProp,
     insetTop: insetTopProp,
@@ -393,6 +404,7 @@ export function FocusRingBox({
     targetRef,
 }: {
     offset?: Spacing | "border" | "inset";
+    inset?: Spacing;
     insetX?: Spacing;
     insetY?: Spacing;
     insetTop?: Spacing;
@@ -401,10 +413,10 @@ export function FocusRingBox({
     insetRight?: Spacing;
     targetRef: RefObject<HTMLElement | null>;
 }) {
-    const insetTop = insetTopProp ?? insetYProp ?? "0";
-    const insetBottom = insetBottomProp ?? insetYProp ?? "0";
-    const insetLeft = insetLeftProp ?? insetXProp ?? "0";
-    const insetRight = insetRightProp ?? insetXProp ?? "0";
+    const insetTop = insetTopProp ?? insetYProp ?? insetProp ?? "0";
+    const insetBottom = insetBottomProp ?? insetYProp ?? insetProp ?? "0";
+    const insetLeft = insetLeftProp ?? insetXProp ?? insetProp ?? "0";
+    const insetRight = insetRightProp ?? insetXProp ?? insetProp ?? "0";
 
     const ringRef = useRef<HTMLDivElement>(null);
 

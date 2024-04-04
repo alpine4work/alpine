@@ -332,6 +332,9 @@ export function TaskQueryView({
 
     const [shouldShowEditNameMobileModal, setShouldShowEditNameMobileModal] = useState(false);
 
+    const undoEvent = useEvent(() => undo());
+    const redoEvent = useEvent(() => redo());
+
     const menuActions = useMemo(() => {
         const menuActions: Array<Array<MenuAction>> = [];
 
@@ -377,8 +380,19 @@ export function TaskQueryView({
             },
         ]);
 
+        menuActions.push([
+            {
+                label: "Undo",
+                onPress: undoEvent,
+            },
+            {
+                label: "Redo",
+                onPress: redoEvent,
+            },
+        ]);
+
         return menuActions;
-    }, [filters, isMobile, name, sorts, space.id, withMobileLayout]);
+    }, [filters, isMobile, name, redoEvent, sorts, space.id, undoEvent, withMobileLayout]);
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
@@ -463,6 +477,8 @@ export function TaskQueryView({
         scrollbarInsetTopItemIndex: scrollbarInsetTopGridViewItemIndex,
         onGlobalKeyDown: onGridViewGlobalKeyDown,
         focusEnd: focusGridViewEnd,
+        undo,
+        redo,
     } = useTaskGridViewVirtualizedList({
         capabilities: useMemo(() => {
             if (!withMobileLayout) {
@@ -600,7 +616,6 @@ export function TaskQueryView({
         ]),
     });
 
-    // NOCOMMIT: Put undo/redo in more actions
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         isDisabled: !withMobileLayout,
         withMobileLayout,
