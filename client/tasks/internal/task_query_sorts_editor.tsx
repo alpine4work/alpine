@@ -18,7 +18,6 @@ import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {TaskMissingAccountAvatar} from "~/client/tasks/internal/task_missing_account_avatar.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -378,8 +377,6 @@ function TaskQuerySortsEditorRowBase({
     withMobileLayout: boolean;
     children?: ReactNode;
 }) {
-    const isMobile = useIsMobile();
-
     const {
         attributes: sortableAttributes,
         listeners: sortableListeners,
@@ -396,7 +393,7 @@ function TaskQuerySortsEditorRowBase({
             position="relative"
             zIndex="20" // Renders over dividers
             paddingLeft={withMobileLayout ? "3" : "2.5"}
-            paddingRight={withMobileLayout ? (isMobile ? "1.5" : "2.5") : "2.5"}
+            paddingRight={withMobileLayout ? "1.5" : "2.5"}
             display="flex"
             alignItems="center"
             backgroundColor={isDragOverlay ? "grey-0" : undefined}
@@ -445,15 +442,15 @@ function TaskQuerySortsEditorRowBase({
                 flexShrink="0"
                 display="flex"
                 alignItems="center"
-                gap={isMobile ? "1" : "0.5"}
+                gap={withMobileLayout ? "1" : "0.5"}
                 paddingLeft="3"
             >
                 <button
                     {...mergeProps(sortableAttributes, sortableListeners ?? {})}
                     className={sprinkles({
-                        width: isMobile ? "9" : "4",
-                        height: isMobile ? "9" : "4",
-                        margin: isMobile ? "-1.5" : undefined,
+                        width: withMobileLayout ? "9" : "4",
+                        height: withMobileLayout ? "9" : "4",
+                        margin: withMobileLayout ? "-1.5" : undefined,
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
@@ -464,10 +461,10 @@ function TaskQuerySortsEditorRowBase({
                     // not done with tab navigation.
                     tabIndex={-1}
                 >
-                    <DotsSixVertical size={spacing[isMobile ? "4" : "3"]} />
+                    <DotsSixVertical size={spacing[withMobileLayout ? "4" : "3"]} />
                 </button>
                 <IconButton
-                    size={isMobile ? "md" : "xs"}
+                    size={withMobileLayout ? "md" : "xs"}
                     borderRadius={withMobileLayout ? "sm" : undefined}
                     description="Delete"
                     withoutTooltip={true}
@@ -489,8 +486,6 @@ function TaskQuerySortsEditorRowStatusDirection({
     onDirectionChange: (direction: "Ascending" | "Descending") => void;
     withMobileLayout: boolean;
 }) {
-    const isMobile = useIsMobile();
-
     const ascendingLabel = "Open → Closed";
     const descendingLabel = "Closed → Open";
 
@@ -512,7 +507,7 @@ function TaskQuerySortsEditorRowStatusDirection({
             <Button
                 variant="quieter"
                 height={withMobileLayout ? "full" : "5"}
-                paddingX={isMobile ? "2" : "1.5"}
+                paddingX={withMobileLayout ? "2" : "1.5"}
                 icon={<CaretDown />}
                 iconPlacement="end"
             >
@@ -531,8 +526,6 @@ function TaskQuerySortsEditorRowPriorityDirection({
     onDirectionChange: (direction: "Ascending" | "Descending") => void;
     withMobileLayout: boolean;
 }) {
-    const isMobile = useIsMobile();
-
     const ascendingLabel = "Low → High";
     const descendingLabel = "High → Low";
 
@@ -554,7 +547,7 @@ function TaskQuerySortsEditorRowPriorityDirection({
             <Button
                 variant="quieter"
                 height={withMobileLayout ? "full" : "5"}
-                paddingX={isMobile ? "2" : "1.5"}
+                paddingX={withMobileLayout ? "2" : "1.5"}
                 icon={<CaretDown />}
                 iconPlacement="end"
             >
@@ -573,8 +566,6 @@ function TaskQuerySortsEditorRowAccountMissing({
     onMissingChange: (missing: "First" | "Last") => void;
     withMobileLayout: boolean;
 }) {
-    const isMobile = useIsMobile();
-
     return (
         <MenuButton
             actions={[
@@ -593,7 +584,7 @@ function TaskQuerySortsEditorRowAccountMissing({
             <Button
                 variant="quieter"
                 height={withMobileLayout ? "full" : "5"}
-                paddingX={isMobile ? "2" : "1.5"}
+                paddingX={withMobileLayout ? "2" : "1.5"}
                 icon={<CaretDown />}
                 iconPlacement="end"
             >
@@ -615,8 +606,6 @@ function TaskQuerySortsEditorRowDateDirection({
     onDirectionChange: (direction: "Ascending" | "Descending") => void;
     withMobileLayout: boolean;
 }) {
-    const isMobile = useIsMobile();
-
     const ascendingLabel = "Jan 1 → Dec 31";
     const descendingLabel = "Dec 31 → Jan 1";
 
@@ -638,7 +627,7 @@ function TaskQuerySortsEditorRowDateDirection({
             <Button
                 variant="quieter"
                 height={withMobileLayout ? "full" : "5"}
-                paddingX={isMobile ? "2" : "1.5"}
+                paddingX={withMobileLayout ? "2" : "1.5"}
                 icon={<CaretDown />}
                 iconPlacement="end"
             >

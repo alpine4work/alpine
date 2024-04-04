@@ -811,6 +811,38 @@ function getSearchResultDestination(
                 path: `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
             };
         }
+        case "TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive": {
+            const nameSearchParam = encodeURIComponent("Active tasks assigned to me");
+
+            const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
+                    },
+                },
+                {
+                    type: "DisplayStatus",
+                    operation: {
+                        type: "OneOf",
+                        displayStatuses: new Set(["OpenActive"]),
+                    },
+                },
+            ]);
+
+            const sortsSearchParam = serializeTaskQuerySortsSearchParam([
+                {
+                    type: "ActivatedTime",
+                    direction: "Descending",
+                },
+            ]);
+
+            return {
+                type: "Path",
+                path: `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
+            };
+        }
         case "TaskQueryFilteredToAssignerIsCurrentAccount": {
             const nameSearchParam = encodeURIComponent("Tasks I’ve assigned to others");
 

@@ -382,8 +382,6 @@ function TaskQueryCollectionsFilterOperationEditorPreview({
     conjunction: "or" | "and";
     collectionResults: ReadonlyArray<TaskCollectionModelSearchResult>;
 }) {
-    const isMobile = useIsMobile();
-
     const previewCollections = useMemo(() => {
         const graphemeSplitter = new GraphemeSplitter();
 
@@ -428,20 +426,6 @@ function TaskQueryCollectionsFilterOperationEditorPreview({
                     {conjunction}
                 </Box>
                 {previewCollections[1]}
-            </>
-        );
-    }
-    // Peeks which have `withMobileLayout: true` can fit three collections.
-    else if (isMobile) {
-        return (
-            <>
-                {previewCollections[0]}
-                <Box color="grey-60" paddingX="1" style={{whiteSpace: "nowrap"}}>
-                    {conjunction}
-                </Box>
-                <Box style={{whiteSpace: "nowrap"}}>
-                    <PrettyNumber number={collectionResults.length - 1} label="other" />
-                </Box>
             </>
         );
     } else {

@@ -29,6 +29,10 @@ import {
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {
+    TaskQueryViewCustomizationBar,
+    TaskQueryViewCustomizationBarRef,
+} from "~/client/tasks/internal/task_query_view_customization_bar.js";
+import {
     TaskQueryViewCustomizationMobileSection,
     TaskQueryViewCustomizationMobileSectionRef,
 } from "~/client/tasks/internal/task_query_view_customization_mobile_section.js";
@@ -40,10 +44,12 @@ import {
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/task_client_store.js";
 import {createTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/task_query_view.js";
+import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
+    VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -457,7 +463,7 @@ export function TaskCollectionView({
             // We do this for peeks too.
             if (withMobileLayout) return;
 
-            // NOCOMMIT: Copy link menu action?
+            // NOCOMMIT: Copy link menu action include filters?
 
             return {
                 minHeight:
@@ -520,14 +526,13 @@ export function TaskCollectionView({
         ]),
     });
 
-    const queryCustomizationMobileSectionRef =
-        useRef<TaskQueryViewCustomizationMobileSectionRef>(null);
-    const [queryCustomizationMobileSectionState, setQueryCustomizationMobileSectionState] =
-        useState<{initiallyFocus: "AddFilter" | "AddSort" | null} | null>(
-            filters.length > 0 || sorts.length > 0 ? {initiallyFocus: null} : null,
-        );
-    if (!queryCustomizationMobileSectionState && (filters.length > 0 || sorts.length > 0)) {
-        setQueryCustomizationMobileSectionState({initiallyFocus: null});
+    const desktopCustomizationBarRef = useRef<TaskQueryViewCustomizationBarRef>(null);
+    const mobileCustomizationSectionRef = useRef<TaskQueryViewCustomizationMobileSectionRef>(null);
+    const [customizationState, setCustomizationState] = useState<{
+        initiallyFocus: "AddFilter" | "AddSort" | null;
+    } | null>(filters.length > 0 || sorts.length > 0 ? {initiallyFocus: null} : null);
+    if (!customizationState && (filters.length > 0 || sorts.length > 0)) {
+        setCustomizationState({initiallyFocus: null});
     }
 
     // NOCOMMIT: Put undo/redo in more actions
@@ -550,12 +555,18 @@ export function TaskCollectionView({
                         // Make sure the filter/sort section is visible.
                         assertExists(viewRef.current).setScrollOffset(0);
 
-                        if (!queryCustomizationMobileSectionState) {
-                            setQueryCustomizationMobileSectionState({initiallyFocus: "AddFilter"});
+                        if (!customizationState) {
+                            setCustomizationState({initiallyFocus: "AddFilter"});
                         } else {
-                            assertExists(
-                                queryCustomizationMobileSectionRef.current,
-                            ).openAddFilterMenu();
+                            if (isMobile) {
+                                assertExists(
+                                    mobileCustomizationSectionRef.current,
+                                ).openAddFilterMenu();
+                            } else {
+                                assertExists(
+                                    desktopCustomizationBarRef.current,
+                                ).openAddFilterMenu();
+                            }
                         }
                     },
                 },
@@ -565,18 +576,87 @@ export function TaskCollectionView({
                         // Make sure the filter/sort section is visible.
                         assertExists(viewRef.current).setScrollOffset(0);
 
-                        if (!queryCustomizationMobileSectionState) {
-                            setQueryCustomizationMobileSectionState({initiallyFocus: "AddSort"});
+                        if (!customizationState) {
+                            setCustomizationState({initiallyFocus: "AddSort"});
                         } else {
-                            assertExists(
-                                queryCustomizationMobileSectionRef.current,
-                            ).openAddSortsMenu();
+                            if (isMobile) {
+                                assertExists(
+                                    mobileCustomizationSectionRef.current,
+                                ).openAddSortMenu();
+                            } else {
+                                assertExists(desktopCustomizationBarRef.current).openAddSortMenu();
+                            }
                         }
                     },
                 },
             ],
         ],
     });
+
+    const renderItem: VirtualizedScrollViewRenderItem = useCallback(
+        index => {
+            if (withMobileLayout && index === 0) {
+                return {
+                    key: "CustomizationBar",
+                    minHeight: spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
+                    node: (
+                        <Box style={{paddingTop: "var(--safe-area-inset-top, 0px)"}}>
+                            <Box height={navigationBarHeight} />
+                            {customizationState &&
+                                (isMobile ? (
+                                    <TaskQueryViewCustomizationMobileSection
+                                        ref={mobileCustomizationSectionRef}
+                                        store={store}
+                                        initiallyFocus={customizationState.initiallyFocus}
+                                        defaultOrderSentence={defaultOrderSentence}
+                                        filters={filters}
+                                        filterReferences={filterReferences}
+                                        onFiltersChange={updateFilters}
+                                        sorts={sorts}
+                                        onSortsChange={setSorts}
+                                    />
+                                ) : (
+                                    <Box
+                                        paddingX={taskRowViewPaddingX}
+                                        paddingTop="1"
+                                        paddingBottom="6"
+                                    >
+                                        <TaskQueryViewCustomizationBar
+                                            ref={desktopCustomizationBarRef}
+                                            store={store}
+                                            shouldCollapseWhenFiltersAreEmpty={true}
+                                            defaultOrderSentence={defaultOrderSentence}
+                                            filters={filters}
+                                            filterReferences={filterReferences}
+                                            onFiltersChange={updateFilters}
+                                            sorts={sorts}
+                                            onSortsChange={setSorts}
+                                            initiallyFocus={customizationState.initiallyFocus}
+                                        />
+                                    </Box>
+                                ))}
+                        </Box>
+                    ),
+                };
+            }
+
+            return renderGridViewItem(index - itemCountBeforeGridView);
+        },
+        [
+            defaultOrderSentence,
+            filterReferences,
+            filters,
+            isMobile,
+            itemCountBeforeGridView,
+            customizationState,
+            renderGridViewItem,
+            setSorts,
+            sorts,
+            store,
+            updateFilters,
+            withMobileLayout,
+        ],
+    );
 
     return (
         <Box
@@ -631,57 +711,7 @@ export function TaskCollectionView({
                             ? scrollbarInsetTopGridViewItemIndex + itemCountBeforeGridView
                             : undefined
                     }
-                    renderItem={useCallback(
-                        index => {
-                            if (withMobileLayout && index === 0) {
-                                return {
-                                    key: "CustomizationBar",
-                                    minHeight:
-                                        spacing[
-                                            navigationBarHeight[isMobile ? "mobile" : "desktop"]
-                                        ],
-                                    node: (
-                                        <Box
-                                            style={{paddingTop: "var(--safe-area-inset-top, 0px)"}}
-                                        >
-                                            <Box height={navigationBarHeight} />
-                                            {queryCustomizationMobileSectionState && (
-                                                <TaskQueryViewCustomizationMobileSection
-                                                    ref={queryCustomizationMobileSectionRef}
-                                                    store={store}
-                                                    initiallyFocus={
-                                                        queryCustomizationMobileSectionState.initiallyFocus
-                                                    }
-                                                    defaultOrderSentence={defaultOrderSentence}
-                                                    filters={filters}
-                                                    filterReferences={filterReferences}
-                                                    onFiltersChange={updateFilters}
-                                                    sorts={sorts}
-                                                    onSortsChange={setSorts}
-                                                />
-                                            )}
-                                        </Box>
-                                    ),
-                                };
-                            }
-
-                            return renderGridViewItem(index - itemCountBeforeGridView);
-                        },
-                        [
-                            defaultOrderSentence,
-                            filterReferences,
-                            filters,
-                            isMobile,
-                            itemCountBeforeGridView,
-                            queryCustomizationMobileSectionState,
-                            renderGridViewItem,
-                            setSorts,
-                            sorts,
-                            store,
-                            updateFilters,
-                            withMobileLayout,
-                        ],
-                    )}
+                    renderItem={renderItem}
                     onRenderedRangeChange={range => {
                         onGridViewRenderedRangeChange(shiftRenderedRangeForGridView(range));
                     }}

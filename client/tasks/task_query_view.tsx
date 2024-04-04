@@ -28,6 +28,10 @@ import {
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {createTaskQueryCollectionsFilterCollectionResultsStore} from "~/client/tasks/internal/task_query_collections_filter_operation_editor.js";
 import {
+    TaskQueryViewCustomizationBar,
+    TaskQueryViewCustomizationBarRef,
+} from "~/client/tasks/internal/task_query_view_customization_bar.js";
+import {
     TaskQueryViewCustomizationMobileSection,
     TaskQueryViewCustomizationMobileSectionRef,
 } from "~/client/tasks/internal/task_query_view_customization_mobile_section.js";
@@ -217,7 +221,8 @@ export function TaskQueryView({
 
     const desktopHeaderRef = useRef<TaskQueryViewDesktopHeaderRef>(null);
     const navigationBarDesktopNameRef = useRef<TaskQueryViewDesktopHeaderNameRef>(null);
-    const customizationMobileSectionRef = useRef<TaskQueryViewCustomizationMobileSectionRef>(null);
+    const mobileCustomizationSectionRef = useRef<TaskQueryViewCustomizationMobileSectionRef>(null);
+    const desktopCustomizationSectionRef = useRef<TaskQueryViewCustomizationBarRef>(null);
 
     const [name, _setName] = useState(initialName);
 
@@ -243,12 +248,16 @@ export function TaskQueryView({
 
         if (!withMobileLayout) {
             assertExists(desktopHeaderRef.current).openFirstCollectionsFilterOperationValue();
+        } else if (isMobile) {
+            assertExists(
+                mobileCustomizationSectionRef.current,
+            ).openFirstCollectionsFilterOperationValue();
         } else {
             assertExists(
-                customizationMobileSectionRef.current,
+                desktopCustomizationSectionRef.current,
             ).openFirstCollectionsFilterOperationValue();
         }
-    }, [shouldOpenFirstCollectionsFilterOperationValueRef, withMobileLayout]);
+    }, [isMobile, shouldOpenFirstCollectionsFilterOperationValueRef, withMobileLayout]);
 
     const [sorts, _setSorts] = useState(initialSorts);
 
@@ -479,6 +488,7 @@ export function TaskQueryView({
         // view instructions.
         withoutDecorativeGhostRowsIfEmpty:
             withMobileLayout &&
+            isMobile &&
             !queryState.activeQuery.isAvailable &&
             queryState.activeQuery.isMissingRequiredFilters,
         // NOTE(calebmer): Currently, all updates which use this are disabled in
@@ -673,19 +683,39 @@ export function TaskQueryView({
                                             style={{paddingTop: "var(--safe-area-inset-top, 0px)"}}
                                         >
                                             <Box height={navigationBarHeight} />
-                                            <TaskQueryViewCustomizationMobileSection
-                                                ref={customizationMobileSectionRef}
-                                                store={store}
-                                                // Filters and sorts are always visible in a query view.
-                                                initialAreFiltersVisible={true}
-                                                initialAreSortsVisible={true}
-                                                defaultOrderSentence={defaultOrderSentence}
-                                                filters={filters}
-                                                filterReferences={filterReferences}
-                                                onFiltersChange={updateFilters}
-                                                sorts={sorts}
-                                                onSortsChange={setSorts}
-                                            />
+                                            {isMobile ? (
+                                                <TaskQueryViewCustomizationMobileSection
+                                                    ref={mobileCustomizationSectionRef}
+                                                    store={store}
+                                                    // Filters and sorts are always visible in a query view.
+                                                    initialAreFiltersVisible={true}
+                                                    initialAreSortsVisible={true}
+                                                    defaultOrderSentence={defaultOrderSentence}
+                                                    filters={filters}
+                                                    filterReferences={filterReferences}
+                                                    onFiltersChange={updateFilters}
+                                                    sorts={sorts}
+                                                    onSortsChange={setSorts}
+                                                />
+                                            ) : (
+                                                <Box
+                                                    paddingX={taskRowViewPaddingX}
+                                                    paddingTop="1"
+                                                    paddingBottom="6"
+                                                >
+                                                    <TaskQueryViewCustomizationBar
+                                                        ref={desktopCustomizationSectionRef}
+                                                        store={store}
+                                                        shouldCollapseWhenFiltersAreEmpty={false}
+                                                        defaultOrderSentence={defaultOrderSentence}
+                                                        filters={filters}
+                                                        filterReferences={filterReferences}
+                                                        onFiltersChange={updateFilters}
+                                                        sorts={sorts}
+                                                        onSortsChange={setSorts}
+                                                    />
+                                                </Box>
+                                            )}
                                         </Box>
                                     ),
                                 };

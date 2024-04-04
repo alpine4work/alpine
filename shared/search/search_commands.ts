@@ -24,6 +24,7 @@ export type SearchCommandId =
     | "TaskNotepad"
     | "TaskQueryFilteredToCreatorIsCurrentAccount"
     | "TaskQueryFilteredToAssigneeIsCurrentAccount"
+    | "TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive"
     | "TaskQueryFilteredToAssignerIsCurrentAccount";
 
 type SearchCommand = {
@@ -77,7 +78,11 @@ const searchCommandById: {
     },
     TaskQueryFilteredToAssigneeIsCurrentAccount: {
         title: "Tasks assigned to me",
-        otherHitTexts: ["assigned tasks", "task views"],
+        otherHitTexts: ["assigned tasks", "my tasks", "task views"],
+    },
+    TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive: {
+        title: "Active tasks assigned to me",
+        otherHitTexts: ["assigned tasks", "active tasks", "my active tasks", "task views"],
     },
     TaskQueryFilteredToAssignerIsCurrentAccount: {
         title: "Tasks I’ve assigned to others",

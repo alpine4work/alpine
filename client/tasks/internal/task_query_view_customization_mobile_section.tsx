@@ -28,7 +28,7 @@ import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 export type TaskQueryViewCustomizationMobileSectionRef = {
     openAddFilterMenu(): void;
-    openAddSortsMenu(): void;
+    openAddSortMenu(): void;
     openFirstCollectionsFilterOperationValue(): void;
 };
 
@@ -110,7 +110,7 @@ function TaskQueryViewCustomizationMobileSection(
                     setAreFiltersVisible(true);
                 }
             },
-            openAddSortsMenu: () => {
+            openAddSortMenu: () => {
                 if (areSortsVisible) {
                     assertExists(addSortMenuRef.current).open();
                 } else {

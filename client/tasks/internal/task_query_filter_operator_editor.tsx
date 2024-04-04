@@ -2,7 +2,6 @@ import {useRef} from "react";
 import {mergeProps, useButton, useHover} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskQueryFilterOperatorEditor({
@@ -16,8 +15,6 @@ export function TaskQueryFilterOperatorEditor({
         | ReadonlyArray<{label: string; isSelected: boolean; onPress: () => void}>
         | ReadonlyArray<ReadonlyArray<{label: string; isSelected: boolean; onPress: () => void}>>;
 }) {
-    const isMobile = useIsMobile();
-
     const buttonRef = useRef<HTMLButtonElement>(null);
     const {buttonProps, isPressed} = useButton({}, buttonRef);
     const {hoverProps, isHovered} = useHover({});
@@ -43,7 +40,7 @@ export function TaskQueryFilterOperatorEditor({
                                 minWidth: "4",
                                 // Add more padding on mobile to make it easier for users to touch small
                                 // operation buttons.
-                                paddingX: isMobile ? "2" : "1",
+                                paddingX: withMobileLayout ? "2" : "1",
                                 display: "flex",
                                 alignItems: "center",
                                 // The hit radius for this button extends within the entire filter editor but

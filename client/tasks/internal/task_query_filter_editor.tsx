@@ -360,8 +360,6 @@ function TaskQueryFilterEditorBase({
     operation: ReactNode;
     onFilterRemove: () => void;
 }) {
-    const isMobile = useIsMobile();
-
     return (
         <Box
             overflow="hidden"
@@ -387,13 +385,11 @@ function TaskQueryFilterEditorBase({
                 style={{
                     // Subtract 1px from our right padding since that's the border width. That
                     // will give us good margin on all sides of the button.
-                    paddingRight: `calc(${
-                        spacing[withMobileLayout ? (isMobile ? "1.5" : "2.5") : "1"]
-                    } - 1px)`,
+                    paddingRight: `calc(${spacing[withMobileLayout ? "1.5" : "1"]} - 1px)`,
                 }}
             >
                 <IconButton
-                    size={isMobile ? "md" : "xs"}
+                    size={withMobileLayout ? "md" : "xs"}
                     description="Remove"
                     withoutTooltip
                     borderRadius="sm"

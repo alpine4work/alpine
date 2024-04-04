@@ -386,6 +386,7 @@ function getSearchResultTypeDisplay(resultId: SearchResultId): SearchResultTypeD
         }
         case "TaskQueryFilteredToCreatorIsCurrentAccount":
         case "TaskQueryFilteredToAssigneeIsCurrentAccount":
+        case "TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive":
         case "TaskQueryFilteredToAssignerIsCurrentAccount": {
             return {name: "Task view"};
         }

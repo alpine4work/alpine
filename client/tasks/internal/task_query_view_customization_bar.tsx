@@ -1,5 +1,13 @@
 import {Plus, SortAscending} from "phosphor-react";
-import {Ref, forwardRef, useImperativeHandle, useMemo, useRef, useState} from "react";
+import {
+    MutableRefObject,
+    Ref,
+    forwardRef,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -9,6 +17,7 @@ import {
     OverlayTriggerButtonRef,
 } from "~/client/design/overlay_trigger_button.js";
 import {Spacer} from "~/client/design/spacer.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {TaskQueryAddFilterMenuButton} from "~/client/tasks/internal/task_query_add_filter_menu_button.js";
 import {TaskQueryAddSortMenuButton} from "~/client/tasks/internal/task_query_add_sort_menu_button.js";
 import {
@@ -33,6 +42,8 @@ const desktopTaskQueryViewCustomizationBarMarginYRem =
 export const desktopTaskQueryViewCustomizationBarMarginY = `${desktopTaskQueryViewCustomizationBarMarginYRem}rem`;
 
 export type TaskQueryViewCustomizationBarRef = {
+    openAddFilterMenu(): void;
+    openAddSortMenu(): void;
     // Throws if no collection filter editor component is mounted. So be careful
     // when calling this function.
     openFirstCollectionsFilterOperationValue(): void;
@@ -51,6 +62,7 @@ function TaskQueryViewCustomizationBar(
         sorts,
         onSortsChange,
         defaultOrderSentence,
+        initiallyFocus = null,
     }: {
         store: TaskClientStore;
         filters: ReadonlyArray<TaskQueryFilter>;
@@ -63,20 +75,51 @@ function TaskQueryViewCustomizationBar(
         sorts: ReadonlyArray<TaskQuerySort>;
         onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
         defaultOrderSentence: string;
+        initiallyFocus?: "AddFilter" | "AddSort" | null;
     },
     ref: Ref<TaskQueryViewCustomizationBarRef>,
 ) {
+    const addFilterMenuRef = useRef<OverlayTriggerButtonRef>(null);
+    const sortsOverlayRef = useRef<OverlayTriggerButtonRef>(null);
+
     const shouldCollapse = shouldCollapseWhenFiltersAreEmpty && filters.length === 0;
 
     const firstCollectionsFilterOperationValueTriggerButtonRef =
         useRef<OverlayTriggerButtonRef>(null);
     let hasUsedFirstCollectionsFilterOperationValueTriggerButtonRef = false;
 
+    const shouldOpenAddFilterMenuRef = useRef(initiallyFocus === "AddFilter");
+    const shouldOpenAddSortMenu1Ref = useRef(initiallyFocus === "AddSort");
+    const shouldOpenAddSortMenu2Ref = useRef(false);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (shouldOpenAddFilterMenuRef.current) {
+            shouldOpenAddFilterMenuRef.current = false;
+            assertExists(addFilterMenuRef.current).open();
+        }
+    }, []);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (shouldOpenAddSortMenu1Ref.current) {
+            shouldOpenAddSortMenu1Ref.current = false;
+            shouldOpenAddSortMenu2Ref.current = true;
+            assertExists(sortsOverlayRef.current).open();
+        }
+    }, []);
+
     useImperativeHandle(
         ref,
         () => ({
-            openFirstCollectionsFilterOperationValue: () =>
-                assertExists(firstCollectionsFilterOperationValueTriggerButtonRef.current).open(),
+            openAddFilterMenu: () => {
+                assertExists(addFilterMenuRef.current).open();
+            },
+            openAddSortMenu: () => {
+                shouldOpenAddSortMenu2Ref.current = true;
+                assertExists(sortsOverlayRef.current).open();
+            },
+            openFirstCollectionsFilterOperationValue: () => {
+                assertExists(firstCollectionsFilterOperationValueTriggerButtonRef.current).open();
+            },
         }),
         [],
     );
@@ -139,6 +182,7 @@ function TaskQueryViewCustomizationBar(
                 })}
                 <Box height={desktopTaskQueryFilterEditorHeight} display="flex" alignItems="center">
                     <TaskQueryAddFilterMenuButton
+                        ref={addFilterMenuRef}
                         onAddFilter={filter => {
                             onFiltersChange([...filters, filter]);
                         }}
@@ -162,6 +206,7 @@ function TaskQueryViewCustomizationBar(
             </Box>
             <Box paddingLeft={!shouldCollapse ? "5" : "2"}>
                 <OverlayTriggerButton
+                    ref={sortsOverlayRef}
                     aria-haspopup={true}
                     overlay={
                         <Box
@@ -175,6 +220,7 @@ function TaskQueryViewCustomizationBar(
                                 sorts={sorts}
                                 onSortsChange={onSortsChange}
                                 defaultOrderSentence={defaultOrderSentence}
+                                shouldOpenAddSortMenu2Ref={shouldOpenAddSortMenu2Ref}
                             />
                         </Box>
                     }
@@ -202,11 +248,15 @@ function TaskQueryViewCustomizationBarSortsOverlay({
     sorts,
     onSortsChange,
     defaultOrderSentence,
+    shouldOpenAddSortMenu2Ref,
 }: {
     sorts: ReadonlyArray<TaskQuerySort>;
     onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
     defaultOrderSentence: string;
+    shouldOpenAddSortMenu2Ref: MutableRefObject<boolean>;
 }) {
+    const addSortMenuRef = useRef<OverlayTriggerButtonRef>(null);
+
     const [sortsWithId, _setSortsWithId] = useState<Array<{id: number; sort: TaskQuerySort}>>(() =>
         sorts.map(sort => ({id: nextSortId++, sort})),
     );
@@ -237,6 +287,13 @@ function TaskQueryViewCustomizationBarSortsOverlay({
         setSortsWithId(newSortsWithId);
     };
 
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (shouldOpenAddSortMenu2Ref.current) {
+            shouldOpenAddSortMenu2Ref.current = false;
+            assertExists(addSortMenuRef.current).open();
+        }
+    }, [shouldOpenAddSortMenu2Ref]);
+
     return (
         <Box width="96" padding="4" overflow="hidden">
             <TaskQuerySortsEditor
@@ -246,7 +303,7 @@ function TaskQueryViewCustomizationBarSortsOverlay({
                 defaultOrderSentence={defaultOrderSentence}
             />
             <Spacer space="4" />
-            <TaskQueryAddSortMenuButton onAddSort={addSort}>
+            <TaskQueryAddSortMenuButton ref={addSortMenuRef} onAddSort={addSort}>
                 <Button
                     variant="outline"
                     icon={<Plus />}
