@@ -74,8 +74,6 @@ export const taskRowTitleInputPaddingY: RemLength = `${
 export type TaskRowTitleInputRef = {
     getSelection(): Selection;
     isFocused(): boolean;
-    // NOCOMMIT: These focus methods should do the update state trick when in dual
-    // modality mode.
     focusStart(): void;
     focusEnd(): void;
     focusAll(): void;

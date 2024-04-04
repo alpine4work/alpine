@@ -1,6 +1,6 @@
 import {setInteractionModality} from "@react-aria/interactions";
 import {CaretRight, IconContext, Lock, Trash} from "phosphor-react";
-import {redo, undo} from "prosemirror-history";
+import {redo as redoCommand, undo as undoCommand} from "prosemirror-history";
 import {
     Memo,
     ReactNode,
@@ -130,7 +130,7 @@ export function TaskDetailView({
 }) {
     const navigate = useNavigate();
     const context = useAppContext();
-    const {timeZone} = useClientInfo();
+    const {timeZone, isAppleDevice} = useClientInfo();
     const {
         space: {id: spaceId},
         currentAccount,
@@ -272,6 +272,8 @@ export function TaskDetailView({
         pushUndoStackEntry,
         pushUndoStackEntryFromRedo,
         pushRedoStackEntry,
+        undo,
+        redo,
     } = useTaskGridViewVirtualizedList({
         capabilities: useMemo(
             () => ({
@@ -356,9 +358,9 @@ export function TaskDetailView({
                     if (!contentEditor) return false;
 
                     if (type === "Undo") {
-                        contentEditor.dispatchCommand(undo);
+                        contentEditor.dispatchCommand(undoCommand);
                     } else {
-                        contentEditor.dispatchCommand(redo);
+                        contentEditor.dispatchCommand(redoCommand);
                     }
                     break;
                 }
@@ -527,7 +529,10 @@ export function TaskDetailView({
         }
     }, [dueDateInputState]);
 
-    const {focusPriorityInput, focusDueDateInput} = useEvents({
+    const {undoEvent, redoEvent, focusPriorityInput, focusDueDateInput} = useEvents({
+        undoEvent: undo,
+        redoEvent: redo,
+
         focusPriorityInput: ({preventScroll}: {preventScroll: boolean}) => {
             if (priorityInputState.isVisible) {
                 assertExists(
@@ -626,6 +631,19 @@ export function TaskDetailView({
 
             contextMenuActions.push([
                 {
+                    label: "Undo",
+                    keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
+                    onPress: undoEvent,
+                },
+                {
+                    label: "Redo",
+                    keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
+                    onPress: redoEvent,
+                },
+            ]);
+
+            contextMenuActions.push([
+                {
                     label: "Delete",
                     onPress: () => {
                         setTaskDeleteConfirmationState({
@@ -649,14 +667,17 @@ export function TaskDetailView({
         dueDateInputState.isVisible,
         focusDueDateInput,
         focusPriorityInput,
+        isAppleDevice,
         isReadOnly,
         navigate,
         priorityInputState.isVisible,
+        redoEvent,
         spaceId,
         store,
         taskEntryStore,
         taskId,
         timeZone,
+        undoEvent,
         undoManager,
     ]);
 

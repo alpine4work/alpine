@@ -21,6 +21,7 @@ import {ConstStore, falseStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
@@ -130,6 +131,7 @@ export function TaskCollectionView({
     const context = useAppContext();
     const navigate = useNavigate();
     const isMobile = useIsMobile();
+    const {isAppleDevice} = useClientInfo();
     const {space, currentAccount} = useSpaceContext();
     const currentDate = useCurrentDate();
 
@@ -503,10 +505,12 @@ export function TaskCollectionView({
             menuActions.push([
                 {
                     label: "Undo",
+                    keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
                     onPress: undoEvent,
                 },
                 {
                     label: "Redo",
+                    keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
                     onPress: redoEvent,
                 },
             ]);
@@ -543,6 +547,7 @@ export function TaskCollectionView({
         currentAccount.id,
         customizationState,
         filters,
+        isAppleDevice,
         isMobile,
         isPrivate,
         isReadOnly,

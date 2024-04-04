@@ -1,8 +1,11 @@
 import {useDndContext} from "@dnd-kit/core";
 import {Memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
+import {MenuAction} from "~/client/design/menu_button.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
+import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
@@ -79,6 +82,7 @@ export function TaskNotepadView({
 }) {
     const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
+    const {isAppleDevice} = useClientInfo();
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
 
@@ -297,6 +301,8 @@ export function TaskNotepadView({
         scrollbarInsetTopItemIndex: scrollbarInsetTopGridViewItemIndex,
         onGlobalKeyDown: onGridViewGlobalKeyDown,
         focusEnd: focusGridViewEnd,
+        undo,
+        redo,
     } = useTaskGridViewVirtualizedList({
         capabilities: gridViewCapabilities,
         store,
@@ -400,12 +406,34 @@ export function TaskNotepadView({
         }, [allNotepadPageIds, isMobile, notepadPageState.notepadPageId, store]),
     });
 
-    // NOCOMMIT: Put undo/redo in more actions
+    const {undoEvent, redoEvent} = useEvents({
+        undoEvent: undo,
+        redoEvent: redo,
+    });
+
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         isDisabled: !isMobile,
         withMobileLayout,
         withoutDisappearingTitle: true,
         title: "Notepad",
+        menuActions: useMemo(() => {
+            const menuActions: Array<ReadonlyArray<MenuAction>> = [];
+
+            menuActions.push([
+                {
+                    label: "Undo",
+                    keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
+                    onPress: undoEvent,
+                },
+                {
+                    label: "Redo",
+                    keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
+                    onPress: redoEvent,
+                },
+            ]);
+
+            return menuActions;
+        }, [isAppleDevice, redoEvent, undoEvent]),
     });
 
     return (

@@ -14,6 +14,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -217,6 +218,7 @@ export function TaskQueryView({
 }) {
     const isMobile = useIsMobile();
     const remPx = useRemPx();
+    const {isAppleDevice} = useClientInfo();
     const currentDate = useCurrentDate();
     const {space, currentAccount} = useSpaceContext();
 
@@ -384,16 +386,28 @@ export function TaskQueryView({
         menuActions.push([
             {
                 label: "Undo",
+                keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
                 onPress: undoEvent,
             },
             {
                 label: "Redo",
+                keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
                 onPress: redoEvent,
             },
         ]);
 
         return menuActions;
-    }, [filters, isMobile, name, redoEvent, sorts, space.id, undoEvent, withMobileLayout]);
+    }, [
+        filters,
+        isAppleDevice,
+        isMobile,
+        name,
+        redoEvent,
+        sorts,
+        space.id,
+        undoEvent,
+        withMobileLayout,
+    ]);
 
     const readOnlyStickyBannerHeight = "8";
 
