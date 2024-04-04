@@ -37,7 +37,6 @@ import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_refere
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 export function TaskCollectionViewDesktopHeader({
-    withMobileLayout,
     store,
     collectionId,
     collectionSubscription,
@@ -51,7 +50,6 @@ export function TaskCollectionViewDesktopHeader({
     sorts,
     onSortsChange,
 }: {
-    withMobileLayout: boolean;
     store: TaskClientStore;
     collectionId: TaskCollectionId;
     // If `collectionSubscription` is null, that means we are creating a
@@ -256,21 +254,16 @@ export function TaskCollectionViewDesktopHeader({
                     paddingBottom: desktopTaskQueryViewCustomizationBarMarginY,
                 }}
             >
-                {!withMobileLayout && (
-                    // TODO(calebmer): Create an interface for adding filters/sorts in a mobile
-                    // layout. We can't use our pill design since we don't have the
-                    // horizontal space.
-                    <TaskQueryViewCustomizationBar
-                        store={store}
-                        shouldCollapseWhenFiltersAreEmpty={true}
-                        defaultOrderSentence={defaultOrderSentence}
-                        filters={filters}
-                        filterReferences={filterReferences}
-                        onFiltersChange={onFiltersChange}
-                        sorts={sorts}
-                        onSortsChange={onSortsChange}
-                    />
-                )}
+                <TaskQueryViewCustomizationBar
+                    store={store}
+                    shouldCollapseWhenFiltersAreEmpty={true}
+                    defaultOrderSentence={defaultOrderSentence}
+                    filters={filters}
+                    filterReferences={filterReferences}
+                    onFiltersChange={onFiltersChange}
+                    sorts={sorts}
+                    onSortsChange={onSortsChange}
+                />
             </Box>
             <Box
                 flexShrink="0"

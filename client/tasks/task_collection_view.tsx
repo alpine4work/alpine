@@ -485,7 +485,6 @@ export function TaskCollectionView({
                             </Box>
                         )}
                         <TaskCollectionViewDesktopHeader
-                            withMobileLayout={withMobileLayout}
                             store={store}
                             collectionId={collectionId}
                             collectionSubscription={collectionSubscription}

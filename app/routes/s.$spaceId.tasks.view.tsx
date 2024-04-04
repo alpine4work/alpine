@@ -7,7 +7,7 @@ import {getCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
-import {TaskQueryView} from "~/client/tasks/task_query_view.js";
+import {TaskQueryView, defaultTaskQueryViewName} from "~/client/tasks/task_query_view.js";
 import {
     clientLoaderTaskStoreLoaderData,
     useTaskStoreLoaderDataWithoutRetaining,
@@ -47,7 +47,8 @@ const LoaderSchema = Schema.object({
     initialBottomGhostTaskId: Schema.id<TaskId>(),
 });
 
-export const meta = createMetaFunction(LoaderSchema, () => [{title: "Task view"}]);
+// NOCOMMIT: Proper meta
+export const meta = createMetaFunction(LoaderSchema, () => [{title: defaultTaskQueryViewName}]);
 
 export async function loader({request, params, context: _context}: LoaderArgs) {
     const context = (await _context.actor.authenticate()).actor.authorizeSession();
@@ -164,6 +165,10 @@ function TaskQueryRouteInner({withMobileLayout}: {withMobileLayout: boolean}) {
         queries: [initialQuery],
     } = useTaskStoreLoaderDataWithoutRetaining();
 
+    const [initialName] = useState(() => {
+        return searchParams.get("name") ?? defaultTaskQueryViewName;
+    });
+
     const [initialFilters] = useState(() => {
         const filtersString = searchParams.get("filter");
         if (!filtersString) return [];
@@ -198,6 +203,24 @@ function TaskQueryRouteInner({withMobileLayout}: {withMobileLayout: boolean}) {
                           }
                         : null
                 }
+                initialName={initialName}
+                onNameChange={name => {
+                    const newSearchParams = new URLSearchParams(searchParams);
+
+                    if (name === defaultTaskQueryViewName) {
+                        newSearchParams.delete("name");
+                    } else {
+                        newSearchParams.set("name", name);
+                    }
+
+                    setSearchParams(newSearchParams, {
+                        replace: true,
+                        // Don't revalidate when updating search params from here. We can't use the
+                        // stable `shouldRevalidate` route function because if the user navigates to
+                        // a new URL we want to load new data and re-render the route.
+                        unstable_shouldRevalidate: false,
+                    });
+                }}
                 initialFilters={initialFilters}
                 initialFilterReferences={initialFilterReferences}
                 initialSorts={initialSorts}

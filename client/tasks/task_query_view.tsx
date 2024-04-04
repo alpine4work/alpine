@@ -4,13 +4,15 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {MenuAction} from "~/client/design/menu_button.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
-import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -26,14 +28,18 @@ import {
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {createTaskQueryCollectionsFilterCollectionResultsStore} from "~/client/tasks/internal/task_query_collections_filter_operation_editor.js";
 import {
-    TaskQueryViewCustomizationBar,
-    TaskQueryViewCustomizationBarRef,
-    desktopTaskQueryViewCustomizationBarMarginY,
-} from "~/client/tasks/internal/task_query_view_customization_bar.js";
-import {
     TaskQueryViewCustomizationMobileSection,
     TaskQueryViewCustomizationMobileSectionRef,
 } from "~/client/tasks/internal/task_query_view_customization_mobile_section.js";
+import {
+    TaskQueryViewDesktopHeader,
+    TaskQueryViewDesktopHeaderRef,
+} from "~/client/tasks/internal/task_query_view_desktop_header.js";
+import {
+    TaskQueryViewDesktopHeaderName,
+    TaskQueryViewDesktopHeaderNameRef,
+    defaultTaskQueryViewName,
+} from "~/client/tasks/internal/task_query_view_desktop_header_name.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
@@ -59,14 +65,19 @@ import {
 } from "~/shared/styles/styles.js";
 import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
-import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
+import {
+    TaskQueryFilter,
+    serializeTaskQueryFiltersSearchParam,
+} from "~/shared/tasks/task_query_filter.js";
 import {
     TaskQueryFilterReferences,
     mergeTaskQueryFilterReferences,
 } from "~/shared/tasks/task_query_filter_references.js";
 import {normalizeTaskQueryFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {normalizeTaskQuerySorts} from "~/shared/tasks/task_query_normalized_sort.js";
-import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
+import {TaskQuerySort, serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
+
+export {defaultTaskQueryViewName} from "~/client/tasks/internal/task_query_view_desktop_header_name.js";
 
 /**
  * Determine whether our query is read-only. The query is read-only if one of
@@ -173,6 +184,8 @@ export function TaskQueryView({
     store,
     affinityManager,
     initialQuery,
+    initialName,
+    onNameChange,
     initialFilters,
     initialFilterReferences,
     onFiltersChange,
@@ -187,6 +200,8 @@ export function TaskQueryView({
         initialGridViewExpansionState: TaskGridViewExpansionState;
         initialBottomGhostTaskId: TaskId;
     } | null;
+    initialName: string;
+    onNameChange: (name: string) => void;
     initialFilters: ReadonlyArray<TaskQueryFilter>;
     initialFilterReferences: TaskQueryFilterReferences;
     onFiltersChange: (filters: ReadonlyArray<TaskQueryFilter>) => void;
@@ -196,12 +211,20 @@ export function TaskQueryView({
     const isMobile = useIsMobile();
     const remPx = useRemPx();
     const currentDate = useCurrentDate();
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
 
-    const customizationBarRef = useRef<TaskQueryViewCustomizationBarRef>(null);
+    const desktopHeaderRef = useRef<TaskQueryViewDesktopHeaderRef>(null);
+    const navigationBarDesktopNameRef = useRef<TaskQueryViewDesktopHeaderNameRef>(null);
     const customizationMobileSectionRef = useRef<TaskQueryViewCustomizationMobileSectionRef>(null);
+
+    const [name, _setName] = useState(initialName);
+
+    const setName = useEvent((name: string) => {
+        _setName(name);
+        onNameChange(name);
+    });
 
     const [
         {filters, filterReferences, shouldOpenFirstCollectionsFilterOperationValueRef},
@@ -219,7 +242,7 @@ export function TaskQueryView({
         shouldOpenFirstCollectionsFilterOperationValueRef.current = false;
 
         if (!withMobileLayout) {
-            assertExists(customizationBarRef.current).openFirstCollectionsFilterOperationValue();
+            assertExists(desktopHeaderRef.current).openFirstCollectionsFilterOperationValue();
         } else {
             assertExists(
                 customizationMobileSectionRef.current,
@@ -295,6 +318,54 @@ export function TaskQueryView({
                 : null,
         sorts: normalizedSorts,
     });
+
+    const menuActions = useMemo(() => {
+        const menuActions: Array<Array<MenuAction>> = [];
+
+        menuActions.push([
+            {
+                label: "Copy link",
+                pressErrorTitle: "Couldn’t copy view link",
+                onPress: async () => {
+                    const url = new URL(`/s/${space.id}/tasks/view`, window.location.href);
+
+                    if (name !== defaultTaskQueryViewName) {
+                        url.searchParams.set("name", name);
+                    }
+
+                    if (filters.length > 0) {
+                        url.searchParams.set(
+                            "filter",
+                            serializeTaskQueryFiltersSearchParam(filters),
+                        );
+                    }
+
+                    if (sorts.length > 0) {
+                        url.searchParams.set("sort", serializeTaskQuerySortsSearchParam(sorts));
+                    }
+
+                    await writeTextToClipboard(url.toString());
+                },
+            },
+        ]);
+
+        menuActions.push([
+            {
+                label: "Edit name",
+                onPress: () => {
+                    if (!withMobileLayout) {
+                        assertExists(desktopHeaderRef.current).editName();
+                    } else if (!isMobile) {
+                        assertExists(navigationBarDesktopNameRef.current).editName();
+                    } else {
+                        // NOCOMMIT: Implement
+                    }
+                },
+            },
+        ]);
+
+        return menuActions;
+    }, [filters, isMobile, name, sorts, space.id, withMobileLayout]);
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
@@ -483,25 +554,19 @@ export function TaskQueryView({
                                 <Box userSelect="text">{readOnlyReason.message}</Box>
                             </Box>
                         )}
-                        <Box
-                            paddingX={taskRowViewPaddingX}
-                            style={{
-                                paddingTop: desktopTaskQueryViewCustomizationBarMarginY,
-                                paddingBottom: desktopTaskQueryViewCustomizationBarMarginY,
-                            }}
-                        >
-                            <TaskQueryViewCustomizationBar
-                                ref={customizationBarRef}
-                                store={store}
-                                shouldCollapseWhenFiltersAreEmpty={false}
-                                defaultOrderSentence={defaultOrderSentence}
-                                filters={filters}
-                                filterReferences={filterReferences}
-                                onFiltersChange={updateFilters}
-                                sorts={sorts}
-                                onSortsChange={setSorts}
-                            />
-                        </Box>
+                        <TaskQueryViewDesktopHeader
+                            ref={desktopHeaderRef}
+                            store={store}
+                            menuActions={menuActions}
+                            defaultOrderSentence={defaultOrderSentence}
+                            name={name}
+                            onNameChange={setName}
+                            filters={filters}
+                            filterReferences={filterReferences}
+                            onFiltersChange={updateFilters}
+                            sorts={sorts}
+                            onSortsChange={setSorts}
+                        />
                     </>
                 ),
             };
@@ -509,7 +574,10 @@ export function TaskQueryView({
             filterReferences,
             filters,
             isMobile,
+            menuActions,
+            name,
             readOnlyReason,
+            setName,
             setSorts,
             sorts,
             store,
@@ -519,12 +587,20 @@ export function TaskQueryView({
     });
 
     // NOCOMMIT: Put undo/redo in more actions
-    // NOCOMMIT: Menu actions like copy link
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         isDisabled: !withMobileLayout,
         withMobileLayout,
         withoutDisappearingTitle: true,
-        title: "Task view",
+        title: isMobile ? (
+            name
+        ) : (
+            <TaskQueryViewDesktopHeaderName
+                ref={navigationBarDesktopNameRef}
+                name={name}
+                onNameChange={setName}
+            />
+        ),
+        menuActions,
     });
 
     return (
@@ -648,7 +724,7 @@ export function TaskQueryView({
                                         right="0"
                                         paddingX={taskRowViewPaddingX}
                                         paddingTop="7"
-                                        paddingBottom="14"
+                                        paddingBottom="24"
                                         pointerEvents="auto"
                                         display="flex"
                                         flexDirection="column"

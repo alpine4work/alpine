@@ -186,7 +186,7 @@ function TaskQueryViewCustomizationMobileSectionFilters({
                 paddingBottom="0.5"
             >
                 <Box fontSize="100" color="grey-80" fontStyle="semi-bold">
-                    Filters
+                    Filter
                 </Box>
                 <TaskQueryAddFilterMenuButton
                     ref={addFilterMenuRef}
@@ -319,7 +319,7 @@ function TaskQueryViewCustomizationMobileSectionSorts({
                 paddingBottom="0.5"
             >
                 <Box fontSize="100" color="grey-80" fontStyle="semi-bold">
-                    Sorts
+                    Sort
                 </Box>
                 <TaskQueryAddSortMenuButton
                     ref={addSortMenuRef}

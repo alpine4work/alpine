@@ -762,6 +762,8 @@ function getSearchResultDestination(
             };
         }
         case "TaskQueryFilteredToCreatorIsCurrentAccount": {
+            const nameSearchParam = encodeURIComponent("Tasks I’ve created");
+
             const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
                 {
                     type: "Creator",
@@ -781,10 +783,12 @@ function getSearchResultDestination(
 
             return {
                 type: "Path",
-                path: `/s/${spaceId}/tasks/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
+                path: `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
             };
         }
         case "TaskQueryFilteredToAssigneeIsCurrentAccount": {
+            const nameSearchParam = encodeURIComponent("Tasks assigned to me");
+
             const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
                 {
                     type: "Assignee",
@@ -804,10 +808,12 @@ function getSearchResultDestination(
 
             return {
                 type: "Path",
-                path: `/s/${spaceId}/tasks/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
+                path: `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
             };
         }
         case "TaskQueryFilteredToAssignerIsCurrentAccount": {
+            const nameSearchParam = encodeURIComponent("Tasks I’ve assigned to others");
+
             const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
                 {
                     type: "Creator",
@@ -841,7 +847,7 @@ function getSearchResultDestination(
 
             return {
                 type: "Path",
-                path: `/s/${spaceId}/tasks/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
+                path: `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
             };
         }
         default: {

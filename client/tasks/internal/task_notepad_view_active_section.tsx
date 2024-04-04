@@ -829,6 +829,8 @@ function TaskNotepadViewActiveSectionTruncatedExplainerCard({
                     paddingX="2"
                     pressErrorTitle="Couldn’t open view"
                     onPress={async () => {
+                        const nameSearchParam = encodeURIComponent("Active tasks assigned to me");
+
                         const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
                             {
                                 type: "Assignee",
@@ -854,7 +856,7 @@ function TaskNotepadViewActiveSectionTruncatedExplainerCard({
                         ]);
 
                         await rootNavigate(
-                            `/s/${space.id}/tasks/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
+                            `/s/${space.id}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
                         );
                     }}
                 >

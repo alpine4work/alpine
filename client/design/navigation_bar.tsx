@@ -1215,6 +1215,10 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                         overflow="hidden"
                                         // Initial opacity is 0. Our code will update the opacity.
                                         opacity={!withoutDisappearingTitle ? "0" : undefined}
+                                        // Initial pointer events is auto. Our code will update this style.
+                                        pointerEvents={
+                                            withoutDisappearingTitle ? "auto" : undefined
+                                        }
                                     >
                                         <Box
                                             overflow="hidden"

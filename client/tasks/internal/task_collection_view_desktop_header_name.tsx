@@ -17,7 +17,10 @@ import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
-import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
+import {
+    InputWithAutoGrowingWidth,
+    useInputWithAutoGrowingWidthSafeSpacerElement,
+} from "~/client/helpers/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -95,6 +98,9 @@ function TaskCollectionViewDesktopHeaderName(
     const name = collection?.getName() ?? "";
     const color = collection?.getColor() ?? null;
 
+    const inputWithAutoGrowingWidthSafeSpacerElement =
+        useInputWithAutoGrowingWidthSafeSpacerElement();
+
     return (
         <Box
             overflow="hidden"
@@ -148,6 +154,7 @@ function TaskCollectionViewDesktopHeaderName(
                     }}
                 >
                     {name}
+                    {inputWithAutoGrowingWidthSafeSpacerElement}
                 </Box>
             ) : (
                 <Box overflow="hidden">
