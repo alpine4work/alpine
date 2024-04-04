@@ -35,9 +35,9 @@ import {mergeProps, useHover, usePress} from "react-aria";
 import {createPortal} from "react-dom";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {
-    ContentEditorMobileLinkModalState,
+    ContentEditorMobileLinkMobileModalState,
     getContentEditorMobileLinkModalSelectionSliceText,
-} from "~/client/content/internal/content_editor_mobile_link_modal.js";
+} from "~/client/content/internal/content_editor_mobile_link_mobile_modal.js";
 import {areAllNodesBlockType} from "~/client/content/internal/helpers/are_all_nodes_block_type.js";
 import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
 import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/create_toggle_block_type_command.js";
@@ -89,7 +89,7 @@ function ContentEditorMobileKeyboardSubstitute(
         state: EditorState & {schema: ContentProsemirrorSchema};
         viewRef: RefObject<EditorView | null>;
         onClose: () => void;
-        onLinkModalOpen: (state: ContentEditorMobileLinkModalState) => void;
+        onLinkModalOpen: (state: ContentEditorMobileLinkMobileModalState) => void;
     },
     ref: Ref<ContentEditorMobileKeyboardSubstituteRef>,
 ) {
@@ -303,7 +303,7 @@ function ContentEditorMobileKeyboardSubstituteMain({
     viewRef: RefObject<EditorView | null>;
     selectionMarks: ReadonlyArray<Mark>;
     activeHighlightMark: Mark | null;
-    onLinkModalOpen: (state: ContentEditorMobileLinkModalState) => void;
+    onLinkModalOpen: (state: ContentEditorMobileLinkMobileModalState) => void;
     onHighlightSelectorOpen: () => void;
     onSelectHighlightColor: (highlightColor: HighlightColor | null) => void;
 }) {

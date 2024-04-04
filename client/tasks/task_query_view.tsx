@@ -5,6 +5,7 @@ import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {MenuAction} from "~/client/design/menu_button.js";
+import {MobileModal} from "~/client/design/mobile_modal.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
@@ -44,6 +45,7 @@ import {
     TaskQueryViewDesktopHeaderNameRef,
     defaultTaskQueryViewName,
 } from "~/client/tasks/internal/task_query_view_desktop_header_name.js";
+import {TaskQueryViewEditNameMobileModal} from "~/client/tasks/internal/task_query_view_edit_name_mobile_modal.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
@@ -328,6 +330,8 @@ export function TaskQueryView({
         sorts: normalizedSorts,
     });
 
+    const [shouldShowEditNameMobileModal, setShouldShowEditNameMobileModal] = useState(false);
+
     const menuActions = useMemo(() => {
         const menuActions: Array<Array<MenuAction>> = [];
 
@@ -367,7 +371,7 @@ export function TaskQueryView({
                     } else if (!isMobile) {
                         assertExists(navigationBarDesktopNameRef.current).editName();
                     } else {
-                        // NOCOMMIT: Implement
+                        setShouldShowEditNameMobileModal(true);
                     }
                 },
             },
@@ -780,6 +784,17 @@ export function TaskQueryView({
                     )}
                 />
             </GlobalKeyDownEvent>
+            {shouldShowEditNameMobileModal && (
+                <MobileModal onClose={() => setShouldShowEditNameMobileModal(false)}>
+                    {({onCloseWithAnimation}) => (
+                        <TaskQueryViewEditNameMobileModal
+                            initialName={name}
+                            onNameChange={setName}
+                            onCloseWithAnimation={onCloseWithAnimation}
+                        />
+                    )}
+                </MobileModal>
+            )}
         </Box>
     );
 }
@@ -794,6 +809,7 @@ function TaskQueryViewInstructionalPlaceholder({
         options?: {shouldOpenFirstCollectionsFilterOperationValue?: boolean},
     ) => void;
 }) {
+    const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
 
     return (
@@ -851,9 +867,9 @@ function TaskQueryViewInstructionalPlaceholder({
                     icon={<Plus />}
                     // Consistent icon placement with mobile customization section filter/sort add
                     // buttons.
-                    iconPlacement="end"
+                    iconPlacement={isMobile ? "end" : "start"}
                     height="6"
-                    paddingX="1.5"
+                    paddingX="2"
                     isDisabled={filters.some(
                         filter =>
                             filter.type === "Creator" &&
@@ -866,7 +882,10 @@ function TaskQueryViewInstructionalPlaceholder({
                             ...filters,
                             {
                                 type: "Creator",
-                                operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                                operation: {
+                                    type: "OneOf",
+                                    accounts: [{type: "CurrentAccount"}],
+                                },
                             },
                         ]);
                     }}
@@ -897,7 +916,7 @@ function TaskQueryViewInstructionalPlaceholder({
                     icon={<Plus />}
                     // Consistent icon placement with mobile customization section filter/sort add
                     // buttons.
-                    iconPlacement="end"
+                    iconPlacement={isMobile ? "end" : "start"}
                     height="6"
                     paddingX="2"
                     isDisabled={filters.some(
@@ -912,7 +931,10 @@ function TaskQueryViewInstructionalPlaceholder({
                             ...filters,
                             {
                                 type: "Assignee",
-                                operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                                operation: {
+                                    type: "OneOf",
+                                    accounts: [{type: "CurrentAccount"}],
+                                },
                             },
                         ]);
                     }}
@@ -940,9 +962,9 @@ function TaskQueryViewInstructionalPlaceholder({
                     icon={<Plus />}
                     // Consistent icon placement with mobile customization section filter/sort add
                     // buttons.
-                    iconPlacement="end"
+                    iconPlacement={isMobile ? "end" : "start"}
                     height="6"
-                    paddingX="1.5"
+                    paddingX="2"
                     // The collection add button doesn't immediately give the user access to the
                     // view. So disable if we have an empty collection filter the user needs to
                     // configure.
@@ -958,7 +980,10 @@ function TaskQueryViewInstructionalPlaceholder({
                                 ...filters,
                                 {
                                     type: "Collections",
-                                    operation: {type: "IncludesOneOf", collectionIds: new Set()},
+                                    operation: {
+                                        type: "IncludesOneOf",
+                                        collectionIds: new Set(),
+                                    },
                                 },
                             ],
                             {

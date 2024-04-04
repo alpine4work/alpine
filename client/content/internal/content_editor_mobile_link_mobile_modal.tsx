@@ -15,13 +15,13 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 // allow easy linking to headings or other docs. Could be nice to have this
 // capability too.
 
-export type ContentEditorMobileLinkModalState = {
+export type ContentEditorMobileLinkMobileModalState = {
     readonly initialText: string;
     readonly isTextEditable: boolean;
     readonly initialUrl: string;
 };
 
-export function ContentEditorMobileLinkModal({
+export function ContentEditorMobileLinkMobileModal({
     viewRef,
     initialText,
     isTextEditable,
@@ -145,7 +145,7 @@ export function ContentEditorMobileLinkModal({
                     Cancel
                 </Button>
                 <Box fontSize="100" fontStyle="semi-bold">
-                    Insert Link
+                    Insert link
                 </Box>
                 <Button
                     // Not focusable since we want to return focus to the underlying content editor

@@ -36,9 +36,9 @@ import {
     ContentEditorMobileKeyboardSubstituteRef,
 } from "~/client/content/internal/content_editor_mobile_keyboard_substitute.js";
 import {
-    ContentEditorMobileLinkModal,
-    ContentEditorMobileLinkModalState,
-} from "~/client/content/internal/content_editor_mobile_link_modal.js";
+    ContentEditorMobileLinkMobileModal,
+    ContentEditorMobileLinkMobileModalState,
+} from "~/client/content/internal/content_editor_mobile_link_mobile_modal.js";
 import {openMentionFloaterMetaKey} from "~/client/content/internal/content_editor_plugin_input_rules.js";
 import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
@@ -192,9 +192,8 @@ function ContentEditorMobileKeyboardToolbar(
     const [isSubstituteOpen, setIsSubstituteOpen] = useState(false);
     const [isCommentInputOpen, setIsCommentInputOpen] = useState(false);
     if (!schema.marks.comment && isCommentInputOpen) setIsCommentInputOpen(false);
-    const [linkModalState, setLinkModalState] = useState<ContentEditorMobileLinkModalState | null>(
-        null,
-    );
+    const [linkModalState, setLinkModalState] =
+        useState<ContentEditorMobileLinkMobileModalState | null>(null);
 
     useImperativeHandle(
         ref,
@@ -584,7 +583,7 @@ function ContentEditorMobileKeyboardToolbar(
             {linkModalState && (
                 <MobileModal onClose={() => setLinkModalState(null)}>
                     {({onCloseWithAnimation}) => (
-                        <ContentEditorMobileLinkModal
+                        <ContentEditorMobileLinkMobileModal
                             viewRef={viewRef}
                             initialText={linkModalState.initialText}
                             isTextEditable={linkModalState.isTextEditable}
