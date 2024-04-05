@@ -697,7 +697,9 @@ function parseSearchEntityTypesIfPossible(
             return ["TaskCollection"];
         }
 
-        return ["Task"];
+        // A search like "mobile tasks" should return the mobile task collection. Same
+        // with something like "my onboarding tasks".
+        return ["Task", "TaskCollection"];
     }
 
     if (matchTerms.collections.isFuzzyMatch(state.term)) {

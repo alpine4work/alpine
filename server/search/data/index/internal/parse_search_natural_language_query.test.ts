@@ -2068,7 +2068,7 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["my", "tasks"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
@@ -2081,7 +2081,7 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["tasks"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: null,
                 time: null,
             },
@@ -2094,7 +2094,7 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["tasks"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: null,
                 time: null,
             },
@@ -3472,7 +3472,7 @@ test("parses entity type then account then shortcuts to time", () => {
         controlQueryTexts: ["tasks I created yesterday"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
@@ -3491,7 +3491,7 @@ test("parses entity type then account then shortcuts to time", () => {
         controlQueryTexts: ["tasks by me yesterday"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
@@ -3510,7 +3510,7 @@ test("parses entity type then account then shortcuts to time", () => {
         controlQueryTexts: ["tasks created by me yesterday"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
@@ -3529,7 +3529,7 @@ test("parses entity type then account then shortcuts to time", () => {
         controlQueryTexts: ["tasks written by me yesterday"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
@@ -3548,7 +3548,7 @@ test("parses entity type then account then shortcuts to time", () => {
         controlQueryTexts: ["tasks I updated yesterday"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "LastUpdated",
@@ -3567,7 +3567,7 @@ test("parses entity type then account then shortcuts to time", () => {
         controlQueryTexts: ["tasks updated by me yesterday"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "LastUpdated",
@@ -3586,7 +3586,7 @@ test("parses entity type then account then shortcuts to time", () => {
         controlQueryTexts: ["tasks john created yesterday"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: {field: "Creator", ids: [accounts[1]!.id]},
                 time: {
                     field: "Created",
@@ -3605,7 +3605,7 @@ test("parses entity type then account then shortcuts to time", () => {
         controlQueryTexts: ["tasks by john yesterday"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: {
                     field: "Created",
@@ -3624,7 +3624,7 @@ test("parses entity type then account then shortcuts to time", () => {
         controlQueryTexts: ["tasks created by john yesterday"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: {field: "Creator", ids: [accounts[1]!.id]},
                 time: {
                     field: "Created",
@@ -3643,7 +3643,7 @@ test("parses entity type then account then shortcuts to time", () => {
         controlQueryTexts: ["tasks written by john yesterday"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: {
                     field: "Created",
@@ -3662,7 +3662,7 @@ test("parses entity type then account then shortcuts to time", () => {
         controlQueryTexts: ["tasks john updated yesterday"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: {
                     field: "LastUpdated",
@@ -3681,7 +3681,7 @@ test("parses entity type then account then shortcuts to time", () => {
         controlQueryTexts: ["tasks updated by john yesterday"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: {
                     field: "LastUpdated",
@@ -3700,7 +3700,7 @@ test("parses entity type then account then shortcuts to time", () => {
         controlQueryTexts: ["tasks I created before yesterday"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
@@ -3721,7 +3721,7 @@ test("parses entity type then account then shortcuts to time", () => {
         controlQueryTexts: ["tasks I created"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: null,
             },
@@ -4012,7 +4012,7 @@ test('parses "all" with some text between then entity type', () => {
         controlQueryTexts: ["all", "tasks"],
         filters: [
             {
-                entityTypes: ["Task"],
+                entityTypes: ["Task", "TaskCollection"],
                 account: null,
                 time: null,
             },
