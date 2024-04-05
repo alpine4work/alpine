@@ -176,6 +176,13 @@ export class PostList {
     }
 
     /**
+     * Get the item index of the first post's `PostContent` item.
+     */
+    public getFirstPostItemIndex() {
+        return this._channelHeader ? 1 : 0;
+    }
+
+    /**
      * Get the number of posts in this list.
      */
     public getPostCount() {

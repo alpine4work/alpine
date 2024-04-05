@@ -31,6 +31,7 @@ export {ButtonForwardRef as Button};
 type ButtonVariant =
     | "quiet"
     | "quieter"
+    | "quieter2"
     | "quiet-on"
     | "quiet-off"
     | "quiet-above-grey-5-dark-background"
@@ -120,6 +121,11 @@ function Button(
         height?: "5" | "6" | "7" | "full";
 
         /**
+         * Gap between the icon and button label. Default is `1`.
+         */
+        iconGap?: "1" | "1.5" | "2";
+
+        /**
          * The font size of the button. Defaults to `75`.
          */
         // TODO(calebmer): Instead of having separate `paddingX`, `height`, and
@@ -173,6 +179,7 @@ function Button(
         pressErrorTitle,
         paddingX = "3",
         height = "7",
+        iconGap = "1",
         fontSize = "75",
         borderRightRadius = "base",
         flexShrink = "0",
@@ -317,6 +324,19 @@ function Button(
                       ? "grey-5"
                       : undefined,
                   color: isPressed ? "grey-text" : "grey-60",
+              }
+            : {
+                  backgroundColor: undefined,
+                  color: "grey-30",
+              },
+        quieter2: !isDisabled
+            ? {
+                  backgroundColor: isPressed
+                      ? "grey-10"
+                      : isHoveredOrTriggeredOverlayOpen
+                      ? "grey-5"
+                      : undefined,
+                  color: isPressed ? "grey-text" : "grey-50",
               }
             : {
                   backgroundColor: undefined,
@@ -485,7 +505,7 @@ function Button(
                     className={sprinkles({
                         display: "flex",
                         alignItems: "center",
-                        gap: "1",
+                        gap: iconGap,
                         maxWidth: "full",
                     })}
                     style={{

@@ -69,6 +69,7 @@ import {
     sprinkles,
 } from "~/shared/styles/styles.js";
 
+export const messageInputPaddingY: Spacing = "3";
 export const messageInputAccountAvatarSize: Spacing = "7";
 export const messageInputAccountAvatarPaddingY: RemLength = `${
     (parseRemLengthNumber(messageViewBubbleMinHeight) -
@@ -432,7 +433,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 ref={inputContainerRef}
                 width="full"
                 maxWidth="160"
-                paddingY="3"
+                paddingY={messageInputPaddingY}
                 style={{margin: "0 auto"}}
             >
                 {isEditingMessage && (
@@ -457,21 +458,22 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                         >
                             <PencilSimple size={spacing["3"]} />
                             <span>Editing message</span>
-                        </Box>
-                        <Box position="absolute" top="0" right="3">
-                            <IconButton
-                                size="xs"
-                                description="Cancel editing"
-                                withoutTooltip={true}
-                                onPress={() => {
-                                    messageEditingForThisInput.dispatch({type: "CancelEditing"});
-                                }}
-                                // Not focusable so clicking on this button doesn't unfocus
-                                // the input.
-                                isFocusable={false}
-                            >
-                                <X />
-                            </IconButton>
+                            <Box paddingLeft="1" style={{transform: "translateY(1px)"}}>
+                                <IconButton
+                                    size="xs"
+                                    description="Cancel editing"
+                                    onPress={() => {
+                                        messageEditingForThisInput.dispatch({
+                                            type: "CancelEditing",
+                                        });
+                                    }}
+                                    // Not focusable so clicking on this button doesn't unfocus
+                                    // the input.
+                                    isFocusable={false}
+                                >
+                                    <X />
+                                </IconButton>
+                            </Box>
                         </Box>
                     </Box>
                 )}
@@ -522,6 +524,18 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                             />
                                         </span>
                                     </span>
+                                    <Box paddingLeft="1" style={{transform: "translateY(1px)"}}>
+                                        <IconButton
+                                            size="xs"
+                                            description="Cancel reply"
+                                            onPress={onClearReplyingToMessage}
+                                            // Not focusable so clicking on this button doesn't unfocus
+                                            // the input.
+                                            isFocusable={false}
+                                        >
+                                            <X />
+                                        </IconButton>
+                                    </Box>
                                 </Box>
                                 <Box style={{height: scaledHeight}}>
                                     <FocusRing>
@@ -586,19 +600,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                             </Box>
                                         </Box>
                                     </FocusRing>
-                                </Box>
-                                <Box position="absolute" top="0" right="3">
-                                    <IconButton
-                                        size="xs"
-                                        description="Cancel reply"
-                                        withoutTooltip={true}
-                                        onPress={onClearReplyingToMessage}
-                                        // Not focusable so clicking on this button doesn't unfocus
-                                        // the input.
-                                        isFocusable={false}
-                                    >
-                                        <X />
-                                    </IconButton>
                                 </Box>
                             </Box>
                         );

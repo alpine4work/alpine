@@ -7,6 +7,7 @@ import {
     spacing,
 } from "~/shared/design/spacing.js";
 import {darkColorSchemeSelector} from "~/shared/styles/internal/color_scheme.css.js";
+import {convertSvgToCssDataUrl} from "~/shared/styles/internal/helpers/convert_svg_to_css_data_url.js";
 
 export const sawtoothSize = "4";
 export const sawtoothSizeRem = parseRemLengthNumber(spacing[sawtoothSize]);
@@ -67,18 +68,4 @@ function createSawtoothSvg(w: number, color: string) {
         shape-rendering="geometricPrecision"
     />
 </svg>`;
-}
-
-// Based on code from:
-// https://www.svgbackgrounds.com/tools/svg-to-css/
-function convertSvgToCssDataUrl(svg: string): string {
-    const safeSvg = svg
-        .replace(/#/g, "%23")
-        .replace(/\?/g, "%3F")
-        .replace(/[\t\n\r]/gm, " ")
-        .replace(/\s\s+/g, " ")
-        .replace(/"/g, "'")
-        .replace(/> </g, "><");
-
-    return `url("data:image/svg+xml,${safeSvg}")`;
 }

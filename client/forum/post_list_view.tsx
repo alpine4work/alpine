@@ -50,13 +50,7 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {
-    RemLength,
-    Spacing,
-    addRemLengths,
-    convertRemLengthToPx,
-    spacing,
-} from "~/shared/design/spacing.js";
+import {Spacing, addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {wait} from "~/shared/helpers/async/wait.js";
@@ -66,41 +60,30 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {PostId} from "~/shared/id/types/id_types.js";
-import {
-    messageViewMarginY,
-    messageViewMinHeight,
-} from "~/shared/messaging/messaging_shared_styles.js";
+import {messageViewMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
 import {
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
 } from "~/shared/rpc/forum_rpc_definitions.js";
 import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
+// NOCOMMIT: There are some bugs send reply comments
+
+// NOCOMMIT: Remove this?
 export const postListViewMarginX: Spacing = "4";
 
 // We want our Y margin to be the same as our X margin. We want to give items
 // some margin top and some margin bottom so that the shadows don't overflow.
-const postListViewMarginTop: Spacing = "2";
+// NOCOMMIT: Remove these?
 const postListViewMarginBottom: Spacing = "2";
 export const postListViewMarginY: Spacing = "4";
 
 export const postViewMaxWidth: Spacing = "160";
 
-const postViewMaxWidthWithMarginXRem = addRemLengths(
-    spacing[postListViewMarginX],
-    spacing[postViewMaxWidth],
-    spacing[postListViewMarginX],
-);
+export const postListViewAsideMaxWidth: Spacing = "96";
 
-export const postListViewAsideMaxWidth: Spacing = "64";
-
-const postListViewAsideMaxWidthWithMarginXRem = addRemLengths(
-    spacing[postListViewAsideMaxWidth],
-    spacing[postListViewMarginX],
-);
-
-const postViewFlex = 7;
-const postListViewAsideFlex = 3;
+const postViewFlex = 6;
+const postListViewAsideFlex = 4;
 
 /**
  * The buffered height of an item in the post view virtualized list is the minimum
@@ -653,15 +636,13 @@ function PostListView(
                                     className={sprinkles({
                                         width: "full",
                                         overflow: "hidden",
-                                        paddingX: hasMargin ? postListViewMarginX : undefined,
-                                        paddingTop: postListViewMarginY,
+                                        maxWidth: postViewMaxWidth,
                                         paddingBottom:
                                             index + 1 < posts.getItemCount()
                                                 ? postListViewMarginBottom
                                                 : postListViewMarginY,
                                     })}
                                     style={{
-                                        maxWidth: postViewMaxWidthWithMarginXRem,
                                         flex: postViewFlex,
                                     }}
                                 >
@@ -676,9 +657,11 @@ function PostListView(
                                 </div>
                                 {hasAside && (
                                     <div
+                                        className={sprinkles({
+                                            width: "full",
+                                            maxWidth: postListViewAsideMaxWidth,
+                                        })}
                                         style={{
-                                            width: "100%",
-                                            maxWidth: postListViewAsideMaxWidthWithMarginXRem,
                                             flex: postListViewAsideFlex,
                                         }}
                                     />
@@ -688,30 +671,9 @@ function PostListView(
                     };
                 }
                 case "PostContent": {
-                    let minHeight: RemLength = postContentViewMinHeight;
-
-                    const marginTop =
-                        index === 0
-                            ? hasMargin
-                                ? postListViewMarginY
-                                : undefined
-                            : postListViewMarginTop;
-
-                    const marginBottom =
-                        item.postCommentsState === "Closed"
-                            ? index === posts.getItemCount() - 1
-                                ? hasMargin
-                                    ? postListViewMarginY
-                                    : undefined
-                                : postListViewMarginBottom
-                            : undefined;
-
-                    if (marginTop) minHeight = addRemLengths(minHeight, spacing[marginTop]);
-                    if (marginBottom) minHeight = addRemLengths(minHeight, spacing[marginBottom]);
-
                     return {
                         key: `PostContent:${item.post.id}`,
-                        minHeight,
+                        minHeight: postContentViewMinHeight,
                         node: (
                             <div
                                 className={sprinkles({
@@ -721,56 +683,62 @@ function PostListView(
                             >
                                 <div
                                     className={sprinkles({
+                                        position: "relative",
                                         width: "full",
-                                        overflow: "hidden",
-                                        paddingX: hasMargin ? postListViewMarginX : undefined,
-                                        paddingTop: marginTop,
-                                        paddingBottom: marginBottom,
+                                        maxWidth: postViewMaxWidth,
                                     })}
                                     style={{
-                                        maxWidth: postViewMaxWidthWithMarginXRem,
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    <div
-                                        className={sprinkles({
-                                            width: "full",
-                                            backgroundColor: "grey-0",
-                                            borderTopRadius: hasMargin ? "md" : undefined,
-                                            borderBottomRadius:
-                                                hasMargin && item.postCommentsState === "Closed"
-                                                    ? "md"
-                                                    : undefined,
-                                            boxShadow: "elevation-5",
-                                        })}
-                                    >
-                                        <PostContentView
-                                            post={item.post}
-                                            postComments={item.postComments}
-                                            postCommentsState={item.postCommentsState}
-                                            paddingX={paddingX}
-                                            // If we are rendering in the context of a channel, don't render the channel
-                                            // in posts.
-                                            shouldShowChannel={
-                                                channelHeader?.channel.id !== item.post.channel.id
-                                            }
-                                            onEditPost={() => setEditingPost(item.post)}
-                                            onTogglePostComments={() =>
-                                                setPosts(posts =>
-                                                    posts.togglePostComments(item.post.id),
-                                                )
-                                            }
-                                            onLoadInitialPostComments={() =>
-                                                loadInitialPostComments(item)
-                                            }
-                                        />
-                                    </div>
+                                    {index !== 0 && (
+                                        <div
+                                            className={sprinkles({
+                                                position: "absolute",
+                                                zIndex: "30", // Render on top of comment input.
+                                                width: "full",
+                                                paddingX,
+                                            })}
+                                            style={{
+                                                top: -1,
+                                            }}
+                                        >
+                                            <div
+                                                className={sprinkles({
+                                                    width: "full",
+                                                    borderTop: "grey-5",
+                                                })}
+                                            />
+                                        </div>
+                                    )}
+                                    <PostContentView
+                                        post={item.post}
+                                        postComments={item.postComments}
+                                        postCommentsState={item.postCommentsState}
+                                        paddingX={paddingX}
+                                        // If we are rendering in the context of a channel, don't render the channel
+                                        // in posts.
+                                        shouldShowChannel={
+                                            channelHeader?.channel.id !== item.post.channel.id
+                                        }
+                                        onEditPost={() => setEditingPost(item.post)}
+                                        onTogglePostComments={() =>
+                                            setPosts(posts =>
+                                                posts.togglePostComments(item.post.id),
+                                            )
+                                        }
+                                        onLoadInitialPostComments={() =>
+                                            loadInitialPostComments(item)
+                                        }
+                                    />
                                 </div>
                                 {hasAside && (
                                     <div
+                                        className={sprinkles({
+                                            width: "full",
+                                            maxWidth: postListViewAsideMaxWidth,
+                                        })}
                                         style={{
-                                            width: "100%",
-                                            maxWidth: postListViewAsideMaxWidthWithMarginXRem,
                                             flex: postListViewAsideFlex,
                                         }}
                                     />
@@ -899,39 +867,24 @@ function PostListView(
                                         <div
                                             className={sprinkles({
                                                 width: "full",
-                                                paddingX: hasMargin
-                                                    ? postListViewMarginX
-                                                    : undefined,
+                                                maxWidth: postViewMaxWidth,
                                                 overflow: "hidden",
                                             })}
                                             style={{
-                                                maxWidth: postViewMaxWidthWithMarginXRem,
                                                 flex: postViewFlex,
                                             }}
                                         >
-                                            <div
-                                                className={sprinkles({
-                                                    width: "full",
-                                                    backgroundColor: "grey-0",
-                                                    boxShadow: "elevation-5",
-                                                })}
-                                            >
-                                                {item.postCommentIndex === 0 ? (
-                                                    <>
-                                                        <Spacer space={messageViewMarginY} />
-                                                        {messageNode}
-                                                    </>
-                                                ) : (
-                                                    messageNode
-                                                )}
-                                            </div>
+                                            {item.postCommentIndex === 0 && <Spacer space="7" />}
+                                            {messageNode}
                                         </div>
                                         {hasAside && (
                                             <div
+                                                className={sprinkles({
+                                                    width: "full",
+                                                    maxWidth: postListViewAsideMaxWidth,
+                                                    overflow: "hidden",
+                                                })}
                                                 style={{
-                                                    width: "100%",
-                                                    maxWidth:
-                                                        postListViewAsideMaxWidthWithMarginXRem,
                                                     flex: postListViewAsideFlex,
                                                 }}
                                             />
@@ -958,33 +911,25 @@ function PostListView(
                                 <div
                                     className={sprinkles({
                                         width: "full",
-                                        paddingX: hasMargin ? postListViewMarginX : undefined,
+                                        maxWidth: postViewMaxWidth,
                                         overflow: "hidden",
                                     })}
                                     style={{
-                                        maxWidth: postViewMaxWidthWithMarginXRem,
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    <div
-                                        className={sprinkles({
-                                            width: "full",
-                                            backgroundColor: "grey-0",
-                                            boxShadow: "elevation-5",
-                                        })}
-                                    >
-                                        <MessagingTypingIndicators
-                                            typingStateByConnectionId={
-                                                item.typingStateByConnectionId
-                                            }
-                                        />
-                                    </div>
+                                    <MessagingTypingIndicators
+                                        typingStateByConnectionId={item.typingStateByConnectionId}
+                                    />
                                 </div>
                                 {hasAside && (
                                     <div
+                                        className={sprinkles({
+                                            width: "full",
+                                            maxWidth: postListViewAsideMaxWidth,
+                                            overflow: "hidden",
+                                        })}
                                         style={{
-                                            width: "100%",
-                                            maxWidth: postListViewAsideMaxWidthWithMarginXRem,
                                             flex: postListViewAsideFlex,
                                         }}
                                     />
@@ -1065,16 +1010,11 @@ function PostListView(
                         />
                     );
 
-                    const marginBottom =
-                        index === posts.getItemCount() - 1
-                            ? hasMargin
-                                ? postListViewMarginY
-                                : "0"
-                            : postListViewMarginBottom;
+                    const marginY = spacing["2"];
 
                     return {
                         key: `PostCommentInput:${item.post.id}`,
-                        minHeight: addRemLengths(postCommentInputMinHeight, spacing[marginBottom]),
+                        minHeight: addRemLengths(postCommentInputMinHeight, marginY),
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({
@@ -1092,315 +1032,74 @@ function PostListView(
                                 postContentPosition.offset + postContentPosition.height - 1;
 
                             return (
-                                <>
-                                    {!shouldRenderWithRelativePositioning && (
-                                        <div
-                                            style={{
-                                                position: "absolute",
-                                                top: offset,
-                                                left: 0,
-                                                right: 0,
-                                            }}
-                                        >
-                                            <div
-                                                className={sprinkles({
-                                                    display: "flex",
-                                                    justifyContent: "center",
-                                                    overflow: "hidden",
-                                                })}
-                                                style={{height, flex: postViewFlex}}
-                                            >
-                                                <div
-                                                    className={sprinkles({
-                                                        width: "full",
-                                                        overflow: "hidden",
-                                                        paddingX: hasMargin
-                                                            ? postListViewMarginX
-                                                            : undefined,
-                                                        paddingBottom: marginBottom,
-                                                    })}
-                                                    style={{
-                                                        maxWidth: postViewMaxWidthWithMarginXRem,
-                                                        flex: postViewFlex,
-                                                    }}
-                                                >
-                                                    <div
-                                                        className={sprinkles({
-                                                            width: "full",
-                                                            height: "full",
-                                                            paddingX,
-                                                            backgroundColor: "grey-0",
-                                                            borderBottomRadius: hasMargin
-                                                                ? "md"
-                                                                : undefined,
-                                                            boxShadow: "elevation-5",
-                                                        })}
-                                                    >
-                                                        <div
-                                                            className={sprinkles({
-                                                                width: "full",
-                                                                borderTop: "grey-5",
-                                                            })}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                {hasAside && (
-                                                    <div
-                                                        style={{
-                                                            width: "100%",
-                                                            maxWidth:
-                                                                postListViewAsideMaxWidthWithMarginXRem,
-                                                            flex: postListViewAsideFlex,
-                                                        }}
-                                                    />
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
+                                <div
+                                    style={{
+                                        pointerEvents: "none",
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        alignItems: "flex-end",
+                                        zIndex: "20",
+                                        ...(!shouldRenderWithRelativePositioning
+                                            ? {
+                                                  position: "absolute",
+                                                  top: postContentOffsetEnd,
+                                                  left: "0",
+                                                  right: "0",
+                                                  height: offset - postContentOffsetEnd + height,
+                                              }
+                                            : {
+                                                  position: "relative",
+                                              }),
+                                    }}
+                                >
                                     <div
+                                        ref={ref}
                                         style={{
-                                            pointerEvents: "none",
+                                            ...(!shouldRenderWithRelativePositioning && {
+                                                position: "sticky",
+                                                bottom: `-${marginY}`,
+                                            }),
+                                            // If there are no comments, add our margin Y to the top.
+                                            paddingTop:
+                                                item.postContentItemIndex === index - 1
+                                                    ? marginY
+                                                    : undefined,
+                                            paddingBottom: marginY,
+                                        }}
+                                        className={sprinkles({
+                                            width: "full",
                                             display: "flex",
                                             justifyContent: "center",
-                                            alignItems: "flex-end",
-                                            zIndex: "20",
-                                            ...(!shouldRenderWithRelativePositioning
-                                                ? {
-                                                      position: "absolute",
-                                                      top: postContentOffsetEnd,
-                                                      left: "0",
-                                                      right: "0",
-                                                      height:
-                                                          offset - postContentOffsetEnd + height,
-                                                  }
-                                                : {
-                                                      position: "relative",
-                                                  }),
-                                        }}
+                                            overflow: "hidden",
+                                        })}
                                     >
                                         <div
-                                            ref={ref}
-                                            style={{
-                                                ...(!shouldRenderWithRelativePositioning && {
-                                                    position: "sticky",
-                                                    bottom: `-${spacing[marginBottom]}`,
-                                                }),
-                                            }}
                                             className={sprinkles({
                                                 width: "full",
-                                                overflow: "hidden",
-                                                display: "flex",
-                                                justifyContent: "center",
+                                                maxWidth: postViewMaxWidth,
+                                                position: "relative",
+                                                pointerEvents: "auto",
                                             })}
+                                            style={{
+                                                flex: postViewFlex,
+                                            }}
                                         >
+                                            {inputNode}
+                                        </div>
+                                        {hasAside && (
                                             <div
                                                 className={sprinkles({
                                                     width: "full",
+                                                    maxWidth: postListViewAsideMaxWidth,
                                                     overflow: "hidden",
-                                                    paddingX: hasMargin
-                                                        ? postListViewMarginX
-                                                        : undefined,
-                                                    paddingBottom: marginBottom,
                                                 })}
                                                 style={{
-                                                    maxWidth: postViewMaxWidthWithMarginXRem,
-                                                    flex: postViewFlex,
+                                                    flex: postListViewAsideFlex,
                                                 }}
-                                            >
-                                                <div
-                                                    className={sprinkles({
-                                                        position: "relative",
-                                                        display: "flex",
-                                                        pointerEvents: "auto",
-                                                        ...(shouldRenderWithRelativePositioning && {
-                                                            // When absolutely positioned we render an element underneath this one at the
-                                                            // end of the post so that while sticky scrolling we don't have double shadows.
-                                                            backgroundColor: "grey-0",
-                                                            borderBottomRadius: hasMargin
-                                                                ? "md"
-                                                                : undefined,
-                                                            boxShadow: "elevation-5",
-                                                        }),
-                                                    })}
-                                                    style={{
-                                                        // Allow full-width top border to be visible until it slides under.
-                                                        paddingTop: 1,
-                                                    }}
-                                                >
-                                                    {shouldRenderWithRelativePositioning && (
-                                                        <div
-                                                            className={sprinkles({
-                                                                position: "absolute",
-                                                                top: "0",
-                                                                left: paddingX,
-                                                                right: paddingX,
-                                                                borderTop: "grey-5",
-                                                            })}
-                                                        />
-                                                    )}
-                                                    <div
-                                                        className={sprinkles({
-                                                            flexGrow: "1",
-                                                            overflow: "hidden",
-                                                            // Full-width border will be hidden under this background.
-                                                            backgroundColor: "grey-0",
-                                                            borderBottomRadius: hasMargin
-                                                                ? "md"
-                                                                : undefined,
-                                                        })}
-                                                    >
-                                                        {inputNode}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            {hasAside && (
-                                                <div
-                                                    style={{
-                                                        width: "100%",
-                                                        maxWidth:
-                                                            postListViewAsideMaxWidthWithMarginXRem,
-                                                        flex: postListViewAsideFlex,
-                                                    }}
-                                                />
-                                            )}
-                                        </div>
+                                            />
+                                        )}
                                     </div>
-                                    {!shouldRenderWithRelativePositioning && (
-                                        <>
-                                            <div
-                                                // Render a white backdrop below the entire post so that when the user is jump
-                                                // scrolling we don't have the pinned comment input and the wash
-                                                // background color.
-                                                className={sprinkles({
-                                                    position: "absolute",
-                                                    left: "0",
-                                                    right: "0",
-                                                    display: "flex",
-                                                    justifyContent: "center",
-                                                    zIndex: "-10",
-                                                })}
-                                                style={{
-                                                    top: `calc(${
-                                                        postContentOffsetEnd -
-                                                        postContentPosition.height +
-                                                        1
-                                                    }px + ${
-                                                        item.postContentItemIndex === 0
-                                                            ? spacing[postListViewMarginY]
-                                                            : spacing[postListViewMarginTop]
-                                                    })`,
-                                                    height: `calc(${
-                                                        offset -
-                                                        postContentOffsetEnd +
-                                                        postContentPosition.height
-                                                    }px - ${
-                                                        item.postContentItemIndex === 0
-                                                            ? spacing[postListViewMarginY]
-                                                            : spacing[postListViewMarginTop]
-                                                    })`,
-                                                }}
-                                            >
-                                                <div
-                                                    className={sprinkles({
-                                                        width: "full",
-                                                        paddingX: hasMargin
-                                                            ? postListViewMarginX
-                                                            : undefined,
-                                                        overflow: "hidden",
-                                                    })}
-                                                    style={{
-                                                        maxWidth: postViewMaxWidthWithMarginXRem,
-                                                        flex: postViewFlex,
-                                                    }}
-                                                >
-                                                    <div
-                                                        className={sprinkles({
-                                                            width: "full",
-                                                            height: "full",
-                                                            backgroundColor: "grey-0",
-                                                            borderTopRadius: hasMargin
-                                                                ? "md"
-                                                                : undefined,
-                                                        })}
-                                                    />
-                                                </div>
-                                                {hasAside && (
-                                                    <div
-                                                        style={{
-                                                            width: "100%",
-                                                            maxWidth:
-                                                                postListViewAsideMaxWidthWithMarginXRem,
-                                                            flex: postListViewAsideFlex,
-                                                        }}
-                                                    />
-                                                )}
-                                            </div>
-                                            <div
-                                                style={{
-                                                    position: "absolute",
-                                                    top: postContentOffsetEnd,
-                                                    left: "0",
-                                                    right: "0",
-                                                    height:
-                                                        offset - postContentOffsetEnd + height + 1,
-                                                    pointerEvents: "none",
-                                                    display: "flex",
-                                                    justifyContent: "center",
-                                                    alignItems: "flex-end",
-                                                    zIndex: "10",
-                                                }}
-                                            >
-                                                <div
-                                                    style={{
-                                                        position: "sticky",
-                                                        bottom: `-${spacing[marginBottom]}`,
-                                                        height,
-                                                    }}
-                                                    className={sprinkles({
-                                                        width: "full",
-                                                        overflow: "hidden",
-                                                        display: "flex",
-                                                        justifyContent: "center",
-                                                        paddingBottom: marginBottom,
-                                                    })}
-                                                >
-                                                    <div
-                                                        className={sprinkles({
-                                                            width: "full",
-                                                            paddingX: hasMargin
-                                                                ? postListViewMarginX
-                                                                : undefined,
-                                                            overflow: "hidden",
-                                                        })}
-                                                        style={{
-                                                            maxWidth:
-                                                                postViewMaxWidthWithMarginXRem,
-                                                            flex: postViewFlex,
-                                                        }}
-                                                    >
-                                                        <div
-                                                            className={sprinkles({
-                                                                width: "full",
-                                                                borderTop: "grey-10",
-                                                            })}
-                                                            style={{flex: postViewFlex}}
-                                                        />
-                                                    </div>
-                                                    {hasAside && (
-                                                        <div
-                                                            style={{
-                                                                width: "100%",
-                                                                maxWidth:
-                                                                    postListViewAsideMaxWidthWithMarginXRem,
-                                                                flex: postListViewAsideFlex,
-                                                            }}
-                                                        />
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </>
-                                    )}
-                                </>
+                                </div>
                             );
                         },
                     };
@@ -1413,6 +1112,7 @@ function PostListView(
                 case "MoreUnloadedPosts": {
                     return {
                         key: "MoreUnloadedPosts",
+                        // NOCOMMIT: min height fix?
                         minHeight: "34.875rem",
                         node: (
                             <div
@@ -1424,12 +1124,10 @@ function PostListView(
                                 <div
                                     className={sprinkles({
                                         width: "full",
+                                        maxWidth: postViewMaxWidth,
                                         overflow: "hidden",
-                                        paddingX: hasMargin ? postListViewMarginX : undefined,
-                                        paddingTop: postListViewMarginTop,
                                     })}
                                     style={{
-                                        maxWidth: postViewMaxWidthWithMarginXRem,
                                         flex: postViewFlex,
                                     }}
                                 >
@@ -1455,9 +1153,12 @@ function PostListView(
                                 </div>
                                 {hasAside && (
                                     <div
+                                        className={sprinkles({
+                                            width: "full",
+                                            maxWidth: postListViewAsideMaxWidth,
+                                            overflow: "hidden",
+                                        })}
                                         style={{
-                                            width: "100%",
-                                            maxWidth: postListViewAsideMaxWidthWithMarginXRem,
                                             flex: postListViewAsideFlex,
                                         }}
                                     />
@@ -1498,9 +1199,6 @@ function PostListView(
                     position: "relative",
                     display: "flex",
                     flexDirection: "column",
-                    backgroundColor: isSingleMobileLayoutPostWithPinnedCommentInput
-                        ? "grey-0"
-                        : "grey-wash",
                 })}
             >
                 <VirtualizedScrollView
@@ -1602,18 +1300,19 @@ function PostListView(
                                     <div
                                         className={sprinkles({
                                             width: "full",
-                                            paddingX: postListViewMarginX,
+                                            maxWidth: postViewMaxWidth,
                                             overflow: "hidden",
                                         })}
                                         style={{
-                                            maxWidth: postViewMaxWidthWithMarginXRem,
                                             flex: postViewFlex,
                                         }}
                                     />
                                     <div
+                                        className={sprinkles({
+                                            width: "full",
+                                            maxWidth: postListViewAsideMaxWidth,
+                                        })}
                                         style={{
-                                            width: "100%",
-                                            maxWidth: postListViewAsideMaxWidthWithMarginXRem,
                                             flex: postListViewAsideFlex,
                                         }}
                                     >
@@ -1621,7 +1320,7 @@ function PostListView(
                                             ref={asideRef}
                                             className={sprinkles({
                                                 pointerEvents: "auto",
-                                                paddingRight: postListViewMarginX,
+                                                paddingX: "5",
                                             })}
                                             style={{minHeight: viewSize?.height}}
                                         >

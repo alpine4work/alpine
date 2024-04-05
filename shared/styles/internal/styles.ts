@@ -27,6 +27,7 @@ export * as documentCommentThreadsStyles from "~/shared/styles/internal/document
 export * as documentContentStyles from "~/shared/styles/internal/document_content.css.js";
 export * from "~/shared/styles/internal/elevation.css.js";
 export * from "~/shared/styles/internal/fonts.css.js";
+export * as forumStyles from "~/shared/styles/internal/forum.css.js";
 export * from "~/shared/styles/internal/input_placeholder.css.js";
 export * as messagingStyles from "~/shared/styles/internal/messaging.css.js";
 export * as modalStyles from "~/shared/styles/internal/modal.css.js";

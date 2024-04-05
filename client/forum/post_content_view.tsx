@@ -1,7 +1,15 @@
-import {CaretRight, DotsThree} from "phosphor-react";
-import {useEffect, useMemo, useState} from "react";
+import {
+    CaretRight,
+    CaretUp,
+    ChatCircle,
+    DotsThreeVertical,
+    IconContext,
+    Smiley,
+} from "phosphor-react";
+import {CSSProperties, useContext, useEffect, useMemo, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {ContentView} from "~/client/content/content_view.js";
+import {messageInputPaddingY} from "~/client/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -9,6 +17,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useShowToast} from "~/client/design/toast.js";
 import {
     PostContentViewHeader,
     postContentViewHeaderHeight,
@@ -26,8 +35,12 @@ import {
     Spacing,
     addRemLengths,
     assertSpacing,
+    parseRemLengthNumber,
     spacing,
+    subtractRemLengths,
 } from "~/shared/design/spacing.js";
+import {UnimplementedError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {
     PostCommentModel,
     PostModel,
@@ -38,20 +51,34 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions.js";
-import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
+import {contentSchemaStyles, fontSizes, forumStyles, sprinkles} from "~/shared/styles/styles.js";
 
-const postContentViewFooterHeight: Spacing = "12";
+const postContentViewFooterHeight = "10";
+const postContentViewFooterButtonHeight = "7";
 
-export const postContentViewPaddingY: Spacing = "5";
+const postContentViewOuterMarginY = "7";
+export const postContentViewInnerMarginY = "4";
 
-export const postContentViewMinHeight: RemLength = addRemLengths(
-    spacing[postContentViewPaddingY],
+export const postContentViewMinHeight = addRemLengths(
+    spacing[postContentViewOuterMarginY],
     spacing[postContentViewHeaderHeight],
-    spacing[postContentViewPaddingY],
+    spacing[postContentViewInnerMarginY],
     contentSchemaStyles.paragraphLineHeight,
-    spacing[postContentViewPaddingY],
+    spacing[postContentViewInnerMarginY],
     spacing[postContentViewFooterHeight],
 );
+
+const fontSize75LineHeightRem = parseRemLengthNumber(fontSizes["75"].lineHeight);
+const postContentViewFooterHeightRem = parseRemLengthNumber(spacing[postContentViewFooterHeight]);
+const postContentViewOuterMarginYRem = parseRemLengthNumber(spacing[postContentViewOuterMarginY]);
+
+// Visually, we want `postContentViewOuterMarginY` of space from the bottom of
+// the button text. So adjust our outer padding bottom to exclude footer
+// height we already have.
+const postContentViewOuterMarginBottomRem =
+    postContentViewOuterMarginYRem - (postContentViewFooterHeightRem - fontSize75LineHeightRem) / 2;
+
+const postContentViewOuterMarginBottom = `${postContentViewOuterMarginBottomRem}rem`;
 
 export function PostContentView({
     post,
@@ -76,52 +103,55 @@ export function PostContentView({
     const {currentAccount} = useSpaceContext();
 
     return (
-        <Box style={{minHeight: postContentViewMinHeight}}>
-            <Box position="relative" paddingTop={postContentViewPaddingY} paddingX={paddingX}>
+        <Box
+            position="relative"
+            paddingTop={postContentViewOuterMarginY}
+            style={{
+                minHeight: postContentViewMinHeight,
+                paddingBottom: postContentViewOuterMarginBottom,
+            }}
+        >
+            <Box position="relative" paddingX={paddingX}>
                 <PostContentViewHeader post={post} shouldShowChannel={shouldShowChannel} />
-                <Box
-                    position="absolute"
-                    top={assertSpacing(`${parseInt(postContentViewPaddingY, 10) - 2}`)}
-                    right={assertSpacing(`${parseInt(postContentViewPaddingY, 10) - 2}`)}
-                >
-                    <MenuButton
-                        actions={[
-                            {
-                                label: "Copy link",
-                                pressErrorTitle: "Couldn’t copy post link",
-                                onPress: async () => {
-                                    const url = new URL(
-                                        `/s/${post.spaceId}/posts/${post.id}`,
-                                        window.location.href,
-                                    );
-                                    await writeTextToClipboard(url.toString());
-                                },
+            </Box>
+            <Box position="absolute" top={paddingX} right={paddingX}>
+                <MenuButton
+                    actions={[
+                        {
+                            label: "Copy link",
+                            pressErrorTitle: "Couldn’t copy post link",
+                            onPress: async () => {
+                                const url = new URL(
+                                    `/s/${post.spaceId}/posts/${post.id}`,
+                                    window.location.href,
+                                );
+                                await writeTextToClipboard(url.toString());
                             },
-                            ...(currentAccount.id === post.author.id
-                                ? [
-                                      {
-                                          label: "Edit",
-                                          onPress: onEditPost,
-                                      },
-                                  ]
-                                : []),
-                        ]}
+                        },
+                        ...(currentAccount.id === post.author.id
+                            ? [
+                                  {
+                                      label: "Edit",
+                                      onPress: onEditPost,
+                                  },
+                              ]
+                            : []),
+                    ]}
+                >
+                    <IconButton
+                        size={isMobile ? "base" : "md"}
+                        description="More"
+                        withoutTooltip={true}
                     >
-                        <IconButton
-                            size={isMobile ? "base" : "md"}
-                            description="More"
-                            withoutTooltip={true}
-                        >
-                            <DotsThree />
-                        </IconButton>
-                    </MenuButton>
-                </Box>
+                        <DotsThreeVertical />
+                    </IconButton>
+                </MenuButton>
             </Box>
             <ContentView
                 content={post.content}
                 className={sprinkles({
                     paddingX: assertSpacing(`${parseInt(paddingX, 10) - 2}`),
-                    paddingY: postContentViewPaddingY,
+                    paddingY: postContentViewInnerMarginY,
                 })}
                 contentUpdatedTime={post.contentUpdatedTime}
             />
@@ -133,6 +163,18 @@ export function PostContentView({
                 onTogglePostComments={onTogglePostComments}
                 onLoadInitialPostComments={onLoadInitialPostComments}
             />
+            {postCommentsState !== "Closed" && (
+                <Box
+                    position="absolute"
+                    zIndex="30" // Render on top of comment input.
+                    left="0"
+                    right="0"
+                    bottom="-1"
+                    paddingX={paddingX}
+                >
+                    <div className={forumStyles.dashedBorderClassName} />
+                </Box>
+            )}
         </Box>
     );
 }
@@ -152,25 +194,19 @@ function PostContentViewFooter({
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
 }) {
+    const showToast = useShowToast();
+
     return (
         <Box
             data-testid={`PostContentViewFooter:${post.id}`}
-            marginX={paddingX}
-            borderTop="grey-5"
-            borderBottom={
-                postCommentsState !== "Closed" && postComments.getItemCount() > 0
-                    ? "grey-5"
-                    : "transparent"
-            }
+            paddingX={paddingX}
             height={postContentViewFooterHeight}
             display="flex"
             alignItems="center"
         >
-            <Box flexGrow="1" />
-            <Box display="flex" alignItems="center" gap="1.5">
-                <PostCommentsAccountAvatarPile post={post} postComments={postComments} />
+            <Box marginLeft="-1.5" display="flex" alignItems="center" gap="1.5">
                 {postCommentsState === "AlwaysOpen" ? (
-                    <Box paddingX="2">
+                    <Box paddingX="1.5" color="grey-60">
                         <PrettyNumber
                             number={postComments.getMessageCountIncludingOptimisticMessages()}
                             label="comment"
@@ -178,19 +214,34 @@ function PostContentViewFooter({
                     </Box>
                 ) : (
                     <Button
-                        paddingX="2"
+                        variant="quieter2"
+                        height={postContentViewFooterButtonHeight}
+                        paddingX="1.5"
                         icon={
-                            <CaretRight
-                                style={{
-                                    transform:
-                                        postCommentsState !== "Closed"
-                                            ? "rotate(90deg)"
-                                            : "rotate(0deg)",
-                                    transition: "transform 100ms ease",
-                                }}
-                            />
+                            <Box position="relative" width="4" height="4">
+                                <ChatCircle size={spacing["4"]} />
+                                <Box
+                                    position="absolute"
+                                    inset="0"
+                                    display="flex"
+                                    justifyContent="center"
+                                    alignItems="center"
+                                >
+                                    <CaretUpWithCustomizableStrokeWidth
+                                        size={spacing["2"]}
+                                        strokeWidthScale={4 / 2}
+                                        style={{
+                                            transform:
+                                                postCommentsState !== "Closed"
+                                                    ? "rotate(-180deg)"
+                                                    : "rotate(0deg)",
+                                            transition: "transform 250ms ease",
+                                        }}
+                                    />
+                                </Box>
+                            </Box>
                         }
-                        iconPlacement="end"
+                        iconPlacement="start"
                         pressErrorTitle="Couldn’t open comments"
                         onPress={async () => {
                             if (postCommentsState !== "Closed") {
@@ -253,6 +304,30 @@ function PostContentViewFooter({
                         />
                     </Button>
                 )}
+                <PostCommentsAccountAvatarPile post={post} postComments={postComments} />
+            </Box>
+            <Box flexGrow="1" />
+            <Box marginRight="-1.5">
+                <Button
+                    variant="quieter2"
+                    icon={<Smiley size={spacing["4"]} />}
+                    height={postContentViewFooterButtonHeight}
+                    paddingX="1.5"
+                    onPress={() => {
+                        showToast({
+                            type: "Error",
+                            title: "Can’t like post",
+                            error: new UnimplementedError(
+                                "Liking posts hasn't been implemented yet",
+                                {
+                                    displayMessage: errorDisplayMessage`Liking posts hasn't been implemented yet.`,
+                                },
+                            ),
+                        });
+                    }}
+                >
+                    <PrettyNumber number={0} label="like" />
+                </Button>
             </Box>
         </Box>
     );
@@ -335,6 +410,7 @@ function PostCommentsAccountAvatarPile({
 
     return (
         <AccountAvatarPile
+            size="5"
             previewAccounts={previewAccounts}
             accountCount={accountCount}
             getAllAccounts={async limit => {
@@ -345,5 +421,52 @@ function PostCommentsAccountAvatarPile({
                 return authors;
             }}
         />
+    );
+}
+
+// The `<CaretUp>` Phosphor icon but allows us to customize the stroke width.
+function CaretUpWithCustomizableStrokeWidth({
+    color,
+    size,
+    style,
+    strokeWidthScale = 1,
+}: {
+    color?: string;
+    size?: string | number;
+    style?: CSSProperties;
+    strokeWidthScale?: number;
+}) {
+    const {
+        color: contextColor,
+        size: contextSize,
+        weight,
+        mirrored,
+        ...context
+    } = useContext(IconContext);
+
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill={color ?? contextColor}
+            viewBox="0 0 256 256"
+            {...context}
+            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
+            // set to rem units so use `style` instead.
+            style={{
+                width: size ?? contextSize,
+                height: size ?? contextSize,
+                ...context.style,
+                ...style,
+            }}
+        >
+            <polyline
+                points="48 160 128 80 208 160"
+                fill="none"
+                stroke={color ?? contextColor}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={16 * strokeWidthScale}
+            />
+        </svg>
     );
 }

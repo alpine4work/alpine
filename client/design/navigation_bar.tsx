@@ -1274,7 +1274,12 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                             {title}
                                         </Box>
                                         {subtitle && (
-                                            <Box fontSize="50" color="grey-50" fontStyle="truncate">
+                                            <Box
+                                                fontSize="50"
+                                                color="grey-50"
+                                                fontStyle="truncate"
+                                                userSelect={!isMobile ? "text" : undefined}
+                                            >
                                                 {subtitle}
                                             </Box>
                                         )}

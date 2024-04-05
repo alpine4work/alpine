@@ -2,7 +2,7 @@ import {useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {
     postContentViewMinHeight,
-    postContentViewPaddingY,
+    postContentViewInnerMarginY,
 } from "~/client/forum/post_content_view.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {Spacing} from "~/shared/design/spacing.js";
@@ -44,7 +44,7 @@ export function PostShimmer({
         >
             <Box
                 paddingX={paddingX}
-                paddingTop={postContentViewPaddingY}
+                paddingTop={postContentViewInnerMarginY}
                 display="flex"
                 alignItems="center"
             >
