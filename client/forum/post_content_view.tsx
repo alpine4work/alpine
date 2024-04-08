@@ -1,4 +1,4 @@
-import {ChatCircle, DotsThreeVertical, IconContext, Smiley} from "phosphor-react";
+import {ChatCircle, DotsThree, DotsThreeVertical, IconContext, Smiley} from "phosphor-react";
 import {CSSProperties, useContext, useEffect, useMemo, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {ContentView} from "~/client/content/content_view.js";
@@ -171,7 +171,7 @@ export function PostContentView({
                         description="More"
                         withoutTooltip={true}
                     >
-                        <DotsThreeVertical />
+                        <DotsThree />
                     </IconButton>
                 </MenuButton>
             </Box>

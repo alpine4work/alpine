@@ -18,6 +18,15 @@ should come from the user.
 TODO(calebmer, 2024-03-08): I created this document while playing with removing `<MessageInput>`
 borders. I like the design but I want to come up with some kind of philosophy on when to use
 borders vs not.
+
+The quick version is: `grey-10` to divide different scrollable views (sticky views have different
+scroll behaviors), `grey-5` (but not full width) to divide content within a scrollable view,
+`grey-10` for creating shapes (e.g. a card). Message inputs are a bit of an exception. They don't
+always extend full width and they have an inner `grey-10` border around the input itself.
+
+NOTE(calebmer, 2024-04-08): Now that there are sawtooth borders between document comment threads in
+the comment thread notification view, the border discussion is more interesting. The guideline for
+comments underneath a post could contribute to this discussion too.
 -->
 
 ## Avoid hover states
@@ -62,3 +71,24 @@ example:
 -   Hide controls on desktop that create visual clutter. For example the reply button and more
     button on message bubbles. On mobile you access these controls through other interactions like a
     long press or swipe.
+
+## Vertical vs horizontal more menu three dots icon
+
+The three dots icon is universally understood as an icon button that opens a menu with actions
+related to what you’re looking at. We use this convention in our UI but sometimes we use horizontal
+three dots and sometimes we use vertical three dots, what gives?
+
+For example, in a document the three dots in the navigation bar are vertical. However, in a chat
+message if you hover over the message on desktop the three dots next to the message are horizontal.
+
+This decision was initially made to try and best visually balance the container of the more button
+icon. Navigation bars on mobile when they only render the "back" button and "more" button look
+visually balanced with vertical three dots. Horizontal three dots looks lopsided. (e.g. See
+documents on mobile, scrolled to the top, with horizontal three dots. The navigation bar looks
+lopsided.) However, in a message input the actions extend out horizontally when you hover so
+horizontal three dots match that.
+
+When in a navigation bar, consistently use vertical three dots. Everywhere else, you can make a
+choice based on the container you're in. Another example is posts which use horizontal three dots
+when in a feed to visually balance out the post header and create some symmetry with the reaction
+button below.
