@@ -4,6 +4,7 @@ import {
     MutableRefObject,
     ReactNode,
     Ref,
+    RefObject,
     forwardRef,
     useCallback,
     useEffect,
@@ -15,6 +16,7 @@ import {
 import {useAppContext} from "~/client/context/app_context.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {
+    NavigationBarRef,
     NavigationBarResult,
     desktopNavigationBarHeightRem,
     mobileNavigationBarHeightRem,
@@ -148,8 +150,9 @@ function PostListView(
         initialPostsResult,
         onLoadMorePosts,
         aside,
-        withMobileLayout: _withMobileLayout = false,
+        withMobileLayout: withMobileLayoutProp = false,
         shouldAlwaysHaveMargin = false,
+        navigationBar,
     }: {
         /**
          * If this post list is rendering a channel, you may provide this prop and we
@@ -226,16 +229,28 @@ function PostListView(
          * an `aside`.
          */
         shouldAlwaysHaveMargin?: boolean;
+
+        /**
+         * If you want to include a navigation bar in this list view you may pass in
+         * the result of `useNavigationBar()` here and the virtualized scroll view will
+         * be properly configured.
+         */
+        navigationBar?: NavigationBarResult;
     },
     ref: Ref<PostListViewRef>,
 ) {
-    const isMobile = useIsMobile();
-    const withMobileLayout = isMobile || _withMobileLayout;
-
     const context = useAppContext();
+    const isMobile = useIsMobile();
+    const remPx = useRemPx();
+
+    const withMobileLayout = isMobile || withMobileLayoutProp;
+
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const [viewContainerRef, viewSize] = useResizeObserver();
     const [asideRef, asideSize] = useResizeObserver();
+
+    const navigationBarHeightPx =
+        (isMobile ? mobileNavigationBarHeightRem : desktopNavigationBarHeightRem) * remPx;
 
     const lastScrollOffsetRef = useRef(0);
     const [scrollDirectionState, setScrollDirectionState] = useState<{
@@ -243,14 +258,13 @@ function PostListView(
         asideBufferedHeight: number;
     }>({
         scrollDirection: "Down",
-        asideBufferedHeight: 0,
+        asideBufferedHeight: navigationBarHeightPx,
     });
 
     const hasAside = !withMobileLayout && !!aside;
+    const hasNavigationBar = !!navigationBar;
+    // NOCOMMIT: Get rid of this `hasMargin` prop?
     const hasMargin = shouldAlwaysHaveMargin || !withMobileLayout || hasAside;
-
-    const navigationBarHeightPx =
-        (isMobile ? mobileNavigationBarHeightRem : desktopNavigationBarHeightRem) * remPx;
 
     const [postsWithoutChannelHeader, setPosts] = useState(() => {
         let posts: PostList;
@@ -660,6 +674,7 @@ function PostListView(
                                         flex: postViewFlex,
                                     }}
                                 >
+                                    {hasNavigationBar && <Spacer space={navigationBarHeight} />}
                                     <ChannelViewHeader
                                         channelHeader={item.channelHeader}
                                         onCreatePost={post =>
@@ -1277,6 +1292,8 @@ function PostListView(
             >
                 <VirtualizedScrollView
                     ref={viewRef}
+                    elementRef={navigationBar?.scrollViewRef}
+                    scrollbarInsetTop={navigationBar?.scrollbarInsetTop}
                     bufferedItemHeight={bufferedPostViewHeight}
                     itemCount={
                         // Don't render the post comment input (which should be the last item) if we are
@@ -1308,102 +1325,94 @@ function PostListView(
                             if (scrollDirectionState.scrollDirection === newScrollDirection)
                                 return scrollDirectionState;
 
-                            if (newScrollDirection === "Down") {
-                                const asideScrollOffset = clamp(
-                                    0,
-                                    scrollOffset - scrollDirectionState.asideBufferedHeight,
-                                    asideHeight - viewHeight,
-                                );
+                            const asideScrollOffset = clamp(
+                                0 -
+                                    (scrollDirectionState.scrollDirection === "Down"
+                                        ? 0
+                                        : navigationBarHeightPx),
+                                scrollOffset - scrollDirectionState.asideBufferedHeight,
+                                asideHeight - viewHeight,
+                            );
 
-                                const asideBufferedHeight = scrollOffset - asideScrollOffset;
+                            const asideBufferedHeight = scrollOffset - asideScrollOffset;
 
-                                return {
-                                    scrollDirection: "Down",
-                                    asideBufferedHeight,
-                                };
-                            } else {
-                                const asideScrollOffset =
-                                    clamp(
-                                        scrollDirectionState.asideBufferedHeight -
-                                            (asideHeight - viewHeight),
-                                        scrollOffset,
-                                        scrollDirectionState.asideBufferedHeight +
-                                            (asideHeight - viewHeight),
-                                    ) - scrollDirectionState.asideBufferedHeight;
-
-                                const asideBufferedHeight = scrollOffset - asideScrollOffset;
-
-                                return {
-                                    scrollDirection: "Up",
-                                    asideBufferedHeight,
-                                };
-                            }
+                            return {
+                                scrollDirection: newScrollDirection,
+                                asideBufferedHeight,
+                            };
                         });
                     }}
                     extraChildren={
-                        hasAside && (
-                            <>
-                                <div style={{height: scrollDirectionState.asideBufferedHeight}} />
-                                <div
-                                    className={sprinkles({
-                                        width: "full",
-                                        zIndex: "30",
-                                        pointerEvents: "none",
-                                        display: "flex",
-                                        justifyContent: "center",
-                                    })}
-                                    style={{
-                                        position: "sticky",
-                                        ...(scrollDirectionState.scrollDirection === "Down"
-                                            ? {
-                                                  top:
-                                                      viewSize && asideSize
-                                                          ? -(asideSize.height - viewSize.height)
-                                                          : 0,
-                                              }
-                                            : {
-                                                  bottom:
-                                                      viewSize && asideSize
-                                                          ? -(asideSize.height - viewSize.height)
-                                                          : 0,
-                                              }),
-                                        left: 0,
-                                        right: 0,
-                                    }}
-                                >
+                        <>
+                            {navigationBar?.navigationBar}
+                            {hasAside && (
+                                <>
                                     <div
-                                        className={sprinkles({
-                                            width: "full",
-                                            maxWidth: postViewMaxWidth,
-                                            overflow: "hidden",
-                                        })}
-                                        style={{
-                                            flex: postViewFlex,
-                                        }}
+                                        style={{height: scrollDirectionState.asideBufferedHeight}}
                                     />
                                     <div
                                         className={sprinkles({
                                             width: "full",
-                                            maxWidth: postListViewAsideMaxWidth,
+                                            zIndex: "30",
+                                            pointerEvents: "none",
+                                            display: "flex",
+                                            justifyContent: "center",
                                         })}
                                         style={{
-                                            flex: postListViewAsideFlex,
+                                            position: "sticky",
+                                            ...(scrollDirectionState.scrollDirection === "Down"
+                                                ? {
+                                                      top:
+                                                          viewSize && asideSize
+                                                              ? viewSize.height - asideSize.height
+                                                              : 0,
+                                                  }
+                                                : {
+                                                      bottom:
+                                                          viewSize && asideSize
+                                                              ? viewSize.height -
+                                                                asideSize.height -
+                                                                navigationBarHeightPx
+                                                              : 0,
+                                                  }),
+                                            left: 0,
+                                            right: 0,
                                         }}
                                     >
-                                        <aside
-                                            ref={asideRef}
+                                        <div
                                             className={sprinkles({
-                                                pointerEvents: "auto",
-                                                paddingX: "5",
+                                                width: "full",
+                                                maxWidth: postViewMaxWidth,
+                                                overflow: "hidden",
                                             })}
-                                            style={{minHeight: viewSize?.height}}
+                                            style={{
+                                                flex: postViewFlex,
+                                            }}
+                                        />
+                                        <div
+                                            className={sprinkles({
+                                                width: "full",
+                                                maxWidth: postListViewAsideMaxWidth,
+                                            })}
+                                            style={{
+                                                flex: postListViewAsideFlex,
+                                            }}
                                         >
-                                            {aside}
-                                        </aside>
+                                            <aside
+                                                ref={asideRef}
+                                                className={sprinkles({
+                                                    pointerEvents: "auto",
+                                                    paddingX: "5",
+                                                })}
+                                                style={{minHeight: viewSize?.height}}
+                                            >
+                                                {aside}
+                                            </aside>
+                                        </div>
                                     </div>
-                                </div>
-                            </>
-                        )
+                                </>
+                            )}
+                        </>
                     }
                 />
                 {isSingleMobileLayoutPostWithPinnedCommentInput &&
