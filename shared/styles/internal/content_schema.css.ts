@@ -111,7 +111,9 @@ export const messageDocClassName = style({
 export const docMobileLayoutContainerClassName = style({});
 
 export const blockMaxWidthWithoutPadding = spacing["160"];
-export const blockPaddingX = spacing["2"];
+const blockPaddingXSpacing = "2";
+export {blockPaddingXSpacing as blockPaddingX};
+const blockPaddingX = spacing[blockPaddingXSpacing];
 
 export const blockMaxWidth = addRemLengths(
     blockPaddingX,

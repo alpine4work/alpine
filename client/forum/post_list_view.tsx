@@ -13,7 +13,13 @@ import {
     useState,
 } from "react";
 import {useAppContext} from "~/client/context/app_context.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {
+    NavigationBarResult,
+    desktopNavigationBarHeightRem,
+    mobileNavigationBarHeightRem,
+    navigationBarHeight,
+} from "~/client/design/navigation_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {ChannelViewHeader, channelViewHeaderMinHeight} from "~/client/forum/channel_view_header.js";
@@ -22,7 +28,12 @@ import {
     PostRealtimeProcedures,
     postCommentInputMinHeight,
 } from "~/client/forum/post_comment_input.js";
-import {PostContentView, postContentViewMinHeight} from "~/client/forum/post_content_view.js";
+import {
+    PostContentView,
+    postCommentSectionGuidelineOffset,
+    postContentViewMinHeight,
+    postContentViewPaddingX,
+} from "~/client/forum/post_content_view.js";
 import {PostEditorModal} from "~/client/forum/post_editor_modal.js";
 import {
     PostCommentsState,
@@ -93,6 +104,8 @@ const bufferedPostViewHeight = addRemLengths(
     postContentViewMinHeight,
     spacing[postListViewMarginY],
 );
+
+const postCommentSectionGuidelineSpace = "6";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -236,7 +249,8 @@ function PostListView(
     const hasAside = !withMobileLayout && !!aside;
     const hasMargin = shouldAlwaysHaveMargin || !withMobileLayout || hasAside;
 
-    const paddingX: Spacing = isMobile ? "3" : "5";
+    const navigationBarHeightPx =
+        (isMobile ? mobileNavigationBarHeightRem : desktopNavigationBarHeightRem) * remPx;
 
     const [postsWithoutChannelHeader, setPosts] = useState(() => {
         let posts: PostList;
@@ -695,12 +709,11 @@ function PostListView(
                                         <div
                                             className={sprinkles({
                                                 position: "absolute",
-                                                zIndex: "30", // Render on top of comment input.
                                                 width: "full",
-                                                paddingX,
+                                                paddingX: postContentViewPaddingX,
                                             })}
                                             style={{
-                                                top: -1,
+                                                top: 0,
                                             }}
                                         >
                                             <div
@@ -715,7 +728,6 @@ function PostListView(
                                         post={item.post}
                                         postComments={item.postComments}
                                         postCommentsState={item.postCommentsState}
-                                        paddingX={paddingX}
                                         // If we are rendering in the context of a channel, don't render the channel
                                         // in posts.
                                         shouldShowChannel={
@@ -803,7 +815,12 @@ function PostListView(
                                                     ? highlightPostComment.shouldHighlightRef
                                                     : null
                                             }
-                                            marginX={paddingX}
+                                            marginX={
+                                                postContentViewPaddingX[
+                                                    isMobile ? "mobile" : "desktop"
+                                                ]
+                                            }
+                                            centeringMarginRight={postCommentSectionGuidelineSpace}
                                             onJumpToMessage={handleJumpToPostComment}
                                             onReplyToMessage={() => {
                                                 if (item.postComment.isOptimistic) return;
@@ -866,15 +883,34 @@ function PostListView(
                                     >
                                         <div
                                             className={sprinkles({
+                                                position: "relative",
+                                                zIndex: "0",
                                                 width: "full",
                                                 maxWidth: postViewMaxWidth,
                                                 overflow: "hidden",
+                                                paddingLeft: postCommentSectionGuidelineSpace,
                                             })}
                                             style={{
                                                 flex: postViewFlex,
                                             }}
                                         >
-                                            {item.postCommentIndex === 0 && <Spacer space="7" />}
+                                            <div
+                                                className={sprinkles({
+                                                    position: "absolute",
+                                                    top: "0",
+                                                    bottom: "0",
+                                                    borderLeft: "grey-5",
+                                                    borderLeftWidth: "thick",
+                                                })}
+                                                style={{
+                                                    left: `calc(${
+                                                        postCommentSectionGuidelineOffset[
+                                                            isMobile ? "mobile" : "desktop"
+                                                        ]
+                                                    } - 1px)`,
+                                                }}
+                                            />
+                                            {item.postCommentIndex === 0 && <Spacer space="4" />}
                                             {messageNode}
                                         </div>
                                         {hasAside && (
@@ -910,14 +946,33 @@ function PostListView(
                             >
                                 <div
                                     className={sprinkles({
+                                        position: "relative",
+                                        zIndex: "0",
                                         width: "full",
                                         maxWidth: postViewMaxWidth,
                                         overflow: "hidden",
+                                        paddingLeft: postCommentSectionGuidelineSpace,
                                     })}
                                     style={{
                                         flex: postViewFlex,
                                     }}
                                 >
+                                    <div
+                                        className={sprinkles({
+                                            position: "absolute",
+                                            top: "0",
+                                            bottom: "0",
+                                            borderLeft: "grey-5",
+                                            borderLeftWidth: "thick",
+                                        })}
+                                        style={{
+                                            left: `calc(${
+                                                postCommentSectionGuidelineOffset[
+                                                    isMobile ? "mobile" : "desktop"
+                                                ]
+                                            } - 1px)`,
+                                        }}
+                                    />
                                     <MessagingTypingIndicators
                                         typingStateByConnectionId={item.typingStateByConnectionId}
                                     />
@@ -1006,7 +1061,7 @@ function PostListView(
                                     commentIndex: postCommentIndex,
                                 });
                             }}
-                            paddingX={paddingX}
+                            paddingX={postContentViewPaddingX[isMobile ? "mobile" : "desktop"]}
                         />
                     );
 
@@ -1038,7 +1093,7 @@ function PostListView(
                                         display: "flex",
                                         justifyContent: "center",
                                         alignItems: "flex-end",
-                                        zIndex: "20",
+                                        zIndex: "30",
                                         ...(!shouldRenderWithRelativePositioning
                                             ? {
                                                   position: "absolute",
@@ -1059,11 +1114,6 @@ function PostListView(
                                                 position: "sticky",
                                                 bottom: `-${marginY}`,
                                             }),
-                                            // If there are no comments, add our margin Y to the top.
-                                            paddingTop:
-                                                item.postContentItemIndex === index - 1
-                                                    ? marginY
-                                                    : undefined,
                                             paddingBottom: marginY,
                                         }}
                                         className={sprinkles({
@@ -1075,15 +1125,38 @@ function PostListView(
                                     >
                                         <div
                                             className={sprinkles({
+                                                position: "relative",
+                                                zIndex: "0",
                                                 width: "full",
                                                 maxWidth: postViewMaxWidth,
-                                                position: "relative",
                                                 pointerEvents: "auto",
+                                                paddingLeft: postCommentSectionGuidelineSpace,
+                                                backgroundColor: "grey-0",
                                             })}
                                             style={{
                                                 flex: postViewFlex,
                                             }}
                                         >
+                                            <div
+                                                className={sprinkles({
+                                                    position: "absolute",
+                                                    top: "0",
+                                                    bottom: "7",
+                                                    width: "2.5",
+                                                    borderLeft: "grey-5",
+                                                    borderLeftWidth: "thick",
+                                                    borderBottom: "grey-5",
+                                                    borderBottomWidth: "thick",
+                                                    borderBottomLeftRadius: "lg",
+                                                })}
+                                                style={{
+                                                    left: `calc(${
+                                                        postCommentSectionGuidelineOffset[
+                                                            isMobile ? "mobile" : "desktop"
+                                                        ]
+                                                    } - 1px)`,
+                                                }}
+                                            />
                                             {inputNode}
                                         </div>
                                         {hasAside && (
@@ -1131,11 +1204,11 @@ function PostListView(
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    <PostShimmer paddingX={paddingX} parentHasMargin={hasMargin} />
+                                    <PostShimmer parentHasMargin={hasMargin} />
                                     <Spacer space={postListViewMarginY} />
-                                    <PostShimmer paddingX={paddingX} parentHasMargin={hasMargin} />
+                                    <PostShimmer parentHasMargin={hasMargin} />
                                     <Spacer space={postListViewMarginY} />
-                                    <PostShimmer paddingX={paddingX} parentHasMargin={hasMargin} />
+                                    <PostShimmer parentHasMargin={hasMargin} />
                                     <div
                                         className={sprinkles({
                                             display: "flex",
@@ -1173,15 +1246,16 @@ function PostListView(
         },
         [
             posts,
+            hasNavigationBar,
             hasMargin,
             withMobileLayout,
             hasAside,
-            paddingX,
             channelHeader?.channel.id,
             isSingleMobileLayoutPostWithPinnedCommentInput,
             loadInitialPostComments,
             messageEditing,
             highlightPostComment,
+            isMobile,
             handleJumpToPostComment,
             replyingToPostCommentIndexByPostId,
         ],
@@ -1388,7 +1462,7 @@ function PostListView(
                                         },
                                     );
                                 }}
-                                paddingX={paddingX}
+                                paddingX={postContentViewPaddingX[isMobile ? "mobile" : "desktop"]}
                                 onJumpToPostComment={handleJumpToPostComment}
                                 onDeletePostComment={async postCommentIndex => {
                                     const procedures = proceduresByPostIdRef.current.get(

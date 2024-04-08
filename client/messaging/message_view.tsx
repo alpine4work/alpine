@@ -36,6 +36,7 @@ import {
     addRemLengths,
     parseRemLengthNumber,
     spacing,
+    subtractRemLengths,
 } from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -142,6 +143,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     getMessageUrl,
     roomDisplayedCreatedTime,
     marginX = defaultMessageViewMarginX,
+    centeringMarginRight,
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
@@ -159,6 +161,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     getMessageUrl: (messageIndex: number) => URL;
     roomDisplayedCreatedTime?: Date;
     marginX?: Spacing;
+    centeringMarginRight?: Spacing;
 }) {
     const isMobile = useIsMobile();
     const canPrimaryInputHover = useCanPrimaryInputHover();
@@ -956,12 +959,19 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     fontSize: "50",
                     fontStyle: "truncate",
                     color: "grey-50",
+                    // The timestamp divider should be centered. For UI like `<PostListView>` we
+                    // show a guideline to help the user see that comments are a child of the post.
+                    // This guideline offsets messages to the left. To center timestamp dividers
+                    // with the post we need to apply some extra margin on the right to balance
+                    // things out.
+                    paddingRight: centeringMarginRight,
                 })}
             >
                 {formattedDate}
             </div>
         );
     }, [
+        centeringMarginRight,
         currentTime,
         isFirstMessage,
         locale,

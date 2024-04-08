@@ -1,11 +1,4 @@
-import {
-    CaretRight,
-    CaretUp,
-    ChatCircle,
-    DotsThreeVertical,
-    IconContext,
-    Smiley,
-} from "phosphor-react";
+import {ChatCircle, DotsThreeVertical, IconContext, Smiley} from "phosphor-react";
 import {CSSProperties, useContext, useEffect, useMemo, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {ContentView} from "~/client/content/content_view.js";
@@ -37,7 +30,6 @@ import {
     assertSpacing,
     parseRemLengthNumber,
     spacing,
-    subtractRemLengths,
 } from "~/shared/design/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -49,14 +41,20 @@ import {
 import {wait} from "~/shared/helpers/async/wait.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions.js";
-import {contentSchemaStyles, fontSizes, forumStyles, sprinkles} from "~/shared/styles/styles.js";
+import {contentSchemaStyles, fontSizes, sprinkles} from "~/shared/styles/styles.js";
 
-const postContentViewFooterHeight = "10";
+export const postContentViewPaddingX: {mobile: Spacing; desktop: Spacing} = {
+    mobile: "3",
+    desktop: "5",
+};
+
+const postContentViewFooterHeight = "8";
 const postContentViewFooterButtonHeight = "7";
 
-const postContentViewOuterMarginY = "7";
+const postContentViewOuterMarginY = "6";
 export const postContentViewInnerMarginY = "4";
 
 export const postContentViewMinHeight = addRemLengths(
@@ -70,6 +68,9 @@ export const postContentViewMinHeight = addRemLengths(
 
 const fontSize75LineHeightRem = parseRemLengthNumber(fontSizes["75"].lineHeight);
 const postContentViewFooterHeightRem = parseRemLengthNumber(spacing[postContentViewFooterHeight]);
+const postContentViewFooterButtonHeightRem = parseRemLengthNumber(
+    spacing[postContentViewFooterButtonHeight],
+);
 const postContentViewOuterMarginYRem = parseRemLengthNumber(spacing[postContentViewOuterMarginY]);
 
 // Visually, we want `postContentViewOuterMarginY` of space from the bottom of
@@ -80,11 +81,36 @@ const postContentViewOuterMarginBottomRem =
 
 const postContentViewOuterMarginBottom = `${postContentViewOuterMarginBottomRem}rem`;
 
+const postContentViewContentPaddingX = mapObjectValues(postContentViewPaddingX, paddingX =>
+    assertSpacing(`${parseInt(paddingX, 10) - parseInt(contentSchemaStyles.blockPaddingX, 10)}`),
+);
+
+const postContentViewOuterOpenCommentSectionMarginBottomRem =
+    postContentViewOuterMarginBottomRem - parseRemLengthNumber(spacing[messageInputPaddingY]);
+
+const postContentViewOuterOpenCommentSectionMarginBottom = `${postContentViewOuterOpenCommentSectionMarginBottomRem}rem`;
+
+const postContentViewFooterButtonIconSize = "4";
+
+export const postCommentSectionGuidelineOffset = mapObjectValues(
+    postContentViewPaddingX,
+    (paddingX): RemLength =>
+        `${
+            parseRemLengthNumber(spacing[paddingX]) +
+            parseRemLengthNumber(spacing[postContentViewFooterButtonIconSize]) / 2
+        }rem`,
+);
+
+const postCommentSectionGuidelineStartHeightRem =
+    postContentViewOuterOpenCommentSectionMarginBottomRem +
+    (postContentViewFooterHeightRem - postContentViewFooterButtonHeightRem) / 2;
+
+const postCommentSectionGuidelineStartHeight = `${postCommentSectionGuidelineStartHeightRem}rem`;
+
 export function PostContentView({
     post,
     postComments,
     postCommentsState,
-    paddingX,
     shouldShowChannel,
     onEditPost,
     onTogglePostComments,
@@ -93,7 +119,6 @@ export function PostContentView({
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
     postCommentsState: PostCommentsState;
-    paddingX: Spacing;
     shouldShowChannel: boolean;
     onEditPost: () => void;
     onTogglePostComments: () => void;
@@ -108,13 +133,16 @@ export function PostContentView({
             paddingTop={postContentViewOuterMarginY}
             style={{
                 minHeight: postContentViewMinHeight,
-                paddingBottom: postContentViewOuterMarginBottom,
+                paddingBottom:
+                    postCommentsState !== "Closed"
+                        ? postContentViewOuterOpenCommentSectionMarginBottom
+                        : postContentViewOuterMarginBottom,
             }}
         >
-            <Box position="relative" paddingX={paddingX}>
+            <Box position="relative" paddingX={postContentViewPaddingX}>
                 <PostContentViewHeader post={post} shouldShowChannel={shouldShowChannel} />
             </Box>
-            <Box position="absolute" top={paddingX} right={paddingX}>
+            <Box position="absolute" top={postContentViewPaddingX} right={postContentViewPaddingX}>
                 <MenuButton
                     actions={[
                         {
@@ -150,7 +178,7 @@ export function PostContentView({
             <ContentView
                 content={post.content}
                 className={sprinkles({
-                    paddingX: assertSpacing(`${parseInt(paddingX, 10) - 2}`),
+                    paddingX: postContentViewContentPaddingX,
                     paddingY: postContentViewInnerMarginY,
                 })}
                 contentUpdatedTime={post.contentUpdatedTime}
@@ -159,21 +187,24 @@ export function PostContentView({
                 post={post}
                 postComments={postComments}
                 postCommentsState={postCommentsState}
-                paddingX={paddingX}
                 onTogglePostComments={onTogglePostComments}
                 onLoadInitialPostComments={onLoadInitialPostComments}
             />
             {postCommentsState !== "Closed" && (
-                <Box
-                    position="absolute"
-                    zIndex="30" // Render on top of comment input.
-                    left="0"
-                    right="0"
-                    bottom="-1"
-                    paddingX={paddingX}
-                >
-                    <div className={forumStyles.dashedBorderClassName} />
-                </Box>
+                <div
+                    className={sprinkles({
+                        position: "absolute",
+                        bottom: "0",
+                        borderLeft: "grey-5",
+                        borderLeftWidth: "thick",
+                    })}
+                    style={{
+                        height: postCommentSectionGuidelineStartHeight,
+                        left: `calc(${
+                            postCommentSectionGuidelineOffset[isMobile ? "mobile" : "desktop"]
+                        } - 1px)`,
+                    }}
+                />
             )}
         </Box>
     );
@@ -183,14 +214,12 @@ function PostContentViewFooter({
     post,
     postComments,
     postCommentsState,
-    paddingX,
     onTogglePostComments,
     onLoadInitialPostComments,
 }: {
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
     postCommentsState: PostCommentsState;
-    paddingX: Spacing;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
 }) {
@@ -199,7 +228,7 @@ function PostContentViewFooter({
     return (
         <Box
             data-testid={`PostContentViewFooter:${post.id}`}
-            paddingX={paddingX}
+            paddingX={postContentViewPaddingX}
             height={postContentViewFooterHeight}
             display="flex"
             alignItems="center"
@@ -218,8 +247,12 @@ function PostContentViewFooter({
                         height={postContentViewFooterButtonHeight}
                         paddingX="1.5"
                         icon={
-                            <Box position="relative" width="4" height="4">
-                                <ChatCircle size={spacing["4"]} />
+                            <Box
+                                position="relative"
+                                width={postContentViewFooterButtonIconSize}
+                                height={postContentViewFooterButtonIconSize}
+                            >
+                                <ChatCircle size={spacing[postContentViewFooterButtonIconSize]} />
                                 <Box
                                     position="absolute"
                                     inset="0"
@@ -310,7 +343,7 @@ function PostContentViewFooter({
             <Box marginRight="-1.5">
                 <Button
                     variant="quieter2"
-                    icon={<Smiley size={spacing["4"]} />}
+                    icon={<Smiley size={spacing[postContentViewFooterButtonIconSize]} />}
                     height={postContentViewFooterButtonHeight}
                     paddingX="1.5"
                     onPress={() => {

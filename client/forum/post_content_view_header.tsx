@@ -4,11 +4,11 @@ import {useAccountModel} from "~/client/accounts/account_client_store_context_pr
 import {Box} from "~/client/design/box.js";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
-import {Spacing} from "~/shared/design/spacing.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
-export const postContentViewHeaderHeight: Spacing = "8";
+export const postContentViewHeaderAvatarSize = "8";
+export const postContentViewHeaderHeight = "8";
 
 export function PostContentViewHeader({
     post,
@@ -22,7 +22,7 @@ export function PostContentViewHeader({
 
     return (
         <Box height={postContentViewHeaderHeight} display="flex" alignItems="center">
-            <AccountAvatar account={post.author} size="8" />
+            <AccountAvatar account={post.author} size={postContentViewHeaderAvatarSize} />
             <Box flexGrow="1" paddingX="3" overflow="hidden">
                 <Box fontSize="75" fontStyle="truncate" color="grey-70">
                     <span className={sprinkles({color: "grey-text", fontStyle: "semi-bold"})}>

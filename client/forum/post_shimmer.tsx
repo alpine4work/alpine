@@ -1,21 +1,15 @@
 import {useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {
-    postContentViewMinHeight,
     postContentViewInnerMarginY,
+    postContentViewMinHeight,
+    postContentViewPaddingX,
 } from "~/client/forum/post_content_view.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {Spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {fontSizes, pulseAnimationClassName} from "~/shared/styles/styles.js";
 
-export function PostShimmer({
-    paddingX,
-    parentHasMargin,
-}: {
-    paddingX: Spacing;
-    parentHasMargin: boolean;
-}) {
+export function PostShimmer({parentHasMargin}: {parentHasMargin: boolean}) {
     const shimmerRef = useRef<HTMLDivElement>(null);
 
     // Set shimmer start times to the same value. That way shimmers rendered at
@@ -43,7 +37,7 @@ export function PostShimmer({
             flexDirection="column"
         >
             <Box
-                paddingX={paddingX}
+                paddingX={postContentViewPaddingX}
                 paddingTop={postContentViewInnerMarginY}
                 display="flex"
                 alignItems="center"
@@ -90,7 +84,7 @@ export function PostShimmer({
             </Box>
             <Box flexGrow="1" />
             <Box
-                marginX={paddingX}
+                marginX={postContentViewPaddingX}
                 borderTop="grey-5"
                 height="12"
                 display="flex"

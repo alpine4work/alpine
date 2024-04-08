@@ -119,7 +119,6 @@ export function PostEditorInline({
             <Box
                 backgroundColor="grey-0"
                 borderRadius={parentHasMargin ? "md" : undefined}
-                boxShadow="elevation-5"
                 style={{minHeight: postEditorInlineMinHeight}}
             >
                 <Box

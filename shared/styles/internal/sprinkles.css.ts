@@ -246,6 +246,46 @@ const responsiveProperties = defineProperties({
             base: {selectors: {"&&&&": {borderWidth: 1}}},
             thick: {selectors: {"&&&&": {borderWidth: 2}}},
         },
+        borderTopWidth: {
+            // Use a quadruple selector so that this border width overrides the border
+            // width of a `colorProperties` border with a condition. Border width in
+            // `colorProperties` with condition has a specificity of 3. One for the
+            // selector and two for the condition (in light mode we have `:root:not(...)`
+            // as the condition). So quadruple selector beats it.
+            none: {selectors: {"&&&&": {borderTopWidth: 0}}},
+            base: {selectors: {"&&&&": {borderTopWidth: 1}}},
+            thick: {selectors: {"&&&&": {borderTopWidth: 2}}},
+        },
+        borderBottomWidth: {
+            // Use a quadruple selector so that this border width overrides the border
+            // width of a `colorProperties` border with a condition. Border width in
+            // `colorProperties` with condition has a specificity of 3. One for the
+            // selector and two for the condition (in light mode we have `:root:not(...)`
+            // as the condition). So quadruple selector beats it.
+            none: {selectors: {"&&&&": {borderBottomWidth: 0}}},
+            base: {selectors: {"&&&&": {borderBottomWidth: 1}}},
+            thick: {selectors: {"&&&&": {borderBottomWidth: 2}}},
+        },
+        borderLeftWidth: {
+            // Use a quadruple selector so that this border width overrides the border
+            // width of a `colorProperties` border with a condition. Border width in
+            // `colorProperties` with condition has a specificity of 3. One for the
+            // selector and two for the condition (in light mode we have `:root:not(...)`
+            // as the condition). So quadruple selector beats it.
+            none: {selectors: {"&&&&": {borderLeftWidth: 0}}},
+            base: {selectors: {"&&&&": {borderLeftWidth: 1}}},
+            thick: {selectors: {"&&&&": {borderLeftWidth: 2}}},
+        },
+        borderRightWidth: {
+            // Use a quadruple selector so that this border width overrides the border
+            // width of a `colorProperties` border with a condition. Border width in
+            // `colorProperties` with condition has a specificity of 3. One for the
+            // selector and two for the condition (in light mode we have `:root:not(...)`
+            // as the condition). So quadruple selector beats it.
+            base: {selectors: {"&&&&": {borderRightWidth: 1}}},
+            none: {selectors: {"&&&&": {borderRightWidth: 0}}},
+            thick: {selectors: {"&&&&": {borderRightWidth: 2}}},
+        },
         boxShadow: elevationVars,
         fontSize: fontSizes,
     },
