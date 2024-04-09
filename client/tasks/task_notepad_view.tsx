@@ -3,6 +3,7 @@ import {Memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useS
 import {Box} from "~/client/design/box.js";
 import {MenuAction} from "~/client/design/menu_button.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -483,7 +484,11 @@ export function TaskNotepadView({
                         () => alwaysRenderAdditionalGridViewItemIndexes.map(index => index + 1),
                         [alwaysRenderAdditionalGridViewItemIndexes],
                     )}
-                    scrollbarInsetTop={withMobileLayout ? scrollbarInsetTop : undefined}
+                    scrollbarInsetTop={
+                        withMobileLayout
+                            ? scrollbarInsetTop ?? safeAreaOnlyScrollbarInsetTop
+                            : undefined
+                    }
                     scrollbarInsetTopItemIndex={
                         !withMobileLayout && scrollbarInsetTopGridViewItemIndex !== undefined
                             ? scrollbarInsetTopGridViewItemIndex + 1

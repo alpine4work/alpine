@@ -15,6 +15,7 @@ import {Box} from "~/client/design/box.js";
 import {MenuAction} from "~/client/design/menu_button.js";
 import {MobileModal} from "~/client/design/mobile_modal.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {ConstStore, falseStore} from "~/client/helpers/store/const_store.js";
@@ -950,7 +951,11 @@ export function TaskCollectionView({
                             withMobileLayout,
                         ],
                     )}
-                    scrollbarInsetTop={withMobileLayout ? scrollbarInsetTop : undefined}
+                    scrollbarInsetTop={
+                        withMobileLayout
+                            ? scrollbarInsetTop ?? safeAreaOnlyScrollbarInsetTop
+                            : undefined
+                    }
                     scrollbarInsetTopItemIndex={
                         !withMobileLayout && scrollbarInsetTopGridViewItemIndex !== undefined
                             ? scrollbarInsetTopGridViewItemIndex + itemCountBeforeGridView
