@@ -64,8 +64,15 @@ import {
 import {ClientInfo} from "~/shared/remix/client_info.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
-export const messagingViewMarginBottom =
-    "calc(var(--safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px))";
+export const messagingViewPaddingX: {mobile: Spacing; desktop: Spacing} = {
+    mobile: "3",
+    desktop: "5",
+};
+
+export const messagingViewMarginBottomCalcExpression =
+    "var(--safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px)";
+
+export const messagingViewMarginBottom = `calc(${messagingViewMarginBottomCalcExpression})`;
 
 /**
  * Get the initial number of messages to load.
@@ -375,8 +382,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const inputRef = useRef<MessageInputRef>(null);
 
-    const paddingX: Spacing = isMobile ? "4" : "5";
-
     const [messagesWithoutHeader, setMessages] = useState(() => {
         const messages = MessageList.new<Message>({
             messageCount: initialMessagesResult.messageCount,
@@ -642,7 +647,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         roomDisplayedCreatedTime,
                         shouldAddMarginTop: index === 0,
                         shouldAddMarginBottom: index === state.getItemCount() - 1,
-                        marginX: paddingX,
+                        marginX: messagingViewPaddingX[isMobile ? "mobile" : "desktop"],
                     });
                 }
             }
@@ -652,10 +657,10 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             getMessageUrl,
             handleJumpToMessage,
             highlightMessage,
+            isMobile,
             messageEditing,
             messageNoun,
             messageStartOfSentenceNoun,
-            paddingX,
             randomSeedForShimmer,
             roomDisplayedCreatedTime,
             state,
@@ -722,7 +727,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         );
                 }}
                 restoreStateRef={inputRestoreStateRef}
-                marginX={paddingX}
+                marginX={messagingViewPaddingX[isMobile ? "mobile" : "desktop"]}
             />
         </div>
     );

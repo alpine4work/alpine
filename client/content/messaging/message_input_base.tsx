@@ -11,7 +11,6 @@ import {
     useImperativeHandle,
     useMemo,
     useRef,
-    useState,
 } from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
@@ -30,6 +29,7 @@ import {
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useRegisterBottomBarFrame} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useIsTextInputFocused} from "~/client/helpers/use_is_text_input_focused.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -185,49 +185,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         [clear],
     );
 
-    const [isKeyboardToolbarVisible, setIsKeyboardToolbarVisible] = useState(false);
-    if (isKeyboardToolbarVisible && !(isMobile && isBottomBar)) setIsKeyboardToolbarVisible(false);
-
-    const lastIsKeyboardToolbarVisibleRef = useRef(isKeyboardToolbarVisible);
-    useEffect(() => {
-        if (NativeMobileBridge) return;
-
-        if (lastIsKeyboardToolbarVisibleRef.current === isKeyboardToolbarVisible) return;
-        lastIsKeyboardToolbarVisibleRef.current = isKeyboardToolbarVisible;
-
-        const containerElement = assertExists(containerRef.current);
-
-        if (isKeyboardToolbarVisible) {
-            animate(
-                containerElement,
-                {
-                    y: [0, -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening()],
-                },
-                {
-                    duration: 0.2,
-                    // Make sure we use hardware acceleration for this animation in WebKit. By
-                    // default `motion` turns it off.
-                    // https://motion.dev/guides/performance#webkits-exceptions
-                    allowWebkitAcceleration: true,
-                },
-            );
-        } else {
-            animate(
-                containerElement,
-                {
-                    y: [-mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening(), 0],
-                },
-                {
-                    duration: 0.2,
-                    // Make sure we use hardware acceleration for this animation in WebKit. By
-                    // default `motion` turns it off.
-                    // https://motion.dev/guides/performance#webkits-exceptions
-                    allowWebkitAcceleration: true,
-                },
-            );
-        }
-    }, [isKeyboardToolbarVisible]);
-
     const isEditingMessage = !!messageEditingForThisInput;
 
     const replyingToMessage = useMemo(() => {
@@ -324,28 +281,67 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onSendProp();
     };
 
+    // 1. On mobile, make sure our keyboard toolbar is visible when any text input
+    //    is focused
+    // 2. On mobile web, animate so our toolbar is visible. In our native app, the
+    //    shell manages animating the toolbar so it's visible (done in an effect)
+    //
+    // We check for whether any text input is focused (not just the message input)
+    // since on native mobile, the message input will slide up regardless when the
+    // keyboard opens whether the keyboard opened from the message input or
+    // something else (e.g. `<ChatAccountPicker>` element).
+    const {isTextInputFocused: isKeyboardToolbarVisible} = useIsTextInputFocused({
+        isDisabled: !isMobile || !isBottomBar,
+    });
+
+    const lastIsKeyboardToolbarVisibleRef = useRef(isKeyboardToolbarVisible);
+    useEffect(() => {
+        if (NativeMobileBridge) return;
+
+        if (lastIsKeyboardToolbarVisibleRef.current === isKeyboardToolbarVisible) return;
+        lastIsKeyboardToolbarVisibleRef.current = isKeyboardToolbarVisible;
+
+        const containerElement = assertExists(containerRef.current);
+
+        if (isKeyboardToolbarVisible) {
+            animate(
+                containerElement,
+                {
+                    y: [0, -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening()],
+                },
+                {
+                    duration: 0.2,
+                    // Make sure we use hardware acceleration for this animation in WebKit. By
+                    // default `motion` turns it off.
+                    // https://motion.dev/guides/performance#webkits-exceptions
+                    allowWebkitAcceleration: true,
+                },
+            );
+        } else {
+            animate(
+                containerElement,
+                {
+                    y: [-mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening(), 0],
+                },
+                {
+                    duration: 0.2,
+                    // Make sure we use hardware acceleration for this animation in WebKit. By
+                    // default `motion` turns it off.
+                    // https://motion.dev/guides/performance#webkits-exceptions
+                    allowWebkitAcceleration: true,
+                },
+            );
+        }
+    }, [isKeyboardToolbarVisible]);
+
     const handleFocus = () => {
         onFocus?.();
-
-        // 1. On mobile, make sure our keyboard toolbar is visible when focused
-        // 2. On mobile web, animate so our toolbar is visible. In our native app, the
-        //    shell manages animating the toolbar so it's visible (done in an effect)
-        if (isMobile && isBottomBar) {
-            setIsKeyboardToolbarVisible(true);
-        }
     };
 
     const handleBlur = () => {
         hideTypingIndicator();
 
         onBlur?.();
-
-        // 1. On mobile, make sure our keyboard toolbar is visible when focused
-        // 2. On mobile web, animate so our toolbar is visible. In our native app, the
-        //    shell manages animating the toolbar so it's visible (done in an effect)
-        if (isMobile && isBottomBar) {
-            setIsKeyboardToolbarVisible(false);
-        }
     };
 
     useRegisterBottomBarFrame(inputContainerRef, {withMobileKeyboardToolbar: true});

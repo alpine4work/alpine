@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
 
 import {useCallback, useRef} from "react";
-import {chatMessagingHeader} from "~/client/chat/chat_view.js";
+import {chatMessagingViewHeader} from "~/client/chat/chat_view.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {MessagingView} from "~/client/messaging/messaging_view.js";
@@ -54,7 +54,7 @@ export function NewChatMessagingView({
                           lastMessageChangeTime: null,
                       }
             }
-            header={chatMessagingHeader}
+            header={chatMessagingViewHeader}
             randomSeedForShimmer={selectedChat?.chat.id ?? "unknown"}
             isMessageCreationDisabled={!selectedChat}
             getMessagesFromStart={useEvent(input => {

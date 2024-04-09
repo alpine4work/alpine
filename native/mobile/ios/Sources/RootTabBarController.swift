@@ -62,8 +62,9 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             // initialPath: "/s/\(spaceId)/chat/with/2wf86qqvavtzkgatx9czwbtcb8",
             // initialPath: "/s/\(spaceId)/documents/2v1kz5r5w3tdb7zv6xt98wm7qg",
             // initialPath: "/s/\(spaceId)/documents/3bvke6qzpyr2tzysk0a9p5sa8r",
-            initialPath: "/s/\(spaceId)/tasks",
+            // initialPath: "/s/\(spaceId)/tasks",
             // initialPath: "/s/\(spaceId)/tasks/view",
+            initialPath: "/s/\(spaceId)/chat/new",
             websiteDataStore: websiteDataStore
         )
 

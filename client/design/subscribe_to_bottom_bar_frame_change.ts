@@ -62,8 +62,7 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
             if (isCancelled) return;
 
             hasFinishedEffectSetup = true;
-            if (hasCalledHandleResizeDuringEffectSetup) {
-                hasCalledHandleResizeDuringEffectSetup = false;
+            if (!hasCalledHandleResizeDuringEffectSetup) {
                 handleResize();
             }
         });
@@ -108,8 +107,14 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
             // unmounting phase. If React immediately remounts and we re-register with the
             // same height it means we'll end up emitting no events. If React remounts with
             // a different height then we'll only end up emitting one event.
+            //
+            // Double microtask so microtasks scheduled by effect React mount handlers can
+            // run before we finish unmounting and we can skip sending an event if a
+            // remount doesn't change the height.
             scheduleMicrotask(() => {
-                unregister?.();
+                scheduleMicrotask(() => {
+                    unregister?.();
+                });
             });
         };
     }, [elementRef, isDisabled, isInertNativeMobileRoute, withMobileKeyboardToolbar]);
@@ -148,8 +153,14 @@ export function useRegisterBottomBarMobileKeyboardToolbarFrame({
             // unmounting phase. If React immediately remounts and we re-register with the
             // same height it means we'll end up emitting no events. If React remounts with
             // a different height then we'll only end up emitting one event.
+            //
+            // Double microtask so microtasks scheduled by effect React mount handlers can
+            // run before we finish unmounting and we can skip sending an event if a
+            // remount doesn't change the height.
             scheduleMicrotask(() => {
-                unregister?.();
+                scheduleMicrotask(() => {
+                    unregister?.();
+                });
             });
         };
     }, [isDisabled, isInertNativeMobileRoute]);

@@ -379,11 +379,15 @@ function Overlay(
                             phase: "beforeWrite" as const,
                             requires: ["computeStyles"],
                             fn: ({state}: {state: State}) => {
-                                state.styles.popper!.width = `${state.rects.reference.width}px`;
+                                state.styles.popper!.width = `${
+                                    state.rects.reference.width - padding.left - padding.right
+                                }px`;
                             },
                             effect: ({state}: {state: State}) => {
                                 state.elements.popper.style.width = `${
-                                    (state.elements.reference as HTMLElement).offsetWidth
+                                    (state.elements.reference as HTMLElement).offsetWidth -
+                                    padding.left -
+                                    padding.right
                                 }px`;
                             },
                         },
@@ -393,11 +397,15 @@ function Overlay(
                             phase: "beforeWrite" as const,
                             requires: ["computeStyles"],
                             fn: ({state}: {state: State}) => {
-                                state.styles.popper!.height = `${state.rects.reference.height}px`;
+                                state.styles.popper!.height = `${
+                                    state.rects.reference.height - padding.top - padding.bottom
+                                }px`;
                             },
                             effect: ({state}: {state: State}) => {
                                 state.elements.popper.style.height = `${
-                                    (state.elements.reference as HTMLElement).offsetHeight
+                                    (state.elements.reference as HTMLElement).offsetHeight -
+                                    padding.top -
+                                    padding.bottom
                                 }px`;
                             },
                         },

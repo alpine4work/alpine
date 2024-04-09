@@ -125,20 +125,24 @@ export function createNativeMobileRouter(
         },
         enableScrollRestoration: routerBase.enableScrollRestoration.bind(routerBase),
         navigate: (...args) => {
-            // When a navigation is performed and we have a focused text input element,
-            // blur it. We want to wait for the virtual keyboard to close before navigating
-            // so we don't end up with snapshots of partially animated bottom bar elements.
-            if (isTextInputElement(document.activeElement)) {
-                document.activeElement.blur();
-            }
+            // Close keyboard before navigating if we're about to animate. We don't animate
+            // the navigation on replace.
+            if (typeof args[0] === "number" || !(args[1] as any)?.replace) {
+                // When a navigation is performed and we have a focused text input element,
+                // blur it. We want to wait for the virtual keyboard to close before navigating
+                // so we don't end up with snapshots of partially animated bottom bar elements.
+                if (isTextInputElement(document.activeElement)) {
+                    document.activeElement.blur();
+                }
 
-            if (!waitForKeyboardAnimationPromise) {
-                waitForKeyboardAnimationPromise = new Promise<void>(resolve =>
-                    NativeMobileBridge!.keyboard.scheduleAfterAnimation(resolve),
-                );
-                waitForKeyboardAnimationPromise.finally(() => {
-                    waitForKeyboardAnimationPromise = undefined;
-                });
+                if (!waitForKeyboardAnimationPromise) {
+                    waitForKeyboardAnimationPromise = new Promise<void>(resolve =>
+                        NativeMobileBridge!.keyboard.scheduleAfterAnimation(resolve),
+                    );
+                    waitForKeyboardAnimationPromise.finally(() => {
+                        waitForKeyboardAnimationPromise = undefined;
+                    });
+                }
             }
 
             return (routerBase as any).navigate(...args);

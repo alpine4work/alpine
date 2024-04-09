@@ -1,4 +1,4 @@
-import {isFocusVisible} from "@react-aria/interactions";
+import {isFocusVisible, usePress} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import classNames from "classnames";
 import _Fuse from "fuse.js";
@@ -28,6 +28,8 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {messagingViewPaddingX} from "~/client/messaging/messaging_view.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     useExpensivelyLoadAllSpaceAccounts,
@@ -89,6 +91,7 @@ export function ChatAccountPicker({
     suggestedChats: ReadonlyArray<ChatModel>;
     withMobileLayout: boolean;
 }) {
+    const isMobile = useIsMobile();
     const accountStore = useAccountClientStore();
     const {currentAccount} = useSpaceContext();
 
@@ -253,6 +256,11 @@ export function ChatAccountPicker({
             </Item>
         ),
 
+        onFocus: () => {
+            // Open the combobox on focus.
+            comboBoxState.open();
+        },
+
         // Animate when the combobox loses focus. Losing focus is typically not a
         // direct user interaction. e.g. Clicking outside of the text box. Tabbing out
         // of the text box we consider an indirect interaction since the animation can
@@ -340,6 +348,7 @@ export function ChatAccountPicker({
                             event.currentTarget.selectionStart === 0
                         ) {
                             event.preventDefault();
+                            event.stopPropagation();
                             onUpdateSelectedAccounts(selectedAccounts => {
                                 if (selectedAccounts.length === 0) return selectedAccounts;
                                 return selectedAccounts.slice(0, -1);
@@ -357,6 +366,7 @@ export function ChatAccountPicker({
                             event.currentTarget.selectionStart === 0
                         ) {
                             event.preventDefault();
+                            event.stopPropagation();
                             selectedAccountRefs[selectedAccountRefs.length - 1]?.current?.focus();
                         }
                         break;
@@ -462,32 +472,66 @@ export function ChatAccountPicker({
                     alignItems="center"
                     // The first selected account is focusable via tab and you can use arrow keys
                     // to focus the others.
-                    tabIndex={index === 0 ? 0 : -1}
+                    //
+                    // On mobile you can't select individual accounts so pointer events fallthrough
+                    // and focus the input.
+                    tabIndex={!isMobile ? (index === 0 ? 0 : -1) : undefined}
+                    pointerEvents={!isMobile ? undefined : "none"}
                     onKeyDown={handleKeyDown}
                 >
                     <Box paddingLeft="0.5">
                         <AccountAvatar size="5" account={accountData} />
                     </Box>
-                    <Box paddingLeft="1.5" paddingRight="0.5" fontSize="100">
+                    <Box
+                        paddingLeft="1.5"
+                        paddingRight={!isMobile ? "0.5" : "2"}
+                        fontSize={{desktop: "100", mobile: "50"}}
+                    >
                         {accountData.name}
                     </Box>
-                    <Box paddingRight="1">
-                        <IconButton
-                            size="xs"
-                            variant="quiet-above-grey-5-background"
-                            // The user focuses the pill as a whole and hits the delete key to delete using
-                            // the keyboard.
-                            isTabbable={false}
-                            description="Remove"
-                            withoutTooltip={true}
-                            onPress={deleteAccount}
-                        >
-                            <X size={addRemLengths(spacing["2"], spacing["0.5"])} />
-                        </IconButton>
-                    </Box>
+                    {!isMobile && (
+                        // On mobile this button is too small. So the only way to delete people is via
+                        // pressing backspace on the keyboard.
+                        <Box paddingRight="1">
+                            <IconButton
+                                size="xs"
+                                variant="quiet-above-grey-5-background"
+                                // The user focuses the pill as a whole and hits the delete key to delete using
+                                // the keyboard.
+                                isTabbable={false}
+                                description="Remove"
+                                withoutTooltip={true}
+                                onPress={deleteAccount}
+                            >
+                                <X size={addRemLengths(spacing["2"], spacing["0.5"])} />
+                            </IconButton>
+                        </Box>
+                    )}
                 </Box>
             </FocusRing>
         );
+    });
+
+    const {pressProps: backdropPressProps} = usePress({
+        // Backdrop doesn't receive focus.
+        preventFocusOnPress: true,
+
+        onPressStart: event => {
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType === "mouse") {
+                assertExists(inputRef.current).focus();
+            }
+        },
+        onPress: event => {
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType !== "mouse") {
+                assertExists(inputRef.current).focus();
+            }
+        },
     });
 
     return (
@@ -531,10 +575,11 @@ export function ChatAccountPicker({
                             flexShrink: "0",
                             display: "flex",
                             alignItems: "center",
-                            height: "10",
-                            paddingLeft: "4",
-                            paddingRight: "3",
-                            fontSize: "100",
+                            // Smaller on mobile since we render the navigation bar above.
+                            height: !isMobile ? "12" : "10",
+                            paddingLeft: messagingViewPaddingX,
+                            paddingRight: {desktop: "3", mobile: "1.5"},
+                            fontSize: {desktop: "100", mobile: "50"},
                             color: "grey-50",
                         })}
                     >
@@ -542,21 +587,26 @@ export function ChatAccountPicker({
                         <span aria-hidden={true}>:</span>
                     </label>
                     <Box
+                        position="relative"
+                        zIndex="0"
                         flexGrow="1"
                         display="flex"
                         flexWrap="wrap"
-                        gap="1.5"
-                        paddingY="2"
+                        rowGap="1.5"
+                        columnGap={{desktop: "1.5", mobile: "1"}}
+                        // Smaller on mobile since we render the navigation bar above.
+                        paddingY={!isMobile ? "3" : "2"}
                         cursor="text"
-                        onClick={event => {
-                            if (event.currentTarget === event.target) {
-                                assertExists(inputRef.current).focus();
-
-                                // Make sure to open the combobox as well as an affordance for pointer users.
-                                comboBoxState.open();
-                            }
-                        }}
                     >
+                        <div
+                            {...backdropPressProps}
+                            className={sprinkles({
+                                position: "absolute",
+                                zIndex: "-10",
+                                inset: "0",
+                                cursor: "text",
+                            })}
+                        />
                         {selectedAccountsChildren}
                         <input
                             {...inputProps}
@@ -581,27 +631,13 @@ export function ChatAccountPicker({
                                 }rem`,
                             }}
                             placeholder={
-                                selectedAccounts.length === 0
-                                    ? "Who do you want to send a message to?"
-                                    : undefined
+                                selectedAccounts.length === 0 ? "Search for people" : undefined
                             }
                             // By default `<input>` elements have a `min-width` determined by the `size`
                             // property. We want our `<input>`s `min-width` to be determined by our CSS
                             // so set it to a small value as not to matter.
                             // https://stackoverflow.com/questions/29470676/why-doesnt-the-input-element-respect-min-width
                             size={1}
-                            // Open the combobox when the user presses on the input as an affordance for
-                            // pointer users. For keyboard users you need to press an arrow key or type.
-                            //
-                            // This has the added benefit of allowing the user to open the combobox again
-                            // while the input is focused if they are quickly selecting accounts to message
-                            // with their pointer.
-                            onPointerDown={() => {
-                                // TODO(calebmer): On mobile this should probably be cancelled if the user
-                                // scrolls so we should use `usePress()` instead and use `onPressStart` for
-                                // mouse inputs and `onPress` for touch inputs.
-                                comboBoxState.open();
-                            }}
                             onKeyDown={event => {
                                 if (
                                     event.key === "Enter" &&
@@ -622,9 +658,32 @@ export function ChatAccountPicker({
                                     inputProps.onKeyDown?.(event);
                                 }
                             }}
+                            onPointerDown={event => {
+                                // As a convenience, if you tap on this element while it's already focused but
+                                // the combobox isn't open then open the combobox. After you select an option
+                                // the combobox closes but the user may want to select another account.
+                                //
+                                // We have to be a little careful and make sure this doesn't break the default
+                                // browser behavior of focusing the input if it's unfocused.
+                                if (
+                                    document.activeElement === event.target &&
+                                    !comboBoxState.isOpen
+                                ) {
+                                    comboBoxState.open();
+                                }
+                            }}
                         />
                     </Box>
-                    <Box flexShrink="0" padding="3" display="flex" alignItems="center" gap="2">
+                    <Box
+                        flexShrink="0"
+                        // Smaller on mobile since we render the navigation bar above.
+                        height={!isMobile ? "12" : "10"}
+                        paddingLeft={{desktop: "3", mobile: "1.5"}}
+                        paddingRight={{mobile: messagingViewPaddingX.mobile, desktop: "4"}}
+                        display="flex"
+                        alignItems="center"
+                        gap="2"
+                    >
                         <Box width="4" height="4">
                             {shouldShowPendingSpinner && (
                                 <SpinnerGap
@@ -634,17 +693,25 @@ export function ChatAccountPicker({
                                 />
                             )}
                         </Box>
-                        <IconButton
-                            {...buttonProps}
-                            // The button has its own label so we don't need one from `react-aria`.
-                            aria-labelledby={undefined}
-                            ref={buttonRef}
-                            size="xs"
-                            description="Toggle"
-                            withoutTooltip={true}
+                        <Box
+                            // Redundant and takes up too much space on mobile. The user can tap on the
+                            // input to open the dropdown.
+                            //
+                            // We still need it in the DOM, though, or else `react-aria` gets confused.
+                            display={isMobile ? "none" : undefined}
                         >
-                            <CaretDown />
-                        </IconButton>
+                            <IconButton
+                                {...buttonProps}
+                                // The button has its own label so we don't need one from `react-aria`.
+                                aria-labelledby={undefined}
+                                ref={buttonRef}
+                                size="sm"
+                                description="Toggle"
+                                withoutTooltip={true}
+                            >
+                                <CaretDown />
+                            </IconButton>
+                        </Box>
                     </Box>
                 </Box>
             </FocusRing>
@@ -672,7 +739,7 @@ function ChatAccountPickerListBox({
                 sprinkles({
                     borderRadius: "md",
                     padding: "1",
-                    marginX: "2",
+                    marginX: "1",
                     backgroundColor: "grey-0",
                     boxShadow: "elevation-20",
                     maxHeight: "64",

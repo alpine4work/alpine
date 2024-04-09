@@ -3,9 +3,11 @@ import {useLocation, useNavigation, useSearchParams} from "react-router-dom";
 import {ChatAccountPicker} from "~/client/chat/chat_account_picker.js";
 import {NewChatMessagingView} from "~/client/chat/new_chat_messaging_view.js";
 import {Box} from "~/client/design/box.js";
+import {NavigationBarContent} from "~/client/design/navigation_bar.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
@@ -78,6 +80,8 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
 
 export default function NewChatRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
     const loaderData = useLoaderDataWithSchema(LoaderSchema);
+
+    const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
 
     const location = useLocation();
@@ -140,23 +144,26 @@ export default function NewChatRoute({withMobileLayout = false}: {withMobileLayo
         <Box
             flexGrow="1"
             width="full"
+            height="full"
             overflow="hidden"
-            padding={!withMobileLayout ? {desktop: "4"} : undefined}
             display="flex"
-            justifyContent="center"
+            flexDirection="column"
         >
             <Box
-                maxWidth="160"
-                width="full"
-                height="full"
-                overflow="hidden"
-                backgroundColor="grey-0"
-                borderRadius={!withMobileLayout ? {desktop: "md"} : undefined}
-                boxShadow="elevation-5"
-                display="flex"
-                flexDirection="column"
+                flexShrink="0"
+                borderBottom="grey-10"
+                style={{paddingTop: "var(--safe-area-inset-top, 0px)"}}
             >
-                <Box flexShrink="0" borderBottom="grey-10">
+                {isMobile && (
+                    <NavigationBarContent
+                        withMobileLayout={withMobileLayout}
+                        // We don't have the done button in regular chats so also don't show it here.
+                        // It's more intuitive to tap on messages to close the keyboard.
+                        withoutFocusedTextInputDoneButton={true}
+                        title="New message"
+                    />
+                )}
+                <Box width="full" maxWidth="160" style={{margin: "0 auto"}}>
                     <ChatAccountPicker
                         selectedAccounts={selectedAccounts}
                         onUpdateSelectedAccounts={setSelectedAccounts}
@@ -165,8 +172,8 @@ export default function NewChatRoute({withMobileLayout = false}: {withMobileLayo
                         withMobileLayout={withMobileLayout}
                     />
                 </Box>
-                <NewChatMessagingView selectedChat={loaderData.selectedChat} />
             </Box>
+            <NewChatMessagingView selectedChat={loaderData.selectedChat} />
         </Box>
     );
 }
