@@ -1,22 +1,13 @@
 import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import {MagnifyingGlass, SpinnerGap} from "phosphor-react";
-import {
-    ReactNode,
-    RefObject,
-    cloneElement,
-    isValidElement,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import {ReactNode, RefObject, cloneElement, isValidElement, useMemo, useRef, useState} from "react";
 import {AriaListBoxOptions, useListBox, useOption} from "react-aria";
 import {ComboBoxState, Item} from "react-stately";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
@@ -32,8 +23,6 @@ import {
 import {useAffinitiveTaskCollections} from "~/client/tasks/internal/use_affinitive_task_collections.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {addRemLengths, spacing} from "~/shared/design/spacing.js";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {searchTaskCollections} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {fontSizes, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
@@ -91,7 +80,7 @@ export function useTaskCollectionComboBoxSearchState({
     const [currentlyLoadingInputValue, setCurrentlyLoadingInputValue] =
         useState<string>(trimmedInputValue);
 
-    const {isLoading: isSearchLoading, output: searchCollectionsOutput} = useLazyLoadRpc(
+    const {isLoading: originalIsSearchLoading, output: searchCollectionsOutput} = useLazyLoadRpc(
         searchTaskCollections,
         !shouldLoadItems || currentlyLoadingInputValue.length === 0
             ? null
@@ -103,41 +92,16 @@ export function useTaskCollectionComboBoxSearchState({
         {keepPreviousData: true},
     );
 
-    // In an effect so React renders intermediate results as it receives them.
-    useLayoutEffectWithoutServerSideWarning(() => {
-        // Throttle our RPC call. Only load search results for a new input value after
-        // we're done loading search results for the old one.
-        if (!isSearchLoading && currentlyLoadingInputValue !== trimmedInputValue) {
-            setCurrentlyLoadingInputValue(trimmedInputValue);
-        }
-    }, [currentlyLoadingInputValue, trimmedInputValue, isSearchLoading]);
+    let isSearchLoading = originalIsSearchLoading;
 
-    const [shouldShowSearchLoadingIndicator, setShouldShowSearchLoadingIndicator] = useState(false);
+    // Throttle our RPC call. Only load search results for a new input value after
+    // we're done loading search results for the old one.
+    if (!isSearchLoading && currentlyLoadingInputValue !== trimmedInputValue) {
+        isSearchLoading = true;
+        setCurrentlyLoadingInputValue(trimmedInputValue);
+    }
 
-    useEffect(() => {
-        if (!isSearchLoading) {
-            let isCancelled = false;
-
-            // Set to `false` after a microtask in case React immediately re-renders from
-            // `isSearchLoading: false` back to `isSearchLoading: true` (happens when we're
-            // throttling search requests). We don't want to clear the spinner and wait for
-            // another timeout in this case.
-            scheduleMicrotask(() => {
-                if (isCancelled) return;
-                setShouldShowSearchLoadingIndicator(false);
-            });
-
-            return () => {
-                isCancelled = true;
-            };
-        } else {
-            const timeout = createTimeout(() => {
-                setShouldShowSearchLoadingIndicator(true);
-            }, delayLoadingIndicatorLimitMs);
-
-            return () => timeout.clear();
-        }
-    }, [isSearchLoading]);
+    const shouldShowSearchLoadingIndicator = useDelayLoadingIndicator(isSearchLoading);
 
     const items: ReadonlyArray<TaskCollectionComboBoxItem> | null = useStore(
         useMemo(() => {
@@ -393,7 +357,7 @@ export function TaskCollectionComboBoxListBox({
                                 fontStyle="truncate"
                                 color={taskCollectionOptionSecondaryTextColor}
                             >
-                                No results, try a different search
+                                No results
                             </Box>
                             <Box style={{height: fontSizes["50"].lineHeight}}></Box>
                         </Box>

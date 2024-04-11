@@ -739,7 +739,7 @@ function ChatAccountPickerListBox({
                 sprinkles({
                     borderRadius: "md",
                     padding: "1",
-                    marginX: "1",
+                    marginX: "2",
                     backgroundColor: "grey-0",
                     boxShadow: "elevation-20",
                     maxHeight: "64",

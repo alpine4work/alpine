@@ -66,13 +66,27 @@ import {
 
 export const paragraphLineHeight = "1.375rem";
 
+const blockPaddingXSpacing = "2";
+export {blockPaddingXSpacing as blockPaddingX};
+const blockPaddingX = spacing[blockPaddingXSpacing];
+
+const defaultBlockMaxWidthWithoutPadding = spacing["160"];
+
+export const defaultBlockMaxWidth = addRemLengths(
+    blockPaddingX,
+    defaultBlockMaxWidthWithoutPadding,
+    blockPaddingX,
+);
+
 const paragraphMarginVar = createVar("paragraph-margin");
 const listItemOffsetVar = createVar("list-item-offset");
+export const blockMaxWidthVar = createVar("block-max-width");
 
 globalStyle(":root", {
     vars: {
         [paragraphMarginVar]: spacing["2"],
         [listItemOffsetVar]: spacing["0"],
+        [blockMaxWidthVar]: defaultBlockMaxWidth,
     },
 });
 
@@ -110,20 +124,9 @@ export const messageDocClassName = style({
 
 export const docMobileLayoutContainerClassName = style({});
 
-export const blockMaxWidthWithoutPadding = spacing["160"];
-const blockPaddingXSpacing = "2";
-export {blockPaddingXSpacing as blockPaddingX};
-const blockPaddingX = spacing[blockPaddingXSpacing];
-
-export const blockMaxWidth = addRemLengths(
-    blockPaddingX,
-    blockMaxWidthWithoutPadding,
-    blockPaddingX,
-);
-
 const blockStyles = {
     width: "100%",
-    maxWidth: blockMaxWidth,
+    maxWidth: blockMaxWidthVar,
     paddingLeft: blockPaddingX,
     paddingRight: blockPaddingX,
     marginLeft: "auto",
@@ -500,7 +503,7 @@ export const checkListItemCheckboxIconClassName = style({
 export const dividerClassName = style({
     ...blockStyles,
     width: `calc(100% - ${blockPaddingX} * 2)`,
-    maxWidth: blockMaxWidthWithoutPadding,
+    maxWidth: `calc(${blockMaxWidthVar} - ${blockPaddingX} * 2)`,
     paddingLeft: 0,
     paddingRight: 0,
     marginTop: desktopHeading1TopMargin,

@@ -1,6 +1,6 @@
-import {useMemo, useState} from "react";
+import {useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
-import {useNavigationBar} from "~/client/design/navigation_bar.js";
+import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {ChannelViewAside} from "~/client/forum/channel_view_aside.js";
 import {
     PostListView,
@@ -29,7 +29,10 @@ export function ChannelView({
 
     const hasAside = !isContentEmpty(channel.description.doc);
 
+    const navigationBarRef = useRef<NavigationBarRef>(null);
+
     const navigationBar = useNavigationBar({
+        ref: navigationBarRef,
         withMobileLayout,
         withoutDisappearingTitle: true,
         title: channel.name,
@@ -43,10 +46,6 @@ export function ChannelView({
     return (
         <PostListView
             withMobileLayout={withMobileLayout}
-            // If we're in a peek, we should have margins even when we have a mobile
-            // layout. Having no X margin but having Y margin looks a little weird in a
-            // peek rendered on top of other content.
-            shouldAlwaysHaveMargin={withMobileLayout}
             channelHeader={useMemo(() => ({channel}), [channel])}
             initialPostsResult={{type: "Many", ...initialChannelPostsResult}}
             onLoadMorePosts={({limit, afterCursor}) => {
@@ -57,7 +56,7 @@ export function ChannelView({
                 });
             }}
             aside={hasAside && <ChannelViewAside channel={channel} />}
-            navigationBar={navigationBar}
+            navigationBar={{...navigationBar, navigationBarRef}}
         />
     );
 }

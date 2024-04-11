@@ -9,7 +9,9 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {fontSizes, pulseAnimationClassName} from "~/shared/styles/styles.js";
 
-export function PostShimmer({parentHasMargin}: {parentHasMargin: boolean}) {
+// NOCOMMIT: This needs to be updated!
+
+export function PostShimmer() {
     const shimmerRef = useRef<HTMLDivElement>(null);
 
     // Set shimmer start times to the same value. That way shimmers rendered at
@@ -30,7 +32,6 @@ export function PostShimmer({parentHasMargin}: {parentHasMargin: boolean}) {
         <Box
             ref={shimmerRef}
             backgroundColor="grey-0"
-            borderRadius={parentHasMargin ? "md" : undefined}
             boxShadow="elevation-5"
             style={{height: postContentViewMinHeight}}
             display="flex"

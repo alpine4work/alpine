@@ -158,7 +158,7 @@ function InboxViewTopBarArchiveButton({
     const context = useAppContext();
     const showToast = useShowToast();
     const {space} = useSpaceContext();
-    const buttonRef = useRef<HTMLButtonElement>(null);
+    const buttonRef = useRef<HTMLButtonElement & {press(): void}>(null);
     const [isPending, setIsPending] = useState(false);
 
     // Don't flash the button into a disabled state because `activeEntry` is
@@ -182,7 +182,7 @@ function InboxViewTopBarArchiveButton({
                     } else {
                         // Programmatically click the button to correctly handle loading and
                         // error states.
-                        assertExists(buttonRef.current).click();
+                        assertExists(buttonRef.current).press();
                     }
                 }
             }}

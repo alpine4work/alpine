@@ -1,0 +1,232 @@
+import {assignInlineVars} from "@vanilla-extract/dynamic";
+import {useRef} from "react";
+import {ContentEditor} from "~/client/content/content_editor.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {useAppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
+import {safeAreaOnlyScrollbarInsetTop, useScrollbar} from "~/client/design/scrollbar.js";
+import {NewPostViewChannelSelectorInput} from "~/client/forum/new_post_view_channel_selector_input.js";
+import {
+    postContentViewContentPaddingX,
+    postContentViewInnerMarginY,
+    postContentViewOuterMarginY,
+    postContentViewPaddingX,
+} from "~/client/forum/post_content_view.js";
+import {PostContentViewHeaderBase} from "~/client/forum/post_content_view_header.js";
+import {postViewMaxWidth} from "~/client/forum/post_list_view.js";
+import {useSessionStorage} from "~/client/helpers/use_local_storage.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {spacing, subtractRemLengths} from "~/shared/design/spacing.js";
+import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
+import {
+    PostContentWithReferences,
+    PostContentWithReferencesSchema,
+    emptyPostContentWithReferences,
+} from "~/shared/forum/post_content_schema.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {Id} from "~/shared/id/id.js";
+import {createPost} from "~/shared/rpc/forum_rpc_definitions.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
+
+const StateSchema = Schema.object({
+    content: PostContentWithReferencesSchema,
+    hasContentChanged: Schema.boolean,
+}).transform<{
+    state: ContentEditorState<PostContentWithReferences>;
+    hasContentChanged: boolean;
+}>({
+    serialize: ({state, hasContentChanged}) => ({
+        content: state.getContent(),
+        hasContentChanged,
+    }),
+    deserialize: ({content, hasContentChanged}) => ({
+        state: ContentEditorState.create(content),
+        hasContentChanged,
+    }),
+});
+
+const postContentEditorBlockMaxWidth = mapObjectValues(postContentViewPaddingX, paddingX =>
+    subtractRemLengths(spacing[postViewMaxWidth], spacing[paddingX]),
+);
+
+// NOCOMMIT: Initial focus!
+
+export function NewPostView({
+    withMobileLayout: withMobileLayoutProp,
+    draftId,
+    displayCreatedTime,
+    channel,
+    onChannelChange,
+    shouldReturnBack,
+}: {
+    withMobileLayout: boolean;
+    draftId: Id;
+    displayCreatedTime: Date;
+    channel: ChannelPreviewModel | null;
+    onChannelChange: (channel: ChannelPreviewModel | null) => void;
+    shouldReturnBack: boolean;
+}) {
+    const context = useAppContext();
+    const isMobile = useIsMobile();
+    const navigate = useNavigate();
+    const {space, currentAccount} = useSpaceContext();
+
+    const createButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
+
+    const withMobileLayout = isMobile || withMobileLayoutProp;
+
+    const sessionStorageKey = `cyberworlds/draftPost/${draftId}`;
+
+    const [{state, hasContentChanged}, setState] = useSessionStorage(
+        sessionStorageKey,
+        // State schema is lossy. When serializing/deserializing we lose selection
+        // state and other editor state bits. We only deserialize when loading on
+        // initial mount or if another tab tells us there was an update.
+        StateSchema,
+        () => ({
+            state: ContentEditorState.create(emptyPostContentWithReferences),
+            hasContentChanged: false,
+        }),
+    );
+
+    return (
+        <Box
+            position="relative"
+            flexGrow="1"
+            width="full"
+            height="full"
+            overflow="hidden"
+            display="flex"
+            flexDirection="column"
+        >
+            <Box
+                position="absolute"
+                top="0"
+                left="0"
+                right="0"
+                zIndex="10"
+                backgroundColor="grey-0"
+                style={{height: "var(--safe-area-inset-top, 0px)"}}
+            />
+            <Box
+                ref={useScrollbar({insetTop: safeAreaOnlyScrollbarInsetTop})}
+                flexGrow="1"
+                width="full"
+                position="relative"
+                zIndex="0"
+                overflowX="hidden"
+                overflowY="auto"
+            >
+                <Box
+                    position="relative"
+                    minHeight="full"
+                    display="flex"
+                    flexDirection="column"
+                    style={{
+                        paddingTop: "var(--safe-area-inset-top, 0px)",
+                        ...assignInlineVars({
+                            [contentSchemaStyles.blockMaxWidthVar]:
+                                postContentEditorBlockMaxWidth[isMobile ? "mobile" : "desktop"],
+                        }),
+                    }}
+                >
+                    <Box
+                        flexShrink="0"
+                        width="full"
+                        maxWidth={postViewMaxWidth}
+                        paddingX={postContentViewPaddingX}
+                        paddingTop={withMobileLayout ? postContentViewOuterMarginY : "20"}
+                        paddingBottom={postContentViewInnerMarginY}
+                        style={{
+                            margin: "0 auto",
+                        }}
+                    >
+                        <PostContentViewHeaderBase
+                            author={currentAccount}
+                            createdTime={displayCreatedTime}
+                            shouldCreatedTimeExcludeTime
+                            channelSelector={
+                                <NewPostViewChannelSelectorInput
+                                    channel={channel}
+                                    onChannelChange={onChannelChange}
+                                />
+                            }
+                        />
+                    </Box>
+                    <ContentEditor
+                        aria-label="Post"
+                        state={state}
+                        onChange={(state, transaction) => {
+                            setState({
+                                state,
+                                hasContentChanged: hasContentChanged || transaction.docChanged,
+                            });
+                        }}
+                        placeholder="Share your ideas…"
+                        containerClassName={sprinkles({
+                            flexGrow: "1",
+                        })}
+                        className={sprinkles({
+                            paddingX: postContentViewContentPaddingX,
+                            paddingBottom: "6",
+                        })}
+                        onModEnter={() => {
+                            // Programmatically press the button instead of calling `createPost()`
+                            // directly to correctly handle loading and error states.
+                            assertExists(createButtonRef.current).press();
+                        }}
+                    />
+                    <Box
+                        flexShrink="0"
+                        width="full"
+                        maxWidth={postViewMaxWidth}
+                        style={{
+                            margin: "0 auto",
+                            paddingBottom: "var(--safe-area-inset-bottom, 0px)",
+                        }}
+                    >
+                        <Box height="12" paddingX="2.5" display="flex" alignItems="center">
+                            <Box flexGrow="1" />
+                            <Button
+                                ref={createButtonRef}
+                                variant="neutral"
+                                isDisabled={
+                                    !hasContentChanged || isContentEmpty(state.getDoc()) || !channel
+                                }
+                                pressErrorTitle="Couldn’t create post"
+                                onPress={async () => {
+                                    if (!channel) return;
+
+                                    const {post} = await createPost(context, {
+                                        channelId: channel.id,
+                                        content: state.getDoc(),
+                                    });
+
+                                    if (shouldReturnBack) {
+                                        await navigate(-1);
+                                    } else {
+                                        await navigate(`/s/${space.id}/posts/${post.id}`, {
+                                            replace: true,
+                                        });
+                                    }
+
+                                    // Quietly cleanup draft from session storage without re-rendering our
+                                    // component which is about to be unmounted.
+                                    sessionStorage.removeItem(sessionStorageKey);
+                                }}
+                            >
+                                Post
+                            </Button>
+                        </Box>
+                    </Box>
+                </Box>
+            </Box>
+        </Box>
+    );
+}

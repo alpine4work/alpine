@@ -47,7 +47,8 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {generateId} from "~/shared/id/id.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {generateId, unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {PeekId, SpaceId} from "~/shared/id/types/id_types.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
@@ -247,7 +248,11 @@ export function SearchModal({
                             // items so looping would be disorienting.
                             if (!result) break;
 
-                            const destination = getSearchResultDestination(space.id, result.id);
+                            const destination = getSearchResultDestination(
+                                space.id,
+                                result.id,
+                                output.key,
+                            );
 
                             void switchPeek({
                                 spacePath: destination.type === "Path" ? destination.path : null,
@@ -385,6 +390,7 @@ export function SearchModal({
                                 </Box>
                             ) : (
                                 <SearchModalResultList
+                                    searchKey={output.key}
                                     results={output.results}
                                     selectedPeek={selectedPeek}
                                     switchPeek={switchPeek}
@@ -547,10 +553,12 @@ const SearchModalInput = forwardRef(function SearchModalInput(
 });
 
 function SearchModalResultList({
+    searchKey,
     results,
     selectedPeek,
     switchPeek,
 }: {
+    searchKey: string;
     results: ReadonlyArray<SearchResult>;
     selectedPeek: PeekSwitcherStatePeek<{
         resultId: SearchResultId;
@@ -618,6 +626,7 @@ function SearchModalResultList({
                                         const destination = getSearchResultDestination(
                                             space.id,
                                             result.id,
+                                            searchKey,
                                         );
 
                                         void switchPeek({
@@ -633,6 +642,7 @@ function SearchModalResultList({
                                     const destination = getSearchResultDestination(
                                         space.id,
                                         result.id,
+                                        searchKey,
                                     );
 
                                     switch (destination.type) {
@@ -658,7 +668,15 @@ function SearchModalResultList({
                         ),
                     };
                 },
-                [navigate, results, selectedPeek?.extra.resultId, showToast, space.id, switchPeek],
+                [
+                    navigate,
+                    results,
+                    searchKey,
+                    selectedPeek?.extra.resultId,
+                    showToast,
+                    space.id,
+                    switchPeek,
+                ],
             )}
         />
     );
@@ -681,6 +699,7 @@ type SearchResultDestination =
 function getSearchResultDestination(
     spaceId: SpaceId,
     resultId: SearchResultId,
+    searchKey: string,
 ): SearchResultDestination {
     switch (resultId) {
         case "CreateChat":
@@ -691,20 +710,16 @@ function getSearchResultDestination(
             };
         }
         case "CreatePost": {
+            // Make sure we use the same `draftId` consistently for the current search
+            // result list.
+            const draftId = unsafelyGenerateStableId(
+                new StableRandom(`getSearchResultDestination:${searchKey}`),
+                resultId,
+            );
+
             return {
-                type: "Action",
-                onSelect: ({showToast}) => {
-                    showToast({
-                        type: "Error",
-                        title: "Can’t find a channel to post in",
-                        error: new UnimplementedError(
-                            "Channel explorer hasn’t been implemented yet",
-                            {
-                                displayMessage: errorDisplayMessage`Channel explorer hasn’t been implemented yet.`,
-                            },
-                        ),
-                    });
-                },
+                type: "Path",
+                path: `/s/${spaceId}/posts/new/${draftId}`,
             };
         }
         case "CreateChannel": {

@@ -84,11 +84,6 @@ import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 // NOCOMMIT: Remove this?
 export const postListViewMarginX: Spacing = "4";
-
-// We want our Y margin to be the same as our X margin. We want to give items
-// some margin top and some margin bottom so that the shadows don't overflow.
-// NOCOMMIT: Remove these?
-const postListViewMarginBottom: Spacing = "2";
 export const postListViewMarginY: Spacing = "4";
 
 export const postViewMaxWidth: Spacing = "160";
@@ -97,15 +92,6 @@ export const postListViewAsideMaxWidth: Spacing = "96";
 
 const postViewFlex = 6;
 const postListViewAsideFlex = 4;
-
-/**
- * The buffered height of an item in the post view virtualized list is the minimum
- * height of a single post.
- */
-const bufferedPostViewHeight = addRemLengths(
-    postContentViewMinHeight,
-    spacing[postListViewMarginY],
-);
 
 const postCommentSectionGuidelineSpace = "6";
 
@@ -151,7 +137,6 @@ function PostListView(
         onLoadMorePosts,
         aside,
         withMobileLayout: withMobileLayoutProp = false,
-        shouldAlwaysHaveMargin = false,
         navigationBar,
     }: {
         /**
@@ -223,19 +208,11 @@ function PostListView(
         withMobileLayout?: boolean;
 
         /**
-         * Force the list view to have margins around posts. Defaults to false.
-         *
-         * The view will still have margins if we're NOT in mobile layout or there's
-         * an `aside`.
-         */
-        shouldAlwaysHaveMargin?: boolean;
-
-        /**
          * If you want to include a navigation bar in this list view you may pass in
          * the result of `useNavigationBar()` here and the virtualized scroll view will
          * be properly configured.
          */
-        navigationBar?: NavigationBarResult;
+        navigationBar?: NavigationBarResult & {navigationBarRef: RefObject<NavigationBarRef>};
     },
     ref: Ref<PostListViewRef>,
 ) {
@@ -263,8 +240,6 @@ function PostListView(
 
     const hasAside = !withMobileLayout && !!aside;
     const hasNavigationBar = !!navigationBar;
-    // NOCOMMIT: Get rid of this `hasMargin` prop?
-    const hasMargin = shouldAlwaysHaveMargin || !withMobileLayout || hasAside;
 
     const [postsWithoutChannelHeader, setPosts] = useState(() => {
         let posts: PostList;
@@ -295,7 +270,6 @@ function PostListView(
     // comments to determine if we're in a single post context.
     const isSingleMobileLayoutPostWithPinnedCommentInput =
         withMobileLayout &&
-        !hasMargin &&
         posts.getPostCount() === 1 &&
         posts.getLastPostContentItemIfExists()?.postCommentsState === "AlwaysOpen";
 
@@ -649,9 +623,10 @@ function PostListView(
                     return {
                         key: "ChannelHeader",
                         minHeight: addRemLengths(
-                            spacing[postListViewMarginY],
+                            hasNavigationBar
+                                ? spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]]
+                                : "0rem",
                             channelViewHeaderMinHeight,
-                            spacing[postListViewMarginBottom],
                         ),
                         node: (
                             <div
@@ -665,10 +640,6 @@ function PostListView(
                                         width: "full",
                                         overflow: "hidden",
                                         maxWidth: postViewMaxWidth,
-                                        paddingBottom:
-                                            index + 1 < posts.getItemCount()
-                                                ? postListViewMarginBottom
-                                                : postListViewMarginY,
                                     })}
                                     style={{
                                         flex: postViewFlex,
@@ -680,7 +651,6 @@ function PostListView(
                                         onCreatePost={post =>
                                             setPosts(posts => posts.insertPostAtStart(post))
                                         }
-                                        parentHasMargin={hasMargin}
                                         withMobileLayout={withMobileLayout}
                                     />
                                 </div>
@@ -715,6 +685,7 @@ function PostListView(
                                         position: "relative",
                                         width: "full",
                                         maxWidth: postViewMaxWidth,
+                                        overflow: "hidden",
                                     })}
                                     style={{
                                         flex: postViewFlex,
@@ -1219,11 +1190,11 @@ function PostListView(
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    <PostShimmer parentHasMargin={hasMargin} />
+                                    <PostShimmer />
                                     <Spacer space={postListViewMarginY} />
-                                    <PostShimmer parentHasMargin={hasMargin} />
+                                    <PostShimmer />
                                     <Spacer space={postListViewMarginY} />
-                                    <PostShimmer parentHasMargin={hasMargin} />
+                                    <PostShimmer />
                                     <div
                                         className={sprinkles({
                                             display: "flex",
@@ -1262,7 +1233,6 @@ function PostListView(
         [
             posts,
             hasNavigationBar,
-            hasMargin,
             withMobileLayout,
             hasAside,
             channelHeader?.channel.id,
@@ -1294,7 +1264,7 @@ function PostListView(
                     ref={viewRef}
                     elementRef={navigationBar?.scrollViewRef}
                     scrollbarInsetTop={navigationBar?.scrollbarInsetTop}
-                    bufferedItemHeight={bufferedPostViewHeight}
+                    bufferedItemHeight={postContentViewMinHeight}
                     itemCount={
                         // Don't render the post comment input (which should be the last item) if we are
                         // pinning the comment input to the bottom of the view.
@@ -1318,6 +1288,12 @@ function PostListView(
                         const lastScrollOffset = lastScrollOffsetRef.current;
                         lastScrollOffsetRef.current = scrollOffset;
 
+                        const navigationBarVisibleHeight = navigationBar
+                            ? assertExists(
+                                  navigationBar.navigationBarRef.current,
+                              ).getVisibleHeight()
+                            : 0;
+
                         setScrollDirectionState(scrollDirectionState => {
                             const newScrollDirection =
                                 scrollOffset > lastScrollOffset ? "Down" : "Up";
@@ -1326,10 +1302,7 @@ function PostListView(
                                 return scrollDirectionState;
 
                             const asideScrollOffset = clamp(
-                                0 -
-                                    (scrollDirectionState.scrollDirection === "Down"
-                                        ? 0
-                                        : navigationBarHeightPx),
+                                0 - navigationBarVisibleHeight,
                                 scrollOffset - scrollDirectionState.asideBufferedHeight,
                                 asideHeight - viewHeight,
                             );

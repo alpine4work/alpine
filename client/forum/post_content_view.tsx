@@ -1,4 +1,4 @@
-import {ChatCircle, DotsThree, DotsThreeVertical, IconContext, Smiley} from "phosphor-react";
+import {ChatCircle, DotsThree, IconContext, Smiley} from "phosphor-react";
 import {CSSProperties, useContext, useEffect, useMemo, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {ContentView} from "~/client/content/content_view.js";
@@ -54,7 +54,7 @@ export const postContentViewPaddingX: {mobile: Spacing; desktop: Spacing} = {
 const postContentViewFooterHeight = "8";
 const postContentViewFooterButtonHeight = "7";
 
-const postContentViewOuterMarginY = "6";
+export const postContentViewOuterMarginY = "6";
 export const postContentViewInnerMarginY = "4";
 
 export const postContentViewMinHeight = addRemLengths(
@@ -81,7 +81,7 @@ const postContentViewOuterMarginBottomRem =
 
 const postContentViewOuterMarginBottom = `${postContentViewOuterMarginBottomRem}rem`;
 
-const postContentViewContentPaddingX = mapObjectValues(postContentViewPaddingX, paddingX =>
+export const postContentViewContentPaddingX = mapObjectValues(postContentViewPaddingX, paddingX =>
     assertSpacing(`${parseInt(paddingX, 10) - parseInt(contentSchemaStyles.blockPaddingX, 10)}`),
 );
 

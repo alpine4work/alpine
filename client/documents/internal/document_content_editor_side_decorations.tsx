@@ -36,7 +36,7 @@ export function DocumentContentEditorSideDecorations({
     const remPx = useRemPx();
     const commentCountMinMargin = convertRemLengthToPx("2.75rem", remPx);
     const commentAvatarsMinMargin = convertRemLengthToPx("6.75rem", remPx);
-    const blockMaxWidth = convertRemLengthToPx(contentSchemaStyles.blockMaxWidth, remPx);
+    const blockMaxWidth = convertRemLengthToPx(contentSchemaStyles.defaultBlockMaxWidth, remPx);
 
     const shouldRenderCommentCount =
         Math.max(0, (editorContainerWidth ?? screenWidth) - blockMaxWidth) / 2 >=
@@ -136,7 +136,7 @@ function DocumentContentEditorCommentThreadSideDecoration({
             borderRadius="md"
             style={{
                 top: markTop,
-                right: `calc(50% + ${contentSchemaStyles.blockMaxWidth} / 2)`,
+                right: `calc(50% + ${contentSchemaStyles.defaultBlockMaxWidth} / 2)`,
                 height: markHeight,
                 opacity: isPressed ? 0.75 : undefined,
             }}

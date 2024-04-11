@@ -6,8 +6,8 @@ import {
     Ref,
     RefCallback,
     RefObject,
+    forwardRef,
     useCallback,
-    useEffect,
     useImperativeHandle,
     useRef,
     useState,
@@ -17,10 +17,7 @@ import {Button} from "~/client/design/button.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
-import {
-    OverlayScopeContextProvider,
-    useOverlayRootBlockingPortalElement,
-} from "~/client/design/overlay.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {
     ScrollbarInsetDynamic,
@@ -28,10 +25,10 @@ import {
 } from "~/client/design/scrollbar.js";
 import {ShareButton, createShareMenuItem} from "~/client/design/share_button.js";
 import {useShowToast} from "~/client/design/toast.js";
-import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
+import {useIsTextInputFocused} from "~/client/helpers/use_is_text_input_focused.js";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
@@ -48,6 +45,7 @@ import {
     remPxByPlatform,
     spacing,
 } from "~/shared/design/spacing.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -290,7 +288,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     titleBoundaryRef,
     withoutDisappearingTitle = false,
     subtitle,
-    menuActions = [],
+    menuActions = emptyArray,
     shareButton,
     stickyBanner,
     desktopControls = null,
@@ -487,7 +485,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             ? isMobile
                 ? mobileNavigationBarScrollbarInsetTop
                 : desktopNavigationBarScrollbarInsetTop
-            : 0,
+            : undefined,
     };
 }
 
@@ -505,7 +503,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     shareButton,
     stickyBanner,
     desktopControls,
-    desktopTitleMaxWidth: desktopTitleMaxWidthProp,
+    desktopTitleMaxWidth,
     desktopTitleFontSize,
     desktopTitleFontWeight,
     desktopTitleLeftSlop,
@@ -531,9 +529,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontWeight: "semi-bold" | "bold";
     desktopTitleLeftSlop: Spacing | undefined;
 }) {
-    const navigate = useNavigate();
     const {isAppleDevice, isNativeMobile} = useClientInfo();
-    const showToast = useShowToast();
 
     const navigationBarHeightRem = isMobile
         ? mobileNavigationBarHeightRem
@@ -542,8 +538,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     const navigationBarContainerRef = useRef<HTMLDivElement>(null);
     const navigationBarRef = useRef<HTMLDivElement>(null);
     const navigationBarBackgroundRef = useRef<HTMLDivElement>(null);
-    const navigationBarContentRef = useRef<HTMLDivElement>(null);
-    const navigationBarTitleRef = useRef<HTMLDivElement>(null);
+    const navigationBarContentRef = useRef<NavigationBarContentRef>(null);
 
     const [scrollDirectionState, setScrollDirectionState] = useState<ScrollDirectionState>(
         initialScrollDirectionState,
@@ -611,6 +606,8 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     scrollDebounceTimeout = null;
                 },
                 onScroll: (element: HTMLElement) => {
+                    const navigationBarContent = assertExists(navigationBarContentRef.current);
+
                     // Web code only: I've observed in mobile Safari if focus changes because the
                     // focused element was removed from the DOM a `focusout` event is not
                     // dispatched. So we manually check on scroll events if the focused element is
@@ -619,14 +616,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     // We check on scroll events since the main reason a focused element would
                     // unmount is a `<VirtualizedScrollView>` scrolls the element out of the
                     // virtualization window.
-                    if (
-                        focusedTextInputIfMobileRef.current &&
-                        document.activeElement !== focusedTextInputIfMobileRef.current &&
-                        !document.body.contains(focusedTextInputIfMobileRef.current)
-                    ) {
-                        setIsTextInputFocusedIfMobile(false);
-                        focusedTextInputIfMobileRef.current = null;
-                    }
+                    navigationBarContent.reconcileFocusedTextInputIfMobile();
 
                     // Clamp scroll offset so it's not affected by overscroll at the top of the
                     // scroll view. Overscroll at the bottom of the scroll view is desired! We want
@@ -744,12 +734,8 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                         const navigationBarBackgroundElement = assertExists(
                             navigationBarBackgroundRef.current,
                         );
-                        const navigationBarContentElement = assertExists(
-                            navigationBarContentRef.current,
-                        );
-                        const navigationBarTitleElement = assertExists(
-                            navigationBarTitleRef.current,
-                        );
+                        const navigationBarContentElement = navigationBarContent.getElement();
+                        const navigationBarTitleElement = navigationBarContent.getTitleElement();
 
                         const doesNavigationBarHaveSafeAreaInsetTop =
                             navigationBarBackgroundElement.clientHeight >
@@ -985,7 +971,9 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     useLayoutEffectWithoutServerSideWarning(() => {
         const navigationBarElement = assertExists(navigationBarRef.current);
         const navigationBarBackgroundElement = assertExists(navigationBarBackgroundRef.current);
-        const navigationBarContentElement = assertExists(navigationBarContentRef.current);
+        const navigationBarContentElement = assertExists(
+            navigationBarContentRef.current,
+        ).getElement();
 
         if (lastAnimatedScrollDirectionStateRef.current === scrollDirectionState) return;
         lastAnimatedScrollDirectionStateRef.current = scrollDirectionState;
@@ -1027,52 +1015,6 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
             }
         });
     }, [scrollDirectionState]);
-
-    const rootBlockingPortalElement = useOverlayRootBlockingPortalElement();
-
-    const [isTextInputFocusedIfMobile, setIsTextInputFocusedIfMobile] = useState(false);
-    if (isTextInputFocusedIfMobile && !isMobile) setIsTextInputFocusedIfMobile(false);
-    const focusedTextInputIfMobileRef = useRef<Element | null>(null);
-
-    useEffect(() => {
-        if (!isMobile) return;
-
-        const handleFocusChange = () => {
-            const newIsTextInputFocusedIfMobile =
-                document.activeElement instanceof Element &&
-                isTextInputElement(document.activeElement) &&
-                // Don't show "Done" button if the focused text input is in the blocking
-                // overlay container. Since any press outside the blocking overlay will unfocus
-                // the element (by closing the overlay). Furthermore, if we showed the done
-                // button it wouldn't be visible.
-                //
-                // The case we added this for is the assignee task filter. It has a search
-                // input in a blocking overlay.
-                !rootBlockingPortalElement?.contains(document.activeElement);
-
-            setIsTextInputFocusedIfMobile(newIsTextInputFocusedIfMobile);
-            focusedTextInputIfMobileRef.current = newIsTextInputFocusedIfMobile
-                ? document.activeElement
-                : null;
-        };
-
-        // Initialize our state.
-        handleFocusChange();
-
-        document.addEventListener("focusin", handleFocusChange);
-        document.addEventListener("focusout", handleFocusChange);
-        return () => {
-            document.removeEventListener("focusin", handleFocusChange);
-            document.removeEventListener("focusout", handleFocusChange);
-        };
-    }, [isMobile, rootBlockingPortalElement]);
-
-    const desktopTitleMaxWidth =
-        desktopTitleMaxWidthProp !== undefined
-            ? isSpacing(desktopTitleMaxWidthProp)
-                ? spacing[desktopTitleMaxWidthProp]
-                : desktopTitleMaxWidthProp
-            : undefined;
 
     return (
         <div
@@ -1160,205 +1102,20 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                 bottom: isMobile && isAppleDevice && !isNativeMobile ? -1 : 0,
                             }}
                         />
-                        <Box
+                        <NavigationBarContent
                             ref={navigationBarContentRef}
-                            position="relative"
-                            zIndex="0"
-                            width="full"
-                            height={navigationBarHeight}
-                            display="flex"
-                            gap="5"
-                        >
-                            <OverlayScopeContextProvider>
-                                {isMobile ? (
-                                    <Box
-                                        flexGrow="1"
-                                        flexShrink="0"
-                                        height={navigationBarHeight}
-                                        paddingLeft="3"
-                                        display="flex"
-                                        justifyContent="flex-start"
-                                        alignItems="center"
-                                        style={{flexBasis: spacing["7"]}}
-                                        // Gives children `pointer-events: initial` so the user can interact with them.
-                                        className={pointerEventsNoneNotInheritedClassName}
-                                    >
-                                        <IconButton
-                                            size="base"
-                                            description="Go back"
-                                            withoutTooltip={true}
-                                            pressErrorTitle="Couldn’t go back"
-                                            onPress={() => navigate(-1)}
-                                        >
-                                            <ArrowLeft />
-                                        </IconButton>
-                                    </Box>
-                                ) : (
-                                    desktopTitleMaxWidth !== undefined && (
-                                        <Box
-                                            flexGrow="0"
-                                            flexShrink="0"
-                                            style={{
-                                                width: `max(0px, (100% - ${desktopTitleMaxWidth}) / 2)`,
-                                            }}
-                                        />
-                                    )
-                                )}
-                                <Box
-                                    flexGrow="1"
-                                    flexShrink="1"
-                                    height={navigationBarHeight}
-                                    paddingLeft={
-                                        desktopTitleMaxWidth === undefined && !isMobile
-                                            ? "5"
-                                            : undefined
-                                    }
-                                    overflow="hidden"
-                                    display="flex"
-                                    justifyContent={isMobile ? "center" : "flex-start"}
-                                    alignItems="center"
-                                    gap="3"
-                                    style={{
-                                        maxWidth: !isMobile ? desktopTitleMaxWidth : undefined,
-                                    }}
-                                >
-                                    {!isMobile && desktopControls && (
-                                        <Box
-                                            // Gives children `pointer-events: initial` so the user can interact with them.
-                                            className={pointerEventsNoneNotInheritedClassName}
-                                        >
-                                            {desktopControls}
-                                        </Box>
-                                    )}
-                                    <Box
-                                        ref={navigationBarTitleRef}
-                                        overflow="hidden"
-                                        // Initial opacity is 0. Our code will update the opacity.
-                                        opacity={!withoutDisappearingTitle ? "0" : undefined}
-                                        // Initial pointer events is auto. Our code will update this style.
-                                        pointerEvents={
-                                            withoutDisappearingTitle ? "auto" : undefined
-                                        }
-                                        paddingLeft={
-                                            !isMobile && desktopTitleLeftSlop !== undefined
-                                                ? desktopTitleLeftSlop
-                                                : undefined
-                                        }
-                                        marginLeft={
-                                            !isMobile && desktopTitleLeftSlop !== undefined
-                                                ? `-${desktopTitleLeftSlop}`
-                                                : undefined
-                                        }
-                                    >
-                                        <Box
-                                            overflow="hidden"
-                                            // We have less space on mobile so use a smaller font size.
-                                            fontSize={isMobile ? "100" : desktopTitleFontSize}
-                                            fontStyle={
-                                                isMobile
-                                                    ? "truncate-semi-bold"
-                                                    : `truncate-${desktopTitleFontWeight}`
-                                            }
-                                            userSelect={!isMobile ? "text" : undefined}
-                                            paddingLeft={
-                                                !isMobile && desktopTitleLeftSlop !== undefined
-                                                    ? desktopTitleLeftSlop
-                                                    : undefined
-                                            }
-                                            marginLeft={
-                                                !isMobile && desktopTitleLeftSlop !== undefined
-                                                    ? `-${desktopTitleLeftSlop}`
-                                                    : undefined
-                                            }
-                                        >
-                                            {title}
-                                        </Box>
-                                        {subtitle && (
-                                            <Box
-                                                fontSize="50"
-                                                color="grey-50"
-                                                fontStyle="truncate"
-                                                userSelect={!isMobile ? "text" : undefined}
-                                            >
-                                                {subtitle}
-                                            </Box>
-                                        )}
-                                    </Box>
-                                </Box>
-                                <Box
-                                    flexGrow="1"
-                                    flexShrink="0"
-                                    height={navigationBarHeight}
-                                    paddingRight={isMobile ? "3" : "5"}
-                                    display="flex"
-                                    justifyContent="flex-end"
-                                    alignItems="center"
-                                    gap={isMobile ? "0.5" : "2"}
-                                    // Gives children `pointer-events: initial` so the user can interact with them.
-                                    className={pointerEventsNoneNotInheritedClassName}
-                                    style={{flexBasis: spacing["7"]}}
-                                >
-                                    {shareButton && !withMobileLayout && (
-                                        <Box paddingRight="3">
-                                            <ShareButton />
-                                        </Box>
-                                    )}
-                                    {isTextInputFocusedIfMobile ? (
-                                        // If a text input is focused then we hide menu actions and replace it with a
-                                        // "Done" button. This helps the user see how to end their editing session.
-                                        // Opening menu actions would cause the text input to unfocus anyway.
-                                        <Button
-                                            fontSize="100"
-                                            // Don't remove focus from the current text input element
-                                            // on press start. Remove focus on press finish.
-                                            isFocusable={false}
-                                            onPress={() => {
-                                                if (document.activeElement instanceof HTMLElement) {
-                                                    document.activeElement.blur();
-                                                }
-                                            }}
-                                        >
-                                            <Box
-                                                display="inline"
-                                                fontStyle="semi-bold"
-                                                color="grey-70"
-                                            >
-                                                Done
-                                            </Box>
-                                        </Button>
-                                    ) : (
-                                        (menuActions.length > 0 ||
-                                            (shareButton && withMobileLayout)) && (
-                                            <MenuButton
-                                                actions={
-                                                    shareButton && withMobileLayout
-                                                        ? [
-                                                              [createShareMenuItem({showToast})],
-                                                              ...menuActions,
-                                                          ]
-                                                        : menuActions
-                                                }
-                                            >
-                                                <IconButton
-                                                    size={isMobile ? "base" : "md"}
-                                                    description="More"
-                                                    withoutTooltip={true}
-                                                >
-                                                    <DotsThreeVertical
-                                                    // Vertical dots create better visual balance on mobile because:
-                                                    //
-                                                    // 1. On mobile we have a back button on the left and we want this button to
-                                                    //    look aligned with that
-                                                    // 2. The title might be truncated with ellipsis which looks like horizontal
-                                                    //    dots
-                                                    />
-                                                </IconButton>
-                                            </MenuButton>
-                                        )
-                                    )}
-                                </Box>
-                            </OverlayScopeContextProvider>
-                        </Box>
+                            withMobileLayout={withMobileLayout}
+                            title={title}
+                            withDisappearingTitle={!withoutDisappearingTitle}
+                            subtitle={subtitle}
+                            menuActions={menuActions}
+                            shareButton={shareButton}
+                            desktopControls={desktopControls}
+                            desktopTitleMaxWidth={desktopTitleMaxWidth}
+                            desktopTitleFontSize={desktopTitleFontSize}
+                            desktopTitleFontWeight={desktopTitleFontWeight}
+                            desktopTitleLeftSlop={desktopTitleLeftSlop}
+                        />
                         {stickyBanner}
                     </Box>
                 </div>
@@ -1366,3 +1123,256 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
         </div>
     );
 }
+
+export type NavigationBarContentRef = {
+    getElement(): HTMLElement;
+    getTitleElement(): HTMLElement;
+    reconcileFocusedTextInputIfMobile(): void;
+};
+
+export const NavigationBarContent = forwardRef(function NavigationBarContent(
+    {
+        withMobileLayout,
+        title,
+        withDisappearingTitle = false,
+        withoutFocusedTextInputDoneButton = false,
+        subtitle,
+        menuActions = emptyArray,
+        shareButton,
+        desktopControls,
+        desktopTitleMaxWidth: desktopTitleMaxWidthProp,
+        desktopTitleFontSize = "200",
+        desktopTitleFontWeight = "semi-bold",
+        desktopTitleLeftSlop,
+    }: {
+        withMobileLayout: boolean;
+        title?: ReactNode;
+        withDisappearingTitle?: boolean;
+        withoutFocusedTextInputDoneButton?: boolean;
+        subtitle?: string;
+        menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+        shareButton?: {};
+        desktopControls?: ReactNode;
+        desktopTitleMaxWidth?: Spacing | RemLength;
+        desktopTitleFontSize?: FontSize;
+        desktopTitleFontWeight?: "semi-bold" | "bold";
+        desktopTitleLeftSlop?: Spacing;
+    },
+    ref: Ref<NavigationBarContentRef>,
+) {
+    const isMobile = useIsMobile();
+    const navigate = useNavigate();
+    const showToast = useShowToast();
+
+    const contentRef = useRef<HTMLDivElement>(null);
+    const titleRef = useRef<HTMLDivElement>(null);
+
+    const {isTextInputFocused, reconcileFocusedTextInput} = useIsTextInputFocused({
+        isDisabled: !isMobile || withoutFocusedTextInputDoneButton,
+    });
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            getElement: () => assertExists(contentRef.current),
+            getTitleElement: () => assertExists(titleRef.current),
+            reconcileFocusedTextInputIfMobile: reconcileFocusedTextInput,
+        }),
+        [reconcileFocusedTextInput],
+    );
+
+    const desktopTitleMaxWidth =
+        desktopTitleMaxWidthProp !== undefined
+            ? isSpacing(desktopTitleMaxWidthProp)
+                ? spacing[desktopTitleMaxWidthProp]
+                : desktopTitleMaxWidthProp
+            : undefined;
+
+    return (
+        <Box
+            ref={contentRef}
+            position="relative"
+            zIndex="0"
+            width="full"
+            height={navigationBarHeight}
+            display="flex"
+            gap="5"
+        >
+            <OverlayScopeContextProvider>
+                {isMobile ? (
+                    <Box
+                        flexGrow="1"
+                        flexShrink="0"
+                        height={navigationBarHeight}
+                        paddingLeft="3"
+                        display="flex"
+                        justifyContent="flex-start"
+                        alignItems="center"
+                        style={{flexBasis: spacing["7"]}}
+                        // Gives children `pointer-events: initial` so the user can interact with them.
+                        className={pointerEventsNoneNotInheritedClassName}
+                    >
+                        <IconButton
+                            size="base"
+                            description="Go back"
+                            withoutTooltip={true}
+                            pressErrorTitle="Couldn’t go back"
+                            onPress={() => navigate(-1)}
+                        >
+                            <ArrowLeft />
+                        </IconButton>
+                    </Box>
+                ) : (
+                    desktopTitleMaxWidth !== undefined && (
+                        <Box
+                            flexGrow="0"
+                            flexShrink="0"
+                            style={{
+                                width: `max(0px, (100% - ${desktopTitleMaxWidth}) / 2)`,
+                            }}
+                        />
+                    )
+                )}
+                <Box
+                    flexGrow="1"
+                    flexShrink="1"
+                    height={navigationBarHeight}
+                    paddingLeft={desktopTitleMaxWidth === undefined && !isMobile ? "5" : undefined}
+                    overflow="hidden"
+                    display="flex"
+                    justifyContent={isMobile ? "center" : "flex-start"}
+                    alignItems="center"
+                    gap="3"
+                    style={{
+                        maxWidth: !isMobile ? desktopTitleMaxWidth : undefined,
+                    }}
+                >
+                    {!isMobile && desktopControls && (
+                        <Box
+                            // Gives children `pointer-events: initial` so the user can interact with them.
+                            className={pointerEventsNoneNotInheritedClassName}
+                        >
+                            {desktopControls}
+                        </Box>
+                    )}
+                    <Box
+                        ref={titleRef}
+                        overflow="hidden"
+                        // Initial opacity is 0. Our code will update the opacity.
+                        opacity={withDisappearingTitle ? "0" : undefined}
+                        // Initial pointer events is auto. Our code will update this style.
+                        pointerEvents={!withDisappearingTitle ? "auto" : undefined}
+                        paddingLeft={
+                            !isMobile && desktopTitleLeftSlop !== undefined
+                                ? desktopTitleLeftSlop
+                                : undefined
+                        }
+                        marginLeft={
+                            !isMobile && desktopTitleLeftSlop !== undefined
+                                ? `-${desktopTitleLeftSlop}`
+                                : undefined
+                        }
+                    >
+                        <Box
+                            overflow="hidden"
+                            // We have less space on mobile so use a smaller font size.
+                            fontSize={isMobile ? "100" : desktopTitleFontSize}
+                            fontStyle={
+                                isMobile
+                                    ? "truncate-semi-bold"
+                                    : `truncate-${desktopTitleFontWeight}`
+                            }
+                            userSelect={!isMobile ? "text" : undefined}
+                            paddingLeft={
+                                !isMobile && desktopTitleLeftSlop !== undefined
+                                    ? desktopTitleLeftSlop
+                                    : undefined
+                            }
+                            marginLeft={
+                                !isMobile && desktopTitleLeftSlop !== undefined
+                                    ? `-${desktopTitleLeftSlop}`
+                                    : undefined
+                            }
+                        >
+                            {title}
+                        </Box>
+                        {subtitle && (
+                            <Box
+                                fontSize="50"
+                                color="grey-50"
+                                fontStyle="truncate"
+                                userSelect={!isMobile ? "text" : undefined}
+                            >
+                                {subtitle}
+                            </Box>
+                        )}
+                    </Box>
+                </Box>
+                <Box
+                    flexGrow="1"
+                    flexShrink="0"
+                    height={navigationBarHeight}
+                    paddingRight={isMobile ? "3" : "5"}
+                    display="flex"
+                    justifyContent="flex-end"
+                    alignItems="center"
+                    gap={isMobile ? "0.5" : "2"}
+                    // Gives children `pointer-events: initial` so the user can interact with them.
+                    className={pointerEventsNoneNotInheritedClassName}
+                    style={{flexBasis: spacing["7"]}}
+                >
+                    {shareButton && !withMobileLayout && (
+                        <Box paddingRight="3">
+                            <ShareButton />
+                        </Box>
+                    )}
+                    {isTextInputFocused ? (
+                        // If a text input is focused then we hide menu actions and replace it with a
+                        // "Done" button. This helps the user see how to end their editing session.
+                        // Opening menu actions would cause the text input to unfocus anyway.
+                        <Button
+                            fontSize="100"
+                            // Don't remove focus from the current text input element
+                            // on press start. Remove focus on press finish.
+                            isFocusable={false}
+                            onPress={() => {
+                                if (document.activeElement instanceof HTMLElement) {
+                                    document.activeElement.blur();
+                                }
+                            }}
+                        >
+                            <Box display="inline" fontStyle="semi-bold" color="grey-70">
+                                Done
+                            </Box>
+                        </Button>
+                    ) : (
+                        (menuActions.length > 0 || (shareButton && withMobileLayout)) && (
+                            <MenuButton
+                                actions={
+                                    shareButton && withMobileLayout
+                                        ? [[createShareMenuItem({showToast})], ...menuActions]
+                                        : menuActions
+                                }
+                            >
+                                <IconButton
+                                    size={isMobile ? "base" : "md"}
+                                    description="More"
+                                    withoutTooltip={true}
+                                >
+                                    <DotsThreeVertical
+                                    // Vertical dots create better visual balance on mobile because:
+                                    //
+                                    // 1. On mobile we have a back button on the left and we want this button to
+                                    //    look aligned with that
+                                    // 2. The title might be truncated with ellipsis which looks like horizontal
+                                    //    dots
+                                    />
+                                </IconButton>
+                            </MenuButton>
+                        )
+                    )}
+                </Box>
+            </OverlayScopeContextProvider>
+        </Box>
+    );
+});

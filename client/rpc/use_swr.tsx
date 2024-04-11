@@ -6,10 +6,22 @@ import {createPromiseStore} from "~/client/helpers/store/promise_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
-import {InternalError} from "~/shared/error/error.js";
+import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {PromiseState} from "~/shared/helpers/async/promise_state.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+
+/**
+ * Amount of time we wait before expiring an entry from the SWR cache. This may
+ * be observed by a user if they quickly switch between states as they won't
+ * have to wait for network requests.
+ *
+ * This should probably be configurable. We can throwaway combobox search
+ * results faster than affinitive search entity lists.
+ */
+const swrCacheEntryExpirationDurationMs = 20 * 1000;
 
 /**
  * Cache for SWR data shared across our React app.
@@ -26,6 +38,14 @@ class SwrCache {
     private _isBrowserActive: boolean;
 
     private readonly _entryStackByKey = new StoreMap<string, SwrCacheEntryStack>();
+
+    private readonly _referenceStateByKey = new Map<
+        string,
+        {
+            referenceCount: number;
+            expirationTimeout: Timeout | null;
+        }
+    >();
 
     private readonly _browserActivatedEmitter = new EventEmitter();
 
@@ -97,6 +117,45 @@ class SwrCache {
     }
 
     /**
+     * Retain cached data for the provided key. Multiple components may retain the
+     * same data. We won't delete the data from the cache until the entry is fully
+     * released.
+     */
+    public retainEntry(key: string) {
+        const referenceState = getOrSetDefaultMapValue(this._referenceStateByKey, key, () => ({
+            referenceCount: 0,
+            expirationTimeout: null,
+        }));
+
+        referenceState.referenceCount += 1;
+
+        if (referenceState.expirationTimeout) {
+            referenceState.expirationTimeout.clear();
+            referenceState.expirationTimeout = null;
+        }
+    }
+
+    /**
+     * Release cached data for the provided key. Once the entry has been fully
+     * released we delete the data after our expiration timeout from the cache so
+     * it can be garbage collected.
+     */
+    public releaseEntry(key: string) {
+        const referenceState = this._referenceStateByKey.get(key);
+
+        assert(referenceState && referenceState.referenceCount > 0, "Entry is already released");
+
+        referenceState.referenceCount -= 1;
+
+        if (referenceState.referenceCount === 0) {
+            referenceState.expirationTimeout = createTimeout(() => {
+                this._referenceStateByKey.delete(key);
+                this._entryStackByKey.delete(key);
+            }, swrCacheEntryExpirationDurationMs);
+        }
+    }
+
+    /**
      * Revalidate an entry with the provided fetcher function. May not revalidate
      * if the entry was previously validated and we're within the
      * `dedupingInterval` of that previous validation.
@@ -106,6 +165,11 @@ class SwrCache {
         fetcher: (key: string) => PromiseLike<object>,
         options: {dedupingInterval: number},
     ) {
+        const referenceState = this._referenceStateByKey.get(key);
+        if (!((referenceState?.referenceCount ?? 0) > 0)) {
+            throw new FailedPreconditionError("Must retain entry before it can be referenced");
+        }
+
         const currentTime = Date.now();
         const entryStack = this._entryStackByKey.getSnapshot(key);
 
@@ -125,6 +189,11 @@ class SwrCache {
         fetcher: (key: string) => PromiseLike<object>,
         options: {dedupingInterval: number},
     ) {
+        const referenceState = this._referenceStateByKey.get(key);
+        if (!((referenceState?.referenceCount ?? 0) > 0)) {
+            throw new FailedPreconditionError("Must retain entry before it can be referenced");
+        }
+
         const currentTime = Date.now();
         const entryStack = this._entryStackByKey.getSnapshot(key);
 
@@ -144,6 +213,11 @@ class SwrCache {
         fetcher: (key: string) => PromiseLike<object>,
         options: {dedupingInterval: number},
     ) {
+        const referenceState = this._referenceStateByKey.get(key);
+        if (!((referenceState?.referenceCount ?? 0) > 0)) {
+            throw new FailedPreconditionError("Must retain entry before it can be referenced");
+        }
+
         const currentTime = Date.now();
         const entryStack = this._entryStackByKey.getSnapshot(key);
 
@@ -421,6 +495,15 @@ export function useSwr(
     const entryStackStore = key !== null ? cache.getEntryStack(key) : undefinedStore;
     const entryStack = useStore(entryStackStore) ?? null;
 
+    useEffect(() => {
+        if (key === null) return;
+
+        cache.retainEntry(key);
+        return () => {
+            cache.releaseEntry(key);
+        };
+    }, [cache, key]);
+
     // When `key` changes, revalidate it once.
     const hasRevalidatedKeyRef = useRef<string | null>(null);
     useEffect(() => {
@@ -496,6 +579,15 @@ export function useIdlyPreloadSwr(
 ) {
     const cache = useContext(SwrCacheContext);
     if (!cache) throw new InternalError("Expected to be child of `<SwrCacheContextProvider>`");
+
+    useEffect(() => {
+        if (key === null) return;
+
+        cache.retainEntry(key);
+        return () => {
+            cache.releaseEntry(key);
+        };
+    }, [cache, key]);
 
     // When `key` changes, preload it once.
     const hasPreloadedKeyRef = useRef<string | null>(null);

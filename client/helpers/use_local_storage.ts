@@ -17,15 +17,62 @@ import {Schema} from "~/shared/schema/schema.js";
 export function useLocalStorage<Value>(
     key: string,
     schema: Schema<Value>,
-    defaultValue: Value,
+    defaultValue: Value | (() => Value),
 ): [Value, (value: Value) => void] {
-    const [value, actuallySetValue] = useStateWithDependencies(defaultValue, [key, schema]);
+    return useStorageBase(
+        typeof window !== "undefined" ? localStorage : null,
+        key,
+        schema,
+        defaultValue,
+    );
+}
+
+/**
+ * Use some data saved to [session storage][1]. Keeps our component up-to-date
+ * as the data changes. Other tabs don't typically share the same session
+ * storage, but in case they do we'll keep date in other tabs updated with a
+ * [broadcast channel][2].
+ *
+ * We recommend starting all keys with `cyberworlds/` since `sessionStorage`
+ * keys live in a global namespace.
+ *
+ * [1]: https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage
+ * [2]: https://developer.mozilla.org/en-US/docs/Web/API/Broadcast_Channel_API
+ */
+export function useSessionStorage<Value>(
+    key: string,
+    schema: Schema<Value>,
+    defaultValue: Value | (() => Value),
+): [Value, (value: Value) => void] {
+    return useStorageBase(
+        typeof window !== "undefined" ? sessionStorage : null,
+        key,
+        schema,
+        defaultValue,
+    );
+}
+
+function useStorageBase<Value>(
+    storage: Storage | null,
+    key: string,
+    schema: Schema<Value>,
+    defaultValue: Value | (() => Value),
+): [Value, (value: Value) => void] {
+    const [value, actuallySetValue] = useStateWithDependencies(
+        (key: string, schema: Schema<Value>): Value =>
+            typeof defaultValue === "function" ? (defaultValue as any)() : defaultValue,
+        [key, schema],
+    );
     const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 
-    const reloadFromLocalStorage = useCallback(() => {
-        const newValueString = localStorage.getItem(key);
-        const newValue =
-            newValueString !== null ? schema.deserialize(JSON.parse(newValueString)) : defaultValue;
+    const reloadFromStorage = useCallback(() => {
+        const newValueString = storage?.getItem(key) ?? null;
+        const newValue: Value =
+            newValueString !== null
+                ? schema.deserialize(JSON.parse(newValueString))
+                : typeof defaultValue === "function"
+                ? (defaultValue as any)()
+                : defaultValue;
 
         actuallySetValue(oldValue => {
             if (isDeepEqual(schema.serialize(oldValue), schema.serialize(newValue))) {
@@ -33,32 +80,32 @@ export function useLocalStorage<Value>(
             }
             return newValue;
         });
-    }, [actuallySetValue, defaultValue, key, schema]);
+    }, [actuallySetValue, defaultValue, key, schema, storage]);
 
     useEffect(() => {
         const broadcastChannel = new BroadcastChannel(key);
 
         const handleMessage = () => {
-            reloadFromLocalStorage();
+            reloadFromStorage();
         };
 
         broadcastChannelRef.current = broadcastChannel;
         broadcastChannel.addEventListener("message", handleMessage);
 
         // Load any changes we missed while our `BroadcastChannel` was offline.
-        reloadFromLocalStorage();
+        reloadFromStorage();
 
         return () => {
             broadcastChannelRef.current = null;
             broadcastChannel.removeEventListener("message", handleMessage);
             broadcastChannel.close();
         };
-    }, [key, reloadFromLocalStorage]);
+    }, [key, reloadFromStorage]);
 
     const setValue = (newValue: Value) => {
         const serializedNewValue = schema.serialize(newValue);
 
-        localStorage.setItem(key, JSON.stringify(serializedNewValue));
+        storage?.setItem(key, JSON.stringify(serializedNewValue));
 
         if (broadcastChannelRef.current) {
             broadcastChannelRef.current.postMessage({});
@@ -70,12 +117,7 @@ export function useLocalStorage<Value>(
             broadcastChannel.close();
         }
 
-        actuallySetValue(oldValue => {
-            if (isDeepEqual(schema.serialize(oldValue), serializedNewValue)) {
-                return oldValue;
-            }
-            return newValue;
-        });
+        actuallySetValue(newValue);
     };
 
     return [value, setValue];

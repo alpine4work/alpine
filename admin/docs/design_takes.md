@@ -22,7 +22,8 @@ borders vs not.
 The quick version is: `grey-10` to divide different scrollable views (sticky views have different
 scroll behaviors), `grey-5` (but not full width) to divide content within a scrollable view,
 `grey-10` for creating shapes (e.g. a card). Message inputs are a bit of an exception. They don't
-always extend full width and they have an inner `grey-10` border around the input itself.
+always extend full width and they have an inner `grey-10` border around the input itself. Borders
+around inputs are typically `grey-20`.
 
 NOTE(calebmer, 2024-04-08): Now that there are sawtooth borders between document comment threads in
 the comment thread notification view, the border discussion is more interesting. The guideline for

@@ -1,32 +1,40 @@
 import {ContentView} from "~/client/content/content_view.js";
 import {Box} from "~/client/design/box.js";
-import {PostEditorInline, postEditorInlineMinHeight} from "~/client/forum/post_editor_inline.js";
+import {channelViewAsidePaddingY} from "~/client/forum/channel_view_aside.js";
+import {
+    postContentViewOuterMarginY,
+    postContentViewPaddingX,
+} from "~/client/forum/post_content_view.js";
+import {
+    PostFauxInputCreateButton,
+    postFauxInputCreateButtonHeight,
+} from "~/client/forum/post_faux_input_create_button.js";
 import {PostListChannelHeader} from "~/client/forum/post_list.js";
 import {postListViewMarginX, postListViewMarginY} from "~/client/forum/post_list_view.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
-export const channelViewHeaderMinHeight = postEditorInlineMinHeight;
+export const channelViewHeaderMinHeight = addRemLengths(
+    spacing[channelViewAsidePaddingY],
+    spacing[postFauxInputCreateButtonHeight],
+    spacing[postContentViewOuterMarginY],
+);
 
 export function ChannelViewHeader({
     channelHeader,
     onCreatePost,
-    parentHasMargin,
     withMobileLayout,
 }: {
     channelHeader: PostListChannelHeader;
     onCreatePost: (post: PostModel) => void;
-    parentHasMargin: boolean;
     withMobileLayout: boolean;
 }) {
     return (
         <>
             {withMobileLayout && !isContentEmpty(channelHeader.channel.description.doc) && (
-                <Box
-                    paddingBottom={postListViewMarginY}
-                    paddingX={!parentHasMargin ? postListViewMarginX : undefined}
-                >
+                <Box paddingBottom={postListViewMarginY} paddingX={postListViewMarginX}>
                     <h3
                         className={sprinkles({
                             paddingLeft: "2",
@@ -39,11 +47,13 @@ export function ChannelViewHeader({
                     <ContentView content={channelHeader.channel.description} />
                 </Box>
             )}
-            <PostEditorInline
-                channel={channelHeader.channel}
-                onCreatePost={onCreatePost}
-                parentHasMargin={parentHasMargin}
-            />
+            <Box
+                paddingTop={channelViewAsidePaddingY}
+                paddingBottom={postContentViewOuterMarginY}
+                paddingX={postContentViewPaddingX}
+            >
+                <PostFauxInputCreateButton channel={channelHeader.channel} />
+            </Box>
         </>
     );
 }

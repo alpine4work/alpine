@@ -277,18 +277,20 @@ function Overlay(
                 const paddingPx = convertRemLengthToPx(spacing["1"], remPx);
 
                 const padding = {
-                    top: paddingPx + getElementSafeAreaInsetTopPx(targetElement),
-                    bottom: paddingPx + getCurrentCoveredHeight(),
-                    left:
-                        paddingPx +
-                        (typeof overlaySink.insetLeft === "string"
-                            ? parseRemLengthNumber(overlaySink.insetLeft) * remPx
-                            : overlaySink.insetLeft ?? 0),
-                    right:
-                        paddingPx +
-                        (typeof overlaySink.insetRight === "string"
-                            ? parseRemLengthNumber(overlaySink.insetRight) * remPx
-                            : overlaySink.insetRight ?? 0),
+                    top: sameHeight ? 0 : paddingPx + getElementSafeAreaInsetTopPx(targetElement),
+                    bottom: sameHeight ? 0 : paddingPx + getCurrentCoveredHeight(),
+                    left: sameWidth
+                        ? 0
+                        : paddingPx +
+                          (typeof overlaySink.insetLeft === "string"
+                              ? parseRemLengthNumber(overlaySink.insetLeft) * remPx
+                              : overlaySink.insetLeft ?? 0),
+                    right: sameWidth
+                        ? 0
+                        : paddingPx +
+                          (typeof overlaySink.insetRight === "string"
+                              ? parseRemLengthNumber(overlaySink.insetRight) * remPx
+                              : overlaySink.insetRight ?? 0),
                 };
 
                 return {
@@ -379,15 +381,11 @@ function Overlay(
                             phase: "beforeWrite" as const,
                             requires: ["computeStyles"],
                             fn: ({state}: {state: State}) => {
-                                state.styles.popper!.width = `${
-                                    state.rects.reference.width - padding.left - padding.right
-                                }px`;
+                                state.styles.popper!.width = `${state.rects.reference.width}px`;
                             },
                             effect: ({state}: {state: State}) => {
                                 state.elements.popper.style.width = `${
-                                    (state.elements.reference as HTMLElement).offsetWidth -
-                                    padding.left -
-                                    padding.right
+                                    (state.elements.reference as HTMLElement).offsetWidth
                                 }px`;
                             },
                         },
@@ -397,15 +395,11 @@ function Overlay(
                             phase: "beforeWrite" as const,
                             requires: ["computeStyles"],
                             fn: ({state}: {state: State}) => {
-                                state.styles.popper!.height = `${
-                                    state.rects.reference.height - padding.top - padding.bottom
-                                }px`;
+                                state.styles.popper!.height = `${state.rects.reference.height}px`;
                             },
                             effect: ({state}: {state: State}) => {
                                 state.elements.popper.style.height = `${
-                                    (state.elements.reference as HTMLElement).offsetHeight -
-                                    padding.top -
-                                    padding.bottom
+                                    (state.elements.reference as HTMLElement).offsetHeight
                                 }px`;
                             },
                         },

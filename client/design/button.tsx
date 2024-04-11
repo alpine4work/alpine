@@ -1,7 +1,7 @@
 import {PressEvent} from "@react-types/shared";
 import classNames from "classnames";
 import {IconContext, SpinnerGap} from "phosphor-react";
-import {ReactNode, Ref, createElement, forwardRef, useRef, useState} from "react";
+import {ReactNode, Ref, createElement, forwardRef, useCallback, useRef, useState} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -13,10 +13,9 @@ import {useShowToast} from "~/client/design/toast.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {assignRef} from "~/client/helpers/refs/assign_ref.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     Sprinkles,
     buttonStyles,
@@ -163,7 +162,19 @@ function Button(
          */
         isFocusable?: boolean;
     },
-    foreignRef: Ref<HTMLButtonElement>,
+    foreignRef:
+        | Ref<
+              HTMLButtonElement & {
+                  // We add a `press()` function to our `HTMLButtonElement` so you can externally
+                  // call the button's press handler to properly handle loading states and error
+                  // states.
+                  //
+                  // You could call `click()` but that focuses the button which you might not
+                  // want.
+                  press(): void;
+              }
+          >
+        | Ref<HTMLButtonElement>,
 ) {
     const {
         children,
@@ -187,10 +198,60 @@ function Button(
         isFocusable = true,
     } = props;
     const showToast = useShowToast();
-    const localRef = useRef<HTMLButtonElement>(null);
+    const localRef = useRef<HTMLButtonElement | null>(null);
 
     const [isPendingFromPress, setIsPendingFromPress] = useState(false);
     const isPending = isPendingFromProps || isPendingFromPress;
+
+    const handlePress = (event: PressEvent) => {
+        if (isDisabled || isPending) return;
+
+        const defaultPressErrorTitle = "The button you pressed didn’t work";
+
+        let promise;
+        try {
+            promise = onPress?.(event);
+        } catch (error) {
+            showToast({
+                type: "Error",
+                title: pressErrorTitle ?? defaultPressErrorTitle,
+                error,
+            });
+            return;
+        }
+
+        // If the press returns a promise:
+        //
+        // - Show a loading spinner after a short delay
+        // - Show a toast if there was an error
+        if (promise instanceof Promise) {
+            setIsPendingFromPress(true);
+
+            assert(
+                pressErrorTitle,
+                "If `onPress` returns a promise then the `pressErrorTitle` prop is required",
+            );
+
+            promise.then(
+                () => {
+                    setIsPendingFromPress(false);
+                },
+                error => {
+                    setIsPendingFromPress(false);
+                    showToast({
+                        type: "Error",
+                        title: pressErrorTitle,
+                        error,
+                    });
+                },
+            );
+        }
+    };
+
+    const handlePressRef = useRef(handlePress);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        handlePressRef.current = handlePress;
+    });
 
     const {buttonProps, isPressed} = useButton(
         {
@@ -200,48 +261,7 @@ function Button(
             // action multiple times.
             isDisabled: isDisabled || isPending,
             type: shouldSubmitForm ? "submit" : undefined,
-            onPress: event => {
-                const defaultPressErrorTitle = "The button you pressed didn’t work";
-
-                let promise;
-                try {
-                    promise = onPress?.(event);
-                } catch (error) {
-                    showToast({
-                        type: "Error",
-                        title: pressErrorTitle ?? defaultPressErrorTitle,
-                        error,
-                    });
-                    return;
-                }
-
-                // If the press returns a promise:
-                //
-                // - Show a loading spinner after a short delay
-                // - Show a toast if there was an error
-                if (promise instanceof Promise) {
-                    setIsPendingFromPress(true);
-
-                    assert(
-                        pressErrorTitle,
-                        "If `onPress` returns a promise then the `pressErrorTitle` prop is required",
-                    );
-
-                    promise.then(
-                        () => {
-                            setIsPendingFromPress(false);
-                        },
-                        error => {
-                            setIsPendingFromPress(false);
-                            showToast({
-                                type: "Error",
-                                title: pressErrorTitle,
-                                error,
-                            });
-                        },
-                    );
-                }
-            },
+            onPress: handlePress,
             onKeyDown: event => {
                 // `react-spectrum` prevents propagation by default. If
                 // `event.preventDefault()` wasn't called, we want the event to propagate. That
@@ -261,13 +281,6 @@ function Button(
     // hover styles even though we aren't receiving pointer events since there's a
     // cover over the DOM.
     const [isTriggeredOverlayOpen, setIsTriggeredOverlayOpen] = useState(false);
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        Object.assign(assertExists(localRef.current), {
-            [onTriggeredOverlayOpenSymbol]: () => setIsTriggeredOverlayOpen(true),
-            [onTriggeredOverlayCloseSymbol]: () => setIsTriggeredOverlayOpen(false),
-        });
-    }, []);
 
     const isHoveredOrTriggeredOverlayOpen = isHovered || isTriggeredOverlayOpen;
 
@@ -430,7 +443,37 @@ function Button(
                 isFocusable ? "button" : "div",
                 {
                     ...mergeProps(buttonProps, hoverProps),
-                    ref: useMergedRefs(foreignRef, localRef),
+                    ref: useCallback(
+                        (element: HTMLButtonElement) => {
+                            if (element === null) {
+                                localRef.current = null;
+                                assignRef(foreignRef, null);
+                            } else {
+                                const actualElement = Object.assign(element, {
+                                    press: () => {
+                                        handlePressRef.current({
+                                            type: "press",
+                                            pointerType: "virtual",
+                                            target: element,
+                                            shiftKey: false,
+                                            ctrlKey: false,
+                                            metaKey: false,
+                                            altKey: false,
+                                            continuePropagation: () => {},
+                                        });
+                                    },
+                                    [onTriggeredOverlayOpenSymbol]: () =>
+                                        setIsTriggeredOverlayOpen(true),
+                                    [onTriggeredOverlayCloseSymbol]: () =>
+                                        setIsTriggeredOverlayOpen(false),
+                                });
+
+                                localRef.current = actualElement;
+                                assignRef(foreignRef, actualElement);
+                            }
+                        },
+                        [foreignRef],
+                    ),
                     className: sprinkles({
                         ...stylesByVariant[variant],
 

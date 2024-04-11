@@ -1,6 +1,6 @@
 import {getInteractionModality, usePress} from "@react-aria/interactions";
 import _Fuse from "fuse.js";
-import {Ref, forwardRef, useImperativeHandle, useMemo, useRef, useState} from "react";
+import {Ref, forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {useComboBox} from "react-aria";
 import {ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -162,48 +162,35 @@ function TaskPriorityInput(
             }
         },
 
-        onFocus: () => {
+        onOpenChange: isOpen => {
             const inputElement = assertExists(inputRef.current);
 
-            // Select all text on focus.
+            // Select all text when the combobox opens.
             //
             // Except on mobile. Since on mobile devices like iOS selecting a range of text
             // will open a hovering edit menu (with copy/paste/etc. actions) which
-            // conflicts with our overlay. So instead clear out the text. The old text will
-            // still be visible in a placeholder.
-            if (!isMobile) {
+            // conflicts with our overlay. So instead we clear out the text. The old text
+            // will still be visible in a placeholder.
+            if (isOpen && !isMobile) {
                 inputElement.select();
-
-                // Open the combobox on focus.
-                comboBoxState.open();
-
-                // When focused, switch to a typing state.
-                setInputState(inputState => {
-                    if (inputState.type === "Typing") return inputState;
-                    return {
-                        type: "Typing",
-                        initialPriority: priority,
-                        value: inputValue,
-                        hasChanged: false,
-                        shouldSelect: false,
-                    };
-                });
-            } else {
-                // Open the combobox on focus.
-                comboBoxState.open();
-
-                // When focused, switch to a typing state.
-                setInputState(inputState => {
-                    if (inputState.type === "Typing") return inputState;
-                    return {
-                        type: "Typing",
-                        initialPriority: priority,
-                        value: "",
-                        hasChanged: false,
-                        shouldSelect: false,
-                    };
-                });
             }
+        },
+
+        onFocus: () => {
+            // Open the combobox on focus.
+            comboBoxState.open();
+
+            // When focused, switch to a typing state.
+            setInputState(inputState => {
+                if (inputState.type === "Typing") return inputState;
+                return {
+                    type: "Typing",
+                    initialPriority: priority,
+                    value: !isMobile ? inputValue : "",
+                    hasChanged: false,
+                    shouldSelect: false,
+                };
+            });
         },
 
         onBlur: () => {
@@ -252,10 +239,13 @@ function TaskPriorityInput(
         },
 
         items: searchedItems,
-        children: item => (
-            <Item textValue={getTaskPriorityName(item.key)}>
-                <TaskPriorityInputListBoxOptionItem item={item} />
-            </Item>
+        children: useCallback(
+            (item: TaskPriorityInputItem) => (
+                <Item textValue={getTaskPriorityName(item.key)}>
+                    <TaskPriorityInputListBoxOptionItem item={item} />
+                </Item>
+            ),
+            [],
         ),
 
         selectedKey,
@@ -497,6 +487,20 @@ function TaskPriorityInput(
                                     // [1]: https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/combobox/src/useComboBox.ts#L132
                                 } else {
                                     inputProps.onKeyDown?.(event);
+                                }
+                            }}
+                            onPointerDown={event => {
+                                // As a convenience, if you tap on this element while it's already focused but
+                                // the combobox isn't open then open the combobox. After you select an option
+                                // the combobox closes but the user may want to select another account.
+                                //
+                                // We have to be a little careful and make sure this doesn't break the default
+                                // browser behavior of focusing the input if it's unfocused.
+                                if (
+                                    document.activeElement === event.target &&
+                                    !comboBoxState.isOpen
+                                ) {
+                                    comboBoxState.open();
                                 }
                             }}
                         />

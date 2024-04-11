@@ -7,6 +7,7 @@ import {
     Ref,
     createElement,
     forwardRef,
+    useCallback,
     useRef,
     useState,
 } from "react";
@@ -23,10 +24,9 @@ import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useTouchSlop} from "~/client/design/use_touch_slop.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {assignRef} from "~/client/helpers/refs/assign_ref.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     Sprinkles,
     buttonStyles,
@@ -211,7 +211,19 @@ function IconButton(
          */
         onKeyDownCapture?: (event: KeyboardEvent) => void;
     },
-    foreignRef: Ref<HTMLElement>,
+    foreignRef:
+        | Ref<
+              HTMLElement & {
+                  // We add a `press()` function to our `HTMLButtonElement` so you can externally
+                  // call the button's press handler to properly handle loading states and error
+                  // states.
+                  //
+                  // You could call `click()` but that focuses the button which you might not
+                  // want.
+                  press(): void;
+              }
+          >
+        | Ref<HTMLElement>,
 ) {
     const {
         description,
@@ -238,11 +250,61 @@ function IconButton(
         onPointerLeave,
         onKeyDownCapture,
     } = props;
-    const localRef = useRef<HTMLElement>(null);
+    const localRef = useRef<HTMLElement | null>(null);
     const showToast = useShowToast();
 
     const [isPendingFromPress, setIsPendingFromPress] = useState(false);
     const isPending = isPendingFromProps || isPendingFromPress;
+
+    const handlePress = (event: PressEvent) => {
+        if (isDisabled || isPending) return;
+
+        const defaultPressErrorTitle = "The button you pressed didn’t work";
+
+        let promise;
+        try {
+            promise = onPress?.(event);
+        } catch (error) {
+            showToast({
+                type: "Error",
+                title: pressErrorTitle ?? defaultPressErrorTitle,
+                error,
+            });
+            return;
+        }
+
+        // If the press returns a promise:
+        //
+        // - Show a loading spinner after a short delay
+        // - Show a toast if there was an error
+        if (promise instanceof Promise) {
+            setIsPendingFromPress(true);
+
+            assert(
+                pressErrorTitle,
+                "If `onPress` returns a promise then the `pressErrorTitle` prop is required",
+            );
+
+            promise.then(
+                () => {
+                    setIsPendingFromPress(false);
+                },
+                error => {
+                    setIsPendingFromPress(false);
+                    showToast({
+                        type: "Error",
+                        title: pressErrorTitle,
+                        error,
+                    });
+                },
+            );
+        }
+    };
+
+    const handlePressRef = useRef(handlePress);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        handlePressRef.current = handlePress;
+    });
 
     const {buttonProps, isPressed: isPressedFromButton} = useButton(
         {
@@ -250,48 +312,7 @@ function IconButton(
             elementType: isFocusable ? "button" : "div",
             isDisabled: isDisabled || isPending,
             "aria-label": description,
-            onPress: event => {
-                const defaultPressErrorTitle = "The button you pressed didn’t work";
-
-                let promise;
-                try {
-                    promise = onPress?.(event);
-                } catch (error) {
-                    showToast({
-                        type: "Error",
-                        title: pressErrorTitle ?? defaultPressErrorTitle,
-                        error,
-                    });
-                    return;
-                }
-
-                // If the press returns a promise:
-                //
-                // - Show a loading spinner after a short delay
-                // - Show a toast if there was an error
-                if (promise instanceof Promise) {
-                    setIsPendingFromPress(true);
-
-                    assert(
-                        pressErrorTitle,
-                        "If `onPress` returns a promise then the `pressErrorTitle` prop is required",
-                    );
-
-                    promise.then(
-                        () => {
-                            setIsPendingFromPress(false);
-                        },
-                        error => {
-                            setIsPendingFromPress(false);
-                            showToast({
-                                type: "Error",
-                                title: pressErrorTitle,
-                                error,
-                            });
-                        },
-                    );
-                }
-            },
+            onPress: handlePress,
         },
         localRef,
     );
@@ -307,13 +328,6 @@ function IconButton(
     // hover styles even though we aren't receiving pointer events since there's a
     // cover over the DOM.
     const [isTriggeredOverlayOpen, setIsTriggeredOverlayOpen] = useState(false);
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        Object.assign(assertExists(localRef.current), {
-            [onTriggeredOverlayOpenSymbol]: () => setIsTriggeredOverlayOpen(true),
-            [onTriggeredOverlayCloseSymbol]: () => setIsTriggeredOverlayOpen(false),
-        });
-    }, []);
 
     const isHoveredOrTriggeredOverlayOpen = isHovered || isTriggeredOverlayOpen;
 
@@ -437,7 +451,37 @@ function IconButton(
                     isFocusable ? "button" : "div",
                     {
                         ...mergeProps(buttonProps, hoverProps, {onPointerLeave, onKeyDownCapture}),
-                        ref: useMergedRefs(foreignRef, localRef),
+                        ref: useCallback(
+                            (element: HTMLButtonElement) => {
+                                if (element === null) {
+                                    localRef.current = null;
+                                    assignRef(foreignRef, null);
+                                } else {
+                                    const actualElement = Object.assign(element, {
+                                        press: () => {
+                                            handlePressRef.current({
+                                                type: "press",
+                                                pointerType: "virtual",
+                                                target: element,
+                                                shiftKey: false,
+                                                ctrlKey: false,
+                                                metaKey: false,
+                                                altKey: false,
+                                                continuePropagation: () => {},
+                                            });
+                                        },
+                                        [onTriggeredOverlayOpenSymbol]: () =>
+                                            setIsTriggeredOverlayOpen(true),
+                                        [onTriggeredOverlayCloseSymbol]: () =>
+                                            setIsTriggeredOverlayOpen(false),
+                                    });
+
+                                    localRef.current = actualElement;
+                                    assignRef(foreignRef, actualElement);
+                                }
+                            },
+                            [foreignRef],
+                        ),
                         className: sprinkles({
                             display: "flex",
                             width: touchSlop.sizeWithSlop,

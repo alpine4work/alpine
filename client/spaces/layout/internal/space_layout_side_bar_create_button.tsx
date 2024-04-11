@@ -59,22 +59,9 @@ export function SpaceLayoutSideBarCreateButton() {
                         withCustomLayout: true,
                         pressErrorTitle: "Couldn’t create post",
                         onPress: async () => {
-                            if (space.alphaAccessDefaultChannelId) {
-                                await rootNavigate(
-                                    `/s/${space.id}/channels/${space.alphaAccessDefaultChannelId}`,
-                                );
-                            } else {
-                                showToast({
-                                    type: "Error",
-                                    title: "Can’t find a channel to post in",
-                                    error: new UnimplementedError(
-                                        "Channel explorer hasn’t been implemented yet",
-                                        {
-                                            displayMessage: errorDisplayMessage`Channel explorer hasn’t been implemented yet.`,
-                                        },
-                                    ),
-                                });
-                            }
+                            const draftId = generateId();
+
+                            await peekStackContext.push(`/s/${space.id}/posts/new/${draftId}`);
                         },
                         render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
                             <SpaceLayoutSideBarCreateButtonItem

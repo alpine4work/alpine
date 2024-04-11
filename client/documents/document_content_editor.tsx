@@ -370,7 +370,10 @@ function DocumentContentEditorStateful({
                 },
             );
         } else {
-            const blockMaxWidth = convertRemLengthToPx(contentSchemaStyles.blockMaxWidth, remPx);
+            const blockMaxWidth = convertRemLengthToPx(
+                contentSchemaStyles.defaultBlockMaxWidth,
+                remPx,
+            );
             const paddingXPx = convertRemLengthToPx(spacing[paddingX], remPx) * 2;
             const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
             const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
@@ -508,7 +511,10 @@ function DocumentContentEditorStateful({
                 },
             );
         } else {
-            const blockMaxWidth = convertRemLengthToPx(contentSchemaStyles.blockMaxWidth, remPx);
+            const blockMaxWidth = convertRemLengthToPx(
+                contentSchemaStyles.defaultBlockMaxWidth,
+                remPx,
+            );
             const paddingXPx = convertRemLengthToPx(spacing[paddingX], remPx) * 2;
             const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
             const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
@@ -1459,7 +1465,7 @@ function DocumentContentEditorStateful({
         shareButton: {},
         desktopTitleMaxWidth: addRemLengths(
             spacing[paddingX],
-            contentSchemaStyles.blockMaxWidth,
+            contentSchemaStyles.defaultBlockMaxWidth,
             spacing[paddingX],
         ),
         desktopTitleFontSize: "400",
@@ -1951,8 +1957,8 @@ function DocumentContentEditorSidebar({
     const context = useAppContext();
     const {isAppleDevice} = useClientInfo();
 
-    const previousCommentThreadButtonRef = useRef<HTMLElement>(null);
-    const nextCommentThreadButtonRef = useRef<HTMLElement>(null);
+    const previousCommentThreadButtonRef = useRef<HTMLElement & {press(): void}>(null);
+    const nextCommentThreadButtonRef = useRef<HTMLElement & {press(): void}>(null);
 
     const initialDataResult = usePromise(initialDataPromise);
 
@@ -2147,7 +2153,7 @@ function DocumentContentEditorSidebar({
 
                     // Programmatically click the button instead of calling `openCommentThread()`
                     // directly to correctly handle loading and error states.
-                    assertExists(previousCommentThreadButtonRef.current).click();
+                    assertExists(previousCommentThreadButtonRef.current).press();
                 }
 
                 if (
@@ -2160,7 +2166,7 @@ function DocumentContentEditorSidebar({
 
                     // Programmatically click the button instead of calling `openCommentThread()`
                     // directly to correctly handle loading and error states.
-                    assertExists(nextCommentThreadButtonRef.current).click();
+                    assertExists(nextCommentThreadButtonRef.current).press();
                 }
             }}
         >
