@@ -38,6 +38,7 @@ import {
     NotFoundError,
     UnimplementedError,
 } from "~/shared/error/error.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -594,62 +595,73 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 // production we should use the AWS CDK.
                 assert(internalClient.isLocal());
 
-                let doesTableExist;
-                let isTimeToLiveEnabled;
+                let doesTableExist: boolean;
+                let existingIndexNames: Set<string>;
+                let isTimeToLiveEnabled: boolean;
                 try {
-                    const output = await internalClient.DescribeTimeToLive(
-                        context.tracer.getTracer(),
-                        {
+                    const [output, timeToLiveOutput] = await runAllPromises([
+                        internalClient.DescribeTable(context.tracer.getTracer(), {
                             TableName: tableName,
-                        },
-                    );
+                        }),
+                        internalClient.DescribeTimeToLive(context.tracer.getTracer(), {
+                            TableName: tableName,
+                        }),
+                    ]);
+
                     doesTableExist = true;
+                    existingIndexNames = new Set(
+                        output.Table?.GlobalSecondaryIndexes?.map(
+                            indexOutput => indexOutput.IndexName ?? "",
+                        ),
+                    );
                     isTimeToLiveEnabled =
-                        output.TimeToLiveDescription?.TimeToLiveStatus !== "DISABLED";
+                        timeToLiveOutput.TimeToLiveDescription?.TimeToLiveStatus !== "DISABLED";
                 } catch (error) {
                     if (isDynamoResourceNotFoundError(error)) {
                         doesTableExist = false;
+                        existingIndexNames = new Set();
                         isTimeToLiveEnabled = false;
                     } else {
                         throw error;
                     }
                 }
 
+                const attributeDefinitions = [
+                    {
+                        AttributeName: "partitionKey",
+                        AttributeType: "S",
+                    },
+                    {
+                        AttributeName: "sortKey",
+                        AttributeType: "S",
+                    },
+                    ...this._initializationState.description.indexes.flatMap(
+                        (indexDescription, i) => {
+                            const indexNumber = i + 1;
+
+                            return [
+                                ...(indexDescription.partitionKeyBehavior.type === "Reused"
+                                    ? []
+                                    : [
+                                          {
+                                              AttributeName: `index${indexNumber}PartitionKey`,
+                                              AttributeType: "S",
+                                          },
+                                      ]),
+                                {
+                                    AttributeName: `index${indexNumber}SortKey`,
+                                    AttributeType: "S",
+                                },
+                            ];
+                        },
+                    ),
+                ];
+
                 if (!doesTableExist) {
                     try {
                         await internalClient.CreateTable(context.tracer.getTracer(), {
                             TableName: tableName,
-                            AttributeDefinitions: [
-                                {
-                                    AttributeName: "partitionKey",
-                                    AttributeType: "S",
-                                },
-                                {
-                                    AttributeName: "sortKey",
-                                    AttributeType: "S",
-                                },
-                                ...this._initializationState.description.indexes.flatMap(
-                                    (indexDescription, i) => {
-                                        const indexNumber = i + 1;
-
-                                        return [
-                                            ...(indexDescription.partitionKeyBehavior.type ===
-                                            "Reused"
-                                                ? []
-                                                : [
-                                                      {
-                                                          AttributeName: `index${indexNumber}PartitionKey`,
-                                                          AttributeType: "S",
-                                                      },
-                                                  ]),
-                                            {
-                                                AttributeName: `index${indexNumber}SortKey`,
-                                                AttributeType: "S",
-                                            },
-                                        ];
-                                    },
-                                ),
-                            ],
+                            AttributeDefinitions: attributeDefinitions,
                             KeySchema: [
                                 {
                                     AttributeName: "partitionKey",
@@ -702,17 +714,65 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                             throw error;
                         }
                     }
-                }
-
-                if (!isTimeToLiveEnabled) {
+                } else {
                     try {
-                        await internalClient.UpdateTimeToLive(context.tracer.getTracer(), {
-                            TableName: tableName,
-                            TimeToLiveSpecification: {
-                                Enabled: true,
-                                AttributeName: "expirationTime",
+                        const createIndexUpdates = filterMapArray(
+                            this._initializationState.description.indexes,
+                            (indexDescription, i) => {
+                                const indexNumber = i + 1;
+
+                                if (existingIndexNames.has(`Index${indexNumber}`)) return null;
+
+                                return {
+                                    Create: {
+                                        IndexName: `Index${indexNumber}`,
+                                        KeySchema: [
+                                            {
+                                                AttributeName:
+                                                    indexDescription.partitionKeyBehavior.type ===
+                                                    "Reused"
+                                                        ? "partitionKey"
+                                                        : `index${indexNumber}PartitionKey`,
+                                                KeyType: "HASH",
+                                            },
+                                            {
+                                                AttributeName: `index${indexNumber}SortKey`,
+                                                KeyType: "RANGE",
+                                            },
+                                        ],
+                                        Projection: {
+                                            ProjectionType: {
+                                                KeysOnly: "KEYS_ONLY",
+                                                All: "ALL",
+                                            }[indexDescription.projection],
+                                        },
+                                    },
+                                };
                             },
-                        });
+                        );
+
+                        await runAllPromises([
+                            // It would appear that we can only create one index at a time. So issue
+                            // `UpdateTable()` commands in sequence for each index.
+                            (async () => {
+                                for (const createIndexUpdate of createIndexUpdates) {
+                                    await internalClient.UpdateTable(context.tracer.getTracer(), {
+                                        TableName: tableName,
+                                        AttributeDefinitions: attributeDefinitions,
+                                        GlobalSecondaryIndexUpdates: [createIndexUpdate],
+                                    });
+                                }
+                            })(),
+                            !isTimeToLiveEnabled
+                                ? internalClient.UpdateTimeToLive(context.tracer.getTracer(), {
+                                      TableName: tableName,
+                                      TimeToLiveSpecification: {
+                                          Enabled: true,
+                                          AttributeName: "expirationTime",
+                                      },
+                                  })
+                                : null,
+                        ]);
                     } catch (error) {
                         // A concurrent process may be racing to create this table. Try again...
                         if (isDynamoValidationError(error)) {
@@ -4635,15 +4695,32 @@ function checkDynamoTableSchemaDescriptionBackwardsCompatibility(
         const number = i + 1;
         const nextIndexDescription = nextDescription.indexes[i]!;
 
-        if (i >= lastDescription.indexes.length)
-            throw new InvalidArgumentError(`Index number ${number} is missing`);
+        // If our description is adding an index, you may only add the index to item
+        // types the new description itself adds.
+        if (i >= lastDescription.indexes.length) {
+            for (const [nextIndexOverloadName, nextIndexOverloadDescription] of Object.entries(
+                nextIndexDescription.overloadByName,
+            )) {
+                for (const nextIndexOverloadItemType of nextIndexOverloadDescription.itemTypes) {
+                    if (
+                        lastDescription.partitionByType[nextIndexOverloadItemType.partitionType]
+                            ?.sortRangeByType[nextIndexOverloadItemType.sortRangeType]
+                    ) {
+                        throw new InvalidArgumentError(
+                            quote`Index overload ${nextIndexOverloadName} can\'t be added to existing items with partition type ${nextIndexOverloadItemType.partitionType} and sort range type ${nextIndexOverloadItemType.sortRangeType}`,
+                        );
+                    }
+                }
+            }
+            continue;
+        }
 
         const lastIndexDescription = lastDescription.indexes[i]!;
 
         checkDynamoTableSchemaIndexDescriptionBackwardsCompatibility(
             number,
-            nextIndexDescription,
             lastIndexDescription,
+            nextIndexDescription,
         );
     }
 }

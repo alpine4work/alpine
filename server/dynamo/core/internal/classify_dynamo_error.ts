@@ -14,7 +14,7 @@ export function classifyDynamoError(error: {
     Message?: string;
 }): ErrorBase {
     let errorCode: ErrorCode | null = null;
-    if (error.__type === "InternalServerError") {
+    if (error.__type === "InternalServerError" || error.__type === "InternalFailure") {
         errorCode = ErrorCode.Internal;
     } else if (error.__type === "RequestLimitExceeded") {
         errorCode = ErrorCode.Unavailable;

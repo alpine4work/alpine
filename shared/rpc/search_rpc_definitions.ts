@@ -1,3 +1,4 @@
+import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
@@ -56,4 +57,38 @@ export const markSearchAffinityInteraction = defineRpc({
         interaction: SearchAffinityInteractionSchema,
     },
     output: {},
+});
+
+export const searchChannelsByKeywords = defineRpc({
+    name: "searchChannelsByKeywords",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        queryText: Schema.string,
+        limit: Schema.integer,
+    },
+    output: {
+        results: Schema.array(
+            Schema.object({
+                channel: ChannelPreviewModel.schema(),
+                descriptionTextSnippet: Schema.string,
+            }),
+        ),
+    },
+});
+
+export const searchChannelsByAffinity = defineRpc({
+    name: "searchChannelsByAffinity",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        limit: Schema.integer,
+    },
+    output: {
+        results: Schema.array(
+            Schema.object({
+                channel: ChannelPreviewModel.schema(),
+                descriptionTextSnippet: Schema.string,
+                origin: Schema.enum(["Account", "Space"]),
+            }),
+        ),
+    },
 });

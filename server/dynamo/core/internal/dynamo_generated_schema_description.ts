@@ -2224,6 +2224,31 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "fallbackContentSnippet": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "version": {
+                                                        "valueSchema": {
+                                                            "type": "Integer"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "node": {
+                                                        "valueSchema": {
+                                                            "type": "Reference",
+                                                            "reuseReferenceId": "45e6ca41"
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            },
+                                            "referenceId": "04cbe537"
+                                        },
+                                        "optional": true
+                                    },
                                     "commentsSummary": {
                                         "valueSchema": {
                                             "type": "Object",
@@ -2272,6 +2297,69 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "resolutionState": {
+                                        "valueSchema": {
+                                            "type": "Union",
+                                            "typeKey": "type",
+                                            "variantSchemaByTypeValue": {
+                                                "Unresolved": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "Unresolved"
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                },
+                                                "Resolved": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "Resolved"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "version": {
+                                                            "valueSchema": {
+                                                                "type": "Integer"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "ranges": {
+                                                            "valueSchema": {
+                                                                "type": "Array",
+                                                                "itemSchema": {
+                                                                    "type": "Object",
+                                                                    "propertySchemaByKey": {
+                                                                        "from": {
+                                                                            "valueSchema": {
+                                                                                "type": "Integer"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "to": {
+                                                                            "valueSchema": {
+                                                                                "type": "Integer"
+                                                                            },
+                                                                            "optional": false
+                                                                        }
+                                                                    }
+                                                                }
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "referenceId": "fd3ef726"
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -2298,12 +2386,26 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "fallbackContentSnippet": {
+                                        "valueSchema": {
+                                            "type": "Reference",
+                                            "reuseReferenceId": "04cbe537"
+                                        },
+                                        "optional": true
+                                    },
                                     "commentsSummary": {
                                         "valueSchema": {
                                             "type": "Reference",
                                             "reuseReferenceId": "00fe7549"
                                         },
                                         "optional": false
+                                    },
+                                    "resolutionState": {
+                                        "valueSchema": {
+                                            "type": "Reference",
+                                            "reuseReferenceId": "fd3ef726"
+                                        },
+                                        "optional": true
                                     },
                                     "updateLockVersion": {
                                         "valueSchema": {
@@ -3915,6 +4017,114 @@ export const dynamoGeneratedSchemaDescription: {
                             }
                         }
                     }
+                },
+                "SpaceChannels": {
+                    "id": 1,
+                    "partitionKeyAttributeByKey": {
+                        "spaceId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "SearchAffinity": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "channelId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "points": {
+                                        "valueSchema": {
+                                            "type": "Float"
+                                        },
+                                        "optional": false
+                                    },
+                                    "pointsBucket": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "lastUpdatedTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "expirationTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "SpaceTaskCollections": {
+                    "id": 2,
+                    "partitionKeyAttributeByKey": {
+                        "spaceId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "SearchAffinity": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "collectionId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "points": {
+                                        "valueSchema": {
+                                            "type": "Float"
+                                        },
+                                        "optional": false
+                                    },
+                                    "pointsBucket": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "lastUpdatedTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "expirationTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             },
             "indexes": [
@@ -3937,6 +4147,60 @@ export const dynamoGeneratedSchemaDescription: {
                                     "type": "Id"
                                 },
                                 "accountId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "sortKeyAttributeByKey": {
+                                "pointsBucket": {
+                                    "type": "Integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "projection": "All",
+                    "partitionKeyBehavior": {
+                        "type": "Reused",
+                        "partitionType": "SpaceChannels"
+                    },
+                    "overloadByName": {
+                        "SpaceChannelsSearchAffinity": {
+                            "itemTypes": [
+                                {
+                                    "partitionType": "SpaceChannels",
+                                    "sortRangeType": "SearchAffinity"
+                                }
+                            ],
+                            "partitionKeyAttributeByKey": {
+                                "spaceId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "sortKeyAttributeByKey": {
+                                "pointsBucket": {
+                                    "type": "Integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "projection": "All",
+                    "partitionKeyBehavior": {
+                        "type": "Reused",
+                        "partitionType": "SpaceTaskCollections"
+                    },
+                    "overloadByName": {
+                        "SpaceTaskCollectionsSearchAffinity": {
+                            "itemTypes": [
+                                {
+                                    "partitionType": "SpaceTaskCollections",
+                                    "sortRangeType": "SearchAffinity"
+                                }
+                            ],
+                            "partitionKeyAttributeByKey": {
+                                "spaceId": {
                                     "type": "Id"
                                 }
                             },

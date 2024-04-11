@@ -682,6 +682,32 @@ export class DynamoClientInternal {
     }
 
     /**
+     * DynamoDB [`UpdateTable`][1] action.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateTable.html
+     */
+    public UpdateTable(
+        tracer: TracerBase,
+        input: types.UpdateTableCommandInput,
+    ): Promise<types.UpdateTableCommandOutput> {
+        return tracer.withSpan("DynamoDB UpdateTable", async span => {
+            span.addData({
+                dynamodb: {
+                    action: "UpdateTable",
+                    tableName: input.TableName ?? "",
+                },
+            });
+
+            const output = await this._execute<
+                types.UpdateTableCommandInput,
+                types.UpdateTableCommandOutput
+            >(span, "UpdateTable", input);
+
+            return output;
+        });
+    }
+
+    /**
      * DynamoDB [`UpdateTimeToLive`][1] action.
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateTimeToLive.html

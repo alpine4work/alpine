@@ -4,6 +4,7 @@ import {
     ServerSessionActionContext,
     ServerSessionActionContextModules,
 } from "~/server/context/server_action_context.js";
+import {getChannelIfPossible} from "~/server/forum/data/forum_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
@@ -45,7 +46,11 @@ import {
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {SearchEntityIndexSystemActionContext} from "~/server/search/data/index/search_entity_index_system_action_context.js";
-import {internalGetSearchAffinitiveIds} from "~/server/search/data/table/search_entity_table.js";
+import {
+    getChannelSearchAffinities,
+    internalDangerouslyGetSpaceChannelSearchAffinities,
+    internalGetSearchAffinities,
+} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
     getAccount,
@@ -53,11 +58,16 @@ import {
 } from "~/server/spaces/spaces_table.js";
 import {getTaskCollectionSearchResultBodyTextSnippetIfPossible} from "~/server/tasks/data/task_table.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {printContentSingleLineTextSnippetWithHighlighting} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
+import {
+    printContentSingleLineTextSnippet,
+    printContentSingleLineTextSnippetWithHighlighting,
+} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {Context} from "~/shared/context/context.js";
 import {formatPrettyRelativeDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_relative_date_without_full_time_tooltip.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
@@ -81,7 +91,7 @@ import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {assertId} from "~/shared/id/id.js";
-import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {
     SearchEntityId,
@@ -1630,9 +1640,11 @@ export async function searchByAffinity(
     context: ServerSessionActionContext,
     {spaceId, limit}: {spaceId: SpaceId; limit: number},
 ): Promise<{results: Array<SearchResult>}> {
+    await authorizeSpaceAccess(context, spaceId);
+
     const currentTime = new Date();
 
-    const affinityIds = await internalGetSearchAffinitiveIds(context, {spaceId, limit});
+    const affinityIds = await internalGetSearchAffinities(context, {spaceId, limit});
 
     const entitiesTitleAndMedia = await getSearchEntitiesTitleAndMediaIfExist(context, {
         spaceId,
@@ -1698,4 +1710,212 @@ export async function searchByAffinity(
     );
 
     return {results};
+}
+
+function getChannelStandaloneSearchResult(channel: ChannelModel): {
+    channel: ChannelPreviewModel;
+    descriptionTextSnippet: string;
+} {
+    const descriptionContentSnippet = getContentSnippet(channel.description.doc.resolve(0), 3);
+
+    const descriptionTextSnippet = printContentSingleLineTextSnippet({
+        doc: descriptionContentSnippet,
+        references: channel.description.references,
+    });
+
+    return {
+        channel: channel.asPreview(),
+        descriptionTextSnippet,
+    };
+}
+
+/**
+ * Search all the channels in our space by name. This search is capable of
+ * fuzzy matching when there's a typo and prefix matching the last word.
+ *
+ * On the client we boost channels an account has an affinity for.
+ */
+export async function searchChannelsByKeywords(
+    context: ServerSessionActionContext,
+    {
+        spaceId,
+        queryText,
+        limit,
+    }: {
+        spaceId: SpaceId;
+        queryText: string;
+        limit: number;
+    },
+): Promise<Array<{channel: ChannelPreviewModel; descriptionTextSnippet: string}>> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    const {hits} = await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, spaceId, {
+        size: limit,
+        sort: [
+            "_score",
+            // If score is tied, put the newer collections first.
+            {createdTime: {order: "desc", missing: "_last"}},
+        ],
+        query: {
+            bool: {
+                minimum_should_match: 1,
+                should: [
+                    {
+                        multi_match: {
+                            query: new OpensearchQueryValue(queryText),
+                            type: "bool_prefix",
+                            fields: ["title", "title._2gram", "title._3gram"],
+                            fuzziness: 0,
+                        },
+                    },
+                    // While `bool_prefix` supports fuzzy search the final term will not be fuzzy
+                    // matched. So if there's only one term or the last term is the critical term we
+                    // won't be able to fix mispellings.
+                    //
+                    // Also, fuzzy matching on 2gram or 3gram fields can lead to some odd results
+                    // where, because we're fuzzy matching two words, we end up matching a two word
+                    // pair which means something completely different.
+                    {
+                        match: {
+                            title: {
+                                query: new OpensearchQueryValue(queryText),
+                                fuzziness: "AUTO",
+                                // Reduce the number of fuzzy expansions.
+                                prefix_length: 1,
+                                // Misspellings should rank lower than proper spellings.
+                                boost: 0.5,
+                            },
+                        },
+                    },
+                ],
+
+                // Use filter context to only match content the user is allowed to see. The
+                // content must be in our space and must grant access to the account. Either
+                // directly or through a default grant.
+                //
+                // Query clauses in a filter context may be cached.
+                // https://opensearch.org/docs/latest/query-dsl/query-filter-context/#filter-context
+                filter: [
+                    {term: {spaceId: new OpensearchQueryValue(spaceId)}},
+                    {term: {type: new OpensearchQueryValue("Channel")}},
+                    {
+                        bool: {
+                            minimum_should_match: 1,
+                            should: [
+                                {
+                                    term: {
+                                        "accessPolicy.accountGrantAccountIds":
+                                            new OpensearchQueryValue(context.actor.getAccountId()),
+                                    },
+                                },
+                                {
+                                    term: {
+                                        "accessPolicy.defaultGrantType": new OpensearchQueryValue(
+                                            SearchEntityIndexDefaultGrantTypeIntegerMapping.into(
+                                                "Space",
+                                            ),
+                                        ),
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+    });
+
+    const channels = await runAllPromises(
+        hits.map(async hit => {
+            // Could be an assert since we should filter out non-channels in our search.
+            if (!hit.id.startsWith("Channel:")) return null;
+
+            const channelId = hit.id.slice(8) as ChannelId;
+
+            // Data in the search index may be stale and the account may have lost access
+            // to the channel. Don't return the channel if the user lost access.
+            const channelResult = await getChannelIfPossible(context, channelId);
+            if (!channelResult) return null;
+            if (!channelResult.ok) return null;
+
+            const channel = channelResult.value;
+
+            return getChannelStandaloneSearchResult(channel);
+        }),
+    );
+
+    return channels.filter(isNonNullable);
+}
+
+/**
+ * Get a list of channels relevant to the session account. First we look at
+ * channels the account has interacted with. If the user hasn't personally
+ * interacted with enough channels to fill `limit` then we'll return a list of
+ * the most popular channels across the entire space.
+ *
+ * If it's a personal recommendation we return `origin: "Account"`. If it's a
+ * space-wide recommendation we return `origin: "Space"`. Only personal
+ * recommendations will be used to boost keyword search results.
+ */
+export async function searchChannelsByAffinity(
+    context: ServerSessionActionContext,
+    {spaceId, limit}: {spaceId: SpaceId; limit: number},
+): Promise<
+    Array<{
+        channel: ChannelPreviewModel;
+        descriptionTextSnippet: string;
+        origin: "Account" | "Space";
+    }>
+> {
+    const channelIdsFromAccountAffinities = await getChannelSearchAffinities(context, spaceId);
+
+    if (channelIdsFromAccountAffinities.length >= limit) {
+        const channels = await runAllPromises(
+            channelIdsFromAccountAffinities.slice(0, limit).map(async channelId => {
+                const channelResult = await getChannelIfPossible(context, channelId);
+                if (!channelResult) return null;
+                if (!channelResult.ok) return null;
+                return {
+                    ...getChannelStandaloneSearchResult(channelResult.value),
+                    origin: "Account" as const,
+                };
+            }),
+        );
+        return channels.filter(isNonNullable);
+    }
+
+    const channelIdsFromAccountAffinitiesSet = new Set(channelIdsFromAccountAffinities);
+
+    const channelIdsFromSpaceAffinities = await internalDangerouslyGetSpaceChannelSearchAffinities(
+        context,
+        {
+            spaceId,
+            // Load 10 extra channels since some space-level channels might be private. We
+            // load a full `limit` worth of items since there may be duplicates with
+            // channel IDs from account affinities.
+            limit: limit + 10,
+        },
+    );
+
+    const channels = await runAllPromises(
+        [
+            ...channelIdsFromAccountAffinities,
+            ...channelIdsFromSpaceAffinities.filter(
+                channelId => !channelIdsFromAccountAffinitiesSet.has(channelId.item.channelId),
+            ),
+        ].map(async channelId => {
+            const channelResult = await getChannelIfPossible(
+                context,
+                typeof channelId === "string" ? channelId : channelId.item.channelId,
+            );
+            if (!channelResult) return null;
+            if (!channelResult.ok) return null;
+            return {
+                ...getChannelStandaloneSearchResult(channelResult.value),
+                origin: typeof channelId === "string" ? ("Account" as const) : ("Space" as const),
+            };
+        }),
+    );
+
+    return channels.filter(isNonNullable).slice(0, limit);
 }

@@ -4,10 +4,12 @@ import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assertId} from "~/shared/id/id.js";
+import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchAffinityId} from "~/shared/search/search_affinity_id.js";
 import {SearchAffinityInteraction} from "~/shared/search/search_affinity_interaction.js";
@@ -65,15 +67,113 @@ const SearchEntityTable = DynamoTableSchema.new({
                 },
             ],
         },
+        {
+            name: "SpaceChannels",
+            partitionKeyAttributes: {
+                spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+            },
+            sortRanges: [
+                {
+                    name: "SearchAffinity",
+                    sortKeyAttributes: {
+                        channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
+                    },
+                    withExpirationTime: "Required",
+                    attributes: Schema.object({
+                        /**
+                         * The number of affinity points this account has.
+                         */
+                        points: Schema.float,
+
+                        /**
+                         * The bucket this affinity item falls into. We place affinity scores in
+                         * buckets for better query performance so we only need to query entities
+                         * with the highest affinity scores.
+                         *
+                         * See `getSearchAffinityPointsBucket()`.
+                         */
+                        pointsBucket: Schema.integer,
+
+                        /**
+                         * The last time we updated `points`. Used to determine how much decay we need
+                         * to apply to `points`.
+                         */
+                        lastUpdatedTime: Schema.integer,
+                    }),
+                },
+            ],
+        },
+        {
+            name: "SpaceTaskCollections",
+            partitionKeyAttributes: {
+                spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+            },
+            sortRanges: [
+                {
+                    name: "SearchAffinity",
+                    sortKeyAttributes: {
+                        collectionId: DynamoKeyAttributeSchema.id<TaskCollectionId>(),
+                    },
+                    withExpirationTime: "Required",
+                    attributes: Schema.object({
+                        /**
+                         * The number of affinity points this account has.
+                         */
+                        points: Schema.float,
+
+                        /**
+                         * The bucket this affinity item falls into. We place affinity scores in
+                         * buckets for better query performance so we only need to query entities
+                         * with the highest affinity scores.
+                         *
+                         * See `getSearchAffinityPointsBucket()`.
+                         */
+                        pointsBucket: Schema.integer,
+
+                        /**
+                         * The last time we updated `points`. Used to determine how much decay we need
+                         * to apply to `points`.
+                         */
+                        lastUpdatedTime: Schema.integer,
+                    }),
+                },
+            ],
+        },
     ],
 });
 
+// NOTE(calebmer, 2024-03-19): Would love to rename this sort range
+// `AccountSearchAffinity` instead of `AccountAffinitiveSearchEntities` but
+// can't rename since data is already stored in the database with this sort
+// range type.
 const AccountAffinitiveSearchEntitiesIndex = SearchEntityTable.addExpensiveFullIndex({
     name: "AccountAffinitiveSearchEntities",
     itemTypes: [{partitionType: "Account", sortRangeType: "SearchEntityAffinity"}],
     partitionKeyAttributes: {
         spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
         accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+    },
+    sortKeyAttributes: {
+        pointsBucket: DynamoKeyAttributeSchema.integer,
+    },
+});
+
+const SpaceChannelsSearchAffinityIndex = SearchEntityTable.addExpensiveFullIndex({
+    name: "SpaceChannelsSearchAffinity",
+    itemTypes: [{partitionType: "SpaceChannels", sortRangeType: "SearchAffinity"}],
+    partitionKeyAttributes: {
+        spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+    },
+    sortKeyAttributes: {
+        pointsBucket: DynamoKeyAttributeSchema.integer,
+    },
+});
+
+const SpaceTaskCollectionsSearchAffinityIndex = SearchEntityTable.addExpensiveFullIndex({
+    name: "SpaceTaskCollectionsSearchAffinity",
+    itemTypes: [{partitionType: "SpaceTaskCollections", sortRangeType: "SearchAffinity"}],
+    partitionKeyAttributes: {
+        spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
     },
     sortKeyAttributes: {
         pointsBucket: DynamoKeyAttributeSchema.integer,
@@ -113,7 +213,7 @@ export const monthDurationMs = 1000 * 60 * 60 * 24 * 30;
  * Our function is `f(t) = e^-t` where `t` is measured in months. This function
  * will decay 1 point to 0.05 (which we round down to 0) in 3 months.
  */
-export function getCurrentSearchEntityAccountAffinityPoints(
+export function getCurrentSearchAffinityPoints(
     currentTime: number,
     {points, lastUpdatedTime}: {points: number; lastUpdatedTime: number},
 ): number {
@@ -126,7 +226,7 @@ export function getCurrentSearchEntityAccountAffinityPoints(
  * Return the time in milliseconds for `points` to decay to 0.05 (which we
  * round down to 0). We set an expiration time on our item with this number.
  */
-export function getSearchEntityAccountAffinityExpirationDuration(points: number): number {
+export function getSearchAffinityExpirationDuration(points: number): number {
     // Any number less than this is negative.
     assert(points > 0.05);
 
@@ -196,7 +296,7 @@ export function markSearchAffinityInteraction(
         spaceId,
         affinityId,
         points,
-        shouldUpdateLastViewedTime: interaction.type === "View",
+        isViewInteraction: interaction.type === "View",
     });
 }
 
@@ -206,12 +306,12 @@ async function addSearchAffinityPoints(
         spaceId,
         affinityId,
         points,
-        shouldUpdateLastViewedTime,
+        isViewInteraction,
     }: {
         spaceId: SpaceId;
         affinityId: SearchAffinityId;
         points: number;
-        shouldUpdateLastViewedTime: boolean;
+        isViewInteraction: boolean;
     },
 ) {
     // Optimization: We don't authorize whether the actor has access to the entity.
@@ -220,46 +320,146 @@ async function addSearchAffinityPoints(
 
     const currentTime = Date.now();
 
-    await SearchEntityTable.updateItem(
-        context,
-        {
-            partitionType: "Account",
-            sortRangeType: "SearchEntityAffinity",
-            spaceId,
-            accountId: context.actor.getAccountId(),
-            entityId: affinityId,
-        },
-        affinityItem => {
-            let newPoints = affinityItem
-                ? getCurrentSearchEntityAccountAffinityPoints(currentTime, affinityItem)
-                : 0;
+    const channelId = affinityId.startsWith("Channel:")
+        ? assertId<ChannelId>(affinityId.slice(8))
+        : null;
+    const collectionId = affinityId.startsWith("TaskCollection:")
+        ? assertId<TaskCollectionId>(affinityId.slice(15))
+        : null;
 
-            newPoints += points;
-
-            const expirationDuration = Math.ceil(
-                getSearchEntityAccountAffinityExpirationDuration(newPoints),
-            );
-            const expirationTime = new Date(currentTime + expirationDuration);
-
-            const newPointsBucket = getSearchAffinityPointsBucket(newPoints);
-
-            return {
-                ...affinityItem,
+    await runAllPromises([
+        SearchEntityTable.updateItem(
+            context,
+            {
                 partitionType: "Account",
                 sortRangeType: "SearchEntityAffinity",
                 spaceId,
                 accountId: context.actor.getAccountId(),
                 entityId: affinityId,
-                points: newPoints,
-                pointsBucket: newPointsBucket,
-                lastUpdatedTime: currentTime,
-                lastViewedTime: shouldUpdateLastViewedTime
-                    ? new Date(currentTime)
-                    : affinityItem?.lastViewedTime ?? null,
-                expirationTime,
-            };
-        },
-    );
+            },
+            affinityItem => {
+                let newPoints = affinityItem
+                    ? getCurrentSearchAffinityPoints(currentTime, affinityItem)
+                    : 0;
+
+                newPoints += points;
+
+                const expirationDuration = Math.ceil(
+                    getSearchAffinityExpirationDuration(newPoints),
+                );
+                const expirationTime = new Date(currentTime + expirationDuration);
+
+                const newPointsBucket = getSearchAffinityPointsBucket(newPoints);
+
+                return {
+                    ...affinityItem,
+                    partitionType: "Account",
+                    sortRangeType: "SearchEntityAffinity",
+                    spaceId,
+                    accountId: context.actor.getAccountId(),
+                    entityId: affinityId,
+                    points: newPoints,
+                    pointsBucket: newPointsBucket,
+                    lastUpdatedTime: currentTime,
+                    lastViewedTime: isViewInteraction
+                        ? new Date(currentTime)
+                        : affinityItem?.lastViewedTime ?? null,
+                    expirationTime,
+                };
+            },
+        ),
+
+        // We maintain a space-wide affinity list for channels. So when a user is
+        // selecting a channel to post in we have a good recommended list of channels.
+        //
+        // View interactions don't contribute to the space-wide channel affinity list.
+        // Since viewing a channel is personal and not observable by others. If a user
+        // reads every post in a channel over the course of a couple hours, that isn't
+        // good signal that the channel will be useful to everyone in the organization.
+        channelId && !isViewInteraction
+            ? SearchEntityTable.updateItem(
+                  context,
+                  {
+                      partitionType: "SpaceChannels",
+                      sortRangeType: "SearchAffinity",
+                      spaceId,
+                      channelId,
+                  },
+                  affinityItem => {
+                      let newPoints = affinityItem
+                          ? getCurrentSearchAffinityPoints(currentTime, affinityItem)
+                          : 0;
+
+                      newPoints += points;
+
+                      const expirationDuration = Math.ceil(
+                          getSearchAffinityExpirationDuration(newPoints),
+                      );
+                      const expirationTime = new Date(currentTime + expirationDuration);
+
+                      const newPointsBucket = getSearchAffinityPointsBucket(newPoints);
+
+                      return {
+                          ...affinityItem,
+                          partitionType: "SpaceChannels",
+                          sortRangeType: "SearchAffinity",
+                          spaceId,
+                          accountId: context.actor.getAccountId(),
+                          channelId,
+                          points: newPoints,
+                          pointsBucket: newPointsBucket,
+                          lastUpdatedTime: currentTime,
+                          expirationTime,
+                      };
+                  },
+              )
+            : null,
+
+        // We maintain a space-wide affinity list for task collections. So when a user
+        // is selecting collections for their tasks we have a good recommended list of
+        // collections.
+        //
+        // View interactions don't contribute to the space-wide task collection
+        // affinity list.
+        collectionId && !isViewInteraction
+            ? SearchEntityTable.updateItem(
+                  context,
+                  {
+                      partitionType: "SpaceTaskCollections",
+                      sortRangeType: "SearchAffinity",
+                      spaceId,
+                      collectionId,
+                  },
+                  affinityItem => {
+                      let newPoints = affinityItem
+                          ? getCurrentSearchAffinityPoints(currentTime, affinityItem)
+                          : 0;
+
+                      newPoints += points;
+
+                      const expirationDuration = Math.ceil(
+                          getSearchAffinityExpirationDuration(newPoints),
+                      );
+                      const expirationTime = new Date(currentTime + expirationDuration);
+
+                      const newPointsBucket = getSearchAffinityPointsBucket(newPoints);
+
+                      return {
+                          ...affinityItem,
+                          partitionType: "SpaceTaskCollections",
+                          sortRangeType: "SearchAffinity",
+                          spaceId,
+                          accountId: context.actor.getAccountId(),
+                          collectionId,
+                          points: newPoints,
+                          pointsBucket: newPointsBucket,
+                          lastUpdatedTime: currentTime,
+                          expirationTime,
+                      };
+                  },
+              )
+            : null,
+    ]);
 }
 
 /**
@@ -270,33 +470,21 @@ async function addSearchAffinityPoints(
  *
  * Worst-case we may need to iterate through all account affinity items.
  */
-export const accountAffinitiveSearchEntitiesQueryPageLimit = 100;
+export const searchAffinityQueryPageLimit = 100;
 
-export const getAffinitiveSearchEntityIdsEarlyReturnTestCounter = new TestCounter<AccountId>();
+export const getSearchAffinitiesEarlyReturnTestCounter = new TestCounter<AccountId>();
 
 /**
  * Get `SearchEntityId`s that are meaningful to the actor.
  *
- * In theory, affinities are always getting exponentially smaller but we store
- * items that represent a snapshot of the points value in time. We sort our
- * DynamoDB index based on point buckets. However, the item's position in our
- * index might be lower as the item's points have decayed. An item may be lower
- * in our index but will never be higher. So we need to search enough of our
- * index to be confident we actually have the top affinitive entities.
- *
- * Labeled "internal" since you should be calling
- * `getAffinitiveSearchEntities()`. This function returns affinitive entities
- * along with extra information about them like the entity's title. This
- * function also doesn't filter out entities the account has lost access to!
- * While this function isn't unsafe with regards to permissions (it's fine to
- * know the `SearchEntityId` of something you used to have access to) it isn't
- * the most convenient function.
- *
- * Affinitive is the adjective form of "affinity". I learned this from ChatGPT,
- * thanks! (Though ChatGPT did warn me that affinitive is an uncommon word
- * people may not be familiar with.)
+ * Labeled "internal" since you should be calling `searchByAffinity()`. This
+ * function returns affinitive entities along with extra information about them
+ * like the entity's title. This function also doesn't filter out entities the
+ * account has lost access to! While this function isn't unsafe with regards to
+ * permissions (it's fine to know the `SearchEntityId` of something you used to
+ * have access to) it isn't the most convenient function.
  */
-export async function internalGetSearchAffinitiveIds(
+export async function internalGetSearchAffinities(
     context: ServerSessionActionContext,
     {spaceId, limit}: {spaceId: SpaceId; limit: number},
 ): Promise<
@@ -306,6 +494,149 @@ export async function internalGetSearchAffinitiveIds(
         lastViewedTime: Date | null;
     }>
 > {
+    const accountId = context.actor.getAccountId();
+
+    const results = await internalGetSearchAffinitiesBase(context, {
+        spaceId,
+        limit,
+        queryItems: () =>
+            AccountAffinitiveSearchEntitiesIndex.query(context, {
+                partitionKey: {
+                    accountId,
+                    spaceId,
+                },
+                descending: true,
+                limit: "All",
+                pageLimit: searchAffinityQueryPageLimit,
+            }),
+        deleteItem: item => SearchEntityTable.deleteItem(context, item),
+        directlyUpdateItem: (item, newAttributes) =>
+            SearchEntityTable.directlyUpdateItem(context, {...item, ...newAttributes}),
+    });
+
+    return results.map(result => ({
+        affinityId: result.item.entityId,
+        points: result.points,
+        lastViewedTime: result.item.lastViewedTime,
+    }));
+}
+
+/**
+ * Get `ChannelId`s that are meaningful in the provided space.
+ *
+ * Labeled "internal" and "dangerous" since we don't do any filtering that the
+ * channel still exists or the actor has access. It would be bad to give the
+ * user a list of `ChannelId`s they don't have access to! While they couldn't
+ * do anything with those `ChannelId`s (they couldn't open it via URL, they'd
+ * get a `PermissionDeniedError`) an attacker may be able to use information
+ * about popular private channels to infer something they shouldn't know.
+ */
+export async function internalDangerouslyGetSpaceChannelSearchAffinities(
+    context: ServerSessionActionContext,
+    {spaceId, limit}: {spaceId: SpaceId; limit: number},
+): Promise<
+    Array<{
+        points: number;
+        item: {channelId: ChannelId};
+    }>
+> {
+    return internalGetSearchAffinitiesBase(context, {
+        spaceId,
+        limit,
+        queryItems: () =>
+            SpaceChannelsSearchAffinityIndex.query(context, {
+                partitionKey: {spaceId},
+                descending: true,
+                limit: "All",
+                pageLimit: searchAffinityQueryPageLimit,
+            }),
+        deleteItem: item => SearchEntityTable.deleteItem(context, item),
+        directlyUpdateItem: (item, newAttributes) =>
+            SearchEntityTable.directlyUpdateItem(context, {...item, ...newAttributes}),
+    });
+}
+
+/**
+ * Get `TaskCollectionId`s that are meaningful in the provided space.
+ *
+ * Labeled "internal" and "dangerous" since we don't do any filtering that the
+ * collection still exists or the actor has access. It would be bad to give the
+ * user a list of `TaskCollectionId`s they don't have access to! While they
+ * couldn't do anything with those `TaskCollectionId`s (they couldn't open it
+ * via URL, they'd get a `PermissionDeniedError`) an attacker may be able to
+ * use information about popular private collections to infer something they
+ * shouldn't know.
+ */
+export async function internalDangerouslyGetSpaceTaskCollectionSearchAffinities(
+    context: ServerSessionActionContext,
+    {spaceId, limit}: {spaceId: SpaceId; limit: number},
+): Promise<
+    Array<{
+        points: number;
+        item: {collectionId: TaskCollectionId};
+    }>
+> {
+    return internalGetSearchAffinitiesBase(context, {
+        spaceId,
+        limit,
+        queryItems: () =>
+            SpaceTaskCollectionsSearchAffinityIndex.query(context, {
+                partitionKey: {spaceId},
+                descending: true,
+                limit: "All",
+                pageLimit: searchAffinityQueryPageLimit,
+            }),
+        deleteItem: item => SearchEntityTable.deleteItem(context, item),
+        directlyUpdateItem: (item, newAttributes) =>
+            SearchEntityTable.directlyUpdateItem(context, {...item, ...newAttributes}),
+    });
+}
+
+/**
+ * Base function for reading a search affinity index.
+ *
+ * In theory, affinities are always getting exponentially smaller but we store
+ * items that represent a snapshot of the points value in time. We sort our
+ * DynamoDB index based on point buckets. However, the item's position in our
+ * index might be lower as the item's points have decayed. An item may be lower
+ * in our index but will never be higher. So we need to search enough of our
+ * index to be confident we actually have the top affinitive entities.
+ */
+async function internalGetSearchAffinitiesBase<
+    Item extends {
+        points: number;
+        pointsBucket: number;
+        lastUpdatedTime: number;
+    },
+>(
+    context: ServerSessionActionContext,
+    {
+        spaceId,
+        limit,
+        queryItems,
+        deleteItem,
+        directlyUpdateItem,
+    }: {
+        spaceId: SpaceId;
+        limit: number;
+        queryItems: () => AsyncIterableIterator<Item>;
+        deleteItem: (item: Item) => Promise<void>;
+        directlyUpdateItem: (
+            item: Item,
+            newAttributes: {
+                points: number;
+                pointsBucket: number;
+                lastUpdatedTime: number;
+                expirationTime: Date;
+            },
+        ) => Promise<void>;
+    },
+): Promise<
+    Array<{
+        points: number;
+        item: Item;
+    }>
+> {
     await authorizeSpaceAccess(context, spaceId);
 
     const accountId = context.actor.getAccountId();
@@ -313,21 +644,12 @@ export async function internalGetSearchAffinitiveIds(
     let lastIterationPointsBucket: number | null = null;
 
     const candidateItems: Array<{
-        affinityId: SearchAffinityId;
         points: number;
         pointsBucket: number;
-        lastViewedTime: Date | null;
+        item: Item;
     }> = [];
 
-    for await (const item of AccountAffinitiveSearchEntitiesIndex.query(context, {
-        partitionKey: {
-            accountId,
-            spaceId,
-        },
-        descending: true,
-        limit: "All",
-        pageLimit: accountAffinitiveSearchEntitiesQueryPageLimit,
-    })) {
+    for await (const item of queryItems()) {
         // When iteration enters a new `pointsBucket` check if we can return...
         if (
             lastIterationPointsBucket !== null &&
@@ -343,21 +665,20 @@ export async function internalGetSearchAffinitiveIds(
             // continued iterating to the end of the account's affinities we won't find
             // items with a higher score than `limitCandidateItem`. So we can return!
             if (limitCandidateItem.pointsBucket > item.pointsBucket) {
-                getAffinitiveSearchEntityIdsEarlyReturnTestCounter.incrementForTest(accountId);
+                getSearchAffinitiesEarlyReturnTestCounter.incrementForTest(accountId);
                 return candidateItems.slice(0, limit);
             }
         }
 
         lastIterationPointsBucket = item.pointsBucket;
 
-        const currentPoints = getCurrentSearchEntityAccountAffinityPoints(currentTime, item);
+        const currentPoints = getCurrentSearchAffinityPoints(currentTime, item);
         const currentPointsBucket = getSearchAffinityPointsBucket(currentPoints);
 
         candidateItems.push({
-            affinityId: item.entityId,
             points: currentPoints,
             pointsBucket: currentPointsBucket,
-            lastViewedTime: item.lastViewedTime,
+            item,
         });
 
         // If the item moved buckets and hasn't been updated in half a month, then
@@ -371,16 +692,14 @@ export async function internalGetSearchAffinitiveIds(
             context.process.waitUntil(async () => {
                 try {
                     if (currentPoints <= 0.05) {
-                        await SearchEntityTable.deleteItem(context, item);
+                        await deleteItem(item);
                     } else {
-                        await SearchEntityTable.directlyUpdateItem(context, {
-                            ...item,
+                        await directlyUpdateItem(item, {
                             points: currentPoints,
                             pointsBucket: currentPointsBucket,
                             lastUpdatedTime: currentTime,
                             expirationTime: new Date(
-                                currentTime +
-                                    getSearchEntityAccountAffinityExpirationDuration(currentPoints),
+                                currentTime + getSearchAffinityExpirationDuration(currentPoints),
                             ),
                         });
                     }
@@ -404,7 +723,7 @@ export async function internalGetSearchAffinitiveIds(
  * display accounts in this order when the user goes to mention someone or send
  * a message.
  */
-export async function getAccountIdsSortedBySearchAffinity(
+export async function getAccountSearchAffinities(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
 ): Promise<Array<AccountId>> {
@@ -430,4 +749,37 @@ export async function getAccountIdsSortedBySearchAffinity(
     items.sort((a, b) => b.points - a.points);
 
     return items.map(item => item.entityId.slice(8) as AccountId);
+}
+
+/**
+ * Get all channels our actor has an affinity for sorted by affinity score. We
+ * display channels in this order when the user is selecting a channel to
+ * post in.
+ */
+export async function getChannelSearchAffinities(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+): Promise<Array<ChannelId>> {
+    const items = await arrayFromAsyncIterable(
+        SearchEntityTable.query(context, {
+            partitionKey: {
+                partitionType: "Account",
+                spaceId,
+                accountId: context.actor.getAccountId(),
+            },
+            startSortKey: {
+                sortRangeType: "SearchEntityAffinity",
+                entityId: `Channel:${DynamoKeyAttributeSchema.id.getMinValue<ChannelId>()}`,
+            },
+            endSortKey: {
+                sortRangeType: "SearchEntityAffinity",
+                entityId: `Channel:${DynamoKeyAttributeSchema.id.getMaxValue<ChannelId>()}`,
+            },
+            limit: "All",
+        }),
+    );
+
+    items.sort((a, b) => b.points - a.points);
+
+    return items.map(item => item.entityId.slice(8) as ChannelId);
 }

@@ -2,14 +2,14 @@ import {addDays} from "date-fns";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
-    accountAffinitiveSearchEntitiesQueryPageLimit,
-    getAffinitiveSearchEntityIdsEarlyReturnTestCounter,
-    getCurrentSearchEntityAccountAffinityPoints,
-    internalGetSearchAffinitiveIds as getSearchAffinitiveIds,
+    getCurrentSearchAffinityPoints,
+    getSearchAffinitiesEarlyReturnTestCounter,
+    internalGetSearchAffinities as getSearchAffinitiveIds,
+    getSearchAffinityExpirationDuration,
     getSearchAffinityPointsBucket,
-    getSearchEntityAccountAffinityExpirationDuration,
     getSearchEntityTableForTest,
     monthDurationMs,
+    searchAffinityQueryPageLimit,
 } from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -94,42 +94,42 @@ test("search entity account affinity points decay exponentially", () => {
     const time4 = addDays(time3, 30);
 
     expect(
-        getCurrentSearchEntityAccountAffinityPoints(time4.getTime(), {
+        getCurrentSearchAffinityPoints(time4.getTime(), {
             points: 1,
             lastUpdatedTime: time1.getTime(),
         }),
     ).toEqual(0.049787068367863944);
 
     expect(
-        getCurrentSearchEntityAccountAffinityPoints(time4.getTime(), {
+        getCurrentSearchAffinityPoints(time4.getTime(), {
             points: 1,
             lastUpdatedTime: time2.getTime(),
         }),
     ).toEqual(0.1353352832366127);
 
     expect(
-        getCurrentSearchEntityAccountAffinityPoints(time4.getTime(), {
+        getCurrentSearchAffinityPoints(time4.getTime(), {
             points: 1,
             lastUpdatedTime: time3.getTime(),
         }),
     ).toEqual(0.36787944117144233);
 
     expect(
-        getCurrentSearchEntityAccountAffinityPoints(time3.getTime(), {
+        getCurrentSearchAffinityPoints(time3.getTime(), {
             points: 0.36787944117144233,
             lastUpdatedTime: time2.getTime(),
         }),
     ).toEqual(0.1353352832366127);
 
     expect(
-        getCurrentSearchEntityAccountAffinityPoints(time3.getTime(), {
+        getCurrentSearchAffinityPoints(time3.getTime(), {
             points: 0.36787944117144233,
             lastUpdatedTime: time1.getTime(),
         }),
     ).toEqual(0.04978706836786395);
 
     expect(
-        getCurrentSearchEntityAccountAffinityPoints(time2.getTime(), {
+        getCurrentSearchAffinityPoints(time2.getTime(), {
             points: 0.1353352832366127,
             lastUpdatedTime: time1.getTime(),
         }),
@@ -146,15 +146,11 @@ test("can determine when search entity account affinity points will expire", () 
     expect(monthDuration * 2).toEqual(5184000000);
     expect(monthDuration * 3).toEqual(7776000000);
 
-    expect(Math.ceil(getSearchEntityAccountAffinityExpirationDuration(1))).toEqual(7764938054);
+    expect(Math.ceil(getSearchAffinityExpirationDuration(1))).toEqual(7764938054);
 
-    expect(
-        Math.ceil(getSearchEntityAccountAffinityExpirationDuration(0.36787944117144233)),
-    ).toEqual(5172938054);
+    expect(Math.ceil(getSearchAffinityExpirationDuration(0.36787944117144233))).toEqual(5172938054);
 
-    expect(Math.ceil(getSearchEntityAccountAffinityExpirationDuration(0.1353352832366127))).toEqual(
-        2580938054,
-    );
+    expect(Math.ceil(getSearchAffinityExpirationDuration(0.1353352832366127))).toEqual(2580938054);
 });
 
 test("can't read affinitive items for the wrong space", async () => {
@@ -196,9 +192,7 @@ test("can't read affinitive items for the wrong space", async () => {
                 pointsBucket: getSearchAffinityPointsBucket(points),
                 lastUpdatedTime: currentTime,
                 lastViewedTime: null,
-                expirationTime: new Date(
-                    currentTime + getSearchEntityAccountAffinityExpirationDuration(points),
-                ),
+                expirationTime: new Date(currentTime + getSearchAffinityExpirationDuration(points)),
             });
         }),
     );
@@ -219,7 +213,7 @@ test("can't read affinitive items for the wrong space", async () => {
                 lastUpdatedTime: currentTime,
                 lastViewedTime: null,
                 expirationTime: new Date(
-                    currentTime + getSearchEntityAccountAffinityExpirationDuration(points2),
+                    currentTime + getSearchAffinityExpirationDuration(points2),
                 ),
             });
 
@@ -234,7 +228,7 @@ test("can't read affinitive items for the wrong space", async () => {
                 lastUpdatedTime: currentTime,
                 lastViewedTime: null,
                 expirationTime: new Date(
-                    currentTime + getSearchEntityAccountAffinityExpirationDuration(points1),
+                    currentTime + getSearchAffinityExpirationDuration(points1),
                 ),
             });
         }),
@@ -280,11 +274,11 @@ test(
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
-        const {getCount} = getAffinitiveSearchEntityIdsEarlyReturnTestCounter.recordForTest(
+        const {getCount} = getSearchAffinitiesEarlyReturnTestCounter.recordForTest(
             session.account.id,
         );
 
-        const documentCount = Math.floor(accountAffinitiveSearchEntitiesQueryPageLimit * 4.5);
+        const documentCount = Math.floor(searchAffinityQueryPageLimit * 4.5);
 
         const documents = await runAllPromises(
             createArrayWithLength(documentCount, index =>
@@ -305,13 +299,10 @@ test(
                 const lastUpdatedTime =
                     currentTime - Math.round(lastUpdatedMonthsAgo * monthDurationMs);
 
-                const actualDecayedPoints = getCurrentSearchEntityAccountAffinityPoints(
-                    currentTime,
-                    {
-                        points: actualPoints,
-                        lastUpdatedTime,
-                    },
-                );
+                const actualDecayedPoints = getCurrentSearchAffinityPoints(currentTime, {
+                    points: actualPoints,
+                    lastUpdatedTime,
+                });
 
                 expect(actualDecayedPoints).toBeLessThanOrEqual(expectedPoints + 0.001);
                 expect(actualDecayedPoints).toBeGreaterThanOrEqual(expectedPoints - 0.001);
@@ -327,8 +318,7 @@ test(
                     lastUpdatedTime,
                     lastViewedTime: null,
                     expirationTime: new Date(
-                        currentTime +
-                            getSearchEntityAccountAffinityExpirationDuration(actualPoints),
+                        currentTime + getSearchAffinityExpirationDuration(actualPoints),
                     ),
                 });
             }),
@@ -364,12 +354,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit,
+                    limit: searchAffinityQueryPageLimit,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit)
+                .slice(0, searchAffinityQueryPageLimit)
                 .map(document => `Document:${document.id}`),
         );
 
@@ -379,12 +369,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit + 10,
+                    limit: searchAffinityQueryPageLimit + 10,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 10)
+                .slice(0, searchAffinityQueryPageLimit + 10)
                 .map(document => `Document:${document.id}`),
         );
 
@@ -394,12 +384,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit + 20,
+                    limit: searchAffinityQueryPageLimit + 20,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 20)
+                .slice(0, searchAffinityQueryPageLimit + 20)
                 .map(document => `Document:${document.id}`),
         );
 
@@ -409,12 +399,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2,
+                    limit: searchAffinityQueryPageLimit * 2,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2)
+                .slice(0, searchAffinityQueryPageLimit * 2)
                 .map(document => `Document:${document.id}`),
         );
 
@@ -424,12 +414,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10,
+                    limit: searchAffinityQueryPageLimit * 2 + 10,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10)
+                .slice(0, searchAffinityQueryPageLimit * 2 + 10)
                 .map(document => `Document:${document.id}`),
         );
 
@@ -439,12 +429,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20,
+                    limit: searchAffinityQueryPageLimit * 2 + 20,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20)
+                .slice(0, searchAffinityQueryPageLimit * 2 + 20)
                 .map(document => `Document:${document.id}`),
         );
 
@@ -482,11 +472,11 @@ test(
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
-        const {getCount} = getAffinitiveSearchEntityIdsEarlyReturnTestCounter.recordForTest(
+        const {getCount} = getSearchAffinitiesEarlyReturnTestCounter.recordForTest(
             session.account.id,
         );
 
-        const documentCount = Math.floor(accountAffinitiveSearchEntitiesQueryPageLimit * 4.5);
+        const documentCount = Math.floor(searchAffinityQueryPageLimit * 4.5);
 
         const documents = await runAllPromises(
             createArrayWithLength(documentCount, index =>
@@ -507,13 +497,10 @@ test(
                 const lastUpdatedTime =
                     currentTime - Math.round(lastUpdatedMonthsAgo * monthDurationMs);
 
-                const actualDecayedPoints = getCurrentSearchEntityAccountAffinityPoints(
-                    currentTime,
-                    {
-                        points: actualPoints,
-                        lastUpdatedTime,
-                    },
-                );
+                const actualDecayedPoints = getCurrentSearchAffinityPoints(currentTime, {
+                    points: actualPoints,
+                    lastUpdatedTime,
+                });
 
                 expect(actualDecayedPoints).toBeLessThanOrEqual(expectedPoints + 0.001);
                 expect(actualDecayedPoints).toBeGreaterThanOrEqual(expectedPoints - 0.001);
@@ -529,8 +516,7 @@ test(
                     lastUpdatedTime,
                     lastViewedTime: null,
                     expirationTime: new Date(
-                        currentTime +
-                            getSearchEntityAccountAffinityExpirationDuration(actualPoints),
+                        currentTime + getSearchAffinityExpirationDuration(actualPoints),
                     ),
                 });
             }),
@@ -566,12 +552,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit,
+                    limit: searchAffinityQueryPageLimit,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit)
+                .slice(0, searchAffinityQueryPageLimit)
                 .map(document => `Document:${document.id}`),
         );
 
@@ -581,12 +567,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit + 10,
+                    limit: searchAffinityQueryPageLimit + 10,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 10)
+                .slice(0, searchAffinityQueryPageLimit + 10)
                 .map(document => `Document:${document.id}`),
         );
 
@@ -596,12 +582,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit + 20,
+                    limit: searchAffinityQueryPageLimit + 20,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 20)
+                .slice(0, searchAffinityQueryPageLimit + 20)
                 .map(document => `Document:${document.id}`),
         );
 
@@ -611,12 +597,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2,
+                    limit: searchAffinityQueryPageLimit * 2,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2)
+                .slice(0, searchAffinityQueryPageLimit * 2)
                 .map(document => `Document:${document.id}`),
         );
 
@@ -626,12 +612,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10,
+                    limit: searchAffinityQueryPageLimit * 2 + 10,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10)
+                .slice(0, searchAffinityQueryPageLimit * 2 + 10)
                 .map(document => `Document:${document.id}`),
         );
 
@@ -641,12 +627,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20,
+                    limit: searchAffinityQueryPageLimit * 2 + 20,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20)
+                .slice(0, searchAffinityQueryPageLimit * 2 + 20)
                 .map(document => `Document:${document.id}`),
         );
 
@@ -684,11 +670,11 @@ test(
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
-        const {getCount} = getAffinitiveSearchEntityIdsEarlyReturnTestCounter.recordForTest(
+        const {getCount} = getSearchAffinitiesEarlyReturnTestCounter.recordForTest(
             session.account.id,
         );
 
-        const documentCount = Math.floor(accountAffinitiveSearchEntitiesQueryPageLimit * 4.5);
+        const documentCount = Math.floor(searchAffinityQueryPageLimit * 4.5);
 
         const documents = await runAllPromises(
             createArrayWithLength(documentCount, index =>
@@ -715,7 +701,7 @@ test(
                     lastUpdatedTime: currentTime,
                     lastViewedTime: null,
                     expirationTime: new Date(
-                        currentTime + getSearchEntityAccountAffinityExpirationDuration(points),
+                        currentTime + getSearchAffinityExpirationDuration(points),
                     ),
                 });
             }),
@@ -751,12 +737,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit,
+                    limit: searchAffinityQueryPageLimit,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit)
+                .slice(0, searchAffinityQueryPageLimit)
                 .map(document => `Document:${document.id}`),
         );
 
@@ -766,12 +752,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit + 10,
+                    limit: searchAffinityQueryPageLimit + 10,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 10)
+                .slice(0, searchAffinityQueryPageLimit + 10)
                 .map(document => `Document:${document.id}`),
         );
 
@@ -781,12 +767,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit + 20,
+                    limit: searchAffinityQueryPageLimit + 20,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 20)
+                .slice(0, searchAffinityQueryPageLimit + 20)
                 .map(document => `Document:${document.id}`),
         );
 
@@ -796,12 +782,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2,
+                    limit: searchAffinityQueryPageLimit * 2,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2)
+                .slice(0, searchAffinityQueryPageLimit * 2)
                 .map(document => `Document:${document.id}`),
         );
 
@@ -811,12 +797,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10,
+                    limit: searchAffinityQueryPageLimit * 2 + 10,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10)
+                .slice(0, searchAffinityQueryPageLimit * 2 + 10)
                 .map(document => `Document:${document.id}`),
         );
 
@@ -826,12 +812,12 @@ test(
             (
                 await getSearchAffinitiveIds(session.action(), {
                     spaceId: space.id,
-                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20,
+                    limit: searchAffinityQueryPageLimit * 2 + 20,
                 })
             ).map(({affinityId}) => affinityId),
         ).toEqual(
             documents
-                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20)
+                .slice(0, searchAffinityQueryPageLimit * 2 + 20)
                 .map(document => `Document:${document.id}`),
         );
 

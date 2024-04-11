@@ -49,8 +49,10 @@ import {
 } from "~/shared/forum/post_model.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {Result} from "~/shared/helpers/control/result.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
@@ -418,35 +420,76 @@ export async function createChannel(
 
 /**
  * Gets the channel object with the provided ID. Returns null if the channel
- * doesn't exist and throws an error if the channel exists but you don't have
- * access to the channel.
+ * doesn't exist, returns a `Result` with a `PermissionDeniedError` if access
+ * isn't authorized.
+ *
+ * Sometimes calling code wants to handle these error cases by discarding the
+ * channel instead of returning null.
+ */
+export async function getChannelIfPossible(
+    context: ServerActionContext,
+    channelId: ChannelId,
+): Promise<Result<ChannelModel, PermissionDeniedError> | null> {
+    const channelItem = await ForumTable.getItemIfExists(context, {
+        partitionType: "Channel",
+        sortRangeType: "Attributes",
+        channelId,
+    });
+    if (!channelItem) return null;
+
+    try {
+        await authorizeSpaceAccess(context, channelItem.spaceId);
+    } catch (error) {
+        if (error instanceof PermissionDeniedError) {
+            return {ok: false, error};
+        } else {
+            throw error;
+        }
+    }
+
+    return {
+        ok: true,
+        value: new ChannelModel({
+            id: channelItem.channelId,
+            spaceId: channelItem.spaceId,
+            createdTime: channelItem.createdTime,
+            name: channelItem.name,
+            description: {
+                doc: channelItem.description,
+                references: await getContentReferencesForNode(
+                    context,
+                    channelItem.spaceId,
+                    channelItem.description,
+                ),
+            },
+        }),
+    };
+}
+
+/**
+ * Gets the channel object with the provided ID. Returns null if the channel
+ * doesn't exist or throws if you don't have access to the channel.
+ */
+export async function getChannelIfExists(
+    context: ServerActionContext,
+    channelId: ChannelId,
+): Promise<ChannelModel | null> {
+    const channel = await getChannelIfPossible(context, channelId);
+    if (!channel) return null;
+    return unwrapResult(channel);
+}
+
+/**
+ * Gets the channel object with the provided ID. Throws if the channel doesn't
+ * exist or you don't have access to the channel.
  */
 export async function getChannel(
     context: ServerActionContext,
-    id: ChannelId,
+    channelId: ChannelId,
 ): Promise<ChannelModel> {
-    const channelItem = await ForumTable.getItem(context, {
-        partitionType: "Channel",
-        sortRangeType: "Attributes",
-        channelId: id,
-    });
-
-    await authorizeSpaceAccess(context, channelItem.spaceId);
-
-    return new ChannelModel({
-        id: channelItem.channelId,
-        spaceId: channelItem.spaceId,
-        createdTime: channelItem.createdTime,
-        name: channelItem.name,
-        description: {
-            doc: channelItem.description,
-            references: await getContentReferencesForNode(
-                context,
-                channelItem.spaceId,
-                channelItem.description,
-            ),
-        },
-    });
+    const channel = await getChannelIfExists(context, channelId);
+    if (!channel) throw new NotFoundError("Channel not found");
+    return channel;
 }
 
 const ChannelPreviewCache = new ContextCache<ChannelId, ChannelPreviewModel | null>();
@@ -506,7 +549,9 @@ export async function getChannelPreview(
 }
 
 /**
- * Get the channel name and description content without references.
+ * Get the channel name and description content without references. Used for
+ * building a search entity which will load content references on its own in a
+ * way that tracks dependencies.
  */
 export async function getChannelNameAndDescriptionContent(
     context: ServerActionContext,
@@ -741,7 +786,7 @@ export async function createPost(
     spaceId: SpaceId;
     createdTime: Date;
 }> {
-    const channel = await getChannel(context, channelId);
+    const channel = await getChannelPreview(context, channelId);
 
     const mentionCountByAccountId = getMentionCountByAccountIdInContent(content);
 

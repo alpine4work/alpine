@@ -3,6 +3,8 @@ import {
     searchByAffinity,
     searchByKeywords,
     searchBySemantics,
+    searchChannelsByAffinity,
+    searchChannelsByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
 import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import * as definition from "~/shared/rpc/search_rpc_definitions.js";
@@ -25,5 +27,23 @@ implementRpc(
     async (context, input) => {
         await markSearchAffinityInteraction(context.actor.authorizeSession(), input);
         return {};
+    },
+);
+
+implementRpc(
+    definition.searchChannelsByKeywords,
+    {visibility: ["AppClient"]},
+    async (context, input) => {
+        const results = await searchChannelsByKeywords(context.actor.authorizeSession(), input);
+        return {results};
+    },
+);
+
+implementRpc(
+    definition.searchChannelsByAffinity,
+    {visibility: ["AppClient"]},
+    async (context, input) => {
+        const results = await searchChannelsByAffinity(context.actor.authorizeSession(), input);
+        return {results};
     },
 );

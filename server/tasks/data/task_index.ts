@@ -1611,10 +1611,13 @@ export async function searchTaskCollections(
                             fuzziness: 0,
                         },
                     },
-                    // TODO(calebmer): I have learned (after initially writing this) that
-                    // `bool_prefix` does indeed support `fuzziness` on all but the last word. Not
-                    // sure if it still makes sense to have a second match like this? Could just
-                    // leverage fuzziness support in `multi_match`.
+                    // While `bool_prefix` supports fuzzy search the final term will not be fuzzy
+                    // matched. So if there's only one term or the last term is the critical term we
+                    // won't be able to fix mispellings.
+                    //
+                    // Also, fuzzy matching on 2gram or 3gram fields can lead to some odd results
+                    // where, because we're fuzzy matching two words, we end up matching a two word
+                    // pair which means something completely different.
                     {
                         match: {
                             "name.value": {
