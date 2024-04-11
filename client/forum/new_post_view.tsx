@@ -1,12 +1,15 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
-import {useRef} from "react";
-import {ContentEditor} from "~/client/content/content_editor.js";
+import {useEffect, useRef} from "react";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {safeAreaOnlyScrollbarInsetTop, useScrollbar} from "~/client/design/scrollbar.js";
-import {NewPostViewChannelSelectorInput} from "~/client/forum/new_post_view_channel_selector_input.js";
+import {
+    NewPostViewChannelSelectorInput,
+    NewPostViewChannelSelectorInputRef,
+} from "~/client/forum/new_post_view_channel_selector_input.js";
 import {
     postContentViewContentPaddingX,
     postContentViewInnerMarginY,
@@ -16,6 +19,7 @@ import {
 import {PostContentViewHeaderBase} from "~/client/forum/post_content_view_header.js";
 import {postViewMaxWidth} from "~/client/forum/post_list_view.js";
 import {useSessionStorage} from "~/client/helpers/use_local_storage.js";
+import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -28,6 +32,7 @@ import {
     emptyPostContentWithReferences,
 } from "~/shared/forum/post_content_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {Id} from "~/shared/id/id.js";
 import {createPost} from "~/shared/rpc/forum_rpc_definitions.js";
@@ -64,6 +69,7 @@ export function NewPostView({
     channel,
     onChannelChange,
     shouldReturnBack,
+    initiallyFocus,
 }: {
     withMobileLayout: boolean;
     draftId: Id;
@@ -71,12 +77,15 @@ export function NewPostView({
     channel: ChannelPreviewModel | null;
     onChannelChange: (channel: ChannelPreviewModel | null) => void;
     shouldReturnBack: boolean;
+    initiallyFocus: "ContentEditor" | "ChannelSelector" | null;
 }) {
     const context = useAppContext();
     const isMobile = useIsMobile();
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContext();
 
+    const channelSelectorRef = useRef<NewPostViewChannelSelectorInputRef>(null);
+    const contentEditorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
     const createButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
@@ -94,6 +103,34 @@ export function NewPostView({
             hasContentChanged: false,
         }),
     );
+
+    const isPeekAnimatingOpen = useIsPeekAnimatingOpen();
+    const hasInitiallyFocusedRef = useRef(false);
+
+    useEffect(() => {
+        // Don't focus if we're in a peek that's animating open.
+        if (isPeekAnimatingOpen) return;
+
+        if (hasInitiallyFocusedRef.current) return;
+        hasInitiallyFocusedRef.current = true;
+
+        switch (initiallyFocus) {
+            case null: {
+                // noop...
+                break;
+            }
+            case "ContentEditor": {
+                assertExists(contentEditorRef.current).focus();
+                break;
+            }
+            case "ChannelSelector": {
+                assertExists(channelSelectorRef.current).focus();
+                break;
+            }
+            default:
+                throw exhaustive(initiallyFocus);
+        }
+    }, [initiallyFocus, isPeekAnimatingOpen]);
 
     return (
         <Box
@@ -153,6 +190,7 @@ export function NewPostView({
                             shouldCreatedTimeExcludeTime
                             channelSelector={
                                 <NewPostViewChannelSelectorInput
+                                    ref={channelSelectorRef}
                                     channel={channel}
                                     onChannelChange={onChannelChange}
                                 />
@@ -160,6 +198,7 @@ export function NewPostView({
                         />
                     </Box>
                     <ContentEditor
+                        ref={contentEditorRef}
                         aria-label="Post"
                         state={state}
                         onChange={(state, transaction) => {

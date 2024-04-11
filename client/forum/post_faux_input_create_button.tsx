@@ -23,7 +23,7 @@ export function PostFauxInputCreateButton({channel}: {channel: ChannelModel}) {
 
                 // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
                 void navigate(
-                    `/s/${space.id}/posts/new/${draftId}?channel=${channel.id}&return=back`,
+                    `/s/${space.id}/posts/new/${draftId}?channel=${channel.id}&focus=content&return=back`,
                 );
             },
         },

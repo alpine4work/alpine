@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {useSearchParams} from "react-router-dom";
 import {NewPostView} from "~/client/forum/new_post_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -52,6 +52,33 @@ export default function PostCreateRoute({withMobileLayout = false}: {withMobileL
 
     const [channel, setChannel] = useState(initialChannel);
 
+    const shouldReturnBack = searchParams.get("return") === "back";
+
+    const focusSearchParam = searchParams.get("focus");
+    const [initiallyFocus] = useState(
+        focusSearchParam === "content"
+            ? ("ContentEditor" as const)
+            : focusSearchParam === "channel"
+            ? ("ChannelSelector" as const)
+            : null,
+    );
+
+    useEffect(() => {
+        if (focusSearchParam !== null) {
+            const newSearchParams = new URLSearchParams(searchParams);
+
+            newSearchParams.delete("focus");
+
+            setSearchParams(newSearchParams, {
+                replace: true,
+                // Don't revalidate when updating search params from here. We can't use the
+                // stable `shouldRevalidate` route function because if the user navigates to
+                // a new URL we want to load new data and re-render the route.
+                unstable_shouldRevalidate: false,
+            });
+        }
+    }, [focusSearchParam, searchParams, setSearchParams]);
+
     return (
         <NewPostView
             withMobileLayout={withMobileLayout}
@@ -77,7 +104,8 @@ export default function PostCreateRoute({withMobileLayout = false}: {withMobileL
                     unstable_shouldRevalidate: false,
                 });
             }}
-            shouldReturnBack={searchParams.get("return") === "back"}
+            shouldReturnBack={shouldReturnBack}
+            initiallyFocus={initiallyFocus}
         />
     );
 }

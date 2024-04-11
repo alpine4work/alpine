@@ -61,7 +61,9 @@ export function SpaceLayoutSideBarCreateButton() {
                         onPress: async () => {
                             const draftId = generateId();
 
-                            await peekStackContext.push(`/s/${space.id}/posts/new/${draftId}`);
+                            await peekStackContext.push(
+                                `/s/${space.id}/posts/new/${draftId}?focus=channel`,
+                            );
                         },
                         render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
                             <SpaceLayoutSideBarCreateButtonItem

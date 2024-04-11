@@ -3,10 +3,13 @@ import {Node} from "@react-types/shared";
 import classNames from "classnames";
 import {CaretDown, Check, MagnifyingGlass, SpinnerGap} from "phosphor-react";
 import {
+    Ref,
     RefObject,
     cloneElement,
+    forwardRef,
     isValidElement,
     useCallback,
+    useImperativeHandle,
     useMemo,
     useRef,
     useState,
@@ -74,15 +77,33 @@ type NewPostViewChannelSelectorItem = {
 
 let isClosingComboBox = false;
 
-export function NewPostViewChannelSelectorInput({
-    channel,
-    onChannelChange,
-}: {
-    channel: ChannelPreviewModel | null;
-    onChannelChange: (channel: ChannelPreviewModel | null) => void;
-}) {
+export type NewPostViewChannelSelectorInputRef = {
+    focus(): void;
+};
+
+const NewPostViewChannelSelectorInputForwardRef = forwardRef(NewPostViewChannelSelectorInput);
+export {NewPostViewChannelSelectorInputForwardRef as NewPostViewChannelSelectorInput};
+
+function NewPostViewChannelSelectorInput(
+    {
+        channel,
+        onChannelChange,
+    }: {
+        channel: ChannelPreviewModel | null;
+        onChannelChange: (channel: ChannelPreviewModel | null) => void;
+    },
+    ref: Ref<NewPostViewChannelSelectorInputRef>,
+) {
     const isMobile = useIsMobile();
     const {space} = useSpaceContext();
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            focus: () => assertExists(inputRef.current).focus(),
+        }),
+        [],
+    );
 
     const [shouldLoadItems, setShouldLoadItems] = useState(false);
 
