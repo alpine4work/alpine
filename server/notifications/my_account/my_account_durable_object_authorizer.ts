@@ -5,6 +5,16 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getAccount} from "~/shared/rpc/accounts_rpc_definitions.js";
 
+// NOTE(calebmer, 2024-04-12): I added this before `WebSocketServer` performed
+// authorization on `sendEventToAll()` and `sendEvent()` calls. So on every
+// `/broadcast-inbox-realtime-event-transaction` request I wanted to authorize
+// the account still had access to the space. But calling the `getAccount()`
+// RPC every `/broadcast-inbox-realtime-event-transaction` request seemed
+// expensive (thundering herd problem, a write that updates many account
+// inboxes would cause many reads). So I built this cache. Now that
+// `WebSocketServer.sendEventToAll()` authorizes all connections before sending
+// events (we re-authorize every 5min or so) we could delete this cache and
+// rely on `WebSocketServer` authorization.
 export class MyAccountDurableObjectAuthorizer {
     private readonly _systemActorCache = new Map<
         `${SpaceId}:${AccountId}`,

@@ -6,6 +6,9 @@ import {
     defineWebSocketProtocol,
 } from "~/shared/web_socket/web_socket_protocol.js";
 
+const DynamoGeneralRealtimeInboxItemEventSchema =
+    createDynamoGeneralRealtimeEventSchema(InboxItemModelSchema);
+
 export type MyAccountEvent = WebSocketProtocolEventType<typeof MyAccountProtocol>;
 
 export const MyAccountProtocol = defineWebSocketProtocol({
@@ -14,9 +17,12 @@ export const MyAccountProtocol = defineWebSocketProtocol({
         InboxRealtimeEventTransaction: Schema.object({
             type: Schema.value("InboxRealtimeEventTransaction"),
             readTime: Schema.date,
-            eventTransaction: Schema.array(
-                createDynamoGeneralRealtimeEventSchema(InboxItemModelSchema),
-            ),
+            eventTransaction: Schema.array(DynamoGeneralRealtimeInboxItemEventSchema),
         }),
     },
+});
+
+export const MyAccountBroadcastInboxRealtimeEventTransactionSchema = Schema.object({
+    readTime: Schema.date,
+    eventTransaction: Schema.array(DynamoGeneralRealtimeInboxItemEventSchema),
 });

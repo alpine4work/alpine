@@ -1,7 +1,10 @@
 import {expensiveScanEveryChatAndChatMessageForMigration} from "~/server/chat/data/chat_table.js";
 import {expensiveScanEveryDocumentAndDocumentCommentForMigration} from "~/server/documents/data/documents_table.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
-import {expensiveScanEveryChannelAndPostAndPostCommentForMigration} from "~/server/forum/data/forum_table.js";
+import {
+    expensiveScanEveryChannelAndPostForMigration,
+    expensiveScanEveryPostCommentForMigration,
+} from "~/server/forum/data/forum_table.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {expensiveScanEverySpaceAccountForMigration} from "~/server/spaces/spaces_table.js";
 import {expensiveScanEveryTaskAndTaskCollectionForMigration} from "~/server/tasks/data/task_table.js";
@@ -241,8 +244,8 @@ const allMigrationModules: Array<MigrationModule> = [
         },
     ),
     createDynamoScanMigrationModule(
-        "channels, posts, and post comments",
-        expensiveScanEveryChannelAndPostAndPostCommentForMigration,
+        "channels and posts",
+        expensiveScanEveryChannelAndPostForMigration,
         async (context, item) => {
             switch (item.type) {
                 case "Channel": {
@@ -269,22 +272,25 @@ const allMigrationModules: Array<MigrationModule> = [
                     });
                     break;
                 }
-                case "PostComment": {
-                    context.jobs.send({
-                        type: "IndexSearchEntity",
-                        spaceId: await item.getSpaceId(),
-                        update: {
-                            type: "PostComment",
-                            postId: item.postId,
-                            commentIndex: item.commentIndex,
-                            updatedTraits: {type: "None"},
-                        },
-                    });
-                    break;
-                }
                 default:
                     throw exhaustive(item);
             }
+        },
+    ),
+    createDynamoScanMigrationModule(
+        "post comments",
+        expensiveScanEveryPostCommentForMigration,
+        async (context, item) => {
+            context.jobs.send({
+                type: "IndexSearchEntity",
+                spaceId: await item.getSpaceId(),
+                update: {
+                    type: "PostComment",
+                    postId: item.postId,
+                    commentIndex: item.commentIndex,
+                    updatedTraits: {type: "None"},
+                },
+            });
         },
     ),
     createDynamoScanMigrationModule(

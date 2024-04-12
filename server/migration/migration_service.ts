@@ -1,3 +1,4 @@
+import {finishInitializingAllDynamoTableSchemas} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {allMigrations} from "~/server/migration/all_migrations.js";
 import {
@@ -24,9 +25,12 @@ import {quote} from "~/shared/helpers/string/quote.js";
 //
 // A system like this would allow developers to conveniently write arbitrary
 // data schema changes. Though new migrations should probably get extra
-// scrutiny during code review since they may corrupt data or increased load as
-// they slow down the product.
+// scrutiny during code review since they may corrupt data or temporarily
+// increase load as they slow down the product.
 
+// TODO(calebmer): We should use Node.js clustering to improve migration
+// performance even more. Each AWS instance could be running 3-5 Node.js
+// threads and each thread itself does parallel processing.
 runService({
     serviceName: "MigrationService",
     withoutCluster: true,
@@ -73,6 +77,10 @@ runService({
             async (context, span) => {
                 span.addPropagatedData({context: {migration: migrationString}});
                 span.addData({migration: {segmentIndex, totalSegmentCount}});
+
+                // Make sure to finish initializing all DynamoDB table schemas before we start
+                // our migration.
+                finishInitializingAllDynamoTableSchemas();
 
                 await migration(context, {segmentIndex, totalSegmentCount});
             },

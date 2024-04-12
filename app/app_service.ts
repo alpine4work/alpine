@@ -13,6 +13,7 @@ import {
     DynamoSystemActorContextModule,
     DynamoUnknownActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
+import {EdgeServiceContextModule} from "~/server/context/edge_service_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
@@ -240,6 +241,7 @@ runService({
                                 ServerSystemActionContextModules,
                                 Exclude<keyof ServerProcessContextModules, "tracer">
                             > & {
+                                edge: EdgeServiceContextModule;
                                 notifications: NotificationsContextModule;
                             },
                             Value
@@ -252,6 +254,7 @@ runService({
                                 // determination about their cache.
                                 cache: context.cache.dangerouslyForkWithSharedCaches(),
                                 dynamoBatchContext: new DynamoBatchContextModule(),
+                                edge: edgeServiceContextModule,
                                 notifications: notificationsContextModule,
                                 actor: DynamoSystemActorContextModule.dangerouslyNew(
                                     context.actor.serviceName,
@@ -262,10 +265,13 @@ runService({
                         );
                     };
 
-                    const notificationsContextModule = new NotificationsContextModule({
-                        dangerouslyEscalateToSystemContext,
+                    const edgeServiceContextModule = new EdgeServiceContextModule({
                         edgeServiceUrl,
                         tokenAgent,
+                    });
+
+                    const notificationsContextModule = new NotificationsContextModule({
+                        dangerouslyEscalateToSystemContext,
                     });
 
                     const loaderContextModule = new LoaderContextModule(request, {
@@ -295,6 +301,7 @@ runService({
                                 tokenAgent,
                                 sessionCookie,
                             ),
+                            edge: edgeServiceContextModule,
                             notifications: notificationsContextModule,
                             tasks: new TaskContextModule({
                                 router: taskRealtimeServiceRouter,

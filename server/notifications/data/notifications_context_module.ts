@@ -1,4 +1,5 @@
 import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
+import {EdgeServiceContextModule} from "~/server/context/edge_service_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {
@@ -7,24 +8,21 @@ import {
 } from "~/server/notifications/core/notification_event.js";
 import {NotificationsContextModuleBase as NotificationsContextModuleBaseInterface} from "~/server/notifications/core/notifications_context_module_base.js";
 import {processNotificationEvent} from "~/server/notifications/data/notifications_table.js";
-import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
-import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {DataLossError, InternalError} from "~/shared/error/error.js";
+import {DataLossError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxItemModelSchema} from "~/shared/notifications/inbox_model.js";
-import {MyAccountSendInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_inbox_realtime_event_transaction_schema.js";
+import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation_context_schema.js";
 
 export const NotificationsQueueMessageSchema = Schema.object({
@@ -36,22 +34,26 @@ export const NotificationsQueueMessageSchema = Schema.object({
  * Context module available on contexts that can add to our notification
  * event queue.
  */
-abstract class NotificationsContextModuleBase
-    extends ContextModuleBase<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        dynamo: DynamoContextModule;
-        cache: CacheContextModule;
-        actor: DynamoActorContextModule;
-    }>
+abstract class NotificationsContextModuleBase<
+        ContextModules extends {
+            process: ProcessContextModule;
+            tracer: TracerContextModule;
+            dynamo: DynamoContextModule;
+            cache: CacheContextModule;
+            actor: DynamoActorContextModule;
+        } = {
+            process: ProcessContextModule;
+            tracer: TracerContextModule;
+            dynamo: DynamoContextModule;
+            cache: CacheContextModule;
+            actor: DynamoActorContextModule;
+        },
+    >
+    extends ContextModuleBase<ContextModules>
     implements NotificationsContextModuleBaseInterface
 {
     protected readonly _dangerouslyEscalateToSystemContext: <Value>(
-        context: Context<{
-            tracer: TracerContextModule;
-            actor: DynamoActorContextModule;
-            cache: CacheContextModule;
-        }>,
+        context: Context<ContextModules>,
         spaceId: SpaceId,
         action: (
             context: Context<
@@ -66,11 +68,7 @@ abstract class NotificationsContextModuleBase
         dangerouslyEscalateToSystemContext,
     }: {
         dangerouslyEscalateToSystemContext: <Value>(
-            context: Context<{
-                tracer: TracerContextModule;
-                actor: DynamoActorContextModule;
-                cache: CacheContextModule;
-            }>,
+            context: Context<ContextModules>,
             spaceId: SpaceId,
             action: (
                 context: Context<
@@ -150,17 +148,19 @@ abstract class NotificationsContextModuleBase
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
     ): Promise<void>;
 
-    public abstract fork(): NotificationsContextModuleBase;
+    public abstract fork(): NotificationsContextModuleBase<ContextModules>;
 }
 
-export class NotificationsContextModule extends NotificationsContextModuleBase {
-    private readonly _edgeServiceUrl: string;
-    private readonly _tokenAgent: TokenAgent;
-
+export class NotificationsContextModule extends NotificationsContextModuleBase<{
+    process: ProcessContextModule;
+    tracer: TracerContextModule;
+    dynamo: DynamoContextModule;
+    cache: CacheContextModule;
+    actor: DynamoActorContextModule;
+    edge: EdgeServiceContextModule;
+}> {
     constructor({
         dangerouslyEscalateToSystemContext,
-        edgeServiceUrl,
-        tokenAgent,
     }: {
         dangerouslyEscalateToSystemContext: <Value>(
             context: Context<{
@@ -177,12 +177,8 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
                 >,
             ) => Promise<Value>,
         ) => Promise<Value>;
-        edgeServiceUrl: string;
-        tokenAgent: TokenAgent;
     }) {
         super({dangerouslyEscalateToSystemContext});
-        this._edgeServiceUrl = edgeServiceUrl;
-        this._tokenAgent = tokenAgent;
     }
 
     public override async sendInboxRealtimeEventTransaction(
@@ -219,45 +215,15 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
                     assert(spaceId && isId<SpaceId>(spaceId));
                     assert(accountId && isId<AccountId>(accountId));
 
-                    // Double check that we're allowed to escalate to system privileges.
-                    await authorizeSpaceAccess(this._context, spaceId);
-
-                    const token = await this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
-                        "MyAccountService",
-                        {type: "System", spaceId},
-                    );
-
-                    await fetchWithTracer(
-                        this._context.tracer.getTracer(),
-                        new URL(
-                            `/api/durable-objects/my-account/${accountId}/send-inbox-realtime-event-transaction`,
-                            this._edgeServiceUrl,
-                        ),
+                    await this._context.edge.broadcastToDurableObject(
+                        `/api/durable-objects/my-account/${accountId}/broadcast-inbox-realtime-event-transaction`,
                         {
                             serviceName: "MyAccountService",
-                            route: "/api/durable-objects/my-account/:accountId/send-inbox-realtime-event-transaction",
-                            method: "POST",
-                            headers: {
-                                authorization: `bearer ${token}`,
-                                "content-type": "application/json",
-                                // If the durable object is not initialized this request will fail with a 412.
-                                // If there are no realtime subscribers on the durable object, we don't need to
-                                // send our event transaction. We can drop this request on the floor.
-                                "cyberworlds-durable-object-if-initialized": "true",
-                            },
-                            body: JSON.stringify(
-                                MyAccountSendInboxRealtimeEventTransactionSchema.serialize({
-                                    readTime,
-                                    eventTransaction,
-                                }),
-                            ),
-                        },
-                        async response => {
-                            if (response.status !== 200 && response.status !== 412) {
-                                throw new InternalError(
-                                    "Failed to broadcast inbox realtime events from `MyAccountService`",
-                                );
-                            }
+                            route: "/api/durable-objects/my-account/:accountId/broadcast-inbox-realtime-event-transaction",
+                            body: MyAccountBroadcastInboxRealtimeEventTransactionSchema.serialize({
+                                readTime,
+                                eventTransaction,
+                            }),
                         },
                     );
                 },
@@ -267,9 +233,8 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
 
     public fork() {
         return new NotificationsContextModule({
+            // @ts-expect-error: This should work? Unclear why it doesn't
             dangerouslyEscalateToSystemContext: this._dangerouslyEscalateToSystemContext,
-            edgeServiceUrl: this._edgeServiceUrl,
-            tokenAgent: this._tokenAgent,
         });
     }
 }
@@ -306,6 +271,7 @@ export class TestNotificationsContextModule extends NotificationsContextModuleBa
 
     public fork() {
         return new TestNotificationsContextModule({
+            // @ts-expect-error: This should work? Unclear why it doesn't
             dangerouslyEscalateToSystemContext: this._dangerouslyEscalateToSystemContext,
         });
     }

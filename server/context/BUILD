@@ -17,6 +17,7 @@ ts_project(
         "//server/emails",
         "//server/jobs/core",
         "//server/opensearch",
+        "//server/tokens",
         "//shared/context",
         "//shared/helpers",
         "//shared/id",

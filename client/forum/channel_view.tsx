@@ -1,6 +1,7 @@
 import {useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
 import {ChannelViewAside} from "~/client/forum/channel_view_aside.js";
 import {
     PostListView,
@@ -9,6 +10,7 @@ import {
 } from "~/client/forum/post_list_view.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {DynamoGeneralRealtimeIndexQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {getChannelPosts} from "~/shared/rpc/forum_rpc_definitions.js";
@@ -16,14 +18,18 @@ import {getChannelPosts} from "~/shared/rpc/forum_rpc_definitions.js";
 export function ChannelView({
     withMobileLayout,
     initialChannel,
-    initialChannelPostsResult,
+    initialPostsResult,
 }: {
     withMobileLayout: boolean;
     initialChannel: ChannelModel;
-    initialChannelPostsResult: {posts: ReadonlyArray<PostModel>; hasMorePosts: boolean};
+    initialPostsResult: DynamoGeneralRealtimeIndexQueryResult<PostModel>;
 }) {
     const context = useAppContext();
     const [channel, setChannel] = useState(initialChannel);
+
+    const [postsQuery, setPostsQuery] = useState(() =>
+        DynamoGeneralRealtimeIndexQuery.new(initialPostsResult),
+    );
 
     // NOCOMMIT: Get rid of `<ChannelViewTopBar>`
 
@@ -47,7 +53,8 @@ export function ChannelView({
         <PostListView
             withMobileLayout={withMobileLayout}
             channelHeader={useMemo(() => ({channel}), [channel])}
-            initialPostsResult={{type: "Many", ...initialChannelPostsResult}}
+            // NOCOMMIT: Implement
+            initialPostsResult={{type: "Many", hasMorePosts: false, posts: []}}
             onLoadMorePosts={({limit, afterCursor}) => {
                 return getChannelPosts(context, {
                     channelId: channel.id,

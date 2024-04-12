@@ -117,6 +117,7 @@ export class TokenAgentPublicSide {
             case "EdgeService":
             case "DocumentCollaborationService":
             case "PostRealtimeService":
+            case "ChannelRealtimeService":
             case "ChatRealtimeService":
             case "MyAccountService":
             case "TaskNotesCollaborationService":
@@ -137,6 +138,7 @@ export class TokenAgentPublicSide {
             case "EdgeService":
             case "DocumentCollaborationService":
             case "PostRealtimeService":
+            case "ChannelRealtimeService":
             case "ChatRealtimeService":
             case "MyAccountService":
             case "TaskNotesCollaborationService":

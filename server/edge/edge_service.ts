@@ -20,6 +20,7 @@ import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagat
 type EdgeServiceEnv = {
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
     PostRealtimeDurableObjectNamespace: DurableObjectNamespace;
+    ChannelRealtimeDurableObjectNamespace: DurableObjectNamespace;
     ChatRealtimeDurableObjectNamespace: DurableObjectNamespace;
     MyAccountDurableObjectNamespace: DurableObjectNamespace;
     TaskNotesCollaborationDurableObjectNamespace: DurableObjectNamespace;
@@ -92,6 +93,7 @@ function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: Ex
         | "AppService"
         | {type: "DocumentCollaborationService"; documentId: string; pathname: string}
         | {type: "PostRealtimeService"; postId: string; pathname: string}
+        | {type: "ChannelRealtimeService"; channelId: string; pathname: string}
         | {type: "ChatRealtimeService"; chatId: string; pathname: string}
         | {type: "MyAccountService"; accountId: string; pathname: string}
         | {type: "TaskNotesCollaborationService"; taskId: string; pathname: string}
@@ -123,6 +125,18 @@ function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: Ex
 
                 routeString = `/api/durable-objects/posts/:postId${pathname !== "/" ? "/*" : ""}`;
                 route = {type: "PostRealtimeService", postId, pathname};
+                break;
+            }
+            case "channels": {
+                const channelId = pathSegments[1];
+                if (channelId === undefined) break;
+
+                const pathname = `/${pathSegments.slice(2).join("/")}`;
+
+                routeString = `/api/durable-objects/channels/:channelId${
+                    pathname !== "/" ? "/*" : ""
+                }`;
+                route = {type: "ChannelRealtimeService", channelId, pathname};
                 break;
             }
             case "chat": {
@@ -258,6 +272,17 @@ function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: Ex
                         request,
                         pathname: route.pathname,
                         idName: route.postId,
+                        span,
+                    });
+                }
+                case "ChannelRealtimeService": {
+                    return fetchFromDurableObjectStub({
+                        durableObjectNamespace: env.ChannelRealtimeDurableObjectNamespace,
+                        serviceName: "ChannelRealtimeService",
+                        tokenAgent,
+                        request,
+                        pathname: route.pathname,
+                        idName: route.channelId,
                         span,
                     });
                 }
@@ -410,6 +435,7 @@ export default {fetch: handleFetch};
 // `EdgeService` as `EdgeServiceFamily`.
 export {DocumentCollaborationDurableObject} from "~/server/documents/collaboration/document_collaboration_durable_object.js";
 export {PostRealtimeDurableObject} from "~/server/forum/realtime/post_realtime_durable_object.js";
+export {ChannelRealtimeDurableObject} from "~/server/forum/realtime/channel_realtime_durable_object.js";
 export {ChatRealtimeDurableObject} from "~/server/chat/realtime/chat_realtime_durable_object.js";
 export {MyAccountDurableObject} from "~/server/notifications/my_account/my_account_durable_object.js";
 export {TaskNotesCollaborationDurableObject} from "~/server/tasks/notes_collaboration/task_notes_collaboration_durable_object.js";

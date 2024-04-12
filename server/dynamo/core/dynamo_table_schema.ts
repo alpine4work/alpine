@@ -122,7 +122,7 @@ const DynamoTableItemSharedExpirationTimeAttributeSchema = Schema.integer.transf
     deserialize: time => new Date(time * 1000),
 });
 
-type DynamoTableSchemaIndexInternalConfig = {
+type DynamoTableSchemaIndexConfig = {
     readonly indexNumber: number;
     readonly name: string;
     readonly partitionKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
@@ -154,7 +154,7 @@ type DynamoTableSchemaInitializationState =
            *
            * Mutable before initialization.
            */
-          readonly indexConfigsByItemType: Map<string, Array<DynamoTableSchemaIndexInternalConfig>>;
+          readonly indexConfigsByItemType: Map<string, Array<DynamoTableSchemaIndexConfig>>;
       }
     | {
           readonly isInitialized: true;
@@ -167,7 +167,7 @@ type DynamoTableSchemaInitializationState =
            */
           readonly indexConfigsByItemType: ReadonlyMap<
               string,
-              ReadonlyArray<DynamoTableSchemaIndexInternalConfig>
+              ReadonlyArray<DynamoTableSchemaIndexConfig>
           >;
 
           /**
@@ -528,6 +528,28 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         return this._initializationState.description;
     }
+
+    // NOCOMMIT:
+    // /**
+    //  * Get all indexes for a given item type.
+    //  */
+    // public getIndexConfigsByItemType(
+    //     partitionType: string,
+    //     sortRangeType: string,
+    // ): ReadonlyArray<DynamoTableSchemaIndexConfig> {
+    //     assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+
+    //     // If our schema is read incompatible with the old schema then always throw an
+    //     // error when a user tries to observe the description.
+    //     if (this._initializationState.readCompatibilityError !== null)
+    //         throw this._initializationState.readCompatibilityError;
+
+    //     return (
+    //         this._initializationState.indexConfigsByItemType.get(
+    //             `${partitionType}#${sortRangeType}`,
+    //         ) ?? emptyArray
+    //     );
+    // }
 
     /**
      * Return the partition key attributes for a given partition. Throws an error
@@ -3021,7 +3043,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             ItemTypes
         >,
     >(
-        config: DynamoTableSchemaIndexConfig<
+        config: DynamoTableSchemaIndexConfigOptions<
             Types,
             ItemTypes,
             PartitionKeyAttributesConfig,
@@ -3048,6 +3070,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             partitionKeyAttributes: config.partitionKeyAttributes as any,
             sortKeyAttributes: config.sortKeyAttributes as any,
 
+            serializeOpaqueItemPartitionKey: partitionKey =>
+                this._serializeOpaqueIndexItemPartitionKey(indexConfig, partitionKey),
             serializeOpaqueCursor: itemKey =>
                 this._serializeOpaqueIndexCursor(indexConfig, itemKey),
             deserializeOpaqueCursor: (partitionKey, cursor) =>
@@ -3203,7 +3227,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             ItemTypes
         >,
     >(
-        config: DynamoTableSchemaIndexConfig<
+        config: DynamoTableSchemaIndexConfigOptions<
             Types,
             ItemTypes,
             PartitionKeyAttributesConfig,
@@ -3230,6 +3254,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             partitionKeyAttributes: config.partitionKeyAttributes as any,
             sortKeyAttributes: config.sortKeyAttributes as any,
 
+            serializeOpaqueItemPartitionKey: partitionKey =>
+                this._serializeOpaqueIndexItemPartitionKey(indexConfig, partitionKey),
             serializeOpaqueCursor: itemKey =>
                 this._serializeOpaqueIndexCursor(indexConfig, itemKey),
             deserializeOpaqueCursor: (partitionKey, cursor) =>
@@ -3398,14 +3424,14 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         includePrimaryKeyInSortKey = false,
         projection,
         filter,
-    }: DynamoTableSchemaIndexConfig<
+    }: DynamoTableSchemaIndexConfigOptions<
         Types,
         ItemTypes,
         PartitionKeyAttributesConfig,
         SortKeyAttributesConfig
     > & {
         projection: "KeysOnly" | "All";
-    }): DynamoTableSchemaIndexInternalConfig {
+    }): DynamoTableSchemaIndexConfig {
         assert(
             !this._initializationState.isInitialized,
             "Can not add indexes after schema has finished initializing",
@@ -3546,7 +3572,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             });
         }
 
-        const indexConfig: DynamoTableSchemaIndexInternalConfig = {
+        const indexConfig: DynamoTableSchemaIndexConfig = {
             indexNumber: addedToIndexNumber,
             name,
             partitionKeyAttributes:
@@ -3577,7 +3603,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     private _serializeIndexPartitionKey(
-        indexConfig: DynamoTableSchemaIndexInternalConfig,
+        indexConfig: DynamoTableSchemaIndexConfig,
         indexDescription: DynamoTableSchemaTypes.Index.Description,
         item: {[key: string]: unknown},
     ) {
@@ -3596,7 +3622,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     private _serializeIndexSortKeyBoundWithoutPrimaryKey(
-        indexConfig: DynamoTableSchemaIndexInternalConfig,
+        indexConfig: DynamoTableSchemaIndexConfig,
         item: {[key: string]: unknown},
         boundType: "StartExclusive" | "StartInclusive" | "EndExclusive" | "EndInclusive",
     ) {
@@ -3661,7 +3687,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * DynamoDB internals).
      */
     private _serializeItemIndexSortKey(
-        indexConfig: DynamoTableSchemaIndexInternalConfig,
+        indexConfig: DynamoTableSchemaIndexConfig,
         item: {[key: string]: unknown},
     ) {
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
@@ -3716,7 +3742,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     private _deserializeIndexKey(
-        indexConfig: DynamoTableSchemaIndexInternalConfig,
+        indexConfig: DynamoTableSchemaIndexConfig,
         indexDescription: DynamoTableSchemaTypes.Index.Description,
         partitionKey: string,
         sortKey: string,
@@ -3756,6 +3782,37 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return key;
     }
 
+    private _serializeOpaqueIndexItemPartitionKey(
+        indexConfig: DynamoTableSchemaIndexConfig,
+        partitionKey: {[key: string]: unknown},
+    ): string {
+        let totalByteCount = 0;
+
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            indexConfig.partitionKeyAttributes,
+        )) {
+            if (!attributeSchema.binary) {
+                throw new UnimplementedError(
+                    quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                );
+            }
+            totalByteCount += attributeSchema.binary.getByteCount(partitionKey[attributeKey]);
+        }
+
+        const bytes = new Uint8Array(totalByteCount);
+        let bytesIndex = 0;
+
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            indexConfig.partitionKeyAttributes,
+        )) {
+            const attributeValue = partitionKey[attributeKey];
+            attributeSchema.binary!.serializeBytes(attributeValue, bytes, bytesIndex);
+            bytesIndex += attributeSchema.binary!.getByteCount(attributeValue);
+        }
+
+        return encodeBase64(bytes, "Rfc4648UrlWithOrderPreservation") as DynamoItemKey;
+    }
+
     // NOTE(calebmer): We don't include the index partition key in the cursor! Only
     // the sort key. We use cursors for:
     //
@@ -3770,7 +3827,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     // the partition key alongside the cursor anyway and for 2 the partition key
     // does not contribute to order.
     private _serializeOpaqueIndexCursor(
-        indexConfig: DynamoTableSchemaIndexInternalConfig,
+        indexConfig: DynamoTableSchemaIndexConfig,
         item: {[key: string]: unknown},
     ): DynamoIndexCursor {
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
@@ -3931,7 +3988,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     private _deserializeOpaqueIndexCursor(
-        indexConfig: DynamoTableSchemaIndexInternalConfig,
+        indexConfig: DynamoTableSchemaIndexConfig,
         partitionKey: {[key: string]: any},
         opaqueString: DynamoIndexCursor,
     ) {
@@ -4049,7 +4106,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     private _serializeOpaqueIndexCursorBound(
-        indexConfig: DynamoTableSchemaIndexInternalConfig,
+        indexConfig: DynamoTableSchemaIndexConfig,
         item: {[key: string]: unknown},
         boundType: "StartExclusive" | "StartInclusive" | "EndExclusive" | "EndInclusive",
     ): string {
@@ -4211,7 +4268,7 @@ export type DynamoTableSchemaIndexKeyAttributesType<
     [K in keyof KeyAttributesConfig]: NonNullable<KeyAttributesConfig[K]>;
 }>;
 
-export type DynamoTableSchemaIndexConfig<
+export type DynamoTableSchemaIndexConfigOptions<
     Types extends DynamoTableSchemaTypesBase,
     ItemTypes extends Types["ItemType"],
     PartitionKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
@@ -4326,6 +4383,20 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
             descending?: boolean;
         },
     ): AsyncIterableIterator<MergeObjectIntersection<QueryItem & IndexPartitionKey & IndexSortKey>>;
+
+    /**
+     * Serialize the index partition key into an opaque string that can be
+     * conveniently shared with clients.
+     *
+     * Remember this data is not secured in any way! If you want to share this with
+     * a client then the client should be able to see all data in the item's index
+     * partition key.
+     */
+    serializeOpaqueItemPartitionKey(
+        // Allow method to be dereferenced without binding `this`.
+        this: void,
+        partitionKey: IndexPartitionKey,
+    ): string;
 
     /**
      * Serialize the item key into an opaque string that can be conveniently shared

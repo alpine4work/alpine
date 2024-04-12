@@ -4,8 +4,10 @@ import {
     getMentionCountByAccountIdInContent,
     getMentionedAccountIdsInContent,
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
+import {EdgeServiceContextModuleBase} from "~/server/context/edge_service_context_module.js";
 import {
     ServerActionContext,
+    ServerActionContextModules,
     ServerSessionActionContext,
     ServerSessionActionContextModules,
     ServerSystemActionContext,
@@ -15,6 +17,10 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {
+    DynamoGeneralRealtimeTableItemType,
+    DynamoGeneralRealtimeTableSchema,
+} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
@@ -33,25 +39,33 @@ import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {
-    DataLossError,
+    DynamoGeneralRealtimeBackfillResult,
+    DynamoGeneralRealtimeEvent,
+    DynamoGeneralRealtimeIndexQueryResult,
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {
     FailedPreconditionError,
     InternalError,
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
+import {ChannelBroadcastRealtimeEventTransactionSchema} from "~/shared/forum/channel_realtime_protocol.js";
 import {PostContent, PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {
     PostCommentModel,
     PostModel,
     maxPostPreviewCommentAuthorCount,
 } from "~/shared/forum/post_model.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
@@ -78,10 +92,17 @@ import {
 } from "~/shared/messaging/message_content_schema.js";
 import {MessagePayload, MessagePayloadSchema} from "~/shared/messaging/message_model.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
+import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-const ForumTable = DynamoTableSchema.new({
-    name: "Forum",
+const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
+    // Disable table-level realtime queries
+    // (e.g. `ForumRealtimeTable.realtimeQuery()`) to reduce the number of WCUs
+    // whenever an update is made to this table since we only ever query through
+    // an index.
+    isTableRealtimeQueryDisabled: true,
+
+    name: "ForumRealtime",
     partitions: [
         {
             name: "Channel",
@@ -121,18 +142,10 @@ const ForumTable = DynamoTableSchema.new({
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         spaceId: Schema.id<SpaceId>(),
-
-                        /**
-                         * What channel was this posted in?
-                         *
-                         * Must have the same `spaceId` as this post. We include the `spaceId` in this
-                         * item in case we ever have posts that are not a part of a channel. Posts that
-                         * aren't a part of a channel should still be part of a space.
-                         */
-                        channelId: Schema.id<ChannelId>(),
-
-                        /** When was this post created? */
                         createdTime: Schema.date,
+
+                        /** What channel was this post created in? */
+                        channelId: Schema.id<ChannelId>(),
 
                         /** Which account created this post? */
                         authorId: Schema.id<AccountId>(),
@@ -146,6 +159,12 @@ const ForumTable = DynamoTableSchema.new({
                         /**
                          * Information regarding the post's comments. Nested in an object so we can
                          * update it at once.
+                         *
+                         * We don't send general realtime update events when `commentsSummary` changes.
+                         * This is taken care of by
+                         * `transactionDangerouslyDirectlyUpdateItemAttributeWithoutEvent()`. We do
+                         * this to save a bunch of WCUs. Recording an event containing the full post
+                         * content for every new comment would be wildly inefficient.
                          */
                         commentsSummary: Schema.object({
                             /**
@@ -189,6 +208,161 @@ const ForumTable = DynamoTableSchema.new({
                              * content. We put it in `commentsSummary` so we can update it atomically as a
                              * single attribute with other comment information.
                              */
+                            mentionCountByAccountId: Schema.map(
+                                Schema.id<ContentMentionAccountId>(),
+                                Schema.integer.min(0),
+                            ).default(new Map()),
+                        }),
+                    }),
+                },
+            ],
+        },
+    ],
+    modelSchema: createModelUnionSchema({
+        Channel: ChannelModel,
+        Post: PostModel,
+    }),
+    models: {
+        Channel: {
+            Attributes: {
+                build: (context, item) => createChannelModelFromItem(context, item),
+            },
+        },
+        Post: {
+            Attributes: {
+                build: (context, item) =>
+                    createPostModelFromItem(
+                        context,
+                        getChannelPreview(context, item.channelId),
+                        item,
+                    ),
+            },
+        },
+    },
+    sendEventTransaction: (
+        context: Context<ServerActionContextModules & {edge: EdgeServiceContextModuleBase}>,
+        readTime,
+        eventTransaction,
+    ) => sendForumRealtimeEventTransaction(context, readTime, eventTransaction),
+});
+
+async function sendForumRealtimeEventTransaction(
+    context: Context<ServerActionContextModules & {edge: EdgeServiceContextModuleBase}>,
+    readTime: Date,
+    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel | PostModel>>,
+) {
+    // Split up event transactions so we send everything in a `ChannelId` to
+    // that channel and nothing else. We have to split for security: if two
+    // channels are updated in the same transaction, a user connected to
+    // channel 1 shouldn't get realtime events for channel 2 which they don't
+    // have access to.
+    //
+    // This means clients may see a glitch where an atomic update across two
+    // channels is applied separately. This is fine as in practice we don't
+    // have any cross-channel updates it's critical for users to see
+    // atomically.
+    const eventTransactionByChannelId = new Map<
+        ChannelId,
+        Array<DynamoGeneralRealtimeEvent<ChannelModel | PostModel>>
+    >();
+
+    for (const event of eventTransaction) {
+        getOrSetDefaultMapValue(
+            eventTransactionByChannelId,
+            event.item.model instanceof ChannelModel
+                ? event.item.model.id
+                : event.item.model.channel.id,
+            () => [],
+        ).push(event);
+    }
+
+    await runAllPromises(
+        Array.from(eventTransactionByChannelId, async ([channelId, eventTransaction]) => {
+            await context.edge.broadcastToDurableObject(
+                `/api/durable-objects/channels/${channelId}`,
+                {
+                    serviceName: "ChannelRealtimeService",
+                    route: "/api/durable-objects/channels/:channelId",
+                    body: ChannelBroadcastRealtimeEventTransactionSchema.serialize({
+                        readTime,
+                        eventTransaction,
+                    }),
+                },
+            );
+        }),
+    );
+}
+
+// We use an index with join queries since it reduces write/storage costs
+// (compared to `addExpensiveFullIndex()`) and the read performance sacrifice
+// isn't that bad since most of the time posts will be viewed through home feed
+// or inbox anyway (vs querying a channel).
+const ChannelPostsIndex = ForumRealtimeTable.addIndexWithQueryJoin({
+    name: "ChannelPosts",
+    itemTypes: [{partitionType: "Post", sortRangeType: "Attributes"}],
+    partitionKeyAttributes: {
+        channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
+    },
+    sortKeyAttributes: {
+        createdTime: DynamoKeyAttributeSchema.date,
+    },
+});
+
+// Contains forum data that's not covered by our general realtime system. For
+// instance, post comments are covered by our messaging realtime system.
+const ForumTable = DynamoTableSchema.new({
+    name: "Forum",
+    partitions: [
+        // NOTE(calebmer, 2024-04-11): Forum used to not use general realtime. Since
+        // this date I've migrated data into a table with general realtime support. The
+        // old index and partition types remain for backwards compatibility. Ideally
+        // we'd fully delete this code someday.
+        {
+            name: "Channel",
+            partitionKeyAttributes: {
+                channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
+            },
+            sortRanges: [
+                {
+                    name: "Attributes",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        spaceId: Schema.id<SpaceId>(),
+                        createdTime: Schema.date,
+                        creatorId: Schema.id<AccountId>().nullable().default(null),
+                        name: LabelStringSchema,
+                        description: MessageContentSchema.default(emptyMessageContent),
+                    }),
+                },
+            ],
+        },
+        {
+            name: "Post",
+            partitionKeyAttributes: {
+                postId: DynamoKeyAttributeSchema.id<PostId>(),
+            },
+            sortRanges: [
+                // NOTE(calebmer, 2024-04-11): Forum used to not use general realtime. Since
+                // this date I've migrated data into a table with general realtime support. The
+                // old index and partition types remain for backwards compatibility. Ideally
+                // we'd fully delete this code someday.
+                {
+                    name: "Attributes",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        spaceId: Schema.id<SpaceId>(),
+                        channelId: Schema.id<ChannelId>(),
+                        createdTime: Schema.date,
+                        authorId: Schema.id<AccountId>(),
+                        content: PostContentSchema,
+                        contentUpdatedTime: Schema.date.nullable().default(null),
+                        commentsSummary: Schema.object({
+                            nextCommentIndex: Schema.integer.min(0),
+                            lastChangeTime: Schema.date.nullable().default(null),
+                            commentCountByAuthorId: Schema.map(
+                                Schema.id<AccountId>(),
+                                Schema.integer.min(1),
+                            ),
                             mentionCountByAccountId: Schema.map(
                                 Schema.id<ContentMentionAccountId>(),
                                 Schema.integer.min(0),
@@ -257,7 +431,11 @@ const ForumTable = DynamoTableSchema.new({
     ],
 });
 
-const ChannelPostsIndex = ForumTable.addIndex({
+// NOTE(calebmer, 2024-04-11): Forum used to not use general realtime. Since
+// this date I've migrated data into a table with general realtime support. The
+// old index and partition types remain for backwards compatibility. Ideally
+// we'd fully delete this code someday.
+ForumTable.addIndex({
     name: "ChannelPosts",
     itemTypes: [{partitionType: "Post", sortRangeType: "Attributes"}],
     partitionKeyAttributes: {
@@ -271,27 +449,64 @@ const ChannelPostsIndex = ForumTable.addIndex({
     },
 });
 
-type ChannelAttributesItem = DynamoTableItemType<typeof ForumTable, "Channel", "Attributes">;
-type PostAttributesItem = DynamoTableItemType<typeof ForumTable, "Post", "Attributes">;
+type ChannelAttributesItem = DynamoGeneralRealtimeTableItemType<
+    typeof ForumRealtimeTable,
+    "Channel",
+    "Attributes"
+>;
+
+type PostAttributesItem = DynamoGeneralRealtimeTableItemType<
+    typeof ForumRealtimeTable,
+    "Post",
+    "Attributes"
+>;
+
 type PostCommentItem = DynamoTableItemType<typeof ForumTable, "Post", "Comments">;
 
 /**
- * Scan every document and document comment in our database. Use when
- * migrating data.
+ * Scan every channel and post in our database. Use when migrating data.
  */
-export async function* expensiveScanEveryChannelAndPostAndPostCommentForMigration(
+export async function* expensiveScanEveryChannelAndPostForMigration(
     context: DynamoContext,
     {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
 ): AsyncIterableIterator<
     | {type: "Channel"; spaceId: SpaceId; channelId: ChannelId}
     | {type: "Post"; spaceId: SpaceId; postId: PostId}
-    | {
-          type: "PostComment";
-          getSpaceId: () => Promise<SpaceId>;
-          postId: PostId;
-          commentIndex: number;
-      }
 > {
+    assert(context.tracer.getRoot().serviceName === "MigrationService");
+
+    for await (const item of ForumRealtimeTable.expensiveScan(context, {
+        segmentIndex,
+        totalSegmentCount,
+        filter: [
+            {partitionType: "Channel", sortRangeType: "Attributes"},
+            {partitionType: "Post", sortRangeType: "Attributes"},
+        ],
+    })) {
+        if (item.partitionType === "Channel") {
+            if (item.sortRangeType !== "Attributes") continue;
+            yield {type: "Channel", spaceId: item.spaceId, channelId: item.channelId};
+        } else if (item.partitionType === "Post") {
+            if (item.sortRangeType !== "Attributes") continue;
+            yield {type: "Post", spaceId: item.spaceId, postId: item.postId};
+        }
+    }
+}
+
+/**
+ * Scan every post comment in our database. Use when migrating data.
+ *
+ * Separate from `expensiveScanEveryChannelAndPostForMigration()` since post
+ * comments and posts/channels are backed by different underlying tables.
+ */
+export async function* expensiveScanEveryPostCommentForMigration(
+    context: DynamoContext,
+    {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
+): AsyncIterableIterator<{
+    getSpaceId: () => Promise<SpaceId>;
+    postId: PostId;
+    commentIndex: number;
+}> {
     assert(context.tracer.getRoot().serviceName === "MigrationService");
 
     const spaceIdByPostId = new Map<PostId, Promise<SpaceId>>();
@@ -299,40 +514,96 @@ export async function* expensiveScanEveryChannelAndPostAndPostCommentForMigratio
     for await (const item of ForumTable.expensiveScan(context, {
         segmentIndex,
         totalSegmentCount,
+        filter: [{partitionType: "Post", sortRangeType: "Comments"}],
+    })) {
+        if (item.partitionType === "Post" && item.sortRangeType === "Comments") {
+            yield {
+                getSpaceId: () =>
+                    getOrSetDefaultMapValue(spaceIdByPostId, item.postId, async () => {
+                        const postItem = await ForumRealtimeTable.getPartialItem(
+                            context,
+                            {
+                                partitionType: "Post",
+                                sortRangeType: "Attributes",
+                                postId: item.postId,
+                            },
+                            {attributes: ["spaceId"]},
+                        );
+                        return postItem.spaceId;
+                    }),
+                postId: item.postId,
+                commentIndex: item.commentIndex,
+            };
+        }
+    }
+}
+
+/**
+ * Move channel and post data from `ForumTable` into `ForumRealtimeTable`.
+ *
+ * IMPORTANT: This is not a good example of a migration if you need to do
+ * something similar in the future! Since I (@calebmer) am running this
+ * migration in private alpha I'm ok with having a bit of downtime. This
+ * migration requires some downtime and has other risks given briefly after
+ * the deploy new code will be reading from `ForumRealtimeTable` but this
+ * migration won't have been run.
+ */
+export async function runMoveForumChannelsAndPostsMigration(
+    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
+) {
+    let n = 0;
+    const mutexes = createArrayWithLength(8, () => new Mutex());
+
+    let hasError = false;
+    let firstError: unknown;
+    let hasSystemError = false;
+    let firstSystemError: unknown;
+
+    for await (const item of ForumTable.expensiveScan(context, {
+        segmentIndex,
+        totalSegmentCount,
         filter: [
             {partitionType: "Channel", sortRangeType: "Attributes"},
             {partitionType: "Post", sortRangeType: "Attributes"},
-            {partitionType: "Post", sortRangeType: "Comments"},
         ],
     })) {
-        if (item.partitionType === "Channel") {
-            if (item.sortRangeType !== "Attributes") continue;
-            yield {type: "Channel", spaceId: item.spaceId, channelId: item.channelId};
-        } else if (item.partitionType === "Post") {
-            if (item.sortRangeType === "Attributes") {
-                yield {type: "Post", spaceId: item.spaceId, postId: item.postId};
-            } else if (item.sortRangeType === "Comments") {
-                yield {
-                    type: "PostComment",
-                    getSpaceId: () =>
-                        getOrSetDefaultMapValue(spaceIdByPostId, item.postId, async () => {
-                            const postItem = await ForumTable.getPartialItem(
-                                context,
-                                {
-                                    partitionType: "Post",
-                                    sortRangeType: "Attributes",
-                                    postId: item.postId,
-                                },
-                                {attributes: ["spaceId"]},
-                            );
-                            return postItem.spaceId;
-                        }),
-                    postId: item.postId,
-                    commentIndex: item.commentIndex,
-                };
-            }
+        if (
+            (item.partitionType === "Channel" && item.sortRangeType === "Attributes") ||
+            (item.partitionType === "Post" && item.sortRangeType === "Attributes")
+        ) {
+            const mutex = mutexes[n++ % mutexes.length]!;
+
+            void mutex.withLock(async () => {
+                try {
+                    await DynamoTableSchema.executeTransaction(context, [
+                        ForumTable.transactionDeleteItem(item),
+                        ForumRealtimeTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheckAndWithoutEvent(
+                            item,
+                        ),
+                    ]);
+                } catch (error) {
+                    // eslint-disable-next-line no-console
+                    console.error("Migration transaction failed:", error);
+
+                    if (!hasError) {
+                        hasError = true;
+                        firstError = error;
+                    }
+
+                    if (!hasSystemError && isSystemError(error)) {
+                        hasSystemError = true;
+                        firstSystemError = error;
+                    }
+                }
+            });
         }
     }
+
+    await runAllPromises(mutexes.map(mutex => mutex.waitForUnlock()));
+
+    if (hasSystemError) throw firstSystemError;
+    if (hasError) throw firstError;
 }
 
 export async function seedTestChannels(
@@ -341,16 +612,20 @@ export async function seedTestChannels(
     assert(process.env.NODE_ENV !== "production");
     const {testChannelId, defaultSpaceId} = getDynamoSeedConstants();
 
-    const {wasCreated} = await ForumTable.createItemIfNoneExists(context, {
-        partitionType: "Channel",
-        sortRangeType: "Attributes",
-        channelId: testChannelId,
-        spaceId: defaultSpaceId,
-        createdTime: new Date(),
-        creatorId: null,
-        name: "Test",
-        description: emptyMessageContent,
-    });
+    // We're ok not sending a realtime event when seeding.
+    const {wasCreated} = await ForumRealtimeTable.dangerouslyCreateItemIfNoneExistsWithoutEvent(
+        context,
+        {
+            partitionType: "Channel",
+            sortRangeType: "Attributes",
+            channelId: testChannelId,
+            spaceId: defaultSpaceId,
+            createdTime: new Date(),
+            creatorId: null,
+            name: "Test",
+            description: emptyMessageContent,
+        },
+    );
 
     if (wasCreated) {
         context.jobs.send({
@@ -371,7 +646,7 @@ export async function seedTestChannels(
  * Create a new channel.
  */
 export async function createChannel(
-    context: ServerSessionActionContext,
+    context: Context<ServerSessionActionContextModules & {edge: EdgeServiceContextModuleBase}>,
     {spaceId, name}: {spaceId: SpaceId; name: string},
 ): Promise<{
     id: ChannelId;
@@ -390,7 +665,7 @@ export async function createChannel(
         description: emptyMessageContent,
     };
 
-    await ForumTable.createItem(context, channelItem);
+    await ForumRealtimeTable.createItem(context, channelItem);
 
     context.jobs.send({
         type: "IndexSearchEntity",
@@ -430,7 +705,7 @@ export async function getChannelIfPossible(
     context: ServerActionContext,
     channelId: ChannelId,
 ): Promise<Result<ChannelModel, PermissionDeniedError> | null> {
-    const channelItem = await ForumTable.getItemIfExists(context, {
+    const channelItem = await ForumRealtimeTable.getItemIfExists(context, {
         partitionType: "Channel",
         sortRangeType: "Attributes",
         channelId,
@@ -449,21 +724,30 @@ export async function getChannelIfPossible(
 
     return {
         ok: true,
-        value: new ChannelModel({
-            id: channelItem.channelId,
-            spaceId: channelItem.spaceId,
-            createdTime: channelItem.createdTime,
-            name: channelItem.name,
-            description: {
-                doc: channelItem.description,
-                references: await getContentReferencesForNode(
-                    context,
-                    channelItem.spaceId,
-                    channelItem.description,
-                ),
-            },
-        }),
+        value: await createChannelModelFromItem(context, channelItem),
     };
+}
+
+async function createChannelModelFromItem(
+    context: ServerActionContext,
+    item: {
+        readonly channelId: ChannelId;
+        readonly spaceId: SpaceId;
+        readonly createdTime: Date;
+        readonly name: string;
+        readonly description: MessageContent;
+    },
+): Promise<ChannelModel> {
+    return new ChannelModel({
+        id: item.channelId,
+        spaceId: item.spaceId,
+        createdTime: item.createdTime,
+        name: item.name,
+        description: {
+            doc: item.description,
+            references: await getContentReferencesForNode(context, item.spaceId, item.description),
+        },
+    });
 }
 
 /**
@@ -500,7 +784,7 @@ export function getChannelPreviewIfExists(
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<ChannelPreviewModel | null> {
     const get = async () => {
-        const channelItem = await ForumTable.getPartialItemIfExists(
+        const channelItem = await ForumRealtimeTable.getPartialItemIfExists(
             context,
             {
                 partitionType: "Channel",
@@ -563,7 +847,7 @@ export async function getChannelNameAndDescriptionContent(
     createdTime: Date;
     creatorId: AccountId | null;
 }> {
-    const channelItem = await ForumTable.getItem(
+    const channelItem = await ForumRealtimeTable.getItem(
         context,
         {
             partitionType: "Channel",
@@ -614,7 +898,7 @@ export async function authorizeChannelAccess(
  * Updates the name of the channel.
  */
 export async function updateChannelName(
-    context: ServerActionContext,
+    context: Context<ServerActionContextModules & {edge: EdgeServiceContextModuleBase}>,
     {
         channelId,
         name,
@@ -631,7 +915,7 @@ export async function updateChannelName(
 
     let spaceId: SpaceId | null = null;
 
-    await ForumTable.updateItem(
+    await ForumRealtimeTable.updateItem(
         context,
         {partitionType: "Channel", sortRangeType: "Attributes", channelId},
         async channelItem => {
@@ -663,7 +947,7 @@ export async function updateChannelName(
  * Updates the description of the channel.
  */
 export async function updateChannelDescription(
-    context: ServerActionContext,
+    context: Context<ServerActionContextModules & {edge: EdgeServiceContextModuleBase}>,
     {
         channelId,
         description,
@@ -674,7 +958,7 @@ export async function updateChannelDescription(
 ) {
     let spaceId: SpaceId | null = null;
 
-    await ForumTable.updateItem(
+    await ForumRealtimeTable.updateItem(
         context,
         {partitionType: "Channel", sortRangeType: "Attributes", channelId},
         async channelItem => {
@@ -703,72 +987,50 @@ export async function updateChannelDescription(
 }
 
 /**
- * A cursor pointing to a position in a channel's posts for use in pagination.
- * Needs to contain the `postId` on the off chance that two posts have the same
- * created time.
- */
-export type ChannelPostsCursor = {
-    readonly createdTime: Date;
-    readonly postId: PostId;
-};
-
-/**
  * Get the latest posts in a channel in reverse chronological order. The newest
  * post will be the first in the array.
  */
 export async function getChannelPosts(
-    context: ServerActionContext,
+    context: Context<ServerActionContextModules & {edge: EdgeServiceContextModuleBase}>,
     {
         channelId,
         limit,
-        afterCursor,
+        beforeCursor,
     }: {
         channelId: ChannelId;
         limit: number;
-        afterCursor?: ChannelPostsCursor;
+        beforeCursor: DynamoIndexCursor | null;
     },
-): Promise<{
-    hasMorePosts: boolean;
-    posts: ReadonlyArray<PostModel>;
-}> {
-    const channelPromise = getChannelPreview(context, channelId);
-
-    const [, queriedPosts] = await runAllPromises([
-        channelPromise,
-        parallelMapAsyncIterableToArray(
-            ChannelPostsIndex.query(context, {
-                partitionKey: {channelId},
-                endSortKey: afterCursor ? afterCursor : undefined,
-                isEndSortKeyExclusive: true,
-                // Get one more post above the limit to determine if there are more posts. We
-                // will throw the extra post away from the result set.
-                limit: limit + 1,
-                descending: true,
-            }),
-            async (item, index) => {
-                if (index >= limit) return null;
-
-                const postItem = await ForumTable.getItemIfExists(context, {
-                    partitionType: "Post",
-                    sortRangeType: "Attributes",
-                    postId: item.postId,
-                });
-
-                // A post in the index may have been deleted.
-                if (!postItem) return null;
-
-                return createPostModelFromItem(context, channelPromise, postItem);
-            },
-        ),
+): Promise<DynamoGeneralRealtimeIndexQueryResult<PostModel>> {
+    const [, result] = await runAllPromises([
+        authorizeChannelAccess(context, channelId),
+        ChannelPostsIndex.realtimeQuery(context, {
+            partitionKey: {channelId},
+            limit,
+            paginate: {type: "FromEnd", beforeCursor},
+        }),
     ]);
 
-    const hasMorePosts = queriedPosts.length > limit;
-    const posts = queriedPosts.slice(0, limit).filter(isNonNullable);
+    return result;
+}
 
-    return {
-        hasMorePosts,
-        posts,
-    };
+/**
+ * Backfill any realtime updates to catch up our client after it's been
+ * disconnected from realtime.
+ */
+export async function backfillChannelPosts(
+    context: Context<ServerSessionActionContextModules & {edge: EdgeServiceContextModuleBase}>,
+    {channelId, readTime}: {channelId: ChannelId; readTime: Date},
+): Promise<DynamoGeneralRealtimeBackfillResult<PostModel>> {
+    const [, result] = await runAllPromises([
+        authorizeChannelAccess(context, channelId),
+        ChannelPostsIndex.backfillRealtimeQuery(context, {
+            partitionKey: {channelId},
+            readTime,
+        }),
+    ]);
+
+    return result;
 }
 
 /**
@@ -777,6 +1039,7 @@ export async function getChannelPosts(
 export async function createPost(
     context: Context<
         ServerSessionActionContextModules & {
+            edge: EdgeServiceContextModuleBase;
             notifications: NotificationsContextModuleBase;
         }
     >,
@@ -811,7 +1074,7 @@ export async function createPost(
         },
     };
 
-    await ForumTable.createItem(context, postItem);
+    await ForumRealtimeTable.createItem(context, postItem);
 
     const mentionedAccountIds = getMentionedAccountIdsInContent(content);
 
@@ -884,7 +1147,7 @@ export async function createPost(
  * Gets the post with the provided `PostId`.
  */
 export async function getPost(context: ServerActionContext, id: PostId): Promise<PostModel> {
-    const postItem = await ForumTable.getItem(context, {
+    const postItem = await ForumRealtimeTable.getItem(context, {
         partitionType: "Post",
         sortRangeType: "Attributes",
         postId: id,
@@ -907,7 +1170,7 @@ export async function getPostContentAndChannel(
     content: PostContent;
     channel: ChannelPreviewModel;
 }> {
-    const postItem = await ForumTable.getItem(
+    const postItem = await ForumRealtimeTable.getItem(
         context,
         {
             partitionType: "Post",
@@ -930,7 +1193,19 @@ export async function getPostContentAndChannel(
 async function createPostModelFromItem(
     context: ServerActionContext,
     channelPromise: MaybePromise<ChannelPreviewModel>,
-    item: PostAttributesItem,
+    item: {
+        readonly postId: PostId;
+        readonly spaceId: SpaceId;
+        readonly createdTime: Date;
+        readonly channelId: ChannelId;
+        readonly authorId: AccountId;
+        readonly content: PostContent;
+        readonly contentUpdatedTime: Date | null;
+        readonly commentsSummary: {
+            readonly commentCountByAuthorId: ReadonlyMap<AccountId, number>;
+            readonly lastChangeTime: Date | null;
+        };
+    },
 ): Promise<PostModel> {
     const [channel, author, previewCommentAuthors, contentReferences] = await runAllPromises([
         channelPromise,
@@ -977,7 +1252,7 @@ async function createPostModelFromItem(
  * the post.
  */
 export async function getPostAuthorAndChannelPreview(context: ServerActionContext, postId: PostId) {
-    const postItem = await ForumTable.getPartialItem(
+    const postItem = await ForumRealtimeTable.getPartialItem(
         context,
         {
             partitionType: "Post",
@@ -1008,7 +1283,7 @@ export async function getPostNotificationSubscribers(
     accountIds: ReadonlySet<AccountId | ContentMentionAccountId>;
     postCreatedTime: Date;
 }> {
-    const postItem = await ForumTable.getPartialItem(
+    const postItem = await ForumRealtimeTable.getPartialItem(
         context,
         {
             partitionType: "Post",
@@ -1039,13 +1314,13 @@ export async function getPostNotificationSubscribers(
  * Update the contents of a post if you are the post's author.
  */
 export async function updatePostContent(
-    context: ServerSessionActionContext,
+    context: Context<ServerSessionActionContextModules & {edge: EdgeServiceContextModuleBase}>,
     {postId, content}: {postId: PostId; content: PostContent},
 ): Promise<{contentUpdatedTime: Date}> {
     let spaceId: SpaceId | null = null;
     let contentUpdatedTime: Date | null = null;
 
-    await ForumTable.updateItem(
+    await ForumRealtimeTable.updateItem(
         context,
         {
             partitionType: "Post",
@@ -1107,7 +1382,7 @@ export async function getPostCommentAuthors(
     context: ServerActionContext,
     {postId, limit}: {postId: PostId; limit: number},
 ): Promise<Array<AccountModel>> {
-    const postItem = await ForumTable.getPartialItemIfExists(
+    const postItem = await ForumRealtimeTable.getPartialItemIfExists(
         context,
         {
             partitionType: "Post",
@@ -1145,7 +1420,7 @@ export async function authorizePostAccess(
     context: ServerActionContext,
     id: PostId,
 ): Promise<{spaceId: SpaceId}> {
-    let postItem = await ForumTable.getPartialItemIfExists(
+    let postItem = await ForumRealtimeTable.getPartialItemIfExists(
         context,
         {
             partitionType: "Post",
@@ -1158,7 +1433,7 @@ export async function authorizePostAccess(
     );
 
     if (!postItem) {
-        postItem = await ForumTable.getPartialItemIfExists(
+        postItem = await ForumRealtimeTable.getPartialItemIfExists(
             context,
             {
                 partitionType: "Post",
@@ -1204,7 +1479,7 @@ export async function createPostComment(
     return context.dynamo.retryTransaction(async context => {
         const [postItem] = await runAllPromiseThunks(
             async () => {
-                const postItem = await ForumTable.getPartialItemIfExists(
+                const postItem = await ForumRealtimeTable.getPartialItemIfExists(
                     context,
                     {
                         partitionType: "Post",
@@ -1272,7 +1547,10 @@ export async function createPostComment(
                     contentUpdatedTime: null,
                 },
             }),
-            ForumTable.transactionDirectlyUpdateItemAttribute(
+            // Ok for us to not tell the client about a comment summary update through our
+            // general realtime system. Instead, comment counts will be updated through the
+            // messaging realtime system.
+            ForumRealtimeTable.transactionDangerouslyDirectlyUpdateItemAttributeWithoutEvent(
                 {partitionType: "Post", sortRangeType: "Attributes", postId},
                 "commentsSummary",
                 {
@@ -1454,7 +1732,7 @@ export function updatePostCommentContent(
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [postItem, commentItem] = await runAllPromises([
-            ForumTable.getPartialItemIfExists(
+            ForumRealtimeTable.getPartialItemIfExists(
                 context,
                 {
                     partitionType: "Post",
@@ -1518,7 +1796,10 @@ export function updatePostCommentContent(
                     contentUpdatedTime,
                 },
             }),
-            ForumTable.transactionDirectlyUpdateItemAttribute(
+            // Ok for us to not tell the client about a comment summary update through our
+            // general realtime system. Instead, comment counts will be updated through the
+            // messaging realtime system.
+            ForumRealtimeTable.transactionDangerouslyDirectlyUpdateItemAttributeWithoutEvent(
                 {partitionType: "Post", sortRangeType: "Attributes", postId},
                 "commentsSummary",
                 {
@@ -1569,7 +1850,7 @@ export function deletePostComment(
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
         const [postItem, commentItem] = await runAllPromises([
-            ForumTable.getItemIfExists(context, {
+            ForumRealtimeTable.getItemIfExists(context, {
                 partitionType: "Post",
                 sortRangeType: "Attributes",
                 postId,
@@ -1618,7 +1899,10 @@ export function deletePostComment(
                 ...commentItem,
                 payload: {type: "Deleted", deletedTime},
             }),
-            ForumTable.transactionDirectlyUpdateItemAttribute(
+            // Ok for us to not tell the client about a comment summary update through our
+            // general realtime system. Instead, comment counts will be updated through the
+            // messaging realtime system.
+            ForumRealtimeTable.transactionDangerouslyDirectlyUpdateItemAttributeWithoutEvent(
                 {partitionType: "Post", sortRangeType: "Attributes", postId},
                 "commentsSummary",
                 {
@@ -1683,7 +1967,8 @@ export async function getPostAndInitialComments(
             postId,
         },
         startSortKey: {
-            sortRangeType: "Attributes",
+            sortRangeType: "Comments",
+            commentIndex: 0,
         },
         endSortKey: {
             sortRangeType: "Comments",
@@ -1693,57 +1978,31 @@ export async function getPostAndInitialComments(
         limit: commentLimit + 1,
     });
 
-    let state: {
-        spaceId: SpaceId;
-        postPromise: Promise<PostModel>;
-        commentPromises: Array<Promise<PostCommentModel>>;
-    } | null = null;
+    // Important that this comes after the query call since we want to load the
+    // query and post item in parallel.
+    const postItem = await ForumRealtimeTable.getItem(context, {
+        partitionType: "Post",
+        sortRangeType: "Attributes",
+        postId,
+    });
+
+    const commentPromises: Array<Promise<PostCommentModel>> = [];
 
     const commentIndexes = new Set<number>();
     const parentCommentIndexes = new Set<number>();
 
     for await (const item of queryIterable) {
-        switch (item.sortRangeType) {
-            case "Attributes": {
-                assert(state === null);
+        commentIndexes.add(item.commentIndex);
 
-                state = {
-                    spaceId: item.spaceId,
-                    postPromise: createPostModelFromItem(
-                        context,
-                        getChannelPreview(context, item.channelId),
-                        item,
-                    ),
-                    commentPromises: [],
-                };
-                break;
-            }
-            case "Comments": {
-                if (state === null)
-                    throw new DataLossError("Found post comment item but no post attributes item");
+        if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null)
+            parentCommentIndexes.add(item.payload.parentMessageIndex);
 
-                commentIndexes.add(item.commentIndex);
-
-                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null)
-                    parentCommentIndexes.add(item.payload.parentMessageIndex);
-
-                state.commentPromises.push(
-                    createPostCommentModelFromItem(context, state.spaceId, item),
-                );
-                break;
-            }
-            default:
-                throw exhaustive(item);
-        }
+        commentPromises.push(createPostCommentModelFromItem(context, postItem.spaceId, item));
     }
 
-    if (!state) throw new NotFoundError("Post not found");
-
-    const {spaceId} = state;
-
     const [post, comments, otherReferencedComments] = await runAllPromises([
-        state.postPromise,
-        runAllPromises(state.commentPromises),
+        createPostModelFromItem(context, getChannelPreview(context, postItem.channelId), postItem),
+        runAllPromises(commentPromises),
         runAllPromises(
             filterMapIterable(parentCommentIndexes, parentCommentIndex => {
                 if (commentIndexes.has(parentCommentIndex)) return null;
@@ -1757,7 +2016,7 @@ export async function getPostAndInitialComments(
                     });
                     if (!commentItem) throw new InternalError("Parent comment not found");
 
-                    return createPostCommentModelFromItem(context, spaceId, commentItem);
+                    return createPostCommentModelFromItem(context, postItem.spaceId, commentItem);
                 })();
             }),
         ),
@@ -1799,21 +2058,17 @@ export async function getPostCommentsFromStart(
     otherReferencedComments: Array<PostCommentModel>;
     lastCommentChangeTime: Date | null;
 }> {
-    const postItemPromise = (async () => {
-        const postItem = await ForumTable.getPartialItemIfExists(
-            context,
-            {
-                partitionType: "Post",
-                sortRangeType: "Attributes",
-                postId,
-            },
-            {
-                attributes: ["spaceId", "channelId", "commentsSummary"],
-            },
-        );
-        if (!postItem) throw new NotFoundError("Post not found");
-        return postItem;
-    })();
+    const postItemPromise = ForumRealtimeTable.getPartialItem(
+        context,
+        {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId,
+        },
+        {
+            attributes: ["spaceId", "channelId", "commentsSummary"],
+        },
+    );
 
     const [postItem, {comments, otherReferencedComments}] = await runAllPromises([
         postItemPromise,
@@ -1987,21 +2242,17 @@ export async function getPostCommentsFromEnd(
     otherReferencedComments: Array<PostCommentModel>;
     lastCommentChangeTime: Date | null;
 }> {
-    const postItemPromise = (async () => {
-        const postItem = await ForumTable.getPartialItemIfExists(
-            context,
-            {
-                partitionType: "Post",
-                sortRangeType: "Attributes",
-                postId,
-            },
-            {
-                attributes: ["spaceId", "channelId", "commentsSummary"],
-            },
-        );
-        if (!postItem) throw new NotFoundError("Post not found");
-        return postItem;
-    })();
+    const postItemPromise = ForumRealtimeTable.getPartialItem(
+        context,
+        {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId,
+        },
+        {
+            attributes: ["spaceId", "channelId", "commentsSummary"],
+        },
+    );
 
     const [postItem, {comments, otherReferencedComments}] = await runAllPromises([
         postItemPromise,
@@ -2198,21 +2449,17 @@ export async function backfillPostComments(
     newOtherReferencedComments: Array<PostCommentModel>;
     commentChangesResult: PostCommentChangesResult;
 }> {
-    const postItemPromise = (async () => {
-        const postItem = await ForumTable.getPartialItemIfExists(
-            context,
-            {
-                partitionType: "Post",
-                sortRangeType: "Attributes",
-                postId,
-            },
-            {
-                attributes: ["spaceId", "channelId", "createdTime", "commentsSummary"],
-            },
-        );
-        if (!postItem) throw new NotFoundError("Post not found");
-        return postItem;
-    })();
+    const postItemPromise = ForumRealtimeTable.getPartialItem(
+        context,
+        {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId,
+        },
+        {
+            attributes: ["spaceId", "channelId", "createdTime", "commentsSummary"],
+        },
+    );
 
     const [postItem, {comments, otherReferencedComments}, commentChangesResult] =
         await runAllPromises([

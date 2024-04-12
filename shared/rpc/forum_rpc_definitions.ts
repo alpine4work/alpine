@@ -1,5 +1,7 @@
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
+import {createDynamoGeneralRealtimeIndexQuerySchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -31,14 +33,10 @@ export const getChannelPosts = defineRpc({
     input: {
         channelId: Schema.id<ChannelId>(),
         limit: Schema.integer,
-        afterCursor: Schema.object({
-            createdTime: Schema.date,
-            postId: Schema.id<PostId>(),
-        }).optional(),
+        beforeCursor: DynamoIndexCursorSchema.nullable(),
     },
     output: {
-        hasMorePosts: Schema.boolean,
-        posts: Schema.array(PostModel.schema()),
+        postsResult: createDynamoGeneralRealtimeIndexQuerySchema(PostModel.schema()),
     },
 });
 
@@ -115,6 +113,16 @@ export const authorizePostAccess = defineRpc({
     name: "authorizePostAccess",
     input: {
         postId: Schema.id<PostId>(),
+    },
+    output: {
+        spaceId: Schema.id<SpaceId>(),
+    },
+});
+
+export const authorizeChannelAccess = defineRpc({
+    name: "authorizeChannelAccess",
+    input: {
+        channelId: Schema.id<ChannelId>(),
     },
     output: {
         spaceId: Schema.id<SpaceId>(),

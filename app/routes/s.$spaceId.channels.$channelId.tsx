@@ -8,6 +8,7 @@ import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtual
 import {getChannel} from "~/server/forum/data/forum_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {createDynamoGeneralRealtimeIndexQuerySchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -18,17 +19,14 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
     channel: ChannelModel.schema(),
-    channelPostsResult: Schema.object({
-        hasMorePosts: Schema.boolean,
-        posts: Schema.array(PostModel.schema()),
-    }),
+    postsResult: createDynamoGeneralRealtimeIndexQuerySchema(PostModel.schema()),
 });
 
 export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const channelId = Schema.id<ChannelId>().deserialize(params.channelId ?? null);
     const context = await unauthenticatedContext.actor.authenticate();
 
-    const [channel, channelPostsResult] = await runAllPromises([
+    const [channel, {postsResult}] = await runAllPromises([
         getChannel(context, channelId),
         getChannelPosts(context, {
             channelId,
@@ -36,6 +34,7 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
                 context.loader.getClientInfo(),
                 postContentViewMinHeight,
             ),
+            beforeCursor: null,
         }),
     ]);
 
@@ -43,7 +42,7 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
         context: {channelId},
     };
 
-    return jsonWithSchema(LoaderSchema, {channel, channelPostsResult}, {propagateEventData});
+    return jsonWithSchema(LoaderSchema, {channel, postsResult}, {propagateEventData});
 }
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {channel}}) => [
@@ -51,7 +50,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {channel}}) => [
 ]);
 
 export default function ChannelRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
-    const {channel, channelPostsResult} = useLoaderDataWithSchema(LoaderSchema);
+    const {channel, postsResult} = useLoaderDataWithSchema(LoaderSchema);
 
     useSearchAffinityViewInteraction(`Channel:${channel.id}`);
 
@@ -62,7 +61,7 @@ export default function ChannelRoute({withMobileLayout = false}: {withMobileLayo
                 key={channel.id}
                 withMobileLayout={withMobileLayout}
                 initialChannel={channel}
-                initialChannelPostsResult={channelPostsResult}
+                initialPostsResult={postsResult}
             />
         </Box>
     );

@@ -50,7 +50,7 @@ test("can broadcast realtime events", async () => {
     await fetchForTest(
         context.systemAction(space.id),
         session1.accountId,
-        new Request("http://localhost/send-inbox-realtime-event-transaction", {
+        new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
             method: "POST",
             headers: {
                 "content-type": "application/json",
@@ -68,7 +68,7 @@ test("can not broadcast realtime events as session", async () => {
         fetchForTest(
             context.action(session1),
             session1.accountId,
-            new Request("http://localhost/send-inbox-realtime-event-transaction", {
+            new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
                 method: "POST",
                 headers: {
                     "content-type": "application/json",
@@ -87,7 +87,7 @@ test("can not broadcast realtime events as wrong space", async () => {
         fetchForTest(
             context.systemAction(otherSpace.id),
             session1.accountId,
-            new Request("http://localhost/send-inbox-realtime-event-transaction", {
+            new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
                 method: "POST",
                 headers: {
                     "content-type": "application/json",
@@ -108,7 +108,7 @@ test("can not broadcast realtime events as session after initialization", async 
         fetchForTest(
             context.action(session1),
             session1.accountId,
-            new Request("http://localhost/send-inbox-realtime-event-transaction", {
+            new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
                 method: "POST",
                 headers: {
                     "content-type": "application/json",
@@ -129,7 +129,7 @@ test("can not broadcast realtime events as wrong space after initialization", as
         fetchForTest(
             context.systemAction(otherSpace.id),
             session1.accountId,
-            new Request("http://localhost/send-inbox-realtime-event-transaction", {
+            new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
                 method: "POST",
                 headers: {
                     "content-type": "application/json",
@@ -149,7 +149,7 @@ test("can not broadcast realtime events as wrong space multiple times after init
     await fetchForTest(
         context.systemAction(space.id),
         session1.accountId,
-        new Request("http://localhost/send-inbox-realtime-event-transaction", {
+        new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
             method: "POST",
             headers: {
                 "content-type": "application/json",
@@ -165,7 +165,7 @@ test("can not broadcast realtime events as wrong space multiple times after init
         fetchForTest(
             context.systemAction(otherSpace.id),
             session1.accountId,
-            new Request("http://localhost/send-inbox-realtime-event-transaction", {
+            new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
                 method: "POST",
                 headers: {
                     "content-type": "application/json",
@@ -182,7 +182,7 @@ test("can not broadcast realtime events as wrong space multiple times after init
         fetchForTest(
             context.systemAction(otherSpace.id),
             session1.accountId,
-            new Request("http://localhost/send-inbox-realtime-event-transaction", {
+            new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
                 method: "POST",
                 headers: {
                     "content-type": "application/json",
@@ -198,7 +198,7 @@ test("can not broadcast realtime events as wrong space multiple times after init
     await fetchForTest(
         context.systemAction(space.id),
         session1.accountId,
-        new Request("http://localhost/send-inbox-realtime-event-transaction", {
+        new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
             method: "POST",
             headers: {
                 "content-type": "application/json",
@@ -214,7 +214,7 @@ test("can not broadcast realtime events as wrong space multiple times after init
         fetchForTest(
             context.systemAction(otherSpace.id),
             session1.accountId,
-            new Request("http://localhost/send-inbox-realtime-event-transaction", {
+            new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
                 method: "POST",
                 headers: {
                     "content-type": "application/json",
@@ -230,7 +230,7 @@ test("can not broadcast realtime events as wrong space multiple times after init
     await fetchForTest(
         context.systemAction(space.id),
         session1.accountId,
-        new Request("http://localhost/send-inbox-realtime-event-transaction", {
+        new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
             method: "POST",
             headers: {
                 "content-type": "application/json",

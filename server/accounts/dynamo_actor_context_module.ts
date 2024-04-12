@@ -6,6 +6,7 @@ import {
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
+import {TokenPayload} from "~/server/tokens/token_payload.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -42,6 +43,12 @@ export type DynamoActorContextModule =
     | DynamoSystemActorContextModule;
 
 interface DynamoActorContextModuleBase extends ActorContextModuleBase {
+    /**
+     * Get the token payload for this actor so we can create a new token with the
+     * same authorization.
+     */
+    getTokenPayload(): TokenPayload;
+
     /**
      * Throws a `PermissionDeniedError` error if we are not a session actor.
      * Otherwise returns a context with the correct type for the `actor` module.
@@ -180,6 +187,14 @@ export class DynamoSessionActorContextModule
         return this._context as any;
     }
 
+    public getTokenPayload(): TokenPayload {
+        return {
+            type: "Session",
+            sessionId: this._session.id,
+            accountId: this._session.accountId,
+        };
+    }
+
     public authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
         this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: DynamoSessionActorContextModule}>> {
@@ -273,6 +288,13 @@ export class DynamoSystemActorContextModule
         this: DynamoUnknownActorContextModule<Modules> & DynamoSystemActorContextModule,
     ): Promise<Context<Replace<Modules, {actor: DynamoSystemActorContextModule}>>> {
         return this._context as any;
+    }
+
+    public getTokenPayload(): TokenPayload {
+        return {
+            type: "System",
+            spaceId: this._spaceId,
+        };
     }
 
     public authorizeSession<Modules extends {actor: ActorContextModuleBase}>(

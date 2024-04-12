@@ -1,10 +1,14 @@
 import {addDays, subDays, subMinutes} from "date-fns";
-import {ServerActionContextModules} from "~/server/context/server_action_context.js";
+import {
+    ServerActionContext,
+    ServerActionContextModules,
+} from "~/server/context/server_action_context.js";
+import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {
     DynamoTableSchema,
-    DynamoTableSchemaIndexConfig,
+    DynamoTableSchemaIndexConfigOptions,
     DynamoTableSchemaIndexKeyAttributesConfigBase,
     DynamoTableSchemaIndexKeyAttributesType,
     DynamoTableSchemaTypesBase,
@@ -12,7 +16,6 @@ import {
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {DynamoCondition} from "~/server/dynamo/core/internal/dynamo_condition.js";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/core/internal/types/dynamo_table_schema_types.js";
-import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {Context} from "~/shared/context/context.js";
 import {
     DynamoGeneralRealtimeBackfillResult,
@@ -25,7 +28,7 @@ import {
     DynamoItemKey,
     DynamoItemKeySchema,
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -35,27 +38,46 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {ObjectFromEntries} from "~/shared/helpers/types/object_from_entries.js";
 import {Schema, SchemaWithoutValidation} from "~/shared/schema/schema.js";
 
-type DynamoGeneralRealtimeTableSchemaContext = Context<
-    ServerActionContextModules & {
-        notifications: NotificationsContextModuleBase;
+export type DynamoGeneralRealtimeTableSchemaGetTypes<
+    Schema extends DynamoGeneralRealtimeTableSchema<any, any, any>,
+> = Schema extends DynamoGeneralRealtimeTableSchema<any, infer Types, any> ? Types : never;
+
+export type DynamoGeneralRealtimeTableItemKeyType<
+    Schema extends DynamoGeneralRealtimeTableSchema<any, any, any>,
+    PartitionType extends string,
+    SortRangeType extends string,
+> = MergeObjectIntersection<
+    DynamoGeneralRealtimeTableSchemaGetTypes<Schema>["ItemKey"] & {
+        readonly partitionType: PartitionType;
+        readonly sortRangeType: SortRangeType;
     }
 >;
 
-export type DynamoGeneralRealtimeTableSchemaGetTypes<
-    Schema extends DynamoGeneralRealtimeTableSchema<any, any>,
-> = Schema extends DynamoGeneralRealtimeTableSchema<infer Types, any> ? Types : never;
+export type DynamoGeneralRealtimeTableItemType<
+    Schema extends DynamoGeneralRealtimeTableSchema<any, any, any>,
+    PartitionType extends string,
+    SortRangeType extends string,
+> = MergeObjectIntersection<
+    DynamoGeneralRealtimeTableSchemaGetTypes<Schema>["Item"] & {
+        readonly partitionType: PartitionType;
+        readonly sortRangeType: SortRangeType;
+    }
+>;
 
 type DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<
+    ContextModules extends ServerActionContextModules,
     PartitionsConfig extends ReadonlyArray<DynamoTableSchemaTypes.Partition.ConfigBase>,
 > = ObjectFromEntries<{
     [Index in keyof PartitionsConfig]: [
         PartitionsConfig[Index]["name"],
         DynamoGeneralRealtimeTableSchemaSortRangeModelConfigType<
+            ContextModules,
             PartitionsConfig[Index],
             PartitionsConfig[Index]["sortRanges"]
         >,
@@ -63,6 +85,7 @@ type DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<
 }>;
 
 type DynamoGeneralRealtimeTableSchemaSortRangeModelConfigType<
+    ContextModules extends ServerActionContextModules,
     PartitionConfig extends DynamoTableSchemaTypes.Partition.ConfigBase,
     SortRangesConfig extends ReadonlyArray<DynamoTableSchemaTypes.SortRange.ConfigBase>,
 > = ObjectFromEntries<{
@@ -70,7 +93,7 @@ type DynamoGeneralRealtimeTableSchemaSortRangeModelConfigType<
         SortRangesConfig[Index]["name"],
         {
             build: (
-                context: DynamoGeneralRealtimeTableSchemaContext,
+                context: Context<ContextModules>,
                 item: DynamoTableSchemaTypes.ItemType<PartitionConfig, SortRangesConfig[Index]>,
             ) => Promise<unknown>;
         },
@@ -142,12 +165,27 @@ const dynamoGeneralRealtimePrivatePartitionConfig = {
  */
 const dynamoGeneralRealtimePrivatePartitionEventExpirationDays = 7;
 
-type DynamoGeneralRealtimeInternalEvent<Item, Model> = {
+/**
+ * The maximum number of minutes we expect DynamoDB to return stale data from
+ * an eventually consistent read.
+ *
+ * [DynamoDB says][1] reads are usually consistent "within one second or less".
+ * So three minutes should be more than a sufficient window.
+ *
+ * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html
+ */
+export const dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes = 3;
+
+type DynamoGeneralRealtimeInternalEvent<
+    ContextModules extends ServerActionContextModules,
+    Item,
+    Model,
+> = {
     readonly type: "PutItem";
     readonly item: Item;
     readonly key: DynamoItemKey;
     readonly version: number;
-    readonly getModel: (context: DynamoGeneralRealtimeTableSchemaContext) => Promise<Model>;
+    readonly getModel: (context: Context<ContextModules>) => Promise<Model>;
 };
 
 /**
@@ -242,18 +280,26 @@ type DynamoGeneralRealtimeInternalEvent<Item, Model> = {
 // - `addExpensiveFullIndex()` with items in different partitions
 // - Certain `DynamoKeyAttributeSchema`s which don't support binary encoding
 export class DynamoGeneralRealtimeTableSchema<
+    ContextModules extends ServerActionContextModules,
     Types extends DynamoTableSchemaTypesBase,
     ModelMap extends {[partitionType: string]: {[sortRangeType: string]: any}},
 > {
     private readonly _table: DynamoTableSchema<Types>;
     private readonly _models: DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<
+        ContextModules,
         DynamoTableSchemaTypes.ConfigBase["partitions"]
     >;
     private readonly _sendEventTransactionCallback: (
-        context: DynamoGeneralRealtimeTableSchemaContext,
+        context: Context<ContextModules>,
         readTime: Date,
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>,
     ) => Promise<void>;
+    private readonly _isTableRealtimeQueryDisabled: boolean;
+
+    private readonly _serializeRealtimeKeyByIndexNameByItemType = new Map<
+        string,
+        Map<string, (item: Types["Item"]) => string>
+    >();
 
     private readonly _serializeOpaqueCursorByIndexNameByItemType = new Map<
         string,
@@ -261,14 +307,19 @@ export class DynamoGeneralRealtimeTableSchema<
     >();
 
     public static new<
+        ContextModules extends ServerActionContextModules,
         const PartitionsConfig extends ReadonlyArray<DynamoTableSchemaTypes.Partition.ConfigBase>,
-        const ModelsConfig extends DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<PartitionsConfig>,
+        const ModelsConfig extends DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<
+            ContextModules,
+            PartitionsConfig
+        >,
     >({
         name,
         partitions,
         models,
         modelSchema,
         sendEventTransaction,
+        isTableRealtimeQueryDisabled = false,
     }: {
         name: string;
         partitions: PartitionsConfig;
@@ -305,13 +356,22 @@ export class DynamoGeneralRealtimeTableSchema<
          * allowed to see.
          */
         sendEventTransaction: (
-            context: DynamoGeneralRealtimeTableSchemaContext,
+            context: Context<ContextModules>,
             readTime: Date,
             eventTransaction: ReadonlyArray<
                 DynamoGeneralRealtimeEvent<DynamoGeneralRealtimeTableSchemaModelType<ModelsConfig>>
             >,
         ) => Promise<void>;
+
+        /**
+         * You may disable `table.realtimeQuery()` calls to make the table more
+         * efficient since we don't need to store realtime event history by table
+         * partitions. We'll only need to store realtime event history by index
+         * partitions.
+         */
+        isTableRealtimeQueryDisabled?: boolean;
     }): DynamoGeneralRealtimeTableSchema<
+        ContextModules,
         DynamoTableSchemaTypes.Types<{name: string; partitions: PartitionsConfig}>,
         DynamoGeneralRealtimeTableSchemaModelMapType<ModelsConfig>
     > {
@@ -330,6 +390,7 @@ export class DynamoGeneralRealtimeTableSchema<
             }),
             models,
             sendEventTransaction,
+            isTableRealtimeQueryDisabled,
         });
     }
 
@@ -337,24 +398,28 @@ export class DynamoGeneralRealtimeTableSchema<
         table,
         models,
         sendEventTransaction,
+        isTableRealtimeQueryDisabled,
     }: {
         table: DynamoTableSchema<Types>;
         models: DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<
+            ContextModules,
             DynamoTableSchemaTypes.ConfigBase["partitions"]
         >;
         sendEventTransaction: (
-            context: DynamoGeneralRealtimeTableSchemaContext,
+            context: Context<ContextModules>,
             readTime: Date,
             eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>,
         ) => Promise<void>;
+        isTableRealtimeQueryDisabled: boolean;
     }) {
         this._table = table;
         this._models = models;
         this._sendEventTransactionCallback = sendEventTransaction;
+        this._isTableRealtimeQueryDisabled = isTableRealtimeQueryDisabled;
     }
 
     private _buildModel<Item extends Types["Item"]>(
-        context: DynamoGeneralRealtimeTableSchemaContext,
+        context: Context<ContextModules>,
         item: Item,
     ): Promise<ModelMap[Item["partitionType"]][Item["sortRangeType"]]> {
         return this._models[item.partitionType]![item.sortRangeType]!.build(
@@ -378,84 +443,114 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     private _sendEventTransaction(
-        context: DynamoGeneralRealtimeTableSchemaContext,
+        context: Context<ContextModules>,
         readTime: Date,
         eventTransaction: ReadonlyArray<
-            DynamoGeneralRealtimeInternalEvent<Types["Item"], ModelMap[string][string]>
+            DynamoGeneralRealtimeInternalEvent<
+                ContextModules,
+                Types["Item"],
+                ModelMap[string][string]
+            >
         >,
     ): Promise<void> {
-        return context.tracer.withSpan("Send general realtime event transaction", async context => {
-            const [actualEventTransaction] = await runAllPromises([
-                runAllPromises(
-                    eventTransaction.map(async event => ({
-                        type: event.type,
-                        item: {
-                            key: event.key,
-                            version: event.version,
-                            model: await event.getModel(context),
-                        },
-                        cursorByIndexName: this._getCursorByIndexName(event.item),
-                    })),
-                ),
-                (async () => {
-                    const realtimeKeys = new Set<string>();
+        return context.tracer.withSpan(
+            "Send general realtime event transaction",
+            async _context => {
+                // Remove the `Replace` type to simplify things for TypeScript. `withSpan()`
+                // shouldn't change the type of the tracer module.
+                const context = _context as Context<ContextModules>;
 
-                    const dynamoEventTransaction = eventTransaction.map(
-                        (event): DynamoGeneralRealtimePrivatePartitionEvent => {
-                            // Add the realtime event transaction to every partition affected by the
-                            // transaction. That way we can search to find the transaction later using any
-                            // partition key implicated in the transaction.
-                            //
-                            // We use an opaque partition key to avoid conflicting characters in this
-                            // realtime item's partition key.
-                            realtimeKeys.add(
-                                this._table.serializeOpaqueItemPartitionKey(event.item),
-                            );
-
-                            return {
-                                type: "PutItem",
+                const [actualEventTransaction] = await runAllPromises([
+                    runAllPromises(
+                        eventTransaction.map(async event => ({
+                            type: event.type,
+                            item: {
                                 key: event.key,
                                 version: event.version,
-                            };
-                        },
-                    );
+                                model: await event.getModel(context),
+                            },
+                            cursorByIndexName: this._getCursorByIndexName(event.item),
+                        })),
+                    ),
+                    (async () => {
+                        const realtimeKeys = new Set<string>();
 
-                    const eventTime = new Date();
+                        const dynamoEventTransaction = eventTransaction.map(
+                            (event): DynamoGeneralRealtimePrivatePartitionEvent => {
+                                // Add the realtime event transaction to every partition affected by the
+                                // transaction. That way we can search to find the transaction later using any
+                                // partition key implicated in the transaction.
+                                //
+                                // We use an opaque partition key to avoid conflicting characters in this
+                                // realtime item's partition key.
+                                //
+                                // If `realtimeQuery()` is disabled then we won't need to backfill a realtime
+                                // query so we don't need to save event transactions under our table's
+                                // partition key.
+                                if (!this._isTableRealtimeQueryDisabled) {
+                                    realtimeKeys.add(
+                                        this._table.serializeOpaqueItemPartitionKey(event.item),
+                                    );
+                                }
 
-                    // Expire events after a couple days. If we are trying to backfill data from
-                    // longer ago then we'll need a full refresh.
-                    const expirationTime = addDays(
-                        eventTime,
-                        dynamoGeneralRealtimePrivatePartitionEventExpirationDays,
-                    );
+                                // Add the realtime event transaction to every index partition affected by the
+                                // transaction. So if the user queries using an index we'll be able to backfill
+                                // realtime updates for the query.
+                                const serializeRealtimeKeyByIndexName =
+                                    this._serializeRealtimeKeyByIndexNameByItemType.get(
+                                        `${event.item.partitionType}#${event.item.sortRangeType}`,
+                                    );
+                                if (serializeRealtimeKeyByIndexName) {
+                                    for (const serializeRealtimeKey of serializeRealtimeKeyByIndexName.values()) {
+                                        realtimeKeys.add(serializeRealtimeKey(event.item));
+                                    }
+                                }
 
-                    // Add the event transaction to every affected realtime key. When backfilling,
-                    // we only query events from realtime keys we care about. If a transaction
-                    // affected two realtime keys then it needs to be present in both to show up in a
-                    // backfill query.
-                    await runAllPromises(
-                        mapIterable(realtimeKeys, realtimeKey => {
-                            const item: DynamoGeneralRealtimePrivatePartitionItem = {
-                                partitionType: dynamoGeneralRealtimePrivatePartitionName,
-                                sortRangeType: "Events",
-                                realtimeKey,
-                                eventTime,
-                                expirationTime,
-                                eventTransaction: dynamoEventTransaction,
-                            };
-                            return this._table.createOrReplaceItem(context, item);
-                        }),
-                    );
-                })(),
-            ]);
+                                return {
+                                    type: "PutItem",
+                                    key: event.key,
+                                    version: event.version,
+                                };
+                            },
+                        );
 
-            // Wait to send our events to clients until we've confirmed our events have
-            // been written to DynamoDB.
-            //
-            // That way a strong consistency read of events in DynamoDB will give you all
-            // events sent before the start of the read.
-            await this._sendEventTransactionCallback(context, readTime, actualEventTransaction);
-        });
+                        const eventTime = new Date();
+
+                        // Expire events after a couple days. If we are trying to backfill data from
+                        // longer ago then we'll need a full refresh.
+                        const expirationTime = addDays(
+                            eventTime,
+                            dynamoGeneralRealtimePrivatePartitionEventExpirationDays,
+                        );
+
+                        // Add the event transaction to every affected realtime key. When backfilling,
+                        // we only query events from realtime keys we care about. If a transaction
+                        // affected two realtime keys then it needs to be present in both to show up in a
+                        // backfill query.
+                        await runAllPromises(
+                            mapIterable(realtimeKeys, realtimeKey => {
+                                const item: DynamoGeneralRealtimePrivatePartitionItem = {
+                                    partitionType: dynamoGeneralRealtimePrivatePartitionName,
+                                    sortRangeType: "Events",
+                                    realtimeKey,
+                                    eventTime,
+                                    expirationTime,
+                                    eventTransaction: dynamoEventTransaction,
+                                };
+                                return this._table.createOrReplaceItem(context, item);
+                            }),
+                        );
+                    })(),
+                ]);
+
+                // Wait to send our events to clients until we've confirmed our events have
+                // been written to DynamoDB.
+                //
+                // That way a strong consistency read of events in DynamoDB will give you all
+                // events sent before the start of the read.
+                await this._sendEventTransactionCallback(context, readTime, actualEventTransaction);
+            },
+        );
     }
 
     /**
@@ -467,7 +562,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * to correctly order events received out-of-order on the client.
      */
     public async createItem<Item extends Types["Item"]>(
-        context: DynamoGeneralRealtimeTableSchemaContext,
+        context: Context<ContextModules>,
         item: Item,
     ): Promise<{
         getRealtimeItem: () => Promise<
@@ -504,6 +599,28 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     /**
+     * Create an item in the database but only if an item with the same key does
+     * not already exist. If an item with the same key does exist then this will
+     * not do anything.
+     *
+     * Dangerous since we don't send a realtime event if this succeeds. Useful
+     * when seeding the database and we aren't in an action context.
+     */
+    public async dangerouslyCreateItemIfNoneExistsWithoutEvent<Item extends Types["Item"]>(
+        context: DynamoContext,
+        item: Item,
+    ): Promise<{
+        wasCreated: boolean;
+    }> {
+        assert(
+            item.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
+            "Can't access private realtime partition",
+        );
+
+        return this._table.createItemIfNoneExists(context, item);
+    }
+
+    /**
      * Update an item in the database based on its previous value.
      *
      * Uses [optimistic concurrency control][1] to make sure we don't clobber
@@ -521,7 +638,7 @@ export class DynamoGeneralRealtimeTableSchema<
     // future. See the TODO note on the top of our class for how we might implement
     // item deletion.
     public async updateItem<Key extends Types["ItemKey"]>(
-        context: DynamoGeneralRealtimeTableSchemaContext,
+        context: Context<ContextModules>,
         itemKey: Key,
         update: (
             item: MergeObjectIntersection<Types["Item"] & Key> | null,
@@ -584,7 +701,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * `updateItem()` which does it for you.
      */
     public async directlyUpdateItem<Item extends Types["Item"]>(
-        context: DynamoGeneralRealtimeTableSchemaContext,
+        context: Context<ContextModules>,
         item: Item,
     ): Promise<{
         getRealtimeItem: () => Promise<
@@ -630,17 +747,20 @@ export class DynamoGeneralRealtimeTableSchema<
      * `DynamoTableSchema`. But may also include non-realtime transaction entries
      * from `DynamoTableSchema`.
      */
-    public static async executeTransaction(
-        context: DynamoGeneralRealtimeTableSchemaContext,
-        entries: ReadonlyArray<DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry>,
+    public static async executeTransaction<ContextModules extends ServerActionContextModules>(
+        context: Context<ContextModules>,
+        entries: ReadonlyArray<
+            DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry<ContextModules>
+        >,
         options?: {clientRequestToken?: string},
     ): Promise<void> {
         const eventsBySchema = new Map<
             DynamoGeneralRealtimeTableSchema<
+                ContextModules,
                 DynamoTableSchemaTypesBase,
                 {[partitionType: string]: {[sortRangeType: string]: any}}
             >,
-            Array<DynamoGeneralRealtimeInternalEvent<any, any>>
+            Array<DynamoGeneralRealtimeInternalEvent<any, any, any>>
         >();
 
         // We backfill realtime updates to `readTime` so it should be before the data
@@ -683,7 +803,7 @@ export class DynamoGeneralRealtimeTableSchema<
      */
     public transactionCreateItem<Item extends Types["Item"]>(
         item: Item,
-    ): DynamoGeneralRealtimeTransactionEntry {
+    ): DynamoGeneralRealtimeTransactionEntry<ContextModules> {
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
             "Can't access private realtime partition",
@@ -714,7 +834,7 @@ export class DynamoGeneralRealtimeTableSchema<
      */
     public transactionDirectlyUpdateItem<Item extends Types["Item"]>(
         item: Item,
-    ): DynamoGeneralRealtimeTransactionEntry {
+    ): DynamoGeneralRealtimeTransactionEntry<ContextModules> {
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
             "Can't access private realtime partition",
@@ -767,10 +887,102 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     /**
+     * Create an item in the database as part of a transaction. In a transaction
+     * either all entries succeed or all entries fail.
+     *
+     * Under the hood this uses `DynamoTableSchema.transactionCreateOrReplaceItem()`
+     * or simply the `PutItem` DynamoDB transaction action which doesn't use read
+     * request units. This is cheaper than `transactionCreateItem()` but dangerous
+     * since if you replace an item that exists our realtime communication with the
+     * client will break! The client may think the old item that was replaced is
+     * actually the latest data since the new item resets the version to 0.
+     *
+     * You may use this to save cost if you have other mechanisms in place to make
+     * absolutely sure the item you're inserting does not currently exist.
+     */
+    public transactionDangerouslyCreateItemWithoutExistenceConditionCheck<
+        Item extends Types["Item"],
+    >(item: Item): DynamoGeneralRealtimeTransactionEntry<ContextModules> {
+        assert(
+            item.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
+            "Can't access private realtime partition",
+        );
+
+        return DynamoGeneralRealtimeTransactionEntry._new(
+            privateSymbol,
+            this._table.transactionCreateOrReplaceItem(item),
+            this,
+            {
+                type: "PutItem",
+                item,
+                key: this._table.serializeOpaqueItemKey(item),
+                version: item.updateLockVersion ?? 0,
+                getModel: context => this._buildModel(context, item),
+            },
+        );
+    }
+
+    /**
+     * Create an item in the database as part of a transaction. In a transaction
+     * either all entries succeed or all entries fail.
+     *
+     * See `transactionDangerouslyCreateItemWithoutExistenceConditionCheck()` for
+     * a warning on the dangers of skipping the existence check.
+     *
+     * We also won't send a realtime update event to clients! So a client won't
+     * even know an item was created. Because this method is very dangerous it's
+     * basically only useful for implementing database migrations.
+     */
+    public transactionDangerouslyCreateItemWithoutExistenceConditionCheckAndWithoutEvent<
+        Item extends Types["Item"],
+    >(item: Item): DynamoTransactionEntry {
+        assert(
+            item.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
+            "Can't access private realtime partition",
+        );
+
+        return this._table.transactionCreateOrReplaceItem(item);
+    }
+
+    /**
+     * Update a single attribute on the item with the specified key. The update is
+     * serialized with all other updates of this item with `updateLockVersion`.
+     *
+     * See `DynamoTableSchema.transactionDirectlyUpdateItemAttribute()` for more
+     * information.
+     *
+     * This method is dangerous for realtime tables because we can't send an update
+     * event! We can only send an update event when we have the full item at the
+     * time of the update. You should only use this method if you're confident it's
+     * ok if the property is not updated in realtime.
+     */
+    public transactionDangerouslyDirectlyUpdateItemAttributeWithoutEvent<
+        Key extends Types["ItemKey"],
+        Attribute extends DistributiveKeyOf<Types["Item"]> & string,
+    >(
+        key: Key,
+        attribute: Attribute,
+        attributeValue: (Types["Item"] & Key)[Attribute],
+        options: {updateLockVersion: number | undefined},
+    ): DynamoTransactionEntry {
+        assert(
+            key.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
+            "Can't access private realtime partition",
+        );
+
+        return this._table.transactionDirectlyUpdateItemAttribute(
+            key,
+            attribute,
+            attributeValue,
+            options,
+        );
+    }
+
+    /**
      * Get an item from the database and if it doesn't exist then return null.
      */
     public getItemIfExists<Key extends Types["ItemKey"]>(
-        context: DynamoGeneralRealtimeTableSchemaContext,
+        context: ServerActionContext,
         itemKey: Key,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
@@ -786,7 +998,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * Get an item from the database and if it doesn't exist then throw an error.
      */
     public getItem<Key extends Types["ItemKey"]>(
-        context: DynamoGeneralRealtimeTableSchemaContext,
+        context: DynamoContext,
         itemKey: Key,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key>> {
@@ -799,12 +1011,58 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     /**
+     * Gets a few attributes of a single item by its key from the database. Returns
+     * `null` if the item does not exist.
+     */
+    public getPartialItemIfExists<
+        Key extends Types["ItemKey"],
+        Attributes extends DistributiveKeyOf<Types["Item"]> & string,
+    >(
+        context: DynamoContext,
+        itemKey: Key,
+        options: {
+            attributes: Array<Attributes>;
+            consistency?: DynamoReadConsistency;
+        },
+    ): Promise<MergeObjectIntersection<Key & Pick<Types["Item"] & Key, Attributes>> | null> {
+        assert(
+            itemKey.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
+            "Can't access private realtime partition",
+        );
+
+        return this._table.getPartialItemIfExists(context, itemKey, options);
+    }
+
+    /**
+     * Gets a few attributes of a single item by its key from the database. Throws
+     * an error if the item doesn't exist.
+     */
+    public getPartialItem<
+        Key extends Types["ItemKey"],
+        Attributes extends DistributiveKeyOf<Types["Item"]> & string,
+    >(
+        context: DynamoContext,
+        itemKey: Key,
+        options: {
+            attributes: Array<Attributes>;
+            consistency?: DynamoReadConsistency;
+        },
+    ): Promise<MergeObjectIntersection<Key & Pick<Types["Item"] & Key, Attributes>>> {
+        assert(
+            itemKey.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
+            "Can't access private realtime partition",
+        );
+
+        return this._table.getPartialItem(context, itemKey, options);
+    }
+
+    /**
      * Get an item from the database and if it doesn't exist then return null. Also
      * returns all the auxillary information a client will need to maintain this
      * data in realtime.
      */
     public async getRealtimeItemIfExists<Key extends Types["ItemKey"]>(
-        context: DynamoGeneralRealtimeTableSchemaContext,
+        context: Context<ContextModules>,
         itemKey: Key,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<DynamoGeneralRealtimeItem<
@@ -831,7 +1089,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * this data in realtime.
      */
     public async getRealtimeItem<Key extends Types["ItemKey"]>(
-        context: DynamoGeneralRealtimeTableSchemaContext,
+        context: Context<ContextModules>,
         itemKey: Key,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<DynamoGeneralRealtimeItem<ModelMap[Key["partitionType"]][Key["sortRangeType"]]>> {
@@ -854,10 +1112,11 @@ export class DynamoGeneralRealtimeTableSchema<
      * collocates related data. Also returns all the auxillary information
      * necessary for a client to keep a query up-to-date in realtime.
      */
-    public async realtimeQuery(
-        context: DynamoGeneralRealtimeTableSchemaContext,
-        options: {},
-    ): Promise<never> {
+    public async realtimeQuery(context: ServerActionContext, options: {}): Promise<never> {
+        if (this._isTableRealtimeQueryDisabled) {
+            throw new InternalError("Realtime queries have been disabled");
+        }
+
         // TODO(calebmer): Leaving `realtimeQuery()` unimplemented for now since we
         // don't have any callers! We have callers for `realtimeQuery()` on indexes.
         // Once we have a caller of the main `realtimeQuery()` implement this method
@@ -867,6 +1126,30 @@ export class DynamoGeneralRealtimeTableSchema<
         // this abstraction than `realtimeQuery()` on an index (indexes are expensive!)
         // but without a test case I don't want to write potentially incorrect code.
         throw new UnimplementedError("Implement realtime query method");
+    }
+
+    /**
+     * Scans every item in the table. Since tables can get very large this function
+     * is expensive! Generally you should avoid it.
+     *
+     * Corresponds to the [`Scan`][1] command.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Scan.html
+     */
+    public async *expensiveScan(
+        context: DynamoContext,
+        options: {
+            limit?: number;
+            consistency?: DynamoReadConsistency;
+            segmentIndex?: number;
+            totalSegmentCount?: number;
+            filter?: Types["ItemType"] | Array<Types["ItemType"]>;
+        } = {},
+    ): AsyncIterableIterator<MergeObjectIntersection<Types["Item"]>> {
+        for await (const item of this._table.expensiveScan(context, options)) {
+            if (item.partitionType === dynamoGeneralRealtimePrivatePartitionName) continue;
+            yield item;
+        }
     }
 
     /**
@@ -881,6 +1164,11 @@ export class DynamoGeneralRealtimeTableSchema<
      *
      * Our realtime implementation shares the index name you provide here with the
      * client! Make sure this name doesn't contain any secrets.
+     *
+     * ## Tradeoffs
+     *
+     * Look at `addIndexWithQueryJoin()` and consider if it provides better
+     * performance characteristics for your use case.
      */
     public addExpensiveFullIndex<
         ItemTypes extends Types["ItemType"],
@@ -894,7 +1182,7 @@ export class DynamoGeneralRealtimeTableSchema<
         >,
     >(
         config: Omit<
-            DynamoTableSchemaIndexConfig<
+            DynamoTableSchemaIndexConfigOptions<
                 Types,
                 ItemTypes,
                 PartitionKeyAttributesConfig,
@@ -903,6 +1191,7 @@ export class DynamoGeneralRealtimeTableSchema<
             "includePrimaryKeyInSortKey"
         >,
     ): DynamoGeneralRealtimeTableSchemaIndex<
+        ContextModules,
         ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]],
         DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
         DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
@@ -932,7 +1221,7 @@ export class DynamoGeneralRealtimeTableSchema<
         const exclusivePartitionType =
             partitionTypes.size === 1 ? Array.from(partitionTypes)[0]! : null;
 
-        // We can reuse the primary partition key as our index's realtime key
+        // We can reuse the table partition key as our index's realtime key
         // and reduce the write capacity units we need when:
         //
         // - The index only serves data from a single partition
@@ -940,7 +1229,7 @@ export class DynamoGeneralRealtimeTableSchema<
         //
         // This means we can get the partition key from our index partition key plus
         // adding `partitionType: exclusivePartitionType`.
-        const canReusePrimaryPartitionKeyForRealtimeKey =
+        const canReuseTablePartitionKeyForRealtimeKey =
             exclusivePartitionType &&
             isDeepEqual(
                 Object.entries(
@@ -957,40 +1246,41 @@ export class DynamoGeneralRealtimeTableSchema<
                 ),
             );
 
-        // NOTE(calebmer, 2023-04-24): This is a temporary limitation. It shouldn't be
-        // hard to remove this limitation but we don't have any test cases for it so I
-        // don't want to write untested code. We should implement support for
-        // cross-partition indexes when it comes up.
-        //
-        // The reason we have this limitation is that currently we save realtime events
-        // to the database using the same partition key as the affected items in the
-        // event transaction. This way when we look for realtime updates to a
-        // `getModel()` or `query()` call we only need to search realtime events with a
-        // matching partition key.
-        //
-        // If we want to find realtime events for an index `query()` call then we need
-        // to search the database for events related to the index's partition key. So
-        // in addition to inserting realtime event transactions with the primary
-        // partition key of all affected items we also need to insert realtime event
-        // transactions with the index partition key of all affected indexes. If the
-        // index partition key happens to be the same as a partition primary key of
-        // some partition in the underlying table, then great! We don't need to double
-        // our realtime event storage for the index. This optimization is the only case
-        // we've implemented right now. To remove this limitation we need to implement
-        // writing realtime events to the database with the index's partition key when
-        // the index partition key differs from a primary partition key in the table.
-        if (!canReusePrimaryPartitionKeyForRealtimeKey) {
-            throw new UnimplementedError(
-                "Indexes that span across multiple partitions have not yet been implemented for DynamoDB realtime tables",
-            );
-        }
+        const serializeRealtimeKey = (
+            partitionKey: {
+                // Needed if we're reusing the table's partition key.
+                partitionType: ItemTypes["partitionType"];
+            } & DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
+        ) => {
+            return canReuseTablePartitionKeyForRealtimeKey
+                ? // If our index's partition key is the same as our table's partition key then
+                  // we can save some WCUs by writing all updates under the table's partition key
+                  // (which is used for `table.realtimeQuery()`).
+                  this._table.serializeOpaqueItemPartitionKey(partitionKey)
+                : // Index names are guaranteed to be unique so we can use them to prefix our
+                  // realtime key.
+                  `${config.name}:${Index.serializeOpaqueItemPartitionKey(partitionKey)}`;
+        };
 
         for (const {partitionType, sortRangeType} of config.itemTypes) {
             const itemType = `${partitionType}#${sortRangeType}`;
+
+            const serializeRealtimeKeyByIndexName = getOrSetDefaultMapValue(
+                this._serializeRealtimeKeyByIndexNameByItemType,
+                itemType,
+                () => new Map(),
+            );
+
             const serializeOpaqueCursorByIndexName = getOrSetDefaultMapValue(
                 this._serializeOpaqueCursorByIndexNameByItemType,
                 itemType,
                 () => new Map(),
+            );
+
+            assert(!serializeRealtimeKeyByIndexName.has(config.name));
+            serializeRealtimeKeyByIndexName.set(
+                config.name,
+                serializeRealtimeKey as (item: Types["Item"]) => string,
             );
 
             assert(!serializeOpaqueCursorByIndexName.has(config.name));
@@ -1125,15 +1415,310 @@ export class DynamoGeneralRealtimeTableSchema<
             },
 
             backfillRealtimeQuery: (context, {partitionKey, readTime}) => {
-                if (!canReusePrimaryPartitionKeyForRealtimeKey) {
-                    throw new UnimplementedError(
-                        "Indexes that span across multiple partitions have not yet been implemented for DynamoDB realtime tables",
-                    );
-                }
-
                 return this._backfillRealtimeQuery(context, {
                     indexName: config.name,
-                    realtimeKey: this._table.serializeOpaqueItemPartitionKey({
+                    realtimeKey: serializeRealtimeKey({
+                        partitionType: exclusivePartitionType,
+                        ...partitionKey,
+                    }),
+                    readTime,
+                });
+            },
+        };
+    }
+
+    /**
+     * Adds an index to the table. Indexes allow you to build different access
+     * patterns for your data.
+     *
+     * Index queries contain a cursor for every item. The lexicographic order of
+     * cursors is the same order as items in the index which allows the client to
+     * sort locally.
+     *
+     * Our realtime implementation shares the index name you provide here with the
+     * client! Make sure this name doesn't contain any secrets.
+     *
+     * ## Tradeoffs
+     *
+     * Unlike `addExpensiveFullIndex()` we don't replicate the full item to the
+     * index. Instead we only replicate the item key. However, at query time we
+     * still need the full item so we call `getItem()` to grab it. The tradeoff
+     * here is:
+     *
+     * - `addExpensiveFullIndex()` doubles our write costs and storage costs. Since
+     *   we need to replicate the full item to the index.
+     *
+     * - `addIndexWithQueryJoin()` increases our write costs and storage costs a
+     *   little (less than `addExpensiveFullIndex()`) but doubles our read costs.
+     *   Since we only replicate the key and at query time we load the full item.
+     *
+     * `addIndexWithQueryJoin()` is better for you if:
+     *
+     * 1. Your items are big. Then the write/storage savings of
+     *    `addIndexWithQueryJoin()` will be meaningful.
+     *
+     * 2. Queries are infrequent so they can afford to be slower.
+     *
+     * For example, forum posts use `addIndexWithQueryJoin()` because post content
+     * can get quite large and posts are mostly read through the home feed or inbox
+     * anyway (vs directly navigating to a channel which calls the query function).
+     */
+    public addIndexWithQueryJoin<
+        ItemTypes extends Types["ItemType"],
+        PartitionKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
+            Types,
+            ItemTypes
+        >,
+        SortKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
+            Types,
+            ItemTypes
+        >,
+    >(
+        config: Omit<
+            DynamoTableSchemaIndexConfigOptions<
+                Types,
+                ItemTypes,
+                PartitionKeyAttributesConfig,
+                SortKeyAttributesConfig
+            >,
+            "includePrimaryKeyInSortKey"
+        >,
+    ): DynamoGeneralRealtimeTableSchemaIndex<
+        ContextModules,
+        ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]],
+        DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
+        DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
+    > {
+        assert(
+            config.itemTypes.every(
+                itemType => itemType.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
+            ),
+            "Can't access private realtime partition",
+        );
+
+        const Index = this._table.addIndex<
+            ItemTypes,
+            PartitionKeyAttributesConfig,
+            SortKeyAttributesConfig
+        >({
+            ...config,
+            // For realtime tables, always include the primary key in the index sort key so
+            // that index keys are unique and we can correctly sort items in user-land.
+            includePrimaryKeyInSortKey: true,
+        });
+
+        const partitionTypes = new Set(config.itemTypes.map(itemType => itemType.partitionType));
+
+        // If there is only partition type, we call it the index's "exclusive"
+        // partition type.
+        const exclusivePartitionType =
+            partitionTypes.size === 1 ? Array.from(partitionTypes)[0]! : null;
+
+        // We can reuse the table partition key as our index's realtime key
+        // and reduce the write capacity units we need when:
+        //
+        // - The index only serves data from a single partition
+        // - The index's partition key matches that partition's partition key
+        //
+        // This means we can get the partition key from our index partition key plus
+        // adding `partitionType: exclusivePartitionType`.
+        const canReuseTablePartitionKeyForRealtimeKey =
+            exclusivePartitionType &&
+            isDeepEqual(
+                Object.entries(
+                    mapObjectValues(
+                        this._table.getPartitionKeyAttributes(exclusivePartitionType),
+                        attribute => attribute.description,
+                    ),
+                ),
+                Object.entries(
+                    mapObjectValues(
+                        Index.partitionKeyAttributes,
+                        attribute => attribute.description,
+                    ),
+                ),
+            );
+
+        const serializeRealtimeKey = (
+            partitionKey: {
+                // Needed if we're reusing the table's partition key.
+                partitionType: ItemTypes["partitionType"];
+            } & DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
+        ) => {
+            return canReuseTablePartitionKeyForRealtimeKey
+                ? // If our index's partition key is the same as our table's partition key then
+                  // we can save some WCUs by writing all updates under the table's partition key
+                  // (which is used for `table.realtimeQuery()`).
+                  this._table.serializeOpaqueItemPartitionKey(partitionKey)
+                : // Index names are guaranteed to be unique so we can use them to prefix our
+                  // realtime key.
+                  `${config.name}:${Index.serializeOpaqueItemPartitionKey(partitionKey)}`;
+        };
+
+        for (const {partitionType, sortRangeType} of config.itemTypes) {
+            const itemType = `${partitionType}#${sortRangeType}`;
+
+            const serializeRealtimeKeyByIndexName = getOrSetDefaultMapValue(
+                this._serializeRealtimeKeyByIndexNameByItemType,
+                itemType,
+                () => new Map(),
+            );
+
+            const serializeOpaqueCursorByIndexName = getOrSetDefaultMapValue(
+                this._serializeOpaqueCursorByIndexNameByItemType,
+                itemType,
+                () => new Map(),
+            );
+
+            assert(!serializeRealtimeKeyByIndexName.has(config.name));
+            serializeRealtimeKeyByIndexName.set(
+                config.name,
+                serializeRealtimeKey as (item: Types["Item"]) => string,
+            );
+
+            assert(!serializeOpaqueCursorByIndexName.has(config.name));
+            serializeOpaqueCursorByIndexName.set(
+                config.name,
+                Index.serializeOpaqueCursor as (item: Types["Item"]) => DynamoIndexCursor,
+            );
+        }
+
+        return {
+            partitionKeyAttributes: Index.partitionKeyAttributes,
+            sortKeyAttributes: Index.sortKeyAttributes,
+
+            realtimeQuery: async (
+                context,
+                {
+                    partitionKey,
+                    startSortKey,
+                    endSortKey,
+                    isStartSortKeyExclusive,
+                    isEndSortKeyExclusive,
+                    paginate = {type: "FromStart"},
+                    limit,
+                },
+            ): Promise<
+                DynamoGeneralRealtimeIndexQueryResult<
+                    ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]]
+                >
+            > => {
+                // We backfill realtime updates to `readTime` so it should be before the data
+                // is read from the database to avoid missing realtime updates.
+                const readTime = new Date();
+
+                const cursor =
+                    paginate.type === "FromStart" ? paginate.afterCursor : paginate.beforeCursor;
+
+                const items = await parallelMapAsyncIterableToArray(
+                    Index.query(context, {
+                        partitionKey,
+                        startSortKey,
+                        endSortKey,
+                        isStartSortKeyExclusive,
+                        isEndSortKeyExclusive,
+                        descending: paginate.type === "FromEnd",
+                        afterItemKey:
+                            typeof cursor === "string"
+                                ? Index.deserializeOpaqueCursor(partitionKey, cursor)
+                                : undefined,
+                        // Fetch one extra item so we can accurately say whether there are more items
+                        // at the beginning or end of the query.
+                        limit: typeof limit === "number" ? limit + 1 : limit,
+                    }),
+                    async (itemKey, index) => {
+                        // Don't build the model for an over-fetched item we use to determine if there
+                        // are more items in the query.
+                        if (typeof limit === "number" && index >= limit) return null;
+
+                        // This is the critical "join" operation referenced by the name
+                        // `addIndexWithQueryJoin()`. Basically everything else about this index
+                        // creation is the same as `addExpensiveFullIndex()`.
+                        const item = await this._table.getItem(context, itemKey);
+
+                        return {
+                            cursor: Index.serializeOpaqueCursor(item),
+                            key: this._table.serializeOpaqueItemKey(item),
+                            version: item.updateLockVersion ?? 0,
+                            model: await this._buildModel(context, item),
+                        };
+                    },
+                );
+
+                const startCursorBound = startSortKey
+                    ? Index.serializeOpaqueCursorBound(
+                          startSortKey,
+                          isStartSortKeyExclusive ? "StartExclusive" : "StartInclusive",
+                      )
+                    : null;
+
+                const endCursorBound = endSortKey
+                    ? Index.serializeOpaqueCursorBound(
+                          endSortKey,
+                          isEndSortKeyExclusive ? "EndExclusive" : "EndInclusive",
+                      )
+                    : null;
+
+                const hasMoreItems = typeof limit === "number" && items.length > limit;
+
+                // Remove any items we over-fetched to determine if there were items after the
+                // limit. (Should just be one.)
+                while (typeof limit === "number" && items.length > limit) {
+                    items.pop();
+                }
+
+                // When paginating from the end, we queried items in descending order. Reverse
+                // them to get them back to the proper order.
+                if (paginate.type === "FromEnd") {
+                    items.reverse();
+                }
+
+                // We should have removed all null items past our limit above.
+                const finalItems = items as ReadonlyArray<NonNullable<(typeof items)[number]>>;
+
+                // If we are not in a development or test environment, verify that cursors
+                // strings are orderable. This would create overhead in production.
+                if (process.env.NODE_ENV !== "production") {
+                    let lastCursor: DynamoIndexCursor | null = null;
+
+                    for (const item of finalItems) {
+                        if (lastCursor === null) {
+                            lastCursor = item.cursor;
+                        } else {
+                            assert(
+                                lastCursor < item.cursor,
+                                "Expected cursors to be lexicographically orderable",
+                            );
+                            lastCursor = item.cursor;
+                        }
+                    }
+                }
+
+                return {
+                    readTime,
+                    indexName: config.name,
+                    startCursorBound,
+                    endCursorBound,
+                    pageInfo:
+                        paginate.type === "FromStart"
+                            ? {
+                                  type: "FromStart",
+                                  afterCursor: paginate.afterCursor ?? null,
+                                  hasNextPage: hasMoreItems,
+                              }
+                            : {
+                                  type: "FromEnd",
+                                  beforeCursor: paginate.beforeCursor ?? null,
+                                  hasPreviousPage: hasMoreItems,
+                              },
+                    items: finalItems,
+                };
+            },
+
+            backfillRealtimeQuery: (context, {partitionKey, readTime}) => {
+                return this._backfillRealtimeQuery(context, {
+                    indexName: config.name,
+                    realtimeKey: serializeRealtimeKey({
                         partitionType: exclusivePartitionType,
                         ...partitionKey,
                     }),
@@ -1144,7 +1729,7 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     private async _backfillRealtimeQuery(
-        context: DynamoGeneralRealtimeTableSchemaContext,
+        context: Context<ContextModules>,
         {
             indexName,
             realtimeKey,
@@ -1164,7 +1749,10 @@ export class DynamoGeneralRealtimeTableSchema<
         // events before the read time.
         //
         // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html
-        readTime = subMinutes(readTime, 3);
+        readTime = subMinutes(
+            readTime,
+            dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes,
+        );
 
         // We have deleted events before this time to reduce our storage needs. That
         // means we can't backfill reads that ocurred before this time.
@@ -1289,7 +1877,12 @@ export class DynamoGeneralRealtimeTableSchema<
 /**
  * The type to use for accessing an index on our DynamoDB table.
  */
-export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey, IndexSortKey> {
+export interface DynamoGeneralRealtimeTableSchemaIndex<
+    ContextModules extends ServerActionContextModules,
+    Model,
+    IndexPartitionKey,
+    IndexSortKey,
+> {
     readonly partitionKeyAttributes: {
         readonly [Key in keyof IndexPartitionKey]: DynamoKeyAttributeSchema<IndexPartitionKey[Key]>;
     };
@@ -1302,7 +1895,7 @@ export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey,
      * Query the index.
      */
     realtimeQuery(
-        context: DynamoGeneralRealtimeTableSchemaContext,
+        context: Context<ContextModules>,
         options: {
             partitionKey: IndexPartitionKey;
             startSortKey?: IndexSortKey;
@@ -1329,7 +1922,7 @@ export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey,
      * when you connect to realtime after dispatching your query.
      */
     backfillRealtimeQuery(
-        context: DynamoGeneralRealtimeTableSchemaContext,
+        context: Context<ContextModules>,
         options: {partitionKey: IndexPartitionKey; readTime: Date},
     ): Promise<DynamoGeneralRealtimeBackfillResult<Model>>;
 }
@@ -1344,27 +1937,29 @@ const privateSymbol = Symbol("private");
  * Wrapper around a `DynamoTransactionEntry` that includes extra information we
  * need for updating a realtime table.
  */
-export class DynamoGeneralRealtimeTransactionEntry {
+export class DynamoGeneralRealtimeTransactionEntry<
+    ContextModules extends ServerActionContextModules,
+> {
     private readonly _entry: DynamoTransactionEntry;
-    private readonly _schema: DynamoGeneralRealtimeTableSchema<any, any>;
-    private readonly _event: DynamoGeneralRealtimeInternalEvent<unknown, unknown>;
+    private readonly _schema: DynamoGeneralRealtimeTableSchema<ContextModules, any, any>;
+    private readonly _event: DynamoGeneralRealtimeInternalEvent<ContextModules, unknown, unknown>;
 
     private constructor(
         entry: DynamoTransactionEntry,
-        schema: DynamoGeneralRealtimeTableSchema<any, any>,
-        event: DynamoGeneralRealtimeInternalEvent<unknown, unknown>,
+        schema: DynamoGeneralRealtimeTableSchema<ContextModules, any, any>,
+        event: DynamoGeneralRealtimeInternalEvent<ContextModules, unknown, unknown>,
     ) {
         this._entry = entry;
         this._schema = schema;
         this._event = event;
     }
 
-    public static _new(
+    public static _new<ContextModules extends ServerActionContextModules>(
         symbol: typeof privateSymbol,
         entry: DynamoTransactionEntry,
-        schema: DynamoGeneralRealtimeTableSchema<any, any>,
-        event: DynamoGeneralRealtimeInternalEvent<unknown, unknown>,
-    ): DynamoGeneralRealtimeTransactionEntry {
+        schema: DynamoGeneralRealtimeTableSchema<ContextModules, any, any>,
+        event: DynamoGeneralRealtimeInternalEvent<ContextModules, unknown, unknown>,
+    ): DynamoGeneralRealtimeTransactionEntry<ContextModules> {
         // `privateSymbol` is only accessible in this module so this assert makes sure
         // we don't call this method from outside of this module.
         assert(symbol === privateSymbol);

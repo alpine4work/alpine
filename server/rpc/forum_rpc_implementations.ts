@@ -1,5 +1,6 @@
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
+    authorizeChannelAccess,
     authorizePostAccess,
     backfillPostComments,
     createPost,
@@ -34,7 +35,8 @@ implementRpc(
 );
 
 implementRpc(definition.getChannelPosts, {visibility: ["AppClient"]}, async (context, input) => {
-    return getChannelPosts(context, input);
+    const postsResult = await getChannelPosts(context, input);
+    return {postsResult};
 });
 
 implementRpc(definition.createPost, {visibility: ["AppClient"]}, async (context, input) => {
@@ -76,6 +78,14 @@ implementRpc(
     {visibility: ["PostRealtimeService"]},
     async (context, input) => {
         return authorizePostAccess(context, input.postId);
+    },
+);
+
+implementRpc(
+    definition.authorizeChannelAccess,
+    {visibility: ["ChannelRealtimeService"]},
+    async (context, input) => {
+        return authorizeChannelAccess(context, input.channelId);
     },
 );
 

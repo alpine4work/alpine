@@ -8,32 +8,32 @@ import {
     WorkerProcessContextModules,
 } from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
-import {MyAccountConnection} from "~/server/notifications/my_account/my_account_connection.js";
-import {MyAccountDurableObjectAuthorizer} from "~/server/notifications/my_account/my_account_durable_object_authorizer.js";
+import {authorizeChannelAccessForDurableObject} from "~/server/forum/realtime/authorize_channel_access_for_durable_object.js";
+import {ChannelRealtimeConnection} from "~/server/forum/realtime/channel_realtime_connection.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
 import {
-    MyAccountBroadcastInboxRealtimeEventTransactionSchema,
-    MyAccountProtocol,
-} from "~/shared/notifications/my_account_protocol.js";
+    ChannelBroadcastRealtimeEventTransactionSchema,
+    ChannelRealtimeProtocol,
+} from "~/shared/forum/channel_realtime_protocol.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-type MyAccountDurableObjectRoute = "Main" | "BroadcastInboxRealtimeEventTransaction" | "NotFound";
+type ChannelRealtimeDurableObjectRoute = "Main" | "BroadcastRealtimeEventTransaction" | "NotFound";
 
-class MyAccountDurableObject {
-    public static readonly serviceName = "MyAccountService";
+class ChannelRealtimeDurableObject {
+    public static readonly serviceName = "ChannelRealtimeService";
 
     private readonly _processContext: WorkerProcessContext;
-    private readonly _accountId: AccountId;
-    private readonly _authorizer: MyAccountDurableObjectAuthorizer;
+    private readonly _spaceId: SpaceId;
+    private readonly _channelId: ChannelId;
 
     private readonly _webSocketServer: WebSocketServer<
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
-        typeof MyAccountProtocol,
-        MyAccountConnection
+        typeof ChannelRealtimeProtocol,
+        ChannelRealtimeConnection
     >;
 
     public static async initialize({
@@ -44,56 +44,54 @@ class MyAccountDurableObject {
         processContext: WorkerProcessContext;
         initializeActionContext: WorkerActionContext;
         idName: string;
-    }): Promise<MyAccountDurableObject> {
-        const accountId = Schema.id<AccountId>().deserialize(idName);
+    }): Promise<ChannelRealtimeDurableObject> {
+        const channelId = Schema.id<ChannelId>().deserialize(idName);
 
-        const authorizer = new MyAccountDurableObjectAuthorizer();
-        await authorizer.authorizeMyAccountAccess(initializeActionContext, accountId);
+        const {spaceId} = await authorizeChannelAccessForDurableObject(
+            initializeActionContext,
+            channelId,
+        );
 
-        return new MyAccountDurableObject({
+        return new ChannelRealtimeDurableObject({
             processContext,
-            accountId,
-            authorizer,
+            channelId,
+            spaceId,
         });
     }
 
     private constructor({
         processContext,
-        accountId,
-        authorizer,
+        spaceId,
+        channelId,
     }: {
         processContext: WorkerProcessContext;
-        accountId: AccountId;
-        authorizer: MyAccountDurableObjectAuthorizer;
+        spaceId: SpaceId;
+        channelId: ChannelId;
     }) {
-        // Propagate the `AccountId` to all logs for this durable object.
-        processContext = processContext.tracer.withPropagatedData({context: {accountId}});
+        // Propagate the channel id to all logs for this durable object.
+        processContext = processContext.tracer.withPropagatedData({context: {spaceId, channelId}});
 
         this._processContext = processContext;
-        this._accountId = accountId;
-        this._authorizer = authorizer;
+        this._spaceId = spaceId;
+        this._channelId = channelId;
 
         this._webSocketServer = new WebSocketServer<
             WorkerProcessContextModules,
             WorkerSessionActionContextModules,
-            typeof MyAccountProtocol,
-            MyAccountConnection
-        >(this._processContext, MyAccountProtocol, () => {
-            return new MyAccountConnection({
-                accountId: this._accountId,
-                authorizer: this._authorizer,
+            typeof ChannelRealtimeProtocol,
+            ChannelRealtimeConnection
+        >(this._processContext, ChannelRealtimeProtocol, () => {
+            return new ChannelRealtimeConnection({
+                channelId: this._channelId,
             });
         });
     }
 
-    public static parseRoute(url: URL): [string, MyAccountDurableObjectRoute] {
+    public static parseRoute(url: URL): [string, ChannelRealtimeDurableObjectRoute] {
         if (url.pathname === "/") return ["/", "Main"];
 
-        if (url.pathname === "/broadcast-inbox-realtime-event-transaction") {
-            return [
-                "/broadcast-inbox-realtime-event-transaction",
-                "BroadcastInboxRealtimeEventTransaction",
-            ];
+        if (url.pathname === "/broadcast-realtime-event-transaction") {
+            return ["/broadcast-realtime-event-transaction", "BroadcastRealtimeEventTransaction"];
         }
 
         return ["/*", "NotFound"];
@@ -102,18 +100,18 @@ class MyAccountDurableObject {
     public async fetch(
         context: WorkerActionContext,
         request: Request,
-        route: MyAccountDurableObjectRoute,
+        route: ChannelRealtimeDurableObjectRoute,
     ): Promise<Response> {
-        // Propagate the `AccountId` to all logs for this durable object.
+        // Propagate the channel id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
-            context: {accountId: this._accountId},
+            context: {spaceId: this._spaceId, channelId: this._channelId},
         });
 
         switch (route) {
             case "Main": {
                 return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
             }
-            case "BroadcastInboxRealtimeEventTransaction": {
+            case "BroadcastRealtimeEventTransaction": {
                 // Make sure a user can't POST from their browser to broadcast a realtime event
                 // transaction. A POST request from a browser would be from the `AppClient` or
                 // `EdgeService` service.
@@ -123,16 +121,14 @@ class MyAccountDurableObject {
                     );
                 }
 
-                await this._authorizer.authorizeMyAccountAccess(context, this._accountId);
-
                 const {readTime, eventTransaction} =
-                    MyAccountBroadcastInboxRealtimeEventTransactionSchema.deserialize(
+                    ChannelBroadcastRealtimeEventTransactionSchema.deserialize(
                         await request.json(),
                     );
 
                 // Forward the event transaction to all our connected clients...
                 this._webSocketServer.sendEventToAll(context, {
-                    type: "InboxRealtimeEventTransaction",
+                    type: "RealtimeEventTransaction",
                     readTime,
                     eventTransaction,
                 });
@@ -151,5 +147,5 @@ class MyAccountDurableObject {
     }
 }
 
-const MyAccountDurableObjectWrapper = createDurableObject(MyAccountDurableObject);
-export {MyAccountDurableObjectWrapper as MyAccountDurableObject};
+const ChannelRealtimeDurableObjectWrapper = createDurableObject(ChannelRealtimeDurableObject);
+export {ChannelRealtimeDurableObjectWrapper as ChannelRealtimeDurableObject};

@@ -3,6 +3,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "general_realtime",
     visibility = [
+        "//server/forum/data:__pkg__",
         "//server/notifications/data:__pkg__",
     ],
     deps = [

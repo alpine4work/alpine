@@ -6,6 +6,7 @@ const tokenEdgeServiceFamilyNames = [
     "EdgeService",
     "DocumentCollaborationService",
     "PostRealtimeService",
+    "ChannelRealtimeService",
     "ChatRealtimeService",
     "MyAccountService",
     "TaskNotesCollaborationService",

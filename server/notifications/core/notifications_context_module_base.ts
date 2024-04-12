@@ -11,9 +11,7 @@ export interface NotificationsContextModuleBase
     extends ContextModuleBase,
         ForkableContextModuleBase {
     /**
-     * Send a notification event to be processed asynchronously by our notification
-     * queue. Our notification queue guarantees at-least-once delivery and does
-     * not block request processing.
+     * Send a notification event to be processed asynchronously.
      */
     sendNotificationEvent(event: NotificationEvent): void;
 

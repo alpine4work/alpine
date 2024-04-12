@@ -47,6 +47,7 @@ import {
     DocumentModel,
 } from "~/shared/documents/document_model.js";
 import {
+    DynamoGeneralRealtimeBackfillResult,
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -754,8 +755,13 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             },
         },
     },
-    sendEventTransaction: (context, readTime, eventTransaction) =>
-        context.notifications.sendInboxRealtimeEventTransaction(readTime, eventTransaction),
+    sendEventTransaction: (
+        context: Context<
+            ServerActionContextModules & {notifications: NotificationsContextModuleBase}
+        >,
+        readTime,
+        eventTransaction,
+    ) => context.notifications.sendInboxRealtimeEventTransaction(readTime, eventTransaction),
 });
 
 const inboxEntryItemTypes = [
@@ -1036,7 +1042,7 @@ export async function backfillInboxEntries(
         ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
     >,
     {spaceId, readTime}: {spaceId: SpaceId; readTime: Date},
-) {
+): Promise<DynamoGeneralRealtimeBackfillResult<InboxEntryModel>> {
     await authorizeSpaceAccess(context, spaceId);
 
     return InboxEntriesIndex.backfillRealtimeQuery(context, {

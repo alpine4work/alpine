@@ -67,6 +67,7 @@ export type TracerServiceName =
 export type DurableObjectServiceName =
     | "DocumentCollaborationService"
     | "PostRealtimeService"
+    | "ChannelRealtimeService"
     | "ChatRealtimeService"
     | "MyAccountService"
     | "TaskNotesCollaborationService";

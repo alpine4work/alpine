@@ -1,7 +1,10 @@
+import {addMinutes} from "date-fns";
+import {dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {
+    backfillChannelPosts,
     createChannel,
     createPost,
     createPostComment,
@@ -18,6 +21,7 @@ import {
     updatePostContent,
 } from "~/server/forum/data/forum_table.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {
     PostContentProsemirrorSchema,
@@ -488,7 +492,11 @@ test("can not get the comment authors in another space", async () => {
 
 test("can not get channel posts for a channel that does not exist", async () => {
     await expect(
-        getChannelPosts(context.action(session1), {channelId: generateId(), limit: 100}),
+        getChannelPosts(context.action(session1), {
+            channelId: generateId(),
+            limit: 100,
+            beforeCursor: null,
+        }),
     ).rejects.toThrow(NotFoundError);
 });
 
@@ -499,7 +507,11 @@ test("can not get channel posts for a different space", async () => {
     });
 
     await expect(
-        getChannelPosts(context.action(otherSession), {channelId: channel.id, limit: 100}),
+        getChannelPosts(context.action(otherSession), {
+            channelId: channel.id,
+            limit: 100,
+            beforeCursor: null,
+        }),
     ).rejects.toThrow(PermissionDeniedError);
 });
 
@@ -525,7 +537,11 @@ test("can not get channel posts for a different space when there are a few posts
     });
 
     await expect(
-        getChannelPosts(context.action(otherSession), {channelId: channel.id, limit: 100}),
+        getChannelPosts(context.action(otherSession), {
+            channelId: channel.id,
+            limit: 100,
+            beforeCursor: null,
+        }),
     ).rejects.toThrow(PermissionDeniedError);
 });
 
@@ -536,10 +552,22 @@ test("can get channel posts when there are none", async () => {
     });
 
     await expect(
-        getChannelPosts(context.action(session1), {channelId: channel.id, limit: 100}),
+        getChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            limit: 100,
+            beforeCursor: null,
+        }),
     ).resolves.toEqual({
-        hasMorePosts: false,
-        posts: [],
+        indexName: "ChannelPosts",
+        readTime: expect.any(Date),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromEnd",
+            hasPreviousPage: false,
+            beforeCursor: null,
+        },
+        items: [],
     });
 });
 
@@ -555,27 +583,44 @@ test("can get the first few posts in a channel", async () => {
     });
 
     await expect(
-        getChannelPosts(context.action(session1), {channelId: channel.id, limit: 100}),
+        getChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            limit: 100,
+            beforeCursor: null,
+        }),
     ).resolves.toEqual({
-        hasMorePosts: false,
-        posts: [
+        indexName: "ChannelPosts",
+        readTime: expect.any(Date),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromEnd",
+            hasPreviousPage: false,
+            beforeCursor: null,
+        },
+        items: [
             {
-                id: post1.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post1.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session1.account,
+                    content: testContent1WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session1.account,
-                content: testContent1WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
         ],
     });
@@ -586,45 +631,67 @@ test("can get the first few posts in a channel", async () => {
     });
 
     await expect(
-        getChannelPosts(context.action(session1), {channelId: channel.id, limit: 100}),
+        getChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            limit: 100,
+            beforeCursor: null,
+        }),
     ).resolves.toEqual({
-        hasMorePosts: false,
-        posts: [
+        indexName: "ChannelPosts",
+        readTime: expect.any(Date),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromEnd",
+            hasPreviousPage: false,
+            beforeCursor: null,
+        },
+        items: [
             {
-                id: post2.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post1.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session1.account,
+                    content: testContent1WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session2.account,
-                content: testContent2WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post1.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post2.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session2.account,
+                    content: testContent2WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session1.account,
-                content: testContent1WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
         ],
     });
@@ -635,63 +702,90 @@ test("can get the first few posts in a channel", async () => {
     });
 
     await expect(
-        getChannelPosts(context.action(session1), {channelId: channel.id, limit: 100}),
+        getChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            limit: 100,
+            beforeCursor: null,
+        }),
     ).resolves.toEqual({
-        hasMorePosts: false,
-        posts: [
+        indexName: "ChannelPosts",
+        readTime: expect.any(Date),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromEnd",
+            hasPreviousPage: false,
+            beforeCursor: null,
+        },
+        items: [
             {
-                id: post3.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post1.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session1.account,
+                    content: testContent1WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session3.account,
-                content: testContent3WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post2.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post2.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session2.account,
+                    content: testContent2WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session2.account,
-                content: testContent2WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post1.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post3.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session3.account,
+                    content: testContent3WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session1.account,
-                content: testContent1WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
         ],
     });
@@ -728,340 +822,473 @@ test("can get the first few posts in a channel with limit and cursor", async () 
         content: testContent1,
     });
 
-    await expect(
-        getChannelPosts(context.action(session1), {channelId: channel.id, limit: 100}),
-    ).resolves.toEqual({
-        hasMorePosts: false,
-        posts: [
+    const channelPostsResult = await getChannelPosts(context.action(session1), {
+        channelId: channel.id,
+        limit: 100,
+        beforeCursor: null,
+    });
+
+    expect(channelPostsResult).toEqual({
+        indexName: "ChannelPosts",
+        readTime: expect.any(Date),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromEnd",
+            hasPreviousPage: false,
+            beforeCursor: null,
+        },
+        items: [
             {
-                id: post5.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post1.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session1.account,
+                    content: testContent1WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session2.account,
-                content: testContent1WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post4.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post2.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session2.account,
+                    content: testContent2WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session1.account,
-                content: testContent2WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post3.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post3.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session3.account,
+                    content: testContent3WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session3.account,
-                content: testContent3WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post2.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post4.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session1.account,
+                    content: testContent2WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session2.account,
-                content: testContent2WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post1.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post5.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session2.account,
+                    content: testContent1WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session1.account,
-                content: testContent1WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
         ],
     });
 
     await expect(
-        getChannelPosts(context.action(session1), {channelId: channel.id, limit: 3}),
+        getChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            limit: 3,
+            beforeCursor: null,
+        }),
     ).resolves.toEqual({
-        hasMorePosts: true,
-        posts: [
+        indexName: "ChannelPosts",
+        readTime: expect.any(Date),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromEnd",
+            hasPreviousPage: true,
+            beforeCursor: null,
+        },
+        items: [
             {
-                id: post5.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post3.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session3.account,
+                    content: testContent3WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session2.account,
-                content: testContent1WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post4.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post4.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session1.account,
+                    content: testContent2WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session1.account,
-                content: testContent2WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post3.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post5.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session2.account,
+                    content: testContent1WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session3.account,
-                content: testContent3WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
         ],
     });
 
     await expect(
-        getChannelPosts(context.action(session1), {channelId: channel.id, limit: 4}),
+        getChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            limit: 4,
+            beforeCursor: null,
+        }),
     ).resolves.toEqual({
-        hasMorePosts: true,
-        posts: [
+        indexName: "ChannelPosts",
+        readTime: expect.any(Date),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromEnd",
+            hasPreviousPage: true,
+            beforeCursor: null,
+        },
+        items: [
             {
-                id: post5.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post2.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session2.account,
+                    content: testContent2WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session2.account,
-                content: testContent1WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post4.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post3.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session3.account,
+                    content: testContent3WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session1.account,
-                content: testContent2WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post3.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post4.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session1.account,
+                    content: testContent2WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session3.account,
-                content: testContent3WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post2.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post5.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session2.account,
+                    content: testContent1WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session2.account,
-                content: testContent2WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
         ],
     });
 
     await expect(
-        getChannelPosts(context.action(session1), {channelId: channel.id, limit: 5}),
+        getChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            limit: 5,
+            beforeCursor: null,
+        }),
     ).resolves.toEqual({
-        hasMorePosts: false,
-        posts: [
+        indexName: "ChannelPosts",
+        readTime: expect.any(Date),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromEnd",
+            hasPreviousPage: false,
+            beforeCursor: null,
+        },
+        items: [
             {
-                id: post5.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post1.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session1.account,
+                    content: testContent1WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session2.account,
-                content: testContent1WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post4.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post2.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session2.account,
+                    content: testContent2WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session1.account,
-                content: testContent2WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post3.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post3.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session3.account,
+                    content: testContent3WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session3.account,
-                content: testContent3WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post2.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post4.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session1.account,
+                    content: testContent2WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session2.account,
-                content: testContent2WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post1.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post5.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session2.account,
+                    content: testContent1WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session1.account,
-                content: testContent1WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
         ],
     });
@@ -1070,64 +1297,87 @@ test("can get the first few posts in a channel with limit and cursor", async () 
         getChannelPosts(context.action(session1), {
             channelId: channel.id,
             limit: 100,
-            afterCursor: {createdTime: post4.createdTime, postId: post4.id},
+            beforeCursor: channelPostsResult.items[3]!.cursor,
         }),
     ).resolves.toEqual({
-        hasMorePosts: false,
-        posts: [
+        indexName: "ChannelPosts",
+        readTime: expect.any(Date),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromEnd",
+            hasPreviousPage: false,
+            beforeCursor: channelPostsResult.items[3]!.cursor,
+        },
+        items: [
             {
-                id: post3.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post1.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session1.account,
+                    content: testContent1WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session3.account,
-                content: testContent3WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post2.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post2.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session2.account,
+                    content: testContent2WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session2.account,
-                content: testContent2WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post1.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post3.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session3.account,
+                    content: testContent3WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session1.account,
-                content: testContent1WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
         ],
     });
@@ -1136,46 +1386,64 @@ test("can get the first few posts in a channel with limit and cursor", async () 
         getChannelPosts(context.action(session1), {
             channelId: channel.id,
             limit: 2,
-            afterCursor: {createdTime: post4.createdTime, postId: post4.id},
+            beforeCursor: channelPostsResult.items[3]!.cursor,
         }),
     ).resolves.toEqual({
-        hasMorePosts: true,
-        posts: [
+        indexName: "ChannelPosts",
+        readTime: expect.any(Date),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromEnd",
+            hasPreviousPage: true,
+            beforeCursor: channelPostsResult.items[3]!.cursor,
+        },
+        items: [
             {
-                id: post3.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post2.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session2.account,
+                    content: testContent2WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session3.account,
-                content: testContent3WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post2.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post3.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session3.account,
+                    content: testContent3WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session2.account,
-                content: testContent2WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
         ],
     });
@@ -1184,48 +1452,865 @@ test("can get the first few posts in a channel with limit and cursor", async () 
         getChannelPosts(context.action(session1), {
             channelId: channel.id,
             limit: 2,
-            afterCursor: {createdTime: post3.createdTime, postId: post3.id},
+            beforeCursor: channelPostsResult.items[2]!.cursor,
         }),
     ).resolves.toEqual({
-        hasMorePosts: false,
-        posts: [
+        indexName: "ChannelPosts",
+        readTime: expect.any(Date),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromEnd",
+            hasPreviousPage: false,
+            beforeCursor: channelPostsResult.items[2]!.cursor,
+        },
+        items: [
             {
-                id: post2.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post1.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session1.account,
+                    content: testContent1WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session2.account,
-                content: testContent2WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
             {
-                id: post1.id,
-                spaceId: space.id,
-                channel: {
-                    id: channel.id,
-                    createdTime: channel.createdTime,
-                    name: "Test",
+                cursor: expect.any(String),
+                key: expect.any(String),
+                version: 0,
+                model: {
+                    id: post2.id,
                     spaceId: space.id,
+                    channel: {
+                        id: channel.id,
+                        createdTime: channel.createdTime,
+                        name: "Test",
+                        spaceId: space.id,
+                    },
+                    createdTime: expect.any(Date),
+                    author: session2.account,
+                    content: testContent2WithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
                 },
-                createdTime: expect.any(Date),
-                author: session1.account,
-                content: testContent1WithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
             },
         ],
+    });
+});
+
+test("can backfill realtime updates in a channel", async () => {
+    const readTime1 = new Date();
+
+    const channel1 = await createChannel(context.action(session1), {
+        spaceId: space.id,
+        name: "Test 1",
+    });
+
+    const channel2 = await createChannel(context.action(session1), {
+        spaceId: space.id,
+        name: "Test 2",
+    });
+
+    const post1 = await createPost(context.action(session1), {
+        channelId: channel1.id,
+        content: testContent1,
+    });
+
+    const post2 = await createPost(context.action(session1), {
+        channelId: channel2.id,
+        content: testContent2,
+    });
+
+    const post3 = await createPost(context.action(session1), {
+        channelId: channel1.id,
+        content: testContent3,
+    });
+
+    const post4 = await createPost(context.action(session1), {
+        channelId: channel2.id,
+        content: testContent2,
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const readTime2 = addMinutes(
+        new Date(),
+        dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes,
+    );
+
+    const channel1PostsResult = await getChannelPosts(context.action(session1), {
+        channelId: channel1.id,
+        limit: 100,
+        beforeCursor: null,
+    });
+
+    const channel2PostsResult = await getChannelPosts(context.action(session1), {
+        channelId: channel2.id,
+        limit: 100,
+        beforeCursor: null,
+    });
+
+    await expect(
+        backfillChannelPosts(context.action(otherSession), {
+            channelId: channel1.id,
+            readTime: readTime1,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    const post1a = await getPost(context.action(session1), post1.id);
+    const post2a = await getPost(context.action(session1), post2.id);
+    const post3a = await getPost(context.action(session1), post3.id);
+    const post4a = await getPost(context.action(session1), post4.id);
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel1.id,
+            readTime: readTime1,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel1PostsResult.items[0]!.cursor],
+                ]),
+                item: {
+                    key: channel1PostsResult.items[0]!.key,
+                    version: 0,
+                    model: post1a,
+                },
+            },
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel1PostsResult.items[1]!.cursor],
+                ]),
+                item: {
+                    key: channel1PostsResult.items[1]!.key,
+                    version: 0,
+                    model: post3a,
+                },
+            },
+        ],
+    });
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel2.id,
+            readTime: readTime1,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel2PostsResult.items[0]!.cursor],
+                ]),
+                item: {
+                    key: channel2PostsResult.items[0]!.key,
+                    version: 0,
+                    model: post2a,
+                },
+            },
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel2PostsResult.items[1]!.cursor],
+                ]),
+                item: {
+                    key: channel2PostsResult.items[1]!.key,
+                    version: 0,
+                    model: post4a,
+                },
+            },
+        ],
+    });
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel1.id,
+            readTime: readTime2,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [],
+    });
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel2.id,
+            readTime: readTime2,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [],
+    });
+
+    await updatePostContent(context.action(session1), {
+        postId: post1.id,
+        content: createSimplePostContent("Updated test content 1"),
+    });
+
+    const post1b = await getPost(context.action(session1), post1.id);
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel1.id,
+            readTime: readTime1,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel1PostsResult.items[0]!.cursor],
+                ]),
+                item: {
+                    key: channel1PostsResult.items[0]!.key,
+                    version: 1,
+                    model: post1b,
+                },
+            },
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel1PostsResult.items[1]!.cursor],
+                ]),
+                item: {
+                    key: channel1PostsResult.items[1]!.key,
+                    version: 0,
+                    model: post3a,
+                },
+            },
+        ],
+    });
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel2.id,
+            readTime: readTime1,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel2PostsResult.items[0]!.cursor],
+                ]),
+                item: {
+                    key: channel2PostsResult.items[0]!.key,
+                    version: 0,
+                    model: post2a,
+                },
+            },
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel2PostsResult.items[1]!.cursor],
+                ]),
+                item: {
+                    key: channel2PostsResult.items[1]!.key,
+                    version: 0,
+                    model: post4a,
+                },
+            },
+        ],
+    });
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel1.id,
+            readTime: readTime2,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel1PostsResult.items[0]!.cursor],
+                ]),
+                item: {
+                    key: channel1PostsResult.items[0]!.key,
+                    version: 1,
+                    model: post1b,
+                },
+            },
+        ],
+    });
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel2.id,
+            readTime: readTime2,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [],
+    });
+
+    await updatePostContent(context.action(session1), {
+        postId: post4.id,
+        content: createSimplePostContent("Updated test content 2"),
+    });
+
+    const post4b = await getPost(context.action(session1), post4.id);
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel1.id,
+            readTime: readTime1,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel1PostsResult.items[0]!.cursor],
+                ]),
+                item: {
+                    key: channel1PostsResult.items[0]!.key,
+                    version: 1,
+                    model: post1b,
+                },
+            },
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel1PostsResult.items[1]!.cursor],
+                ]),
+                item: {
+                    key: channel1PostsResult.items[1]!.key,
+                    version: 0,
+                    model: post3a,
+                },
+            },
+        ],
+    });
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel2.id,
+            readTime: readTime1,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel2PostsResult.items[0]!.cursor],
+                ]),
+                item: {
+                    key: channel2PostsResult.items[0]!.key,
+                    version: 0,
+                    model: post2a,
+                },
+            },
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel2PostsResult.items[1]!.cursor],
+                ]),
+                item: {
+                    key: channel2PostsResult.items[1]!.key,
+                    version: 1,
+                    model: post4b,
+                },
+            },
+        ],
+    });
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel1.id,
+            readTime: readTime2,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel1PostsResult.items[0]!.cursor],
+                ]),
+                item: {
+                    key: channel1PostsResult.items[0]!.key,
+                    version: 1,
+                    model: post1b,
+                },
+            },
+        ],
+    });
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel2.id,
+            readTime: readTime2,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel2PostsResult.items[1]!.cursor],
+                ]),
+                item: {
+                    key: channel2PostsResult.items[1]!.key,
+                    version: 1,
+                    model: post4b,
+                },
+            },
+        ],
+    });
+
+    const post5 = await createPost(context.action(session1), {
+        channelId: channel1.id,
+        content: testContent1,
+    });
+
+    const post5a = await getPost(context.action(session1), post5.id);
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel1.id,
+            readTime: readTime1,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel1PostsResult.items[0]!.cursor],
+                ]),
+                item: {
+                    key: channel1PostsResult.items[0]!.key,
+                    version: 1,
+                    model: post1b,
+                },
+            },
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel1PostsResult.items[1]!.cursor],
+                ]),
+                item: {
+                    key: channel1PostsResult.items[1]!.key,
+                    version: 0,
+                    model: post3a,
+                },
+            },
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([["ChannelPosts", expect.any(String)]]),
+                item: {
+                    key: expect.any(String),
+                    version: 0,
+                    model: post5a,
+                },
+            },
+        ],
+    });
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel2.id,
+            readTime: readTime1,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel2PostsResult.items[0]!.cursor],
+                ]),
+                item: {
+                    key: channel2PostsResult.items[0]!.key,
+                    version: 0,
+                    model: post2a,
+                },
+            },
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel2PostsResult.items[1]!.cursor],
+                ]),
+                item: {
+                    key: channel2PostsResult.items[1]!.key,
+                    version: 1,
+                    model: post4b,
+                },
+            },
+        ],
+    });
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel1.id,
+            readTime: readTime2,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel1PostsResult.items[0]!.cursor],
+                ]),
+                item: {
+                    key: channel1PostsResult.items[0]!.key,
+                    version: 1,
+                    model: post1b,
+                },
+            },
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([["ChannelPosts", expect.any(String)]]),
+                item: {
+                    key: expect.any(String),
+                    version: 0,
+                    model: post5a,
+                },
+            },
+        ],
+    });
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel2.id,
+            readTime: readTime2,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([
+                    ["ChannelPosts", channel2PostsResult.items[1]!.cursor],
+                ]),
+                item: {
+                    key: channel2PostsResult.items[1]!.key,
+                    version: 1,
+                    model: post4b,
+                },
+            },
+        ],
+    });
+});
+
+test("won't backfill realtime updates when comment count changes", async () => {
+    const readTime1 = new Date();
+
+    const channel = await createChannel(context.action(session1), {
+        spaceId: space.id,
+        name: "Test 1",
+    });
+
+    const post = await createPost(context.action(session1), {
+        channelId: channel.id,
+        content: testContent1,
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const readTime2 = addMinutes(new Date(), 3);
+
+    const post1a = await getPost(context.action(session1), post.id);
+
+    expect(post1a.commentCount).toEqual(0);
+    expect(post1a.lastCommentChangeTime).toEqual(null);
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            readTime: readTime1,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([["ChannelPosts", expect.any(String)]]),
+                item: {
+                    key: expect.any(String),
+                    version: 0,
+                    model: post1a,
+                },
+            },
+        ],
+    });
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            readTime: readTime2,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [],
+    });
+
+    const comment1 = await createPostComment(context.action(session1), {
+        postId: post.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("comment1"),
+    });
+
+    const post1b = await getPost(context.action(session1), post.id);
+
+    expect(post1a.commentCount).toEqual(0);
+    expect(post1a.lastCommentChangeTime).toEqual(null);
+    expect(post1b.commentCount).toEqual(1);
+    expect(post1b.lastCommentChangeTime).toEqual(null);
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            readTime: readTime1,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([["ChannelPosts", expect.any(String)]]),
+                item: {
+                    key: expect.any(String),
+                    version: 1,
+                    model: post1b,
+                },
+            },
+        ],
+    });
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            readTime: readTime2,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [],
+    });
+
+    const comment2 = await createPostComment(context.action(session1), {
+        postId: post.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("comment2"),
+    });
+
+    const post1c = await getPost(context.action(session1), post.id);
+
+    expect(post1a.commentCount).toEqual(0);
+    expect(post1a.lastCommentChangeTime).toEqual(null);
+    expect(post1c.commentCount).toEqual(2);
+    expect(post1c.lastCommentChangeTime).toEqual(null);
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            readTime: readTime2,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [],
+    });
+
+    const {contentUpdatedTime: comment2ContentUpdatedTime} = await updatePostCommentContent(
+        context.action(session1),
+        {
+            postId: post.id,
+            commentIndex: comment2.index,
+            content: createSimpleMessageContent("comment2 (updated)"),
+        },
+    );
+
+    const post1d = await getPost(context.action(session1), post.id);
+
+    expect(post1a.commentCount).toEqual(0);
+    expect(post1a.lastCommentChangeTime).toEqual(null);
+    expect(post1d.commentCount).toEqual(2);
+    expect(post1d.lastCommentChangeTime).toEqual(comment2ContentUpdatedTime);
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            readTime: readTime2,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [],
+    });
+
+    const {deletedTime: comment1DeletedTime} = await deletePostComment(context.action(session1), {
+        postId: post.id,
+        commentIndex: comment1.index,
+    });
+
+    const post1e = await getPost(context.action(session1), post.id);
+
+    expect(post1a.commentCount).toEqual(0);
+    expect(post1a.lastCommentChangeTime).toEqual(null);
+    expect(post1e.commentCount).toEqual(2);
+    expect(post1e.lastCommentChangeTime).toEqual(comment1DeletedTime);
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            readTime: readTime2,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [],
+    });
+
+    await createPostComment(context.action(session1), {
+        postId: post.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("comment3"),
+    });
+
+    const post1f = await getPost(context.action(session1), post.id);
+
+    expect(post1a.commentCount).toEqual(0);
+    expect(post1a.lastCommentChangeTime).toEqual(null);
+    expect(post1f.commentCount).toEqual(3);
+    expect(post1f.lastCommentChangeTime).toEqual(comment1DeletedTime);
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            readTime: readTime2,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [],
+    });
+
+    await updatePostContent(context.action(session1), {
+        postId: post.id,
+        content: createSimplePostContent("Updated test content"),
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const readTime3 = addMinutes(
+        new Date(),
+        dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes,
+    );
+
+    const post1g = await getPost(context.action(session1), post.id);
+
+    expect(post1a.commentCount).toEqual(0);
+    expect(post1a.lastCommentChangeTime).toEqual(null);
+    expect(post1g.commentCount).toEqual(3);
+    expect(post1g.lastCommentChangeTime).toEqual(comment1DeletedTime);
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            readTime: readTime2,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [
+            {
+                type: "PutItem",
+                cursorByIndexName: new Map([["ChannelPosts", expect.any(String)]]),
+                item: {
+                    key: expect.any(String),
+                    version: 6,
+                    model: post1g,
+                },
+            },
+        ],
+    });
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            readTime: readTime3,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [],
+    });
+
+    await createPostComment(context.action(session1), {
+        postId: post.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("comment4"),
+    });
+
+    const post1h = await getPost(context.action(session1), post.id);
+
+    expect(post1a.commentCount).toEqual(0);
+    expect(post1a.lastCommentChangeTime).toEqual(null);
+    expect(post1g.commentCount).toEqual(3);
+    expect(post1g.lastCommentChangeTime).toEqual(comment1DeletedTime);
+    expect(post1h.commentCount).toEqual(4);
+    expect(post1h.lastCommentChangeTime).toEqual(comment1DeletedTime);
+
+    expect(
+        await backfillChannelPosts(context.action(session1), {
+            channelId: channel.id,
+            readTime: readTime3,
+        }),
+    ).toEqual({
+        type: "Available",
+        readTime: expect.any(Date),
+        eventTransaction: [],
     });
 });
 

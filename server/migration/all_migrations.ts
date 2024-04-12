@@ -1,4 +1,5 @@
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
+import {runMoveForumChannelsAndPostsMigration} from "~/server/forum/data/forum_table.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     runIndexEverySearchEntityMigration,
@@ -14,4 +15,5 @@ export const allMigrations: {
 } = {
     IndexEverySearchEntity: runIndexEverySearchEntityMigration,
     IndexTaskAndTaskCollectionSearchEntities: runIndexTaskAndTaskCollectionSearchEntitiesMigration,
+    MoveForumChannelsAndPostsMigration: runMoveForumChannelsAndPostsMigration,
 };

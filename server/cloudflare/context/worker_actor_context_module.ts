@@ -4,6 +4,7 @@ import {
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
@@ -23,17 +24,18 @@ export async function createWorkerActorContextModule(
     tokenAgent: TokenAgent,
     token: string,
 ): Promise<WorkerActorContextModule> {
-    const {payload} = await tokenAgent.publicSide.verifyToken(token);
+    const {serviceName, payload} = await tokenAgent.publicSide.verifyToken(token);
 
     switch (payload.type) {
         case "Session": {
             return WorkerSessionActorContextModule.dangerouslyNew(
+                serviceName,
                 payload.sessionId,
                 payload.accountId,
             );
         }
         case "System": {
-            return WorkerSystemActorContextModule.dangerouslyNew(payload.spaceId);
+            return WorkerSystemActorContextModule.dangerouslyNew(serviceName, payload.spaceId);
         }
         default:
             throw exhaustive(payload);
@@ -75,8 +77,15 @@ export class WorkerSessionActorContextModule
     private readonly _sessionId: SessionId;
     private readonly _accountId: AccountId;
 
-    private constructor(sessionId: SessionId, accountId: AccountId) {
+    /**
+     * Name of the service which initiated the current action. If the browser
+     * initiated an action the service name is `AppClient`.
+     */
+    public readonly serviceName: TokenServiceName;
+
+    private constructor(serviceName: TokenServiceName, sessionId: SessionId, accountId: AccountId) {
         super();
+        this.serviceName = serviceName;
         this._sessionId = sessionId;
         this._accountId = accountId;
     }
@@ -85,8 +94,12 @@ export class WorkerSessionActorContextModule
      * Dangerous since if an attacker could call this they could impersonate any
      * account they have the `SessionId` for in our system!
      */
-    public static dangerouslyNew(sessionId: SessionId, accountId: AccountId) {
-        return new WorkerSessionActorContextModule(sessionId, accountId);
+    public static dangerouslyNew(
+        serviceName: TokenServiceName,
+        sessionId: SessionId,
+        accountId: AccountId,
+    ) {
+        return new WorkerSessionActorContextModule(serviceName, sessionId, accountId);
     }
 
     public getSessionId(): SessionId {
@@ -110,7 +123,11 @@ export class WorkerSessionActorContextModule
     }
 
     public fork() {
-        return new WorkerSessionActorContextModule(this._sessionId, this._accountId);
+        return new WorkerSessionActorContextModule(
+            this.serviceName,
+            this._sessionId,
+            this._accountId,
+        );
     }
 }
 
@@ -131,8 +148,15 @@ export class WorkerSystemActorContextModule
 
     private readonly _spaceId: SpaceId;
 
-    private constructor(spaceId: SpaceId) {
+    /**
+     * Name of the service which initiated the current action. If the browser
+     * initiated an action the service name is `AppClient`.
+     */
+    public readonly serviceName: TokenServiceName;
+
+    private constructor(serviceName: TokenServiceName, spaceId: SpaceId) {
         super();
+        this.serviceName = serviceName;
         this._spaceId = spaceId;
     }
 
@@ -140,8 +164,8 @@ export class WorkerSystemActorContextModule
      * Dangerous since if an attacker could call this they could could broad access
      * to any space in our system!
      */
-    public static dangerouslyNew(spaceId: SpaceId) {
-        return new WorkerSystemActorContextModule(spaceId);
+    public static dangerouslyNew(serviceName: TokenServiceName, spaceId: SpaceId) {
+        return new WorkerSystemActorContextModule(serviceName, spaceId);
     }
 
     public getSpaceId(): SpaceId {
@@ -161,6 +185,6 @@ export class WorkerSystemActorContextModule
     }
 
     public fork() {
-        return new WorkerSystemActorContextModule(this._spaceId);
+        return new WorkerSystemActorContextModule(this.serviceName, this._spaceId);
     }
 }

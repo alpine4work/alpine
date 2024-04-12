@@ -15,6 +15,10 @@ import {
     DynamoUnknownActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
 import {
+    EdgeServiceContextModuleBase,
+    NoopEdgeServiceContextModule,
+} from "~/server/context/edge_service_context_module.js";
+import {
     ServerSessionActionContextModules,
     ServerSystemActionContext,
     ServerSystemActionContextModules,
@@ -233,6 +237,7 @@ export function createTestContext({
                 ServerSystemActionContextModules,
                 Exclude<keyof ServerProcessContextModules, "tracer">
             > & {
+                edge: EdgeServiceContextModuleBase;
                 notifications: NotificationsContextModuleBase;
             },
             Value
@@ -241,6 +246,7 @@ export function createTestContext({
                 tracer: new TracerContextModule(context.tracer.getTracer()),
                 cache: context.cache.dangerouslyForkWithSharedCaches(),
                 dynamoBatchContext: new DynamoBatchContextModule(),
+                edge: new NoopEdgeServiceContextModule(),
                 notifications: createNotificationsContextModule(),
                 actor: DynamoSystemActorContextModule.dangerouslyNew(
                     context.actor.serviceName,
@@ -253,6 +259,7 @@ export function createTestContext({
 
     const createUnauthenticatedSessionContext = (): Context<
         ServerUnknownActionContextModules & {
+            edge: EdgeServiceContextModuleBase;
             notifications: NotificationsContextModuleBase;
         }
     > => {
@@ -260,6 +267,7 @@ export function createTestContext({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
             actor: new DynamoUnknownActorContextModule(async () => null),
+            edge: new NoopEdgeServiceContextModule(),
             notifications: createNotificationsContextModule(),
         });
     };
@@ -271,6 +279,7 @@ export function createTestContext({
     ): Context<
         ServerSessionActionContextModules & {
             fork: ForkActionContextModule;
+            edge: EdgeServiceContextModuleBase;
             notifications: NotificationsContextModuleBase;
         }
     > => {
@@ -278,6 +287,7 @@ export function createTestContext({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
             actor: DynamoSessionActorContextModule.dangerouslyNew("Test", Session.test(session)),
+            edge: new NoopEdgeServiceContextModule(),
             notifications: createNotificationsContextModule(),
             fork: new ForkActionContextModule(),
         });
@@ -287,6 +297,7 @@ export function createTestContext({
         spaceId: SpaceId,
     ): Context<
         ServerSystemActionContextModules & {
+            edge: EdgeServiceContextModuleBase;
             notifications: NotificationsContextModuleBase;
         }
     > => {
@@ -294,6 +305,7 @@ export function createTestContext({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
             actor: DynamoSystemActorContextModule.dangerouslyNew("Test", spaceId),
+            edge: new NoopEdgeServiceContextModule(),
             notifications: createNotificationsContextModule(),
         });
     };
