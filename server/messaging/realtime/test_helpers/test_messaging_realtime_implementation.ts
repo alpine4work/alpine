@@ -1,7 +1,7 @@
 import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {TestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
-import {ServerSessionActionContextModules} from "~/server/context/server_action_context.js";
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {
     TestSessionItem,
     createTestSession,
@@ -15,10 +15,8 @@ import {
     messagingRealtimeCreateMessageBeforeSendTestCheckpoint,
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
 import {RoomInterface} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
-import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {Context} from "~/shared/context/context.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {
@@ -70,11 +68,7 @@ export function testMessagingRealtimeImplementation<
         deleteMessage,
     }: {
         createRoom: (
-            context: Context<
-                ServerSessionActionContextModules & {
-                    notifications: NotificationsContextModuleBase;
-                }
-            >,
+            context: ServerSessionActionContext,
             spaceId: SpaceId,
             sessions: Array<TestSessionItem>,
         ) => Promise<RoomInterface<RoomKey>>;
@@ -125,14 +119,7 @@ export function testMessagingRealtimeImplementation<
         references: emptyContentReferences,
     };
 
-    const createRoom = (
-        context: Context<
-            ServerSessionActionContextModules & {
-                notifications: NotificationsContextModuleBase;
-            }
-        >,
-        spaceId: SpaceId,
-    ) => {
+    const createRoom = (context: ServerSessionActionContext, spaceId: SpaceId) => {
         return _createRoom(context, spaceId, [session1, session2, session3]);
     };
 

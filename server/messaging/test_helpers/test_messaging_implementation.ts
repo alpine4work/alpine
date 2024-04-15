@@ -1,7 +1,4 @@
-import {
-    ServerSessionActionContext,
-    ServerSessionActionContextModules,
-} from "~/server/context/server_action_context.js";
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     TestSessionItem,
@@ -9,8 +6,6 @@ import {
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
-import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
-import {Context} from "~/shared/context/context.js";
 import {
     FailedPreconditionError,
     InternalError,
@@ -39,11 +34,7 @@ import {
  * Create a new message in a room.
  */
 type CreateMessageFunctionForTest<RoomKey extends string> = (
-    context: Context<
-        ServerSessionActionContextModules & {
-            notifications: NotificationsContextModuleBase;
-        }
-    >,
+    context: ServerSessionActionContext,
     options: {
         roomKey: RoomKey;
         parentMessageIndex: number | null;
@@ -212,11 +203,7 @@ export type TestMessagingImplementation<RoomKey extends string> = {
      * All rooms must be part of a space.
      */
     createRoom: (
-        context: Context<
-            ServerSessionActionContextModules & {
-                notifications: NotificationsContextModuleBase;
-            }
-        >,
+        context: ServerSessionActionContext,
         spaceId: SpaceId,
         sessions: Array<TestSessionItem>,
     ) => Promise<RoomInterface<RoomKey>>;
@@ -347,14 +334,7 @@ export function testMessagingImplementation<RoomKey extends string>(
     const content3 = createSimpleMessageContent("test3");
     const content4 = createSimpleMessageContent("test4");
 
-    const createRoom = (
-        context: Context<
-            ServerSessionActionContextModules & {
-                notifications: NotificationsContextModuleBase;
-            }
-        >,
-        spaceId: SpaceId,
-    ) => {
+    const createRoom = (context: ServerSessionActionContext, spaceId: SpaceId) => {
         return _createRoom(context, spaceId, [session1, session2, session3]);
     };
 

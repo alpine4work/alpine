@@ -1,3 +1,4 @@
+import {EdgeServiceContextModule} from "~/server/context/edge_service_context_module.js";
 import {
     ServerProcessContext,
     ServerProcessContextModules,
@@ -11,6 +12,7 @@ import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {registerShutdownWaitUntilPromise} from "~/server/node/shutdown_manager.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -22,6 +24,7 @@ export const serverProcessContextParseOptions = {
     opensearchLocalPort: {type: "string"},
     opensearchHost: {type: "string"},
     jobQueueUrl: {type: "string"},
+    edgeServiceUrl: {type: "string"},
 } as const;
 
 /**
@@ -34,16 +37,19 @@ export const serverProcessContextParseOptions = {
  */
 export function createServerProcessContext({
     tracer,
+    tokenAgent,
     awsSigner,
     options,
 }: {
     tracer: TracerRoot;
+    tokenAgent: TokenAgent | "Unimplemented";
     awsSigner: AwsRequestSigner;
     options: {
         dynamoLocalPort?: string;
         opensearchLocalPort?: string;
         opensearchHost?: string;
         jobQueueUrl?: string;
+        edgeServiceUrl?: string;
     };
 }): ServerProcessContext {
     return Context.new<ServerProcessContextModules>({
@@ -96,5 +102,9 @@ export function createServerProcessContext({
                 queueUrl: assertExists(options.jobQueueUrl, "Missing `jobQueueUrl` option"),
             }),
         ),
+        edge: new EdgeServiceContextModule({
+            edgeServiceUrl: assertExists(options.edgeServiceUrl, "Missing `edgeServiceUrl` option"),
+            tokenAgent,
+        }),
     });
 }

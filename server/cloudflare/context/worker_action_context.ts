@@ -1,9 +1,9 @@
-import {
-    WorkerActorContextModule,
-    WorkerSessionActorContextModule,
-    WorkerSystemActorContextModule,
-} from "~/server/cloudflare/context/worker_actor_context_module.js";
 import {WorkerProcessContextModules} from "~/server/cloudflare/context/worker_process_context.js";
+import {
+    ActorContextModule,
+    SessionActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
@@ -49,7 +49,7 @@ export type WorkerActionContextModules = MergeObjectIntersection<
          * (which is what we instantiate this context with) so that tests can pass in
          * an `AppActorContextModule` which is type compatible.
          */
-        actor: WorkerActorContextModule;
+        actor: ActorContextModule;
     }
 >;
 
@@ -61,7 +61,7 @@ export type WorkerSessionActionContext = Context<WorkerSessionActionContextModul
 
 export type WorkerSessionActionContextModules = MergeObjectIntersection<
     WorkerActionContextModulesBase & {
-        actor: WorkerSessionActorContextModule;
+        actor: SessionActorContextModule;
     }
 >;
 
@@ -73,6 +73,6 @@ export type WorkerSystemActionContext = Context<WorkerSystemActionContextModules
 
 export type WorkerSystemActionContextModules = MergeObjectIntersection<
     WorkerActionContextModulesBase & {
-        actor: WorkerSystemActorContextModule;
+        actor: SystemActorContextModule;
     }
 >;

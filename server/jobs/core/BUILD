@@ -10,6 +10,7 @@ ts_project(
     deps = [
         "//:node_modules/@aws-sdk/client-sqs",
         "//server/helpers",
+        "//server/notifications/core",
         "//server/search/core",
         "//shared/context",
         "//shared/error",

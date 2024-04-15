@@ -20,7 +20,7 @@ import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_a
 import {
     InputWithAutoGrowingWidth,
     useInputWithAutoGrowingWidthSafeSpacerElement,
-} from "~/client/helpers/input_with_auto_growing_width.js";
+} from "~/client/design/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";

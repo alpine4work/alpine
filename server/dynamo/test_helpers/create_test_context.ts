@@ -14,16 +14,12 @@ import {
     DynamoSystemActorContextModule,
     DynamoUnknownActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
-import {
-    EdgeServiceContextModuleBase,
-    NoopEdgeServiceContextModule,
-} from "~/server/context/edge_service_context_module.js";
+import {NoopEdgeServiceContextModule} from "~/server/context/edge_service_context_module.js";
 import {
     ServerSessionActionContextModules,
     ServerSystemActionContext,
     ServerSystemActionContextModules,
     ServerUnknownActionContext,
-    ServerUnknownActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {
     ServerProcessContext,
@@ -40,8 +36,6 @@ import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
-import {NoopNotificationsContextModule} from "~/server/notifications/core/noop_notifications_context_module.js";
-import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {
     OpensearchClient,
     TestDisabledOpensearchClient,
@@ -87,7 +81,6 @@ export type TestContext = ServerProcessContext & {
     ): Context<
         ServerSessionActionContextModules & {
             fork: ForkActionContextModule;
-            notifications: NotificationsContextModuleBase;
         }
     >;
 
@@ -106,13 +99,7 @@ export type TestContext = ServerProcessContext & {
             cache: CacheContextModule;
         }>,
         spaceId: SpaceId,
-        action: (
-            context: Context<
-                ServerSystemActionContextModules & {
-                    notifications: NotificationsContextModuleBase;
-                }
-            >,
-        ) => Promise<Value>,
+        action: (context: ServerSystemActionContext) => Promise<Value>,
     ) => Promise<Value>;
 };
 
@@ -134,12 +121,10 @@ export type TestContext = ServerProcessContext & {
  */
 export function createTestContext({
     shouldStartOpensearch = false,
-    createNotificationsContextModule = () => new NoopNotificationsContextModule(),
     shouldSendJobsToSqs = false,
     processJob = async () => {},
 }: {
     shouldStartOpensearch?: boolean;
-    createNotificationsContextModule?: () => NotificationsContextModuleBase;
 } & (
     | {
           shouldSendJobsToSqs: true;
@@ -224,30 +209,19 @@ export function createTestContext({
             cache: CacheContextModule;
         }>,
         spaceId: SpaceId,
-        action: (
-            context: Context<
-                ServerSystemActionContextModules & {
-                    notifications: NotificationsContextModuleBase;
-                }
-            >,
-        ) => Promise<Value>,
+        action: (context: ServerSystemActionContext) => Promise<Value>,
     ): Promise<Value> => {
         return processContext.with<
             Omit<
                 ServerSystemActionContextModules,
                 Exclude<keyof ServerProcessContextModules, "tracer">
-            > & {
-                edge: EdgeServiceContextModuleBase;
-                notifications: NotificationsContextModuleBase;
-            },
+            >,
             Value
         >(
             {
                 tracer: new TracerContextModule(context.tracer.getTracer()),
                 cache: context.cache.dangerouslyForkWithSharedCaches(),
                 dynamoBatchContext: new DynamoBatchContextModule(),
-                edge: new NoopEdgeServiceContextModule(),
-                notifications: createNotificationsContextModule(),
                 actor: DynamoSystemActorContextModule.dangerouslyNew(
                     context.actor.serviceName,
                     spaceId,
@@ -257,18 +231,11 @@ export function createTestContext({
         );
     };
 
-    const createUnauthenticatedSessionContext = (): Context<
-        ServerUnknownActionContextModules & {
-            edge: EdgeServiceContextModuleBase;
-            notifications: NotificationsContextModuleBase;
-        }
-    > => {
+    const createUnauthenticatedSessionContext = (): ServerUnknownActionContext => {
         return processContext.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
             actor: new DynamoUnknownActorContextModule(async () => null),
-            edge: new NoopEdgeServiceContextModule(),
-            notifications: createNotificationsContextModule(),
         });
     };
 
@@ -279,34 +246,21 @@ export function createTestContext({
     ): Context<
         ServerSessionActionContextModules & {
             fork: ForkActionContextModule;
-            edge: EdgeServiceContextModuleBase;
-            notifications: NotificationsContextModuleBase;
         }
     > => {
         return processContext.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
             actor: DynamoSessionActorContextModule.dangerouslyNew("Test", Session.test(session)),
-            edge: new NoopEdgeServiceContextModule(),
-            notifications: createNotificationsContextModule(),
             fork: new ForkActionContextModule(),
         });
     };
 
-    const createSystemContext = (
-        spaceId: SpaceId,
-    ): Context<
-        ServerSystemActionContextModules & {
-            edge: EdgeServiceContextModuleBase;
-            notifications: NotificationsContextModuleBase;
-        }
-    > => {
+    const createSystemContext = (spaceId: SpaceId): ServerSystemActionContext => {
         return processContext.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
             actor: DynamoSystemActorContextModule.dangerouslyNew("Test", spaceId),
-            edge: new NoopEdgeServiceContextModule(),
-            notifications: createNotificationsContextModule(),
         });
     };
 
@@ -321,6 +275,7 @@ export function createTestContext({
         email: new NoopEmailContextModule(),
         opensearch: opensearchContextModule,
         jobs: jobsContextModule,
+        edge: new NoopEdgeServiceContextModule(),
     });
 
     const context = Object.assign(processContext, {

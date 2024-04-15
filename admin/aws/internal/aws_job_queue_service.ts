@@ -158,6 +158,7 @@ export class AwsJobQueueService extends Construct {
                 `/var/www/server/jobs/queue/queue ${[
                     `--opensearchHost=${opensearch.opensearchHost}`,
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
+                    "--edgeServiceUrl=https://cyberworlds.dev",
                     `--ecsCluster=${ecsCluster.cluster.clusterName}`,
                     `--taskRealtimeServiceEcsTaskDefinitionFamily=${taskRealtimeService.taskDefinition.family}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",

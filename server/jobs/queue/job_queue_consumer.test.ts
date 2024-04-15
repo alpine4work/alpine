@@ -6,7 +6,7 @@ import {
     deleteMessageBatchTestCounter,
     receiveMessageTestCounter,
 } from "~/server/jobs/queue/job_queue_consumer.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
@@ -22,6 +22,7 @@ let deleteMessageBatchRecorder: {getCount: () => number};
 let changeMessageVisibilityBatchRecorder: {getCount: () => number};
 
 const processTestJobDescriptionTestCheckpoint = new TestCheckpoint<Id>();
+const stopTestJobCheckpointIdsFromThrowing = new Set<Id>();
 
 beforeEach(async () => {
     // We have to restart our local SQS server between every test because our local
@@ -42,6 +43,13 @@ beforeEach(async () => {
             switch (job.type) {
                 case "Test": {
                     await processTestJobDescriptionTestCheckpoint.waitForTest(job.checkpointId);
+
+                    if (
+                        job.shouldThrow &&
+                        !stopTestJobCheckpointIdsFromThrowing.has(job.checkpointId)
+                    ) {
+                        throw new InternalError("Test job failed");
+                    }
                     return;
                 }
                 default:
@@ -59,11 +67,94 @@ afterEach(() => {
 
     consumer.stop();
     consumer = null;
+
+    stopTestJobCheckpointIdsFromThrowing.clear();
 });
 
 // Important for this to come after the `afterEach()` above. Since we want to
 // stop our consumer before waiting on `ProcessContextModule` tasks.
 const context = createTestContext({shouldSendJobsToSqs: true});
+
+test(
+    "if a job fails it will be retried",
+    async () => {
+        const spaceId = generateId<SpaceId>();
+
+        const job1Id = generateId();
+        const job2Id = generateId();
+        const job3Id = generateId();
+
+        const pause1aPromise = processTestJobDescriptionTestCheckpoint.pauseForTest(job1Id);
+        const pause2aPromise = processTestJobDescriptionTestCheckpoint.pauseForTest(job2Id);
+        const pause3aPromise = processTestJobDescriptionTestCheckpoint.pauseForTest(job3Id);
+
+        context.jobs.send({type: "Test", spaceId, checkpointId: job1Id, shouldThrow: true});
+        context.jobs.send({type: "Test", spaceId, checkpointId: job2Id});
+
+        // Also flushes any batched jobs instead of waiting 200ms.
+        await context.jobs.sendImmediately({
+            type: "Test",
+            spaceId,
+            checkpointId: job3Id,
+            shouldThrow: true,
+        });
+
+        const {unpause: unpause1a, stopPausing: stopPausing1a} = await pause1aPromise;
+        const {unpause: unpause2a, stopPausing: stopPausing2a} = await pause2aPromise;
+        const {unpause: unpause3a, stopPausing: stopPausing3a} = await pause3aPromise;
+
+        expect(receiveMessageRecorder.getCount()).toBeGreaterThanOrEqual(1);
+        expect(deleteMessageBatchRecorder.getCount()).toEqual(0);
+        expect(changeMessageVisibilityBatchRecorder.getCount()).toEqual(0);
+
+        stopPausing1a();
+        stopPausing2a();
+        stopPausing3a();
+
+        const pause1bPromise = processTestJobDescriptionTestCheckpoint.pauseForTest(job1Id);
+        const pause3bPromise = processTestJobDescriptionTestCheckpoint.pauseForTest(job3Id);
+
+        unpause1a();
+        unpause2a();
+        unpause3a();
+
+        const {unpause: unpause1b, stopPausing: stopPausing1b} = await pause1bPromise;
+        const {unpause: unpause3b, stopPausing: stopPausing3b} = await pause3bPromise;
+
+        expect(receiveMessageRecorder.getCount()).toBeGreaterThanOrEqual(2);
+        expect(deleteMessageBatchRecorder.getCount()).toEqual(1);
+        expect(changeMessageVisibilityBatchRecorder.getCount()).toEqual(0);
+
+        stopTestJobCheckpointIdsFromThrowing.add(job3Id);
+
+        stopPausing1b();
+        stopPausing3b();
+
+        const pause1cPromise = processTestJobDescriptionTestCheckpoint.pauseForTest(job1Id);
+
+        unpause1b();
+        unpause3b();
+
+        const {unpause: unpause1c} = await pause1cPromise;
+
+        expect(receiveMessageRecorder.getCount()).toBeGreaterThanOrEqual(3);
+        expect(deleteMessageBatchRecorder.getCount()).toEqual(2);
+        expect(changeMessageVisibilityBatchRecorder.getCount()).toEqual(0);
+
+        stopTestJobCheckpointIdsFromThrowing.add(job1Id);
+
+        unpause1c();
+
+        await waitMacrotask();
+
+        expect(receiveMessageRecorder.getCount()).toBeGreaterThanOrEqual(3);
+        expect(deleteMessageBatchRecorder.getCount()).toEqual(3);
+        expect(changeMessageVisibilityBatchRecorder.getCount()).toEqual(0);
+    },
+    // Increase the timeout since we need to actually wait for the job queue
+    // message visibility timeouts.
+    30 * 1000,
+);
 
 test("starts processing new jobs immediately after receiving first batch", async () => {
     const spaceId = generateId<SpaceId>();

@@ -28,7 +28,6 @@ import {
     getNotificationMessageContentSnippet,
     getNotificationPostContentSnippet,
 } from "~/server/notifications/core/get_notification_content_snippet.js";
-import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
@@ -1037,12 +1036,7 @@ export async function backfillChannelPosts(
  * Create a new post by the current account in the provided channel.
  */
 export async function createPost(
-    context: Context<
-        ServerSessionActionContextModules & {
-            edge: EdgeServiceContextModuleBase;
-            notifications: NotificationsContextModuleBase;
-        }
-    >,
+    context: ServerSessionActionContext,
     {channelId, content}: {channelId: ChannelId; content: PostContent},
 ): Promise<{
     id: PostId;
@@ -1078,16 +1072,19 @@ export async function createPost(
 
     const mentionedAccountIds = getMentionedAccountIdsInContent(content);
 
-    context.notifications.sendNotificationEvent({
-        type: "CreatePost",
-        id: generateId(),
-        spaceId: channel.spaceId,
-        channelId: postItem.channelId,
-        postId: postItem.postId,
-        createdTime: postItem.createdTime,
-        authorId: postItem.authorId,
-        mentionedAccountIds,
-        contentSnippet: getNotificationPostContentSnippet(content),
+    context.jobs.send({
+        type: "NotificationEvent",
+        event: {
+            type: "CreatePost",
+            id: generateId(),
+            spaceId: channel.spaceId,
+            channelId: postItem.channelId,
+            postId: postItem.postId,
+            createdTime: postItem.createdTime,
+            authorId: postItem.authorId,
+            mentionedAccountIds,
+            contentSnippet: getNotificationPostContentSnippet(content),
+        },
     });
 
     context.jobs.send({
@@ -1458,11 +1455,7 @@ export async function authorizePostAccess(
  * Add a new comment to a post.
  */
 export async function createPostComment(
-    context: Context<
-        ServerSessionActionContextModules & {
-            notifications: NotificationsContextModuleBase;
-        }
-    >,
+    context: ServerSessionActionContext,
     {
         postId,
         parentCommentIndex,
@@ -1565,16 +1558,19 @@ export async function createPostComment(
 
         const mentionedAccountIds = getMentionedAccountIdsInContent(content);
 
-        context.notifications.sendNotificationEvent({
-            type: "CreatePostComment",
-            id: generateId(),
-            spaceId: postItem.spaceId,
-            postId,
-            commentIndex,
-            createdTime,
-            authorId,
-            mentionedAccountIds,
-            contentSnippet: getNotificationMessageContentSnippet(content),
+        context.jobs.send({
+            type: "NotificationEvent",
+            event: {
+                type: "CreatePostComment",
+                id: generateId(),
+                spaceId: postItem.spaceId,
+                postId,
+                commentIndex,
+                createdTime,
+                authorId,
+                mentionedAccountIds,
+                contentSnippet: getNotificationMessageContentSnippet(content),
+            },
         });
 
         context.jobs.send({

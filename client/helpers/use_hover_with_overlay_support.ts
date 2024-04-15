@@ -1,6 +1,5 @@
 import {RefCallback, useCallback, useEffect, useRef, useState} from "react";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
-import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**

@@ -86,3 +86,8 @@ export const NotificationEventSchema = Schema.union({
     CreatePost: NotificationCreatePostEventSchema,
     CreateDocumentComment: NotificationCreateDocumentCommentEventSchema,
 });
+
+export const NotificationEventJobDescriptionSchema = Schema.object({
+    type: Schema.value("NotificationEvent"),
+    event: NotificationEventSchema,
+});

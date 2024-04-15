@@ -206,6 +206,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
+                `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
             ],
             {
                 env: process.env,
@@ -230,6 +231,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
+                `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
                 `--allMiniLmL6V2LanguageModel=${joinPath(runfilesPath, "all_mini_lm_l6_v2")}`,
             ],
             {

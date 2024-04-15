@@ -12,8 +12,8 @@ ts_project(
     visibility = [
         "//admin/dynamo:__pkg__",
         "//app:__pkg__",
+        "//server/jobs/queue:__pkg__",
         "//server/rpc:__pkg__",
-        "//server/tasks/realtime:__pkg__",
     ],
     deps = [
         "//:node_modules/date-fns",

@@ -1,6 +1,5 @@
 import {ServerUnknownActionContextModules} from "~/server/context/server_action_context.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
-import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {getRpcImplementationIfExists} from "~/server/rpc/get_rpc_implementation.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -20,7 +19,6 @@ import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
  */
 export class LocalRpcContextModule extends RpcContextModuleBase<
     ServerUnknownActionContextModules & {
-        notifications: NotificationsContextModuleBase;
         tasks: TaskContextModule;
         languageModel: LanguageModelContextModule;
     }

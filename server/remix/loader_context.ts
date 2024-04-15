@@ -2,10 +2,8 @@ import {ServerRoute} from "@remix-run/server-runtime";
 import {parse as parseCookieHeader, serialize as serializeSetCookieHeader} from "cookie";
 import {differenceInDays, isValid as isValidDate, parseISO} from "date-fns";
 import {Params} from "react-router";
-import {EdgeServiceContextModuleBase} from "~/server/context/edge_service_context_module.js";
 import {ServerUnknownActionContextModules} from "~/server/context/server_action_context.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
-import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {SessionCookie} from "~/server/tokens/session_cookie.js";
@@ -31,17 +29,6 @@ export type LoaderContextModules = MergeObjectIntersection<
     ServerUnknownActionContextModules & {
         rpc: LocalRpcContextModule;
         loader: LoaderContextModule;
-
-        /**
-         * Allow communicating with our edge service in server actions. Most notably
-         * this lets us send messages to durable objects in Cloudflare.
-         */
-        edge: EdgeServiceContextModuleBase;
-
-        /**
-         * Send notification events to our queue for processing.
-         */
-        notifications: NotificationsContextModuleBase;
 
         /**
          * Our Remix server has access to the tasks context module which we don't make

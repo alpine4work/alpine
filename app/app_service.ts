@@ -13,8 +13,10 @@ import {
     DynamoSystemActorContextModule,
     DynamoUnknownActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
-import {EdgeServiceContextModule} from "~/server/context/edge_service_context_module.js";
-import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
+import {
+    ServerSystemActionContext,
+    ServerSystemActionContextModules,
+} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
@@ -33,7 +35,6 @@ import {
 import {createStandardizedRequestListener} from "~/server/node/create_standardized_server.js";
 import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
 import {runService} from "~/server/node/run_service.js";
-import {NotificationsContextModule} from "~/server/notifications/data/notifications_context_module.js";
 import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
@@ -100,7 +101,6 @@ runService({
     serviceName: "AppService",
     options: {
         port: {type: "string"},
-        edgeServiceUrl: {type: "string"},
         remixDevServerPort: {type: "string"},
         taskRealtimeServiceLocalPort: {type: "string"},
         shouldSeedDynamo: {type: "boolean"},
@@ -114,9 +114,6 @@ runService({
     run: async ({options, tracer}) => {
         const port = options.port ? parseInt(options.port, 10) : null;
         if (!port || !Number.isInteger(port)) throw new InternalError("Missing integer `port` arg");
-
-        const {edgeServiceUrl} = options;
-        if (!edgeServiceUrl) throw new InternalError("Missing `edgeServiceUrl` option");
 
         const tokenAgent = await createServiceTokenAgent({
             serviceName: "AppService",
@@ -143,6 +140,7 @@ runService({
 
         const processContext = createServerProcessContext({
             tracer,
+            tokenAgent,
             awsSigner,
             options,
         });
@@ -228,22 +226,13 @@ runService({
                             cache: CacheContextModule;
                         }>,
                         spaceId: SpaceId,
-                        action: (
-                            context: Context<
-                                ServerSystemActionContextModules & {
-                                    notifications: NotificationsContextModule;
-                                }
-                            >,
-                        ) => Promise<Value>,
+                        action: (context: ServerSystemActionContext) => Promise<Value>,
                     ): Promise<Value> => {
                         return processContext.with<
                             Omit<
                                 ServerSystemActionContextModules,
                                 Exclude<keyof ServerProcessContextModules, "tracer">
-                            > & {
-                                edge: EdgeServiceContextModule;
-                                notifications: NotificationsContextModule;
-                            },
+                            >,
                             Value
                         >(
                             {
@@ -254,8 +243,6 @@ runService({
                                 // determination about their cache.
                                 cache: context.cache.dangerouslyForkWithSharedCaches(),
                                 dynamoBatchContext: new DynamoBatchContextModule(),
-                                edge: edgeServiceContextModule,
-                                notifications: notificationsContextModule,
                                 actor: DynamoSystemActorContextModule.dangerouslyNew(
                                     context.actor.serviceName,
                                     spaceId,
@@ -264,15 +251,6 @@ runService({
                             action,
                         );
                     };
-
-                    const edgeServiceContextModule = new EdgeServiceContextModule({
-                        edgeServiceUrl,
-                        tokenAgent,
-                    });
-
-                    const notificationsContextModule = new NotificationsContextModule({
-                        dangerouslyEscalateToSystemContext,
-                    });
 
                     const loaderContextModule = new LoaderContextModule(request, {
                         tokenAgent,
@@ -301,8 +279,6 @@ runService({
                                 tokenAgent,
                                 sessionCookie,
                             ),
-                            edge: edgeServiceContextModule,
-                            notifications: notificationsContextModule,
                             tasks: new TaskContextModule({
                                 router: taskRealtimeServiceRouter,
                                 tokenAgent,

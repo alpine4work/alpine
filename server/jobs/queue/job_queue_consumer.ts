@@ -16,7 +16,7 @@ import {
 } from "~/server/context/server_process_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
-import {JobDescription} from "~/server/jobs/core/job_description.js";
+import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
 import {JobQueueMessageBodySchema} from "~/server/jobs/core/job_sender.js";
 import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -57,7 +57,9 @@ const receiveMessagesWaitTimeSeconds = 20;
  *
  * [1]: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html
  */
-const receiveMessagesVisibilityTimeoutSeconds = 30;
+// Use a 10x faster timeout in unit tests so tests that exercise message retries
+// run in reasonable time.
+const receiveMessagesVisibilityTimeoutSeconds = !import.meta.jest ? 30 : 3;
 
 /**
  * The maximum number of parallel `_consume()` calls we allow. After receiving
@@ -443,6 +445,8 @@ export class JobQueueConsumer {
             });
 
             if (messageBody.type === "Regular") {
+                const spaceId = getJobDescriptionSpaceId(messageBody.job);
+
                 await this._processContext.with<
                     Omit<ServerSystemActionContextModules, keyof ServerProcessContextModules> & {
                         tracer: TracerContextModule;
@@ -462,7 +466,7 @@ export class JobQueueConsumer {
                         // correctly identify our services.
                         actor: DynamoSystemActorContextModule.dangerouslyNew(
                             "JobQueueService",
-                            messageBody.job.spaceId,
+                            spaceId,
                         ),
                     },
                     actionContext =>

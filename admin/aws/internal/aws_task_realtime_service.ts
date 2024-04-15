@@ -237,6 +237,7 @@ export class AwsTaskRealtimeService extends Construct {
                     `--portBase=${portBase}`,
                     `--opensearchHost=${opensearch.opensearchHost}`,
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
+                    "--edgeServiceUrl=https://cyberworlds.dev",
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",
                     // Intentionally escape `$` here! Our key args accept either a file path
                     // or the name of an environment variable. RSA keys are too long to be included

@@ -1,5 +1,6 @@
 import {
     ActorContextModuleBase,
+    ActorServiceName,
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
@@ -43,6 +44,8 @@ export class TestSessionActorContextModule
     implements TestActorContextModuleBase, SessionActorContextModule
 {
     public readonly type = "Session";
+
+    public readonly serviceName: ActorServiceName = "Test";
 
     private readonly _sessionId: SessionId;
     private readonly _accountId: AccountId;
@@ -95,6 +98,8 @@ export class TestSystemActorContextModule
     implements TestActorContextModuleBase, SystemActorContextModule
 {
     public readonly type = "System";
+
+    public readonly serviceName: ActorServiceName = "Test";
 
     private readonly _spaceId: SpaceId;
 

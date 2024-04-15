@@ -13,6 +13,7 @@ ts_project(
         "//server/language_models/all_mini_lm_l6_v2",
         "//server/language_models/cohere_embed_english_v3",
         "//server/node",
+        "//server/notifications/data",
         "//server/search/data/index",
         "//server/tasks/data",
         "//shared/error",

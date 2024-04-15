@@ -1,3 +1,4 @@
+import {EdgeServiceContextModuleBase} from "~/server/context/edge_service_context_module.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
@@ -20,4 +21,5 @@ export type ServerProcessContextModules = {
     email: EmailContextModuleBase;
     opensearch: OpensearchContextModule;
     jobs: JobsContextModule;
+    edge: EdgeServiceContextModuleBase;
 };

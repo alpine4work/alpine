@@ -1,7 +1,6 @@
-import {DynamoActorServiceName} from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
+import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
-import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
@@ -14,7 +13,6 @@ import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 export type RpcServerActionContext = Context<RpcServerActionContextModules>;
 
 export type RpcServerActionContextModules = ServerActionContextModules & {
-    notifications: NotificationsContextModuleBase;
     tasks: TaskContextModule;
     languageModel: LanguageModelContextModule;
 };
@@ -39,14 +37,14 @@ export type RpcImplementation = {
  */
 export function implementRpc<Input, Output>(
     definition: RpcDefinition<Input, Output>,
-    {visibility: visibilityArray}: {visibility: "Public" | ReadonlyArray<DynamoActorServiceName>},
+    {visibility: visibilityArray}: {visibility: "Public" | ReadonlyArray<ActorServiceName>},
     implementation: (
         context: RpcServerActionContext,
         input: Input,
     ) => Promise<BlockInference<Output>>,
 ) {
     const visibility =
-        visibilityArray === "Public" ? "Public" : new Set<DynamoActorServiceName>(visibilityArray);
+        visibilityArray === "Public" ? "Public" : new Set<ActorServiceName>(visibilityArray);
 
     assert(
         !rpcImplementationByName.has(definition.name),

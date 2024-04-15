@@ -1,3 +1,4 @@
+import {NotificationEventJobDescriptionSchema} from "~/server/notifications/core/notification_event.js";
 import {IndexSearchEntityJobDescriptionSchema} from "~/server/search/core/index_search_entity_job_description.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -40,7 +41,17 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
 export type JobDescription = SchemaType<typeof JobDescriptionSchema>;
 
 // All job descriptions should have a `SpaceId` property.
-assertAssignableTypes<JobDescription, {spaceId: SpaceId}>();
+//
+// `NotificationEvent`'s `spaceId` is nested for historical reasons.
+assertAssignableTypes<
+    JobDescription,
+    {spaceId: SpaceId} | {type: "NotificationEvent"; event: {spaceId: SpaceId}}
+>();
+
+export function getJobDescriptionSpaceId(job: JobDescription): SpaceId {
+    if (job.type === "NotificationEvent") return job.event.spaceId;
+    return job.spaceId;
+}
 
 /**
  * A job that can only be processed in test environments. To process this job
@@ -52,9 +63,11 @@ const TestJobDescriptionSchema = Schema.object({
     type: Schema.value("Test"),
     spaceId: Schema.id<SpaceId>(),
     checkpointId: Schema.id(),
+    shouldThrow: Schema.boolean.optional(),
 });
 
 export const JobDescriptionSchema = Schema.union({
     Test: TestJobDescriptionSchema,
     IndexSearchEntity: IndexSearchEntityJobDescriptionSchema,
+    NotificationEvent: NotificationEventJobDescriptionSchema,
 });

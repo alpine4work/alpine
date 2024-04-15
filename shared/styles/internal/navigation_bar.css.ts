@@ -1,5 +1,6 @@
 import {keyframes, style} from "@vanilla-extract/css";
 import {easeOutQuart} from "~/shared/design/easing.js";
+import {Spacing} from "~/shared/design/spacing.js";
 
 // These constants are exported from `navigation_bar.tsx` for convenience.
 // Generally you'll import from there unless you need this constant in CSS.
@@ -8,8 +9,8 @@ import {easeOutQuart} from "~/shared/design/easing.js";
 // `6` button can have spacing `5` margin left and spacing `5` margin top
 // within the navigation bar. This ends up looking nice when the navigation bar
 // is flat with the rest of the content.
-export const desktopNavigationBarHeight = "16";
-export const mobileNavigationBarHeight = "14";
+export const desktopNavigationBarHeight: Spacing = "16";
+export const mobileNavigationBarHeight: Spacing = "14";
 
 const navigationBarBackgroundFadeOutKeyframes = keyframes({
     from: {opacity: 1},

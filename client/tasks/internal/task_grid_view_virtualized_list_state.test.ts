@@ -183,8 +183,10 @@ test("can represent items of an empty query", () => {
 
     const areChildTasksExpandedStoreByPath = new StoreMap<string, true>();
 
-    const state = TaskGridViewVirtualizedListState.new(query, taskPath =>
-        areChildTasksExpandedStoreByPath.get(taskPath.join("-")),
+    const state = TaskGridViewVirtualizedListState.new(
+        query,
+        taskPath => areChildTasksExpandedStoreByPath.get(taskPath.join("-")),
+        100,
     );
 
     expectItems(state.getSnapshot(), []);
@@ -244,8 +246,10 @@ test("can represent items of a query", () => {
 
     const areChildTasksExpandedStoreByPath = new StoreMap<string, true>();
 
-    const state = TaskGridViewVirtualizedListState.new(query, taskPath =>
-        areChildTasksExpandedStoreByPath.get(taskPath.join("-")),
+    const state = TaskGridViewVirtualizedListState.new(
+        query,
+        taskPath => areChildTasksExpandedStoreByPath.get(taskPath.join("-")),
+        100,
     );
 
     expectItems(state.getSnapshot(), [
@@ -369,8 +373,10 @@ test("can represent items of a query with some expanded unloaded child tasks", (
 
     const areChildTasksExpandedStoreByPath = new StoreMap<string, true>();
 
-    const state = TaskGridViewVirtualizedListState.new(query, taskPath =>
-        areChildTasksExpandedStoreByPath.get(taskPath.join("-")),
+    const state = TaskGridViewVirtualizedListState.new(
+        query,
+        taskPath => areChildTasksExpandedStoreByPath.get(taskPath.join("-")),
+        100,
     );
 
     expectItems(state.getSnapshot(), [
@@ -808,8 +814,10 @@ test("can represent items of a query with some expanded child tasks", () => {
 
     const areChildTasksExpandedStoreByPath = new StoreMap<string, true>();
 
-    const state = TaskGridViewVirtualizedListState.new(rootQuery, taskPath =>
-        areChildTasksExpandedStoreByPath.get(taskPath.join("-")),
+    const state = TaskGridViewVirtualizedListState.new(
+        rootQuery,
+        taskPath => areChildTasksExpandedStoreByPath.get(taskPath.join("-")),
+        100,
     );
 
     expectItems(state.getSnapshot(), [
@@ -1302,8 +1310,10 @@ test("can represent items of a query with some expanded child tasks and extra un
 
     const areChildTasksExpandedStoreByPath = new StoreMap<string, true>();
 
-    const state = TaskGridViewVirtualizedListState.new(rootQuery, taskPath =>
-        areChildTasksExpandedStoreByPath.get(taskPath.join("-")),
+    const state = TaskGridViewVirtualizedListState.new(
+        rootQuery,
+        taskPath => areChildTasksExpandedStoreByPath.get(taskPath.join("-")),
+        100,
     );
 
     expectItems(state.getSnapshot(), [
@@ -1886,8 +1896,10 @@ test("can represent items of a query with some expanded child tasks where task r
 
     const areChildTasksExpandedStoreByPath = new StoreMap<string, true>();
 
-    const state = TaskGridViewVirtualizedListState.new(rootQuery, taskPath =>
-        areChildTasksExpandedStoreByPath.get(taskPath.join("-")),
+    const state = TaskGridViewVirtualizedListState.new(
+        rootQuery,
+        taskPath => areChildTasksExpandedStoreByPath.get(taskPath.join("-")),
+        100,
     );
 
     expectItems(state.getSnapshot(), [
@@ -2412,8 +2424,10 @@ test("can represent items of a query with some double nested expanded child task
 
     const areChildTasksExpandedStoreByPath = new StoreMap<string, true>();
 
-    const state = TaskGridViewVirtualizedListState.new(rootQuery, taskPath =>
-        areChildTasksExpandedStoreByPath.get(taskPath.join("-")),
+    const state = TaskGridViewVirtualizedListState.new(
+        rootQuery,
+        taskPath => areChildTasksExpandedStoreByPath.get(taskPath.join("-")),
+        100,
     );
 
     expectItems(state.getSnapshot(), [
@@ -2917,8 +2931,10 @@ test("can get the index of items including nested items if the path to the task 
 
     const areChildTasksExpandedStoreByPath = new StoreMap<string, true>();
 
-    const state = TaskGridViewVirtualizedListState.new(rootQuery, taskPath =>
-        areChildTasksExpandedStoreByPath.get(taskPath.join("-")),
+    const state = TaskGridViewVirtualizedListState.new(
+        rootQuery,
+        taskPath => areChildTasksExpandedStoreByPath.get(taskPath.join("-")),
+        100,
     );
 
     areChildTasksExpandedStoreByPath.set(task2.id, true);

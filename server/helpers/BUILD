@@ -13,9 +13,11 @@ ts_project(
         "//:node_modules/@types/json-stable-stringify",
         "//:node_modules/cookie",
         "//:node_modules/json-stable-stringify",
+        "//server/tokens",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",
+        "//shared/tracer",
     ],
 )

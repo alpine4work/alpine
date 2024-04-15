@@ -1,5 +1,6 @@
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobQueueSystemActionContext} from "~/server/jobs/queue/job_queue_system_action_context.js";
+import {processNotificationEvent} from "~/server/notifications/data/notifications_table.js";
 import {processIndexSearchEntityJob} from "~/server/search/data/index/search_entity_index.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
@@ -18,6 +19,10 @@ export async function processJob(
         }
         case "IndexSearchEntity": {
             await processIndexSearchEntityJob(context, job, jobStartTime);
+            return;
+        }
+        case "NotificationEvent": {
+            await processNotificationEvent(context, job.event);
             return;
         }
         default:

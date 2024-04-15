@@ -2,9 +2,8 @@ import {differenceInMinutes} from "date-fns";
 import {authorizeChatAccessForAccount, getChatAccountIds} from "~/server/chat/data/chat_table.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
-    ServerActionContextModules,
-    ServerSessionActionContextModules,
-    ServerSystemActionContextModules,
+    ServerSessionActionContext,
+    ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {
     getDocumentAndCommentThreadsWithInitialComments,
@@ -18,6 +17,7 @@ import {
     DynamoGeneralRealtimeTableSchema,
     DynamoGeneralRealtimeTableSchemaGetTypes,
 } from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
 import {
     getChannelPreview,
     getPost,
@@ -25,6 +25,7 @@ import {
     getPostNotificationSubscribers,
 } from "~/server/forum/data/forum_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {
     NotificationCreateChatMessageEvent,
     NotificationCreateDocumentCommentEvent,
@@ -32,7 +33,6 @@ import {
     NotificationCreatePostEvent,
     NotificationEvent,
 } from "~/server/notifications/core/notification_event.js";
-import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {
     authorizeSpaceAccess,
     expensivelyGetAllSpaceAccounts,
@@ -40,7 +40,6 @@ import {
     isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_table.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
-import {Context} from "~/shared/context/context.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
@@ -48,6 +47,7 @@ import {
 } from "~/shared/documents/document_model.js";
 import {
     DynamoGeneralRealtimeBackfillResult,
+    DynamoGeneralRealtimeEvent,
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -58,14 +58,17 @@ import {PostModel} from "~/shared/forum/post_model.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {isId} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
@@ -89,7 +92,8 @@ import {
     InboxModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/notifications/inbox_model.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * The initial generation of a new inbox.
@@ -755,13 +759,50 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             },
         },
     },
-    sendEventTransaction: (
-        context: Context<
-            ServerActionContextModules & {notifications: NotificationsContextModuleBase}
-        >,
-        readTime,
-        eventTransaction,
-    ) => context.notifications.sendInboxRealtimeEventTransaction(readTime, eventTransaction),
+    sendEventTransaction: async (context, readTime, eventTransaction) => {
+        // Split up event transactions by unique `SpaceId` and `AccountId`
+        // combinations. By splitting a transaction it may not be applied atomically.
+        // We split by `AccountId` since events need to go to different durable
+        // objects.
+        //
+        // Having a transaction across two accounts or two spaces isn't theoretically
+        // impossible but would be weird and doesn't currently happen in practice.
+        const eventTransactionBySpaceIdAndAccountId = new Map<
+            `${SpaceId}:${AccountId}`,
+            Array<DynamoGeneralRealtimeEvent<SchemaType<typeof InboxItemModelSchema>>>
+        >();
+
+        for (const event of eventTransaction) {
+            getOrSetDefaultMapValue(
+                eventTransactionBySpaceIdAndAccountId,
+                `${event.item.model.spaceId}:${event.item.model.accountId}`,
+                () => [],
+            ).push(event);
+        }
+
+        await runAllPromises(
+            Array.from(
+                eventTransactionBySpaceIdAndAccountId,
+                async ([spaceIdAndAccountId, eventTransaction]) => {
+                    const [spaceId, accountId] = spaceIdAndAccountId.split(":");
+                    assert(spaceId && isId<SpaceId>(spaceId));
+                    assert(accountId && isId<AccountId>(accountId));
+
+                    await context.edge.broadcastToDurableObject(
+                        `/api/durable-objects/my-account/${accountId}/broadcast-inbox-realtime-event-transaction`,
+                        {
+                            serviceName: "MyAccountService",
+                            route: "/api/durable-objects/my-account/:accountId/broadcast-inbox-realtime-event-transaction",
+                            body: MyAccountBroadcastInboxRealtimeEventTransactionSchema.serialize({
+                                readTime,
+                                eventTransaction,
+                            }),
+                        },
+                    );
+                },
+            ),
+        );
+    },
 });
 
 const inboxEntryItemTypes = [
@@ -916,9 +957,7 @@ function getInitialInboxItem(spaceId: SpaceId, accountId: AccountId): InboxAttri
  * Get the session account's inbox in the provided space.
  */
 export async function getInbox(
-    context: Context<
-        ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
-    >,
+    context: ServerSessionActionContext,
     {spaceId, consistency = "Eventual"}: {spaceId: SpaceId; consistency?: DynamoReadConsistency},
 ): Promise<DynamoGeneralRealtimeItem<InboxModel>> {
     await authorizeSpaceAccess(context, spaceId);
@@ -949,9 +988,7 @@ export async function getInbox(
  * Get the entries for the current account's inbox.
  */
 export async function getInboxEntries(
-    context: Context<
-        ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
-    >,
+    context: ServerSessionActionContext,
     {
         spaceId,
         filter,
@@ -1038,9 +1075,7 @@ export async function getInboxEntries(
  * This will backfill updates both for non-archived and archived entries.
  */
 export async function backfillInboxEntries(
-    context: Context<
-        ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
-    >,
+    context: ServerSessionActionContext,
     {spaceId, readTime}: {spaceId: SpaceId; readTime: Date},
 ): Promise<DynamoGeneralRealtimeBackfillResult<InboxEntryModel>> {
     await authorizeSpaceAccess(context, spaceId);
@@ -1066,9 +1101,7 @@ export async function backfillInboxEntries(
 // will be directly added to the top of the inbox while the user is actively
 // observing.
 export async function observeInbox(
-    context: Context<
-        ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
-    >,
+    context: ServerSessionActionContext,
     {spaceId}: {spaceId: SpaceId},
 ): Promise<void> {
     await authorizeSpaceAccess(context, spaceId);
@@ -1168,9 +1201,7 @@ function getInboxEntryItemKey({
  * `processNotificationEvent()`.
  */
 export async function archiveInboxEntry(
-    context: Context<
-        ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
-    >,
+    context: ServerSessionActionContext,
     {spaceId, key}: {spaceId: SpaceId; key: InboxEntryKey},
 ): Promise<{archiveTime: Date}> {
     return archiveInboxEntryItemKey(
@@ -1189,9 +1220,7 @@ export async function archiveInboxEntry(
  * primary inbox so the user can easily find it.
  */
 export function unarchiveInboxEntry(
-    context: Context<
-        ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
-    >,
+    context: ServerSessionActionContext,
     {spaceId, key}: {spaceId: SpaceId; key: InboxEntryKey},
 ): Promise<void> {
     return unarchiveInboxEntryItemKey(
@@ -1205,7 +1234,7 @@ export function unarchiveInboxEntry(
 }
 
 async function archiveInboxEntryItemKey(
-    context: Context<ServerActionContextModules & {notifications: NotificationsContextModuleBase}>,
+    context: ServerSessionActionContext,
     itemKey: InboxEntryItemKey,
 ): Promise<{archiveTime: Date}> {
     await authorizeSpaceAccess(context, itemKey.spaceId);
@@ -1268,7 +1297,7 @@ async function archiveInboxEntryItemKey(
 }
 
 async function unarchiveInboxEntryItemKey(
-    context: Context<ServerActionContextModules & {notifications: NotificationsContextModuleBase}>,
+    context: ServerSessionActionContext,
     itemKey: InboxEntryItemKey,
 ): Promise<void> {
     await authorizeSpaceAccess(context, itemKey.spaceId);
@@ -1312,6 +1341,7 @@ async function unarchiveInboxEntryItemKey(
     });
 }
 
+export const notificationEventProcessingTestCounter = new TestCounter<AccountId>();
 export const notificationEventBeforeProcessingTestCheckpoint = new TestCheckpoint<AccountId>();
 export const notificationEventAfterProcessingTestCheckpoint = new TestCheckpoint<AccountId>();
 
@@ -1319,13 +1349,14 @@ export const notificationEventAfterProcessingTestCheckpoint = new TestCheckpoint
  * Processes a notification generating event by fanning out to subscriber
  * inboxes and notification destinations (like email or mobile push
  * notifications).
+ *
+ * This function is idempotent.
  */
 export async function processNotificationEvent(
-    context: Context<
-        ServerSystemActionContextModules & {notifications: NotificationsContextModuleBase}
-    >,
+    context: ServerSystemActionContext,
     event: NotificationEvent,
 ): Promise<void> {
+    notificationEventProcessingTestCounter.incrementForTest(event.authorId);
     await notificationEventBeforeProcessingTestCheckpoint.waitForTest(event.authorId);
     try {
         await actuallyProcessNotificationEvent(context, event);
@@ -1335,9 +1366,7 @@ export async function processNotificationEvent(
 }
 
 function actuallyProcessNotificationEvent(
-    context: Context<
-        ServerSystemActionContextModules & {notifications: NotificationsContextModuleBase}
-    >,
+    context: ServerSystemActionContext,
     event: NotificationEvent,
 ): Promise<void> {
     switch (event.type) {
@@ -1361,6 +1390,14 @@ function actuallyProcessNotificationEvent(
  * - Makes sure traces are consistent
  * - Reads subscribers with strong consistency so we don't miss new subscribers
  * - Implements notification fan-out
+ *
+ * This creates a processing function that's (mostly) idempotent as long as
+ * `updateInboxEntry` is idempotent. We're mostly idempotent since
+ * `getSubscribers` may return different `AccountId`s on each call. However,
+ * we find that acceptable. If it returns a new `AccountId` on a second call
+ * then we'll update that `AccountId`'s inbox which seems harmless. If it stops
+ * returning an `AccountId` on a second call we already update that
+ * `AccountId`'s inbox which is fine.
  */
 function createNotificationEventProcessor<Event extends NotificationEvent, Info>({
     getSubscribers,
@@ -1377,9 +1414,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
      * notification event may have just itself added a subscriber.
      */
     getSubscribers: (
-        context: Context<
-            ServerSystemActionContextModules & {notifications: NotificationsContextModuleBase}
-        >,
+        context: ServerSystemActionContext,
         event: Event,
     ) => Promise<{
         info: Info;
@@ -1388,23 +1423,19 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
 
     /**
      * Update the inbox entry for each subscriber. Called in parallel.
+     *
+     * Make sure this function is idempotent! That way the notification processor
+     * as a whole will be idempotent.
      */
     updateInboxEntry: (
-        context: Context<
-            ServerSystemActionContextModules & {notifications: NotificationsContextModuleBase}
-        >,
+        context: ServerSystemActionContext,
         event: Event,
         options: {
             info: Info;
             accountId: AccountId;
         },
     ) => Promise<void>;
-}): (
-    context: Context<
-        ServerSystemActionContextModules & {notifications: NotificationsContextModuleBase}
-    >,
-    event: Event,
-) => Promise<void> {
+}): (context: ServerSystemActionContext, event: Event) => Promise<void> {
     return async (context, event) => {
         await context.tracer.withSpan("Process notification event", async (context, span) => {
             span.addData({
@@ -1449,16 +1480,61 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
 }
 
 /**
+ * Is the key of a given inbox entry item constructed idempotently from a
+ * `NotificationEvent` object? In other words, do we _only_ need a
+ * `NotificationEvent` object to create the sort key (return true) or do we
+ * need to load some data from the database to create the sort key (return
+ * false).
+ *
+ * If the sort key is constructed idempotently we can skip sending a
+ * `TransactWriteItems` DynamoDB action with a `ClientRequestToken` if the
+ * inbox entry item was updated idempotently. Since the update itself is
+ * idempotent so we don't need DynamoDB idempotent transaction protection.
+ *
+ * For instance the key for `PostCommentsEntry` is constructed idempotently
+ * since all we need is a `PostId` and the `PostId` comes from the
+ * `NotificationEvent` object. However `ChannelPostsEntry` is not idempotent
+ * since while it has a `ChannelId` coming from the `NotificationEvent` object
+ * it _also_ has a `bucketGeneration` property which is loaded from the
+ * database. If we were to process a `NotificationEvent` which updates a
+ * `ChannelPostsEntry` twice without `ClientRequestToken` protection and the
+ * inbox generation updated you'd get two inbox entries!
+ */
+function isInboxEntryItemKeyConstructionFromNotificationEventIdempotent(
+    sortRangeType: InboxEntryItem["sortRangeType"],
+): boolean {
+    switch (sortRangeType) {
+        case "ChatEntry":
+        case "PostCommentsEntry":
+        case "DocumentCommentThreadEntry":
+            return true;
+        case "ChannelPostsEntry":
+        case "DocumentNewCommentThreadsEntry":
+            return false;
+        default:
+            throw exhaustive(sortRangeType);
+    }
+}
+
+/**
  * Helper function for updating an inbox entry and the main inbox attributes
  * item along with it. Makes sure to keep everything consistent. For example,
  * updating the inbox total loud notification count when the entry loud
  * notification count updates.
+ *
+ * This function is idempotent if `update` is idempotent (excluding changes to
+ * `isArchived` or `loudNotificationCount`). Make sure you update properties
+ * (besides `isArchived` or `loudNotificationCount`) idempotently!
+ *
+ * This function could be idempotent irregardless of how `update` is
+ * implemented if we perform every write in a DynamoDB write transaction with a
+ * `clientRequestToken` but as an optimization we try to avoid transactions
+ * when possible which means we need `update` to be idempotent.
  */
 async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
-    context: Context<
-        ServerSystemActionContextModules & {notifications: NotificationsContextModuleBase}
-    >,
+    context: ServerSystemActionContext,
     event: NotificationEvent,
+    accountId: AccountId,
     itemKey: ItemKey,
     update: (
         item: (InboxEntryItem & ItemKey) | null,
@@ -1564,34 +1640,98 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             (!newInboxEntryItem.isArchived ? 1 : 0) -
             (oldInboxEntryItem && !oldInboxEntryItem.isArchived ? 1 : 0);
 
-        // Optimization: If the inbox item isn't changing don't run a transaction.
-        if (inboxItem && loudNotificationCountDifference === 0 && entryCountDifference === 0) {
-            await InboxTable.directlyUpdateItem(context, newInboxEntryItem);
-        } else {
-            const oldEntryCount = inboxItem?.entryCount ?? 0;
+        // [Max length of `ClientRequestToken`][1].
+        //
+        // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html#API_TransactWriteItems_RequestSyntax
+        const maxClientRequestTokenLength = 36;
+        const maxClientRequestTokenLengthForIds = maxClientRequestTokenLength - 3;
+        const maxClientRequestTokenEventIdLength = Math.ceil(maxClientRequestTokenLengthForIds / 2);
+        const maxClientRequestTokenAccountIdLength = Math.floor(
+            maxClientRequestTokenLengthForIds / 2,
+        );
 
-            // `Math.max` to protect against in case we under-counted the number of inbox
-            // entries at some point.
-            const newEntryCount = Math.max(0, oldEntryCount + entryCountDifference);
+        // Fill the client request token with half of the event ID and half of the
+        // account ID. We end up using 16 characters for `AccountId`s and 17 characters
+        // for `NotificationEventId`s whereas the full length of an ID is 26
+        // characters. This does increase collision chances!
+        //
+        // However, if we're generating IDs at the rate of 1000 per hour we'll end up
+        // [needing to wait ~18 thousand years][1] for a 1% collision chance of
+        // `AccountId`s and ~101 thousand years for a 1% collision chance of
+        // `NotificationEventId`s. If we get a random collision that means a
+        // notification won't be sent which could be pretty bad if it's an urgent
+        // notification but won't leave the system in a corrupted state.
+        //
+        // We start the token with `i:` (`i` stands for `inbox`) to make sure we don't
+        // collide with `clientRequestToken`s generated by other parts of our system
+        // since `clientRequestToken`s need to be globally unique.
+        //
+        // [1]: https://zelark.github.io/nano-id-cc/
+        const clientRequestToken = `i:${event.id.slice(
+            0,
+            maxClientRequestTokenEventIdLength,
+        )}-${accountId.slice(0, maxClientRequestTokenAccountIdLength)}`;
 
-            await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
-                InboxTable.transactionDirectlyUpdateItem({
-                    ...inboxItem,
-                    partitionType: "Inbox",
-                    sortRangeType: "Attributes",
-                    spaceId: itemKey.spaceId,
-                    accountId: itemKey.accountId,
-                    generation: inboxGeneration,
-                    loudNotificationCount:
-                        (inboxItem?.loudNotificationCount ?? 0) + loudNotificationCountDifference,
-                    entryCount: newEntryCount,
-                    lastZeroEntryCountTime:
-                        newEntryCount === 0 && oldEntryCount !== 0
-                            ? currentTime
-                            : inboxItem?.lastZeroEntryCountTime ?? null,
-                }),
-                InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem),
-            ]);
+        assert(clientRequestToken.length <= maxClientRequestTokenLength);
+
+        try {
+            // Optimization: If the inbox item isn't changing don't run a transaction.
+            if (inboxItem && loudNotificationCountDifference === 0 && entryCountDifference === 0) {
+                if (
+                    isInboxEntryItemKeyConstructionFromNotificationEventIdempotent(
+                        newInboxEntryItem.sortRangeType,
+                    )
+                ) {
+                    // Optimization: Don't write to the database (and so update `updateVersionLock`)
+                    // if the item didn't actually update.
+                    if (!isDeepEqual(oldInboxEntryItem, newInboxEntryItem)) {
+                        await InboxTable.directlyUpdateItem(context, newInboxEntryItem);
+                    }
+                } else {
+                    await DynamoGeneralRealtimeTableSchema.executeTransaction(
+                        context,
+                        [InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem)],
+                        {clientRequestToken},
+                    );
+                }
+            } else {
+                const oldEntryCount = inboxItem?.entryCount ?? 0;
+
+                // `Math.max` to protect against in case we under-counted the number of inbox
+                // entries at some point.
+                const newEntryCount = Math.max(0, oldEntryCount + entryCountDifference);
+
+                await DynamoGeneralRealtimeTableSchema.executeTransaction(
+                    context,
+                    [
+                        InboxTable.transactionDirectlyUpdateItem({
+                            ...inboxItem,
+                            partitionType: "Inbox",
+                            sortRangeType: "Attributes",
+                            spaceId: itemKey.spaceId,
+                            accountId: itemKey.accountId,
+                            generation: inboxGeneration,
+                            loudNotificationCount:
+                                (inboxItem?.loudNotificationCount ?? 0) +
+                                loudNotificationCountDifference,
+                            entryCount: newEntryCount,
+                            lastZeroEntryCountTime:
+                                newEntryCount === 0 && oldEntryCount !== 0
+                                    ? currentTime
+                                    : inboxItem?.lastZeroEntryCountTime ?? null,
+                        }),
+                        InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem),
+                    ],
+                    {clientRequestToken},
+                );
+            }
+        } catch (error) {
+            // If DynamoDB has committed a transaction with this `clientRequestToken` in the
+            // last 10min then we can return peacefully to make sure this function is
+            // idempotent.
+            if (isDynamoIdempotentParameterMismatchError(error)) return;
+
+            throw error;
         }
     });
 }
@@ -1636,6 +1776,7 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
         await updateInboxEntry(
             context,
             event,
+            accountId,
             {
                 partitionType: "Inbox",
                 sortRangeType: "ChatEntry",
@@ -1708,7 +1849,7 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                 // Our events may arrive out-of-order. If we have an earlier message index then
                 // what's in the entry's latest message then don't bother updating the latest
                 // message.
-                if (oldItem && oldItem.latestMessage.index > event.messageIndex) {
+                if (oldItem && oldItem.latestMessage.index >= event.messageIndex) {
                     latestMessage = oldItem.latestMessage;
                     otherAccountId = oldItem.otherAccountId;
                 } else {
@@ -1782,6 +1923,7 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
         await updateInboxEntry(
             context,
             event,
+            accountId,
             {
                 partitionType: "Inbox",
                 sortRangeType: "PostCommentsEntry",
@@ -1827,7 +1969,7 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                 // Our events may arrive out-of-order. If we have an earlier message index then
                 // what's in the entry's latest message then don't bother updating the latest
                 // message.
-                if (oldItem?.latestComment && oldItem.latestComment.index > event.commentIndex) {
+                if (oldItem?.latestComment && oldItem.latestComment.index >= event.commentIndex) {
                     latestComment = oldItem.latestComment;
                     otherCommentAuthorId = oldItem.otherCommentAuthorId;
                 } else {
@@ -1899,6 +2041,7 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
             await updateInboxEntry(
                 context,
                 event,
+                accountId,
                 {
                     partitionType: "Inbox",
                     sortRangeType: "PostCommentsEntry",
@@ -1941,6 +2084,7 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
         await updateInboxEntry(
             context,
             event,
+            accountId,
             {
                 partitionType: "Inbox",
                 sortRangeType: "ChannelPostsEntry",
@@ -2012,6 +2156,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
             await updateInboxEntry(
                 context,
                 event,
+                accountId,
                 {
                     partitionType: "Inbox",
                     sortRangeType: "DocumentNewCommentThreadsEntry",
@@ -2051,6 +2196,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
         await updateInboxEntry(
             context,
             event,
+            accountId,
             {
                 partitionType: "Inbox",
                 sortRangeType: "DocumentCommentThreadEntry",
@@ -2097,7 +2243,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                 // Our events may arrive out-of-order. If we have an earlier message index then
                 // what's in the entry's latest message then don't bother updating the latest
                 // message.
-                if (oldItem?.latestComment && oldItem.latestComment.index > event.commentIndex) {
+                if (oldItem?.latestComment && oldItem.latestComment.index >= event.commentIndex) {
                     latestComment = oldItem.latestComment;
                     otherCommentAuthorId = oldItem.otherCommentAuthorId;
                 } else {
@@ -2156,9 +2302,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
  * underlying channel posts inbox entry so it will accumulate no new posts.
  */
 export async function getInboxChannelPostsEntryPosts(
-    context: Context<
-        ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
-    >,
+    context: ServerSessionActionContext,
     {
         spaceId,
         channelId,
@@ -2300,9 +2444,7 @@ export async function getInboxChannelPostsEntryPosts(
  * new threads.
  */
 export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
-    context: Context<
-        ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
-    >,
+    context: ServerSessionActionContext,
     {
         spaceId,
         documentId,

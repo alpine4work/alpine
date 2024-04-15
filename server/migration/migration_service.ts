@@ -68,6 +68,10 @@ runService({
 
         const processContext = createServerProcessContext({
             tracer,
+            // TODO(calebmer, 2024-04-15): `MigrationService` currently doesn't have a
+            // `TokenAgent`. It should get a `TokenAgent`! Being able to make requests
+            // to other services can be important for migrations.
+            tokenAgent: "Unimplemented",
             awsSigner,
             options,
         });

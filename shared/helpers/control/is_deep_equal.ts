@@ -21,6 +21,10 @@ import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
  *
  * The contents of a `Set` must be referentially equal. We will not try to
  * check deep equality on set values if they are objects. Same with `Map` keys.
+ *
+ * For non-plain object values that aren't otherwise supported (e.g.
+ * ProseMirror `Node`s) we'll check referential equality (`a === b`) and if
+ * that fails we'll return false.
  */
 // NOTE(calebmer): I chose to manually write a deep equality implementation
 // instead of using the common Lodash implementation since at a previous job I

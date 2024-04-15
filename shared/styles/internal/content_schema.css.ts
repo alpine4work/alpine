@@ -80,7 +80,7 @@ export const defaultBlockMaxWidth = addRemLengths(
 
 const paragraphMarginVar = createVar("paragraph-margin");
 const listItemOffsetVar = createVar("list-item-offset");
-export const blockMaxWidthVar = createVar("block-max-width");
+export const blockMaxWidthVar: CssVarFunction = createVar("block-max-width");
 
 globalStyle(":root", {
     vars: {

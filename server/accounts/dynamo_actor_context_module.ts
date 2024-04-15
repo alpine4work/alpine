@@ -2,12 +2,12 @@ import {Session} from "~/server/accounts/accounts_table.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {
     ActorContextModuleBase,
+    ActorServiceName,
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {TokenPayload} from "~/server/tokens/token_payload.js";
-import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -15,22 +15,8 @@ import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
-import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
-
-/**
- * Services that may perform an action against our system.
- */
-export type DynamoActorServiceName =
-    | "Adhoc"
-    | "Test"
-    | "AppClient"
-    | TokenServiceName
-    | "JobQueueService";
-
-assertAssignableTypes<DynamoActorServiceName, TracerServiceName>();
 
 /**
  * Represents who is currently taking an action against our system.
@@ -151,9 +137,9 @@ export class DynamoSessionActorContextModule
      * Name of the service which initiated the current action. If the browser
      * initiated an action the service name is `AppClient`.
      */
-    public readonly serviceName: DynamoActorServiceName;
+    public readonly serviceName: ActorServiceName;
 
-    private constructor(serviceName: DynamoActorServiceName, session: Session) {
+    private constructor(serviceName: ActorServiceName, session: Session) {
         super(() => Promise.resolve(this));
         this.serviceName = serviceName;
         this._session = session;
@@ -165,7 +151,7 @@ export class DynamoSessionActorContextModule
      * the right one so you only get access to the RPCs made available to your
      * service.
      */
-    public static dangerouslyNew(serviceName: DynamoActorServiceName, session: Session) {
+    public static dangerouslyNew(serviceName: ActorServiceName, session: Session) {
         return new DynamoSessionActorContextModule(serviceName, session);
     }
 
@@ -256,9 +242,9 @@ export class DynamoSystemActorContextModule
      * Name of the service which initiated the current action. Only services that
      * can sign tokens can create a system actor context.
      */
-    public readonly serviceName: DynamoActorServiceName;
+    public readonly serviceName: ActorServiceName;
 
-    private constructor(serviceName: DynamoActorServiceName, spaceId: SpaceId) {
+    private constructor(serviceName: ActorServiceName, spaceId: SpaceId) {
         super(() => Promise.resolve(this));
         this.serviceName = serviceName;
         this._spaceId = spaceId;
@@ -268,7 +254,7 @@ export class DynamoSystemActorContextModule
      * Dangerous since if an attacker can pass arbitrary input they can get
      * wide ranging information about any space.
      */
-    public static dangerouslyNew(serviceName: DynamoActorServiceName, spaceId: SpaceId) {
+    public static dangerouslyNew(serviceName: ActorServiceName, spaceId: SpaceId) {
         return new DynamoSystemActorContextModule(serviceName, spaceId);
     }
 

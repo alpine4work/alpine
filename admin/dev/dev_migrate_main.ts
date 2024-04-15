@@ -25,6 +25,7 @@ const honeycombApiKey = env.HONEYCOMB_API_KEY;
 const dynamoLocalPort = parsePort(env.DYNAMO_LOCAL_PORT);
 const opensearchLocalPort = parsePort(env.OPENSEARCH_LOCAL_PORT);
 const sqsLocalPort = parsePort(env.SQS_LOCAL_PORT);
+const edgeDevPort = parsePort(env.EDGE_DEV_PORT);
 
 const migrationExecutablePath = joinPath(runfilesPath, "cyberworlds/server/migration/migration.sh");
 
@@ -35,6 +36,7 @@ const subprocess = spawn(
         `--dynamoLocalPort=${dynamoLocalPort}`,
         `--opensearchLocalPort=${opensearchLocalPort}`,
         `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
+        `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
         ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
     ],
     {

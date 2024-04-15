@@ -112,6 +112,7 @@ export class AwsDynamo {
                     DescribeTable: false,
                     DescribeTimeToLive: false,
                     UpdateTimeToLive: false,
+                    UpdateTable: false,
                 }),
             ),
             ([action, isAllowed]) => (isAllowed ? action : null),

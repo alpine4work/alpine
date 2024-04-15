@@ -1,6 +1,7 @@
 import {createAdhocDynamoContext} from "~/admin/adhoc/create_adhoc_dynamo_context.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
+import {EdgeServiceContextModule} from "~/server/context/edge_service_context_module.js";
 import {
     ServerSystemActionContext,
     ServerSystemActionContextModules,
@@ -82,6 +83,19 @@ export async function createAdhocServerProcessContext({
                           )}/local/JobQueue`,
             }),
         ),
+        edge: new EdgeServiceContextModule({
+            edgeServiceUrl:
+                awsProfile !== "local"
+                    ? "https://cyberworlds.dev"
+                    : `http://localhost:${parseInt(
+                          assertExists(
+                              env.EDGE_DEV_PORT,
+                              "SQS local port must be provided when running SQS locally",
+                          ),
+                          10,
+                      )}`,
+            tokenAgent: "Unimplemented",
+        }),
     });
 
     return Object.assign(context, {

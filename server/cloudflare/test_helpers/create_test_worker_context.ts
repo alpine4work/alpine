@@ -1,5 +1,7 @@
 import {
+    WorkerSessionActionContext,
     WorkerSessionActionContextModules,
+    WorkerSystemActionContext,
     WorkerSystemActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {
@@ -7,17 +9,18 @@ import {
     ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 
+type TestWorkerSessionActionContext = Context<TestWorkerSessionActionContextModules>;
+
 type TestWorkerSessionActionContextModules = ServerSessionActionContextModules &
-    Omit<WorkerSessionActionContextModules, keyof ServerSessionActionContextModules> & {
-        notifications: NotificationsContextModuleBase;
-    };
+    Omit<WorkerSessionActionContextModules, keyof ServerSessionActionContextModules>;
+
+type TestWorkerSystemActionContext = Context<TestWorkerSystemActionContextModules>;
 
 type TestWorkerSystemActionContextModules = ServerSystemActionContextModules &
     Omit<WorkerSystemActionContextModules, keyof ServerSystemActionContextModules>;
@@ -25,17 +28,17 @@ type TestWorkerSystemActionContextModules = ServerSystemActionContextModules &
 export type TestWorkerContext = Replace<
     TestContext,
     {
-        action(
-            ...args: Parameters<TestContext["action"]>
-        ): Context<TestWorkerSessionActionContextModules>;
+        action(...args: Parameters<TestContext["action"]>): TestWorkerSessionActionContext;
 
         systemAction(
             ...args: Parameters<TestContext["systemAction"]>
-        ): Context<TestWorkerSystemActionContextModules>;
+        ): TestWorkerSystemActionContext;
     }
 >;
 
 assertAssignableTypes<TestWorkerContext, TestContext>();
+assertAssignableTypes<TestWorkerSessionActionContext, WorkerSessionActionContext>();
+assertAssignableTypes<TestWorkerSystemActionContext, WorkerSystemActionContext>();
 
 export function createTestWorkerContext(): TestWorkerContext {
     const baseContext = createTestContext();

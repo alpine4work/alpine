@@ -1,8 +1,23 @@
+import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
+import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
+
+/**
+ * Services that may perform an action against our system.
+ */
+export type ActorServiceName =
+    | "Adhoc"
+    | "Test"
+    | "AppClient"
+    | TokenServiceName
+    | "JobQueueService";
+
+assertAssignableTypes<ActorServiceName, TracerServiceName>();
 
 /**
  * An interface that's a supertype of `AppActorContextModule` and
@@ -14,6 +29,12 @@ import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 export type ActorContextModule = SessionActorContextModule | SystemActorContextModule;
 
 export interface ActorContextModuleBase extends ContextModuleBase, ForkableContextModuleBase {
+    /**
+     * Name of the service which initiated the current action. If the browser
+     * initiated an action the service name is `AppClient`.
+     */
+    readonly serviceName: ActorServiceName;
+
     /**
      * Throws a `PermissionDeniedError` error if we are not a session actor.
      * Otherwise returns a context with the correct type for the `actor` module.

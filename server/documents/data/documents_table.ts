@@ -10,7 +10,6 @@ import {
 import {
     ServerActionContext,
     ServerSessionActionContext,
-    ServerSessionActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -23,7 +22,6 @@ import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
-import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
@@ -33,7 +31,6 @@ import {
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
-import {Context} from "~/shared/context/context.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {DocumentCommentThreadReference} from "~/shared/documents/document_content_references.js";
 import {
@@ -2021,11 +2018,7 @@ export const updateDocumentContentBeforeExecuteTransactionTestCheckpoint = new T
  *   the majority of updates we only save the steps.
  */
 export async function updateDocumentContent(
-    context: Context<
-        ServerSessionActionContextModules & {
-            notifications: NotificationsContextModuleBase;
-        }
-    >,
+    context: ServerSessionActionContext,
     {
         id,
         version: clientVersion,
@@ -2593,19 +2586,22 @@ export async function updateDocumentContent(
                                 createCommentThread.initialCommentContent,
                             );
 
-                            context.notifications.sendNotificationEvent({
-                                type: "CreateDocumentComment",
-                                id: generateId(),
-                                spaceId: internalDocument.spaceId,
-                                documentId: id,
-                                commentThreadId: createCommentThread.commentThreadId,
-                                commentIndex: 0,
-                                createdTime: createCommentThread.createdTime ?? currentTime,
-                                authorId: context.actor.getAccountId(),
-                                mentionedAccountIds,
-                                contentSnippet: getNotificationMessageContentSnippet(
-                                    createCommentThread.initialCommentContent,
-                                ),
+                            context.jobs.send({
+                                type: "NotificationEvent",
+                                event: {
+                                    type: "CreateDocumentComment",
+                                    id: generateId(),
+                                    spaceId: internalDocument.spaceId,
+                                    documentId: id,
+                                    commentThreadId: createCommentThread.commentThreadId,
+                                    commentIndex: 0,
+                                    createdTime: createCommentThread.createdTime ?? currentTime,
+                                    authorId: context.actor.getAccountId(),
+                                    mentionedAccountIds,
+                                    contentSnippet: getNotificationMessageContentSnippet(
+                                        createCommentThread.initialCommentContent,
+                                    ),
+                                },
                             });
 
                             context.jobs.send({
@@ -3677,11 +3673,7 @@ async function getDocumentCommentThreadItem(
  * Add a new comment to a document comment thread.
  */
 export async function createDocumentComment(
-    context: Context<
-        ServerSessionActionContextModules & {
-            notifications: NotificationsContextModuleBase;
-        }
-    >,
+    context: ServerSessionActionContext,
     {
         documentId,
         commentThreadId,
@@ -3767,17 +3759,20 @@ export async function createDocumentComment(
 
         const mentionedAccountIds = getMentionedAccountIdsInContent(content);
 
-        context.notifications.sendNotificationEvent({
-            type: "CreateDocumentComment",
-            id: generateId(),
-            spaceId: documentItem.spaceId,
-            documentId,
-            commentThreadId,
-            commentIndex,
-            createdTime,
-            authorId,
-            mentionedAccountIds,
-            contentSnippet: getNotificationMessageContentSnippet(content),
+        context.jobs.send({
+            type: "NotificationEvent",
+            event: {
+                type: "CreateDocumentComment",
+                id: generateId(),
+                spaceId: documentItem.spaceId,
+                documentId,
+                commentThreadId,
+                commentIndex,
+                createdTime,
+                authorId,
+                mentionedAccountIds,
+                contentSnippet: getNotificationMessageContentSnippet(content),
+            },
         });
 
         context.jobs.send({

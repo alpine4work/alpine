@@ -1,6 +1,6 @@
 import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
-import {JobDescription} from "~/server/jobs/core/job_description.js";
+import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
 import {JobSenderBase} from "~/server/jobs/core/job_sender.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -87,7 +87,9 @@ export class TestLocalJobSender extends JobSenderBase {
 
             processContextModule.waitUntil(
                 tracer.withSpan(`Process job ${job.type} (locally)`, async span => {
-                    await this._createSystemContext(job.spaceId).with(
+                    const spaceId = getJobDescriptionSpaceId(job);
+
+                    await this._createSystemContext(spaceId).with(
                         {tracer: new TracerContextModule(span)},
                         async context => {
                             await this._processJob(context, job, jobStartTime);

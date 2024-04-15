@@ -31,11 +31,6 @@ export type ServerActionContextModulesBase = ServerProcessContextModules & {
      * We batch at the action level so that unrelated requests do not share IO.
      */
     dynamoBatchContext: DynamoBatchContextModule;
-
-    // TODO(calebmer): To clean up `EdgeServiceContextModule` and
-    // `NotificationsContextModule` usage, I wonder if I could add
-    // `EdgeServiceContextModule` here and have notifications processed by the job
-    // queue? (Since it needs escalation.)
 };
 
 /**
