@@ -1,5 +1,7 @@
+import {useCallback, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {postContentViewMinHeight} from "~/client/forum/post_content_view.js";
+import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
@@ -75,25 +77,49 @@ export const meta = () => [{title: `New posts notification${metaTitlePostfix}`}]
 export default function ChannelPostsRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
     const context = useAppContext();
     const {space} = useSpaceContext();
-    const {channelId, bucketGeneration, postsResult} = useLoaderDataWithSchema(LoaderSchema);
+    const {
+        channelId,
+        bucketGeneration,
+        postsResult: initialPostsResult,
+    } = useLoaderDataWithSchema(LoaderSchema);
 
     // While you're viewing new posts in a channel, this accrues affinity points to
     // the channel. Since you're taking time to pay attention to what's new in a
     // channel.
     useSearchAffinityViewInteraction(`Channel:${channelId}`);
 
+    const [posts, setPosts] = useState(() =>
+        PostBasicList.empty
+            .insertManyPostsAtEnd(initialPostsResult.posts)
+            .setHasMorePosts(initialPostsResult.hasMorePosts),
+    );
+
     return (
         <PostListView
             withMobileLayout={withMobileLayout}
-            initialPostsResult={{type: "Many", ...postsResult}}
-            onLoadMorePosts={({limit, afterCursor}) => {
-                return getInboxChannelPostsEntryPosts(context, {
+            posts={posts}
+            onTogglePostComments={useCallback(
+                postId => setPosts(posts => posts.togglePostComments(postId)),
+                [],
+            )}
+            onUpdatePostComments={useCallback(
+                (postId, update) => setPosts(posts => posts.updatePostComments(postId, update)),
+                [],
+            )}
+            onLoadMorePosts={async ({limit}) => {
+                const postsResult = await getInboxChannelPostsEntryPosts(context, {
                     spaceId: space.id,
                     channelId,
                     bucketGeneration,
                     limit,
-                    afterPostId: afterCursor?.postId ?? null,
+                    afterPostId: posts.getLastPostIfExists()?.post.id ?? null,
                 });
+
+                setPosts(posts =>
+                    posts
+                        .insertManyPostsAtEnd(postsResult.posts)
+                        .setHasMorePosts(postsResult.hasMorePosts),
+                );
             }}
         />
     );

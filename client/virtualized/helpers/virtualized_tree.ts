@@ -207,6 +207,20 @@ export abstract class VirtualizedTreeBase<NodeKey extends Key, NodeOrderKey, Nod
         const {node, startItemIndex} = nodeResult;
         return this._getNodeItem(node, itemIndex - startItemIndex, startItemIndex);
     }
+
+    /**
+     * The first node or null if there are no nodes.
+     */
+    public getFirstNodeIfExists(): Node | null {
+        return this._nodeByOrderKey.begin.value ?? null;
+    }
+
+    /**
+     * The last node or null if there are no nodes.
+     */
+    public getLastNodeIfExists(): Node | null {
+        return this._nodeByOrderKey.end.value ?? null;
+    }
 }
 
 /**

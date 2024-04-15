@@ -1,4 +1,5 @@
-import {useEffect, useRef} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
+import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView, PostListViewRef} from "~/client/forum/post_list_view.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -32,18 +33,29 @@ export function PostView({
             postList.jumpToPostCommentIndex(initialPost.id, initialScrollToPostCommentIndex);
     }, [initialPost.id, initialScrollToPostCommentIndex]);
 
+    // NOCOMMIT: Post update realtime updates??
+    const [posts, setPosts] = useState(() =>
+        PostBasicList.empty.insertPostAtEnd(initialPost, {
+            postCommentsState: "AlwaysOpen",
+            initialLoadPostComments: {
+                comments: initialPostComments,
+                otherReferencedComments: initialOtherReferencedPostComments,
+            },
+        }),
+    );
+
     return (
         <PostListView
             ref={postListRef}
-            initialPostsResult={{
-                type: "One",
-                post: initialPost,
-                postCommentsState: "AlwaysOpen",
-                initialLoadPostComments: {
-                    comments: initialPostComments,
-                    otherReferencedComments: initialOtherReferencedPostComments,
-                },
-            }}
+            posts={posts}
+            onTogglePostComments={useCallback(
+                postId => setPosts(posts => posts.togglePostComments(postId)),
+                [],
+            )}
+            onUpdatePostComments={useCallback(
+                (postId, update) => setPosts(posts => posts.updatePostComments(postId, update)),
+                [],
+            )}
             withMobileLayout={withMobileLayout}
         />
     );

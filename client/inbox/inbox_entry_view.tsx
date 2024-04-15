@@ -1,3 +1,4 @@
+import {assignInlineVars} from "@vanilla-extract/dynamic";
 import {differenceInHours} from "date-fns";
 import GraphemeSplitter from "grapheme-splitter";
 import {AnimationControls, animate} from "motion";
@@ -155,7 +156,21 @@ export function InboxEntryView({
                 setIsPressed(false);
             }}
         >
-            <Box paddingX="4" position="relative" zIndex="0">
+            <Box
+                paddingX="4"
+                position="relative"
+                zIndex="0"
+                style={
+                    // We use `backgroundColorVar` to draw an outline around avatars. Even though we
+                    // use an absolutely positioned element to set the background color we still
+                    // want `backgroundColorVar` to reflect the right value.
+                    isPressed && withinOverlay
+                        ? assignInlineVars({[backgroundColorVar]: colorSchemeVars["grey-10"]})
+                        : isSelected
+                        ? assignInlineVars({[backgroundColorVar]: colorSchemeVars["grey-5"]})
+                        : undefined
+                }
+            >
                 {((isPressed && withinOverlay) || isSelected) && (
                     <Box
                         position="absolute"

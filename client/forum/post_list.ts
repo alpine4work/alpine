@@ -206,7 +206,7 @@ export class PostListWithChannelHeader implements PostListBase {
  * general realtime query data structure.
  */
 export class PostBasicList implements PostListBase {
-    private readonly _hasMorePosts: boolean;
+    public readonly hasMorePosts: boolean;
 
     private readonly _posts: VirtualizedTree<
         PostId,
@@ -233,7 +233,7 @@ export class PostBasicList implements PostListBase {
             Exclude<PostListItem, PostListChannelHeaderItem | PostListMoreUnloadedPostsItem>
         >;
     }) {
-        this._hasMorePosts = hasMorePosts;
+        this.hasMorePosts = hasMorePosts;
         this._posts = posts;
     }
 
@@ -255,7 +255,7 @@ export class PostBasicList implements PostListBase {
      * Get the total number of items in the list.
      */
     public getItemCount() {
-        return this._posts.getItemCount() + (this._hasMorePosts ? 1 : 0);
+        return this._posts.getItemCount() + (this.hasMorePosts ? 1 : 0);
     }
 
     public getPostCount() {
@@ -298,6 +298,16 @@ export class PostBasicList implements PostListBase {
     }
 
     /**
+     * Get the last post or return null if there are no posts.
+     */
+    public getLastPostIfExists(): {
+        post: PostModel;
+        postComments: MessageList<PostCommentModel>;
+    } | null {
+        return this._posts.getLastNodeIfExists();
+    }
+
+    /**
      * Get the post content item for the provided index. If this index is pointing
      * at a comment then we will return the item for the post the comment is a part
      * of. Will return null if the index is out of bounds. Every index in this
@@ -328,7 +338,7 @@ export class PostBasicList implements PostListBase {
      * of bounds.
      */
     public getItem(index: number): PostListItem {
-        if (this._hasMorePosts && index === this.getItemCount() - 1) {
+        if (this.hasMorePosts && index === this.getItemCount() - 1) {
             return {
                 type: "MoreUnloadedPosts",
             };
@@ -342,7 +352,7 @@ export class PostBasicList implements PostListBase {
      */
     public setHasMorePosts(hasMorePosts: boolean): PostBasicList {
         // Optimization: Don't update the post list if this property hasn't changed.
-        if (hasMorePosts === this._hasMorePosts) return this;
+        if (hasMorePosts === this.hasMorePosts) return this;
 
         return new PostBasicList({
             hasMorePosts,
@@ -387,7 +397,7 @@ export class PostBasicList implements PostListBase {
         ]);
 
         return new PostBasicList({
-            hasMorePosts: this._hasMorePosts,
+            hasMorePosts: this.hasMorePosts,
             posts,
         });
     }
@@ -429,7 +439,7 @@ export class PostBasicList implements PostListBase {
         ]);
 
         return new PostBasicList({
-            hasMorePosts: this._hasMorePosts,
+            hasMorePosts: this.hasMorePosts,
             posts,
         });
     }
@@ -440,7 +450,7 @@ export class PostBasicList implements PostListBase {
      */
     public insertManyPostsAtStart(posts: ReadonlyArray<PostModel>) {
         return new PostBasicList({
-            hasMorePosts: this._hasMorePosts,
+            hasMorePosts: this.hasMorePosts,
             posts: this._posts.insertNodesAtStart(
                 posts.map(post => ({
                     post,
@@ -460,7 +470,7 @@ export class PostBasicList implements PostListBase {
      */
     public insertManyPostsAtEnd(posts: ReadonlyArray<PostModel>) {
         return new PostBasicList({
-            hasMorePosts: this._hasMorePosts,
+            hasMorePosts: this.hasMorePosts,
             posts: this._posts.insertNodesAtEnd(
                 posts.map(post => ({
                     post,
@@ -479,7 +489,7 @@ export class PostBasicList implements PostListBase {
      */
     public togglePostComments(postId: PostId): PostBasicList {
         return new PostBasicList({
-            hasMorePosts: this._hasMorePosts,
+            hasMorePosts: this.hasMorePosts,
             posts: this._posts.updateNode(postId, node => {
                 // Can not toggle post comments if it is always open.
                 if (node.postCommentsState === "AlwaysOpen")
@@ -509,7 +519,7 @@ export class PostBasicList implements PostListBase {
         if (newPosts === this._posts) return this;
 
         return new PostBasicList({
-            hasMorePosts: this._hasMorePosts,
+            hasMorePosts: this.hasMorePosts,
             posts: newPosts,
         });
     }
@@ -531,7 +541,7 @@ export class PostBasicList implements PostListBase {
         if (newPosts === this._posts) return this;
 
         return new PostBasicList({
-            hasMorePosts: this._hasMorePosts,
+            hasMorePosts: this.hasMorePosts,
             posts: newPosts,
         });
     }
