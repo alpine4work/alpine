@@ -13,7 +13,6 @@ import {PostListChannelHeader} from "~/client/forum/post_list.js";
 import {postListViewMarginX, postListViewMarginY} from "~/client/forum/post_list_view.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {addRemLengths, spacing} from "~/shared/design/spacing.js";
-import {PostModel} from "~/shared/forum/post_model.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 export const channelViewHeaderMinHeight = addRemLengths(
@@ -24,11 +23,9 @@ export const channelViewHeaderMinHeight = addRemLengths(
 
 export function ChannelViewHeader({
     channelHeader,
-    onCreatePost,
     withMobileLayout,
 }: {
     channelHeader: PostListChannelHeader;
-    onCreatePost: (post: PostModel) => void;
     withMobileLayout: boolean;
 }) {
     return (

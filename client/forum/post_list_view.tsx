@@ -38,15 +38,16 @@ import {
 } from "~/client/forum/post_content_view.js";
 import {PostEditorModal} from "~/client/forum/post_editor_modal.js";
 import {
-    PostCommentsState,
-    PostList,
+    PostListBase,
     PostListChannelHeader,
     PostListPostContentItem,
+    PostListWithChannelHeader,
 } from "~/client/forum/post_list.js";
 import {PostShimmer} from "~/client/forum/post_shimmer.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
+import {MessageList} from "~/client/messaging/message_list.js";
 import {MessageShimmer} from "~/client/messaging/message_shimmer.js";
 import {MessageView} from "~/client/messaging/message_view.js";
 import {
@@ -133,7 +134,9 @@ export type PostListViewRef = {
 function PostListView(
     {
         channelHeader,
-        initialPostsResult,
+        posts: postsWithoutChannelHeader,
+        onTogglePostComments,
+        onUpdatePostComments,
         onLoadMorePosts,
         aside,
         withMobileLayout: withMobileLayoutProp = false,
@@ -146,24 +149,28 @@ function PostListView(
         channelHeader?: Memo<PostListChannelHeader>;
 
         /**
-         * The initial posts loaded to populate this post list view. We will use this
-         * to construct a `PostList` class.
+         * The post content to be rendered in this post list view.
          */
-        initialPostsResult:
-            | {
-                  type: "Many";
-                  hasMorePosts: boolean;
-                  posts: ReadonlyArray<PostModel>;
-              }
-            | {
-                  type: "One";
-                  post: PostModel;
-                  postCommentsState?: PostCommentsState;
-                  initialLoadPostComments?: {
-                      comments: ReadonlyArray<PostCommentModel>;
-                      otherReferencedComments: ReadonlyArray<PostCommentModel>;
-                  };
-              };
+        posts: PostListBase;
+
+        /**
+         * Toggle the comments for a post open and closed.
+         */
+        onTogglePostComments: Memo<(postId: PostId) => void>;
+
+        /**
+         * Arbitrarily update the comments for a post. When we render a post's comments
+         * we'll connect to realtime for that post. As realtime updates come in, we'll
+         * call this function with any updates to the post's comments.
+         */
+        onUpdatePostComments: Memo<
+            (
+                postId: PostId,
+                update: (
+                    postComments: MessageList<PostCommentModel>,
+                ) => MessageList<PostCommentModel>,
+            ) => void
+        >;
 
         /**
          * If the post list has more posts then this function should load those posts.
@@ -174,10 +181,7 @@ function PostListView(
         onLoadMorePosts?: (options: {
             limit: number;
             afterCursor?: {createdTime: Date; postId: PostId};
-        }) => Promise<{
-            hasMorePosts: boolean;
-            posts: ReadonlyArray<PostModel>;
-        }>;
+        }) => Promise<void>;
 
         /**
          * An element we render to the side of the post list but still within the
@@ -241,27 +245,11 @@ function PostListView(
     const hasAside = !withMobileLayout && !!aside;
     const hasNavigationBar = !!navigationBar;
 
-    const [postsWithoutChannelHeader, setPosts] = useState(() => {
-        let posts: PostList;
-        switch (initialPostsResult.type) {
-            case "Many": {
-                posts = PostList.empty
-                    .insertManyPostsAtEnd(initialPostsResult.posts)
-                    .setHasMorePosts(initialPostsResult.hasMorePosts);
-                break;
-            }
-            case "One": {
-                posts = PostList.empty.insertPostAtEnd(initialPostsResult.post, initialPostsResult);
-                break;
-            }
-            default:
-                throw exhaustive(initialPostsResult);
-        }
-        return posts.setChannelHeader(channelHeader ?? null);
-    });
-
     const posts = useMemo(
-        () => postsWithoutChannelHeader.setChannelHeader(channelHeader ?? null),
+        () =>
+            channelHeader
+                ? new PostListWithChannelHeader(channelHeader, postsWithoutChannelHeader)
+                : postsWithoutChannelHeader,
         [channelHeader, postsWithoutChannelHeader],
     );
 
@@ -271,7 +259,7 @@ function PostListView(
     const isSingleMobileLayoutPostWithPinnedCommentInput =
         withMobileLayout &&
         posts.getPostCount() === 1 &&
-        posts.getLastPostContentItemIfExists()?.postCommentsState === "AlwaysOpen";
+        posts.getPostContentItemIfExists(channelHeader ? 1 : 0)?.postCommentsState === "AlwaysOpen";
 
     const isLoadingRef = useRef(false);
     const [errorState, setErrorState] = useState<
@@ -396,10 +384,8 @@ function PostListView(
                         return {
                             isLoading: true,
                             promise: result.promise.then(result => {
-                                setPosts(posts =>
-                                    posts.updatePostComments(item.post.id, postComments =>
-                                        postComments.loadMessages(result),
-                                    ),
+                                onUpdatePostComments(item.post.id, postComments =>
+                                    postComments.loadMessages(result),
                                 );
                             }),
                         };
@@ -431,21 +417,9 @@ function PostListView(
                                 ),
                             );
 
-                            const lastPost = posts.getLastPostContentItemIfExists();
-
-                            const {hasMorePosts, posts: newPosts} = await onLoadMorePosts({
+                            await onLoadMorePosts({
                                 limit,
-                                afterCursor: lastPost
-                                    ? {
-                                          createdTime: lastPost.post.createdTime,
-                                          postId: lastPost.post.id,
-                                      }
-                                    : undefined,
                             });
-
-                            setPosts(posts =>
-                                posts.insertManyPostsAtEnd(newPosts).setHasMorePosts(hasMorePosts),
-                            );
                         })(),
                     };
                 }
@@ -495,14 +469,12 @@ function PostListView(
                                     : limit,
                         });
 
-                    setPosts(posts =>
-                        posts.updatePostComments(item.post.id, list =>
-                            list.loadMessages({
-                                messageCount: commentCount,
-                                messages: comments,
-                                otherReferencedMessages: otherReferencedComments,
-                            }),
-                        ),
+                    onUpdatePostComments(item.post.id, postComments =>
+                        postComments.loadMessages({
+                            messageCount: commentCount,
+                            messages: comments,
+                            otherReferencedMessages: otherReferencedComments,
+                        }),
                     );
                 }
 
@@ -648,9 +620,6 @@ function PostListView(
                                     {hasNavigationBar && <Spacer space={navigationBarHeight} />}
                                     <ChannelViewHeader
                                         channelHeader={item.channelHeader}
-                                        onCreatePost={post =>
-                                            setPosts(posts => posts.insertPostAtStart(post))
-                                        }
                                         withMobileLayout={withMobileLayout}
                                     />
                                 </div>
@@ -721,9 +690,7 @@ function PostListView(
                                         }
                                         onEditPost={() => setEditingPost(item.post)}
                                         onTogglePostComments={() =>
-                                            setPosts(posts =>
-                                                posts.togglePostComments(item.post.id),
-                                            )
+                                            onTogglePostComments(item.post.id)
                                         }
                                         onLoadInitialPostComments={() =>
                                             loadInitialPostComments(item)
@@ -1022,7 +989,7 @@ function PostListView(
                             }}
                             postComments={item.postComments}
                             onUpdatePostComments={update =>
-                                setPosts(posts => posts.updatePostComments(item.post.id, update))
+                                onUpdatePostComments(item.post.id, update)
                             }
                             postCommentEditing={messageEditing}
                             replyingToPostComment={replyingToPostComment}
@@ -1233,16 +1200,18 @@ function PostListView(
         [
             posts,
             hasNavigationBar,
+            isMobile,
             withMobileLayout,
             hasAside,
             channelHeader?.channel.id,
             isSingleMobileLayoutPostWithPinnedCommentInput,
+            onTogglePostComments,
             loadInitialPostComments,
             messageEditing,
             highlightPostComment,
-            isMobile,
             handleJumpToPostComment,
             replyingToPostCommentIndexByPostId,
+            onUpdatePostComments,
         ],
     );
 
@@ -1391,7 +1360,7 @@ function PostListView(
                 {isSingleMobileLayoutPostWithPinnedCommentInput &&
                     (() => {
                         const lastPostContentItem = assertExists(
-                            posts.getLastPostContentItemIfExists(),
+                            posts.getPostContentItemIfExists(channelHeader ? 1 : 0),
                         );
 
                         const replyingToPostCommentIndex = replyingToPostCommentIndexByPostId.get(
@@ -1423,12 +1392,7 @@ function PostListView(
                                 postCommentEditing={messageEditing}
                                 postComments={lastPostContentItem.postComments}
                                 onUpdatePostComments={update =>
-                                    setPosts(posts =>
-                                        posts.updatePostComments(
-                                            lastPostContentItem.post.id,
-                                            update,
-                                        ),
-                                    )
+                                    onUpdatePostComments(lastPostContentItem.post.id, update)
                                 }
                                 replyingToPostComment={replyingToPostComment}
                                 onClearReplyingToPostComment={() => {
@@ -1464,9 +1428,10 @@ function PostListView(
             {editingPost && (
                 <PostEditorModal
                     post={editingPost}
-                    onUpdatePost={update =>
-                        setPosts(posts => posts.updatePost(editingPost.id, update))
-                    }
+                    onUpdatePost={update => {
+                        // NOCOMMIT:
+                        // setPosts(posts => posts.updatePost(editingPost.id, update))
+                    }}
                     onClose={() => setEditingPost(null)}
                 />
             )}

@@ -117,7 +117,7 @@ test("can get a channel", async () => {
         name: "Test",
     });
 
-    expect((await getChannel(context.action(session1), channel.id)).name).toEqual("Test");
+    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test");
     expect(
         (await getChannelNameAndDescriptionContent(context.action(session1), channel.id)).name,
     ).toEqual("Test");
@@ -129,7 +129,7 @@ test("can update a channel's name", async () => {
         name: "Test 1",
     });
 
-    expect((await getChannel(context.action(session1), channel.id)).name).toEqual("Test 1");
+    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 1");
     expect(
         (await getChannelNameAndDescriptionContent(context.action(session1), channel.id)).name,
     ).toEqual("Test 1");
@@ -139,7 +139,7 @@ test("can update a channel's name", async () => {
         name: "Test 2",
     });
 
-    expect((await getChannel(context.action(session1), channel.id)).name).toEqual("Test 2");
+    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 2");
     expect(
         (await getChannelNameAndDescriptionContent(context.action(session1), channel.id)).name,
     ).toEqual("Test 2");
@@ -151,7 +151,7 @@ test("can not update a channel's name from a different space", async () => {
         name: "Test 1",
     });
 
-    expect((await getChannel(context.action(session1), channel.id))?.name).toEqual("Test 1");
+    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 1");
 
     await expect(
         updateChannelName(context.action(otherSession), {
@@ -160,7 +160,7 @@ test("can not update a channel's name from a different space", async () => {
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
-    expect((await getChannel(context.action(session1), channel.id))?.name).toEqual("Test 1");
+    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 1");
 });
 
 test("can not update the name of a channel that does not exist", async () => {
@@ -178,7 +178,7 @@ test("can update a channel's description", async () => {
         name: "Test 1",
     });
 
-    expect((await getChannel(context.action(session1), channel.id))?.description.doc).toEqual(
+    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
         emptyMessageContent,
     );
 
@@ -187,7 +187,7 @@ test("can update a channel's description", async () => {
         description: testMessageContent1,
     });
 
-    expect((await getChannel(context.action(session1), channel.id))?.description.doc).toEqual(
+    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
         testMessageContent1,
     );
 
@@ -196,7 +196,7 @@ test("can update a channel's description", async () => {
         description: testMessageContent2,
     });
 
-    expect((await getChannel(context.action(session1), channel.id))?.description.doc).toEqual(
+    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
         testMessageContent2,
     );
 });
@@ -207,7 +207,7 @@ test("can not update a channel's description from a different space", async () =
         name: "Test 1",
     });
 
-    expect((await getChannel(context.action(session1), channel.id))?.description.doc).toEqual(
+    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
         emptyMessageContent,
     );
 
@@ -218,7 +218,7 @@ test("can not update a channel's description from a different space", async () =
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
-    expect((await getChannel(context.action(session1), channel.id))?.description.doc).toEqual(
+    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
         emptyMessageContent,
     );
 });
@@ -238,7 +238,7 @@ test("can not update a channel's description with invalid content", async () => 
         name: "Test 1",
     });
 
-    expect((await getChannel(context.action(session1), channel.id))?.description.doc).toEqual(
+    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
         emptyMessageContent,
     );
 
@@ -247,7 +247,7 @@ test("can not update a channel's description with invalid content", async () => 
         description: testMessageContent1,
     });
 
-    expect((await getChannel(context.action(session1), channel.id))?.description.doc).toEqual(
+    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
         testMessageContent1,
     );
 
@@ -264,7 +264,7 @@ test("can not update a channel's description with invalid content", async () => 
         }),
     ).rejects.toThrow(InvalidArgumentError);
 
-    expect((await getChannel(context.action(session1), channel.id))?.description.doc).toEqual(
+    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
         testMessageContent1,
     );
 });

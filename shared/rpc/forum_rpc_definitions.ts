@@ -1,7 +1,12 @@
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
-import {createDynamoGeneralRealtimeIndexQuerySchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {
+    createDynamoGeneralRealtimeBackfillResultSchema,
+    createDynamoGeneralRealtimeIndexQuerySchema,
+    createDynamoGeneralRealtimeItemSchema,
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -28,6 +33,16 @@ export const updateChannelDescription = defineRpc({
     output: {},
 });
 
+export const getChannelWithStrongReadConsistency = defineRpc({
+    name: "getChannelWithStrongReadConsistency",
+    input: {
+        channelId: Schema.id<ChannelId>(),
+    },
+    output: {
+        channel: createDynamoGeneralRealtimeItemSchema(ChannelModel.schema()),
+    },
+});
+
 export const getChannelPosts = defineRpc({
     name: "getChannelPosts",
     input: {
@@ -37,6 +52,17 @@ export const getChannelPosts = defineRpc({
     },
     output: {
         postsResult: createDynamoGeneralRealtimeIndexQuerySchema(PostModel.schema()),
+    },
+});
+
+export const backfillChannelPosts = defineRpc({
+    name: "backfillChannelPosts",
+    input: {
+        channelId: Schema.id<ChannelId>(),
+        readTime: Schema.date,
+    },
+    output: {
+        backfillPostsResult: createDynamoGeneralRealtimeBackfillResultSchema(PostModel.schema()),
     },
 });
 

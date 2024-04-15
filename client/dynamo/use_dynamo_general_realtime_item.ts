@@ -53,6 +53,10 @@ export function useDynamoGeneralRealtimeItem<Model>(
          * But what if updates happened BEFORE we connect but after we load the initial
          * item that's passed in as a prop? The reload function catches those updates.
          *
+         * The reload function also runs if the user temporarily disconnects from
+         * internet then reconnects (e.g. they went through a tunnel) to make sure the
+         * user doesn't miss any realtime updates.
+         *
          * It's important to use strong read consistency in your reload function.
          * Eventual consistency may still miss some updates.
          */
@@ -60,8 +64,8 @@ export function useDynamoGeneralRealtimeItem<Model>(
     },
 ): DynamoGeneralRealtimeItem<Model> {
     const context = useAppContext();
-    const [_item, setItem] = useState(initialItem);
-    let item = _item;
+    const [itemFromState, setItem] = useState(initialItem);
+    let item = itemFromState;
 
     // If the item provided via props is a newer version then use it in our state.
     // Or if it is a different item entirely (by key).

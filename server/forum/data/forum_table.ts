@@ -4,12 +4,9 @@ import {
     getMentionCountByAccountIdInContent,
     getMentionedAccountIdsInContent,
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
-import {EdgeServiceContextModuleBase} from "~/server/context/edge_service_context_module.js";
 import {
     ServerActionContext,
-    ServerActionContextModules,
     ServerSessionActionContext,
-    ServerSessionActionContextModules,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
@@ -41,6 +38,7 @@ import {
     DynamoGeneralRealtimeBackfillResult,
     DynamoGeneralRealtimeEvent,
     DynamoGeneralRealtimeIndexQueryResult,
+    DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {
@@ -238,59 +236,49 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
             },
         },
     },
-    sendEventTransaction: (
-        context: Context<ServerActionContextModules & {edge: EdgeServiceContextModuleBase}>,
-        readTime,
-        eventTransaction,
-    ) => sendForumRealtimeEventTransaction(context, readTime, eventTransaction),
+    sendEventTransaction: async (context, readTime, eventTransaction) => {
+        // Split up event transactions so we send everything in a `ChannelId` to
+        // that channel and nothing else. We have to split for security: if two
+        // channels are updated in the same transaction, a user connected to
+        // channel 1 shouldn't get realtime events for channel 2 which they don't
+        // have access to.
+        //
+        // This means clients may see a glitch where an atomic update across two
+        // channels is applied separately. This is fine as in practice we don't
+        // have any cross-channel updates it's critical for users to see
+        // atomically.
+        const eventTransactionByChannelId = new Map<
+            ChannelId,
+            Array<DynamoGeneralRealtimeEvent<ChannelModel | PostModel>>
+        >();
+
+        for (const event of eventTransaction) {
+            getOrSetDefaultMapValue(
+                eventTransactionByChannelId,
+                event.item.model instanceof ChannelModel
+                    ? event.item.model.id
+                    : event.item.model.channel.id,
+                () => [],
+            ).push(event);
+        }
+
+        await runAllPromises(
+            Array.from(eventTransactionByChannelId, async ([channelId, eventTransaction]) => {
+                await context.edge.broadcastToDurableObject(
+                    `/api/durable-objects/channels/${channelId}/broadcast-realtime-event-transaction`,
+                    {
+                        serviceName: "ChannelRealtimeService",
+                        route: "/api/durable-objects/channels/:channelId/broadcast-realtime-event-transaction",
+                        body: ChannelBroadcastRealtimeEventTransactionSchema.serialize({
+                            readTime,
+                            eventTransaction,
+                        }),
+                    },
+                );
+            }),
+        );
+    },
 });
-
-async function sendForumRealtimeEventTransaction(
-    context: Context<ServerActionContextModules & {edge: EdgeServiceContextModuleBase}>,
-    readTime: Date,
-    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel | PostModel>>,
-) {
-    // Split up event transactions so we send everything in a `ChannelId` to
-    // that channel and nothing else. We have to split for security: if two
-    // channels are updated in the same transaction, a user connected to
-    // channel 1 shouldn't get realtime events for channel 2 which they don't
-    // have access to.
-    //
-    // This means clients may see a glitch where an atomic update across two
-    // channels is applied separately. This is fine as in practice we don't
-    // have any cross-channel updates it's critical for users to see
-    // atomically.
-    const eventTransactionByChannelId = new Map<
-        ChannelId,
-        Array<DynamoGeneralRealtimeEvent<ChannelModel | PostModel>>
-    >();
-
-    for (const event of eventTransaction) {
-        getOrSetDefaultMapValue(
-            eventTransactionByChannelId,
-            event.item.model instanceof ChannelModel
-                ? event.item.model.id
-                : event.item.model.channel.id,
-            () => [],
-        ).push(event);
-    }
-
-    await runAllPromises(
-        Array.from(eventTransactionByChannelId, async ([channelId, eventTransaction]) => {
-            await context.edge.broadcastToDurableObject(
-                `/api/durable-objects/channels/${channelId}`,
-                {
-                    serviceName: "ChannelRealtimeService",
-                    route: "/api/durable-objects/channels/:channelId",
-                    body: ChannelBroadcastRealtimeEventTransactionSchema.serialize({
-                        readTime,
-                        eventTransaction,
-                    }),
-                },
-            );
-        }),
-    );
-}
 
 // We use an index with join queries since it reduces write/storage costs
 // (compared to `addExpensiveFullIndex()`) and the read performance sacrifice
@@ -645,7 +633,7 @@ export async function seedTestChannels(
  * Create a new channel.
  */
 export async function createChannel(
-    context: Context<ServerSessionActionContextModules & {edge: EdgeServiceContextModuleBase}>,
+    context: ServerSessionActionContext,
     {spaceId, name}: {spaceId: SpaceId; name: string},
 ): Promise<{
     id: ChannelId;
@@ -703,16 +691,21 @@ export async function createChannel(
 export async function getChannelIfPossible(
     context: ServerActionContext,
     channelId: ChannelId,
-): Promise<Result<ChannelModel, PermissionDeniedError> | null> {
-    const channelItem = await ForumRealtimeTable.getItemIfExists(context, {
-        partitionType: "Channel",
-        sortRangeType: "Attributes",
-        channelId,
-    });
-    if (!channelItem) return null;
+    options?: {consistency: DynamoReadConsistency},
+): Promise<Result<DynamoGeneralRealtimeItem<ChannelModel>, PermissionDeniedError> | null> {
+    const channel = await ForumRealtimeTable.getRealtimeItemIfExists(
+        context,
+        {
+            partitionType: "Channel",
+            sortRangeType: "Attributes",
+            channelId,
+        },
+        {consistency: options?.consistency},
+    );
+    if (!channel) return null;
 
     try {
-        await authorizeSpaceAccess(context, channelItem.spaceId);
+        await authorizeSpaceAccess(context, channel.model.spaceId);
     } catch (error) {
         if (error instanceof PermissionDeniedError) {
             return {ok: false, error};
@@ -723,7 +716,7 @@ export async function getChannelIfPossible(
 
     return {
         ok: true,
-        value: await createChannelModelFromItem(context, channelItem),
+        value: channel,
     };
 }
 
@@ -756,8 +749,9 @@ async function createChannelModelFromItem(
 export async function getChannelIfExists(
     context: ServerActionContext,
     channelId: ChannelId,
-): Promise<ChannelModel | null> {
-    const channel = await getChannelIfPossible(context, channelId);
+    options?: {consistency: DynamoReadConsistency},
+): Promise<DynamoGeneralRealtimeItem<ChannelModel> | null> {
+    const channel = await getChannelIfPossible(context, channelId, options);
     if (!channel) return null;
     return unwrapResult(channel);
 }
@@ -769,8 +763,9 @@ export async function getChannelIfExists(
 export async function getChannel(
     context: ServerActionContext,
     channelId: ChannelId,
-): Promise<ChannelModel> {
-    const channel = await getChannelIfExists(context, channelId);
+    options?: {consistency: DynamoReadConsistency},
+): Promise<DynamoGeneralRealtimeItem<ChannelModel>> {
+    const channel = await getChannelIfExists(context, channelId, options);
     if (!channel) throw new NotFoundError("Channel not found");
     return channel;
 }
@@ -897,7 +892,7 @@ export async function authorizeChannelAccess(
  * Updates the name of the channel.
  */
 export async function updateChannelName(
-    context: Context<ServerActionContextModules & {edge: EdgeServiceContextModuleBase}>,
+    context: ServerActionContext,
     {
         channelId,
         name,
@@ -946,7 +941,7 @@ export async function updateChannelName(
  * Updates the description of the channel.
  */
 export async function updateChannelDescription(
-    context: Context<ServerActionContextModules & {edge: EdgeServiceContextModuleBase}>,
+    context: ServerActionContext,
     {
         channelId,
         description,
@@ -990,7 +985,7 @@ export async function updateChannelDescription(
  * post will be the first in the array.
  */
 export async function getChannelPosts(
-    context: Context<ServerActionContextModules & {edge: EdgeServiceContextModuleBase}>,
+    context: ServerActionContext,
     {
         channelId,
         limit,
@@ -1018,7 +1013,7 @@ export async function getChannelPosts(
  * disconnected from realtime.
  */
 export async function backfillChannelPosts(
-    context: Context<ServerSessionActionContextModules & {edge: EdgeServiceContextModuleBase}>,
+    context: ServerSessionActionContext,
     {channelId, readTime}: {channelId: ChannelId; readTime: Date},
 ): Promise<DynamoGeneralRealtimeBackfillResult<PostModel>> {
     const [, result] = await runAllPromises([
@@ -1311,7 +1306,7 @@ export async function getPostNotificationSubscribers(
  * Update the contents of a post if you are the post's author.
  */
 export async function updatePostContent(
-    context: Context<ServerSessionActionContextModules & {edge: EdgeServiceContextModuleBase}>,
+    context: ServerSessionActionContext,
     {postId, content}: {postId: PostId; content: PostContent},
 ): Promise<{contentUpdatedTime: Date}> {
     let spaceId: SpaceId | null = null;

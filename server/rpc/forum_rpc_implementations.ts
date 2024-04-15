@@ -2,10 +2,12 @@ import {getContentReferencesForNode} from "~/server/content/get_content_referenc
 import {
     authorizeChannelAccess,
     authorizePostAccess,
+    backfillChannelPosts,
     backfillPostComments,
     createPost,
     createPostComment,
     deletePostComment,
+    getChannel,
     getChannelPosts,
     getPostCommentAuthors,
     getPostCommentsFromEnd,
@@ -34,10 +36,31 @@ implementRpc(
     },
 );
 
+implementRpc(
+    definition.getChannelWithStrongReadConsistency,
+    {visibility: ["AppClient"]},
+    async (context, input) => {
+        const channel = await getChannel(context, input.channelId, {consistency: "Strong"});
+        return {channel};
+    },
+);
+
 implementRpc(definition.getChannelPosts, {visibility: ["AppClient"]}, async (context, input) => {
     const postsResult = await getChannelPosts(context, input);
     return {postsResult};
 });
+
+implementRpc(
+    definition.backfillChannelPosts,
+    {visibility: ["AppClient"]},
+    async (context, input) => {
+        const backfillPostsResult = await backfillChannelPosts(
+            context.actor.authorizeSession(),
+            input,
+        );
+        return {backfillPostsResult};
+    },
+);
 
 implementRpc(definition.createPost, {visibility: ["AppClient"]}, async (context, input) => {
     const post = await createPost(context.actor.authorizeSession(), input);

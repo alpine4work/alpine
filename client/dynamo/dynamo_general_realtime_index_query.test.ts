@@ -3,6 +3,7 @@ import {
     DynamoGeneralRealtimeIndexQueryItem,
 } from "~/client/dynamo/dynamo_general_realtime_index_query.js";
 import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 
 function testItemKey(string: string): DynamoItemKey {
     return string as DynamoItemKey;
@@ -20,6 +21,10 @@ function testItems<Model>(
     for (let index = 0; index < query.getItemCount(); index++) {
         items.push(query.getItem(index));
     }
+
+    expect(query.getLoadedItemByCursor().values).toEqual(
+        filterMapArray(items, item => (item.type === "Loaded" ? item.item : null)),
+    );
 
     return items;
 }

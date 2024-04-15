@@ -1838,7 +1838,7 @@ export async function searchChannelsByKeywords(
             if (!channelResult) return null;
             if (!channelResult.ok) return null;
 
-            const channel = channelResult.value;
+            const channel = channelResult.value.model;
 
             return getChannelStandaloneSearchResult(channel);
         }),
@@ -1876,7 +1876,7 @@ export async function searchChannelsByAffinity(
                 if (!channelResult) return null;
                 if (!channelResult.ok) return null;
                 return {
-                    ...getChannelStandaloneSearchResult(channelResult.value),
+                    ...getChannelStandaloneSearchResult(channelResult.value.model),
                     origin: "Account" as const,
                 };
             }),
@@ -1911,7 +1911,7 @@ export async function searchChannelsByAffinity(
             if (!channelResult) return null;
             if (!channelResult.ok) return null;
             return {
-                ...getChannelStandaloneSearchResult(channelResult.value),
+                ...getChannelStandaloneSearchResult(channelResult.value.model),
                 origin: typeof channelId === "string" ? ("Account" as const) : ("Space" as const),
             };
         }),

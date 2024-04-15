@@ -1,4 +1,4 @@
-import {PostList, PostListItem} from "~/client/forum/post_list.js";
+import {PostBasicList, PostListItem} from "~/client/forum/post_list.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
@@ -90,7 +90,7 @@ const testContent5WithReferences = {
  * Get all items in the list as an array. Accesses the items in random order to
  * exercise our caching logic.
  */
-function getItems(list: PostList) {
+function getItems(list: PostBasicList) {
     const indexOrder = shuffleArray(createArrayWithLength(list.getItemCount(), index => index));
 
     const items: Array<PostListItem | null> = createArrayWithLength(
@@ -122,11 +122,11 @@ function getItems(list: PostList) {
 }
 
 test("an empty list is empty", () => {
-    expect(getItems(PostList.empty)).toEqual([]);
+    expect(getItems(PostBasicList.empty)).toEqual([]);
 });
 
 test("can insert some posts into the end", () => {
-    let list = PostList.empty;
+    let list = PostBasicList.empty;
 
     const post1 = new PostModel({
         id: generateId(),
@@ -240,7 +240,7 @@ test("can insert some posts into the end", () => {
 });
 
 test("can insert some posts into the start", () => {
-    let list = PostList.empty;
+    let list = PostBasicList.empty;
 
     const post1 = new PostModel({
         id: generateId(),
@@ -354,7 +354,7 @@ test("can insert some posts into the start", () => {
 });
 
 test("can insert some posts into the end and others at the start", () => {
-    let list = PostList.empty;
+    let list = PostBasicList.empty;
 
     const post1 = new PostModel({
         id: generateId(),
@@ -468,7 +468,7 @@ test("can insert some posts into the end and others at the start", () => {
 });
 
 test("can toggle the comments for a post open", () => {
-    let list = PostList.empty;
+    let list = PostBasicList.empty;
 
     const post1 = new PostModel({
         id: generateId(),
@@ -739,7 +739,7 @@ test("can toggle the comments for a post open", () => {
 });
 
 test("can insert some posts into the end with already open comments", () => {
-    let list = PostList.empty;
+    let list = PostBasicList.empty;
 
     const post1 = new PostModel({
         id: generateId(),
@@ -871,7 +871,7 @@ test("can insert some posts into the end with already open comments", () => {
 });
 
 test("can insert some posts into the start with already open comments", () => {
-    let list = PostList.empty;
+    let list = PostBasicList.empty;
 
     const post1 = new PostModel({
         id: generateId(),
@@ -1003,7 +1003,7 @@ test("can insert some posts into the start with already open comments", () => {
 });
 
 test("can update the post comments list", () => {
-    let list = PostList.empty;
+    let list = PostBasicList.empty;
 
     const post1 = new PostModel({
         id: generateId(),
@@ -1144,7 +1144,7 @@ test("can add a channel header at the beginning", () => {
         },
     });
 
-    let list = PostList.empty;
+    let list = PostBasicList.empty;
 
     const post1 = new PostModel({
         id: generateId(),
@@ -1271,7 +1271,7 @@ test("can add a channel header at the beginning", () => {
 });
 
 test("can add an unloaded posts section at the end", () => {
-    let list = PostList.empty;
+    let list = PostBasicList.empty;
 
     const post1 = new PostModel({
         id: generateId(),

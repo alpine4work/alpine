@@ -2,6 +2,7 @@ import {useCallback, useEffect, useReducer, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
+import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
@@ -261,96 +262,59 @@ export function useInboxState({
         };
     }, [optimisticUpdates]);
 
-    // Subscribe to realtime events that may change what's in the inbox.
-    useEffect(() => {
-        return subscribeToEvents(event =>
-            dispatch({
-                type: "Update",
-                update: query =>
-                    query.handleEventTransaction(event.readTime, event.eventTransaction),
-            }),
-        );
-    }, [subscribeToEvents]);
+    useDynamoGeneralRealtimeIndexQueryBase(
+        {
+            query,
+            onUpdateQuery: useCallback(
+                (
+                    update: (
+                        query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
+                    ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
+                ) => dispatch({type: "Update", update}),
+                [],
+            ),
+        },
+        {
+            isConnected,
+            subscribeToEvents,
+            backfillQuery: useCallback(
+                async ({readTime}) => {
+                    // Also observe the inbox when we successfully connect to realtime. When we're
+                    // connected to realtime this also incidentally means the page is visible.
+                    //
+                    // We find this a pretty reasonable place to say "ok, the user is actually
+                    // looking at the inbox" whether they are looking at the inbox page or the
+                    // inbox preview overlay.
+                    //
+                    // It's also nice that we create an RPC batch with the backfill request.
+                    observeInbox(context, {spaceId: space.id}).catch(error => {
+                        context.tracer
+                            .getRoot()
+                            .logUncaughtException("Couldn't observe inbox", error);
+                    });
 
-    // Whenever we connect, we need to backfill changes from when we initially read
-    // inbox entries until now. That way if any realtime events happened during
-    // that time we can incorporate them into our state instead of completely
-    // missing them.
-    const wasConnectedRef = useRef(false);
-    useEffect(() => {
-        if (!isConnected) {
-            wasConnectedRef.current = false;
-            return;
-        }
-
-        if (wasConnectedRef.current) return;
-        wasConnectedRef.current = true;
-
-        backfillInboxEntries(context, {
-            spaceId: space.id,
-            readTime: query.getReadTime(),
-        }).then(
-            ({backfillEntriesResult}) => {
-                switch (backfillEntriesResult.type) {
-                    case "Available": {
-                        dispatch({
-                            type: "Update",
-                            update: query =>
-                                query.handleEventTransaction(
-                                    backfillEntriesResult.readTime,
-                                    backfillEntriesResult.eventTransaction,
-                                ),
-                        });
-                        break;
-                    }
-                    case "Unavailable": {
-                        // If a backfill is unavailable then fully reload our inbox entries to catch us
-                        // up to the latest data.
-                        getInboxEntries(context, {
-                            spaceId: space.id,
-                            filter,
-                            limit: getInitialVirtualizedScrollViewRenderedItemCount(
-                                getClientInfoWithoutListening(),
-                                inboxEntryViewMinHeight,
-                            ),
-                            afterCursor: null,
-                        }).then(
-                            ({entriesResult}) => {
-                                // Bit of a hack. Set this to false so that when the effect re-runs because we
-                                // got a new query we send a new backfill request with the `readTime` of our
-                                // reset query.
-                                //
-                                // By resetting the query we lose realtime event history. So it's kinda like we
-                                // were disconnected from realtime up until this point.
-                                wasConnectedRef.current = false;
-
-                                dispatch({
-                                    type: "Update",
-                                    update: () =>
-                                        DynamoGeneralRealtimeIndexQuery.new(entriesResult),
-                                });
-                            },
-                            error => setErrorState({hasError: true, error}),
-                        );
-                        break;
-                    }
-                    default:
-                        throw exhaustive(backfillEntriesResult);
-                }
-            },
-            error => setErrorState({hasError: true, error}),
-        );
-
-        // Also observe the inbox when we successfully connect to realtime. When we're
-        // connected to realtime this also incidentally means the page is visible.
-        //
-        // We find this a pretty reasonable place to say "ok, the user is actually
-        // looking at the inbox" whether they are looking at the inbox page or the
-        // inbox preview overlay.
-        observeInbox(context, {spaceId: space.id}).catch(error => {
-            context.tracer.getRoot().logUncaughtException("Couldn't observe inbox", error);
-        });
-    }, [context, filter, isConnected, query, space.id]);
+                    const {backfillEntriesResult} = await backfillInboxEntries(context, {
+                        spaceId: space.id,
+                        readTime,
+                    });
+                    return backfillEntriesResult;
+                },
+                [context, space.id],
+            ),
+            reloadQuery: useCallback(async () => {
+                const {entriesResult} = await getInboxEntries(context, {
+                    spaceId: space.id,
+                    filter,
+                    limit: getInitialVirtualizedScrollViewRenderedItemCount(
+                        getClientInfoWithoutListening(),
+                        inboxEntryViewMinHeight,
+                    ),
+                    afterCursor: null,
+                });
+                return entriesResult;
+            }, [context, filter, space.id]),
+        },
+    );
 
     const isLoadingRef = useRef(false);
     const [errorState, setErrorState] = useState<

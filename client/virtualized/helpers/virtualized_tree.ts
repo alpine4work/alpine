@@ -9,6 +9,207 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 
 /**
+ * See documentation of `VirtualizedTree`.
+ *
+ * Base class of `VirtualizedTree` which does not have any write capabilities
+ * like `insertNodesAtStart()`. Useful if you have another list state object
+ * (backed by a `functional-red-black-tree`) and want to use it as a
+ * virtualized tree.
+ */
+export abstract class VirtualizedTreeBase<NodeKey extends Key, NodeOrderKey, Node, Item> {
+    protected abstract _getNodeKey(node: Node): NodeKey;
+    protected abstract _getNodeItemCount(node: Node): number;
+    protected abstract _getNodeItem(
+        node: Node,
+        nodeItemIndex: number,
+        startItemIndex: number,
+    ): Item;
+
+    /**
+     * Should we iterate through `nodeByOrderKey` in reverse order?
+     */
+    protected readonly _isNodeByOrderKeyReversed: boolean = false;
+
+    /**
+     * The underlying tree object representing the nodes of this tree. But not
+     * the items.
+     */
+    protected abstract readonly _nodeByOrderKey: Tree<NodeOrderKey, Node>;
+
+    /**
+     * Cache of the item count in `nodeByOrderKey` subtrees.
+     */
+    protected readonly _itemCountSubtreeCache: WeakMap<TreeNode<NodeOrderKey, Node>, number>;
+
+    protected constructor(itemCountSubtreeCache: WeakMap<TreeNode<NodeOrderKey, Node>, number>) {
+        this._itemCountSubtreeCache = itemCountSubtreeCache;
+    }
+
+    /**
+     * The number of nodes in the tree.
+     */
+    public getNodeCount(): number {
+        return this._nodeByOrderKey.length;
+    }
+
+    /**
+     * Iterate through all the nodes in our tree.
+     */
+    public *iterateNodes(): IterableIterator<Node> {
+        if (this._isNodeByOrderKeyReversed) {
+            const iterator = this._nodeByOrderKey.end;
+
+            while (iterator.valid) {
+                yield iterator.value!;
+                iterator.prev();
+            }
+        } else {
+            const iterator = this._nodeByOrderKey.begin;
+
+            while (iterator.valid) {
+                yield iterator.value!;
+                iterator.next();
+            }
+        }
+    }
+
+    /**
+     * Get the number of items in a node.
+     */
+    public getNodeItemCount(node: Node): number {
+        return this._getNodeItemCount(node);
+    }
+
+    /**
+     * Get a node in the tree by its index. Returns null if the item index is
+     * out of bounds.
+     *
+     * Returns the index the node's items start at. The index the node's items end
+     * at is `startItemIndex + getNodeItemCount(node)`.
+     */
+    public getNodeByItemIndexIfExists(itemIndex: number): {
+        node: Node;
+        startItemIndex: number;
+    } | null {
+        const search = (
+            index: number,
+            node: TreeNode<NodeOrderKey, Node> | null,
+        ): {
+            node: TreeNode<NodeOrderKey, Node>;
+            nodeItemIndex: number;
+        } | null => {
+            if (!node) return null;
+
+            const beginNode = this._isNodeByOrderKeyReversed ? node.right : node.left;
+            const endNode = this._isNodeByOrderKeyReversed ? node.left : node.right;
+
+            const valueItemCount = this._getNodeItemCount(node.value);
+            const beginItemCount = this._getSubtreeItemCount(beginNode);
+
+            // If the index is in our node then hooray! Return this node and the index
+            // relative to the node's items.
+            //
+            // Otherwise the index is either in the left subtree or right subtree of this
+            // node. Find the appropriate subtree and recurse.
+            if (beginItemCount <= index && index < beginItemCount + valueItemCount) {
+                return {node, nodeItemIndex: index - beginItemCount};
+            } else if (index < beginItemCount) {
+                return search(index, beginNode);
+            } else {
+                assert(beginItemCount + valueItemCount <= index);
+                return search(index - (beginItemCount + valueItemCount), endNode);
+            }
+        };
+
+        const searchResult = search(itemIndex, this._nodeByOrderKey.root);
+        if (!searchResult) return null;
+
+        return {
+            node: searchResult.node.value,
+            startItemIndex: itemIndex - searchResult.nodeItemIndex,
+        };
+    }
+
+    /**
+     * Get the number of items in the provided subtree.
+     *
+     * WARNING: If you want to get the count of all items before the node you
+     * are looking at, do not use `_getSubtreeItemCount(iterator.node.left)`,
+     * instead use `_getPreviousItemCount(iterator)`. The former does not count
+     * items in parent nodes.
+     *
+     * This function is cached and takes advantage of the structural sharing in our
+     * binary tree. When the tree is updated, some subtrees are left untouched so
+     * we maintain the cached value for those subtrees. Running this function on a
+     * new tree is O(n) but running this function on an updated tree is O(log(n)).
+     */
+    protected _getSubtreeItemCount(node: TreeNode<NodeOrderKey, Node> | null): number {
+        if (node === null) return 0;
+
+        const valueItemCount = this._getNodeItemCount(node.value);
+        assert(valueItemCount > 0, "Node must have at least one item");
+
+        // Don't spend memory caching nodes with no subtrees.
+        if (node.left === null && node.right === null) return valueItemCount;
+
+        let itemCount = this._itemCountSubtreeCache.get(node);
+
+        if (itemCount === undefined) {
+            const leftItemCount = node.left !== null ? this._getSubtreeItemCount(node.left) : 0;
+            const rightItemCount = node.right !== null ? this._getSubtreeItemCount(node.right) : 0;
+
+            itemCount = leftItemCount + valueItemCount + rightItemCount;
+            this._itemCountSubtreeCache.set(node, itemCount);
+        }
+
+        return itemCount;
+    }
+
+    /**
+     * Get the item count of all entries before the node the iterator is
+     * looking at.
+     */
+    protected _getPreviousItemCount(iterator: TreeIterator<NodeOrderKey, Node>): number {
+        if (!iterator.node) return 0;
+        let itemCount = this._getSubtreeItemCount(
+            this._isNodeByOrderKeyReversed ? iterator.node.right : iterator.node.left,
+        );
+        const beforeOrderKey = iterator.node.key;
+
+        for (let i = iterator._stack.length - 2; i >= 0; i--) {
+            const parentNode = iterator._stack[i]!;
+
+            if (parentNode.key < beforeOrderKey) {
+                itemCount += this._getNodeItemCount(parentNode.value);
+                itemCount += this._getSubtreeItemCount(
+                    this._isNodeByOrderKeyReversed ? parentNode.right : parentNode.left,
+                );
+            }
+        }
+
+        return itemCount;
+    }
+
+    /**
+     * The total number of items in our tree. Will be greater than the number of
+     * nodes since it includes all the nodes' child items.
+     */
+    public getItemCount(): number {
+        return this._getSubtreeItemCount(this._nodeByOrderKey.root);
+    }
+
+    /**
+     * Get the item at the provided index. Throws if the index is out of bounds.
+     */
+    public getItem(itemIndex: number): Item {
+        const nodeResult = this.getNodeByItemIndexIfExists(itemIndex);
+        if (!nodeResult) throw new OutOfRangeError("Index is out of bounds");
+        const {node, startItemIndex} = nodeResult;
+        return this._getNodeItem(node, itemIndex - startItemIndex, startItemIndex);
+    }
+}
+
+/**
  * Immutable data structure for building virtualized tree UIs with
  * `<VirtualizedScrollView>`.
  *
@@ -42,10 +243,15 @@ import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_ke
  * `VirtualizedScrollViewState` uses a very similar technique for maintaining
  * knowledge about the physical state of items onscreen.
  */
-export class VirtualizedTree<NodeKey extends Key, Node, Item> {
-    private readonly _getNodeKey: (node: Node) => NodeKey;
-    private readonly _getNodeItemCount: (node: Node) => number;
-    private readonly _getNodeItem: (
+export class VirtualizedTree<NodeKey extends Key, Node, Item> extends VirtualizedTreeBase<
+    NodeKey,
+    OrderKey,
+    Node,
+    Item
+> {
+    protected readonly _getNodeKey: (node: Node) => NodeKey;
+    protected readonly _getNodeItemCount: (node: Node) => number;
+    protected readonly _getNodeItem: (
         node: Node,
         nodeItemIndex: number,
         startItemIndex: number,
@@ -61,17 +267,12 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> {
      * when an update happens we can reuse our computation for parts of the tree
      * that didn't change thanks to structural sharing.
      */
-    private readonly _nodeByOrderKey: Tree<OrderKey, Node>;
+    protected readonly _nodeByOrderKey: Tree<OrderKey, Node>;
 
     /**
      * A map of node keys to the position of the node in our `nodeByOrderKey` tree.
      */
     private readonly _orderKeyByNodeKey: Tree<NodeKey, OrderKey>;
-
-    /**
-     * Cache of the item count in `nodeByOrderKey` subtrees.
-     */
-    private readonly _itemCountSubtreeCache: WeakMap<TreeNode<OrderKey, Node>, number>;
 
     private constructor({
         getNodeKey,
@@ -88,14 +289,18 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> {
         orderKeyByNodeKey: Tree<NodeKey, OrderKey>;
         itemCountSubtreeCache: WeakMap<TreeNode<OrderKey, Node>, number>;
     }) {
+        super(itemCountSubtreeCache);
+
         assert(nodeByOrderKey.length === orderKeyByNodeKey.length);
+
+        // Reversed `nodeByOrderKey` is not supported by this class.
+        assert(!this._isNodeByOrderKeyReversed);
 
         this._getNodeKey = getNodeKey;
         this._getNodeItemCount = getNodeItemCount;
         this._getNodeItem = getNodeItem;
         this._nodeByOrderKey = nodeByOrderKey;
         this._orderKeyByNodeKey = orderKeyByNodeKey;
-        this._itemCountSubtreeCache = itemCountSubtreeCache;
     }
 
     /**
@@ -118,32 +323,6 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> {
             orderKeyByNodeKey: createTree(),
             itemCountSubtreeCache: new WeakMap(),
         });
-    }
-
-    /**
-     * The number of nodes in the tree.
-     */
-    public getNodeCount(): number {
-        return this._nodeByOrderKey.length;
-    }
-
-    /**
-     * Iterate through all the nodes in our tree.
-     */
-    public *iterateNodes(): IterableIterator<Node> {
-        const iterator = this._nodeByOrderKey.begin;
-
-        while (iterator.valid) {
-            yield iterator.value!;
-            iterator.next();
-        }
-    }
-
-    /**
-     * Get the number of items in a node.
-     */
-    public getNodeItemCount(node: Node): number {
-        return this._getNodeItemCount(node);
     }
 
     /**
@@ -183,127 +362,6 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> {
         assert(iterator.value, "Could not find node for order key");
 
         return iterator.index;
-    }
-
-    /**
-     * Get a node in the tree by its index. Returns null if the item index is
-     * out of bounds.
-     *
-     * Returns the index the node's items start at. The index the node's items end
-     * at is `startItemIndex + getNodeItemCount(node)`.
-     */
-    public getNodeByItemIndexIfExists(itemIndex: number): {
-        node: Node;
-        startItemIndex: number;
-    } | null {
-        const search = (
-            index: number,
-            node: TreeNode<OrderKey, Node> | null,
-        ): {
-            node: TreeNode<OrderKey, Node>;
-            nodeItemIndex: number;
-        } | null => {
-            if (!node) return null;
-
-            const valueItemCount = this._getNodeItemCount(node.value);
-            const leftItemCount = this._getSubtreeItemCount(node.left);
-
-            // If the index is in our node then hooray! Return this node and the index
-            // relative to the node's items.
-            //
-            // Otherwise the index is either in the left subtree or right subtree of this
-            // node. Find the appropriate subtree and recurse.
-            if (leftItemCount <= index && index < leftItemCount + valueItemCount) {
-                return {node, nodeItemIndex: index - leftItemCount};
-            } else if (index < leftItemCount) {
-                return search(index, node.left);
-            } else {
-                assert(leftItemCount + valueItemCount <= index);
-                return search(index - (leftItemCount + valueItemCount), node.right);
-            }
-        };
-
-        const searchResult = search(itemIndex, this._nodeByOrderKey.root);
-        if (!searchResult) return null;
-
-        return {
-            node: searchResult.node.value,
-            startItemIndex: itemIndex - searchResult.nodeItemIndex,
-        };
-    }
-
-    /**
-     * Get the number of items in the provided subtree.
-     *
-     * WARNING: If you want to get the count of all items before the node you
-     * are looking at, do not use `_getSubtreeItemCount(iterator.node.left)`,
-     * instead use `_getPreviousItemCount(iterator)`. The former does not count
-     * items in parent nodes.
-     *
-     * This function is cached and takes advantage of the structural sharing in our
-     * binary tree. When the tree is updated, some subtrees are left untouched so
-     * we maintain the cached value for those subtrees. Running this function on a
-     * new tree is O(n) but running this function on an updated tree is O(log(n)).
-     */
-    private _getSubtreeItemCount(node: TreeNode<OrderKey, Node> | null): number {
-        if (node === null) return 0;
-
-        const valueItemCount = this._getNodeItemCount(node.value);
-        assert(valueItemCount > 0, "Node must have at least one item");
-
-        // Don't spend memory caching nodes with no subtrees.
-        if (node.left === null && node.right === null) return valueItemCount;
-
-        let itemCount = this._itemCountSubtreeCache.get(node);
-
-        if (itemCount === undefined) {
-            const leftItemCount = node.left !== null ? this._getSubtreeItemCount(node.left) : 0;
-            const rightItemCount = node.right !== null ? this._getSubtreeItemCount(node.right) : 0;
-
-            itemCount = leftItemCount + valueItemCount + rightItemCount;
-            this._itemCountSubtreeCache.set(node, itemCount);
-        }
-
-        return itemCount;
-    }
-
-    /**
-     * Get the item count of all entries before the node the iterator is
-     * looking at.
-     */
-    private _getPreviousItemCount(iterator: TreeIterator<OrderKey, Node>): number {
-        if (!iterator.node) return 0;
-        let itemCount = this._getSubtreeItemCount(iterator.node.left);
-        const beforeOrderKey = iterator.node.key;
-
-        for (let i = iterator._stack.length - 2; i >= 0; i--) {
-            const parentNode = iterator._stack[i]!;
-
-            if (parentNode.key < beforeOrderKey) {
-                itemCount += this._getNodeItemCount(parentNode.value);
-                itemCount += this._getSubtreeItemCount(parentNode.left);
-            }
-        }
-
-        return itemCount;
-    }
-
-    /**
-     * The total number of items in our tree. Will be greater than the number of
-     * nodes since it includes all the nodes' child items.
-     */
-    public getItemCount(): number {
-        return this._getSubtreeItemCount(this._nodeByOrderKey.root);
-    }
-
-    /**
-     * Get the item at the provided index. Throws if the index is out of bounds.
-     */
-    public getItem(itemIndex: number): Item {
-        const nodeResult = this.getNodeByItemIndexIfExists(itemIndex);
-        if (!nodeResult) throw new OutOfRangeError("Index is out of bounds");
-        const {node, startItemIndex} = nodeResult;
-        return this._getNodeItem(node, itemIndex - startItemIndex, startItemIndex);
     }
 
     /**
