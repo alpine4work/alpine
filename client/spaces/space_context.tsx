@@ -33,7 +33,10 @@ export function useSpaceContext() {
  * At least the notification bell needs this connection at all times. Other
  * parts of the UI may reuse the connection if useful.
  */
-export function useMyAccountWebSocket() {
+export function useMyAccountWebSocket(): {
+    readonly isConnected: boolean;
+    readonly subscribeToEvents: Memo<(subscriber: (event: MyAccountEvent) => void) => () => void>;
+} {
     const myAccountWebSocketContext = useContext(MyAccountWebSocket);
     if (!myAccountWebSocketContext) {
         throw new InternalError("Must be in a space route to use the `MyAccountService` WebSocket");

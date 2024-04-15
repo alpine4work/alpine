@@ -152,7 +152,8 @@ export function InboxView({
             updateQueryOptimistically({
                 promise,
                 withAnimation,
-                update: query => query.deleteItemByKeyIfExistsAtVersion(entry.key, entry.version),
+                update: query =>
+                    query.optimisticallyDeleteItemByKeyIfExistsAtVersion(entry.key, entry.version),
             });
         },
     );

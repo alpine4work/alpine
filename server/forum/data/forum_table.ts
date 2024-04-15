@@ -1037,6 +1037,10 @@ export async function createPost(
     id: PostId;
     spaceId: SpaceId;
     createdTime: Date;
+    getDynamoGeneralRealtimeEventTransaction: () => Promise<{
+        readTime: Date;
+        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
+    }>;
 }> {
     const channel = await getChannelPreview(context, channelId);
 
@@ -1063,7 +1067,9 @@ export async function createPost(
         },
     };
 
-    await ForumRealtimeTable.createItem(context, postItem);
+    const readTime = new Date();
+
+    const result = await ForumRealtimeTable.createItem(context, postItem);
 
     const mentionedAccountIds = getMentionedAccountIdsInContent(content);
 
@@ -1132,6 +1138,16 @@ export async function createPost(
         id: postItem.postId,
         spaceId: channel.spaceId,
         createdTime: postItem.createdTime,
+        getDynamoGeneralRealtimeEventTransaction: async () => ({
+            readTime,
+            eventTransaction: [
+                {
+                    type: "PutItem",
+                    item: await result.getRealtimeItem(),
+                    cursorByIndexName: result.getCursorByIndexName(),
+                },
+            ],
+        }),
     };
 }
 

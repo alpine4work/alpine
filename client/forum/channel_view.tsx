@@ -1,10 +1,11 @@
-import {useCallback, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {ChannelViewAside} from "~/client/forum/channel_view_aside.js";
+import {createPostEventEmitter} from "~/client/forum/new_post_view.js";
 import {postContentViewMinHeight} from "~/client/forum/post_content_view.js";
 import {
     PostQueryList,
@@ -108,6 +109,20 @@ export function ChannelView({
             }, [channelId, context]),
         },
     );
+
+    // When a post is created, we should get it from our channel WebSocket
+    // connection. But in case our WebSocket connection is slow, `<NewPostView>`
+    // emits an event after a post has been successfully created and we handle
+    // that event here.
+    useEffect(() => {
+        return createPostEventEmitter.subscribe(event =>
+            setPosts(posts =>
+                posts.updateQuery(
+                    posts.query.handleEventTransaction(event.readTime, event.eventTransaction),
+                ),
+            ),
+        );
+    }, []);
 
     // NOCOMMIT: Get rid of `<ChannelViewTopBar>`
 

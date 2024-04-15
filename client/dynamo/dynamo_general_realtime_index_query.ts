@@ -1028,12 +1028,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      * the query. This function is designed to be used as an optimistic delete
      * update. We expect the next update from the server to also delete the item.
      */
-    // TODO(calebmer): Tempted to prefix "optimistically" on this function since
-    // deleting items should be handled by realtime transactions. If you're calling
-    // this it's for an optimistic client update. A setter method like
-    // `setItemExtraIfExists()` isn't optimistic since extra only exists on the
-    // client.
-    public deleteItemByKeyIfExistsAtVersion(
+    public optimisticallyDeleteItemByKeyIfExistsAtVersion(
         key: DynamoItemKey,
         version: number,
     ): DynamoGeneralRealtimeIndexQuery<Model, Extra> {

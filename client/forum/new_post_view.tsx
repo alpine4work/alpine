@@ -25,19 +25,27 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {spacing, subtractRemLengths} from "~/shared/design/spacing.js";
+import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
     PostContentWithReferences,
     PostContentWithReferencesSchema,
     emptyPostContentWithReferences,
 } from "~/shared/forum/post_content_schema.js";
+import {PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {Id} from "~/shared/id/id.js";
 import {createPost} from "~/shared/rpc/forum_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
+
+export const createPostEventEmitter = new EventEmitter<{
+    readTime: Date;
+    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
+}>();
 
 const StateSchema = Schema.object({
     content: PostContentWithReferencesSchema,
@@ -242,10 +250,19 @@ export function NewPostView({
                                 onPress={async () => {
                                     if (!channel) return;
 
-                                    const {post} = await createPost(context, {
-                                        channelId: channel.id,
-                                        content: state.getDoc(),
-                                    });
+                                    const {post, readTime, eventTransaction} = await createPost(
+                                        context,
+                                        {
+                                            channelId: channel.id,
+                                            content: state.getDoc(),
+                                        },
+                                    );
+
+                                    // While the client should get their new post data through `<ChannelView>`s
+                                    // WebSocket connection, we emit the realtime event returned by
+                                    // `createPost()` so `<ChannelView>` can use that too in case the WebSocket
+                                    // is slow.
+                                    createPostEventEmitter.emit({readTime, eventTransaction});
 
                                     if (shouldReturnBack) {
                                         await navigate(-1);

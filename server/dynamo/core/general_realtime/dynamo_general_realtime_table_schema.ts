@@ -409,7 +409,7 @@ export class DynamoGeneralRealtimeTableSchema<
         ) as Promise<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>;
     }
 
-    private _getCursorByIndexName(item: Types["Item"]) {
+    private _getCursorByIndexName(item: Types["Item"]): Map<string, DynamoIndexCursor> {
         const cursorByIndexName = new Map<string, DynamoIndexCursor>();
 
         const itemType = `${item.partitionType}#${item.sortRangeType}`;
@@ -538,6 +538,7 @@ export class DynamoGeneralRealtimeTableSchema<
         getRealtimeItem: () => Promise<
             DynamoGeneralRealtimeItem<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>
         >;
+        getCursorByIndexName: () => Map<string, DynamoIndexCursor>;
     }> {
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
@@ -565,7 +566,10 @@ export class DynamoGeneralRealtimeTableSchema<
             ]),
         );
 
-        return {getRealtimeItem: async () => ({key, version, model: await modelPromise})};
+        return {
+            getRealtimeItem: async () => ({key, version, model: await modelPromise}),
+            getCursorByIndexName: () => this._getCursorByIndexName(item),
+        };
     }
 
     /**
@@ -618,6 +622,7 @@ export class DynamoGeneralRealtimeTableSchema<
         getRealtimeItem: () => Promise<
             DynamoGeneralRealtimeItem<ModelMap[Key["partitionType"]][Key["sortRangeType"]]>
         >;
+        getCursorByIndexName: () => Map<string, DynamoIndexCursor>;
     }> {
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
@@ -655,7 +660,10 @@ export class DynamoGeneralRealtimeTableSchema<
             ]),
         );
 
-        return {getRealtimeItem: async () => ({key, version, model: await modelPromise})};
+        return {
+            getRealtimeItem: async () => ({key, version, model: await modelPromise}),
+            getCursorByIndexName: () => this._getCursorByIndexName(item),
+        };
     }
 
     /**

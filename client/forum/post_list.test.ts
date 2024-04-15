@@ -1,4 +1,9 @@
-import {PostBasicList, PostListItem} from "~/client/forum/post_list.js";
+import {
+    PostBasicList,
+    PostListBase,
+    PostListItem,
+    PostListWithChannelHeader,
+} from "~/client/forum/post_list.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
@@ -90,7 +95,7 @@ const testContent5WithReferences = {
  * Get all items in the list as an array. Accesses the items in random order to
  * exercise our caching logic.
  */
-function getItems(list: PostBasicList) {
+function getItems(list: PostListBase) {
     const indexOrder = shuffleArray(createArrayWithLength(list.getItemCount(), index => index));
 
     const items: Array<PostListItem | null> = createArrayWithLength(
@@ -1236,9 +1241,9 @@ test("can add a channel header at the beginning", () => {
         {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
-    list = list.setChannelHeader({channel});
+    const listWithHeader = new PostListWithChannelHeader({channel}, list);
 
-    expect(getItems(list)).toEqual([
+    expect(getItems(listWithHeader)).toEqual([
         {type: "ChannelHeader", channelHeader: {channel}},
         {type: "PostContent", post: post1, postCommentsState: "Closed"},
         {type: "PostContent", post: post2, postCommentsState: "Closed"},
@@ -1252,8 +1257,6 @@ test("can add a channel header at the beginning", () => {
         {type: "PostContent", post: post4, postCommentsState: "Closed"},
         {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
-
-    list = list.setChannelHeader(null);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, postCommentsState: "Closed"},

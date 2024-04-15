@@ -11,6 +11,7 @@ ts_project(
         "//:node_modules/functional-red-black-tree",
         "//:node_modules/react",
         "//:node_modules/react-aria",
+        "//:node_modules/react-stately",
         "//client/content",
         "//client/context",
         "//client/design",

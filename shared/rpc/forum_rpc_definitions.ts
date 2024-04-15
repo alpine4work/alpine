@@ -2,6 +2,7 @@ import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {
     createDynamoGeneralRealtimeBackfillResultSchema,
+    createDynamoGeneralRealtimeEventSchema,
     createDynamoGeneralRealtimeIndexQuerySchema,
     createDynamoGeneralRealtimeItemSchema,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -78,6 +79,8 @@ export const createPost = defineRpc({
             spaceId: Schema.id<SpaceId>(),
             createdTime: Schema.date,
         }),
+        readTime: Schema.date,
+        eventTransaction: Schema.array(createDynamoGeneralRealtimeEventSchema(PostModel.schema())),
     },
 });
 
