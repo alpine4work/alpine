@@ -1,15 +1,15 @@
 import {useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {
-    postContentViewInnerMarginY,
-    postContentViewMinHeight,
+    postContentViewFooterHeight,
+    postContentViewMinHeightWithClosedCommentSection,
+    postContentViewOuterMarginBottom,
+    postContentViewOuterMarginY,
     postContentViewPaddingX,
 } from "~/client/forum/post_content_view.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {fontSizes, pulseAnimationClassName} from "~/shared/styles/styles.js";
-
-// NOCOMMIT: This needs to be updated!
 
 export function PostShimmer() {
     const shimmerRef = useRef<HTMLDivElement>(null);
@@ -31,15 +31,27 @@ export function PostShimmer() {
     return (
         <Box
             ref={shimmerRef}
+            position="relative"
             backgroundColor="grey-0"
-            boxShadow="elevation-5"
-            style={{height: postContentViewMinHeight}}
+            paddingTop={postContentViewOuterMarginY}
             display="flex"
             flexDirection="column"
+            style={{
+                height: postContentViewMinHeightWithClosedCommentSection,
+                paddingBottom: postContentViewOuterMarginBottom,
+            }}
         >
             <Box
+                position="absolute"
+                width="full"
                 paddingX={postContentViewPaddingX}
-                paddingTop={postContentViewInnerMarginY}
+                style={{top: 0}}
+            >
+                <Box width="full" borderTop="grey-5" />
+            </Box>
+            <Box
+                flexShrink="0"
+                paddingX={postContentViewPaddingX}
                 display="flex"
                 alignItems="center"
             >
@@ -85,16 +97,23 @@ export function PostShimmer() {
             </Box>
             <Box flexGrow="1" />
             <Box
+                flexShrink="0"
                 marginX={postContentViewPaddingX}
-                borderTop="grey-5"
-                height="12"
+                height={postContentViewFooterHeight}
                 display="flex"
                 alignItems="center"
             >
+                <Box
+                    className={pulseAnimationClassName}
+                    width="20"
+                    height="3"
+                    backgroundColor="grey-5"
+                    borderRadius="full"
+                />
                 <Box flexGrow="1" />
                 <Box
                     className={pulseAnimationClassName}
-                    width="24"
+                    width="20"
                     height="3"
                     backgroundColor="grey-5"
                     borderRadius="full"

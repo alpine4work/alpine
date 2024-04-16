@@ -64,7 +64,7 @@ export const postContentViewPaddingX: {mobile: Spacing; desktop: Spacing} = {
     desktop: "5",
 };
 
-const postContentViewFooterHeight = "8";
+export const postContentViewFooterHeight = "8";
 const postContentViewFooterButtonHeight = "7";
 
 export const postContentViewOuterMarginY = "6";
@@ -75,15 +75,6 @@ const contentEditorPaddingY = "1.5";
 const postContentViewInnerMarginYWithoutContentEditorPaddingY = subtractRemLengths(
     spacing[postContentViewInnerMarginY],
     spacing[contentEditorPaddingY],
-);
-
-export const postContentViewMinHeight = addRemLengths(
-    spacing[postContentViewOuterMarginY],
-    spacing[postContentViewHeaderHeight],
-    spacing[postContentViewInnerMarginY],
-    contentSchemaStyles.paragraphLineHeight,
-    spacing[postContentViewInnerMarginY],
-    spacing[postContentViewFooterHeight],
 );
 
 const fontSize75LineHeightRem = parseRemLengthNumber(fontSizes["75"].lineHeight);
@@ -99,7 +90,7 @@ const postContentViewOuterMarginYRem = parseRemLengthNumber(spacing[postContentV
 const postContentViewOuterMarginBottomRem =
     postContentViewOuterMarginYRem - (postContentViewFooterHeightRem - fontSize75LineHeightRem) / 2;
 
-const postContentViewOuterMarginBottom = `${postContentViewOuterMarginBottomRem}rem`;
+export const postContentViewOuterMarginBottom: RemLength = `${postContentViewOuterMarginBottomRem}rem`;
 
 export const postContentViewContentPaddingX = mapObjectValues(postContentViewPaddingX, paddingX =>
     assertSpacing(`${parseInt(paddingX, 10) - parseInt(contentSchemaStyles.blockPaddingX, 10)}`),
@@ -108,7 +99,7 @@ export const postContentViewContentPaddingX = mapObjectValues(postContentViewPad
 const postContentViewOuterOpenCommentSectionMarginBottomRem =
     postContentViewOuterMarginBottomRem - parseRemLengthNumber(spacing[messageInputPaddingY]);
 
-const postContentViewOuterOpenCommentSectionMarginBottom = `${postContentViewOuterOpenCommentSectionMarginBottomRem}rem`;
+const postContentViewOuterOpenCommentSectionMarginBottom: RemLength = `${postContentViewOuterOpenCommentSectionMarginBottomRem}rem`;
 
 const postContentViewFooterButtonIconSize = "4";
 
@@ -126,6 +117,25 @@ const postCommentSectionGuidelineStartHeightRem =
     (postContentViewFooterHeightRem - postContentViewFooterButtonHeightRem) / 2;
 
 const postCommentSectionGuidelineStartHeight = `${postCommentSectionGuidelineStartHeightRem}rem`;
+
+const postContentViewMinHeightBase = addRemLengths(
+    spacing[postContentViewOuterMarginY],
+    spacing[postContentViewHeaderHeight],
+    spacing[postContentViewInnerMarginY],
+    contentSchemaStyles.paragraphLineHeight,
+    spacing[postContentViewInnerMarginY],
+    spacing[postContentViewFooterHeight],
+);
+
+export const postContentViewMinHeightWithOpenCommentSection = addRemLengths(
+    postContentViewMinHeightBase,
+    postContentViewOuterOpenCommentSectionMarginBottom,
+);
+
+export const postContentViewMinHeightWithClosedCommentSection = addRemLengths(
+    postContentViewMinHeightBase,
+    postContentViewOuterMarginBottom,
+);
 
 export function PostContentView({
     post,
@@ -162,7 +172,10 @@ export function PostContentView({
             position="relative"
             paddingTop={postContentViewOuterMarginY}
             style={{
-                minHeight: postContentViewMinHeight,
+                minHeight:
+                    postCommentsState !== "Closed"
+                        ? postContentViewMinHeightWithOpenCommentSection
+                        : postContentViewMinHeightWithClosedCommentSection,
                 paddingBottom:
                     postCommentsState !== "Closed"
                         ? postContentViewOuterOpenCommentSectionMarginBottom

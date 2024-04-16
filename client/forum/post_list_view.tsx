@@ -33,7 +33,8 @@ import {
 import {
     PostContentView,
     postCommentSectionGuidelineOffset,
-    postContentViewMinHeight,
+    postContentViewMinHeightWithClosedCommentSection,
+    postContentViewMinHeightWithOpenCommentSection,
     postContentViewPaddingX,
 } from "~/client/forum/post_content_view.js";
 import {usePostEditing} from "~/client/forum/post_editing.js";
@@ -84,10 +85,6 @@ import {
 import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 // NOCOMMIT: There are some bugs send reply comments
-
-// NOCOMMIT: Remove this?
-export const postListViewMarginX: Spacing = "4";
-export const postListViewMarginY: Spacing = "4";
 
 export const postViewMaxWidth: Spacing = "160";
 
@@ -425,7 +422,7 @@ function PostListView(
                                 Math.ceil(
                                     (view.getHeight() * 2) /
                                         convertRemLengthToPx(
-                                            postContentViewMinHeight,
+                                            postContentViewMinHeightWithClosedCommentSection,
                                             getRemPxWithoutListening(),
                                         ),
                                 ),
@@ -672,7 +669,10 @@ function PostListView(
                 case "PostContent": {
                     return {
                         key: `PostContent:${item.post.id}`,
-                        minHeight: postContentViewMinHeight,
+                        minHeight:
+                            item.postCommentsState !== "Closed"
+                                ? postContentViewMinHeightWithOpenCommentSection
+                                : postContentViewMinHeightWithClosedCommentSection,
                         node: (
                             <div
                                 className={sprinkles({
@@ -1169,8 +1169,7 @@ function PostListView(
                 case "MoreUnloadedPosts": {
                     return {
                         key: "MoreUnloadedPosts",
-                        // NOCOMMIT: min height fix?
-                        minHeight: "34.875rem",
+                        minHeight: "36.125rem",
                         node: (
                             <div
                                 className={sprinkles({
@@ -1189,18 +1188,34 @@ function PostListView(
                                     }}
                                 >
                                     <PostShimmer />
-                                    <Spacer space={postListViewMarginY} />
                                     <PostShimmer />
-                                    <Spacer space={postListViewMarginY} />
                                     <PostShimmer />
                                     <div
                                         className={sprinkles({
+                                            position: "relative",
                                             display: "flex",
                                             justifyContent: "center",
                                             color: "grey-60",
-                                            paddingY: postListViewMarginY,
+                                            paddingY: "10",
                                         })}
                                     >
+                                        <div
+                                            className={sprinkles({
+                                                position: "absolute",
+                                                width: "full",
+                                                paddingX: postContentViewPaddingX,
+                                            })}
+                                            style={{
+                                                top: 0,
+                                            }}
+                                        >
+                                            <div
+                                                className={sprinkles({
+                                                    width: "full",
+                                                    borderTop: "grey-5",
+                                                })}
+                                            />
+                                        </div>
                                         <SpinnerGap
                                             className={spinAnimationClassName}
                                             size={spacing["6"]}
@@ -1267,7 +1282,7 @@ function PostListView(
                     ref={viewRef}
                     elementRef={navigationBar?.scrollViewRef}
                     scrollbarInsetTop={navigationBar?.scrollbarInsetTop}
-                    bufferedItemHeight={postContentViewMinHeight}
+                    bufferedItemHeight={postContentViewMinHeightWithClosedCommentSection}
                     itemCount={
                         // Don't render the post comment input (which should be the last item) if we are
                         // pinning the comment input to the bottom of the view.

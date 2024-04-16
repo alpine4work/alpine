@@ -15,7 +15,7 @@ import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {ChannelViewAside} from "~/client/forum/channel_view_aside.js";
 import {createPostEventEmitter} from "~/client/forum/new_post_view.js";
-import {postContentViewMinHeight} from "~/client/forum/post_content_view.js";
+import {postContentViewMinHeightWithClosedCommentSection} from "~/client/forum/post_content_view.js";
 import {
     PostQueryList,
     PostQueryListDynamoGeneralRealtimeIndexQuery,
@@ -123,7 +123,7 @@ export function ChannelView({
                     channelId,
                     limit: getInitialVirtualizedScrollViewRenderedItemCount(
                         getClientInfoWithoutListening(),
-                        postContentViewMinHeight,
+                        postContentViewMinHeightWithClosedCommentSection,
                     ),
                     beforeCursor: null,
                 });

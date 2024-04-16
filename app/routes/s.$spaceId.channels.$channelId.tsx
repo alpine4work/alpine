@@ -1,6 +1,6 @@
 import {Box} from "~/client/design/box.js";
 import {ChannelView} from "~/client/forum/channel_view.js";
-import {postContentViewMinHeight} from "~/client/forum/post_content_view.js";
+import {postContentViewMinHeightWithClosedCommentSection} from "~/client/forum/post_content_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
@@ -35,7 +35,7 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
             channelId,
             limit: getInitialVirtualizedScrollViewRenderedItemCount(
                 context.loader.getClientInfo(),
-                postContentViewMinHeight,
+                postContentViewMinHeightWithClosedCommentSection,
             ),
             beforeCursor: null,
         }),

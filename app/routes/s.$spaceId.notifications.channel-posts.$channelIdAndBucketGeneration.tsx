@@ -1,6 +1,6 @@
 import {useCallback, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
-import {postContentViewMinHeight} from "~/client/forum/post_content_view.js";
+import {postContentViewMinHeightWithClosedCommentSection} from "~/client/forum/post_content_view.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -54,7 +54,7 @@ export async function loader({params, context}: LoaderArgs) {
         bucketGeneration,
         limit: getInitialVirtualizedScrollViewRenderedItemCount(
             context.loader.getClientInfo(),
-            postContentViewMinHeight,
+            postContentViewMinHeightWithClosedCommentSection,
         ),
         afterPostId: null,
     });

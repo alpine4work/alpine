@@ -10,7 +10,6 @@ import {
     postFauxInputCreateButtonHeight,
 } from "~/client/forum/post_faux_input_create_button.js";
 import {PostListChannelHeader} from "~/client/forum/post_list.js";
-import {postListViewMarginX, postListViewMarginY} from "~/client/forum/post_list_view.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {sprinkles} from "~/shared/styles/styles.js";
@@ -31,7 +30,7 @@ export function ChannelViewHeader({
     return (
         <>
             {withMobileLayout && !isContentEmpty(channelHeader.channel.description.doc) && (
-                <Box paddingBottom={postListViewMarginY} paddingX={postListViewMarginX}>
+                <Box paddingBottom="4" paddingX="4">
                     <h3
                         className={sprinkles({
                             paddingLeft: "2",
