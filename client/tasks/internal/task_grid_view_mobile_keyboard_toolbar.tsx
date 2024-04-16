@@ -496,7 +496,10 @@ function TaskGridViewMobileKeyboardToolbarButton({
     const {isPressed, pressProps} = usePress({
         isDisabled,
         onPress: event => {
-            const defaultPressErrorTitle = "The button you pressed didn’t work";
+            const defaultPressErrorTitle =
+                event.pointerType === "touch"
+                    ? "The button you tapped didn’t work"
+                    : "The button you clicked didn’t work";
 
             let promise;
             try {

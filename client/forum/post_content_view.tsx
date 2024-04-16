@@ -175,29 +175,33 @@ export function PostContentView({
                 {!isEditingPost ? (
                     <MenuButton
                         actions={[
-                            {
-                                label: "Copy link",
-                                pressErrorTitle: "Couldn’t copy post link",
-                                onPress: async () => {
-                                    const url = new URL(
-                                        `/s/${post.spaceId}/posts/${post.id}`,
-                                        window.location.href,
-                                    );
-                                    await writeTextToClipboard(url.toString());
+                            [
+                                {
+                                    label: "Copy link",
+                                    pressErrorTitle: "Couldn’t copy post link",
+                                    onPress: async () => {
+                                        const url = new URL(
+                                            `/s/${post.spaceId}/posts/${post.id}`,
+                                            window.location.href,
+                                        );
+                                        await writeTextToClipboard(url.toString());
+                                    },
                                 },
-                            },
+                            ],
                             ...(currentAccount.id === post.author.id
                                 ? [
-                                      {
-                                          label: "Edit",
-                                          onPress: () => {
-                                              postEditing.dispatch({
-                                                  type: "StartEditing",
-                                                  postId: post.id,
-                                                  currentContent: post.content,
-                                              });
+                                      [
+                                          {
+                                              label: "Edit",
+                                              onPress: () => {
+                                                  postEditing.dispatch({
+                                                      type: "StartEditing",
+                                                      postId: post.id,
+                                                      currentContent: post.content,
+                                                  });
+                                              },
                                           },
-                                      },
+                                      ],
                                   ]
                                 : []),
                         ]}

@@ -271,8 +271,9 @@ function PostListView(
     // layout of a single post. We use a heuristic of one post with always open
     // comments to determine if we're in a single post context.
     const isSingleMobileLayoutPostWithPinnedCommentInput =
+        !channelHeader &&
         posts.getPostCount() === 1 &&
-        posts.getPostContentItemIfExists(channelHeader ? 1 : 0)?.postCommentsState === "AlwaysOpen";
+        posts.getPostContentItemIfExists(0)?.postCommentsState === "AlwaysOpen";
 
     const isLoadingRef = useRef(false);
     const [errorState, setErrorState] = useState<

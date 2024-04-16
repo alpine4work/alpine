@@ -23,8 +23,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import * as definition from "~/shared/rpc/forum_rpc_definitions.js";
 
 implementRpc(definition.updateChannelName, {visibility: ["AppClient"]}, async (context, input) => {
-    await updateChannelName(context, input);
-    return {};
+    const {getDynamoGeneralRealtimeEventTransaction} = await updateChannelName(context, input);
+    return getDynamoGeneralRealtimeEventTransaction();
 });
 
 implementRpc(

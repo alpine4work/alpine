@@ -919,7 +919,12 @@ export async function updateChannelName(
         channelId: ChannelId;
         name: string;
     },
-) {
+): Promise<{
+    getDynamoGeneralRealtimeEventTransaction: () => Promise<{
+        readTime: Date;
+        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel>>;
+    }>;
+}> {
     // Give the user a nice error message if there was an error validating the new
     // channel name.
     LabelStringSchema.validate?.(name, {
@@ -928,7 +933,9 @@ export async function updateChannelName(
 
     let spaceId: SpaceId | null = null;
 
-    await ForumRealtimeTable.updateItem(
+    const readTime = new Date();
+
+    const result = await ForumRealtimeTable.updateItem(
         context,
         {partitionType: "Channel", sortRangeType: "Attributes", channelId},
         async channelItem => {
@@ -954,6 +961,19 @@ export async function updateChannelName(
             updatedTraits: {type: "Some", traits: ["Preview"]},
         },
     });
+
+    return {
+        getDynamoGeneralRealtimeEventTransaction: async () => ({
+            readTime,
+            eventTransaction: [
+                {
+                    type: "PutItem",
+                    item: await result.getRealtimeItem(),
+                    cursorByIndexName: result.getCursorByIndexName(),
+                },
+            ],
+        }),
+    };
 }
 
 /**

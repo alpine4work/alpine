@@ -57,7 +57,7 @@ export function SpaceLayoutSideBarInboxButton({
     const overlayRef = useRef<HTMLDivElement>(null);
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
 
-    const inbox = useDynamoGeneralRealtimeItem(initialInbox, {
+    const {item: inbox} = useDynamoGeneralRealtimeItem(initialInbox, {
         isConnected,
         subscribeToEvents: useCallback(
             subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),

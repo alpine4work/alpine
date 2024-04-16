@@ -22,7 +22,12 @@ export const updateChannelName = defineRpc({
         channelId: Schema.id<ChannelId>(),
         name: Schema.string,
     },
-    output: {},
+    output: {
+        readTime: Schema.date,
+        eventTransaction: Schema.array(
+            createDynamoGeneralRealtimeEventSchema(ChannelModel.schema()),
+        ),
+    },
 });
 
 export const updateChannelDescription = defineRpc({

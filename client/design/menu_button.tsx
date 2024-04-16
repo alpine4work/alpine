@@ -673,7 +673,8 @@ export const Menu = forwardRef(function Menu(
     );
 });
 
-const defaultMenuItemPressErrorTitle = "The menu option you pressed didn’t work";
+const defaultMouseMenuItemPressErrorTitle = "The menu option you clicked didn’t work";
+const defaultTouchMenuItemPressErrorTitle = "The menu option you tapped didn’t work";
 
 export const MenuItem = forwardRef(function MenuItem(
     {
@@ -813,7 +814,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         // We want visually disabled buttons to be pressable so they can show their
         // tooltip with the reason for why they are disabled.
         isDisabled: isDisabled && !isVisuallyDisabled,
-        onPress: () => {
+        onPress: event => {
             if (isVisuallyDisabled) {
                 skipTooltipHoverDelay?.();
                 return;
@@ -829,7 +830,11 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
             } catch (error) {
                 showToast({
                     type: "Error",
-                    title: pressErrorTitle ?? defaultMenuItemPressErrorTitle,
+                    title:
+                        pressErrorTitle ??
+                        (event.pointerType === "touch"
+                            ? defaultTouchMenuItemPressErrorTitle
+                            : defaultMouseMenuItemPressErrorTitle),
                     error,
                 });
                 return;
@@ -1021,7 +1026,7 @@ function MenuCustomItem({
 
     const {isPressed, pressProps} = usePress({
         isDisabled: pendingState.isPending,
-        onPress: () => {
+        onPress: event => {
             const {pressErrorTitle} = action;
 
             let promise;
@@ -1030,7 +1035,11 @@ function MenuCustomItem({
             } catch (error) {
                 showToast({
                     type: "Error",
-                    title: pressErrorTitle ?? defaultMenuItemPressErrorTitle,
+                    title:
+                        pressErrorTitle ??
+                        (event.pointerType === "touch"
+                            ? defaultTouchMenuItemPressErrorTitle
+                            : defaultMouseMenuItemPressErrorTitle),
                     error,
                 });
                 return;

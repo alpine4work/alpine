@@ -1,4 +1,4 @@
-import {Memo, useEffect, useRef, useState} from "react";
+import {Memo, useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {
     DynamoGeneralRealtimeEvent,
@@ -62,7 +62,12 @@ export function useDynamoGeneralRealtimeItem<Model>(
          */
         reloadItemWithStrongReadConsistency: () => Promise<DynamoGeneralRealtimeItem<Model>>;
     },
-): DynamoGeneralRealtimeItem<Model> {
+): {
+    item: DynamoGeneralRealtimeItem<Model>;
+    handleEventTransaction: (
+        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
+    ) => void;
+} {
     const context = useAppContext();
     const [itemFromState, setItem] = useState(initialItem);
     let item = itemFromState;
@@ -77,11 +82,8 @@ export function useDynamoGeneralRealtimeItem<Model>(
         item = initialItem;
     }
 
-    // Subscribe to events when we are connected...
-    useEffect(() => {
-        if (!isConnected) return;
-
-        return subscribeToEvents(eventTransaction => {
+    const handleEventTransaction = useCallback(
+        (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>) => {
             for (const event of eventTransaction) {
                 if (item.key === event.item.key) {
                     setItem(item => {
@@ -95,8 +97,16 @@ export function useDynamoGeneralRealtimeItem<Model>(
                     });
                 }
             }
-        });
-    }, [item.key, isConnected, subscribeToEvents]);
+        },
+        [item.key],
+    );
+
+    // Subscribe to events when we are connected...
+    useEffect(() => {
+        if (!isConnected) return;
+
+        return subscribeToEvents(handleEventTransaction);
+    }, [isConnected, subscribeToEvents, handleEventTransaction]);
 
     // Whenever we connect to our WebSocket, we need to reload our realtime
     // item in case we missed any realtime updates while we were disconnected.
@@ -150,5 +160,8 @@ export function useDynamoGeneralRealtimeItem<Model>(
         );
     }, [context.tracer, item.key, isConnected, reloadItemWithStrongReadConsistency]);
 
-    return item;
+    return {
+        item,
+        handleEventTransaction,
+    };
 }
