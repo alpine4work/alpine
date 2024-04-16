@@ -44,19 +44,23 @@ const searchCommandById: {
     },
     CreatePost: {
         title: "Create post",
+        otherHitTexts: ["post"],
     },
     CreateChannel: {
         title: "Create channel",
+        otherHitTexts: ["channel"],
     },
     CreateDocument: {
         title: "Create document",
+        otherHitTexts: ["document"],
     },
     CreateTask: {
         title: "Create task",
+        otherHitTexts: ["task"],
     },
     CreateTaskCollection: {
         title: "Create task collection",
-        otherHitTexts: ["create collection"],
+        otherHitTexts: ["create collection", "task collection", "collection"],
     },
     CreateTaskView: {
         title: "Create task view",
