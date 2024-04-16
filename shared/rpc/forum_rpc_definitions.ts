@@ -36,7 +36,12 @@ export const updateChannelDescription = defineRpc({
         channelId: Schema.id<ChannelId>(),
         description: MessageContentSchema,
     },
-    output: {},
+    output: {
+        readTime: Schema.date,
+        eventTransaction: Schema.array(
+            createDynamoGeneralRealtimeEventSchema(ChannelModel.schema()),
+        ),
+    },
 });
 
 export const getChannelWithStrongReadConsistency = defineRpc({

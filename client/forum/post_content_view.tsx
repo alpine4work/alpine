@@ -1,4 +1,4 @@
-import {ChatCircle, Check, DotsThree, IconContext, KeyReturn, Smiley, X} from "phosphor-react";
+import {ChatCircle, Check, DotsThree, IconContext, Smiley, X} from "phosphor-react";
 import {CSSProperties, useContext, useEffect, useId, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
@@ -24,7 +24,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
@@ -145,6 +145,7 @@ export function PostContentView({
     onLoadInitialPostComments: () => Promise<void>;
 }) {
     const isMobile = useIsMobile();
+    const {isAppleDevice} = useClientInfo();
     const {currentAccount} = useSpaceContext();
 
     const postEditingForThisPost =
@@ -224,8 +225,8 @@ export function PostContentView({
                     >
                         <IconButton
                             description="Save"
-                            tooltipPlacement="top-end"
-                            keyboardShortcutHint={<KeyReturn />}
+                            tooltipPlacement="bottom-end"
+                            keyboardShortcutHint={`${isAppleDevice ? "⌘" : "Ctrl"}+Enter`}
                             size={isMobile ? "base" : "md"}
                             onPress={() => {
                                 postEditingForThisPost.dispatch({type: "SaveEditedContent"});
@@ -237,8 +238,8 @@ export function PostContentView({
                         </IconButton>
                         <IconButton
                             description="Cancel"
-                            tooltipPlacement="top-end"
-                            keyboardShortcutHint="esc"
+                            tooltipPlacement="bottom-end"
+                            keyboardShortcutHint="Esc"
                             size={isMobile ? "base" : "md"}
                             onPress={() => postEditingForThisPost.dispatch({type: "CancelEditing"})}
                             isDisabled={postEditingForThisPost.state.isSaving}
@@ -634,7 +635,9 @@ function PostContentViewEditor({
                     ref={editorRef}
                     aria-label="Post"
                     state={postEditingForThisPost.state.contentEditorState}
-                    onChange={contentEditorState => {
+                    onChange={(contentEditorState, transaction) => {
+                        if (postEditingForThisPost.state.isSaving && transaction.docChanged) return;
+
                         postEditingForThisPost.dispatch({
                             type: "ContentEditorStateChange",
                             contentEditorState,
@@ -648,11 +651,13 @@ function PostContentViewEditor({
                     onModEnter={event => {
                         event.preventDefault();
                         event.stopPropagation();
+                        if (postEditingForThisPost.state.isSaving) return;
                         postEditingForThisPost.dispatch({type: "SaveEditedContent"});
                     }}
                     onEscape={event => {
                         event.preventDefault();
                         event.stopPropagation();
+                        if (postEditingForThisPost.state.isSaving) return;
                         postEditingForThisPost.dispatch({type: "CancelEditing"});
                     }}
                 />

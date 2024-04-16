@@ -17,19 +17,19 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
+import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
-import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {useRootNavigate} from "~/client/remix/use_navigate.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {createDisplayTaskCollectionsStore} from "~/client/tasks/internal/create_display_task_collections_store.js";
 import {
@@ -139,7 +139,7 @@ function TaskCollectionsInput(
     const isMobile = useIsMobile();
     const {isAppleDevice} = useClientInfo();
     const context = useAppContext();
-    const rootNavigate = useRootNavigate();
+    const navigate = useNavigate();
     const showToast = useShowToast();
     const {space, currentAccount} = useSpaceContext();
     const {store} = referencesSubscription;
@@ -575,7 +575,7 @@ function TaskCollectionsInput(
                         collection={collection}
                         onPress={() => {
                             // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                            rootNavigate(`/s/${space.id}/tasks/collections/${collection.id}`).catch(
+                            navigate(`/s/${space.id}/tasks/collections/${collection.id}`).catch(
                                 error => {
                                     showToast({
                                         type: "Error",

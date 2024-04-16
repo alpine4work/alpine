@@ -988,10 +988,17 @@ export async function updateChannelDescription(
         channelId: ChannelId;
         description: MessageContent;
     },
-) {
+): Promise<{
+    getDynamoGeneralRealtimeEventTransaction: () => Promise<{
+        readTime: Date;
+        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel>>;
+    }>;
+}> {
     let spaceId: SpaceId | null = null;
 
-    await ForumRealtimeTable.updateItem(
+    const readTime = new Date();
+
+    const result = await ForumRealtimeTable.updateItem(
         context,
         {partitionType: "Channel", sortRangeType: "Attributes", channelId},
         async channelItem => {
@@ -1017,6 +1024,19 @@ export async function updateChannelDescription(
             updatedTraits: {type: "Some", traits: []},
         },
     });
+
+    return {
+        getDynamoGeneralRealtimeEventTransaction: async () => ({
+            readTime,
+            eventTransaction: [
+                {
+                    type: "PutItem",
+                    item: await result.getRealtimeItem(),
+                    cursorByIndexName: result.getCursorByIndexName(),
+                },
+            ],
+        }),
+    };
 }
 
 /**

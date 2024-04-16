@@ -1,4 +1,4 @@
-import {Check, KeyReturn, X} from "phosphor-react";
+import {Check, X} from "phosphor-react";
 import {Ref, forwardRef, useImperativeHandle, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
@@ -170,8 +170,8 @@ function MessageContentEditor({
         <ContentEditor
             ref={editorRef}
             state={state}
-            onChange={state => {
-                if (isSaving) return;
+            onChange={(state, transaction) => {
+                if (isSaving && transaction.docChanged) return;
                 onChange(state);
             }}
             aria-label={messageStartOfSentenceNoun}
@@ -210,7 +210,7 @@ function MessageViewEditorActions<RoomKey extends string>({
         <Box display="flex">
             <IconButton
                 description="Save"
-                keyboardShortcutHint={<KeyReturn />}
+                keyboardShortcutHint="Enter"
                 size="sm"
                 onPress={() => {
                     messageEditing.dispatch({type: "SaveEditedContent"});
@@ -222,7 +222,7 @@ function MessageViewEditorActions<RoomKey extends string>({
             </IconButton>
             <IconButton
                 description="Cancel"
-                keyboardShortcutHint="esc"
+                keyboardShortcutHint="Esc"
                 size="sm"
                 onPress={() => messageEditing.dispatch({type: "CancelEditing"})}
                 isDisabled={isSaving}

@@ -4,7 +4,7 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {Box} from "~/client/design/box.js";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date.js";
-import {useRootNavigate} from "~/client/remix/use_navigate.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {PostModel} from "~/shared/forum/post_model.js";
@@ -84,7 +84,7 @@ export function PostContentViewHeaderBase({
 }
 
 function PostContentViewHeaderChannelBase({channel}: {channel: ChannelPreviewModel}) {
-    const rootNavigate = useRootNavigate();
+    const navigate = useNavigate();
     const {isHovered: isChannelHovered, hoverProps: channelHoverProps} = useHover({});
 
     return (
@@ -107,7 +107,7 @@ function PostContentViewHeaderChannelBase({channel}: {channel: ChannelPreviewMod
                     event.preventDefault();
 
                     // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                    void rootNavigate(`/s/${channel.spaceId}/channels/${channel.id}`);
+                    void navigate(`/s/${channel.spaceId}/channels/${channel.id}`);
                 }}
             >
                 {channel.name}

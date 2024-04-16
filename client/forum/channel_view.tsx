@@ -47,6 +47,7 @@ import {
     backfillChannelPosts,
     getChannelPosts,
     getChannelWithStrongReadConsistency,
+    updateChannelDescription,
     updateChannelName,
 } from "~/shared/rpc/forum_rpc_definitions.js";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
@@ -145,10 +146,13 @@ export function ChannelView({
         );
     }, []);
 
-    const hasAside = !isContentEmpty(channel.description.doc);
-
     const [isEditingName, setIsEditingName] = useState(false);
     if (isEditingName && isMobile) setIsEditingName(false);
+
+    const [isEditingDescription, setIsEditingDescription] = useState(false);
+    if (isEditingDescription && isMobile) setIsEditingDescription(false);
+
+    const hasAside = !isContentEmpty(channel.description.doc) || isEditingDescription;
 
     const navigationBarRef = useRef<NavigationBarRef>(null);
 
@@ -215,7 +219,7 @@ export function ChannelView({
                 },
                 {
                     label: "Edit description",
-                    onPress: () => setShouldShowEditDescriptionModal(true),
+                    onPress: () => setIsEditingDescription(true),
                 },
             ],
         ],
@@ -250,7 +254,27 @@ export function ChannelView({
                     ),
                 );
             }}
-            aside={hasAside && <ChannelViewAside channel={channel} />}
+            aside={
+                hasAside && (
+                    <ChannelViewAside
+                        channel={channel}
+                        isEditingDescription={isEditingDescription}
+                        onCancelEditingDescription={() => setIsEditingDescription(false)}
+                        onSaveDescription={async description => {
+                            const event = await updateChannelDescription(context, {
+                                channelId,
+                                description,
+                            });
+
+                            setIsEditingDescription(false);
+
+                            // Immediately apply a realtime event transaction to update our channel in case
+                            // our realtime WebSocket connection is slow.
+                            handleEventTransactionForChannel(event.eventTransaction);
+                        }}
+                    />
+                )
+            }
             navigationBar={{...navigationBar, navigationBarRef}}
         />
     );
@@ -312,7 +336,10 @@ function ChannelViewNameEditor({
                             placeholder={initialName.length > 0 ? initialName : "Channel"}
                             autoComplete="false"
                             value={name}
-                            onChange={event => setName(event.currentTarget.value)}
+                            onChange={event => {
+                                if (isSaving) return;
+                                setName(event.currentTarget.value);
+                            }}
                             className={sprinkles({
                                 paddingY: "1",
                                 borderRadius: "base",
@@ -354,7 +381,9 @@ function ChannelViewNameEditor({
                                     case "Escape": {
                                         event.preventDefault();
                                         event.stopPropagation();
+
                                         if (isSaving) break;
+
                                         onCancel();
                                         break;
                                     }

@@ -31,8 +31,11 @@ implementRpc(
     definition.updateChannelDescription,
     {visibility: ["AppClient"]},
     async (context, input) => {
-        await updateChannelDescription(context, input);
-        return {};
+        const {getDynamoGeneralRealtimeEventTransaction} = await updateChannelDescription(
+            context,
+            input,
+        );
+        return getDynamoGeneralRealtimeEventTransaction();
     },
 );
 
