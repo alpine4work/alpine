@@ -232,6 +232,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             ? messageEditing
             : null;
 
+    const isEditingThisMessage = !!messageEditingForThisMessage;
+
     const onReplyToMessage = useEvent(() => {
         // If we're currently editing a message on mobile then cancel editing when
         // trying to reply to a message. Otherwise `<MessageInput>` will override the
@@ -384,6 +386,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         //
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         message.payload;
+
+        // If the message is being edited then `messageElement` and other refs won't be
+        // mounted.
+        if (isEditingThisMessage) return;
 
         const messageElement = assertExists(messageRef.current);
         const containerElement = assertExists(containerRef.current);
@@ -644,7 +650,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             messageElement.removeEventListener("touchmove", handleTouchMove);
             messageElement.removeEventListener("touchcancel", handleTouchCancel);
         };
-    }, [canPrimaryInputHover, hasParentMessage, message.payload, onReplyToMessage]);
+    }, [
+        canPrimaryInputHover,
+        hasParentMessage,
+        isEditingThisMessage,
+        message.payload,
+        onReplyToMessage,
+    ]);
 
     // We try to memoize any UI in this component that changes infrequently to
     // speed up React rendering. Because `<MessageView>` renders during scroll
