@@ -74,7 +74,14 @@ implementRpc(definition.createPost, {visibility: ["AppClient"]}, async (context,
 });
 
 implementRpc(definition.updatePostContent, {visibility: ["AppClient"]}, async (context, input) => {
-    return updatePostContent(context.actor.authorizeSession(), input);
+    const {contentUpdatedTime, getDynamoGeneralRealtimeEventTransaction} = await updatePostContent(
+        context.actor.authorizeSession(),
+        input,
+    );
+    return {
+        contentUpdatedTime,
+        ...(await getDynamoGeneralRealtimeEventTransaction()),
+    };
 });
 
 implementRpc(

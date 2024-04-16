@@ -134,6 +134,25 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                 postId: DynamoKeyAttributeSchema.id<PostId>(),
             },
             sortRanges: [
+                // NOTE(calebmer, 2024-04-16): My current thoughts on deleting posts. Deleting
+                // a post shouldn't delete the post's comments since folks may be having a
+                // valuable conversation in the comments. I like the idea that deleting a post:
+                //
+                // - Sets `channelId` to null
+                // - Replaces content with a "this post was deleted message"
+                //
+                // Setting `channelId` to null would remove the post in realtime from the
+                // channel the user is looking at. We should also have notification processing
+                // cleanup inbox entries that say the post is a part of a given channel.
+                //
+                // These mechanisms would also be very useful for a "move post between
+                // channels" feature which I think we'll want for channel user's with the
+                // "maintain" access level. So I think we should build delete post alongside
+                // the ability to move posts between channels.
+                //
+                // Either of these operations should probably be reflected in a "log" entry in
+                // the comments feed. For instance "Caleb deleted the post" or "Caleb moved the
+                // post from the Engineering Q&A channel to the Design Q&A channel".
                 {
                     name: "Attributes",
                     sortKeyAttributes: {},
@@ -1324,11 +1343,19 @@ export async function getPostNotificationSubscribers(
 export async function updatePostContent(
     context: ServerSessionActionContext,
     {postId, content}: {postId: PostId; content: PostContent},
-): Promise<{contentUpdatedTime: Date}> {
+): Promise<{
+    contentUpdatedTime: Date;
+    getDynamoGeneralRealtimeEventTransaction: () => Promise<{
+        readTime: Date;
+        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
+    }>;
+}> {
     let spaceId: SpaceId | null = null;
     let contentUpdatedTime: Date | null = null;
 
-    await ForumRealtimeTable.updateItem(
+    const readTime = new Date();
+
+    const result = await ForumRealtimeTable.updateItem(
         context,
         {
             partitionType: "Post",
@@ -1380,7 +1407,19 @@ export async function updatePostContent(
         },
     });
 
-    return {contentUpdatedTime};
+    return {
+        contentUpdatedTime,
+        getDynamoGeneralRealtimeEventTransaction: async () => ({
+            readTime,
+            eventTransaction: [
+                {
+                    type: "PutItem",
+                    item: await result.getRealtimeItem(),
+                    cursorByIndexName: result.getCursorByIndexName(),
+                },
+            ],
+        }),
+    };
 }
 
 /**

@@ -36,7 +36,7 @@ import {
     postContentViewMinHeight,
     postContentViewPaddingX,
 } from "~/client/forum/post_content_view.js";
-import {PostEditorModal} from "~/client/forum/post_editor_modal.js";
+import {usePostEditing} from "~/client/forum/post_editing.js";
 import {
     PostListBase,
     PostListChannelHeader,
@@ -65,6 +65,7 @@ import {
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Spacing, addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {wait} from "~/shared/helpers/async/wait.js";
@@ -78,6 +79,7 @@ import {messageViewMinHeight} from "~/shared/messaging/messaging_shared_styles.j
 import {
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
+    updatePostContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
 import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
@@ -138,6 +140,7 @@ function PostListView(
         onTogglePostComments,
         onUpdatePostComments,
         onLoadMorePosts,
+        onPostRealtimeEventTransaction,
         aside,
         withMobileLayout: withMobileLayoutProp = false,
         navigationBar,
@@ -182,6 +185,17 @@ function PostListView(
             limit: number;
             afterCursor?: {createdTime: Date; postId: PostId};
         }) => Promise<void>;
+
+        /**
+         * Apply a realtime event transaction for posts before we get an event from our
+         * realtime WebSocket connection. For instance after a post is updated we want
+         * to update the post's state in case our realtime WebSocket connection is
+         * slow.
+         */
+        onPostRealtimeEventTransaction: (event: {
+            readTime: Date;
+            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
+        }) => void;
 
         /**
          * An element we render to the side of the post list but still within the
@@ -499,7 +513,8 @@ function PostListView(
     //    it to be editable so it shouldn't lose state.
     //
     // 2. We want only one message to be editable at a time.
-    const messageEditing = useMessageEditing<PostId>({
+    const {messageEditing, modals: messageEditingModals} = useMessageEditing<PostId>({
+        messageNoun: "comment",
         onUpdateMessageContent: async ({roomKey, messageIndex, content}) => {
             const procedures = proceduresByPostIdRef.current.get(roomKey);
             if (!procedures) throw new InternalError("Post comment input isn't mounted");
@@ -509,10 +524,26 @@ function PostListView(
                 content,
             });
         },
+        onDeleteMessage: async ({roomKey, messageIndex}) => {
+            const procedures = proceduresByPostIdRef.current.get(roomKey);
+            if (!procedures) throw new InternalError("Post comment input isn't mounted");
+
+            await procedures.deleteComment({
+                commentIndex: messageIndex,
+            });
+        },
     });
 
-    // Manages the post which is currently being editing in `<PostEditorModal>`.
-    const [editingPost, setEditingPost] = useState<PostModel | null>(null);
+    const {postEditing, modals: postEditingModals} = usePostEditing({
+        onUpdatePostContent: async ({postId, content}) => {
+            const event = await updatePostContent(context, {
+                postId,
+                content,
+            });
+
+            onPostRealtimeEventTransaction(event);
+        },
+    });
 
     // Manages which comment `<PostCommentInput>` is currently replying to.
     const [replyingToPostCommentIndexByPostId, setReplyingToPostCommentIndexByPostId] = useState<
@@ -682,12 +713,12 @@ function PostListView(
                                         post={item.post}
                                         postComments={item.postComments}
                                         postCommentsState={item.postCommentsState}
+                                        postEditing={postEditing}
                                         // If we are rendering in the context of a channel, don't render the channel
                                         // in posts.
                                         shouldShowChannel={
                                             channelHeader?.channel.id !== item.post.channel.id
                                         }
-                                        onEditPost={() => setEditingPost(item.post)}
                                         onTogglePostComments={() =>
                                             onTogglePostComments(item.post.id)
                                         }
@@ -1203,6 +1234,7 @@ function PostListView(
             withMobileLayout,
             hasAside,
             channelHeader?.channel.id,
+            postEditing,
             isSingleMobileLayoutPostWithPinnedCommentInput,
             onTogglePostComments,
             loadInitialPostComments,
@@ -1216,6 +1248,8 @@ function PostListView(
 
     return (
         <>
+            {messageEditingModals}
+            {postEditingModals}
             <div
                 ref={viewContainerRef}
                 className={sprinkles({
@@ -1424,16 +1458,6 @@ function PostListView(
                         );
                     })()}
             </div>
-            {editingPost && (
-                <PostEditorModal
-                    post={editingPost}
-                    onUpdatePost={update => {
-                        // NOCOMMIT:
-                        // setPosts(posts => posts.updatePost(editingPost.id, update))
-                    }}
-                    onClose={() => setEditingPost(null)}
-                />
-            )}
         </>
     );
 }

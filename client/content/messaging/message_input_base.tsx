@@ -28,8 +28,8 @@ import {
 } from "~/client/design/mobile_bottom_bar.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useRegisterBottomBarFrame} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -154,8 +154,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onBlur,
         onArrowUp,
         placeholder = `${
-            messageEditingForThisInput ? "Edit" : messageNoun === "message" ? "Send" : "Add"
-        } a ${messageNoun}`,
+            messageEditingForThisInput ? "Edit" : messageNoun === "message" ? "Send a" : "Add a"
+        } ${messageNoun}`,
     }: MessageInputBaseProps<RoomKey, Message>,
     ref: Ref<MessageInputRef>,
 ) {

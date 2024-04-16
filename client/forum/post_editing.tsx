@@ -3,29 +3,22 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
-import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {PostContent, PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {
-    MessageContent,
-    MessageContentWithReferences,
-} from "~/shared/messaging/message_content_schema.js";
-import {MessageContentPayloadModel} from "~/shared/messaging/message_model.js";
+import {PostId} from "~/shared/id/types/id_types.js";
 
-export type MessageEditingState<RoomKey extends string> =
+export type PostEditingState =
     | {
           readonly isEditing: false;
       }
     | ({
           readonly isEditing: true;
-          readonly messageRoomKey: RoomKey;
-          readonly messageIndex: number;
-          readonly contentEditorState: ContentEditorState<MessageContentWithReferences>;
-          readonly initialContent: MessageContent;
-          readonly confirmationDialog: "Save" | "Delete" | null;
-          readonly returnFocusAfterEditing: (() => void) | null;
+          readonly postId: PostId;
+          readonly contentEditorState: ContentEditorState<PostContentWithReferences>;
+          readonly initialContent: PostContent;
+          readonly confirmationDialog: "Save" | null;
       } & (
           | {
                 readonly isSaving: false;
@@ -37,17 +30,15 @@ export type MessageEditingState<RoomKey extends string> =
             }
       ));
 
-export type MessageEditingAction<RoomKey extends string> =
+export type PostEditingAction =
     | {
           readonly type: "StartEditing";
-          readonly messageRoomKey: RoomKey;
-          readonly messageIndex: number;
-          readonly messagePayload: MessageContentPayloadModel;
-          readonly returnFocusAfterEditing: (() => void) | null;
+          readonly postId: PostId;
+          readonly currentContent: PostContentWithReferences;
       }
     | {
           readonly type: "ContentEditorStateChange";
-          readonly contentEditorState: ContentEditorState<MessageContentWithReferences>;
+          readonly contentEditorState: ContentEditorState<PostContentWithReferences>;
       }
     | {
           readonly type: "CancelEditing";
@@ -57,7 +48,7 @@ export type MessageEditingAction<RoomKey extends string> =
       }
     | {
           readonly type: "CloseConfirmingDialog";
-          readonly confirmationDialog: "Save" | "Delete";
+          readonly confirmationDialog: "Save";
       }
     | {
           readonly type: "SaveEditedContent";
@@ -68,23 +59,18 @@ export type MessageEditingAction<RoomKey extends string> =
           readonly shouldCancelEditing: boolean;
       };
 
-function reduce<RoomKey extends string>(
-    state: MessageEditingState<RoomKey>,
-    action: MessageEditingAction<RoomKey>,
-): MessageEditingState<RoomKey> {
+function reduce(state: PostEditingState, action: PostEditingAction): PostEditingState {
     switch (action.type) {
         case "StartEditing": {
             return {
                 isEditing: true,
-                messageRoomKey: action.messageRoomKey,
-                messageIndex: action.messageIndex,
-                contentEditorState: ContentEditorState.create(action.messagePayload.content, {
+                postId: action.postId,
+                contentEditorState: ContentEditorState.create(action.currentContent, {
                     // The user is much more likely to need to edit from the end of the message than
                     // the start. This is especially convenient on mobile.
                     selectionAt: "end",
                 }),
-                initialContent: action.messagePayload.content.doc,
-                returnFocusAfterEditing: action.returnFocusAfterEditing,
+                initialContent: action.currentContent.doc,
                 isSaving: false,
                 confirmationDialog: null,
             };
@@ -130,19 +116,14 @@ function reduce<RoomKey extends string>(
         case "SaveEditedContent": {
             if (!state.isEditing || state.isSaving) return state;
 
-            if (isContentEmpty(state.contentEditorState.getDoc())) {
-                return {
-                    ...state,
-                    confirmationDialog: "Delete",
-                };
-            } else {
-                return {
-                    ...state,
-                    isSaving: true,
-                    isAwaitingSaveRef: {current: false},
-                    savePromiseResolver: action.savePromiseResolver ?? null,
-                };
-            }
+            // TODO(calebmer): If the user tries to save empty content throw up a delete
+            // confirmation dialog instead, like with messages.
+            return {
+                ...state,
+                isSaving: true,
+                isAwaitingSaveRef: {current: false},
+                savePromiseResolver: action.savePromiseResolver ?? null,
+            };
         }
         case "FinishedSavingContent": {
             if (!state.isEditing || !state.isSaving) return state;
@@ -163,49 +144,38 @@ function reduce<RoomKey extends string>(
     }
 }
 
-export type MessageEditing<RoomKey extends string> = {
-    readonly state: MessageEditingState<RoomKey>;
-    readonly dispatch: Memo<(action: MessageEditingAction<RoomKey>) => void>;
+export type PostEditing = {
+    readonly state: PostEditingState;
+    readonly dispatch: Memo<(action: PostEditingAction) => void>;
 };
 
 /**
- * Use state for managing message editing. Message editing state is hoisted to
- * the message virtualized list level because:
+ * Use state for managing post editing. Post editing state is hoisted to
+ * the post virtualized list level because:
  *
- * - We only want to allow editing one message at a time.
- * - We don't want to lose editing state if the message is unmounted by the
+ * - We only want to allow editing one post at a time.
+ * - We don't want to lose editing state if the post is unmounted by the
  *   virtualized list.
  *
- * This message editing code was forked into `usePostEditing()`. If you make a
- * change here, you might want to make a change there as well.
+ * This post editing state code was forked from `useMessageEditing()`. If you
+ * make a change here, you might want to make a change there as well.
  */
-export function useMessageEditing<RoomKey extends string>({
-    messageNoun,
-    onUpdateMessageContent: _onUpdateMessageContent,
-    onDeleteMessage,
+export function usePostEditing({
+    onUpdatePostContent: _onUpdatePostContent,
 }: {
-    messageNoun: string;
-    onUpdateMessageContent: (options: {
-        roomKey: RoomKey;
-        messageIndex: number;
-        content: MessageContent;
-    }) => Promise<void>;
-    onDeleteMessage: (options: {roomKey: RoomKey; messageIndex: number}) => Promise<void>;
+    onUpdatePostContent: (options: {postId: PostId; content: PostContent}) => Promise<void>;
 }): {
-    messageEditing: MessageEditing<RoomKey>;
+    postEditing: PostEditing;
     modals: ReactNode;
 } {
     const showToast = useShowToast();
 
     const [state, dispatch] = useReducer<
-        (
-            state: MessageEditingState<RoomKey>,
-            action: MessageEditingAction<RoomKey>,
-        ) => MessageEditingState<RoomKey>
+        (state: PostEditingState, action: PostEditingAction) => PostEditingState
     >(reduce, {isEditing: false});
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    const onUpdateMessageContent = useEvent(_onUpdateMessageContent);
+    const onUpdatePostContent = useEvent(_onUpdatePostContent);
 
     useEffect(() => {
         if (!state.isEditing || !state.isSaving) return;
@@ -213,9 +183,8 @@ export function useMessageEditing<RoomKey extends string>({
         if (state.isAwaitingSaveRef.current) return;
         state.isAwaitingSaveRef.current = true;
 
-        onUpdateMessageContent({
-            roomKey: state.messageRoomKey,
-            messageIndex: state.messageIndex,
+        onUpdatePostContent({
+            postId: state.postId,
             content: state.contentEditorState.getDoc(),
         }).then(
             () => {
@@ -230,7 +199,7 @@ export function useMessageEditing<RoomKey extends string>({
                 } else {
                     showToast({
                         type: "Error",
-                        title: `Couldn’t update ${messageNoun}`,
+                        title: "Couldn’t update post",
                         error,
                     });
                 }
@@ -238,13 +207,13 @@ export function useMessageEditing<RoomKey extends string>({
                 dispatch({type: "FinishedSavingContent", shouldCancelEditing: false});
             },
         );
-    }, [messageNoun, onUpdateMessageContent, showToast, state]);
+    }, [onUpdatePostContent, showToast, state]);
 
     return {
-        messageEditing: useMemo(
+        postEditing: useMemo(
             () => ({
                 state,
-                dispatch: dispatch as Memo<(action: MessageEditingAction<RoomKey>) => void>,
+                dispatch: dispatch as Memo<(action: PostEditingAction) => void>,
             }),
             [state],
         ),
@@ -252,8 +221,8 @@ export function useMessageEditing<RoomKey extends string>({
             <>
                 {state.isEditing && state.confirmationDialog === "Save" && (
                     <ModalDialog
-                        title={`Save ${messageNoun}`}
-                        description={`Would you like to save the changes you made to this ${messageNoun}?`}
+                        title="Save post"
+                        description="Would you like to save the changes you made to this post?"
                         onClose={() => {
                             dispatch({
                                 type: "CloseConfirmingDialog",
@@ -261,7 +230,7 @@ export function useMessageEditing<RoomKey extends string>({
                             });
                         }}
                         primaryButtonLabel="Save"
-                        primaryButtonPressErrorTitle={`Couldn’t save ${messageNoun}`}
+                        primaryButtonPressErrorTitle="Couldn’t save post"
                         onPrimaryButtonPress={() => {
                             const savePromiseResolver = createPromiseResolver();
 
@@ -272,23 +241,6 @@ export function useMessageEditing<RoomKey extends string>({
                         cancelButtonLabel="Discard changes"
                         onCancelButtonPress={() => {
                             dispatch({type: "CancelEditing"});
-                        }}
-                    />
-                )}
-                {state.isEditing && state.confirmationDialog === "Delete" && (
-                    <MessageDeleteConfirmationDialog
-                        messageNoun={messageNoun}
-                        onClose={() => {
-                            dispatch({
-                                type: "CloseConfirmingDialog",
-                                confirmationDialog: "Delete",
-                            });
-                        }}
-                        onDeleteMessage={async () => {
-                            await onDeleteMessage({
-                                roomKey: state.messageRoomKey,
-                                messageIndex: state.messageIndex,
-                            });
                         }}
                     />
                 )}

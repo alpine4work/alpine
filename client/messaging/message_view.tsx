@@ -9,7 +9,6 @@ import {ErrorIcon} from "~/client/design/error_icon.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
 import {Tooltip} from "~/client/design/tooltip.js";
@@ -229,7 +228,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         !message.isOptimistic &&
         messageEditing.state.messageRoomKey === message.getRoomKey() &&
         messageEditing.state.messageIndex === message.index
-            ? messageEditing
+            ? (messageEditing as MessageEditing<RoomKey> & {state: {isEditing: true}})
             : null;
 
     const isEditingThisMessage = !!messageEditingForThisMessage;
@@ -253,10 +252,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         // When we finish editing, call the return focus function if there was one on
         // our message editing state.
         {
-            const returnFocusAfterEditing =
-                messageEditingForThisMessage && messageEditing.state.isEditing
-                    ? messageEditing.state.returnFocusAfterEditing
-                    : null;
+            const returnFocusAfterEditing = messageEditingForThisMessage
+                ? messageEditingForThisMessage.state.returnFocusAfterEditing
+                : null;
 
             if (
                 returnFocusAfterMessageEditingRef.current !== null &&
@@ -273,8 +271,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         {
             const hasConfirmationDialog =
                 !!messageEditingForThisMessage &&
-                messageEditing.state.isEditing &&
-                messageEditing.state.confirmationDialog !== null;
+                messageEditingForThisMessage.state.confirmationDialog !== null;
 
             if (
                 hasMessageEditingConfirmationDialogRef.current &&
@@ -1237,43 +1234,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         deletedPayloadNode
                     )}
                 </div>
-                {messageEditingForThisMessage?.state.isEditing &&
-                    messageEditingForThisMessage.state.confirmationDialog === "Save" && (
-                        <ModalDialog
-                            title={`Save ${messageNoun}`}
-                            description={`Would you like to save the changes you made to this ${messageNoun}?`}
-                            onClose={() =>
-                                messageEditingForThisMessage.dispatch({
-                                    type: "CloseConfirmingDialog",
-                                    confirmationDialog: "Save",
-                                })
-                            }
-                            primaryButtonLabel="Save"
-                            onPrimaryButtonPress={() => {
-                                messageEditing.dispatch({
-                                    type: "SaveEditedContent",
-                                    messageNoun,
-                                });
-                            }}
-                            cancelButtonLabel="Discard changes"
-                            onCancelButtonPress={() => {
-                                messageEditing.dispatch({type: "CancelEditing"});
-                            }}
-                        />
-                    )}
-                {messageEditingForThisMessage?.state.isEditing &&
-                    messageEditingForThisMessage.state.confirmationDialog === "Delete" && (
-                        <MessageDeleteConfirmationDialog
-                            messageNoun={messageNoun}
-                            onClose={() =>
-                                messageEditingForThisMessage.dispatch({
-                                    type: "CloseConfirmingDialog",
-                                    confirmationDialog: "Delete",
-                                })
-                            }
-                            onDeleteMessage={onDeleteMessage}
-                        />
-                    )}
             </div>
             {showDeleteConfirmationDialog && (
                 <MessageDeleteConfirmationDialog

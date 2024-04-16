@@ -266,10 +266,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     !messageEditingForThisInput
                         ? sendNewMessage
                         : () => {
-                              messageEditing.dispatch({
-                                  type: "SaveEditedContent",
-                                  messageNoun,
-                              });
+                              messageEditing.dispatch({type: "SaveEditedContent"});
                           }
                 }
                 isSendButtonDisabled={

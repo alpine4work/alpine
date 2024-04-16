@@ -545,9 +545,13 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     //
     // This is at the post list level because we want only one message to be
     // editable at a time.
-    const messageEditing = useMessageEditing<RoomKey>({
+    const {messageEditing, modals} = useMessageEditing<RoomKey>({
+        messageNoun,
         onUpdateMessageContent: async input => {
             await updateMessageContent(input);
+        },
+        onDeleteMessage: async input => {
+            await deleteMessage(input);
         },
     });
 
@@ -668,68 +672,77 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     );
 
     return (
-        <div
-            className={sprinkles({
-                flexGrow: "1",
-                height: "full",
-                overflow: "hidden",
-                display: "flex",
-                flexDirection: "column",
-            })}
-        >
-            <VirtualizedScrollView
-                ref={viewRef}
-                initialScrollOffset={initialScrollOffset}
-                bufferedItemHeight={bufferedMessageViewHeight}
-                itemCount={state.getItemCount()}
-                renderItem={renderItem}
-                onRenderedRangeChange={tryLoadingMoreData}
-            />
-            <MessageInput
-                ref={inputRef}
-                messages={state.messages}
-                isMessageCreationDisabled={isMessageCreationDisabled}
-                onUpdateMessages={update => setMessages(update)}
-                createMessage={async input => {
-                    await createMessage(input);
-                }}
-                messageEditing={messageEditing}
-                replyingToMessage={
-                    replyingToMessageIndex !== null
-                        ? state.messages.getLoadedMessageIfExists(replyingToMessageIndex)
-                        : null
-                }
-                onClearReplyingToMessage={() => setReplyingToMessageIndex(null)}
-                onJumpToMessage={handleJumpToMessage}
-                onDeleteMessage={async messageIndex => {
-                    await deleteMessage({messageIndex});
-                }}
-                onShowTypingIndicator={() => {
-                    startTypingInMessageInput({})
-                        // Don't show an error updating typing indicators to the user. We will see an
-                        // error in our logs but the user won't see any weird behavior if the
-                        // request fails.
-                        .catch(error =>
-                            context.tracer
-                                .getRoot()
-                                .logUncaughtException("Couldn't update typing indicator", error),
-                        );
-                }}
-                onHideTypingIndicator={() => {
-                    stopTypingInMessageInput({})
-                        // Don't show an error updating typing indicators to the user. We will see an
-                        // error in our logs but the user won't see any weird behavior if the
-                        // request fails.
-                        .catch(error =>
-                            context.tracer
-                                .getRoot()
-                                .logUncaughtException("Couldn't update typing indicator", error),
-                        );
-                }}
-                restoreStateRef={inputRestoreStateRef}
-                marginX={messagingViewPaddingX[isMobile ? "mobile" : "desktop"]}
-            />
-        </div>
+        <>
+            {modals}
+            <div
+                className={sprinkles({
+                    flexGrow: "1",
+                    height: "full",
+                    overflow: "hidden",
+                    display: "flex",
+                    flexDirection: "column",
+                })}
+            >
+                <VirtualizedScrollView
+                    ref={viewRef}
+                    initialScrollOffset={initialScrollOffset}
+                    bufferedItemHeight={bufferedMessageViewHeight}
+                    itemCount={state.getItemCount()}
+                    renderItem={renderItem}
+                    onRenderedRangeChange={tryLoadingMoreData}
+                />
+                <MessageInput
+                    ref={inputRef}
+                    messages={state.messages}
+                    isMessageCreationDisabled={isMessageCreationDisabled}
+                    onUpdateMessages={update => setMessages(update)}
+                    createMessage={async input => {
+                        await createMessage(input);
+                    }}
+                    messageEditing={messageEditing}
+                    replyingToMessage={
+                        replyingToMessageIndex !== null
+                            ? state.messages.getLoadedMessageIfExists(replyingToMessageIndex)
+                            : null
+                    }
+                    onClearReplyingToMessage={() => setReplyingToMessageIndex(null)}
+                    onJumpToMessage={handleJumpToMessage}
+                    onDeleteMessage={async messageIndex => {
+                        await deleteMessage({messageIndex});
+                    }}
+                    onShowTypingIndicator={() => {
+                        startTypingInMessageInput({})
+                            // Don't show an error updating typing indicators to the user. We will see an
+                            // error in our logs but the user won't see any weird behavior if the
+                            // request fails.
+                            .catch(error =>
+                                context.tracer
+                                    .getRoot()
+                                    .logUncaughtException(
+                                        "Couldn't update typing indicator",
+                                        error,
+                                    ),
+                            );
+                    }}
+                    onHideTypingIndicator={() => {
+                        stopTypingInMessageInput({})
+                            // Don't show an error updating typing indicators to the user. We will see an
+                            // error in our logs but the user won't see any weird behavior if the
+                            // request fails.
+                            .catch(error =>
+                                context.tracer
+                                    .getRoot()
+                                    .logUncaughtException(
+                                        "Couldn't update typing indicator",
+                                        error,
+                                    ),
+                            );
+                    }}
+                    restoreStateRef={inputRestoreStateRef}
+                    marginX={messagingViewPaddingX[isMobile ? "mobile" : "desktop"]}
+                />
+            </div>
+        </>
     );
 }
 

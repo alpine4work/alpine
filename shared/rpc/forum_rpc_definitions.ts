@@ -92,6 +92,8 @@ export const updatePostContent = defineRpc({
     },
     output: {
         contentUpdatedTime: Schema.date,
+        readTime: Schema.date,
+        eventTransaction: Schema.array(createDynamoGeneralRealtimeEventSchema(PostModel.schema())),
     },
 });
 

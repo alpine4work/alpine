@@ -56,6 +56,9 @@ export function PostView({
                 (postId, update) => setPosts(posts => posts.updatePostComments(postId, update)),
                 [],
             )}
+            onPostRealtimeEventTransaction={() => {
+                // NOCOMMIT: Implement!!
+            }}
             withMobileLayout={withMobileLayout}
         />
     );

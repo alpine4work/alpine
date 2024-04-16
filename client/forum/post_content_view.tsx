@@ -1,21 +1,26 @@
-import {ChatCircle, DotsThree, IconContext, Smiley} from "phosphor-react";
-import {CSSProperties, useContext, useEffect, useMemo, useState} from "react";
+import {ChatCircle, Check, DotsThree, IconContext, KeyReturn, Smiley, X} from "phosphor-react";
+import {CSSProperties, useContext, useEffect, useId, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {messageInputPaddingY} from "~/client/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useShowToast} from "~/client/design/toast.js";
+import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {
     PostContentViewHeader,
     postContentViewHeaderHeight,
 } from "~/client/forum/post_content_view_header.js";
+import {PostEditing} from "~/client/forum/post_editing.js";
 import {PostCommentsState} from "~/client/forum/post_list.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
@@ -30,21 +35,29 @@ import {
     assertSpacing,
     parseRemLengthNumber,
     spacing,
+    subtractRemLengths,
 } from "~/shared/design/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {
     PostCommentModel,
     PostModel,
     maxPostPreviewCommentAuthorCount,
 } from "~/shared/forum/post_model.js";
 import {wait} from "~/shared/helpers/async/wait.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions.js";
-import {contentSchemaStyles, fontSizes, sprinkles} from "~/shared/styles/styles.js";
+import {
+    colorSchemeVars,
+    contentSchemaStyles,
+    fontSizes,
+    sprinkles,
+} from "~/shared/styles/styles.js";
 
 export const postContentViewPaddingX: {mobile: Spacing; desktop: Spacing} = {
     mobile: "3",
@@ -56,6 +69,13 @@ const postContentViewFooterButtonHeight = "7";
 
 export const postContentViewOuterMarginY = "6";
 export const postContentViewInnerMarginY = "4";
+
+const contentEditorPaddingY = "1.5";
+
+const postContentViewInnerMarginYWithoutContentEditorPaddingY = subtractRemLengths(
+    spacing[postContentViewInnerMarginY],
+    spacing[contentEditorPaddingY],
+);
 
 export const postContentViewMinHeight = addRemLengths(
     spacing[postContentViewOuterMarginY],
@@ -112,20 +132,29 @@ export function PostContentView({
     postComments,
     postCommentsState,
     shouldShowChannel,
-    onEditPost,
+    postEditing,
     onTogglePostComments,
     onLoadInitialPostComments,
 }: {
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
     postCommentsState: PostCommentsState;
+    postEditing: PostEditing;
     shouldShowChannel: boolean;
-    onEditPost: () => void;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
 }) {
     const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
+
+    const postEditingForThisPost =
+        postEditing.state.isEditing && postEditing.state.postId === post.id
+            ? (postEditing as PostEditing & {state: {isEditing: true}})
+            : null;
+
+    const isEditingPost = !!postEditingForThisPost;
+
+    const editorId = useId();
 
     return (
         <Box
@@ -143,46 +172,98 @@ export function PostContentView({
                 <PostContentViewHeader post={post} shouldShowChannel={shouldShowChannel} />
             </Box>
             <Box position="absolute" top={postContentViewPaddingX} right={postContentViewPaddingX}>
-                <MenuButton
-                    actions={[
-                        {
-                            label: "Copy link",
-                            pressErrorTitle: "Couldn’t copy post link",
-                            onPress: async () => {
-                                const url = new URL(
-                                    `/s/${post.spaceId}/posts/${post.id}`,
-                                    window.location.href,
-                                );
-                                await writeTextToClipboard(url.toString());
+                {!isEditingPost ? (
+                    <MenuButton
+                        actions={[
+                            {
+                                label: "Copy link",
+                                pressErrorTitle: "Couldn’t copy post link",
+                                onPress: async () => {
+                                    const url = new URL(
+                                        `/s/${post.spaceId}/posts/${post.id}`,
+                                        window.location.href,
+                                    );
+                                    await writeTextToClipboard(url.toString());
+                                },
                             },
-                        },
-                        ...(currentAccount.id === post.author.id
-                            ? [
-                                  {
-                                      label: "Edit",
-                                      onPress: onEditPost,
-                                  },
-                              ]
-                            : []),
-                    ]}
-                >
-                    <IconButton
-                        size={isMobile ? "base" : "md"}
-                        description="More"
-                        withoutTooltip={true}
+                            ...(currentAccount.id === post.author.id
+                                ? [
+                                      {
+                                          label: "Edit",
+                                          onPress: () => {
+                                              postEditing.dispatch({
+                                                  type: "StartEditing",
+                                                  postId: post.id,
+                                                  currentContent: post.content,
+                                              });
+                                          },
+                                      },
+                                  ]
+                                : []),
+                        ]}
                     >
-                        <DotsThree />
-                    </IconButton>
-                </MenuButton>
+                        <IconButton
+                            size={isMobile ? "base" : "md"}
+                            description="More"
+                            withoutTooltip={true}
+                        >
+                            <DotsThree />
+                        </IconButton>
+                    </MenuButton>
+                ) : (
+                    <Box
+                        // Mark our buttons as being owned by the editor (according to
+                        // `isElementOwnedBy()`) so `useConfirmSaveAfterLosingFocus()` allows us to
+                        // press on these buttons without asking the user to confirm the save.
+                        data-ownedby={editorId}
+                        display="flex"
+                    >
+                        <IconButton
+                            description="Save"
+                            tooltipPlacement="top-end"
+                            keyboardShortcutHint={<KeyReturn />}
+                            size={isMobile ? "base" : "md"}
+                            onPress={() => {
+                                postEditingForThisPost.dispatch({type: "SaveEditedContent"});
+                            }}
+                            isDisabled={postEditingForThisPost.state.isSaving}
+                            isPending={postEditingForThisPost.state.isSaving}
+                        >
+                            <Check />
+                        </IconButton>
+                        <IconButton
+                            description="Cancel"
+                            tooltipPlacement="top-end"
+                            keyboardShortcutHint="esc"
+                            size={isMobile ? "base" : "md"}
+                            onPress={() => postEditingForThisPost.dispatch({type: "CancelEditing"})}
+                            isDisabled={postEditingForThisPost.state.isSaving}
+                        >
+                            <X />
+                        </IconButton>
+                    </Box>
+                )}
             </Box>
-            <ContentView
-                content={post.content}
-                className={sprinkles({
-                    paddingX: postContentViewContentPaddingX,
-                    paddingY: postContentViewInnerMarginY,
-                })}
-                contentUpdatedTime={post.contentUpdatedTime}
-            />
+            <Box
+                paddingX={postContentViewContentPaddingX}
+                style={{
+                    paddingTop: postContentViewInnerMarginYWithoutContentEditorPaddingY,
+                    paddingBottom: postContentViewInnerMarginYWithoutContentEditorPaddingY,
+                }}
+            >
+                {!isEditingPost ? (
+                    <ContentView
+                        content={post.content}
+                        contentUpdatedTime={post.contentUpdatedTime}
+                        className={sprinkles({paddingY: contentEditorPaddingY})}
+                    />
+                ) : (
+                    <PostContentViewEditor
+                        editorId={editorId}
+                        postEditingForThisPost={postEditingForThisPost}
+                    />
+                )}
+            </Box>
             <PostContentViewFooter
                 post={post}
                 postComments={postComments}
@@ -501,5 +582,77 @@ function CaretUpWithCustomizableStrokeWidth({
                 strokeWidth={16 * strokeWidthScale}
             />
         </svg>
+    );
+}
+
+function PostContentViewEditor({
+    editorId,
+    postEditingForThisPost,
+}: {
+    editorId: string;
+    postEditingForThisPost: PostEditing & {state: {isEditing: true}};
+}) {
+    const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
+
+    const hasInitiallyMountedRef = useRef(false);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
+        const editor = assertExists(editorRef.current);
+        editor.focus();
+    }, []);
+
+    return (
+        <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
+            <Box
+                id={editorId}
+                borderRadius="md"
+                style={{
+                    // Use box shadow to draw the border so it doesn't add 1px to layout like
+                    // `border` CSS would.
+                    boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
+                }}
+                ref={useConfirmSaveAfterLosingFocus({
+                    shouldConfirmSave:
+                        postEditingForThisPost.state.contentEditorState.getDoc() !==
+                        postEditingForThisPost.state.initialContent,
+                    isConfirmingSave:
+                        postEditingForThisPost.state.isEditing &&
+                        postEditingForThisPost.state.confirmationDialog === "Save",
+                    onCancelSave: () => postEditingForThisPost.dispatch({type: "CancelEditing"}),
+                    onConfirmSave: () =>
+                        postEditingForThisPost.dispatch({type: "MaybeCancelEditing"}),
+                })}
+            >
+                <ContentEditor
+                    ref={editorRef}
+                    aria-label="Post"
+                    state={postEditingForThisPost.state.contentEditorState}
+                    onChange={contentEditorState => {
+                        postEditingForThisPost.dispatch({
+                            type: "ContentEditorStateChange",
+                            contentEditorState,
+                        });
+                    }}
+                    // On mobile, don't allow interactions when unfocused. We're already in an
+                    // editing modality.
+                    withoutMobileDualModality={true}
+                    placeholder="Share your ideas…"
+                    className={sprinkles({paddingY: contentEditorPaddingY})}
+                    onModEnter={event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        postEditingForThisPost.dispatch({type: "SaveEditedContent"});
+                    }}
+                    onEscape={event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        postEditingForThisPost.dispatch({type: "CancelEditing"});
+                    }}
+                />
+            </Box>
+        </FocusRing>
     );
 }

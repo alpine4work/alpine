@@ -164,6 +164,13 @@ export function ChannelView({
 
                 setPosts(posts => posts.updateQuery(posts.query.loadMore(postsResult)));
             }}
+            onPostRealtimeEventTransaction={event => {
+                setPosts(posts =>
+                    posts.updateQuery(
+                        posts.query.handleEventTransaction(event.readTime, event.eventTransaction),
+                    ),
+                );
+            }}
             aside={hasAside && <ChannelViewAside channel={channel} />}
             navigationBar={{...navigationBar, navigationBarRef}}
         />

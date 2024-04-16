@@ -571,7 +571,8 @@ function DocumentCommentThreadListView(
     //    it to be editable so it shouldn't lose state.
     //
     // 2. We want only one message to be editable at a time.
-    const messageEditing = useMessageEditing<DocumentCommentRoomKey>({
+    const {messageEditing, modals} = useMessageEditing<DocumentCommentRoomKey>({
+        messageNoun: "comment",
         onUpdateMessageContent: async ({roomKey, messageIndex: commentIndex, content}) => {
             const [, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
@@ -579,6 +580,14 @@ function DocumentCommentThreadListView(
                 commentThreadId,
                 commentIndex,
                 content,
+            });
+        },
+        onDeleteMessage: async ({roomKey, messageIndex: commentIndex}) => {
+            const [, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+            await procedures.deleteComment({
+                commentThreadId,
+                commentIndex,
             });
         },
     });
@@ -1093,6 +1102,7 @@ function DocumentCommentThreadListView(
 
     return (
         <>
+            {modals}
             <div
                 className={sprinkles({
                     flexGrow: "1",

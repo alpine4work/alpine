@@ -1,4 +1,4 @@
-import {Check, KeyReturn, SpinnerGap, X} from "phosphor-react";
+import {Check, KeyReturn, X} from "phosphor-react";
 import {Ref, forwardRef, useImperativeHandle, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
@@ -6,10 +6,8 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
-import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
-import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
@@ -21,7 +19,7 @@ import {
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
 } from "~/shared/messaging/messaging_shared_styles.js";
-import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
+import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 export type MessageViewEditorRef = {
     focus(): void;
@@ -66,7 +64,7 @@ function MessageViewEditor<RoomKey extends string>(
                 isConfirmingSave:
                     messageEditing.state.isEditing &&
                     messageEditing.state.confirmationDialog === "Save",
-                onCancelSave: () => messageEditing?.dispatch({type: "MaybeCancelEditing"}),
+                onCancelSave: () => messageEditing?.dispatch({type: "CancelEditing"}),
                 onConfirmSave: () => messageEditing?.dispatch({type: "MaybeCancelEditing"}),
             })}
         >
@@ -92,6 +90,8 @@ function MessageViewEditor<RoomKey extends string>(
                     }
                     borderBottomRightRadius={messageViewBubbleBorderRadius}
                     style={{
+                        // Use box shadow to draw the border so it doesn't add 1px to layout like
+                        // `border` CSS would.
                         boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                     }}
                 >
@@ -108,10 +108,7 @@ function MessageViewEditor<RoomKey extends string>(
                         }}
                         onCancel={() => messageEditing.dispatch({type: "CancelEditing"})}
                         onSave={() => {
-                            messageEditing.dispatch({
-                                type: "SaveEditedContent",
-                                messageNoun,
-                            });
+                            messageEditing.dispatch({type: "SaveEditedContent"});
                         }}
                     />
                 </Box>
@@ -209,41 +206,29 @@ function MessageViewEditorActions<RoomKey extends string>({
     assert(messageEditing.state.isEditing);
     const isSaving = messageEditing.state.isSaving;
 
-    // We wait a bit before showing our pending spinner. Some actions are very fast so we
-    // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
-    const shouldShowSavingSpinner = useDelayLoadingIndicator(isSaving);
-
     return (
         <Box display="flex">
-            {shouldShowSavingSpinner ? (
-                <SpinnerGap className={spinAnimationClassName} size={spacing["3"]} />
-            ) : (
-                <>
-                    <IconButton
-                        description="Save"
-                        keyboardShortcutHint={<KeyReturn />}
-                        size="sm"
-                        onPress={() => {
-                            messageEditing.dispatch({
-                                type: "SaveEditedContent",
-                                messageNoun,
-                            });
-                        }}
-                        isDisabled={isSaving}
-                    >
-                        <Check />
-                    </IconButton>
-                    <IconButton
-                        description="Cancel"
-                        keyboardShortcutHint="esc"
-                        size="sm"
-                        onPress={() => messageEditing.dispatch({type: "CancelEditing"})}
-                        isDisabled={isSaving}
-                    >
-                        <X />
-                    </IconButton>
-                </>
-            )}
+            <IconButton
+                description="Save"
+                keyboardShortcutHint={<KeyReturn />}
+                size="sm"
+                onPress={() => {
+                    messageEditing.dispatch({type: "SaveEditedContent"});
+                }}
+                isDisabled={isSaving}
+                isPending={isSaving}
+            >
+                <Check />
+            </IconButton>
+            <IconButton
+                description="Cancel"
+                keyboardShortcutHint="esc"
+                size="sm"
+                onPress={() => messageEditing.dispatch({type: "CancelEditing"})}
+                isDisabled={isSaving}
+            >
+                <X />
+            </IconButton>
         </Box>
     );
 }

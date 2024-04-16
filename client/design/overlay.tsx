@@ -27,7 +27,9 @@ import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {
     addResizeListenerForElement,
+    addSuppressResizeLoopErrorNotificationForElement,
     removeResizeListenerForElement,
+    removeSuppressResizeLoopErrorNotificationForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
 import {
@@ -424,6 +426,14 @@ function Overlay(
             const handleResize = () => popper.forceUpdate();
             addResizeListenerForElement(targetElement, handleResize);
 
+            // If we're using `sameWidth` or `sameHeight` then calling
+            // `popper.forceUpdate()` after a resize will cause the overlay element to
+            // resize. It's ok if resize listeners don't fire on the overlay element after
+            // this.
+            if (sameWidth || sameHeight) {
+                addSuppressResizeLoopErrorNotificationForElement(targetElement);
+            }
+
             const originalTargetElementId = targetElement.id;
             const originalOverlayElementId = overlayElement.id;
 
@@ -468,6 +478,9 @@ function Overlay(
                 popperRef.current = null;
                 popper.destroy();
                 removeResizeListenerForElement(targetElement, handleResize);
+                if (sameWidth || sameHeight) {
+                    removeSuppressResizeLoopErrorNotificationForElement(targetElement);
+                }
                 cleanupTargetElementAttributes();
                 cleanupOverlayElementAttributes();
                 unsubscribeFromMobileKeyboardFrameChange();

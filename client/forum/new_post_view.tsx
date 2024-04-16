@@ -215,6 +215,9 @@ export function NewPostView({
                                 hasContentChanged: hasContentChanged || transaction.docChanged,
                             });
                         }}
+                        // On mobile, don't allow interactions when unfocused. We're already in an
+                        // editing modality.
+                        withoutMobileDualModality={true}
                         placeholder="Share your ideas…"
                         containerClassName={sprinkles({
                             flexGrow: "1",

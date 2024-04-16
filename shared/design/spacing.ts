@@ -98,7 +98,8 @@ export function isSpacing(string: string): string is Spacing {
     return string in spacing;
 }
 
-export function assertSpacing(string: string): Spacing {
+export function assertSpacing(string: string | number): Spacing {
+    if (typeof string === "number") string = `${string}`;
     assert(isSpacing(string));
     return string;
 }
