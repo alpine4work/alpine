@@ -445,6 +445,7 @@ function VirtualizedScrollView(
         scrollbarInsetTop: actualScrollbarInsetTop,
         scrollbarInsetBottom,
         extraChildren,
+        extraChildrenOutsideContentElement,
     }: {
         /**
          * The total number of virtualized items. You do not need all the items loaded
@@ -576,6 +577,41 @@ function VirtualizedScrollView(
          * a pointer.
          */
         extraChildren?:
+            | ReactNode
+            | ((props: {
+                  contentHeight: number;
+                  viewHeight: number;
+                  shouldRenderWithRelativePositioning: boolean;
+              }) => ReactNode);
+
+        /**
+         * Extra children to always render in our virtualized scroll view. Useful if
+         * you want to render extra sticky content.
+         *
+         * The children are rendered in a container with no pointer events. So you need
+         * to add `pointerEvents: "auto"` on elements you want to be interactive with
+         * a pointer.
+         *
+         * Usually you should use `extraChildren` instead of this property but
+         * sometimes you need to position using the scrollable element not the content
+         * element. To understand when you'd use this you have to understand the
+         * virtualized scroll view's DOM which looks like:
+         *
+         * ```html
+         * <div style="position: relative; overflow-y: scroll">
+         *     <div style="position: absolute; height: ${contentHeight}">
+         *         {extraChildren}
+         *         <!-- All items... -->
+         *     </div>
+         *     {extraChildrenOutsideContentElement}
+         * </div>
+         * ```
+         *
+         * So absolutely positioned extra children will have a difference reference
+         * point depending on whether you use `extraChildren` or
+         * `extraChildrenOutsideContentElement`.
+         */
+        extraChildrenOutsideContentElement?:
             | ReactNode
             | ((props: {
                   contentHeight: number;
@@ -1812,6 +1848,25 @@ function VirtualizedScrollView(
                         {children}
                     </OverlayScopeContextProvider>
                 </div>
+                {extraChildrenOutsideContentElement && (
+                    <div
+                        style={{
+                            // We need to render extra children in an absolutely positioned `<div>` so
+                            // it doesn't affect server side rendering.
+                            position: "absolute",
+                            inset: 0,
+                            pointerEvents: "none",
+                        }}
+                    >
+                        {typeof extraChildrenOutsideContentElement === "function"
+                            ? extraChildrenOutsideContentElement({
+                                  contentHeight,
+                                  viewHeight: state.getViewHeight(),
+                                  shouldRenderWithRelativePositioning,
+                              })
+                            : extraChildrenOutsideContentElement}
+                    </div>
+                )}
             </div>
             {initialScrollOffset === "bottom" && (
                 // When server side rendering this component, we want it to be

@@ -201,18 +201,26 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
                 },
                 [itemCount, onClose, query],
             )}
-            // Render a div at the bottom of the notification list that covers the bottom
-            // border of the last entry but only when there's enough content to scroll. If
-            // there are only 2 entries, we want to show that last border.
-            extraChildren={
+            extraChildrenOutsideContentElement={({contentHeight}) => (
+                // Our items all have a bottom border. This is good when there's less content
+                // than room to scroll since it creates a clear shape for the last item in the
+                // list.
+                //
+                // However, if there are enough items to scroll then when the user has fully
+                // scrolled we want the last item to *not* have a border bottom since the
+                // bottom of the screen creates that boundary. We don't need to render an extra
+                // line in the margins.
+                //
+                // This div covers the bottom border of the last item but only when there's
+                // enough content to scroll. Otherwise the bottom border needs to be visible to
+                // visually contain the last item. To debug this it's helpful to switch the
+                // `backgroundColor` to `red-30` or something similar.
                 <Box
                     position="absolute"
-                    zIndex="50"
                     left="0"
                     right="0"
                     top="0"
-                    height="full"
-                    style={{minHeight: virtualizedViewHeight}}
+                    style={{height: `max(100%, ${contentHeight}px)`}}
                 >
                     <Box
                         position="absolute"
@@ -223,7 +231,7 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
                         backgroundColor="grey-0"
                     />
                 </Box>
-            }
+            )}
         />
     );
 }

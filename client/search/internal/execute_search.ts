@@ -208,12 +208,10 @@ export function executeSearch(
 
             const newResults: Array<SearchResult> = [];
 
-            let withExplanation = true;
             let maxKeywordScore = -Infinity;
             let minKeywordScore = Infinity;
 
             for (const keywordResult of keywordSearchState.value.results) {
-                withExplanation &&= !!keywordResult.explanation;
                 maxKeywordScore = Math.max(maxKeywordScore, keywordResult.score);
                 minKeywordScore = Math.min(minKeywordScore, keywordResult.score);
 
@@ -240,47 +238,49 @@ export function executeSearch(
                         ? semanticResult
                         : keywordResult),
                     score: actualScore,
-                    explanation: keywordResult.explanation
-                        ? {
-                              value: actualScore,
-                              description: "sum of:",
-                              details: [
-                                  {
-                                      value: additionalScore,
-                                      description: `✨ interpolated semantic score, computed as (m * x) + b from:`,
-                                      details: [
-                                          {
-                                              value: semanticResult.score,
-                                              description: "x, semantic score",
-                                              details: [],
-                                          },
-                                          {
-                                              value: slope,
-                                              description: "m, slope",
-                                              details: [],
-                                          },
-                                          {
-                                              value: intercept,
-                                              description: "b, intercept",
-                                              details: [],
-                                          },
-                                      ],
-                                  },
-                                  {
-                                      value: actualKeywordScore,
-                                      description: "max of:",
-                                      details: [
-                                          {
-                                              value: options.minKeywordScoreForSemanticResult,
-                                              description: "min keyword score for semantic result",
-                                              details: [],
-                                          },
-                                          keywordResult.explanation,
-                                      ],
-                                  },
-                              ],
-                          }
-                        : undefined,
+                    explanation:
+                        debugOptions && keywordResult.explanation
+                            ? {
+                                  value: actualScore,
+                                  description: "sum of:",
+                                  details: [
+                                      {
+                                          value: additionalScore,
+                                          description: `✨ interpolated semantic score, computed as (m * x) + b from:`,
+                                          details: [
+                                              {
+                                                  value: semanticResult.score,
+                                                  description: "x, semantic score",
+                                                  details: [],
+                                              },
+                                              {
+                                                  value: slope,
+                                                  description: "m, slope",
+                                                  details: [],
+                                              },
+                                              {
+                                                  value: intercept,
+                                                  description: "b, intercept",
+                                                  details: [],
+                                              },
+                                          ],
+                                      },
+                                      {
+                                          value: actualKeywordScore,
+                                          description: "max of:",
+                                          details: [
+                                              {
+                                                  value: options.minKeywordScoreForSemanticResult,
+                                                  description:
+                                                      "min keyword score for semantic result",
+                                                  details: [],
+                                              },
+                                              keywordResult.explanation,
+                                          ],
+                                      },
+                                  ],
+                              }
+                            : undefined,
                 });
             }
 
@@ -312,7 +312,7 @@ export function executeSearch(
                 newResults.push({
                     ...semanticResult,
                     score: actualScore + options.minKeywordScoreForSemanticResult,
-                    explanation: withExplanation
+                    explanation: debugOptions
                         ? {
                               value: actualScore + options.minKeywordScoreForSemanticResult,
                               description: "sum of:",

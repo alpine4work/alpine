@@ -691,7 +691,10 @@ function PostListView(
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    {index !== 0 && (
+                                    {index === 1 && (
+                                        // This is the first post in a `<PostListView>` with a `channelHeader` so we
+                                        // need to draw a border between the first `<PostListView>` and the
+                                        // `channelHeader`.
                                         <div
                                             className={sprinkles({
                                                 position: "absolute",
@@ -710,6 +713,25 @@ function PostListView(
                                             />
                                         </div>
                                     )}
+                                    {item.postCommentsState === "Closed" &&
+                                        index < posts.getItemCount() - 1 && (
+                                            <div
+                                                className={sprinkles({
+                                                    position: "absolute",
+                                                    left: "0",
+                                                    right: "0",
+                                                    bottom: "0",
+                                                    paddingX: postContentViewPaddingX,
+                                                })}
+                                            >
+                                                <div
+                                                    className={sprinkles({
+                                                        width: "full",
+                                                        borderBottom: "grey-5",
+                                                    })}
+                                                />
+                                            </div>
+                                        )}
                                     <PostContentView
                                         post={item.post}
                                         postComments={item.postComments}
@@ -1142,6 +1164,33 @@ function PostListView(
                                                 }}
                                             />
                                             {inputNode}
+                                            {index < posts.getItemCount() - 1 && (
+                                                <div
+                                                    className={sprinkles({
+                                                        position: "absolute",
+                                                        left: "0",
+                                                        right: "0",
+                                                        paddingX: postContentViewPaddingX,
+                                                    })}
+                                                    style={{
+                                                        // -1px since:
+                                                        //
+                                                        // 1. The border shouldn't be visible while the comment input is
+                                                        //    sticky.
+                                                        // 2. The space between the comment input and bottom border is
+                                                        //    small enough that 1px difference is noticeable to the
+                                                        //    trained eye.
+                                                        bottom: -1,
+                                                    }}
+                                                >
+                                                    <div
+                                                        className={sprinkles({
+                                                            width: "full",
+                                                            borderBottom: "grey-5",
+                                                        })}
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
                                         {hasAside && (
                                             <div
@@ -1199,23 +1248,6 @@ function PostListView(
                                             paddingY: "10",
                                         })}
                                     >
-                                        <div
-                                            className={sprinkles({
-                                                position: "absolute",
-                                                width: "full",
-                                                paddingX: postContentViewPaddingX,
-                                            })}
-                                            style={{
-                                                top: 0,
-                                            }}
-                                        >
-                                            <div
-                                                className={sprinkles({
-                                                    width: "full",
-                                                    borderTop: "grey-5",
-                                                })}
-                                            />
-                                        </div>
                                         <SpinnerGap
                                             className={spinAnimationClassName}
                                             size={spacing["6"]}

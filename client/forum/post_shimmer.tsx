@@ -43,11 +43,12 @@ export function PostShimmer() {
         >
             <Box
                 position="absolute"
-                width="full"
+                left="0"
+                right="0"
+                bottom="0"
                 paddingX={postContentViewPaddingX}
-                style={{top: 0}}
             >
-                <Box width="full" borderTop="grey-5" />
+                <Box width="full" borderBottom="grey-5" />
             </Box>
             <Box
                 flexShrink="0"
