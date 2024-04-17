@@ -48,7 +48,10 @@ export function ChannelViewHeader({
                 paddingBottom={postContentViewOuterMarginY}
                 paddingX={postContentViewPaddingX}
             >
-                <PostFauxInputCreateButton channel={channelHeader.channel} />
+                <PostFauxInputCreateButton
+                    channel={channelHeader.channel}
+                    isCreatingChannel={channelHeader.isCreatingChannel}
+                />
             </Box>
         </>
     );

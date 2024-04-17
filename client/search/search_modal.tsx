@@ -42,8 +42,7 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -753,20 +752,13 @@ function getSearchResultDestination(
             };
         }
         case "CreateChannel": {
+            // Make sure we use the same `channelId` consistently for the current search
+            // result list.
+            const channelId = unsafelyGenerateStableId(getStableRandom(), resultId);
+
             return {
-                type: "Action",
-                onSelect: ({showToast}) => {
-                    showToast({
-                        type: "Error",
-                        title: "Couldn’t create channel",
-                        error: new UnimplementedError(
-                            "Channel creation hasn’t been implemented yet",
-                            {
-                                displayMessage: errorDisplayMessage`Channel creation hasn’t been implemented yet.`,
-                            },
-                        ),
-                    });
-                },
+                type: "Path",
+                path: `/s/${spaceId}/channels/${channelId}?create&focus=none`,
             };
         }
         case "CreateDocument": {

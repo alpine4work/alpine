@@ -42,6 +42,7 @@ import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protoc
 
 export type PostListChannelHeader = {
     readonly channel: ChannelModel;
+    readonly isCreatingChannel: boolean;
 };
 
 export type PostCommentsState = PostCommentsOpenState | "Closed";

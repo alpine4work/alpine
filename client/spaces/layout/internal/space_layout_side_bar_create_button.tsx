@@ -14,12 +14,9 @@ import {ReactNode} from "react";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {useShowToast} from "~/client/design/toast.js";
 import {usePeekStackContext} from "~/client/peek/peek_stack.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {UnimplementedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {generateId} from "~/shared/id/id.js";
 import {spinAnimationClassName} from "~/shared/styles/styles.js";
 
@@ -28,7 +25,6 @@ import {spinAnimationClassName} from "~/shared/styles/styles.js";
 // change an icon here you should also change it there.
 export function SpaceLayoutSideBarCreateButton() {
     const {space} = useSpaceContext();
-    const showToast = useShowToast();
     const peekStackContext = usePeekStackContext();
 
     return (
@@ -118,16 +114,11 @@ export function SpaceLayoutSideBarCreateButton() {
                         withCustomLayout: true,
                         pressErrorTitle: "Couldn’t create channel",
                         onPress: async () => {
-                            showToast({
-                                type: "Error",
-                                title: "Couldn’t create channel",
-                                error: new UnimplementedError(
-                                    "Channel creation hasn’t been implemented yet",
-                                    {
-                                        displayMessage: errorDisplayMessage`Channel creation hasn’t been implemented yet.`,
-                                    },
-                                ),
-                            });
+                            const channelId = generateId();
+
+                            await peekStackContext.push(
+                                `/s/${space.id}/channels/${channelId}?create`,
+                            );
                         },
                         render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
                             <SpaceLayoutSideBarCreateButtonItem

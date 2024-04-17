@@ -653,17 +653,26 @@ export async function seedTestChannels(
  */
 export async function createChannel(
     context: ServerSessionActionContext,
-    {spaceId, name}: {spaceId: SpaceId; name: string},
+    {
+        spaceId,
+        channelId = generateId<ChannelId>(),
+        name,
+    }: {
+        spaceId: SpaceId;
+        channelId?: ChannelId;
+        name: string;
+    },
 ): Promise<{
     id: ChannelId;
     createdTime: Date;
+    getDynamoGeneralRealtimeItem: () => Promise<DynamoGeneralRealtimeItem<ChannelModel>>;
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
     const channelItem: ChannelAttributesItem = {
         partitionType: "Channel",
         sortRangeType: "Attributes",
-        channelId: generateId(),
+        channelId,
         spaceId,
         createdTime: new Date(),
         creatorId: context.actor.getAccountId(),
@@ -671,7 +680,21 @@ export async function createChannel(
         description: emptyMessageContent,
     };
 
-    await ForumRealtimeTable.createItem(context, channelItem);
+    const {getRealtimeItem} = await ForumRealtimeTable.createItem(context, channelItem);
+
+    // Future `authorizeChannelAccess()` calls in the request should not need to
+    // load the channel. This optimization kicks in for the create channel Remix
+    // route.
+    ChannelPreviewCache.set(
+        context,
+        channelId,
+        new ChannelPreviewModel({
+            id: channelItem.channelId,
+            spaceId: channelItem.spaceId,
+            createdTime: channelItem.createdTime,
+            name: channelItem.name,
+        }),
+    );
 
     context.jobs.send({
         type: "IndexSearchEntity",
@@ -696,6 +719,7 @@ export async function createChannel(
     return {
         id: channelItem.channelId,
         createdTime: channelItem.createdTime,
+        getDynamoGeneralRealtimeItem: getRealtimeItem,
     };
 }
 

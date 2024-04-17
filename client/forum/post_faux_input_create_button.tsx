@@ -10,7 +10,13 @@ import {inputPlaceholderStyles, pressOpacityOverlayClassName} from "~/shared/sty
 
 export const postFauxInputCreateButtonHeight = "12";
 
-export function PostFauxInputCreateButton({channel}: {channel: ChannelModel}) {
+export function PostFauxInputCreateButton({
+    channel,
+    isCreatingChannel,
+}: {
+    channel: ChannelModel;
+    isCreatingChannel: boolean;
+}) {
     const navigate = useNavigate();
     const {space} = useSpaceContext();
 
@@ -18,6 +24,7 @@ export function PostFauxInputCreateButton({channel}: {channel: ChannelModel}) {
     const {buttonProps, isPressed} = useButton(
         {
             elementType: "div",
+            isDisabled: isCreatingChannel,
             onPress: () => {
                 const draftId = generateId();
 
@@ -44,7 +51,7 @@ export function PostFauxInputCreateButton({channel}: {channel: ChannelModel}) {
                 alignItems="center"
                 // This is meant to be a fake text input so show text cursor to sell the
                 // illusion.
-                cursor="text"
+                cursor={!isCreatingChannel ? "text" : undefined}
                 {...(buttonProps as any)}
             >
                 {isPressed && (
