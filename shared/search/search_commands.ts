@@ -40,31 +40,37 @@ const searchCommandById: {
     },
     CreateChatMessage: {
         title: "Send chat message",
-        otherHitTexts: ["send message", "create chat message"],
+        otherHitTexts: ["send message", "create chat message", "new chat message"],
     },
     CreatePost: {
         title: "Create post",
-        otherHitTexts: ["post"],
+        otherHitTexts: ["post", "new post"],
     },
     CreateChannel: {
         title: "Create channel",
-        otherHitTexts: ["channel"],
+        otherHitTexts: ["channel", "new channel"],
     },
     CreateDocument: {
         title: "Create document",
-        otherHitTexts: ["document"],
+        otherHitTexts: ["document", "new document"],
     },
     CreateTask: {
         title: "Create task",
-        otherHitTexts: ["task"],
+        otherHitTexts: ["task", "new task"],
     },
     CreateTaskCollection: {
         title: "Create task collection",
-        otherHitTexts: ["create collection", "task collection", "collection"],
+        otherHitTexts: [
+            "create collection",
+            "task collection",
+            "collection",
+            "new task collection",
+            "new collection",
+        ],
     },
     CreateTaskView: {
         title: "Create task view",
-        otherHitTexts: ["all tasks", "create view", "task views"],
+        otherHitTexts: ["all tasks", "create view", "task views", "new task view", "new view"],
     },
     TaskNotepad: {
         title: "Task notepad",

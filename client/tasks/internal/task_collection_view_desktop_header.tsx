@@ -45,6 +45,7 @@ function TaskCollectionViewDesktopHeader(
         store,
         collectionId,
         collectionSubscription,
+        shouldInitiallyFocusEditableCollectionName,
         affinityManager,
         createCollection,
         isReadOnly,
@@ -61,6 +62,7 @@ function TaskCollectionViewDesktopHeader(
         // If `collectionSubscription` is null, that means we are creating a
         // new collection.
         collectionSubscription: TaskClientCollectionSubscription | null;
+        shouldInitiallyFocusEditableCollectionName: boolean;
         affinityManager: TaskClientStoreSearchAffinityManager;
         createCollection: Memo<(name: string) => Promise<void>>;
         isReadOnly: boolean;
@@ -132,6 +134,7 @@ function TaskCollectionViewDesktopHeader(
                     affinityManager={affinityManager}
                     collectionId={collectionId}
                     isCreatingCollection={!collectionSubscription}
+                    shouldInitiallyFocusEditableName={shouldInitiallyFocusEditableCollectionName}
                     collection={collection}
                     createCollection={createCollection}
                 />

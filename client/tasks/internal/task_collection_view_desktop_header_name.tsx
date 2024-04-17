@@ -22,8 +22,8 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
     TaskClientStore,
@@ -55,6 +55,7 @@ function TaskCollectionViewDesktopHeaderName(
         store,
         collectionId,
         isCreatingCollection,
+        shouldInitiallyFocusEditableName: shouldInitiallyFocusEditableNameProp,
         collection,
         createCollection,
         affinityManager,
@@ -63,6 +64,7 @@ function TaskCollectionViewDesktopHeaderName(
         store: TaskClientStore;
         collectionId: TaskCollectionId;
         isCreatingCollection: boolean;
+        shouldInitiallyFocusEditableName: boolean;
         collection: TaskCollectionModel | null;
         createCollection: (name: string) => Promise<void>;
         affinityManager: TaskClientStoreSearchAffinityManager;
@@ -74,13 +76,19 @@ function TaskCollectionViewDesktopHeaderName(
 
     // Reset `isEditingName` if `collectionSubscription` changes. e.g. If it goes
     // from `null` to a non-null value when we create a collection.
-    const [isEditingName, setIsEditingName] = useStateWithDependencies(isCreatingCollection, [
-        isCreatingCollection,
-    ]);
+    const [editingNameState, setEditingNameState] = useState<{
+        shouldInitiallyFocusEditableName: boolean;
+    } | null>(
+        isCreatingCollection
+            ? {shouldInitiallyFocusEditableName: shouldInitiallyFocusEditableNameProp}
+            : null,
+    );
 
     // If the collection doesn't have a name you need to add one! Only optimistic
     // collections will have an empty name. Empty collection names are not allowed.
-    if (isCreatingCollection && !isEditingName) setIsEditingName(true);
+    if (isCreatingCollection && !editingNameState) {
+        setEditingNameState({shouldInitiallyFocusEditableName: true});
+    }
 
     const [colorSelectorState, setColorSelectorState] = useState<
         {isExpanded: true} | {isExpanded: false; isFadingOut: boolean}
@@ -89,10 +97,10 @@ function TaskCollectionViewDesktopHeaderName(
     useImperativeHandle(
         ref,
         () => ({
-            editName: () => setIsEditingName(true),
+            editName: () => setEditingNameState({shouldInitiallyFocusEditableName: true}),
             editColor: () => setColorSelectorState({isExpanded: true}),
         }),
-        [setIsEditingName],
+        [],
     );
 
     const name = collection?.getName() ?? "";
@@ -138,7 +146,7 @@ function TaskCollectionViewDesktopHeaderName(
                     />
                 </Box>
             )}
-            {!isEditingName ? (
+            {!editingNameState ? (
                 <Box
                     padding="1"
                     fontSize="200"
@@ -150,7 +158,7 @@ function TaskCollectionViewDesktopHeaderName(
                         // Disable selection from double click.
                         event.preventDefault();
 
-                        setIsEditingName(true);
+                        setEditingNameState({shouldInitiallyFocusEditableName: true});
                     }}
                 >
                     {name}
@@ -159,14 +167,16 @@ function TaskCollectionViewDesktopHeaderName(
             ) : (
                 <Box overflow="hidden">
                     <TaskCollectionViewDesktopHeaderNameEditor
+                        isCreatingCollection={isCreatingCollection}
+                        shouldInitiallyFocus={editingNameState.shouldInitiallyFocusEditableName}
                         initialName={name}
                         onCancel={() => {
                             // If we cancel editing an optimistic collection with no name then return to
                             // the route we came from.
-                            if (name.length === 0) {
+                            if (isCreatingCollection) {
                                 return navigate(-1);
                             } else {
-                                setIsEditingName(false);
+                                setEditingNameState(null);
                             }
                         }}
                         onSave={name => {
@@ -174,12 +184,14 @@ function TaskCollectionViewDesktopHeaderName(
                             // has not been created yet. Then it does nothing. Your collection needs
                             // a name!
                             if (name.length === 0) {
-                                if (!isCreatingCollection) setIsEditingName(false);
+                                if (!isCreatingCollection) setEditingNameState(null);
                                 return;
                             }
 
                             if (isCreatingCollection) {
-                                return createCollection(name);
+                                return createCollection(name).then(() => {
+                                    setEditingNameState(null);
+                                });
                             } else {
                                 store.commitTaskActionTransaction(
                                     context,
@@ -198,7 +210,7 @@ function TaskCollectionViewDesktopHeaderName(
                                     {undoManager: null, affinityManager},
                                 );
 
-                                setIsEditingName(false);
+                                setEditingNameState(null);
                             }
                         }}
                     />
@@ -209,21 +221,30 @@ function TaskCollectionViewDesktopHeaderName(
 }
 
 function TaskCollectionViewDesktopHeaderNameEditor({
+    isCreatingCollection,
+    shouldInitiallyFocus,
     initialName,
     onCancel,
     onSave,
 }: {
+    isCreatingCollection: boolean;
+    shouldInitiallyFocus: boolean;
     initialName: string;
     onCancel: () => MaybePromise<void>;
     onSave: (name: string) => MaybePromise<void>;
 }) {
+    const isPeekAnimatingOpen = useIsPeekAnimatingOpen();
+
     const inputRef = useRef<HTMLInputElement>(null);
     const [name, setName] = useState(initialName);
     const [shouldShowConfirmSaveDialog, setShouldShowConfirmSaveDialog] = useState(false);
 
-    const shouldFocusNextRenderRef = useRef(true);
+    const shouldFocusNextRenderRef = useRef(shouldInitiallyFocus);
 
     useLayoutEffectWithoutServerSideWarning(() => {
+        // If we're in a peek, don't focus until we finish animating open.
+        if (isPeekAnimatingOpen) return;
+
         // If the close confirmation dialog is open, we can't focus our editor.
         if (shouldShowConfirmSaveDialog) return;
 
@@ -233,7 +254,7 @@ function TaskCollectionViewDesktopHeaderNameEditor({
         const inputElement = assertExists(inputRef.current);
         inputElement.select();
         inputElement.focus({preventScroll: true});
-    }, [shouldShowConfirmSaveDialog]);
+    }, [isPeekAnimatingOpen, shouldShowConfirmSaveDialog]);
 
     return (
         <>
@@ -243,10 +264,17 @@ function TaskCollectionViewDesktopHeaderNameEditor({
                         ref={useMergedRefs(
                             inputRef,
                             useConfirmSaveAfterLosingFocus({
+                                // It's ok to unfocus while creating a collection and nothing has been input.
+                                // This will happen when you create a collection, a peek opens, then you
+                                // immediately close the peek.
+                                //
+                                // We won't auto-focus this input when create a task collection through search.
+                                isDisabled: isCreatingCollection && name.length === 0,
+
                                 shouldConfirmSave:
                                     // If the initial name is empty, we are creating an optimistic collection and
                                     // you must provide a name.
-                                    initialName.length === 0 ||
+                                    isCreatingCollection ||
                                     // Otherwise if you delete all of the collection name it will revert back to
                                     // the initial name.
                                     (name.length > 0 && name !== initialName),
@@ -295,7 +323,7 @@ function TaskCollectionViewDesktopHeaderNameEditor({
                 </FocusRing>
             </Box>
             {shouldShowConfirmSaveDialog &&
-                (initialName.length > 0 ? (
+                (!isCreatingCollection ? (
                     <ModalDialog
                         title="Save collection name"
                         description="Would you like to save your new collection name?"
@@ -332,7 +360,7 @@ function TaskCollectionViewDesktopHeaderNameEditor({
                 ) : (
                     <ModalDialog
                         title="Save collection"
-                        description="Can’t save your collection until you give it a name."
+                        description="You can’t save your collection until you give it a name."
                         onClose={() => {
                             // Return focus to the editor if the dialog is closed. This acts as a "cancel"
                             // and lets the user continue writing.

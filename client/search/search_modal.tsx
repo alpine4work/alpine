@@ -732,6 +732,8 @@ function getSearchResultDestination(
     resultId: SearchResultId,
     searchKey: string,
 ): SearchResultDestination {
+    const getStableRandom = () => new StableRandom(`getSearchResultDestination:${searchKey}`);
+
     switch (resultId) {
         case "CreateChat":
         case "CreateChatMessage": {
@@ -743,10 +745,7 @@ function getSearchResultDestination(
         case "CreatePost": {
             // Make sure we use the same `draftId` consistently for the current search
             // result list.
-            const draftId = unsafelyGenerateStableId(
-                new StableRandom(`getSearchResultDestination:${searchKey}`),
-                resultId,
-            );
+            const draftId = unsafelyGenerateStableId(getStableRandom(), resultId);
 
             return {
                 type: "Path",
@@ -771,6 +770,11 @@ function getSearchResultDestination(
             };
         }
         case "CreateDocument": {
+            // TODO(calebmer): Looks like now this is the only search result that doesn't
+            // display something in the peek. Eventually I'd like to change documents so
+            // when you open a URL with `?create` it doesn't actually create the document
+            // until you start typing. At that point we can let you create a new document
+            // through search.
             return {
                 type: "Action",
                 onSelect: ({spaceId, navigate}) => {
@@ -783,15 +787,13 @@ function getSearchResultDestination(
             };
         }
         case "CreateTaskCollection": {
-            return {
-                type: "Action",
-                onSelect: ({spaceId, navigate}) => {
-                    const collectionId = generateId();
+            // Make sure we use the same `collectionId` consistently for the current search
+            // result list.
+            const collectionId = unsafelyGenerateStableId(getStableRandom(), resultId);
 
-                    // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                    // Eventually switch to new page with a loading spinner?
-                    void navigate(`/s/${spaceId}/tasks/collections/${collectionId}?create`);
-                },
+            return {
+                type: "Path",
+                path: `/s/${spaceId}/tasks/collections/${collectionId}?create&focus=none`,
             };
         }
         case "CreateTaskView": {

@@ -15,11 +15,13 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
  * present the user with a confirmation dialog for their change.
  */
 export function useConfirmSaveAfterLosingFocus<RefElement extends HTMLElement>({
+    isDisabled,
     shouldConfirmSave,
     isConfirmingSave,
     onConfirmSave: _onConfirmSave,
     onCancelSave: _onCancelSave,
 }: {
+    isDisabled?: boolean;
     shouldConfirmSave: boolean;
     isConfirmingSave: boolean;
     onConfirmSave: () => void;
@@ -35,6 +37,8 @@ export function useConfirmSaveAfterLosingFocus<RefElement extends HTMLElement>({
     const lifecycleRef = useCallback(
         (element: RefElement) => {
             const handleFocusOut = (event: FocusEvent) => {
+                if (isDisabled) return;
+
                 // Ignore blur events where focus is moving within the element.
                 //
                 // We need to use element ownership instead of `document.body.contains()` to
@@ -61,7 +65,7 @@ export function useConfirmSaveAfterLosingFocus<RefElement extends HTMLElement>({
                 element.removeEventListener("focusout", handleFocusOut);
             };
         },
-        [shouldConfirmSave],
+        [isDisabled, shouldConfirmSave],
     );
 
     return useMergedRefs<RefElement>(
@@ -71,6 +75,8 @@ export function useConfirmSaveAfterLosingFocus<RefElement extends HTMLElement>({
         // `onBlur`, look for any clicks and show a confirmation dialog before closing
         // our input.
         useOutsidePress(event => {
+            if (isDisabled) return;
+
             // The user may click within the close confirmation dialog.
             if (isConfirmingSave) return;
 

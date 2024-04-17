@@ -333,7 +333,7 @@ function ChannelViewNameEditor({
                                     onConfirmSave: () => setShouldShowConfirmSaveDialog(true),
                                 }),
                             )}
-                            placeholder={initialName.length > 0 ? initialName : "Channel"}
+                            placeholder={initialName.length > 0 ? initialName : "New channel"}
                             autoComplete="false"
                             value={name}
                             onChange={event => {

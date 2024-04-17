@@ -101,6 +101,7 @@ export function TaskCollectionView({
     store,
     collectionId,
     collectionSubscription,
+    shouldInitiallyFocusEditableCollectionName,
     affinityManager,
     initialQuery,
     initialFilters,
@@ -116,6 +117,7 @@ export function TaskCollectionView({
     // If `collectionSubscription` is null, that means we are creating a
     // new collection.
     collectionSubscription: TaskClientCollectionSubscription | null;
+    shouldInitiallyFocusEditableCollectionName: boolean;
     affinityManager: TaskClientStoreSearchAffinityManager;
     initialQuery: {
         query: TaskClientQuery;
@@ -782,6 +784,9 @@ export function TaskCollectionView({
                             store={store}
                             collectionId={collectionId}
                             collectionSubscription={collectionSubscription}
+                            shouldInitiallyFocusEditableCollectionName={
+                                shouldInitiallyFocusEditableCollectionName
+                            }
                             affinityManager={affinityManager}
                             createCollection={createCollection}
                             isReadOnly={isReadOnly}
@@ -809,6 +814,7 @@ export function TaskCollectionView({
             menuActions,
             readOnlyStickyBanner,
             setSorts,
+            shouldInitiallyFocusEditableCollectionName,
             sorts,
             store,
             updateFilters,
@@ -826,6 +832,9 @@ export function TaskCollectionView({
                 store={store}
                 collectionId={collectionId}
                 collectionSubscription={collectionSubscription}
+                shouldInitiallyFocusEditableCollectionName={
+                    shouldInitiallyFocusEditableCollectionName
+                }
                 createCollection={createCollection}
                 affinityManager={affinityManager}
                 desktopNameRef={navigationBarDesktopNameRef}
@@ -1035,6 +1044,7 @@ function TaskCollectionViewMobileNavigationBarTitle({
     store,
     collectionId,
     collectionSubscription,
+    shouldInitiallyFocusEditableCollectionName,
     createCollection,
     affinityManager,
     desktopNameRef,
@@ -1043,6 +1053,7 @@ function TaskCollectionViewMobileNavigationBarTitle({
     store: TaskClientStore;
     collectionId: TaskCollectionId;
     collectionSubscription: TaskClientCollectionSubscription | null;
+    shouldInitiallyFocusEditableCollectionName: boolean;
     createCollection: (name: string) => Promise<void>;
     affinityManager: TaskClientStoreSearchAffinityManager;
     desktopNameRef: RefObject<TaskCollectionViewDesktopHeaderNameRef>;
@@ -1080,6 +1091,7 @@ function TaskCollectionViewMobileNavigationBarTitle({
             store={store}
             collectionId={collectionId}
             isCreatingCollection={!collectionSubscription}
+            shouldInitiallyFocusEditableName={shouldInitiallyFocusEditableCollectionName}
             collection={collection}
             createCollection={createCollection}
             affinityManager={affinityManager}

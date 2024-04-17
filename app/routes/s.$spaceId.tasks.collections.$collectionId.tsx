@@ -7,7 +7,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
@@ -316,9 +316,18 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     const currentUrl = new URL(_currentUrl);
     const nextUrl = new URL(_nextUrl);
 
-    // The client removes the `create` search param. Don't revalidate when the
-    // client does this.
-    if (!nextUrl.searchParams.has("create") && currentUrl.searchParams.has("create")) {
+    // When switching from `/s/:spaceId/tasks/collections/:collectionId?create` to
+    // `/s/:spaceId/tasks/collections/:collectionId?create=:collectionName` we need
+    // to revalidate since the server will actually create the collection.
+    if (currentUrl.searchParams.get("create") !== "") currentUrl.searchParams.delete("create");
+    if (nextUrl.searchParams.get("create") !== "") nextUrl.searchParams.delete("create");
+
+    currentUrl.searchParams.delete("focus");
+    nextUrl.searchParams.delete("focus");
+
+    // The client removes the `create` and `focus` search params. Don't revalidate
+    // when the client does this.
+    if (currentUrl.toString() === nextUrl.toString()) {
         return false;
     }
 
@@ -384,21 +393,28 @@ function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean
         return deserializeTaskQuerySortsSearchParam(sortsString);
     });
 
+    const [shouldInitiallyFocusEditableCollectionName] = useState(() => {
+        const focusString = searchParams.get("focus");
+        if (!focusString) return true;
+        return focusString !== "none";
+    });
+
     // Remove the `create` search param if we have a subscription to an
     // existing collection.
     useEffect(() => {
         if (!collectionSubscription) return;
 
-        if (searchParams.has("create")) {
+        if (searchParams.has("create") || searchParams.has("focus")) {
             const newSearchParams = new URLSearchParams(searchParams);
             newSearchParams.delete("create");
+            newSearchParams.delete("focus");
             setSearchParams(newSearchParams, {replace: true});
         }
     }, [collectionSubscription, searchParams, setSearchParams]);
 
     const updateMetaTitle = useUpdateMetaTitle();
 
-    // Update our document's title whenever the task's title changes.
+    // Update our document's title whenever the collection's title changes.
     useEffect(() => {
         const update = () => {
             const collectionEntryStore = collectionSubscription?.collectionEntryStore;
@@ -429,6 +445,9 @@ function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean
                 store={store}
                 collectionId={collectionId}
                 collectionSubscription={collectionSubscription ?? null}
+                shouldInitiallyFocusEditableCollectionName={
+                    shouldInitiallyFocusEditableCollectionName
+                }
                 affinityManager={affinityManager}
                 initialQuery={
                     initialQuery && collectionState.type === "Exists"
