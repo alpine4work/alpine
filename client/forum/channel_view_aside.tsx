@@ -98,7 +98,6 @@ function ChannelViewAsideDescriptionEditor({
     onSave: (description: MessageContent) => Promise<void>;
 }) {
     const showToast = useShowToast();
-    const {isAppleDevice} = useClientInfo();
 
     const editorId = useId();
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
@@ -148,7 +147,7 @@ function ChannelViewAsideDescriptionEditor({
                 <IconButton
                     description="Save"
                     tooltipPlacement="bottom-end"
-                    keyboardShortcutHint={`${isAppleDevice ? "⌘" : "Ctrl"}+Enter`}
+                    keyboardShortcutHint="Enter"
                     size="md"
                     pressErrorTitle="Couldn’t save description"
                     onPress={save}
@@ -201,7 +200,7 @@ function ChannelViewAsideDescriptionEditor({
 
                             onCancel();
                         }}
-                        onModEnter={event => {
+                        onEnterFromPhysicalKeyboard={event => {
                             event.preventDefault();
                             event.stopPropagation();
 
