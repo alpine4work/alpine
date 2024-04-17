@@ -11,6 +11,7 @@ ts_project(
         "//:node_modules/phosphor-react",
         "//:node_modules/prosemirror-model",
         "//:node_modules/prosemirror-transform",
+        "//:node_modules/unicode-default-word-boundary",
         "//shared/accounts",
         "//shared/design",
         "//shared/helpers",

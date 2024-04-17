@@ -72,11 +72,7 @@ export function printContentSingleLineTextSnippetWithHighlighting(
                 // If a sentence is already ended with punctuation, we don't want to add our
                 // break punctuation. If a sentence is ended with punctuation, then a quote
                 // character that also counts.
-                if (
-                    /(?:\p{Sentence_Terminal}|\p{Terminal_Punctuation})\s*(?:\p{Pi}|\p{Pf}|["'])*\s*$/u.test(
-                        lastSegment.text,
-                    )
-                ) {
+                if (isTextEndedWithPunctuation(lastSegment.text)) {
                     actuallyPrint(" ");
                 } else {
                     actuallyPrint(`${breakPunctuation} `);
@@ -229,4 +225,16 @@ export function printContentSingleLineTextSnippetWithHighlighting(
     }
 
     return segments;
+}
+
+/**
+ * Test whether the text ends with punctuation for the purpose of knowing
+ * whether it makes sense for us to add punctuation after this text.
+ * Understands patterns like quotes outside of punctuation. For example
+ * `hello.` will return true and so will `"hello."`.
+ */
+export function isTextEndedWithPunctuation(text: string): boolean {
+    return /(?:\p{Sentence_Terminal}|\p{Terminal_Punctuation})\s*(?:\p{Pi}|\p{Pf}|["'])*\s*$/.test(
+        text,
+    );
 }

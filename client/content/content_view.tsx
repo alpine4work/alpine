@@ -8,6 +8,7 @@ import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_
 import {Tooltip} from "~/client/design/tooltip.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
+import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
@@ -16,7 +17,9 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {isMessageContentSchema} from "~/shared/content/is_message_content_schema.js";
+import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
@@ -49,6 +52,8 @@ export function ContentView({
     isTruncated,
     shouldHighlightComment,
     withUserSelectNone,
+    onSeeMoreContent,
+    onSeeLessContent,
 }: {
     content: ContentWithReferences;
 
@@ -97,6 +102,20 @@ export function ContentView({
      * Set the CSS `user-select: none` to disable text selection of this element.
      */
     withUserSelectNone?: boolean;
+
+    /**
+     * Adds a "See more" button which when clicked should reveal the whole content.
+     * Useful when you want to show snippet of truncated content that expands to
+     * more.
+     */
+    onSeeMoreContent?: () => void;
+
+    /**
+     * Adds a "See less" button which when clicked should collapse content to a
+     * truncated version which a "See more" button should be able to expand (see
+     * `onSeeMoreContent`).
+     */
+    onSeeLessContent?: () => void;
 }) {
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const accountStore = useAccountClientStore();
@@ -115,6 +134,14 @@ export function ContentView({
     const [contentUpdatedNoteElement, setContentUpdatedNoteElement] = useState<HTMLElement | null>(
         null,
     );
+
+    const shouldShowSeeMoreContentButton = !!onSeeMoreContent;
+    const shouldShowSeeLessContentButton = !!onSeeLessContent;
+
+    const events = useEvents({
+        onSeeMoreContent: onSeeMoreContent ?? noop,
+        onSeeLessContent: onSeeLessContent ?? noop,
+    });
 
     const {html, isTitleEmpty, isBodyEmpty} = useStore(
         useMemo(() => {
@@ -167,6 +194,68 @@ export function ContentView({
                 });
             }
 
+            if (shouldShowSeeMoreContentButton || shouldShowSeeLessContentButton) {
+                let depthToLastTextblockChild = null;
+                let lastTextblockChild = content.doc.lastChild;
+                let depth = 1;
+
+                while (lastTextblockChild !== null) {
+                    if (lastTextblockChild.isTextblock) {
+                        depthToLastTextblockChild = depth;
+                        break;
+                    }
+                    lastTextblockChild = lastTextblockChild.lastChild;
+                    depth++;
+                }
+
+                const depthToLastParagraphChild =
+                    lastTextblockChild?.type.name === "paragraph"
+                        ? depthToLastTextblockChild
+                        : null;
+
+                const buttonText = shouldShowSeeLessContentButton ? "See less" : "See more";
+
+                let html: HtmlElementGenerator;
+                if (depthToLastParagraphChild !== null) {
+                    const shouldAddEllipsis =
+                        !shouldShowSeeLessContentButton &&
+                        lastTextblockChild &&
+                        lastTextblockChild.childCount > 0 &&
+                        !isTextEndedWithPunctuation(lastTextblockChild.lastChild!.text!);
+
+                    const seeButtonContainerHtml = new HtmlElementGenerator("span");
+
+                    seeButtonContainerHtml.appendChild(
+                        new HtmlTextGenerator(shouldAddEllipsis ? "… " : " "),
+                    );
+
+                    const seeButtonHtml = new HtmlElementGenerator("span");
+                    seeButtonContainerHtml.appendChild(seeButtonHtml);
+                    seeButtonHtml.setAttribute("id", contentUpdatedNoteId);
+                    seeButtonHtml.setAttribute("class", contentViewStyles.seeButtonClassName);
+                    seeButtonHtml.appendChild(new HtmlTextGenerator(buttonText));
+
+                    html = seeButtonContainerHtml;
+                } else {
+                    const seeButtonContainerHtml = new HtmlElementGenerator("p");
+                    seeButtonContainerHtml.setAttribute("class", paragraphClassName);
+
+                    const seeButtonHtml = new HtmlElementGenerator("span");
+                    seeButtonContainerHtml.appendChild(seeButtonHtml);
+                    seeButtonHtml.setAttribute("id", contentUpdatedNoteId);
+                    seeButtonHtml.setAttribute("class", contentViewStyles.seeButtonClassName);
+                    seeButtonHtml.appendChild(new HtmlTextGenerator(buttonText));
+
+                    html = seeButtonContainerHtml;
+                }
+
+                decorations.push({
+                    type: "Widget",
+                    pos: content.doc.nodeSize - ((depthToLastParagraphChild ?? 0) + 1),
+                    html,
+                });
+            }
+
             content.doc.descendants((node, pos) => {
                 if (!node.isText) return;
 
@@ -204,6 +293,8 @@ export function ContentView({
             isInert,
             placeholder,
             shouldHighlightComment,
+            shouldShowSeeLessContentButton,
+            shouldShowSeeMoreContentButton,
         ]),
     );
 
@@ -317,12 +408,105 @@ export function ContentView({
             });
         }
 
+        for (const seeButtonElement of element.getElementsByClassName(
+            contentViewStyles.seeButtonClassName,
+        )) {
+            if (!(seeButtonElement instanceof HTMLElement)) continue;
+
+            let isPointerDownAndOver = false;
+
+            const maybeUpdateStyle = () => {
+                if (isPointerDownAndOver) {
+                    seeButtonElement.classList.add(contentViewStyles.seeButtonPressedClassName);
+                } else {
+                    seeButtonElement.classList.remove(contentViewStyles.seeButtonPressedClassName);
+                }
+            };
+
+            const handleClick = (event: MouseEvent) => {
+                // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
+                // modifier. Unless the click was meant to open the link in a separate tab. We
+                // need to implement that manually here given the text is editable.
+                if (event.button !== 0 || isModifiedPointerEvent(event)) {
+                    return;
+                }
+
+                // Must call prevent default here in addition to `pointerdown` to stop mobile
+                // WebKit from following a link after click.
+                event.preventDefault();
+            };
+
+            const handlePointerDown = (event: MouseEvent) => {
+                isPointerDownAndOver = event.button === 0 && !isModifiedPointerEvent(event);
+
+                maybeUpdateStyle();
+
+                // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
+                // modifier. Unless the click was meant to open the link in a separate tab. We
+                // need to implement that manually here given the text is editable.
+                if (event.button !== 0 || isModifiedPointerEvent(event)) {
+                    return;
+                }
+
+                // This will be a navigation click if the pointer stays over our element. Don't
+                // select the editable text.
+                event.preventDefault();
+            };
+
+            const handlePointerUp = (event: MouseEvent) => {
+                const wasPointerDownAndOver = isPointerDownAndOver;
+                isPointerDownAndOver = false;
+                maybeUpdateStyle();
+
+                // Only process pointer up events that started on our element.
+                if (!wasPointerDownAndOver) {
+                    return;
+                }
+
+                if (shouldShowSeeLessContentButton) {
+                    events.onSeeLessContent();
+                } else if (shouldShowSeeMoreContentButton) {
+                    events.onSeeMoreContent();
+                }
+            };
+
+            const handlePointerLeave = (event: MouseEvent) => {
+                isPointerDownAndOver = false;
+                maybeUpdateStyle();
+            };
+
+            const handleDragStart = (event: DragEvent) => {
+                isPointerDownAndOver = false;
+                maybeUpdateStyle();
+            };
+
+            seeButtonElement.addEventListener("click", handleClick);
+            seeButtonElement.addEventListener("pointerdown", handlePointerDown);
+            seeButtonElement.addEventListener("pointerup", handlePointerUp);
+            seeButtonElement.addEventListener("pointerleave", handlePointerLeave);
+            seeButtonElement.addEventListener("dragstart", handleDragStart);
+            cleanupFunctions.push(() => {
+                seeButtonElement.removeEventListener("click", handleClick);
+                seeButtonElement.removeEventListener("pointerdown", handlePointerDown);
+                seeButtonElement.removeEventListener("pointerup", handlePointerUp);
+                seeButtonElement.removeEventListener("pointerleave", handlePointerLeave);
+                seeButtonElement.removeEventListener("dragstart", handleDragStart);
+            });
+        }
+
         return () => {
             for (const cleanup of cleanupFunctions) {
                 cleanup();
             }
         };
-    }, [html, isInert, navigate]);
+    }, [
+        events,
+        html,
+        isInert,
+        navigate,
+        shouldShowSeeLessContentButton,
+        shouldShowSeeMoreContentButton,
+    ]);
 
     useEffect(() => {
         const element = assertExists(ref.current);

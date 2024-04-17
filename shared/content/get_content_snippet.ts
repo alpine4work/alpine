@@ -1,5 +1,6 @@
 import GraphemeSplitter from "grapheme-splitter";
 import {Node, ResolvedPos} from "prosemirror-model";
+import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
 import {ContentNodeTypeName} from "~/shared/content/content_type_names.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -17,10 +18,14 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
  * leading content might effect the layout of our snippet. For example, a
  * paragraph. If we cut in the middle of a paragraph then the snippet content
  * may be in a different position given the leading text wasn't there.
+ *
+ * We try to leave the last word in the snippet whole instead of cutting the
+ * word in the middle.
  */
 export function getContentSnippet(
     resolvedPos: ResolvedPos,
     lines: {linesAbove: number; linesBelow: number} | number,
+    {maxLineGraphemeCount = defaultMaxLineGraphemeCount}: {maxLineGraphemeCount?: number} = {},
 ): Node {
     // So our target number of lines is `1 + linesAroundCount * 2`. We want the
     // line containing `resolvedPos`, `linesAroundCount` lines above, and
@@ -55,8 +60,11 @@ export function getContentSnippet(
                     const textBefore = textNode.text!.slice(0, resolvedPos.textOffset);
 
                     remainingBefore = {
-                        lineCount: consumeLinesOfText(textBefore, remainingBefore.lineCount)
-                            .remainingLineCount,
+                        lineCount: consumeLinesOfText(
+                            textBefore,
+                            remainingBefore.lineCount,
+                            maxLineGraphemeCount,
+                        ).remainingLineCount,
                         isAtLineBreak: false,
                     };
 
@@ -85,7 +93,11 @@ export function getContentSnippet(
                 {
                     const textAfter = textNode.text!.slice(resolvedPos.textOffset);
 
-                    const result = consumeLinesOfText(textAfter, remainingAfter.lineCount);
+                    const result = consumeLinesOfText(
+                        textAfter,
+                        remainingAfter.lineCount,
+                        maxLineGraphemeCount,
+                    );
                     remainingAfter = {
                         lineCount: result.remainingLineCount,
                         isAtLineBreak: false,
@@ -122,8 +134,11 @@ export function getContentSnippet(
             )) {
                 if (childNode.isText) {
                     remainingBefore = {
-                        lineCount: consumeLinesOfText(childNode.text!, remainingBefore.lineCount)
-                            .remainingLineCount,
+                        lineCount: consumeLinesOfText(
+                            childNode.text!,
+                            remainingBefore.lineCount,
+                            maxLineGraphemeCount,
+                        ).remainingLineCount,
                         isAtLineBreak: false,
                     };
 
@@ -161,7 +176,11 @@ export function getContentSnippet(
                 nodeOffset,
             )) {
                 if (childNode.isText) {
-                    const result = consumeLinesOfText(childNode.text!, remainingAfter.lineCount);
+                    const result = consumeLinesOfText(
+                        childNode.text!,
+                        remainingAfter.lineCount,
+                        maxLineGraphemeCount,
+                    );
 
                     remainingAfter = {
                         lineCount: result.remainingLineCount,
@@ -206,6 +225,42 @@ export function getContentSnippet(
         const nodeType = node.type.name as Exclude<ContentNodeTypeName, "text">;
         if (assertExists(dontCutLeadingChildrenByNodeType[nodeType])) {
             from = resolvedFrom.start(depth);
+        }
+    }
+
+    const resolvedTo = resolvedPos.doc.resolve(to);
+    if (resolvedTo.textOffset !== 0) {
+        const textNode = resolvedTo.parent.maybeChild(resolvedTo.index())!;
+        const text = textNode.text!;
+        let textIndex = resolvedTo.pos - resolvedTo.start();
+
+        for (let i = resolvedTo.index() - 1; i >= 0; i--) {
+            textIndex -= resolvedTo.parent.child(i).nodeSize;
+        }
+
+        // Trim any whitespace our snippet ends with.
+        if (/\p{White_Space}/u.test(text[textIndex - 1]!)) {
+            let newTextIndex = textIndex;
+
+            while (newTextIndex - 1 > 0 && /\p{White_Space}/u.test(text[newTextIndex - 1]!)) {
+                newTextIndex -= 1;
+            }
+
+            to -= textIndex - newTextIndex;
+        }
+        // Expand our snippet to the nearest word boundary if the nearest word boundary
+        // is less than 10 characters away.
+        else {
+            let newTextIndex = 0;
+
+            for (const span of findUnicodeDefaultWordBoundarySpans(text)) {
+                newTextIndex += span.length;
+                if (newTextIndex >= textIndex) break;
+            }
+
+            if (newTextIndex - textIndex <= 10) {
+                to += newTextIndex - textIndex;
+            }
         }
     }
 
@@ -300,14 +355,14 @@ function* iterateChildNodesBackwardsDescendants(
  *
  * [1]: https://www.npmjs.com/package/grapheme-splitter
  */
-let maxLineGraphemeCount = 197;
+let defaultMaxLineGraphemeCount = 197;
 
 /**
- * Allow Jest tests to modify the `maxLineGraphemeCount` constant.
+ * Allow Jest tests to modify the `defaultMaxLineGraphemeCount` constant.
  */
-export function setMaxLineGraphemeCountForTest(newMaxLineGraphemeCount: number) {
+export function setDefaultMaxLineGraphemeCountForTest(newDefaultMaxLineGraphemeCount: number) {
     assert(import.meta.jest);
-    maxLineGraphemeCount = newMaxLineGraphemeCount;
+    defaultMaxLineGraphemeCount = newDefaultMaxLineGraphemeCount;
 }
 
 const graphemeSplitter = new GraphemeSplitter();
@@ -319,6 +374,7 @@ const graphemeSplitter = new GraphemeSplitter();
 function consumeLinesOfText(
     text: string,
     remainingLineCount: number,
+    maxLineGraphemeCount: number,
 ): {remainingLineCount: number; remainingLength: number} {
     let length = 0;
     let graphemeCount = 0;
@@ -328,8 +384,9 @@ function consumeLinesOfText(
         length += grapheme.length;
         graphemeCount++;
 
-        if (graphemeCount >= maxGraphemeCount)
+        if (graphemeCount >= maxGraphemeCount) {
             return {remainingLineCount: 0, remainingLength: text.length - length};
+        }
     }
 
     return {

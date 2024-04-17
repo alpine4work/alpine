@@ -4,7 +4,7 @@ import {
     paragraphClassName,
     paragraphFontSize,
 } from "~/shared/styles/internal/content_schema.css.js";
-import {fontSizes} from "~/shared/styles/internal/fonts.css.js";
+import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css.js";
 
 export const truncatedHeight = paragraphFontSize.lineHeight;
 
@@ -27,4 +27,15 @@ export const updatedNoteClassName = style({
     ...fontSizes["50"],
     color: colorSchemeVars["grey-50"],
     cursor: "default",
+});
+
+export const seeButtonClassName = style({
+    ...paragraphFontSize,
+    ...fontStyles["semi-bold"],
+    cursor: "pointer",
+    userSelect: "none",
+});
+
+export const seeButtonPressedClassName = style({
+    opacity: 0.6,
 });

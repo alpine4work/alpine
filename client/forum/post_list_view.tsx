@@ -643,6 +643,7 @@ function PostListView(
                                     })}
                                     style={{
                                         flex: postViewFlex,
+                                        paddingTop: "var(--safe-area-inset-top, 0px)",
                                     }}
                                 >
                                     {hasNavigationBar && <Spacer space={navigationBarHeight} />}
@@ -713,25 +714,24 @@ function PostListView(
                                             />
                                         </div>
                                     )}
-                                    {item.postCommentsState === "Closed" &&
-                                        index < posts.getItemCount() - 1 && (
+                                    {item.postCommentsState === "Closed" && (
+                                        <div
+                                            className={sprinkles({
+                                                position: "absolute",
+                                                left: "0",
+                                                right: "0",
+                                                bottom: "0",
+                                                paddingX: postContentViewPaddingX,
+                                            })}
+                                        >
                                             <div
                                                 className={sprinkles({
-                                                    position: "absolute",
-                                                    left: "0",
-                                                    right: "0",
-                                                    bottom: "0",
-                                                    paddingX: postContentViewPaddingX,
+                                                    width: "full",
+                                                    borderBottom: "grey-5",
                                                 })}
-                                            >
-                                                <div
-                                                    className={sprinkles({
-                                                        width: "full",
-                                                        borderBottom: "grey-5",
-                                                    })}
-                                                />
-                                            </div>
-                                        )}
+                                            />
+                                        </div>
+                                    )}
                                     <PostContentView
                                         post={item.post}
                                         postComments={item.postComments}
@@ -1164,33 +1164,31 @@ function PostListView(
                                                 }}
                                             />
                                             {inputNode}
-                                            {index < posts.getItemCount() - 1 && (
+                                            <div
+                                                className={sprinkles({
+                                                    position: "absolute",
+                                                    left: "0",
+                                                    right: "0",
+                                                    paddingX: postContentViewPaddingX,
+                                                })}
+                                                style={{
+                                                    // -1px since:
+                                                    //
+                                                    // 1. The border shouldn't be visible while the comment input is
+                                                    //    sticky.
+                                                    // 2. The space between the comment input and bottom border is
+                                                    //    small enough that 1px difference is noticeable to the
+                                                    //    trained eye.
+                                                    bottom: -1,
+                                                }}
+                                            >
                                                 <div
                                                     className={sprinkles({
-                                                        position: "absolute",
-                                                        left: "0",
-                                                        right: "0",
-                                                        paddingX: postContentViewPaddingX,
+                                                        width: "full",
+                                                        borderBottom: "grey-5",
                                                     })}
-                                                    style={{
-                                                        // -1px since:
-                                                        //
-                                                        // 1. The border shouldn't be visible while the comment input is
-                                                        //    sticky.
-                                                        // 2. The space between the comment input and bottom border is
-                                                        //    small enough that 1px difference is noticeable to the
-                                                        //    trained eye.
-                                                        bottom: -1,
-                                                    }}
-                                                >
-                                                    <div
-                                                        className={sprinkles({
-                                                            width: "full",
-                                                            borderBottom: "grey-5",
-                                                        })}
-                                                    />
-                                                </div>
-                                            )}
+                                                />
+                                            </div>
                                         </div>
                                         {hasAside && (
                                             <div
@@ -1436,6 +1434,45 @@ function PostListView(
                                 </>
                             )}
                         </>
+                    }
+                    extraChildrenOutsideContentElement={
+                        !isSingleMobileLayoutPostWithPinnedCommentInput
+                            ? ({contentHeight}) => (
+                                  // Our items all have a bottom border. This is good when there's less content
+                                  // than room to scroll since it creates a clear shape for the last item in the
+                                  // list.
+                                  //
+                                  // However, if there are enough items to scroll then when the user has fully
+                                  // scrolled we want the last item to *not* have a border bottom since the
+                                  // bottom of the screen creates that boundary. We don't need to render an extra
+                                  // line in the margins.
+                                  //
+                                  // This div covers the bottom border of the last item but only when there's
+                                  // enough content to scroll. Otherwise the bottom border needs to be visible to
+                                  // visually contain the last item. To debug this it's helpful to switch the
+                                  // `backgroundColor` to `red-30` or something similar.
+                                  <div
+                                      className={sprinkles({
+                                          position: "absolute",
+                                          left: "0",
+                                          right: "0",
+                                          top: "0",
+                                      })}
+                                      style={{height: `max(100%, ${contentHeight}px)`}}
+                                  >
+                                      <div
+                                          className={sprinkles({
+                                              position: "absolute",
+                                              left: "0",
+                                              right: "0",
+                                              bottom: "0",
+                                              height: "1",
+                                              backgroundColor: "grey-0",
+                                          })}
+                                      />
+                                  </div>
+                              )
+                            : undefined
                     }
                 />
                 {isSingleMobileLayoutPostWithPinnedCommentInput &&
