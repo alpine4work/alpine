@@ -32,13 +32,14 @@ export const rowTitleInputPlaceholderClassName = style({
     display: "none",
 });
 
-globalStyle(`${rowTitleInputEmptyContainerClassName} ${rowTitleInputPlaceholderClassName}`, {
-    display: "block",
-});
-
 globalStyle(
-    `${rowTitleInputInitialAppRenderEmptyContainerClassName} ${rowTitleInputPlaceholderClassName}`,
-    {display: "block"},
+    [
+        `${rowTitleInputEmptyContainerClassName} ${rowTitleInputPlaceholderClassName}`,
+        `${rowTitleInputInitialAppRenderEmptyContainerClassName} ${rowTitleInputPlaceholderClassName}`,
+    ].join(", "),
+    {
+        display: "block",
+    },
 );
 
 export const rowTitleInputIsNotEditableClassName = style({});
@@ -51,6 +52,7 @@ globalStyle(`${rowTitleInputIsNotEditableClassName}${rowTitleInputIsNotEditableC
 });
 
 export const detailTitleInputEmptyContainerClassName = style({});
+export const detailTitleInputInitialAppRenderEmptyContainerClassName = style({});
 
 export const detailTitleInputPlaceholderClassName = style({
     position: "relative",
@@ -58,7 +60,10 @@ export const detailTitleInputPlaceholderClassName = style({
 });
 
 globalStyle(
-    `${detailTitleInputEmptyContainerClassName} > ${detailTitleInputPlaceholderClassName}::before`,
+    [
+        `${detailTitleInputEmptyContainerClassName} > ${detailTitleInputPlaceholderClassName}::before`,
+        `${detailTitleInputInitialAppRenderEmptyContainerClassName} > ${detailTitleInputPlaceholderClassName}::before`,
+    ].join(", "),
     {
         // The `/ ""` is screen reader alt text. So screen readers don't read the
         // placeholder content.

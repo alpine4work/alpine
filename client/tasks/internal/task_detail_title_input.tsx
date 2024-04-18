@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {AllSelection, EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {Ref, forwardRef, useCallback, useImperativeHandle, useInsertionEffect, useRef} from "react";
@@ -247,18 +248,28 @@ function TaskDetailTitleInput(
         [runWhenViewIsReady],
     );
 
+    const titleNodeForInitialAppRender = isInitialAppRender ? title.getProsemirrorNode() : null;
+
     return (
         <div ref={elementRef}>
             <FocusRing isVisibleWhenFocusWithin>
                 <div
-                    className={sprinkles({
-                        position: "relative",
-                        zIndex: "0",
-                        color: "grey-text",
-                    })}
+                    className={classNames(
+                        sprinkles({
+                            position: "relative",
+                            zIndex: "0",
+                            color: "grey-text",
+                        }),
+                        titleNodeForInitialAppRender &&
+                            titleNodeForInitialAppRender.childCount === 0 &&
+                            // We use a different class than `detailTitleInputEmptyContainerClassName`
+                            // because we don't want React removing the class managed by
+                            // `updateEditorEmptyClass()`.
+                            tasksStyles.detailTitleInputInitialAppRenderEmptyContainerClassName,
+                    )}
                     style={{minHeight: fontSizes["300"].lineHeight}}
                 >
-                    {isInitialAppRender && (
+                    {titleNodeForInitialAppRender && (
                         // On server-side render serialize our title to HTML since we can't mount an
                         // `EditorView` until we are on the client.
                         <div
@@ -267,7 +278,7 @@ function TaskDetailTitleInput(
                             aria-placeholder={placeholder}
                             dangerouslySetInnerHTML={{
                                 __html: serializeProsemirrorFragmentToHtml(
-                                    titleRef.current.getProsemirrorNode().content,
+                                    titleNodeForInitialAppRender.content,
                                 ),
                             }}
                         />

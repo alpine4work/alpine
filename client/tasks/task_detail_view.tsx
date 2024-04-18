@@ -689,7 +689,7 @@ export function TaskDetailView({
         title: <TaskDetailViewNavigationBarTitle taskSubscription={taskSubscription} />,
         titleBoundaryRef: titleInputElementRef,
         menuActions: contextMenuActions,
-        desktopTitleMaxWidth: taskDetailViewMaxWidth,
+        desktopMaxWidth: taskDetailViewMaxWidth,
         desktopControls: (
             <TaskDetailViewStatusButton
                 elementRef={statusButtonRef}

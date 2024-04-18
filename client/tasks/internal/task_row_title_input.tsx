@@ -1303,14 +1303,14 @@ function TaskRowTitleInput(
         clear,
     }));
 
-    const taskNodeForInitialAppRender = isInitialAppRender ? title.getProsemirrorNode() : null;
+    const titleNodeForInitialAppRender = isInitialAppRender ? title.getProsemirrorNode() : null;
 
     return (
         <div
             className={classNames(
                 rootClassName,
-                taskNodeForInitialAppRender &&
-                    taskNodeForInitialAppRender.childCount === 0 &&
+                titleNodeForInitialAppRender &&
+                    titleNodeForInitialAppRender.childCount === 0 &&
                     // We use a different class than `rowTitleInputEmptyContainerClassName` because
                     // we don't want React removing the class managed by `updateEditorEmptyClass()`.
                     tasksStyles.rowTitleInputInitialAppRenderEmptyContainerClassName,
@@ -1335,7 +1335,7 @@ function TaskRowTitleInput(
                     });
                 }}
             >
-                {taskNodeForInitialAppRender && (
+                {titleNodeForInitialAppRender && (
                     // On server-side render serialize our title to HTML since we can't mount an
                     // `EditorView` until we are on the client.
                     <div
@@ -1356,7 +1356,7 @@ function TaskRowTitleInput(
                         tabIndex={-1}
                         dangerouslySetInnerHTML={{
                             __html: serializeProsemirrorFragmentToHtml(
-                                taskNodeForInitialAppRender.content,
+                                titleNodeForInitialAppRender.content,
                             ),
                         }}
                     />

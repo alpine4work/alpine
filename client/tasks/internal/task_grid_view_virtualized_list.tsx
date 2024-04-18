@@ -2054,6 +2054,7 @@ export function useTaskGridViewVirtualizedList({
                     node: (
                         <TaskGridViewDecorativeGhostTaskMemo
                             capabilities={capabilities}
+                            rowMaxWidth={rowMaxWidth}
                             isRootQueryNull={isRootQueryNull}
                             relativeItemIndex={relativeItemIndex}
                             withPaddingBottom={itemIndex === itemCount - 1}
@@ -2644,6 +2645,7 @@ const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreUnloaded
 
 const TaskGridViewDecorativeGhostTaskMemo = memo(function TaskGridViewDecorativeGhostTaskMemo({
     capabilities,
+    rowMaxWidth,
     isRootQueryNull,
     relativeItemIndex,
     withPaddingBottom,
@@ -2651,6 +2653,7 @@ const TaskGridViewDecorativeGhostTaskMemo = memo(function TaskGridViewDecorative
     focusPreviousTaskTitleAll,
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
+    rowMaxWidth: Spacing | null;
     isRootQueryNull: boolean;
     relativeItemIndex: number;
     withPaddingBottom: boolean;
@@ -2663,6 +2666,7 @@ const TaskGridViewDecorativeGhostTaskMemo = memo(function TaskGridViewDecorative
     return (
         <Box
             paddingX="5"
+            maxWidth={rowMaxWidth ?? undefined}
             // Create an illusion that the text editor extends into the margins by giving
             // the margin a text cursor and making it clickable putting focus in the task.
             // A double click selects the task text.
@@ -2670,6 +2674,7 @@ const TaskGridViewDecorativeGhostTaskMemo = memo(function TaskGridViewDecorative
             // This is an affordance for mouse users, does not need to be usable
             // by keyboard.
             cursor={!isInert ? "text" : undefined}
+            style={{margin: "0 auto"}}
             {...useOutOfBoundsClickSelection({
                 isDisabled: isInert,
                 onSelect: () =>
