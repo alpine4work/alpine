@@ -1,4 +1,4 @@
-import {Ref, RefObject, useCallback, useImperativeHandle, useRef} from "react";
+import {Memo, Ref, RefObject, useCallback, useEffect, useImperativeHandle, useRef} from "react";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
@@ -9,15 +9,16 @@ import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messa
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {Spacing} from "~/shared/design/spacing.js";
+import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {messageInputMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
+import {getPostWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitions.js";
 
 export const postCommentInputMinHeight = messageInputMinHeight;
 
@@ -37,6 +38,8 @@ export function PostCommentInput({
     onClearReplyingToPostComment,
     onJumpToPostComment,
     onDeletePostComment,
+    shouldBeConnectedToChannelRealtime,
+    onPostRealtimeEventTransaction,
     paddingX,
 }: {
     post: PostModel;
@@ -51,6 +54,13 @@ export function PostCommentInput({
     onClearReplyingToPostComment: () => void;
     onJumpToPostComment: (postComment: PostCommentModel) => void;
     onDeletePostComment: (postCommentIndex: number) => Promise<void>;
+    shouldBeConnectedToChannelRealtime: boolean;
+    onPostRealtimeEventTransaction: Memo<
+        (event: {
+            readTime: Date;
+            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
+        }) => void
+    >;
     paddingX: Spacing;
 }) {
     const context = useAppContext();
@@ -108,17 +118,82 @@ export function PostCommentInput({
         subscribeToEvents: useCallback(
             (subscriber: (message: MessagingRealtimeEvent<PostCommentModel>) => void) => {
                 const actualSubscriber = (event: PostRealtimeEvent) => {
-                    // TypeScript will error if we ever add other message types here. At that point
-                    // this code should turn into a switch.
-                    cast<"Comments">(event.type);
-                    subscriber(event.event);
+                    switch (event.type) {
+                        case "Comments": {
+                            subscriber(event.event);
+                            break;
+                        }
+                        case "RealtimeEventTransaction": {
+                            // If we'll receive post update events from our channel realtime durable
+                            // connection then don't handle them here.
+                            if (!shouldBeConnectedToChannelRealtime) {
+                                onPostRealtimeEventTransaction(event);
+                            }
+                            break;
+                        }
+                        default:
+                            throw exhaustive(event);
+                    }
                 };
 
                 return subscribeToEvents(actualSubscriber);
             },
-            [subscribeToEvents],
+            [onPostRealtimeEventTransaction, shouldBeConnectedToChannelRealtime, subscribeToEvents],
         ),
     });
+
+    // Whenever we connect to our WebSocket, we may need to reload our realtime
+    // item in case we missed any realtime updates while we were disconnected.
+    // Going forward we should receive realtime updates from `subscribeToEvents()`.
+    //
+    // This code was copied from `useDynamoGeneralRealtimeItem()`.
+    const lastReloadedPostIdRef = useRef<PostId | null>(null);
+    useEffect(() => {
+        // If we're connected to channel realtime, we don't need to backfill realtime
+        // updates on connection. Since we'll be backfilling at the channel realtime
+        // level.
+        if (shouldBeConnectedToChannelRealtime) return;
+
+        if (!isConnected) {
+            // Clear the last reloaded key when we go disconnect. That way when we
+            // reconnect we will reload the item.
+            lastReloadedPostIdRef.current = null;
+            return;
+        }
+
+        if (lastReloadedPostIdRef.current === post.id) return;
+        lastReloadedPostIdRef.current = post.id;
+
+        getPostWithStrongReadConsistency(context, {postId: post.id}).then(
+            ({readTime, post}) => {
+                onPostRealtimeEventTransaction({
+                    readTime,
+                    eventTransaction: [
+                        {
+                            type: "PutItem",
+                            item: post,
+                            // NOTE(calebmer): Right now when `shouldBeConnectedToChannelRealtime` is false
+                            // we're updating an individual post instead of posts backed by an index
+                            // query. So we don't need `cursorByIndexName` for now.
+                            cursorByIndexName: new Map(),
+                        },
+                    ],
+                });
+            },
+            error => {
+                context.tracer
+                    .getRoot()
+                    .logUncaughtException("Failed to reload realtime item", error);
+            },
+        );
+    }, [
+        context.tracer,
+        isConnected,
+        post.id,
+        onPostRealtimeEventTransaction,
+        shouldBeConnectedToChannelRealtime,
+        context,
+    ]);
 
     // We perform the scroll adjustment for new messages in the
     // `<PostCommentInput>` component which will always be mounted when the post's

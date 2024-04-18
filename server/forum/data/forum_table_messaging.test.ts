@@ -43,7 +43,7 @@ testMessagingImplementation<PostId>(context, {
     createPrivateRoom: "Unimplemented",
 
     async getRoom(context, postId) {
-        const post = await getPost(context, postId);
+        const {model: post} = await getPost(context, postId);
         return {
             key: post.id,
             spaceId: post.spaceId,

@@ -77,6 +77,17 @@ export const backfillChannelPosts = defineRpc({
     },
 });
 
+export const getPostWithStrongReadConsistency = defineRpc({
+    name: "getPostWithStrongReadConsistency",
+    input: {
+        postId: Schema.id<PostId>(),
+    },
+    output: {
+        readTime: Schema.date,
+        post: createDynamoGeneralRealtimeItemSchema(PostModel.schema()),
+    },
+});
+
 export const createPost = defineRpc({
     name: "createPost",
     input: {

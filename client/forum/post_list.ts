@@ -272,8 +272,19 @@ export class PostBasicList implements PostListBase {
         postContentItemIndex: number;
         getPostCommentIndex: (postCommentIndex: number) => number;
     } {
+        const post = this.getPostByIdIfExists(postId);
+        if (!post) throw new NotFoundError("Post not found");
+        return post;
+    }
+
+    public getPostByIdIfExists(postId: PostId): {
+        post: PostModel;
+        postComments: MessageList<PostCommentModel>;
+        postContentItemIndex: number;
+        getPostCommentIndex: (postCommentIndex: number) => number;
+    } | null {
         const nodeResult = this._posts.getNodeByKeyIfExists(postId);
-        if (!nodeResult) throw new InternalError("Post not found");
+        if (!nodeResult) return null;
         const {node, startItemIndex} = nodeResult;
 
         const postContentItemIndex = startItemIndex;

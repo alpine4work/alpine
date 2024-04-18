@@ -57,6 +57,7 @@ import {
     PostModel,
     maxPostPreviewCommentAuthorCount,
 } from "~/shared/forum/post_model.js";
+import {PostBroadcastRealtimeEventTransactionSchema} from "~/shared/forum/post_realtime_protocol.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -68,6 +69,7 @@ import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
@@ -271,30 +273,93 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
             Array<DynamoGeneralRealtimeEvent<ChannelModel | PostModel>>
         >();
 
+        // We also send post updates to the corresponding post durable object. That way
+        // single post views that have a WebSocket connection to `PostRealtimeService`
+        // will see content updates in realtime without needing to make an additional
+        // connection to `ChannelRealtimeService`.
+        //
+        // This has some tradeoffs. It's certainly more efficient for clients to only
+        // subscribe to `PostRealtimeService` and avoid receiving updates from
+        // `ChannelRealtimeService` they don't care about. However, this comes at the
+        // cost of an extra Durable Object request which [Cloudflare charges for][1].
+        // However, by the client only subscribing to `PostRealtimeService` (and not
+        // `ChannelRealtimeService`) we can avoid duration costs for both
+        // `PostRealtimeService` and `ChannelRealtimeService`.
+        //
+        // If the client is in a channel and has a post's comments open (so is also
+        // connected to both the channel durable object and post durable object) then
+        // they'll receive a post content update twice. The client is smart enough to
+        // dedupe these updates.
+        //
+        // Anyway, this should only kick in when updating a post's content. Updating a
+        // post's content should be relatively rare so the extra costs aren't that
+        // meaningful.
+        //
+        // [1]: https://developers.cloudflare.com/workers/platform/pricing/#durable-objects
+        const eventTransactionByPostId = new Map<
+            PostId,
+            Array<DynamoGeneralRealtimeEvent<PostModel>>
+        >();
+
         for (const event of eventTransaction) {
-            getOrSetDefaultMapValue(
-                eventTransactionByChannelId,
-                event.item.model instanceof ChannelModel
-                    ? event.item.model.id
-                    : event.item.model.channel.id,
-                () => [],
-            ).push(event);
+            if (
+                !(event.item.model instanceof ChannelModel) ||
+                // Don't broadcast channel creation events but we do want to broadcast post
+                // creation events.
+                event.item.version > 0
+            ) {
+                getOrSetDefaultMapValue(
+                    eventTransactionByChannelId,
+                    event.item.model instanceof ChannelModel
+                        ? event.item.model.id
+                        : event.item.model.channel.id,
+                    () => [],
+                ).push(event);
+            }
+
+            if (
+                event.item.model instanceof PostModel &&
+                // Post creation events are broadcasted to the channel durable object but not
+                // the post durable object.
+                event.item.version > 0
+            ) {
+                getOrSetDefaultMapValue(
+                    eventTransactionByPostId,
+                    event.item.model.id,
+                    () => [],
+                ).push(event as DynamoGeneralRealtimeEvent<PostModel>);
+            }
         }
 
         await runAllPromises(
-            Array.from(eventTransactionByChannelId, async ([channelId, eventTransaction]) => {
-                await context.edge.broadcastToDurableObject(
-                    `/api/durable-objects/channels/${channelId}/broadcast-realtime-event-transaction`,
-                    {
-                        serviceName: "ChannelRealtimeService",
-                        route: "/api/durable-objects/channels/:channelId/broadcast-realtime-event-transaction",
-                        body: ChannelBroadcastRealtimeEventTransactionSchema.serialize({
-                            readTime,
-                            eventTransaction,
-                        }),
-                    },
-                );
-            }),
+            concatIterables(
+                mapIterable(eventTransactionByChannelId, async ([channelId, eventTransaction]) => {
+                    await context.edge.broadcastToDurableObject(
+                        `/api/durable-objects/channels/${channelId}/broadcast-realtime-event-transaction`,
+                        {
+                            serviceName: "ChannelRealtimeService",
+                            route: "/api/durable-objects/channels/:channelId/broadcast-realtime-event-transaction",
+                            body: ChannelBroadcastRealtimeEventTransactionSchema.serialize({
+                                readTime,
+                                eventTransaction,
+                            }),
+                        },
+                    );
+                }),
+                mapIterable(eventTransactionByPostId, async ([postId, eventTransaction]) => {
+                    await context.edge.broadcastToDurableObject(
+                        `/api/durable-objects/posts/${postId}/broadcast-realtime-event-transaction`,
+                        {
+                            serviceName: "PostRealtimeService",
+                            route: "/api/durable-objects/posts/:postId/broadcast-realtime-event-transaction",
+                            body: PostBroadcastRealtimeEventTransactionSchema.serialize({
+                                readTime,
+                                eventTransaction,
+                            }),
+                        },
+                    );
+                }),
+            ),
         );
     },
 });
@@ -1237,18 +1302,24 @@ export async function createPost(
 /**
  * Gets the post with the provided `PostId`.
  */
-export async function getPost(context: ServerActionContext, id: PostId): Promise<PostModel> {
-    const postItem = await ForumRealtimeTable.getItem(context, {
-        partitionType: "Post",
-        sortRangeType: "Attributes",
-        postId: id,
-    });
-
-    return createPostModelFromItem(
+export async function getPost(
+    context: ServerActionContext,
+    id: PostId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+): Promise<DynamoGeneralRealtimeItem<PostModel>> {
+    const post = await ForumRealtimeTable.getRealtimeItem(
         context,
-        getChannelPreview(context, postItem.channelId),
-        postItem,
+        {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId: id,
+        },
+        {consistency},
     );
+
+    await authorizeChannelAccess(context, post.model.channel.id);
+
+    return post;
 }
 
 export async function getPostContentAndChannel(
@@ -2065,7 +2136,7 @@ export async function getPostAndInitialComments(
         commentLimit: number;
     },
 ): Promise<{
-    post: PostModel;
+    post: DynamoGeneralRealtimeItem<PostModel>;
     initialComments: Array<PostCommentModel>;
     initialOtherReferencedComments: Array<PostCommentModel>;
 }> {
@@ -2110,8 +2181,9 @@ export async function getPostAndInitialComments(
         commentPromises.push(createPostCommentModelFromItem(context, postItem.spaceId, item));
     }
 
-    const [post, comments, otherReferencedComments] = await runAllPromises([
-        createPostModelFromItem(context, getChannelPreview(context, postItem.channelId), postItem),
+    const [, post, comments, otherReferencedComments] = await runAllPromises([
+        authorizeChannelAccess(context, postItem.channelId),
+        ForumRealtimeTable.buildRealtimeItem(context, postItem),
         runAllPromises(commentPromises),
         runAllPromises(
             filterMapIterable(parentCommentIndexes, parentCommentIndex => {
@@ -2138,8 +2210,8 @@ export async function getPostAndInitialComments(
         post:
             // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
-            post.commentCount < lastCommentIndex + 1
-                ? post.clone({commentCount: lastCommentIndex + 1})
+            post.model.commentCount < lastCommentIndex + 1
+                ? {...post, model: post.model.clone({commentCount: lastCommentIndex + 1})}
                 : post,
         initialComments: comments,
         initialOtherReferencedComments: otherReferencedComments,

@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView, PostListViewRef} from "~/client/forum/post_list_view.js";
+import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
@@ -11,7 +12,7 @@ export function PostView({
     initialScrollToPostCommentIndex,
     withMobileLayout,
 }: {
-    initialPost: PostModel;
+    initialPost: DynamoGeneralRealtimeItem<PostModel>;
     initialPostComments: ReadonlyArray<PostCommentModel>;
     initialOtherReferencedPostComments: ReadonlyArray<PostCommentModel>;
     initialScrollToPostCommentIndex: number | null;
@@ -30,35 +31,58 @@ export function PostView({
         const postList = assertExists(postListRef.current);
 
         if (initialScrollToPostCommentIndex !== null)
-            postList.jumpToPostCommentIndex(initialPost.id, initialScrollToPostCommentIndex);
-    }, [initialPost.id, initialScrollToPostCommentIndex]);
+            postList.jumpToPostCommentIndex(initialPost.model.id, initialScrollToPostCommentIndex);
+    }, [initialPost.model.id, initialScrollToPostCommentIndex]);
 
-    // NOCOMMIT: Post update realtime updates??
-    const [posts, setPosts] = useState(() =>
-        PostBasicList.empty.insertPostAtEnd(initialPost, {
+    const [{posts}, setPostState] = useState(() => ({
+        post: initialPost,
+        posts: PostBasicList.empty.insertPostAtEnd(initialPost.model, {
             postCommentsState: "AlwaysOpen",
             initialLoadPostComments: {
                 comments: initialPostComments,
                 otherReferencedComments: initialOtherReferencedPostComments,
             },
         }),
-    );
+    }));
 
     return (
         <PostListView
             ref={postListRef}
             posts={posts}
             onTogglePostComments={useCallback(
-                postId => setPosts(posts => posts.togglePostComments(postId)),
+                postId =>
+                    setPostState(({post, posts}) => ({
+                        post,
+                        posts: posts.togglePostComments(postId),
+                    })),
                 [],
             )}
             onUpdatePostComments={useCallback(
-                (postId, update) => setPosts(posts => posts.updatePostComments(postId, update)),
+                (postId, update) =>
+                    setPostState(({post, posts}) => ({
+                        post,
+                        posts: posts.updatePostComments(postId, update),
+                    })),
                 [],
             )}
-            onPostRealtimeEventTransaction={() => {
-                // NOCOMMIT: Implement!!
-            }}
+            shouldBeConnectedToChannelRealtime={false}
+            onPostRealtimeEventTransaction={useCallback(({eventTransaction}) => {
+                setPostState(({post, posts}) => {
+                    for (const event of eventTransaction) {
+                        if (post.key === event.item.key) {
+                            // If our event transaction has a higher versioned item of the same key then
+                            // update our state.
+                            if (event.item.key === post.key && event.item.version > post.version) {
+                                post = event.item;
+                            }
+                        }
+                    }
+
+                    posts = posts.updatePost(post.model.id, () => post.model);
+
+                    return {post, posts};
+                });
+            }, [])}
             withMobileLayout={withMobileLayout}
         />
     );

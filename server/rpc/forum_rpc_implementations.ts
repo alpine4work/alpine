@@ -9,6 +9,7 @@ import {
     deletePostComment,
     getChannel,
     getChannelPosts,
+    getPost,
     getPostCommentAuthors,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
@@ -62,6 +63,23 @@ implementRpc(
             input,
         );
         return {backfillPostsResult};
+    },
+);
+
+implementRpc(
+    definition.getPostWithStrongReadConsistency,
+    {visibility: ["AppClient"]},
+    async (context, input) => {
+        const readTime = new Date();
+
+        const post = await getPost(context.actor.authorizeSession(), input.postId, {
+            consistency: "Strong",
+        });
+
+        return {
+            readTime,
+            post,
+        };
     },
 );
 

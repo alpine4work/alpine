@@ -88,12 +88,22 @@ export function NewChannelView({
     return (
         <PostListView
             withMobileLayout={withMobileLayout}
-            channelHeader={useMemo(() => ({channel, isCreatingChannel: true}), [channel])}
+            channelHeader={useMemo(
+                () => ({
+                    channel,
+                    isCreatingChannel: true,
+                    isEditingDescription: false,
+                    onCancelDescriptionEditing: noop,
+                    onSaveDescription: asyncNoop,
+                }),
+                [channel],
+            )}
             posts={useMemo(() => PostBasicList.empty, [])}
             onTogglePostComments={useCallback(() => {}, [])}
             onUpdatePostComments={useCallback(() => {}, [])}
             onLoadMorePosts={asyncNoop}
-            onPostRealtimeEventTransaction={noop}
+            shouldBeConnectedToChannelRealtime={false}
+            onPostRealtimeEventTransaction={useCallback(() => {}, [])}
             navigationBar={{...navigationBar, navigationBarRef}}
         />
     );

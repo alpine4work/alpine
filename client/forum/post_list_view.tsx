@@ -140,6 +140,7 @@ function PostListView(
         onTogglePostComments,
         onUpdatePostComments,
         onLoadMorePosts,
+        shouldBeConnectedToChannelRealtime,
         onPostRealtimeEventTransaction,
         aside,
         withMobileLayout: withMobileLayoutProp = false,
@@ -187,15 +188,33 @@ function PostListView(
         }) => Promise<void>;
 
         /**
-         * Apply a realtime event transaction for posts before we get an event from our
-         * realtime WebSocket connection. For instance after a post is updated we want
-         * to update the post's state in case our realtime WebSocket connection is
-         * slow.
+         * If true, our parent component is telling us it has connected to
+         * `ChannelRealtimeService` and will be updating `posts` when realtime events
+         * come in. It means we don't need to handle realtime events for posts in
+         * `<PostCommentInput>` and we don't need to backfill the post model.
          */
-        onPostRealtimeEventTransaction: (event: {
-            readTime: Date;
-            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
-        }) => void;
+        shouldBeConnectedToChannelRealtime: boolean;
+
+        /**
+         * Apply a realtime event transaction for posts.
+         *
+         * This is used:
+         *
+         * - After successfully updating post content we call this in case our realtime
+         *   WebSocket connection is slow.
+         *
+         * - To update our post data with events we've received from
+         *   `PostRealtimeService` (which we connect to in `<PostCommentInput>`) when
+         *   `shouldBeConnectedToChannelRealtime` is false. If
+         *   `shouldBeConnectedToChannelRealtime` is true then we should be getting
+         *   realtime updates from `ChannelRealtimeService`.
+         */
+        onPostRealtimeEventTransaction: Memo<
+            (event: {
+                readTime: Date;
+                eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
+            }) => void
+        >;
 
         /**
          * An element we render to the side of the post list but still within the
@@ -1105,6 +1124,8 @@ function PostListView(
                                     commentIndex: postCommentIndex,
                                 });
                             }}
+                            shouldBeConnectedToChannelRealtime={shouldBeConnectedToChannelRealtime}
+                            onPostRealtimeEventTransaction={onPostRealtimeEventTransaction}
                             paddingX={postContentViewPaddingX[isMobile ? "mobile" : "desktop"]}
                         />
                     );
@@ -1317,15 +1338,17 @@ function PostListView(
             isMobile,
             withMobileLayout,
             hasAside,
-            channelHeader?.channel.id,
-            postEditing,
             isSingleLayoutWithPinnedCommentInput,
+            postEditing,
+            channelHeader?.channel.id,
             onTogglePostComments,
             loadInitialPostComments,
             messageEditing,
             highlightPostComment,
             handleJumpToPostComment,
             replyingToPostCommentIndexByPostId,
+            shouldBeConnectedToChannelRealtime,
+            onPostRealtimeEventTransaction,
             onUpdatePostComments,
         ],
     );
@@ -1563,7 +1586,6 @@ function PostListView(
                                         },
                                     );
                                 }}
-                                paddingX={postContentViewPaddingX[isMobile ? "mobile" : "desktop"]}
                                 onJumpToPostComment={handleJumpToPostComment}
                                 onDeletePostComment={async postCommentIndex => {
                                     const procedures = proceduresByPostIdRef.current.get(
@@ -1576,6 +1598,11 @@ function PostListView(
                                         commentIndex: postCommentIndex,
                                     });
                                 }}
+                                shouldBeConnectedToChannelRealtime={
+                                    shouldBeConnectedToChannelRealtime
+                                }
+                                onPostRealtimeEventTransaction={onPostRealtimeEventTransaction}
+                                paddingX={postContentViewPaddingX[isMobile ? "mobile" : "desktop"]}
                             />
                         );
                     })()}

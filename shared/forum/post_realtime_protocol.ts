@@ -1,4 +1,5 @@
-import {PostCommentModel} from "~/shared/forum/post_model.js";
+import {createDynamoGeneralRealtimeEventSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
@@ -11,6 +12,10 @@ import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,
 } from "~/shared/web_socket/web_socket_protocol.js";
+
+const DynamoGeneralRealtimePostEventSchema = createDynamoGeneralRealtimeEventSchema(
+    PostModel.schema(),
+);
 
 export type PostRealtimeEvent = WebSocketProtocolEventType<typeof PostRealtimeProtocol>;
 
@@ -95,5 +100,16 @@ export const PostRealtimeProtocol = defineWebSocketProtocol({
             type: Schema.value("Comments"),
             event: Schema.union(createMessagingRealtimeEventSchemas(PostCommentModel.schema())),
         }),
+
+        RealtimeEventTransaction: Schema.object({
+            type: Schema.value("RealtimeEventTransaction"),
+            readTime: Schema.date,
+            eventTransaction: Schema.array(DynamoGeneralRealtimePostEventSchema),
+        }),
     },
+});
+
+export const PostBroadcastRealtimeEventTransactionSchema = Schema.object({
+    readTime: Schema.date,
+    eventTransaction: Schema.array(DynamoGeneralRealtimePostEventSchema),
 });

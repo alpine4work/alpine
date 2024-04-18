@@ -3,6 +3,7 @@ import {dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes} from "~/
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
+import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {
     backfillChannelPosts,
     createChannel,
@@ -346,7 +347,7 @@ test("can get a post", async () => {
         content: testContent1,
     });
 
-    expect((await getPost(context.action(session1), post.id))?.content.doc.toJSON()).toEqual(
+    expect((await getPost(context.action(session1), post.id)).model.content.doc.toJSON()).toEqual(
         testContent1.toJSON(),
     );
 });
@@ -1574,10 +1575,10 @@ test("can backfill realtime updates in a channel", async () => {
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
-    const post1a = await getPost(context.action(session1), post1.id);
-    const post2a = await getPost(context.action(session1), post2.id);
-    const post3a = await getPost(context.action(session1), post3.id);
-    const post4a = await getPost(context.action(session1), post4.id);
+    const post1a = (await getPost(context.action(session1), post1.id)).model;
+    const post2a = (await getPost(context.action(session1), post2.id)).model;
+    const post3a = (await getPost(context.action(session1), post3.id)).model;
+    const post4a = (await getPost(context.action(session1), post4.id)).model;
 
     expect(
         await backfillChannelPosts(context.action(session1), {
@@ -1674,7 +1675,7 @@ test("can backfill realtime updates in a channel", async () => {
         content: createSimplePostContent("Updated test content 1"),
     });
 
-    const post1b = await getPost(context.action(session1), post1.id);
+    const post1b = (await getPost(context.action(session1), post1.id)).model;
 
     expect(
         await backfillChannelPosts(context.action(session1), {
@@ -1783,7 +1784,7 @@ test("can backfill realtime updates in a channel", async () => {
         content: createSimplePostContent("Updated test content 2"),
     });
 
-    const post4b = await getPost(context.action(session1), post4.id);
+    const post4b = (await getPost(context.action(session1), post4.id)).model;
 
     expect(
         await backfillChannelPosts(context.action(session1), {
@@ -1904,7 +1905,7 @@ test("can backfill realtime updates in a channel", async () => {
         content: testContent1,
     });
 
-    const post5a = await getPost(context.action(session1), post5.id);
+    const post5a = (await getPost(context.action(session1), post5.id)).model;
 
     expect(
         await backfillChannelPosts(context.action(session1), {
@@ -2056,7 +2057,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
 
     const readTime2 = addMinutes(new Date(), 3);
 
-    const post1a = await getPost(context.action(session1), post.id);
+    const post1a = (await getPost(context.action(session1), post.id)).model;
 
     expect(post1a.commentCount).toEqual(0);
     expect(post1a.lastCommentChangeTime).toEqual(null);
@@ -2099,7 +2100,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
         content: createSimpleMessageContent("comment1"),
     });
 
-    const post1b = await getPost(context.action(session1), post.id);
+    const post1b = (await getPost(context.action(session1), post.id)).model;
 
     expect(post1a.commentCount).toEqual(0);
     expect(post1a.lastCommentChangeTime).toEqual(null);
@@ -2144,7 +2145,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
         content: createSimpleMessageContent("comment2"),
     });
 
-    const post1c = await getPost(context.action(session1), post.id);
+    const post1c = (await getPost(context.action(session1), post.id)).model;
 
     expect(post1a.commentCount).toEqual(0);
     expect(post1a.lastCommentChangeTime).toEqual(null);
@@ -2171,7 +2172,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
         },
     );
 
-    const post1d = await getPost(context.action(session1), post.id);
+    const post1d = (await getPost(context.action(session1), post.id)).model;
 
     expect(post1a.commentCount).toEqual(0);
     expect(post1a.lastCommentChangeTime).toEqual(null);
@@ -2194,7 +2195,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
         commentIndex: comment1.index,
     });
 
-    const post1e = await getPost(context.action(session1), post.id);
+    const post1e = (await getPost(context.action(session1), post.id)).model;
 
     expect(post1a.commentCount).toEqual(0);
     expect(post1a.lastCommentChangeTime).toEqual(null);
@@ -2218,7 +2219,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
         content: createSimpleMessageContent("comment3"),
     });
 
-    const post1f = await getPost(context.action(session1), post.id);
+    const post1f = (await getPost(context.action(session1), post.id)).model;
 
     expect(post1a.commentCount).toEqual(0);
     expect(post1a.lastCommentChangeTime).toEqual(null);
@@ -2248,7 +2249,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
         dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes,
     );
 
-    const post1g = await getPost(context.action(session1), post.id);
+    const post1g = (await getPost(context.action(session1), post.id)).model;
 
     expect(post1a.commentCount).toEqual(0);
     expect(post1a.lastCommentChangeTime).toEqual(null);
@@ -2293,7 +2294,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
         content: createSimpleMessageContent("comment4"),
     });
 
-    const post1h = await getPost(context.action(session1), post.id);
+    const post1h = (await getPost(context.action(session1), post.id)).model;
 
     expect(post1a.commentCount).toEqual(0);
     expect(post1a.lastCommentChangeTime).toEqual(null);
@@ -2325,7 +2326,7 @@ test("can update a post's contents", async () => {
         content: testContent1,
     });
 
-    expect(await getPost(context.action(session1), post.id)).toEqual({
+    expect((await getPost(context.action(session1), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
@@ -2352,7 +2353,7 @@ test("can update a post's contents", async () => {
         },
     );
 
-    expect(await getPost(context.action(session1), post.id)).toEqual({
+    expect((await getPost(context.action(session1), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
@@ -2379,7 +2380,7 @@ test("can update a post's contents", async () => {
         },
     );
 
-    expect(await getPost(context.action(session1), post.id)).toEqual({
+    expect((await getPost(context.action(session1), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
@@ -2410,7 +2411,7 @@ test("can not update another account's post", async () => {
         content: testContent1,
     });
 
-    expect(await getPost(context.action(session1), post.id)).toEqual({
+    expect((await getPost(context.action(session1), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
@@ -2436,7 +2437,7 @@ test("can not update another account's post", async () => {
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
-    expect(await getPost(context.action(session1), post.id)).toEqual({
+    expect((await getPost(context.action(session1), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
@@ -2467,7 +2468,7 @@ test("can not update another space's post", async () => {
         content: testContent1,
     });
 
-    expect(await getPost(context.action(session1), post.id)).toEqual({
+    expect((await getPost(context.action(session1), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
@@ -2493,7 +2494,7 @@ test("can not update another space's post", async () => {
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
-    expect(await getPost(context.action(session1), post.id)).toEqual({
+    expect((await getPost(context.action(session1), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
@@ -2524,7 +2525,7 @@ test("can not update a post with invalid content", async () => {
         content: testContent1,
     });
 
-    expect(await getPost(context.action(session1), post.id)).toEqual({
+    expect((await getPost(context.action(session1), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
@@ -2556,7 +2557,7 @@ test("can not update a post with invalid content", async () => {
         }),
     ).rejects.toThrow(InvalidArgumentError);
 
-    expect(await getPost(context.action(session1), post.id)).toEqual({
+    expect((await getPost(context.action(session1), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
@@ -2598,7 +2599,7 @@ test("if time hasn't moved forward updating a post will set it to +1ms of the la
         });
 
         {
-            const updatedPost = await getPost(context.action(session1), post.id);
+            const updatedPost = (await getPost(context.action(session1), post.id)).model;
             assert(updatedPost);
             expect(updatedPost.contentUpdatedTime).toEqual(new Date(mockTime));
         }
@@ -2609,13 +2610,244 @@ test("if time hasn't moved forward updating a post will set it to +1ms of the la
         });
 
         {
-            const updatedPost = await getPost(context.action(session1), post.id);
+            const updatedPost = (await getPost(context.action(session1), post.id)).model;
             assert(updatedPost);
             expect(updatedPost.contentUpdatedTime).toEqual(new Date(mockTime + 1));
         }
     } finally {
         Date.now = originalDateNow;
     }
+});
+
+test("broadcasts channel realtime events to channel", async () => {
+    expect(
+        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
+    ).toEqual([]);
+
+    const channel1 = await createChannel(context.action(session1), {
+        spaceId: space.id,
+        name: "Test 1",
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
+    ).toEqual([]);
+
+    const channel2 = await createChannel(context.action(session1), {
+        spaceId: space.id,
+        name: "Test 2",
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
+    ).toEqual([]);
+
+    const otherChannel = await createChannel(context.action(otherSession), {
+        spaceId: otherSpace.id,
+        name: "Test 3",
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
+    ).toEqual([]);
+
+    await updateChannelName(context.action(session1), {
+        channelId: channel2.id,
+        name: "Test 2 (updated)",
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
+    ).toEqual([
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+    ]);
+
+    await updateChannelName(context.action(otherSession), {
+        channelId: otherChannel.id,
+        name: "Test 3 (updated)",
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
+    ).toEqual([
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
+    ]);
+
+    await updateChannelDescription(context.action(session1), {
+        channelId: channel1.id,
+        description: createSimpleMessageContent("A description"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
+    ).toEqual([
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+    ]);
+});
+
+test("broadcasts post realtime events to channel and post", async () => {
+    expect(
+        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
+    ).toEqual([]);
+
+    const channel1 = await createChannel(context.action(session1), {
+        spaceId: space.id,
+        name: "Test 1",
+    });
+
+    const channel2 = await createChannel(context.action(session1), {
+        spaceId: space.id,
+        name: "Test 2",
+    });
+
+    const otherChannel = await createChannel(context.action(otherSession), {
+        spaceId: otherSpace.id,
+        name: "Test 3",
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
+    ).toEqual([]);
+
+    await createPost(context.action(session1), {
+        channelId: channel2.id,
+        content: createSimplePostContent("Post 1"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
+    ).toEqual([
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+    ]);
+
+    const post2 = await createPost(context.action(otherSession), {
+        channelId: otherChannel.id,
+        content: createSimplePostContent("Post 2"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
+    ).toEqual([
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
+    ]);
+
+    const post3 = await createPost(context.action(session1), {
+        channelId: channel1.id,
+        content: createSimplePostContent("Post 2"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
+    ).toEqual([
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+    ]);
+
+    await createPost(context.action(session1), {
+        channelId: channel1.id,
+        content: createSimplePostContent("Post 4"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
+    ).toEqual([
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+    ]);
+
+    await createPost(context.action(session1), {
+        channelId: channel2.id,
+        content: createSimplePostContent("Post 5"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
+    ).toEqual([
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+    ]);
+
+    await updatePostContent(context.action(otherSession), {
+        postId: post2.id,
+        content: createSimplePostContent("Post 2 (updated)"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
+    ).toEqual([
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/posts/${post2.id}/broadcast-realtime-event-transaction`,
+    ]);
+
+    await updatePostContent(context.action(session1), {
+        postId: post3.id,
+        content: createSimplePostContent("Post 3 (updated)"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
+    ).toEqual([
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/posts/${post2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/posts/${post3.id}/broadcast-realtime-event-transaction`,
+    ]);
+
+    await createPost(context.action(session1), {
+        channelId: channel2.id,
+        content: createSimplePostContent("Post 6"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
+    ).toEqual([
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/posts/${post2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/posts/${post3.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+    ]);
 });
 
 describe("Notification subscribers", () => {

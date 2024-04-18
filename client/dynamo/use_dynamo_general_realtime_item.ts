@@ -18,6 +18,89 @@ import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
  */
 export function useDynamoGeneralRealtimeItem<Model>(
     initialItem: DynamoGeneralRealtimeItem<Model>,
+    options: {
+        /**
+         * Are we connected to a WebSocket or other push-based realtime service that
+         * will send us events when our item updates? If true then
+         * `subscribeToEvents()` should be how we access those realtime events.
+         */
+        isConnected: boolean;
+
+        /**
+         * Subscribe to realtime events that may affect this item. The event source may
+         * also be sending events unrelated to our item, this hook will filter out
+         * unrelated updates.
+         *
+         * This hook also correctly handles out-of-order updates. If a past update is
+         * delivered late (after a newer update) we will drop it.
+         */
+        subscribeToEvents: Memo<
+            (
+                subscriber: (
+                    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
+                ) => void,
+            ) => () => void
+        >;
+
+        /**
+         * We need to reload the item whenever we connect to our realtime service.
+         * That's because when connected to our realtime service, we're guaranteed to
+         * receive all events for the item that start AFTER we successfully connect.
+         * But what if updates happened BEFORE we connect but after we load the initial
+         * item that's passed in as a prop? The reload function catches those updates.
+         *
+         * The reload function also runs if the user temporarily disconnects from
+         * internet then reconnects (e.g. they went through a tunnel) to make sure the
+         * user doesn't miss any realtime updates.
+         *
+         * It's important to use strong read consistency in your reload function.
+         * Eventual consistency may still miss some updates.
+         */
+        reloadItemWithStrongReadConsistency: () => Promise<DynamoGeneralRealtimeItem<Model>>;
+    },
+): {
+    item: DynamoGeneralRealtimeItem<Model>;
+    handleEventTransaction: Memo<
+        (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>) => void
+    >;
+} {
+    const [itemFromState, setItem] = useState(initialItem);
+    let item = itemFromState;
+
+    // If the item provided via props is a newer version then use it in our state.
+    // Or if it is a different item entirely (by key).
+    if (initialItem.key === item.key && initialItem.version > item.version) {
+        setItem(initialItem);
+        item = initialItem;
+    } else if (initialItem.key !== item.key) {
+        setItem(initialItem);
+        item = initialItem;
+    }
+
+    return useDynamoGeneralRealtimeItemBase(
+        {item, onUpdateItem: useCallback(update => setItem(update), [])},
+        options,
+    );
+}
+
+/**
+ * The same as `useDynamoGeneralRealtimeItem()` but you can bring your
+ * own state.
+ */
+export function useDynamoGeneralRealtimeItemBase<Model>(
+    {
+        item,
+        onUpdateItem,
+    }: {
+        item: DynamoGeneralRealtimeItem<Model>;
+        onUpdateItem: Memo<
+            (
+                update: (
+                    item: DynamoGeneralRealtimeItem<Model>,
+                ) => DynamoGeneralRealtimeItem<Model>,
+            ) => void
+        >;
+    },
     {
         isConnected,
         subscribeToEvents,
@@ -69,24 +152,12 @@ export function useDynamoGeneralRealtimeItem<Model>(
     >;
 } {
     const context = useAppContext();
-    const [itemFromState, setItem] = useState(initialItem);
-    let item = itemFromState;
-
-    // If the item provided via props is a newer version then use it in our state.
-    // Or if it is a different item entirely (by key).
-    if (initialItem.key === item.key && initialItem.version > item.version) {
-        setItem(initialItem);
-        item = initialItem;
-    } else if (initialItem.key !== item.key) {
-        setItem(initialItem);
-        item = initialItem;
-    }
 
     const handleEventTransaction = useCallback(
         (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>) => {
             for (const event of eventTransaction) {
                 if (item.key === event.item.key) {
-                    setItem(item => {
+                    onUpdateItem(item => {
                         // If our event transaction has a higher versioned item of the same key then
                         // update our state.
                         if (event.item.key === item.key && event.item.version > item.version) {
@@ -98,7 +169,7 @@ export function useDynamoGeneralRealtimeItem<Model>(
                 }
             }
         },
-        [item.key],
+        [item.key, onUpdateItem],
     );
 
     // Subscribe to events when we are connected...
@@ -142,7 +213,7 @@ export function useDynamoGeneralRealtimeItem<Model>(
 
         reloadItemWithStrongReadConsistency().then(
             newItem => {
-                setItem(item => {
+                onUpdateItem(item => {
                     // If our event transaction has a higher versioned item of the same key then
                     // update our state.
                     if (newItem.key === item.key && newItem.version > item.version) {
@@ -158,7 +229,7 @@ export function useDynamoGeneralRealtimeItem<Model>(
                     .logUncaughtException("Failed to reload realtime item", error);
             },
         );
-    }, [context.tracer, item.key, isConnected, reloadItemWithStrongReadConsistency]);
+    }, [context.tracer, item.key, isConnected, reloadItemWithStrongReadConsistency, onUpdateItem]);
 
     return {
         item,

@@ -14,7 +14,6 @@ import {
     DynamoSystemActorContextModule,
     DynamoUnknownActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
-import {NoopEdgeServiceContextModule} from "~/server/context/edge_service_context_module.js";
 import {
     ServerSessionActionContextModules,
     ServerSystemActionContext,
@@ -29,6 +28,7 @@ import {
     DynamoBatchContextModule,
     DynamoContextModule,
 } from "~/server/dynamo/core/dynamo_context_module.js";
+import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {TestLocalJobSender} from "~/server/dynamo/test_helpers/test_local_job_sender.js";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
@@ -275,7 +275,7 @@ export function createTestContext({
         email: new NoopEmailContextModule(),
         opensearch: opensearchContextModule,
         jobs: jobsContextModule,
-        edge: new NoopEdgeServiceContextModule(),
+        edge: new TestLocalEdgeServiceContextModule(),
     });
 
     const context = Object.assign(processContext, {

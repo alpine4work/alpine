@@ -121,9 +121,11 @@ export default function ChannelPostsRoute({withMobileLayout}: {withMobileLayout?
                         .setHasMorePosts(postsResult.hasMorePosts),
                 );
             }}
-            onPostRealtimeEventTransaction={() => {
+            // NOCOMMIT: This??
+            shouldBeConnectedToChannelRealtime={true}
+            onPostRealtimeEventTransaction={useCallback(() => {
                 // NOCOMMIT: Implement!!
-            }}
+            }, [])}
         />
     );
 }

@@ -2385,8 +2385,9 @@ export async function getInboxChannelPostsEntryPosts(
         );
 
         const posts = await runAllPromises(
-            mapIterable(sliceIterable(inboxEntryItem.postIds, 0, limit), postId =>
-                getPost(context, postId),
+            mapIterable(
+                sliceIterable(inboxEntryItem.postIds, 0, limit),
+                async postId => (await getPost(context, postId)).model,
             ),
         );
 
@@ -2420,7 +2421,7 @@ export async function getInboxChannelPostsEntryPosts(
         const posts = await runAllPromises(
             postIds
                 .slice(afterPostIndex + 1, afterPostIndex + 1 + limit)
-                .map(postId => getPost(context, postId)),
+                .map(async postId => (await getPost(context, postId)).model),
         );
 
         return {

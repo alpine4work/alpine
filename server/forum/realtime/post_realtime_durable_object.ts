@@ -11,12 +11,16 @@ import {createDurableObject} from "~/server/cloudflare/create_durable_object.js"
 import {authorizePostAccessForDurableObject} from "~/server/forum/realtime/authorize_post_access_for_durable_object.js";
 import {PostRealtimeConnection} from "~/server/forum/realtime/post_realtime_connection.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {
+    PostBroadcastRealtimeEventTransactionSchema,
+    PostRealtimeProtocol,
+} from "~/shared/forum/post_realtime_protocol.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-type PostRealtimeDurableObjectRoute = "Main" | "NotFound";
+type PostRealtimeDurableObjectRoute = "Main" | "BroadcastRealtimeEventTransaction" | "NotFound";
 
 class PostRealtimeDurableObject {
     public static readonly serviceName = "PostRealtimeService";
@@ -93,8 +97,13 @@ class PostRealtimeDurableObject {
     }
 
     public static parseRoute(url: URL): [string, PostRealtimeDurableObjectRoute] {
-        if (url.pathname !== "/") return ["/*", "NotFound"];
-        return ["/", "Main"];
+        if (url.pathname === "/") return ["/", "Main"];
+
+        if (url.pathname === "/broadcast-realtime-event-transaction") {
+            return ["/broadcast-realtime-event-transaction", "BroadcastRealtimeEventTransaction"];
+        }
+
+        return ["/*", "NotFound"];
     }
 
     public async fetch(
@@ -107,8 +116,37 @@ class PostRealtimeDurableObject {
             context: {spaceId: this._spaceId, postId: this._postId},
         });
 
-        if (route === "NotFound") throw new NotFoundError("Route not found");
-        return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
+        switch (route) {
+            case "Main": {
+                return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
+            }
+            case "BroadcastRealtimeEventTransaction": {
+                // Make sure a user can't POST from their browser to broadcast a realtime event
+                // transaction. A POST request from a browser would be from the `AppClient` or
+                // `EdgeService` service.
+                if (context.actor.serviceName !== "AppService") {
+                    throw new PermissionDeniedError(
+                        "Only `AppService` can broadcast realtime event transactions",
+                    );
+                }
+
+                const {readTime, eventTransaction} =
+                    PostBroadcastRealtimeEventTransactionSchema.deserialize(await request.json());
+
+                // Forward the event transaction to all our connected clients...
+                this._webSocketServer.sendEventToAll(context, {
+                    type: "RealtimeEventTransaction",
+                    readTime,
+                    eventTransaction,
+                });
+
+                return new Response();
+            }
+            case "NotFound":
+                throw new NotFoundError("Route not found");
+            default:
+                throw exhaustive(route);
+        }
     }
 
     public connectForTest(context: WorkerSessionActionContext) {

@@ -121,16 +121,3 @@ export class EdgeServiceContextModule
         });
     }
 }
-
-export class NoopEdgeServiceContextModule
-    extends ContextModuleBase
-    implements EdgeServiceContextModuleBase
-{
-    public async broadcastToDurableObject() {
-        // noop...
-    }
-
-    public fork() {
-        return new NoopEdgeServiceContextModule();
-    }
-}

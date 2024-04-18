@@ -1083,6 +1083,20 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     /**
+     * Build a realtime item from a DynamoDB item object we've previously loaded.
+     */
+    public async buildRealtimeItem<Item extends Types["Item"]>(
+        context: ServerActionContext,
+        item: Item,
+    ): Promise<DynamoGeneralRealtimeItem<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>> {
+        return {
+            key: this._table.serializeOpaqueItemKey(item),
+            version: item.updateLockVersion ?? 0,
+            model: await this._buildModel(context, item),
+        };
+    }
+
+    /**
      * Query a range of items from the table. Highly efficient as DynamoDB
      * collocates related data. Also returns all the auxillary information
      * necessary for a client to keep a query up-to-date in realtime.

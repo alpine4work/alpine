@@ -9,13 +9,14 @@ import {getPostAndInitialComments} from "~/server/forum/data/forum_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
-    post: PostModel.schema(),
+    post: createDynamoGeneralRealtimeItemSchema(PostModel.schema()),
     initialPostComments: Schema.array(PostCommentModel.schema()),
     initialOtherReferencedPostComments: Schema.array(PostCommentModel.schema()),
 });
@@ -36,7 +37,7 @@ export async function loader({params, context}: LoaderArgs) {
     const propagateEventData: TracerEventData = {
         context: {
             postId,
-            channelId: post.channel.id,
+            channelId: post.model.channel.id,
         },
     };
 
@@ -55,9 +56,9 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {post}}) => [
     {
         // Account name in title won't update when account changes without reload
         // because we're using `initialData`.
-        title: `Post by ${getAccountShortNameWithoutFullNameTooltip(post.author.initialData)} in ${
-            post.channel.name
-        }${metaTitlePostfix}`,
+        title: `Post by ${getAccountShortNameWithoutFullNameTooltip(
+            post.model.author.initialData,
+        )} in ${post.model.channel.name}${metaTitlePostfix}`,
     },
 ]);
 
@@ -77,12 +78,12 @@ export default function PostRoute({withMobileLayout}: {withMobileLayout?: boolea
     // fairly short lived (a couple days). However, we give channels affinity
     // points so you could quickly jump to a channel if you're looking for a
     // certain post inside the channel.
-    useSearchAffinityViewInteraction(`Channel:${post.channel.id}`);
+    useSearchAffinityViewInteraction(`Channel:${post.model.channel.id}`);
 
     return (
         <PostView
             // Remount when navigating to a different post.
-            key={post.id}
+            key={post.model.id}
             initialPost={post}
             initialPostComments={initialPostComments}
             initialOtherReferencedPostComments={initialOtherReferencedPostComments}
