@@ -11,7 +11,6 @@ import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {
     addRemLengths,
     parseRemLengthNumber,
@@ -79,7 +78,7 @@ export function ChannelViewAside({
                         onSave={onSaveDescription}
                     />
                 ) : (
-                    <Box paddingY="1.5">
+                    <Box paddingY="1">
                         <ContentView content={channel.description} />
                     </Box>
                 )}
@@ -88,6 +87,10 @@ export function ChannelViewAside({
     );
 }
 
+// `<ChannelViewAside>` is not used on mobile since we don't have the space. So
+// when implementing for mobile we forked this description editor into
+// `<ChannelViewHeaderMobileDescriptionEditor>`. Any changes made here should
+// probably be made there too.
 function ChannelViewAsideDescriptionEditor({
     initialDescription,
     onCancel,
@@ -170,7 +173,7 @@ function ChannelViewAsideDescriptionEditor({
             <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
                 <Box
                     id={editorId}
-                    paddingY="1.5"
+                    paddingY="1"
                     borderRadius="md"
                     style={{
                         // Use box shadow to draw the border so it doesn't add 1px to layout like

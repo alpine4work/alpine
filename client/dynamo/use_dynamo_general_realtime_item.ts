@@ -64,9 +64,9 @@ export function useDynamoGeneralRealtimeItem<Model>(
     },
 ): {
     item: DynamoGeneralRealtimeItem<Model>;
-    handleEventTransaction: (
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
-    ) => void;
+    handleEventTransaction: Memo<
+        (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>) => void
+    >;
 } {
     const context = useAppContext();
     const [itemFromState, setItem] = useState(initialItem);

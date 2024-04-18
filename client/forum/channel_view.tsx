@@ -10,6 +10,7 @@ import {ChannelViewNameEditor} from "~/client/forum/channel_view_name_editor.js"
 import {createPostEventEmitter} from "~/client/forum/new_post_view.js";
 import {postContentViewMinHeightWithClosedCommentSection} from "~/client/forum/post_content_view.js";
 import {
+    PostListChannelHeader,
     PostQueryList,
     PostQueryListDynamoGeneralRealtimeIndexQuery,
 } from "~/client/forum/post_list.js";
@@ -41,7 +42,7 @@ import {
 } from "~/shared/rpc/forum_rpc_definitions.js";
 
 export function ChannelView({
-    withMobileLayout,
+    withMobileLayout: withMobileLayoutProp,
     initialChannel,
     initialPostsResult,
 }: {
@@ -51,6 +52,8 @@ export function ChannelView({
 }) {
     const context = useAppContext();
     const isMobile = useIsMobile();
+
+    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const channelId = initialChannel.model.id;
 
@@ -140,7 +143,8 @@ export function ChannelView({
     const [isEditingDescription, setIsEditingDescription] = useState(false);
     if (isEditingDescription && isMobile) setIsEditingDescription(false);
 
-    const hasAside = !isContentEmpty(channel.description.doc) || isEditingDescription;
+    const hasAside =
+        !withMobileLayout && (!isContentEmpty(channel.description.doc) || isEditingDescription);
 
     const navigationBarRef = useRef<NavigationBarRef>(null);
 
@@ -214,10 +218,32 @@ export function ChannelView({
         ],
     });
 
+    const channelHeader = useMemo(
+        (): PostListChannelHeader => ({
+            channel,
+            isCreatingChannel: false,
+            isEditingDescription,
+            onCancelDescriptionEditing: () => setIsEditingDescription(false),
+            onSaveDescription: async description => {
+                const event = await updateChannelDescription(context, {
+                    channelId,
+                    description,
+                });
+
+                setIsEditingDescription(false);
+
+                // Immediately apply a realtime event transaction to update our channel in case
+                // our realtime WebSocket connection is slow.
+                handleEventTransactionForChannel(event.eventTransaction);
+            },
+        }),
+        [channel, channelId, context, handleEventTransactionForChannel, isEditingDescription],
+    );
+
     return (
         <PostListView
             withMobileLayout={withMobileLayout}
-            channelHeader={useMemo(() => ({channel, isCreatingChannel: false}), [channel])}
+            channelHeader={channelHeader}
             posts={posts}
             onTogglePostComments={useCallback(
                 postId => setPosts(posts => posts.togglePostComments(postId)),
@@ -248,19 +274,8 @@ export function ChannelView({
                     <ChannelViewAside
                         channel={channel}
                         isEditingDescription={isEditingDescription}
-                        onCancelEditingDescription={() => setIsEditingDescription(false)}
-                        onSaveDescription={async description => {
-                            const event = await updateChannelDescription(context, {
-                                channelId,
-                                description,
-                            });
-
-                            setIsEditingDescription(false);
-
-                            // Immediately apply a realtime event transaction to update our channel in case
-                            // our realtime WebSocket connection is slow.
-                            handleEventTransactionForChannel(event.eventTransaction);
-                        }}
+                        onCancelEditingDescription={channelHeader.onCancelDescriptionEditing}
+                        onSaveDescription={channelHeader.onSaveDescription}
                     />
                 )
             }
