@@ -103,7 +103,7 @@ export class HoneycombTracerClient {
                     }
                 });
             })().catch(error => {
-                throw DataLossError.from("Failed to send event batch to Honeycomb", error);
+                throw DataLossError.from(error, "Failed to send event batch to Honeycomb");
             });
 
             this._waitUntil(
