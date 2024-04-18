@@ -98,6 +98,36 @@ untested state.
 “[continuation-passing style](https://en.wikipedia.org/wiki/Continuation-passing_style)”. Our usage
 of the phrase “direct style” is loosely related.)
 
+### No abstraction is better than the wrong abstraction
+
+Don’t force a reusable abstraction in the name of “clean code.” The wrong abstraction can increase
+maintenance burden in the long run by making code harder to modify, harder to reason about, and
+harder to debug.
+[Dan Abramov (of the React core team) wrote a good post on “Goodbye, Clean Code”](https://overreacted.io/goodbye-clean-code/)
+sharing a case in his career where he removed duplication at the cost of maintainability.
+
+The alternative is copy/pasting code (no abstraction). This is a perfectly reasonable approach when
+you have two pieces of code that are kind of similar but have different fundamental requirements.
+Add references in comments to make sure future developers can be aware of the similarities if you’d
+like. If you find yourself with a bad abstraction, delete it and inline the code everywhere it was
+called.
+
+A good rule of thumb for when you need an abstraction is when you have three pieces of code that do
+the same thing.
+
+Not all abstractions are bad! Our codebase has a lot of great abstractions like `DynamoTableSchema`.
+Making the right judgment for what’s the “wrong” abstraction and what’s the “right” abstraction
+requires taste that we build over our careers.
+
+Some more good resources on this topic:
+
+-   [“The Wrong Abstraction”](https://sandimetz.com/blog/2016/1/20/the-wrong-abstraction) by Sandi
+    Metz
+-   [“Minimal API Surface Area”](https://www.youtube.com/watch?v=4anAwXYqLG8) a talk by Sebastian
+    Markbåge (React tech lead)
+-   [“The WET Codebase”](https://overreacted.io/the-wet-codebase/) a talk by Dan Abramov (WET is a
+    play on the acronym [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself))
+
 ## Naming
 
 ### File names should be snake case
