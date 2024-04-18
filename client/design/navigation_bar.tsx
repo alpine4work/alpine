@@ -25,10 +25,10 @@ import {
 } from "~/client/design/scrollbar.js";
 import {ShareButton, createShareMenuItem} from "~/client/design/share_button.js";
 import {useShowToast} from "~/client/design/toast.js";
+import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
-import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
