@@ -143,6 +143,7 @@ export function PostContentView({
     postCommentsState,
     shouldShowChannel,
     postEditing,
+    isSingleLayoutWithPinnedCommentInput,
     onTogglePostComments,
     onLoadInitialPostComments,
 }: {
@@ -151,6 +152,7 @@ export function PostContentView({
     postCommentsState: PostCommentsState;
     postEditing: PostEditing;
     shouldShowChannel: boolean;
+    isSingleLayoutWithPinnedCommentInput: boolean;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
 }) {
@@ -173,11 +175,11 @@ export function PostContentView({
             paddingTop={postContentViewOuterMarginY}
             style={{
                 minHeight:
-                    postCommentsState !== "Closed"
+                    postCommentsState !== "Closed" && !isSingleLayoutWithPinnedCommentInput
                         ? postContentViewMinHeightWithOpenCommentSection
                         : postContentViewMinHeightWithClosedCommentSection,
                 paddingBottom:
-                    postCommentsState !== "Closed"
+                    postCommentsState !== "Closed" && !isSingleLayoutWithPinnedCommentInput
                         ? postContentViewOuterOpenCommentSectionMarginBottom
                         : postContentViewOuterMarginBottom,
             }}
@@ -289,7 +291,7 @@ export function PostContentView({
                 onTogglePostComments={onTogglePostComments}
                 onLoadInitialPostComments={onLoadInitialPostComments}
             />
-            {postCommentsState !== "Closed" && (
+            {postCommentsState !== "Closed" && !isSingleLayoutWithPinnedCommentInput && (
                 <div
                     className={sprinkles({
                         position: "absolute",

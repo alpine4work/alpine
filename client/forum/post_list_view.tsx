@@ -76,7 +76,10 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {PostId} from "~/shared/id/types/id_types.js";
-import {messageViewMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
+import {
+    messageViewMinHeight,
+    messageViewTimestampDividerMarginTop,
+} from "~/shared/messaging/messaging_shared_styles.js";
 import {
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
@@ -267,7 +270,7 @@ function PostListView(
     // Always pin the post comment input to the bottom of the list view on mobile
     // layout of a single post. We use a heuristic of one post with always open
     // comments to determine if we're in a single post context.
-    const isSingleMobileLayoutPostWithPinnedCommentInput =
+    const isSingleLayoutWithPinnedCommentInput =
         !channelHeader &&
         posts.getPostCount() === 1 &&
         posts.getPostContentItemIfExists(0)?.postCommentsState === "AlwaysOpen";
@@ -671,7 +674,8 @@ function PostListView(
                     return {
                         key: `PostContent:${item.post.id}`,
                         minHeight:
-                            item.postCommentsState !== "Closed"
+                            item.postCommentsState !== "Closed" &&
+                            !isSingleLayoutWithPinnedCommentInput
                                 ? postContentViewMinHeightWithOpenCommentSection
                                 : postContentViewMinHeightWithClosedCommentSection,
                         node: (
@@ -714,7 +718,8 @@ function PostListView(
                                             />
                                         </div>
                                     )}
-                                    {item.postCommentsState === "Closed" && (
+                                    {(item.postCommentsState === "Closed" ||
+                                        isSingleLayoutWithPinnedCommentInput) && (
                                         <div
                                             className={sprinkles({
                                                 position: "absolute",
@@ -742,6 +747,9 @@ function PostListView(
                                         shouldShowChannel={
                                             channelHeader?.channel.id !== item.post.channel.id
                                         }
+                                        isSingleLayoutWithPinnedCommentInput={
+                                            isSingleLayoutWithPinnedCommentInput
+                                        }
                                         onTogglePostComments={() =>
                                             onTogglePostComments(item.post.id)
                                         }
@@ -765,7 +773,7 @@ function PostListView(
                         ),
                         renderAdditionalItemIndexes:
                             item.postCommentInputItemIndex !== null &&
-                            !isSingleMobileLayoutPostWithPinnedCommentInput
+                            !isSingleLayoutWithPinnedCommentInput
                                 ? [item.postCommentInputItemIndex]
                                 : undefined,
                     };
@@ -797,7 +805,7 @@ function PostListView(
                                 ? `PostComment:${item.post.id}:${item.postCommentIndex}`
                                 : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
                         minHeight: messageViewMinHeight,
-                        renderAdditionalItemIndexes: !isSingleMobileLayoutPostWithPinnedCommentInput
+                        renderAdditionalItemIndexes: !isSingleLayoutWithPinnedCommentInput
                             ? [item.postCommentInputItemIndex]
                             : [],
                         withManualLayout: true,
@@ -826,7 +834,11 @@ function PostListView(
                                                     isMobile ? "mobile" : "desktop"
                                                 ]
                                             }
-                                            centeringMarginRight={postCommentSectionGuidelineSpace}
+                                            centeringMarginRight={
+                                                !isSingleLayoutWithPinnedCommentInput
+                                                    ? postCommentSectionGuidelineSpace
+                                                    : undefined
+                                            }
                                             onJumpToMessage={handleJumpToPostComment}
                                             onReplyToMessage={() => {
                                                 if (item.postComment.isOptimistic) return;
@@ -894,29 +906,41 @@ function PostListView(
                                                 width: "full",
                                                 maxWidth: postViewMaxWidth,
                                                 overflow: "hidden",
-                                                paddingLeft: postCommentSectionGuidelineSpace,
+                                                paddingLeft: !isSingleLayoutWithPinnedCommentInput
+                                                    ? postCommentSectionGuidelineSpace
+                                                    : undefined,
                                             })}
                                             style={{
                                                 flex: postViewFlex,
                                             }}
                                         >
-                                            <div
-                                                className={sprinkles({
-                                                    position: "absolute",
-                                                    top: "0",
-                                                    bottom: "0",
-                                                    borderLeft: "grey-5",
-                                                    borderLeftWidth: "thick",
-                                                })}
-                                                style={{
-                                                    left: `calc(${
-                                                        postCommentSectionGuidelineOffset[
-                                                            isMobile ? "mobile" : "desktop"
-                                                        ]
-                                                    } - 1px)`,
-                                                }}
-                                            />
-                                            {item.postCommentIndex === 0 && <Spacer space="4" />}
+                                            {!isSingleLayoutWithPinnedCommentInput && (
+                                                <div
+                                                    className={sprinkles({
+                                                        position: "absolute",
+                                                        top: "0",
+                                                        bottom: "0",
+                                                        borderLeft: "grey-5",
+                                                        borderLeftWidth: "thick",
+                                                    })}
+                                                    style={{
+                                                        left: `calc(${
+                                                            postCommentSectionGuidelineOffset[
+                                                                isMobile ? "mobile" : "desktop"
+                                                            ]
+                                                        } - 1px)`,
+                                                    }}
+                                                />
+                                            )}
+                                            {item.postCommentIndex === 0 && (
+                                                <Spacer
+                                                    space={
+                                                        !isSingleLayoutWithPinnedCommentInput
+                                                            ? "4"
+                                                            : messageViewTimestampDividerMarginTop
+                                                    }
+                                                />
+                                            )}
                                             {messageNode}
                                         </div>
                                         {hasAside && (
@@ -957,28 +981,42 @@ function PostListView(
                                         width: "full",
                                         maxWidth: postViewMaxWidth,
                                         overflow: "hidden",
-                                        paddingLeft: postCommentSectionGuidelineSpace,
+                                        paddingLeft: !isSingleLayoutWithPinnedCommentInput
+                                            ? postCommentSectionGuidelineSpace
+                                            : undefined,
                                     })}
                                     style={{
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    <div
-                                        className={sprinkles({
-                                            position: "absolute",
-                                            top: "0",
-                                            bottom: "0",
-                                            borderLeft: "grey-5",
-                                            borderLeftWidth: "thick",
-                                        })}
-                                        style={{
-                                            left: `calc(${
-                                                postCommentSectionGuidelineOffset[
-                                                    isMobile ? "mobile" : "desktop"
-                                                ]
-                                            } - 1px)`,
-                                        }}
-                                    />
+                                    {!isSingleLayoutWithPinnedCommentInput && (
+                                        <div
+                                            className={sprinkles({
+                                                position: "absolute",
+                                                top: "0",
+                                                bottom: "0",
+                                                borderLeft: "grey-5",
+                                                borderLeftWidth: "thick",
+                                            })}
+                                            style={{
+                                                left: `calc(${
+                                                    postCommentSectionGuidelineOffset[
+                                                        isMobile ? "mobile" : "desktop"
+                                                    ]
+                                                } - 1px)`,
+                                            }}
+                                        />
+                                    )}
+                                    {item.postComments.getMessageCountIncludingOptimisticMessages() ===
+                                        0 && (
+                                        <Spacer
+                                            space={
+                                                !isSingleLayoutWithPinnedCommentInput
+                                                    ? "4"
+                                                    : messageViewTimestampDividerMarginTop
+                                            }
+                                        />
+                                    )}
                                     <MessagingTypingIndicators
                                         typingStateByConnectionId={item.typingStateByConnectionId}
                                     />
@@ -1281,7 +1319,7 @@ function PostListView(
             hasAside,
             channelHeader?.channel.id,
             postEditing,
-            isSingleMobileLayoutPostWithPinnedCommentInput,
+            isSingleLayoutWithPinnedCommentInput,
             onTogglePostComments,
             loadInitialPostComments,
             messageEditing,
@@ -1316,8 +1354,7 @@ function PostListView(
                     itemCount={
                         // Don't render the post comment input (which should be the last item) if we are
                         // pinning the comment input to the bottom of the view.
-                        posts.getItemCount() -
-                        (isSingleMobileLayoutPostWithPinnedCommentInput ? 1 : 0)
+                        posts.getItemCount() - (isSingleLayoutWithPinnedCommentInput ? 1 : 0)
                     }
                     renderItem={renderItem}
                     onRenderedRangeChange={tryLoadingMoreData}
@@ -1436,7 +1473,7 @@ function PostListView(
                         </>
                     }
                     extraChildrenOutsideContentElement={
-                        !isSingleMobileLayoutPostWithPinnedCommentInput
+                        !isSingleLayoutWithPinnedCommentInput
                             ? ({contentHeight}) => (
                                   // Our items all have a bottom border. This is good when there's less content
                                   // than room to scroll since it creates a clear shape for the last item in the
@@ -1475,7 +1512,7 @@ function PostListView(
                             : undefined
                     }
                 />
-                {isSingleMobileLayoutPostWithPinnedCommentInput &&
+                {isSingleLayoutWithPinnedCommentInput &&
                     (() => {
                         const lastPostContentItem = assertExists(
                             posts.getPostContentItemIfExists(channelHeader ? 1 : 0),
