@@ -1,5 +1,5 @@
 import {ChatCircle, Check, DotsThree, IconContext, Smiley, X} from "phosphor-react";
-import {CSSProperties, useContext, useEffect, useId, useMemo, useRef, useState} from "react";
+import {CSSProperties, useContext, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentView} from "~/client/content/content_view.js";
@@ -206,6 +206,7 @@ export function PostContentView({
     postEditing,
     hasNavigationBar,
     isSingleLayoutWithPinnedCommentInput,
+    idBase,
     onTogglePostComments,
     onLoadInitialPostComments,
 }: {
@@ -217,11 +218,11 @@ export function PostContentView({
     shouldShowChannel: boolean;
     hasNavigationBar: boolean;
     isSingleLayoutWithPinnedCommentInput: boolean;
+    idBase: string;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
 }) {
     const isMobile = useIsMobile();
-    const {isAppleDevice} = useClientInfo();
     const {currentAccount} = useSpaceContext();
 
     const postEditingForThisPost =
@@ -231,10 +232,11 @@ export function PostContentView({
 
     const isEditingPost = !!postEditingForThisPost;
 
-    const editorId = useId();
-
     return (
         <Box
+            data-testid={
+                process.env.NODE_ENV !== "production" ? `PostContentView:${post.id}` : undefined
+            }
             position="relative"
             paddingTop={
                 !hasNavigationBar || !isSingleLayoutWithPinnedCommentInput
@@ -269,7 +271,19 @@ export function PostContentView({
                         right={postContentViewPaddingX}
                     >
                         {!isEditingPost ? (
-                            <MenuButton actions={getPostMoreActions(currentAccount, post)}>
+                            <MenuButton
+                                actions={getPostMoreActions({
+                                    currentAccount,
+                                    post,
+                                    onStartEditingPost: () => {
+                                        postEditing.dispatch({
+                                            type: "StartEditing",
+                                            postId: post.id,
+                                            currentContent: post.content,
+                                        });
+                                    },
+                                })}
+                            >
                                 <IconButton
                                     size={isMobile ? "base" : "md"}
                                     description="More"
@@ -279,41 +293,10 @@ export function PostContentView({
                                 </IconButton>
                             </MenuButton>
                         ) : (
-                            <Box
-                                // Mark our buttons as being owned by the editor (according to
-                                // `isElementOwnedBy()`) so `useConfirmSaveAfterLosingFocus()` allows us to
-                                // press on these buttons without asking the user to confirm the save.
-                                data-ownedby={editorId}
-                                display="flex"
-                            >
-                                <IconButton
-                                    description="Save"
-                                    tooltipPlacement="bottom-end"
-                                    keyboardShortcutHint={`${isAppleDevice ? "⌘" : "Ctrl"}+Enter`}
-                                    size={isMobile ? "base" : "md"}
-                                    onPress={() => {
-                                        postEditingForThisPost.dispatch({
-                                            type: "SaveEditedContent",
-                                        });
-                                    }}
-                                    isDisabled={postEditingForThisPost.state.isSaving}
-                                    isPending={postEditingForThisPost.state.isSaving}
-                                >
-                                    <Check />
-                                </IconButton>
-                                <IconButton
-                                    description="Cancel"
-                                    tooltipPlacement="bottom-end"
-                                    keyboardShortcutHint="Esc"
-                                    size={isMobile ? "base" : "md"}
-                                    onPress={() =>
-                                        postEditingForThisPost.dispatch({type: "CancelEditing"})
-                                    }
-                                    isDisabled={postEditingForThisPost.state.isSaving}
-                                >
-                                    <X />
-                                </IconButton>
-                            </Box>
+                            <PostContentViewEditingActions
+                                idBase={idBase}
+                                postEditing={postEditingForThisPost}
+                            />
                         )}
                     </Box>
                 </>
@@ -345,7 +328,7 @@ export function PostContentView({
                     />
                 ) : (
                     <PostContentViewEditor
-                        editorId={editorId}
+                        idBase={idBase}
                         postEditingForThisPost={postEditingForThisPost}
                     />
                 )}
@@ -394,7 +377,11 @@ function PostContentViewFooter({
 
     return (
         <Box
-            data-testid={`PostContentViewFooter:${post.id}`}
+            data-testid={
+                process.env.NODE_ENV !== "production"
+                    ? `PostContentViewFooter:${post.id}`
+                    : undefined
+            }
             paddingX={postContentViewPaddingX}
             height={postContentViewFooterHeight}
             display="flex"
@@ -672,10 +659,10 @@ function CaretUpWithCustomizableStrokeWidth({
 }
 
 function PostContentViewEditor({
-    editorId,
+    idBase,
     postEditingForThisPost,
 }: {
-    editorId: string;
+    idBase: string;
     postEditingForThisPost: PostEditing & {state: {isEditing: true}};
 }) {
     const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
@@ -693,7 +680,7 @@ function PostContentViewEditor({
     return (
         <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
             <Box
-                id={editorId}
+                id={`${idBase}-editor-${postEditingForThisPost.state.postId}`}
                 borderRadius="md"
                 style={{
                     // Use box shadow to draw the border so it doesn't add 1px to layout like
@@ -747,7 +734,62 @@ function PostContentViewEditor({
     );
 }
 
-export function getPostMoreActions(currentAccount: AccountModel, post: PostModel) {
+export function PostContentViewEditingActions({
+    idBase,
+    postEditing,
+}: {
+    idBase: string;
+    postEditing: PostEditing & {state: {isEditing: true}};
+}) {
+    const isMobile = useIsMobile();
+    const {isAppleDevice} = useClientInfo();
+
+    return (
+        <Box
+            // Mark our buttons as being owned by the editor (according to
+            // `isElementOwnedBy()`) so `useConfirmSaveAfterLosingFocus()` allows us to
+            // press on these buttons without asking the user to confirm the save.
+            data-ownedby={`${idBase}-editor-${postEditing.state.postId}`}
+            display="flex"
+        >
+            <IconButton
+                description="Save"
+                tooltipPlacement="bottom-end"
+                keyboardShortcutHint={`${isAppleDevice ? "⌘" : "Ctrl"}+Enter`}
+                size={isMobile ? "base" : "md"}
+                onPress={() => {
+                    postEditing.dispatch({
+                        type: "SaveEditedContent",
+                    });
+                }}
+                isDisabled={postEditing.state.isSaving}
+                isPending={postEditing.state.isSaving}
+            >
+                <Check />
+            </IconButton>
+            <IconButton
+                description="Cancel"
+                tooltipPlacement="bottom-end"
+                keyboardShortcutHint="Esc"
+                size={isMobile ? "base" : "md"}
+                onPress={() => postEditing.dispatch({type: "CancelEditing"})}
+                isDisabled={postEditing.state.isSaving}
+            >
+                <X />
+            </IconButton>
+        </Box>
+    );
+}
+
+export function getPostMoreActions({
+    currentAccount,
+    post,
+    onStartEditingPost,
+}: {
+    currentAccount: AccountModel;
+    post: PostModel;
+    onStartEditingPost: () => void;
+}) {
     return [
         [
             {
@@ -767,13 +809,7 @@ export function getPostMoreActions(currentAccount: AccountModel, post: PostModel
                   [
                       {
                           label: "Edit",
-                          onPress: () => {
-                              postEditing.dispatch({
-                                  type: "StartEditing",
-                                  postId: post.id,
-                                  currentContent: post.content,
-                              });
-                          },
+                          onPress: onStartEditingPost,
                       },
                   ],
               ]

@@ -1011,11 +1011,15 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     margin: "0 auto",
                     animation: shouldHighlight ? wiggleAnimation : undefined,
                 }}
-                data-testid={`MessageView:${
-                    message.isOptimistic
-                        ? `optimistic:${message.optimisticId}`
-                        : `${message.getRoomKey()}:${message.index}`
-                }`}
+                data-testid={
+                    process.env.NODE_ENV !== "production"
+                        ? `MessageView:${
+                              message.isOptimistic
+                                  ? `optimistic:${message.optimisticId}`
+                                  : `${message.getRoomKey()}:${message.index}`
+                          }`
+                        : undefined
+                }
             >
                 {useMemo(
                     () =>

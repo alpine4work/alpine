@@ -76,8 +76,20 @@ export function PostView({
         desktopMarginTop: !withMobileLayout
             ? `${desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar}rem`
             : `${mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar}rem`,
+        // `<PostListView>` needs this prop to specifically be set to null so we can
+        // replace it when in a post editing state.
+        desktopReplaceActions: null,
         mobileTitleJustifyContents: "flex-start",
-        menuActions: getPostMoreActions(currentAccount, post.model),
+        menuActions: getPostMoreActions({
+            currentAccount,
+            post: post.model,
+            onStartEditingPost: () => {
+                assertExists(postListRef.current).startEditingPost(
+                    post.model.id,
+                    post.model.content,
+                );
+            },
+        }),
     });
 
     return (

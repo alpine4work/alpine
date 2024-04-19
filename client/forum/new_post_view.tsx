@@ -211,7 +211,7 @@ export function NewPostView({
                     </Box>
                     <ContentEditor
                         ref={contentEditorRef}
-                        aria-label="Post"
+                        aria-label="New post"
                         state={state}
                         onChange={(state, transaction) => {
                             setState({

@@ -2,6 +2,7 @@ import {AnimationControls, timeline} from "motion";
 import {ArrowLeft, DotsThreeVertical} from "phosphor-react";
 import {
     MutableRefObject,
+    ReactElement,
     ReactNode,
     Ref,
     RefCallback,
@@ -15,7 +16,7 @@ import {
 } from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
@@ -27,7 +28,6 @@ import {
 import {ShareButton, createShareMenuItem} from "~/client/design/share_button.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
-import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {
@@ -173,16 +173,6 @@ const navigationBarRevealOrHideAnimationDurationMs = 200;
 // need to update native mobile code as well.
 assert(navigationBarTransitionDebounceScrollTimeoutMs === scrollbarVisibleAfterScrollDurationMs);
 
-const desktopNavigationBarScrollbarInsetTop: ScrollbarInsetDynamic = markMemoIfNotRendering([
-    spacing[desktopNavigationBarHeight],
-    {withSafeArea: true},
-]);
-
-const mobileNavigationBarScrollbarInsetTop: ScrollbarInsetDynamic = markMemoIfNotRendering([
-    spacing[mobileNavigationBarHeight],
-    {withSafeArea: true},
-]);
-
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
 //                                 IMPORTANT                                 //
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
@@ -251,7 +241,7 @@ export type NavigationBarResult = {
      * If you're attaching a navigation bar to a `<VirtualizedScrollView>` then
      * `navigationBar` may be put in the `extraChildren` prop.
      */
-    navigationBar: ReactNode;
+    navigationBar: ReactElement | null;
 
     /**
      * (Required) The `insetTop` value to pass to `useScrollbar()`. Otherwise the
@@ -300,6 +290,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontWeight = "semi-bold",
     desktopTitleLeftSlop,
     desktopMarginTop,
+    desktopReplaceActions,
     mobileTitleJustifyContents = "center",
 }: {
     /**
@@ -428,13 +419,22 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopMarginTop?: Spacing | RemLength;
 
     /**
+     * If provided, completely replace the actions in this navigation bar's content
+     * (which includes `menuActions` and `shareButton`) with the contents of this
+     * node.
+     *
+     * Useful if you're entering an edit modality and need controls to exit the
+     * editing modality.
+     */
+    desktopReplaceActions?: ReactNode;
+
+    /**
      * How do we justify title contents on mobile? Defaults to `center`. To match
      * desktop behavior use `flex-start`.
      */
     mobileTitleJustifyContents?: "center" | "flex-start";
 }): NavigationBarResult {
     const isMobile = useIsMobile();
-    const remPx = useRemPx();
 
     const navigationBarRef = useRef<{
         initialize: (element: HTMLElement) => void;
@@ -495,7 +495,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
               )
             : 0;
 
-    const navigationBar = !isDisabled && (
+    const navigationBar = !isDisabled ? (
         <NavigationBar
             isMobile={isMobile}
             withMobileLayout={withMobileLayout || isMobile}
@@ -516,9 +516,10 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             desktopTitleFontWeight={desktopTitleFontWeight}
             desktopTitleLeftSlop={desktopTitleLeftSlop}
             desktopMarginTopRem={desktopMarginTopRem}
+            desktopReplaceActions={desktopReplaceActions}
             mobileTitleJustifyContents={mobileTitleJustifyContents}
         />
-    );
+    ) : null;
 
     return {
         scrollViewRef,
@@ -571,6 +572,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontWeight,
     desktopTitleLeftSlop,
     desktopMarginTopRem,
+    desktopReplaceActions,
     mobileTitleJustifyContents,
 }: {
     isMobile: boolean;
@@ -595,6 +597,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontWeight: "semi-bold" | "bold";
     desktopTitleLeftSlop: Spacing | undefined;
     desktopMarginTopRem: number;
+    desktopReplaceActions: ReactNode;
     mobileTitleJustifyContents: "center" | "flex-start";
 }) {
     const {isAppleDevice, isNativeMobile} = useClientInfo();
@@ -1188,6 +1191,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             desktopTitleFontSize={desktopTitleFontSize}
                             desktopTitleFontWeight={desktopTitleFontWeight}
                             desktopTitleLeftSlop={desktopTitleLeftSlop}
+                            desktopReplaceActions={desktopReplaceActions}
                             mobileTitleJustifyContents={mobileTitleJustifyContents}
                         />
                         {stickyBanner}
@@ -1219,6 +1223,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         desktopTitleFontSize = "200",
         desktopTitleFontWeight = "semi-bold",
         desktopTitleLeftSlop,
+        desktopReplaceActions,
         mobileTitleJustifyContents = "center",
     }: {
         withMobileLayout: boolean;
@@ -1234,6 +1239,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         desktopTitleFontSize?: FontSize;
         desktopTitleFontWeight?: "semi-bold" | "bold";
         desktopTitleLeftSlop?: Spacing;
+        desktopReplaceActions?: ReactNode;
         mobileTitleJustifyContents?: "center" | "flex-start";
     },
     ref: Ref<NavigationBarContentRef>,
@@ -1412,56 +1418,65 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                     className={pointerEventsNoneNotInheritedClassName}
                     style={{flexBasis: spacing["10"]}}
                 >
-                    {shareButton && !withMobileLayout && (
-                        <Box paddingRight="3">
-                            <ShareButton />
-                        </Box>
-                    )}
-                    {isTextInputFocused ? (
-                        // If a text input is focused then we hide menu actions and replace it with a
-                        // "Done" button. This helps the user see how to end their editing session.
-                        // Opening menu actions would cause the text input to unfocus anyway.
-                        <Button
-                            fontSize="100"
-                            // Don't remove focus from the current text input element
-                            // on press start. Remove focus on press finish.
-                            isFocusable={false}
-                            onPress={() => {
-                                if (document.activeElement instanceof HTMLElement) {
-                                    document.activeElement.blur();
-                                }
-                            }}
-                        >
-                            <Box display="inline" fontStyle="semi-bold" color="grey-70">
-                                Done
-                            </Box>
-                        </Button>
+                    {!isMobile && desktopReplaceActions ? (
+                        desktopReplaceActions
                     ) : (
-                        (menuActions.length > 0 || (shareButton && withMobileLayout)) && (
-                            <MenuButton
-                                placement="bottom-end"
-                                actions={
-                                    shareButton && withMobileLayout
-                                        ? [[createShareMenuItem({showToast})], ...menuActions]
-                                        : menuActions
-                                }
-                            >
-                                <IconButton
-                                    size={isMobile ? "base" : "md"}
-                                    description="More"
-                                    withoutTooltip={true}
+                        <>
+                            {shareButton && !withMobileLayout && (
+                                <Box paddingRight="3">
+                                    <ShareButton />
+                                </Box>
+                            )}
+                            {isTextInputFocused ? (
+                                // If a text input is focused then we hide menu actions and replace it with a
+                                // "Done" button. This helps the user see how to end their editing session.
+                                // Opening menu actions would cause the text input to unfocus anyway.
+                                <Button
+                                    fontSize="100"
+                                    // Don't remove focus from the current text input element
+                                    // on press start. Remove focus on press finish.
+                                    isFocusable={false}
+                                    onPress={() => {
+                                        if (document.activeElement instanceof HTMLElement) {
+                                            document.activeElement.blur();
+                                        }
+                                    }}
                                 >
-                                    <DotsThreeVertical
-                                    // Vertical dots create better visual balance on mobile because:
-                                    //
-                                    // 1. On mobile we have a back button on the left and we want this button to
-                                    //    look aligned with that
-                                    // 2. The title might be truncated with ellipsis which looks like horizontal
-                                    //    dots
-                                    />
-                                </IconButton>
-                            </MenuButton>
-                        )
+                                    <Box display="inline" fontStyle="semi-bold" color="grey-70">
+                                        Done
+                                    </Box>
+                                </Button>
+                            ) : (
+                                (menuActions.length > 0 || (shareButton && withMobileLayout)) && (
+                                    <MenuButton
+                                        placement="bottom-end"
+                                        actions={
+                                            shareButton && withMobileLayout
+                                                ? [
+                                                      [createShareMenuItem({showToast})],
+                                                      ...menuActions,
+                                                  ]
+                                                : menuActions
+                                        }
+                                    >
+                                        <IconButton
+                                            size={isMobile ? "base" : "md"}
+                                            description="More"
+                                            withoutTooltip={true}
+                                        >
+                                            <DotsThreeVertical
+                                            // Vertical dots create better visual balance on mobile because:
+                                            //
+                                            // 1. On mobile we have a back button on the left and we want this button to
+                                            //    look aligned with that
+                                            // 2. The title might be truncated with ellipsis which looks like horizontal
+                                            //    dots
+                                            />
+                                        </IconButton>
+                                    </MenuButton>
+                                )
+                            )}
+                        </>
                     )}
                 </Box>
             </OverlayScopeContextProvider>

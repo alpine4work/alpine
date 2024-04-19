@@ -10,7 +10,6 @@ const modifier = process.platform === "darwin" ? "Meta" : "Control";
 const {context, services} = createTestServices();
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space);
-const session2 = createTestSession(context, space);
 
 test("can create posts", async ({page, context: browserContext}) => {
     const channel = await createChannel(context.action(session1), {
@@ -23,24 +22,24 @@ test("can create posts", async ({page, context: browserContext}) => {
 
     await expect(page.getByText("Test Channel")).toBeVisible();
 
-    await expect(page.getByRole("button", {name: "Post"})).toBeDisabled();
-    await page.getByLabel("New post").type("Test post content 1");
-    await expect(page.getByRole("button", {name: "Post"})).toBeEnabled();
+    await page.getByRole("button", {name: "Post"}).click();
 
+    await expect(page.getByTestId("PeekStack").getByRole("button", {name: "Post"})).toBeDisabled();
+    await page.getByLabel("New post").type("Test post content 1");
     await expect(page.getByLabel("New post")).toHaveText("Test post content 1");
     await expect(page.getByText("0 comments")).toBeHidden();
-    await page.getByRole("button", {name: "Post"}).click();
-    await expect(page.getByLabel("New post")).not.toHaveText("Test post content 1");
+    await expect(page.getByTestId("PeekStack").getByRole("button", {name: "Post"})).toBeEnabled();
+    await page.getByTestId("PeekStack").getByRole("button", {name: "Post"}).click();
+    await expect(page.getByTestId("PeekStack")).toBeHidden();
     await expect(page.getByText("0 comments")).toBeVisible();
     await expect(page.getByText("Test post content 1")).toBeVisible();
 
-    await expect(page.getByRole("button", {name: "Post"})).toBeDisabled();
-    await page.getByLabel("New post").type("Test post content 2");
-    await expect(page.getByRole("button", {name: "Post"})).toBeEnabled();
-
-    await expect(page.getByLabel("New post")).toHaveText("Test post content 2");
     await page.getByRole("button", {name: "Post"}).click();
-    await expect(page.getByLabel("New post")).not.toHaveText("Test post content 2");
+
+    await page.getByLabel("New post").type("Test post content 2");
+    await expect(page.getByLabel("New post")).toHaveText("Test post content 2");
+    await page.getByTestId("PeekStack").getByRole("button", {name: "Post"}).click();
+    await expect(page.getByTestId("PeekStack")).toBeHidden();
     await expect(page.getByText("Test post content 2")).toBeVisible();
 });
 
@@ -55,21 +54,23 @@ test("can create multiline formatted posts", async ({page, context: browserConte
 
     await expect(page.getByText("Test Channel")).toBeVisible();
 
-    await expect(page.getByRole("button", {name: "Post"})).toBeDisabled();
+    await page.getByRole("button", {name: "Post"}).click();
+    await expect(page.getByTestId("PeekStack").getByRole("button", {name: "Post"})).toBeDisabled();
     await page.getByLabel("New post").type("Test post content 1");
     await page.getByLabel("New post").press("Enter");
     await page.getByLabel("New post").type("# Test heading");
     await page.getByLabel("New post").press("Enter");
     await page.getByLabel("New post").type("More test post content");
-    await expect(page.getByRole("button", {name: "Post"})).toBeEnabled();
+    await expect(page.getByTestId("PeekStack").getByRole("button", {name: "Post"})).toBeEnabled();
 
-    await page.getByRole("button", {name: "Post"}).click();
+    await page.getByTestId("PeekStack").getByRole("button", {name: "Post"}).click();
+    await expect(page.getByTestId("PeekStack")).toBeHidden();
 
     await expect(page.getByText("0 comments")).toBeVisible();
     await expect(page.getByRole("heading", {name: "Test heading"})).toBeVisible();
 });
 
-test("can edit a post", async ({page, context: browserContext}) => {
+test("can edit a post in a channel", async ({page, context: browserContext}) => {
     const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
@@ -86,10 +87,11 @@ test("can edit a post", async ({page, context: browserContext}) => {
     await expect(page.getByText("Test post content 1")).toBeVisible();
 
     await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
-    await page.getByRole("button", {name: "More"}).click();
-    await expect(page.getByRole("alertdialog", {name: "Edit post"})).toBeHidden();
+    await page
+        .getByTestId(/PostContentView/)
+        .getByRole("button", {name: "More"})
+        .click();
     await page.getByRole("menuitem", {name: "Edit"}).click();
-    await expect(page.getByRole("alertdialog", {name: "Edit post"})).toBeVisible();
 
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 1");
 
@@ -98,28 +100,71 @@ test("can edit a post", async ({page, context: browserContext}) => {
     await page.getByLabel("Post", {exact: true}).type("2");
     await page.getByRole("button", {name: "Save"}).click();
 
-    await expect(page.getByRole("alertdialog", {name: "Edit post"})).toBeHidden();
+    await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
     await expect(page.getByText("Test post content 1")).toBeHidden();
     await expect(page.getByText("Test post content 2")).toBeVisible();
 
-    await page.getByRole("button", {name: "More"}).click();
+    await page
+        .getByTestId(/PostContentView/)
+        .getByRole("button", {name: "More"})
+        .click();
     await page.getByRole("menuitem", {name: "Edit"}).click();
-    await expect(page.getByRole("alertdialog", {name: "Edit post"})).toBeVisible();
 
     // Can update with Cmd-Enter keyboard shortcut.
     await page.getByLabel("Post", {exact: true}).press("Backspace");
     await page.getByLabel("Post", {exact: true}).type("3");
     await page.getByLabel("Post", {exact: true}).press(`${modifier}+Enter`);
 
-    await expect(page.getByRole("alertdialog", {name: "Edit post"})).toBeHidden();
+    await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
     await expect(page.getByText("Test post content 2")).toBeHidden();
     await expect(page.getByText("Test post content 3")).toBeVisible();
 });
 
-test("asks for confirmation when closing edit post modal", async ({
-    page,
-    context: browserContext,
-}) => {
+test("can edit a standalone post", async ({page, context: browserContext}) => {
+    const channel = await createChannel(context.action(session1), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+
+    const post = await createPost(context.action(session1), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test post content 1"),
+    });
+
+    await services.signIn(browserContext, session1);
+    await page.goto(`/s/${space.id}/posts/${post.id}`);
+
+    await expect(page.getByText("Test post content 1")).toBeVisible();
+
+    await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
+    await page.getByRole("button", {name: "More"}).click();
+    await page.getByRole("menuitem", {name: "Edit"}).click();
+
+    await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 1");
+
+    // Can update with the save button.
+    await page.getByLabel("Post", {exact: true}).press("Backspace");
+    await page.getByLabel("Post", {exact: true}).type("2");
+    await page.getByRole("button", {name: "Save"}).click();
+
+    await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
+    await expect(page.getByText("Test post content 1")).toBeHidden();
+    await expect(page.getByText("Test post content 2")).toBeVisible();
+
+    await page.getByRole("button", {name: "More"}).click();
+    await page.getByRole("menuitem", {name: "Edit"}).click();
+
+    // Can update with Cmd-Enter keyboard shortcut.
+    await page.getByLabel("Post", {exact: true}).press("Backspace");
+    await page.getByLabel("Post", {exact: true}).type("3");
+    await page.getByLabel("Post", {exact: true}).press(`${modifier}+Enter`);
+
+    await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
+    await expect(page.getByText("Test post content 2")).toBeHidden();
+    await expect(page.getByText("Test post content 3")).toBeVisible();
+});
+
+test("asks for confirmation to save edited post", async ({page, context: browserContext}) => {
     const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
@@ -130,12 +175,30 @@ test("asks for confirmation when closing edit post modal", async ({
         content: createSimplePostContent("Test post content 1"),
     });
 
-    await services.signIn(browserContext, session2);
+    await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/channels/${channel.id}`);
 
     await expect(page.getByRole("menuitem", {name: "Copy link"})).toBeHidden();
     await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
-    await page.getByRole("button", {name: "More"}).click();
+    await page
+        .getByTestId(/PostContentView/)
+        .getByRole("button", {name: "More"})
+        .click();
     await expect(page.getByRole("menuitem", {name: "Copy link"})).toBeVisible();
-    await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
+    await expect(page.getByRole("menuitem", {name: "Edit"})).toBeVisible();
+
+    await page.getByRole("menuitem", {name: "Edit"}).click();
+
+    await page.getByLabel("Post", {exact: true}).press("Backspace");
+    await page.getByLabel("Post", {exact: true}).type("2");
+
+    await expect(page.getByRole("alertdialog", {name: "Save post"})).toBeHidden();
+    await page.getByText("Test Channel").click();
+    await expect(page.getByRole("alertdialog", {name: "Save post"})).toBeVisible();
+
+    await page.getByRole("button", {name: "Discard changes"}).click();
+
+    await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
+    await expect(page.getByText("Test post content 2")).toBeHidden();
+    await expect(page.getByText("Test post content 1")).toBeVisible();
 });

@@ -5,9 +5,11 @@ import {
     ReactNode,
     Ref,
     RefObject,
+    cloneElement,
     forwardRef,
     useCallback,
     useEffect,
+    useId,
     useImperativeHandle,
     useMemo,
     useRef,
@@ -32,6 +34,7 @@ import {
 } from "~/client/forum/post_comment_input.js";
 import {
     PostContentView,
+    PostContentViewEditingActions,
     desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
     mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
     mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
@@ -40,7 +43,7 @@ import {
     postContentViewMinHeightWithOpenCommentSection,
     postContentViewPaddingX,
 } from "~/client/forum/post_content_view.js";
-import {usePostEditing} from "~/client/forum/post_editing.js";
+import {PostEditing, usePostEditing} from "~/client/forum/post_editing.js";
 import {
     PostListBase,
     PostListChannelHeader,
@@ -71,6 +74,7 @@ import {
 import {Spacing, addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError} from "~/shared/error/error.js";
+import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -124,6 +128,11 @@ export type PostListViewRef = {
      * not exist an error will be thrown.
      */
     jumpToPostCommentIndex(postId: PostId, postCommentIndex: number): void;
+
+    /**
+     * Start editing the post with the provided `PostId`.
+     */
+    startEditingPost(postId: PostId, currentContent: PostContentWithReferences): void;
 };
 
 /**
@@ -528,6 +537,21 @@ function PostListView(
     // be called elsewhere.
     const proceduresByPostIdRef = useRef(new Map<PostId, PostRealtimeProcedures>());
 
+    // Manages the current post being edited.
+    //
+    // At the post list level for the same reasons message editing is at the post
+    // list level.
+    const {postEditing, modals: postEditingModals} = usePostEditing({
+        onUpdatePostContent: async ({postId, content}) => {
+            const event = await updatePostContent(context, {
+                postId,
+                content,
+            });
+
+            onPostRealtimeEventTransaction(event);
+        },
+    });
+
     // Manages the editable message.
     //
     // This is at the post list level because:
@@ -554,17 +578,6 @@ function PostListView(
             await procedures.deleteComment({
                 commentIndex: messageIndex,
             });
-        },
-    });
-
-    const {postEditing, modals: postEditingModals} = usePostEditing({
-        onUpdatePostContent: async ({postId, content}) => {
-            const event = await updatePostContent(context, {
-                postId,
-                content,
-            });
-
-            onPostRealtimeEventTransaction(event);
         },
     });
 
@@ -632,13 +645,24 @@ function PostListView(
         [jumpToPostCommentIndex],
     );
 
+    const postEditingDispatch = postEditing.dispatch;
+
     useImperativeHandle(
         ref,
         () => ({
             jumpToPostCommentIndex,
+            startEditingPost: (postId, currentContent) => {
+                postEditingDispatch({
+                    type: "StartEditing",
+                    postId,
+                    currentContent,
+                });
+            },
         }),
-        [jumpToPostCommentIndex],
+        [jumpToPostCommentIndex, postEditingDispatch],
     );
+
+    const idBase = useId();
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
@@ -780,6 +804,7 @@ function PostListView(
                                         isSingleLayoutWithPinnedCommentInput={
                                             isSingleLayoutWithPinnedCommentInput
                                         }
+                                        idBase={idBase}
                                         onTogglePostComments={() =>
                                             onTogglePostComments(item.post.id)
                                         }
@@ -1352,6 +1377,7 @@ function PostListView(
             isSingleLayoutWithPinnedCommentInput,
             postEditing,
             channelHeader?.channel.id,
+            idBase,
             onTogglePostComments,
             loadInitialPostComments,
             messageEditing,
@@ -1391,6 +1417,12 @@ function PostListView(
                         posts.getItemCount() - (isSingleLayoutWithPinnedCommentInput ? 1 : 0)
                     }
                     renderItem={renderItem}
+                    // Always render the post content if we're in a single post with pinned comment
+                    // input layout.
+                    alwaysRenderAdditionalItemIndexes={useMemo(
+                        () => (isSingleLayoutWithPinnedCommentInput ? [0] : []),
+                        [isSingleLayoutWithPinnedCommentInput],
+                    )}
                     onRenderedRangeChange={tryLoadingMoreData}
                     onScroll={scrollOffset => {
                         const view = assertExists(viewRef.current);
@@ -1436,7 +1468,48 @@ function PostListView(
                     }}
                     extraChildren={
                         <>
-                            {navigationBar?.navigationBar}
+                            {navigationBar && isSingleLayoutWithPinnedCommentInput
+                                ? (() => {
+                                      const navigationBarElement = navigationBar.navigationBar;
+                                      if (!navigationBarElement) return null;
+
+                                      // NOTE(calebmer): Ok, this is admittedly a bit hacky. Generally we should
+                                      // avoid using `cloneElement()` but this is the cleanest way I could imagine
+                                      // to make this work with minimal effort.
+                                      //
+                                      // When editing a post, we want to render the save/cancel buttons instead of
+                                      // the "more" actions button. Normally the more actions button is rendered in
+                                      // `<PostContentView>`. However, in `<PostView>` we render the post content
+                                      // view header in a navigation bar and put the more actions button in that
+                                      // navigation bar. `<PostView>` does not have access to `postEditing` state
+                                      // though. So what we do is we intercept the `navigationBar` passed to
+                                      // `<PostListView>` by props and inject the `desktopReplaceActions` prop.
+                                      //
+                                      // This assertion makes sure `navigationBarElement` is a `ReactElement` that
+                                      // accepts the `desktopReplaceActions` prop.
+                                      assert(
+                                          "desktopReplaceActions" in navigationBarElement.props &&
+                                              navigationBarElement.props.desktopReplaceActions ===
+                                                  null,
+                                          "Expected React element with a null `desktopReplaceActions` prop",
+                                      );
+
+                                      if (!postEditing.state.isEditing) return navigationBarElement;
+
+                                      return cloneElement(navigationBarElement, {
+                                          desktopReplaceActions: (
+                                              <PostContentViewEditingActions
+                                                  idBase={idBase}
+                                                  postEditing={
+                                                      postEditing as PostEditing & {
+                                                          state: {isEditing: true};
+                                                      }
+                                                  }
+                                              />
+                                          ),
+                                      });
+                                  })()
+                                : navigationBar?.navigationBar}
                             {hasAside && (
                                 <>
                                     <div

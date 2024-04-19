@@ -63,7 +63,15 @@ export function PostFauxInputCreateButton({
                         className={pressOpacityOverlayClassName}
                     />
                 )}
-                <Box flexGrow="1" paddingX="1.5" fontSize="100" style={inputPlaceholderStyles}>
+                <Box
+                    flexGrow="1"
+                    paddingX="1.5"
+                    fontSize="100"
+                    style={inputPlaceholderStyles}
+                    // This is meant to look like placeholder text and only be used by
+                    // sighted users.
+                    aria-hidden={true}
+                >
                     Share your ideas…
                 </Box>
                 <Box
