@@ -645,10 +645,8 @@ function NewPostViewChannelSelectorListBoxOptionItem({
 
     return (
         <Box display="flex" alignItems="center" gap="3">
-            <Box>
-                <Box flexGrow="1" fontStyle="truncate">
-                    {item.channel.name}
-                </Box>
+            <Box flexGrow="1">
+                <Box fontStyle="truncate">{item.channel.name}</Box>
                 {item.descriptionTextSnippet.length > 0 && (
                     <Box
                         paddingTop="0.5"

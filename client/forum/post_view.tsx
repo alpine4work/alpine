@@ -1,6 +1,14 @@
 import {useCallback, useEffect, useRef, useState} from "react";
+import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {
+    desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
+    getPostMoreActions,
+    mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
+} from "~/client/forum/post_content_view.js";
+import {PostContentViewHeader} from "~/client/forum/post_content_view_header.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
-import {PostListView, PostListViewRef} from "~/client/forum/post_list_view.js";
+import {PostListView, PostListViewRef, postViewMaxWidth} from "~/client/forum/post_list_view.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -10,7 +18,7 @@ export function PostView({
     initialPostComments,
     initialOtherReferencedPostComments,
     initialScrollToPostCommentIndex,
-    withMobileLayout,
+    withMobileLayout = false,
 }: {
     initialPost: DynamoGeneralRealtimeItem<PostModel>;
     initialPostComments: ReadonlyArray<PostCommentModel>;
@@ -18,6 +26,8 @@ export function PostView({
     initialScrollToPostCommentIndex: number | null;
     withMobileLayout?: boolean;
 }) {
+    const {currentAccount} = useSpaceContext();
+
     const postListRef = useRef<PostListViewRef>(null);
     const hasInitializedRef = useRef(false);
 
@@ -34,7 +44,7 @@ export function PostView({
             postList.jumpToPostCommentIndex(initialPost.model.id, initialScrollToPostCommentIndex);
     }, [initialPost.model.id, initialScrollToPostCommentIndex]);
 
-    const [{posts}, setPostState] = useState(() => ({
+    const [{post, posts}, setPostState] = useState(() => ({
         post: initialPost,
         posts: PostBasicList.empty.insertPostAtEnd(initialPost.model, {
             postCommentsState: "AlwaysOpen",
@@ -44,6 +54,31 @@ export function PostView({
             },
         }),
     }));
+
+    const navigationBarRef = useRef<NavigationBarRef>(null);
+
+    const navigationBar = useNavigationBar({
+        ref: navigationBarRef,
+        withMobileLayout,
+        withoutDisappearingTitle: true,
+        title: (
+            <PostContentViewHeader
+                post={post.model}
+                shouldShowChannel={true}
+                withNavigationBarLayout={true}
+            />
+        ),
+        desktopMaxWidth: postViewMaxWidth,
+        // Add a bit of margin to the top so it looks like we have
+        // `postContentViewOuterMarginY` worth of space above the post. This does
+        // create a weird scroll effect where if you scroll to the top fast it looks
+        // like the header kinda jumps? Don't love that.
+        desktopMarginTop: !withMobileLayout
+            ? `${desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar}rem`
+            : `${mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar}rem`,
+        mobileTitleJustifyContents: "flex-start",
+        menuActions: getPostMoreActions(currentAccount, post.model),
+    });
 
     return (
         <PostListView
@@ -84,6 +119,7 @@ export function PostView({
                 });
             }, [])}
             withMobileLayout={withMobileLayout}
+            navigationBar={{...navigationBar, navigationBarRef}}
         />
     );
 }

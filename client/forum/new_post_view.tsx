@@ -11,9 +11,11 @@ import {
     NewPostViewChannelSelectorInputRef,
 } from "~/client/forum/new_post_view_channel_selector_input.js";
 import {
+    desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
+    mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
+    mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     postContentViewContentPaddingX,
     postContentViewInnerMarginY,
-    postContentViewOuterMarginY,
     postContentViewPaddingX,
 } from "~/client/forum/post_content_view.js";
 import {PostContentViewHeaderBase} from "~/client/forum/post_content_view_header.js";
@@ -67,8 +69,6 @@ const StateSchema = Schema.object({
 const postContentEditorBlockMaxWidth = mapObjectValues(postContentViewPaddingX, paddingX =>
     subtractRemLengths(spacing[postViewMaxWidth], spacing[paddingX]),
 );
-
-// NOCOMMIT: Initial focus!
 
 export function NewPostView({
     withMobileLayout: withMobileLayoutProp,
@@ -186,10 +186,14 @@ export function NewPostView({
                         width="full"
                         maxWidth={postViewMaxWidth}
                         paddingX={postContentViewPaddingX}
-                        paddingTop={withMobileLayout ? postContentViewOuterMarginY : "20"}
                         paddingBottom={postContentViewInnerMarginY}
                         style={{
                             margin: "0 auto",
+                            paddingTop: withMobileLayout
+                                ? isMobile
+                                    ? `${mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`
+                                    : `${mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`
+                                : `${desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`,
                         }}
                     >
                         <PostContentViewHeaderBase

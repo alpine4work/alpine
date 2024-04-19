@@ -10,6 +10,10 @@ import {Button} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {
+    desktopNavigationBarHeightRem,
+    mobileNavigationBarHeightRem,
+} from "~/client/design/navigation_bar.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useShowToast} from "~/client/design/toast.js";
@@ -118,13 +122,48 @@ const postCommentSectionGuidelineStartHeightRem =
 
 const postCommentSectionGuidelineStartHeight = `${postCommentSectionGuidelineStartHeightRem}rem`;
 
-const postContentViewMinHeightBase = addRemLengths(
-    spacing[postContentViewOuterMarginY],
-    spacing[postContentViewHeaderHeight],
+const postContentViewHeaderHeightRem = parseRemLengthNumber(spacing[postContentViewHeaderHeight]);
+
+export const desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput =
+    postContentViewOuterMarginYRem + parseRemLengthNumber(spacing["2"]);
+
+export const desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar =
+    desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput -
+    (desktopNavigationBarHeightRem - postContentViewHeaderHeightRem) / 2;
+
+export const mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar = 0;
+
+export const mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput =
+    (mobileNavigationBarHeightRem - postContentViewHeaderHeightRem) / 2 +
+    mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar;
+
+export const mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput =
+    (desktopNavigationBarHeightRem - postContentViewHeaderHeightRem) / 2 +
+    mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar;
+
+const desktopPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput =
+    desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput +
+    postContentViewHeaderHeightRem;
+
+const mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput =
+    mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput +
+    postContentViewHeaderHeightRem;
+
+const mobileLayoutPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput =
+    mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput +
+    postContentViewHeaderHeightRem;
+
+const postContentViewMinHeightWithoutHeaderBase = addRemLengths(
     spacing[postContentViewInnerMarginY],
     contentSchemaStyles.paragraphLineHeight,
     spacing[postContentViewInnerMarginY],
     spacing[postContentViewFooterHeight],
+);
+
+const postContentViewMinHeightBase = addRemLengths(
+    spacing[postContentViewOuterMarginY],
+    spacing[postContentViewHeaderHeight],
+    postContentViewMinHeightWithoutHeaderBase,
 );
 
 export const postContentViewMinHeightWithOpenCommentSection = addRemLengths(
@@ -137,21 +176,46 @@ export const postContentViewMinHeightWithClosedCommentSection = addRemLengths(
     postContentViewOuterMarginBottom,
 );
 
+export const mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput =
+    addRemLengths(
+        `${mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput}rem`,
+        postContentViewMinHeightWithoutHeaderBase,
+        postContentViewOuterMarginBottom,
+    );
+
+export const mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput =
+    addRemLengths(
+        `${mobileLayoutPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput}rem`,
+        postContentViewMinHeightWithoutHeaderBase,
+        postContentViewOuterMarginBottom,
+    );
+
+export const desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput =
+    addRemLengths(
+        `${desktopPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput}rem`,
+        postContentViewMinHeightWithoutHeaderBase,
+        postContentViewOuterMarginBottom,
+    );
+
 export function PostContentView({
+    withMobileLayout,
     post,
     postComments,
     postCommentsState,
     shouldShowChannel,
     postEditing,
+    hasNavigationBar,
     isSingleLayoutWithPinnedCommentInput,
     onTogglePostComments,
     onLoadInitialPostComments,
 }: {
+    withMobileLayout: boolean;
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
     postCommentsState: PostCommentsState;
     postEditing: PostEditing;
     shouldShowChannel: boolean;
+    hasNavigationBar: boolean;
     isSingleLayoutWithPinnedCommentInput: boolean;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
@@ -172,10 +236,20 @@ export function PostContentView({
     return (
         <Box
             position="relative"
-            paddingTop={postContentViewOuterMarginY}
+            paddingTop={
+                !hasNavigationBar || !isSingleLayoutWithPinnedCommentInput
+                    ? postContentViewOuterMarginY
+                    : undefined
+            }
             style={{
                 minHeight:
-                    postCommentsState !== "Closed" && !isSingleLayoutWithPinnedCommentInput
+                    hasNavigationBar && isSingleLayoutWithPinnedCommentInput
+                        ? withMobileLayout
+                            ? isMobile
+                                ? mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput
+                                : mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput
+                            : desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput
+                        : postCommentsState !== "Closed" && !isSingleLayoutWithPinnedCommentInput
                         ? postContentViewMinHeightWithOpenCommentSection
                         : postContentViewMinHeightWithClosedCommentSection,
                 paddingBottom:
@@ -184,86 +258,78 @@ export function PostContentView({
                         : postContentViewOuterMarginBottom,
             }}
         >
-            <Box position="relative" paddingX={postContentViewPaddingX}>
-                <PostContentViewHeader post={post} shouldShowChannel={shouldShowChannel} />
-            </Box>
-            <Box position="absolute" top={postContentViewPaddingX} right={postContentViewPaddingX}>
-                {!isEditingPost ? (
-                    <MenuButton
-                        actions={[
-                            [
-                                {
-                                    label: "Copy link",
-                                    pressErrorTitle: "Couldn’t copy post link",
-                                    onPress: async () => {
-                                        const url = new URL(
-                                            `/s/${post.spaceId}/posts/${post.id}`,
-                                            window.location.href,
-                                        );
-                                        await writeTextToClipboard(url.toString());
-                                    },
-                                },
-                            ],
-                            ...(currentAccount.id === post.author.id
-                                ? [
-                                      [
-                                          {
-                                              label: "Edit",
-                                              onPress: () => {
-                                                  postEditing.dispatch({
-                                                      type: "StartEditing",
-                                                      postId: post.id,
-                                                      currentContent: post.content,
-                                                  });
-                                              },
-                                          },
-                                      ],
-                                  ]
-                                : []),
-                        ]}
-                    >
-                        <IconButton
-                            size={isMobile ? "base" : "md"}
-                            description="More"
-                            withoutTooltip={true}
-                        >
-                            <DotsThree />
-                        </IconButton>
-                    </MenuButton>
-                ) : (
-                    <Box
-                        // Mark our buttons as being owned by the editor (according to
-                        // `isElementOwnedBy()`) so `useConfirmSaveAfterLosingFocus()` allows us to
-                        // press on these buttons without asking the user to confirm the save.
-                        data-ownedby={editorId}
-                        display="flex"
-                    >
-                        <IconButton
-                            description="Save"
-                            tooltipPlacement="bottom-end"
-                            keyboardShortcutHint={`${isAppleDevice ? "⌘" : "Ctrl"}+Enter`}
-                            size={isMobile ? "base" : "md"}
-                            onPress={() => {
-                                postEditingForThisPost.dispatch({type: "SaveEditedContent"});
-                            }}
-                            isDisabled={postEditingForThisPost.state.isSaving}
-                            isPending={postEditingForThisPost.state.isSaving}
-                        >
-                            <Check />
-                        </IconButton>
-                        <IconButton
-                            description="Cancel"
-                            tooltipPlacement="bottom-end"
-                            keyboardShortcutHint="Esc"
-                            size={isMobile ? "base" : "md"}
-                            onPress={() => postEditingForThisPost.dispatch({type: "CancelEditing"})}
-                            isDisabled={postEditingForThisPost.state.isSaving}
-                        >
-                            <X />
-                        </IconButton>
+            {!hasNavigationBar || !isSingleLayoutWithPinnedCommentInput ? (
+                <>
+                    <Box position="relative" paddingX={postContentViewPaddingX}>
+                        <PostContentViewHeader post={post} shouldShowChannel={shouldShowChannel} />
                     </Box>
-                )}
-            </Box>
+                    <Box
+                        position="absolute"
+                        top={postContentViewPaddingX}
+                        right={postContentViewPaddingX}
+                    >
+                        {!isEditingPost ? (
+                            <MenuButton actions={getPostMoreActions(currentAccount, post)}>
+                                <IconButton
+                                    size={isMobile ? "base" : "md"}
+                                    description="More"
+                                    withoutTooltip={true}
+                                >
+                                    <DotsThree />
+                                </IconButton>
+                            </MenuButton>
+                        ) : (
+                            <Box
+                                // Mark our buttons as being owned by the editor (according to
+                                // `isElementOwnedBy()`) so `useConfirmSaveAfterLosingFocus()` allows us to
+                                // press on these buttons without asking the user to confirm the save.
+                                data-ownedby={editorId}
+                                display="flex"
+                            >
+                                <IconButton
+                                    description="Save"
+                                    tooltipPlacement="bottom-end"
+                                    keyboardShortcutHint={`${isAppleDevice ? "⌘" : "Ctrl"}+Enter`}
+                                    size={isMobile ? "base" : "md"}
+                                    onPress={() => {
+                                        postEditingForThisPost.dispatch({
+                                            type: "SaveEditedContent",
+                                        });
+                                    }}
+                                    isDisabled={postEditingForThisPost.state.isSaving}
+                                    isPending={postEditingForThisPost.state.isSaving}
+                                >
+                                    <Check />
+                                </IconButton>
+                                <IconButton
+                                    description="Cancel"
+                                    tooltipPlacement="bottom-end"
+                                    keyboardShortcutHint="Esc"
+                                    size={isMobile ? "base" : "md"}
+                                    onPress={() =>
+                                        postEditingForThisPost.dispatch({type: "CancelEditing"})
+                                    }
+                                    isDisabled={postEditingForThisPost.state.isSaving}
+                                >
+                                    <X />
+                                </IconButton>
+                            </Box>
+                        )}
+                    </Box>
+                </>
+            ) : (
+                <Box style={{paddingTop: "var(--safe-area-inset-top, 0px)"}}>
+                    <Box
+                        style={{
+                            height: withMobileLayout
+                                ? isMobile
+                                    ? `${mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput}rem`
+                                    : `${mobileLayoutPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput}rem`
+                                : `${desktopPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput}rem`,
+                        }}
+                    />
+                </Box>
+            )}
             <Box
                 paddingX={postContentViewContentPaddingX}
                 style={{
@@ -679,4 +745,38 @@ function PostContentViewEditor({
             </Box>
         </FocusRing>
     );
+}
+
+export function getPostMoreActions(currentAccount: AccountModel, post: PostModel) {
+    return [
+        [
+            {
+                label: "Copy link",
+                pressErrorTitle: "Couldn’t copy post link",
+                onPress: async () => {
+                    const url = new URL(
+                        `/s/${post.spaceId}/posts/${post.id}`,
+                        window.location.href,
+                    );
+                    await writeTextToClipboard(url.toString());
+                },
+            },
+        ],
+        ...(currentAccount.id === post.author.id
+            ? [
+                  [
+                      {
+                          label: "Edit",
+                          onPress: () => {
+                              postEditing.dispatch({
+                                  type: "StartEditing",
+                                  postId: post.id,
+                                  currentContent: post.content,
+                              });
+                          },
+                      },
+                  ],
+              ]
+            : []),
+    ];
 }

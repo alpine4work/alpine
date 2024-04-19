@@ -32,6 +32,9 @@ import {
 } from "~/client/forum/post_comment_input.js";
 import {
     PostContentView,
+    desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
+    mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
+    mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
     postCommentSectionGuidelineOffset,
     postContentViewMinHeightWithClosedCommentSection,
     postContentViewMinHeightWithOpenCommentSection,
@@ -693,8 +696,14 @@ function PostListView(
                     return {
                         key: `PostContent:${item.post.id}`,
                         minHeight:
-                            item.postCommentsState !== "Closed" &&
-                            !isSingleLayoutWithPinnedCommentInput
+                            hasNavigationBar && isSingleLayoutWithPinnedCommentInput
+                                ? withMobileLayout
+                                    ? isMobile
+                                        ? mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput
+                                        : mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput
+                                    : desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput
+                                : item.postCommentsState !== "Closed" &&
+                                  !isSingleLayoutWithPinnedCommentInput
                                 ? postContentViewMinHeightWithOpenCommentSection
                                 : postContentViewMinHeightWithClosedCommentSection,
                         node: (
@@ -757,6 +766,7 @@ function PostListView(
                                         </div>
                                     )}
                                     <PostContentView
+                                        withMobileLayout={withMobileLayout}
                                         post={item.post}
                                         postComments={item.postComments}
                                         postCommentsState={item.postCommentsState}
@@ -766,6 +776,7 @@ function PostListView(
                                         shouldShowChannel={
                                             channelHeader?.channel.id !== item.post.channel.id
                                         }
+                                        hasNavigationBar={hasNavigationBar}
                                         isSingleLayoutWithPinnedCommentInput={
                                             isSingleLayoutWithPinnedCommentInput
                                         }

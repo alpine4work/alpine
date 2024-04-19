@@ -363,6 +363,11 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         let lastScrollHeight = self.lastScrollHeight
         self.lastScrollHeight = scrollHeight
 
+        let lastNavigationBarScrollOffset = max(
+            0,
+            min(lastScrollOffset - self.lastNavigationBarTopOffset, navigationBarHeight)
+        )
+
         // Edge case: If we resized and scrolled down at the same time (and scrolled
         // the same amount we resized) then we don't want our navigation bar's scroll
         // offset to change.
@@ -380,11 +385,6 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         if scrollOffset > lastScrollOffset
             && scrollOffset - lastScrollOffset == scrollHeight - lastScrollHeight
         {
-            let lastNavigationBarScrollOffset = max(
-                0,
-                min(lastScrollOffset - self.lastNavigationBarTopOffset, navigationBarHeight)
-            )
-
             let navigationBarTopOffset = scrollOffset - lastNavigationBarScrollOffset
             self.lastNavigationBarTopOffset = navigationBarTopOffset
         }
@@ -399,8 +399,8 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         )
 
         if scrollDirection != lastScrollDirection {
-            let navigationBarTopOffset = scrollOffset - navigationBarScrollOffset
-            self.lastNavigationBarTopOffset = navigationBarTopOffset
+            let lastNavigationBarTopOffset = lastScrollOffset - lastNavigationBarScrollOffset
+            self.lastNavigationBarTopOffset = lastNavigationBarTopOffset
         }
 
         // The following is only in native code: Actually update tab bar position based
