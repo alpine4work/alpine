@@ -9,7 +9,12 @@ import {
 } from "~/client/forum/post_content_view.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {fontSizes, pulseAnimationClassName} from "~/shared/styles/styles.js";
+import {
+    colorSchemeVars,
+    fontSizes,
+    pulseAnimationClassName,
+    sprinkles,
+} from "~/shared/styles/styles.js";
 
 export function PostShimmer() {
     const shimmerRef = useRef<HTMLDivElement>(null);
@@ -32,7 +37,6 @@ export function PostShimmer() {
         <Box
             ref={shimmerRef}
             position="relative"
-            backgroundColor="grey-0"
             paddingTop={postContentViewOuterMarginY}
             display="flex"
             flexDirection="column"
@@ -47,8 +51,18 @@ export function PostShimmer() {
                 right="0"
                 bottom="0"
                 paddingX={postContentViewPaddingX}
+                style={{
+                    height: 1,
+                }}
             >
-                <Box width="full" borderBottom="grey-5" />
+                <Box
+                    height="full"
+                    width="full"
+                    style={{
+                        // Draw border with `box-shadow` so it doesn't contribute to layout.
+                        boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                    }}
+                />
             </Box>
             <Box
                 flexShrink="0"

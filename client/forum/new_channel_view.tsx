@@ -90,6 +90,7 @@ export function NewChannelView({
             withMobileLayout={withMobileLayout}
             channelHeader={useMemo(
                 () => ({
+                    isOnlyNavigationBar: false,
                     channel,
                     isCreatingChannel: true,
                     isEditingDescription: false,

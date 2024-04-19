@@ -20,12 +20,11 @@ import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/document
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/spacing.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
-    getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
@@ -111,24 +110,10 @@ export default function DocumentCommentThreadRoute({
     // the document is likely an artifact you care about.
     useSearchAffinityViewInteraction(`Document:${initialDocument.id}`);
 
-    const content = editorState.getContent();
-    const title = useMemo(() => getDocumentContentTitle(content.doc), [content.doc]);
-
     const navigationBar = useNavigationBar({
+        isDisabled: !isMobile,
         withMobileLayout,
-        title,
-        withoutDisappearingTitle: true,
-        subtitle: "New comments",
-        desktopTitleMaxWidth: documentCommentThreadListViewMaxWidth,
-        desktopTitleFontSize: "200",
-        menuActions: [
-            {
-                label: "Open document",
-                pressErrorTitle: "Can’t open document",
-                onPress: () =>
-                    rootNavigate(`/s/${initialDocument.spaceId}/documents/${initialDocument.id}`),
-            },
-        ],
+        title: "New comments",
     });
 
     return (
@@ -169,19 +154,17 @@ export default function DocumentCommentThreadRoute({
             withMobileLayout={withMobileLayout}
             navigationBar={navigationBar}
             header={useMemo(() => {
-                const paddingBottom = "4";
+                if (!isMobile) return undefined;
 
                 return {
-                    minHeight: addRemLengths(
-                        spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
-                        spacing[paddingBottom],
-                    ),
+                    minHeight: spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
                     node: (
                         <Box
-                            style={{
-                                paddingTop: "var(--safe-area-inset-top, 0px)",
-                                paddingBottom: spacing[paddingBottom],
-                            }}
+                            position="relative"
+                            style={{paddingTop: "var(--safe-area-inset-top, 0px)"}}
+                            width="full"
+                            maxWidth={documentCommentThreadListViewMaxWidth}
+                            marginX="center"
                         >
                             <Box height={navigationBarHeight} />
                         </Box>

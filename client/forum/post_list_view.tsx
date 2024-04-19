@@ -92,7 +92,7 @@ import {
     getPostCommentsFromStart,
     updatePostContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
-import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
+import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 // NOCOMMIT: There are some bugs send reply comments
 
@@ -289,6 +289,13 @@ function PostListView(
 
     const hasAside = !withMobileLayout && !!aside;
     const hasNavigationBar = !!navigationBar;
+    const hasChannelHeader = !!channelHeader;
+
+    const shouldNotShowChannelId = channelHeader
+        ? channelHeader.isOnlyNavigationBar
+            ? channelHeader.shouldNotShowChannelId
+            : channelHeader.channel.id
+        : null;
 
     const posts = useMemo(
         () =>
@@ -675,7 +682,9 @@ function PostListView(
                             hasNavigationBar
                                 ? spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]]
                                 : "0rem",
-                            channelViewHeaderMinHeight,
+                            !item.channelHeader.isOnlyNavigationBar
+                                ? channelViewHeaderMinHeight
+                                : "0rem",
                         ),
                         node: (
                             <div
@@ -696,10 +705,12 @@ function PostListView(
                                     }}
                                 >
                                     {hasNavigationBar && <Spacer space={navigationBarHeight} />}
-                                    <ChannelViewHeader
-                                        channelHeader={item.channelHeader}
-                                        withMobileLayout={withMobileLayout}
-                                    />
+                                    {!item.channelHeader.isOnlyNavigationBar && (
+                                        <ChannelViewHeader
+                                            channelHeader={item.channelHeader}
+                                            withMobileLayout={withMobileLayout}
+                                        />
+                                    )}
                                 </div>
                                 {hasAside && (
                                     <div
@@ -742,31 +753,40 @@ function PostListView(
                                         position: "relative",
                                         width: "full",
                                         maxWidth: postViewMaxWidth,
-                                        overflow: "hidden",
                                     })}
                                     style={{
                                         flex: postViewFlex,
+                                        // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+                                        // have `min-width: auto` which extends with content.
+                                        // https://stackoverflow.com/a/66689926/1568890
+                                        minWidth: 0,
                                     }}
                                 >
-                                    {index === 1 && (
+                                    {hasChannelHeader && index === 1 && (
                                         // This is the first post in a `<PostListView>` with a `channelHeader` so we
                                         // need to draw a border between the first `<PostListView>` and the
                                         // `channelHeader`.
                                         <div
                                             className={sprinkles({
                                                 position: "absolute",
-                                                width: "full",
+                                                left: "0",
+                                                right: "0",
+                                                top: "0",
                                                 paddingX: postContentViewPaddingX,
                                             })}
                                             style={{
-                                                top: 0,
+                                                height: 1,
                                             }}
                                         >
                                             <div
                                                 className={sprinkles({
+                                                    height: "full",
                                                     width: "full",
-                                                    borderTop: "grey-5",
                                                 })}
+                                                style={{
+                                                    // Draw border with `box-shadow` so it doesn't contribute to layout.
+                                                    boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                                                }}
                                             />
                                         </div>
                                     )}
@@ -780,12 +800,19 @@ function PostListView(
                                                 bottom: "0",
                                                 paddingX: postContentViewPaddingX,
                                             })}
+                                            style={{
+                                                height: 1,
+                                            }}
                                         >
                                             <div
                                                 className={sprinkles({
+                                                    height: "full",
                                                     width: "full",
-                                                    borderBottom: "grey-5",
                                                 })}
+                                                style={{
+                                                    // Draw border with `box-shadow` so it doesn't contribute to layout.
+                                                    boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                                                }}
                                             />
                                         </div>
                                     )}
@@ -798,7 +825,7 @@ function PostListView(
                                         // If we are rendering in the context of a channel, don't render the channel
                                         // in posts.
                                         shouldShowChannel={
-                                            channelHeader?.channel.id !== item.post.channel.id
+                                            shouldNotShowChannelId !== item.post.channel.id
                                         }
                                         hasNavigationBar={hasNavigationBar}
                                         isSingleLayoutWithPinnedCommentInput={
@@ -1166,7 +1193,7 @@ function PostListView(
                         />
                     );
 
-                    const marginY = spacing["2"];
+                    const marginY = spacing["0"];
 
                     return {
                         key: `PostCommentInput:${item.post.id}`,
@@ -1221,7 +1248,6 @@ function PostListView(
                                             width: "full",
                                             display: "flex",
                                             justifyContent: "center",
-                                            overflow: "hidden",
                                         })}
                                     >
                                         <div
@@ -1236,6 +1262,10 @@ function PostListView(
                                             })}
                                             style={{
                                                 flex: postViewFlex,
+                                                // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+                                                // have `min-width: auto` which extends with content.
+                                                // https://stackoverflow.com/a/66689926/1568890
+                                                minWidth: 0,
                                             }}
                                         >
                                             <div
@@ -1264,24 +1294,30 @@ function PostListView(
                                                     position: "absolute",
                                                     left: "0",
                                                     right: "0",
+                                                    bottom: "0",
                                                     paddingX: postContentViewPaddingX,
                                                 })}
                                                 style={{
-                                                    // -1px since:
-                                                    //
-                                                    // 1. The border shouldn't be visible while the comment input is
-                                                    //    sticky.
-                                                    // 2. The space between the comment input and bottom border is
-                                                    //    small enough that 1px difference is noticeable to the
-                                                    //    trained eye.
-                                                    bottom: -1,
+                                                    height: 1,
                                                 }}
                                             >
                                                 <div
                                                     className={sprinkles({
+                                                        height: "full",
                                                         width: "full",
-                                                        borderBottom: "grey-5",
                                                     })}
+                                                    style={{
+                                                        // Draw border with `box-shadow` so it doesn't contribute to layout.
+                                                        //
+                                                        // `box-shadow` is drawn 1px below the comment input since:
+                                                        //
+                                                        // 1. The border shouldn't be visible while the comment input is
+                                                        //    sticky.
+                                                        // 2. The space between the comment input and bottom border is
+                                                        //    small enough that 1px difference is noticeable to the
+                                                        //    trained eye.
+                                                        boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                                                    }}
                                                 />
                                             </div>
                                         </div>
@@ -1375,8 +1411,9 @@ function PostListView(
             withMobileLayout,
             hasAside,
             isSingleLayoutWithPinnedCommentInput,
+            hasChannelHeader,
             postEditing,
-            channelHeader?.channel.id,
+            shouldNotShowChannelId,
             idBase,
             onTogglePostComments,
             loadInitialPostComments,
@@ -1439,11 +1476,8 @@ function PostListView(
                         const lastScrollOffset = lastScrollOffsetRef.current;
                         lastScrollOffsetRef.current = scrollOffset;
 
-                        const navigationBarVisibleHeight = navigationBar
-                            ? assertExists(
-                                  navigationBar.navigationBarRef.current,
-                              ).getVisibleHeight()
-                            : 0;
+                        const navigationBarVisibleHeight =
+                            navigationBar?.navigationBarRef.current?.getVisibleHeight() ?? 0;
 
                         setScrollDirectionState(scrollDirectionState => {
                             const newScrollDirection =
@@ -1578,45 +1612,6 @@ function PostListView(
                                 </>
                             )}
                         </>
-                    }
-                    extraChildrenOutsideContentElement={
-                        !isSingleLayoutWithPinnedCommentInput
-                            ? ({contentHeight}) => (
-                                  // Our items all have a bottom border. This is good when there's less content
-                                  // than room to scroll since it creates a clear shape for the last item in the
-                                  // list.
-                                  //
-                                  // However, if there are enough items to scroll then when the user has fully
-                                  // scrolled we want the last item to *not* have a border bottom since the
-                                  // bottom of the screen creates that boundary. We don't need to render an extra
-                                  // line in the margins.
-                                  //
-                                  // This div covers the bottom border of the last item but only when there's
-                                  // enough content to scroll. Otherwise the bottom border needs to be visible to
-                                  // visually contain the last item. To debug this it's helpful to switch the
-                                  // `backgroundColor` to `red-30` or something similar.
-                                  <div
-                                      className={sprinkles({
-                                          position: "absolute",
-                                          left: "0",
-                                          right: "0",
-                                          top: "0",
-                                      })}
-                                      style={{height: `max(100%, ${contentHeight}px)`}}
-                                  >
-                                      <div
-                                          className={sprinkles({
-                                              position: "absolute",
-                                              left: "0",
-                                              right: "0",
-                                              bottom: "0",
-                                              height: "1",
-                                              backgroundColor: "grey-0",
-                                          })}
-                                      />
-                                  </div>
-                              )
-                            : undefined
                     }
                 />
                 {isSingleLayoutWithPinnedCommentInput &&

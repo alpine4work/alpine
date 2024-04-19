@@ -183,12 +183,12 @@ export function ChannelView({
                 {channel.name}
             </Box>
         ),
+        desktopMaxWidth: hasAside
+            ? addRemLengths(spacing[postViewMaxWidth], spacing[postListViewAsideMaxWidth])
+            : postViewMaxWidth,
         // Create a bit of space to the left so we don't cut off the channel name
         // editor border.
         desktopTitleLeftSlop: "1",
-        desktopTitleMaxWidth: hasAside
-            ? addRemLengths(spacing[postViewMaxWidth], spacing[postListViewAsideMaxWidth])
-            : postViewMaxWidth,
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
         menuActions: [
@@ -220,6 +220,7 @@ export function ChannelView({
 
     const channelHeader = useMemo(
         (): PostListChannelHeader => ({
+            isOnlyNavigationBar: false,
             channel,
             isCreatingChannel: false,
             isEditingDescription,

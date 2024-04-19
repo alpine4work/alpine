@@ -2667,6 +2667,7 @@ const TaskGridViewDecorativeGhostTaskMemo = memo(function TaskGridViewDecorative
         <Box
             paddingX="5"
             maxWidth={rowMaxWidth ?? undefined}
+            marginX="center"
             // Create an illusion that the text editor extends into the margins by giving
             // the margin a text cursor and making it clickable putting focus in the task.
             // A double click selects the task text.
@@ -2674,7 +2675,6 @@ const TaskGridViewDecorativeGhostTaskMemo = memo(function TaskGridViewDecorative
             // This is an affordance for mouse users, does not need to be usable
             // by keyboard.
             cursor={!isInert ? "text" : undefined}
-            style={{margin: "0 auto"}}
             {...useOutOfBoundsClickSelection({
                 isDisabled: isInert,
                 onSelect: () =>

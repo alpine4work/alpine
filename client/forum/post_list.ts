@@ -26,7 +26,8 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {decodeIdInto} from "~/shared/id/id.js";
-import {PostId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {ChannelId, PostId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol.js";
 
@@ -40,13 +41,19 @@ import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protoc
 // 3. `PostList` was split into `PostBasicList` and `PostQueryList` so we could
 //    power a `<PostListView>` with a DynamoDB general realtime query.
 
-export type PostListChannelHeader = {
-    readonly channel: ChannelModel;
-    readonly isCreatingChannel: boolean;
-    readonly isEditingDescription: boolean;
-    readonly onCancelDescriptionEditing: () => void;
-    readonly onSaveDescription: (description: MessageContent) => Promise<void>;
-};
+export type PostListChannelHeader =
+    | {
+          readonly isOnlyNavigationBar: true;
+          readonly shouldNotShowChannelId: ChannelId | null;
+      }
+    | {
+          readonly isOnlyNavigationBar: false;
+          readonly channel: ChannelModel;
+          readonly isCreatingChannel: boolean;
+          readonly isEditingDescription: boolean;
+          readonly onCancelDescriptionEditing: () => void;
+          readonly onSaveDescription: (description: MessageContent) => Promise<void>;
+      };
 
 export type PostCommentsState = PostCommentsOpenState | "Closed";
 type PostCommentsOpenState = "Open" | "AlwaysOpen";

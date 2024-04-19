@@ -801,19 +801,35 @@ export async function getChannelIfPossible(
     channelId: ChannelId,
     options?: {consistency: DynamoReadConsistency},
 ): Promise<Result<DynamoGeneralRealtimeItem<ChannelModel>, PermissionDeniedError> | null> {
-    const channel = await ForumRealtimeTable.getRealtimeItemIfExists(
+    const getPromise = (async () => {
+        const channel = await ForumRealtimeTable.getRealtimeItemIfExists(
+            context,
+            {
+                partitionType: "Channel",
+                sortRangeType: "Attributes",
+                channelId,
+            },
+            {consistency: options?.consistency},
+        );
+        if (!channel) return null;
+
+        await authorizeSpaceAccess(context, channel.model.spaceId);
+
+        return channel;
+    })();
+
+    // If we're loading the channel, we can use the channel item in our
+    // `ChannelPreviewModel` cache to avoid extra fetches.
+    ChannelPreviewCache.set(
         context,
-        {
-            partitionType: "Channel",
-            sortRangeType: "Attributes",
-            channelId,
-        },
-        {consistency: options?.consistency},
+        channelId,
+        getPromise.then(channel => channel?.model.asPreview() ?? null),
     );
-    if (!channel) return null;
 
     try {
-        await authorizeSpaceAccess(context, channel.model.spaceId);
+        const channel = await getPromise;
+        if (!channel) return null;
+        return {ok: true, value: channel};
     } catch (error) {
         if (error instanceof PermissionDeniedError) {
             return {ok: false, error};
@@ -821,11 +837,6 @@ export async function getChannelIfPossible(
             throw error;
         }
     }
-
-    return {
-        ok: true,
-        value: channel,
-    };
 }
 
 async function createChannelModelFromItem(

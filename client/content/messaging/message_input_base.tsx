@@ -429,8 +429,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 ref={inputContainerRef}
                 width="full"
                 maxWidth="160"
+                marginX="center"
                 paddingY={messageInputPaddingY}
-                style={{margin: "0 auto"}}
             >
                 {isEditingMessage && (
                     <Box

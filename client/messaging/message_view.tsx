@@ -1004,11 +1004,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 className={sprinkles({
                     width: "full",
                     maxWidth: "160",
+                    marginX: "center",
                     position: "relative",
                     zIndex: "0",
                 })}
                 style={{
-                    margin: "0 auto",
                     animation: shouldHighlight ? wiggleAnimation : undefined,
                 }}
                 data-testid={

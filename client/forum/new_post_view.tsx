@@ -185,10 +185,10 @@ export function NewPostView({
                         flexShrink="0"
                         width="full"
                         maxWidth={postViewMaxWidth}
+                        marginX="center"
                         paddingX={postContentViewPaddingX}
                         paddingBottom={postContentViewInnerMarginY}
                         style={{
-                            margin: "0 auto",
                             paddingTop: withMobileLayout
                                 ? isMobile
                                     ? `${mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`
@@ -239,9 +239,9 @@ export function NewPostView({
                     <Box
                         flexShrink="0"
                         width="full"
+                        marginX="center"
                         maxWidth={postViewMaxWidth}
                         style={{
-                            margin: "0 auto",
                             paddingBottom: "var(--safe-area-inset-bottom, 0px)",
                         }}
                     >

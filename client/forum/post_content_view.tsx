@@ -124,8 +124,11 @@ const postCommentSectionGuidelineStartHeight = `${postCommentSectionGuidelineSta
 
 const postContentViewHeaderHeightRem = parseRemLengthNumber(spacing[postContentViewHeaderHeight]);
 
+// Don't add more space to the top of a single post so when switching between a
+// list of posts (probably from a channel posts notification) and a single post
+// in inbox the header is in the same place.
 export const desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput =
-    postContentViewOuterMarginYRem + parseRemLengthNumber(spacing["2"]);
+    postContentViewOuterMarginYRem;
 
 export const desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar =
     desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput -

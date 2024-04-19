@@ -90,6 +90,7 @@ export function TaskRowShimmer({
         <Box
             width="full"
             maxWidth={rowMaxWidth ?? undefined}
+            marginX="center"
             height={taskRowViewMinHeight}
             position="relative"
             // NOTE(calebmer): Setting z-index here creates a new stacking context which
@@ -97,7 +98,6 @@ export function TaskRowShimmer({
             // adjacent rows.
             zIndex={undefined}
             cursor={!capabilities.isReadOnly ? "text" : undefined}
-            style={{margin: "0 auto"}}
             {...useOutOfBoundsClickSelection({
                 isDisabled: capabilities.isReadOnly,
                 onSelect: focusPreviousTaskTitleEnd,

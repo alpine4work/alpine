@@ -1,17 +1,24 @@
-import {useCallback, useState} from "react";
+import {useCallback, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
+import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {postContentViewMinHeightWithClosedCommentSection} from "~/client/forum/post_content_view.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
-import {PostListView} from "~/client/forum/post_list_view.js";
+import {PostListView, postViewMaxWidth} from "~/client/forum/post_list_view.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
+import {getChannel} from "~/server/forum/data/forum_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
+import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {PostModel} from "~/shared/forum/post_model.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isId} from "~/shared/id/id.js";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -20,7 +27,7 @@ import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
-    channelId: Schema.id<ChannelId>(),
+    channel: createDynamoGeneralRealtimeItemSchema(ChannelModel.schema()),
     bucketGeneration: Schema.integer,
     postsResult: Schema.object({
         hasMorePosts: Schema.boolean,
@@ -48,16 +55,19 @@ export async function loader({params, context}: LoaderArgs) {
     if (bucketGeneration === null || !Number.isInteger(bucketGeneration))
         throw new InvalidArgumentError("Expected bucket generation to be an integer");
 
-    const postsResult = await getInboxChannelPostsEntryPosts(context, {
-        spaceId,
-        channelId,
-        bucketGeneration,
-        limit: getInitialVirtualizedScrollViewRenderedItemCount(
-            context.loader.getClientInfo(),
-            postContentViewMinHeightWithClosedCommentSection,
-        ),
-        afterPostId: null,
-    });
+    const [channel, postsResult] = await runAllPromises([
+        getChannel(await context.actor.authenticate(), channelId),
+        getInboxChannelPostsEntryPosts(context, {
+            spaceId,
+            channelId,
+            bucketGeneration,
+            limit: getInitialVirtualizedScrollViewRenderedItemCount(
+                context.loader.getClientInfo(),
+                postContentViewMinHeightWithClosedCommentSection,
+            ),
+            afterPostId: null,
+        }),
+    ]);
 
     const propagateEventData: TracerEventData = {
         context: {
@@ -67,18 +77,27 @@ export async function loader({params, context}: LoaderArgs) {
 
     return jsonWithSchema(
         LoaderSchema,
-        {channelId, bucketGeneration, postsResult},
+        {channel, bucketGeneration, postsResult},
         {propagateEventData},
     );
 }
 
 export const meta = () => [{title: `New posts notification${metaTitlePostfix}`}];
 
-export default function ChannelPostsRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
+export default function ChannelPostsRoute({
+    withMobileLayout: withMobileLayoutProp = false,
+}: {
+    withMobileLayout?: boolean;
+}) {
     const context = useAppContext();
+    const isMobile = useIsMobile();
     const {space} = useSpaceContext();
+    const rootNavigate = useRootNavigate();
+
+    const withMobileLayout = isMobile || withMobileLayoutProp;
+
     const {
-        channelId,
+        channel,
         bucketGeneration,
         postsResult: initialPostsResult,
     } = useLoaderDataWithSchema(LoaderSchema);
@@ -86,7 +105,7 @@ export default function ChannelPostsRoute({withMobileLayout}: {withMobileLayout?
     // While you're viewing new posts in a channel, this accrues affinity points to
     // the channel. Since you're taking time to pay attention to what's new in a
     // channel.
-    useSearchAffinityViewInteraction(`Channel:${channelId}`);
+    useSearchAffinityViewInteraction(`Channel:${channel.model.id}`);
 
     const [posts, setPosts] = useState(() =>
         PostBasicList.empty
@@ -94,9 +113,26 @@ export default function ChannelPostsRoute({withMobileLayout}: {withMobileLayout?
             .setHasMorePosts(initialPostsResult.hasMorePosts),
     );
 
+    const navigationBarRef = useRef<NavigationBarRef>(null);
+
+    const navigationBar = useNavigationBar({
+        isDisabled: !isMobile,
+        ref: navigationBarRef,
+        withMobileLayout,
+        title: "New posts",
+        withoutDisappearingTitle: true,
+    });
+
     return (
         <PostListView
             withMobileLayout={withMobileLayout}
+            channelHeader={useMemo(
+                () =>
+                    isMobile
+                        ? {isOnlyNavigationBar: true, shouldNotShowChannelId: null}
+                        : undefined,
+                [isMobile],
+            )}
             posts={posts}
             onTogglePostComments={useCallback(
                 postId => setPosts(posts => posts.togglePostComments(postId)),
@@ -109,7 +145,7 @@ export default function ChannelPostsRoute({withMobileLayout}: {withMobileLayout?
             onLoadMorePosts={async ({limit}) => {
                 const postsResult = await getInboxChannelPostsEntryPosts(context, {
                     spaceId: space.id,
-                    channelId,
+                    channelId: channel.model.id,
                     bucketGeneration,
                     limit,
                     afterPostId: posts.getLastPostIfExists()?.post.id ?? null,
@@ -126,6 +162,7 @@ export default function ChannelPostsRoute({withMobileLayout}: {withMobileLayout?
             onPostRealtimeEventTransaction={useCallback(() => {
                 // NOCOMMIT: Implement!!
             }, [])}
+            navigationBar={{...navigationBar, navigationBarRef}}
         />
     );
 }

@@ -107,15 +107,7 @@ function MessagingTypingIndicator({account, marginX}: {account: AccountModel; ma
     }, []);
 
     return (
-        <Box
-            width="full"
-            maxWidth="160"
-            position="relative"
-            zIndex="0"
-            style={{
-                margin: "0 auto",
-            }}
-        >
+        <Box width="full" maxWidth="160" marginX="center" position="relative" zIndex="0">
             <Box
                 fontSize="50"
                 fontStyle="truncate"

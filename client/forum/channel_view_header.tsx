@@ -40,7 +40,7 @@ export function ChannelViewHeader({
     channelHeader,
     withMobileLayout,
 }: {
-    channelHeader: PostListChannelHeader;
+    channelHeader: PostListChannelHeader & {isOnlyNavigationBar: false};
     withMobileLayout: boolean;
 }) {
     return (

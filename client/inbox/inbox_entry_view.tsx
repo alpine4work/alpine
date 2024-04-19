@@ -226,7 +226,27 @@ function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
             secondAccount={secondAccount}
             loudNotificationCount={entry.loudNotificationCount}
         >
-            {entry.latestMessage.author.id !== currentAccount.id ? (
+            {entry.latestMessage.isStickyMention && entry.chatAccountCount > 2 ? (
+                <>
+                    <span className={boldClassName}>
+                        <AccountShortName account={entry.latestMessage.author} />
+                    </span>{" "}
+                    mentioned you in a chat with
+                    {entry.chatAccountCount === 3 && entry.otherChatAccount ? (
+                        <>
+                            {" "}
+                            <span className={boldClassName}>
+                                <AccountShortName account={entry.otherChatAccount} />
+                            </span>
+                        </>
+                    ) : entry.chatAccountCount > 2 ? (
+                        <>
+                            {" "}
+                            <PrettyNumber number={entry.chatAccountCount - 2} label="other" />
+                        </>
+                    ) : null}
+                </>
+            ) : entry.latestMessage.author.id !== currentAccount.id ? (
                 <Box>
                     <span className={boldClassName}>
                         <AccountShortName account={entry.latestMessage.author} />
@@ -302,8 +322,27 @@ function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel
                         <span className={boldClassName}>
                             <AccountShortName account={entry.postAuthor} />
                         </span>{" "}
-                        mentioned you in a post in{" "}
-                        <span className={boldClassName}>{entry.channel.name}</span>
+                        mentioned you in a post in {entry.channel.name}
+                    </>
+                ) : entry.latestComment?.isStickyMention ? (
+                    <>
+                        <span className={boldClassName}>
+                            <AccountShortName account={entry.latestComment.author} />
+                        </span>{" "}
+                        mentioned you in a comment on{" "}
+                        {currentAccount.id === entry.postAuthor.id ? (
+                            "your"
+                        ) : entry.latestComment.author.id === entry.postAuthor.id ? (
+                            "their"
+                        ) : (
+                            <>
+                                <span className={boldClassName}>
+                                    <AccountShortName account={entry.postAuthor} />
+                                </span>
+                                ’s
+                            </>
+                        )}{" "}
+                        post in {entry.channel.name}
                     </>
                 ) : (
                     <>
@@ -317,8 +356,7 @@ function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel
                                 ’s
                             </>
                         )}{" "}
-                        post in <span className={boldClassName}>{entry.channel.name}</span> has new
-                        comments
+                        post in {entry.channel.name} has new comments
                     </>
                 )}
             </Box>
@@ -350,8 +388,14 @@ function InboxChannelPostsEntryView({entry}: {entry: InboxChannelPostsEntryModel
             loudNotificationCount={entry.loudNotificationCount}
         >
             <Box>
-                New {entry.postCount > 1 ? "posts" : "post"} in{" "}
-                <span className={boldClassName}>{entry.channel.name}</span> by{" "}
+                {entry.postCount === 1 ? (
+                    "New post"
+                ) : entry.postCount > 10 ? (
+                    "10+ new posts"
+                ) : (
+                    <PrettyNumber number={entry.postCount} label="new post" />
+                )}{" "}
+                in {entry.channel.name} by{" "}
                 {!secondAccount ? (
                     <span className={boldClassName}>
                         <AccountShortName account={firstAccount} />
@@ -404,6 +448,11 @@ function InboxDocumentCommentThreadEntryView({
             ? entry.latestComment?.author ?? null
             : null;
 
+    const truncatedDocumentTitle = useMemo(
+        () => truncateDocumentTitle(entry.document.getTitle()),
+        [entry.document],
+    );
+
     return (
         <InboxEntryViewBase
             firstAccount={firstAccount}
@@ -411,19 +460,41 @@ function InboxDocumentCommentThreadEntryView({
             loudNotificationCount={entry.loudNotificationCount}
         >
             <Box>
-                {currentAccount.id === entry.firstCommentAuthor.id ? (
-                    "Your"
-                ) : (
+                {entry.latestComment.isStickyMention ? (
                     <>
                         <span className={boldClassName}>
-                            <AccountShortName account={entry.firstCommentAuthor} />
-                        </span>
-                        ’s
+                            <AccountShortName account={entry.latestComment.author} />
+                        </span>{" "}
+                        mentioned you in{" "}
+                        {currentAccount.id === entry.firstCommentAuthor.id ? (
+                            "your"
+                        ) : entry.latestComment.author.id === entry.firstCommentAuthor.id ? (
+                            "their"
+                        ) : (
+                            <>
+                                <span className={boldClassName}>
+                                    <AccountShortName account={entry.firstCommentAuthor} />
+                                </span>
+                                ’s
+                            </>
+                        )}{" "}
+                        comment thread on “{truncatedDocumentTitle}”
                     </>
-                )}{" "}
-                thread on “
-                {useMemo(() => truncateDocumentTitle(entry.document.getTitle()), [entry.document])}”
-                has new comments
+                ) : (
+                    <>
+                        {currentAccount.id === entry.firstCommentAuthor.id ? (
+                            "Your"
+                        ) : (
+                            <>
+                                <span className={boldClassName}>
+                                    <AccountShortName account={entry.firstCommentAuthor} />
+                                </span>
+                                ’s
+                            </>
+                        )}{" "}
+                        thread on “{truncatedDocumentTitle}” has new comments
+                    </>
+                )}
             </Box>
             <InboxEntryLatestMessagePreview
                 time={entry.latestComment.createdTime}
@@ -450,8 +521,14 @@ function InboxDocumentNewCommentThreadsEntryView({
             loudNotificationCount={entry.loudNotificationCount}
         >
             <Box>
-                New {entry.commentThreadCount > 1 ? "comments" : "comment"} on “
-                {truncateDocumentTitle(entry.document.getTitle())}” by{" "}
+                {entry.commentThreadCount === 1 ? (
+                    "New comment thread"
+                ) : entry.commentThreadCount > 10 ? (
+                    "10+ new comment threads"
+                ) : (
+                    <PrettyNumber number={entry.commentThreadCount} label="new comment thread" />
+                )}{" "}
+                on “{truncateDocumentTitle(entry.document.getTitle())}” by{" "}
                 {!secondAccount ? (
                     <span className={boldClassName}>
                         <AccountShortName account={firstAccount} />

@@ -224,8 +224,10 @@ const responsiveProperties = defineProperties({
         paddingRight: spacing,
         marginTop: {...spacingWithNegatives, auto: "auto"},
         marginBottom: {...spacingWithNegatives, auto: "auto"},
-        marginLeft: {...spacingWithNegatives, auto: "auto"},
-        marginRight: {...spacingWithNegatives, auto: "auto"},
+        // `marginLeft` and `marginRight` have `center` which lets us do
+        // `marginX="center"`.
+        marginLeft: {...spacingWithNegatives, auto: "auto", center: {marginLeft: "auto"}},
+        marginRight: {...spacingWithNegatives, auto: "auto", center: {marginRight: "auto"}},
         width: {...spacingWithPercentages, auto: "auto"},
         minWidth: {...spacingWithPercentages, none: "none"},
         maxWidth: {...spacingWithPercentages, none: "none"},

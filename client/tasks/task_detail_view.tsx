@@ -1073,10 +1073,10 @@ function TaskDetailViewMain(
                 overflow="hidden"
                 width="full"
                 maxWidth={taskDetailViewMaxWidth}
+                marginX="center"
                 display="flex"
                 flexDirection="column"
                 position="relative"
-                style={{margin: "0 auto"}}
             >
                 {isMobile && (
                     // On mobile, create some space for the navigation bar since it's back button

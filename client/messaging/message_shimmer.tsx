@@ -134,11 +134,9 @@ export function MessageShimmer<Message extends MessageModel>({
                 sprinkles({
                     width: "full",
                     maxWidth: "160",
+                    marginX: "center",
                 }),
             )}
-            style={{
-                margin: "0 auto",
-            }}
         >
             {!shouldMergeWithPreviousMessage && (
                 <div
