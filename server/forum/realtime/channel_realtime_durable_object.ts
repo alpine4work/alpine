@@ -115,9 +115,12 @@ class ChannelRealtimeDurableObject {
                 // Make sure a user can't POST from their browser to broadcast a realtime event
                 // transaction. A POST request from a browser would be from the `AppClient` or
                 // `EdgeService` service.
-                if (context.actor.serviceName !== "AppService") {
+                if (
+                    context.actor.serviceName !== "AppService" &&
+                    context.actor.serviceName !== "JobQueueService"
+                ) {
                     throw new PermissionDeniedError(
-                        "Only `AppService` can broadcast realtime event transactions",
+                        "Only `AppService` or `JobQueueService` can broadcast realtime event transactions",
                     );
                 }
 

@@ -31,23 +31,23 @@ afterEach(() => {
 });
 
 const context = createTestContext({
-    processJob: async (context, job) => {
+    processJob: async (context, job, jobStartTime, span) => {
         if (job.type === "NotificationEvent") {
             switch (processingType) {
                 case "Once": {
-                    await processNotificationEvent(context, job.event);
+                    await processNotificationEvent(context, job.event, span);
                     break;
                 }
                 case "TwiceSerially": {
-                    await processNotificationEvent(context, job.event);
-                    await processNotificationEvent(context, job.event);
+                    await processNotificationEvent(context, job.event, span);
+                    await processNotificationEvent(context, job.event, span);
                     break;
                 }
                 case "ThriceConcurrently": {
                     await runAllPromises([
-                        processNotificationEvent(context, job.event),
-                        processNotificationEvent(context, job.event),
-                        processNotificationEvent(context, job.event),
+                        processNotificationEvent(context, job.event, span),
+                        processNotificationEvent(context, job.event, span),
+                        processNotificationEvent(context, job.event, span),
                     ]);
                     break;
                 }

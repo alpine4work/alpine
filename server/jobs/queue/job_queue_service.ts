@@ -118,7 +118,7 @@ runService({
         const consumer = JobQueueConsumer.start(processContext, {
             region: "us-east-1",
             queueUrl: jobQueueUrl,
-            processJob: (_actionContext, job, jobStartTime) => {
+            processJob: (_actionContext, job, jobStartTime, span) => {
                 // Jobs are already processed in a system context so this isn't actually an
                 // escalation but we still need it for compatibility.
                 //
@@ -174,7 +174,7 @@ runService({
                     }),
                 });
 
-                return processJob(actionContext, job, jobStartTime);
+                return processJob(actionContext, job, jobStartTime, span);
             },
             processMaintenanceJob: (_actionContext, job, jobStartTime, span) => {
                 // Maintenance jobs have access to all spaces, so this is actually a

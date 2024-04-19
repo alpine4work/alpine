@@ -8,6 +8,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
  * An implementation of `JobSenderBase` that runs in the current
@@ -23,6 +24,7 @@ export class TestLocalJobSender extends JobSenderBase {
         context: ServerSystemActionContext,
         job: JobDescription,
         jobStartTime: Date,
+        span: TracerSpan,
     ) => Promise<void>;
 
     private readonly _createSystemContext: (spaceId: SpaceId) => ServerSystemActionContext;
@@ -35,6 +37,7 @@ export class TestLocalJobSender extends JobSenderBase {
             context: ServerSystemActionContext,
             job: JobDescription,
             jobStartTime: Date,
+            span: TracerSpan,
         ) => Promise<void>;
         createSystemContext: (spaceId: SpaceId) => ServerSystemActionContext;
     }) {
@@ -92,7 +95,7 @@ export class TestLocalJobSender extends JobSenderBase {
                     await this._createSystemContext(spaceId).with(
                         {tracer: new TracerContextModule(span)},
                         async context => {
-                            await this._processJob(context, job, jobStartTime);
+                            await this._processJob(context, job, jobStartTime, span);
                         },
                     );
                 }),

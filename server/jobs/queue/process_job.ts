@@ -3,6 +3,7 @@ import {JobQueueSystemActionContext} from "~/server/jobs/queue/job_queue_system_
 import {processNotificationEvent} from "~/server/notifications/data/notifications_table.js";
 import {processIndexSearchEntityJob} from "~/server/search/data/index/search_entity_index.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
  * Processes a single background job.
@@ -11,6 +12,7 @@ export async function processJob(
     context: JobQueueSystemActionContext,
     job: JobDescription,
     jobStartTime: Date,
+    span: TracerSpan,
 ): Promise<void> {
     switch (job.type) {
         case "Test": {
@@ -22,7 +24,7 @@ export async function processJob(
             return;
         }
         case "NotificationEvent": {
-            await processNotificationEvent(context, job.event);
+            await processNotificationEvent(context, job.event, span);
             return;
         }
         default:

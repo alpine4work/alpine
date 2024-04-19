@@ -94,6 +94,7 @@ import {
 } from "~/shared/notifications/inbox_model.js";
 import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
  * The initial generation of a new inbox.
@@ -1355,11 +1356,12 @@ export const notificationEventAfterProcessingTestCheckpoint = new TestCheckpoint
 export async function processNotificationEvent(
     context: ServerSystemActionContext,
     event: NotificationEvent,
+    span: TracerSpan,
 ): Promise<void> {
     notificationEventProcessingTestCounter.incrementForTest(event.authorId);
     await notificationEventBeforeProcessingTestCheckpoint.waitForTest(event.authorId);
     try {
-        await actuallyProcessNotificationEvent(context, event);
+        await actuallyProcessNotificationEvent(context, event, span);
     } finally {
         await notificationEventAfterProcessingTestCheckpoint.waitForTest(event.authorId);
     }
@@ -1368,16 +1370,17 @@ export async function processNotificationEvent(
 function actuallyProcessNotificationEvent(
     context: ServerSystemActionContext,
     event: NotificationEvent,
+    span: TracerSpan,
 ): Promise<void> {
     switch (event.type) {
         case "CreateChatMessage":
-            return processNotificationCreateChatMessageEvent(context, event);
+            return processNotificationCreateChatMessageEvent(context, event, span);
         case "CreatePostComment":
-            return processNotificationCreatePostCommentEvent(context, event);
+            return processNotificationCreatePostCommentEvent(context, event, span);
         case "CreatePost":
-            return processNotificationCreatePostEvent(context, event);
+            return processNotificationCreatePostEvent(context, event, span);
         case "CreateDocumentComment":
-            return processNotificationCreateDocumentCommentEvent(context, event);
+            return processNotificationCreateDocumentCommentEvent(context, event, span);
         default:
             throw exhaustive(event);
     }
@@ -1435,47 +1438,43 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
             accountId: AccountId;
         },
     ) => Promise<void>;
-}): (context: ServerSystemActionContext, event: Event) => Promise<void> {
-    return async (context, event) => {
-        await context.tracer.withSpan("Process notification event", async (context, span) => {
-            span.addData({
-                notifications: {
-                    eventType: event.type,
-                    eventId: event.id,
-                    inbox: {spaceId: event.spaceId},
-                },
-            });
-
-            const {info, accountIds} = await getSubscribers(context, event);
-
-            await runAllPromises(
-                mapIterable(accountIds, async accountOrMentionId => {
-                    // Only update the inbox entry for accounts that are a member of the space the
-                    // event is a part of.
-                    if (
-                        !(await isAccountMemberOfSpace(context, event.spaceId, accountOrMentionId))
-                    ) {
-                        return;
-                    }
-
-                    // This is a verified `AccountId` after the `isAccountMemberOfSpace()`
-                    // check above.
-                    const accountId = accountOrMentionId as AccountId;
-
-                    await context.tracer.withSpan("Updating inbox entry", async (context, span) => {
-                        span.addData({
-                            notifications: {
-                                eventType: event.type,
-                                eventId: event.id,
-                                inbox: {spaceId: event.spaceId, accountId: accountId},
-                            },
-                        });
-
-                        return updateInboxEntry(context, event, {info, accountId});
-                    });
-                }),
-            );
+}): (context: ServerSystemActionContext, event: Event, span: TracerSpan) => Promise<void> {
+    return async (context, event, span) => {
+        span.addData({
+            notifications: {
+                eventType: event.type,
+                eventId: event.id,
+                inbox: {spaceId: event.spaceId},
+            },
         });
+
+        const {info, accountIds} = await getSubscribers(context, event);
+
+        await runAllPromises(
+            mapIterable(accountIds, async accountOrMentionId => {
+                // Only update the inbox entry for accounts that are a member of the space the
+                // event is a part of.
+                if (!(await isAccountMemberOfSpace(context, event.spaceId, accountOrMentionId))) {
+                    return;
+                }
+
+                // This is a verified `AccountId` after the `isAccountMemberOfSpace()`
+                // check above.
+                const accountId = accountOrMentionId as AccountId;
+
+                await context.tracer.withSpan("Updating inbox entry", async (context, span) => {
+                    span.addData({
+                        notifications: {
+                            eventType: event.type,
+                            eventId: event.id,
+                            inbox: {spaceId: event.spaceId, accountId: accountId},
+                        },
+                    });
+
+                    return updateInboxEntry(context, event, {info, accountId});
+                });
+            }),
+        );
     };
 }
 

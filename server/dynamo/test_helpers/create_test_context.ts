@@ -52,6 +52,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 // This file should only run in a Node.js test environment. Either Jest
 // or Playwright.
@@ -136,6 +137,7 @@ export function createTestContext({
               context: ServerSystemActionContext,
               job: JobDescription,
               jobStartTime: Date,
+              span: TracerSpan,
           ) => Promise<void>;
       }
 ) = {}): TestContext {
