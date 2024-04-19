@@ -19,6 +19,7 @@ import {
     createNotificationsScenario,
     massageInboxEntriesQuery,
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -27,13 +28,18 @@ import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
     PostContentProsemirrorSchema,
     assertPostContent,
+    createSimplePostContent,
     emptyPostContent,
     emptyPostContentWithReferences,
 } from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+    createSimpleMessageContent,
+} from "~/shared/messaging/message_content_schema.js";
 import {
     InboxChannelPostsEntryModel,
     InboxModel,
@@ -74,6 +80,107 @@ const context = createTestContext({
             // Noop for other jobs...
         }
     },
+});
+
+test("won't create two inbox entries if inbox is observed between serially event processing", async () => {
+    processingType = "TwiceSerially";
+
+    const scenario = await createNotificationsScenario(context);
+
+    const _channel = await createChannel(context.action(scenario.session2), {
+        spaceId: scenario.space.id,
+        name: "Test",
+    });
+
+    const channel = new ChannelPreviewModel({
+        id: _channel.id,
+        spaceId: scenario.space.id,
+        createdTime: _channel.createdTime,
+        name: "Test",
+    });
+
+    await createPost(context.action(scenario.session1), {
+        channelId: channel.id,
+        content: emptyPostContent,
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    const pausePromise1 = notificationEventAfterProcessingTestCheckpoint.pauseForTest(
+        scenario.session1.account.id,
+    );
+
+    const post2 = await createPost(context.action(scenario.session1), {
+        channelId: channel.id,
+        content: emptyPostContent,
+    });
+
+    const {unpause: unpause1} = await pausePromise1;
+
+    const pausePromise2 = notificationEventBeforeProcessingTestCheckpoint.pauseForTest(
+        scenario.session1.account.id,
+    );
+
+    unpause1();
+    const {unpause: unpause2} = await pausePromise2;
+
+    await observeInbox(context.action(scenario.session3), {spaceId: scenario.space.id});
+
+    unpause2();
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        await getInboxEntries(context.action(scenario.session2), {
+            spaceId: scenario.space.id,
+            filter: "New",
+            limit: 100,
+            afterCursor: null,
+        }).then(massageInboxEntriesQuery),
+    ).toEqual([
+        new InboxChannelPostsEntryModel({
+            spaceId: scenario.space.id,
+            accountId: scenario.session2.account.id,
+            loudNotificationCount: 0,
+            channel,
+            bucketGeneration: 0,
+            postCount: 2,
+            postAuthorCount: 1,
+            latestPost: {
+                author: await scenario.session1.account.get(),
+                createdTime: post2.createdTime,
+                contentTextSnippet: printContentSingleLineTextSnippet(
+                    emptyPostContentWithReferences,
+                ),
+            },
+            otherPostAuthor: null,
+        }),
+    ]);
+
+    expect(
+        await getInboxEntries(context.action(scenario.session3), {
+            spaceId: scenario.space.id,
+            filter: "New",
+            limit: 100,
+            afterCursor: null,
+        }).then(massageInboxEntriesQuery),
+    ).toEqual([
+        new InboxChannelPostsEntryModel({
+            spaceId: scenario.space.id,
+            accountId: scenario.session3.account.id,
+            loudNotificationCount: 0,
+            channel,
+            bucketGeneration: 0,
+            postCount: 2,
+            postAuthorCount: 1,
+            latestPost: {
+                author: await scenario.session1.account.get(),
+                createdTime: post2.createdTime,
+                contentTextSnippet: printContentSingleLineTextSnippet(
+                    emptyPostContentWithReferences,
+                ),
+            },
+            otherPostAuthor: null,
+        }),
+    ]);
 });
 
 // Exercise idempotency by running the test suite again with jobs
@@ -217,6 +324,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -310,6 +418,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment2"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session2.account.get(),
                 }),
@@ -339,6 +448,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment2"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -431,6 +541,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.account.get(),
                 }),
@@ -478,6 +589,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -634,6 +746,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -699,6 +812,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -762,6 +876,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -813,20 +928,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
+                        createdTime: comment1.createdTime,
                         author: await scenario.session2.account.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: scenario.mentionAccount1MessageContent,
+                            doc: scenario.mentionAccount3MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
                                     [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
+                                        scenario.session3.account.id,
+                                        await scenario.session3.account.get(),
                                     ],
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -890,6 +1006,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: await scenario.session2.account.get(),
                 }),
@@ -927,6 +1044,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -1106,6 +1224,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -1208,6 +1327,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment2"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -1299,6 +1419,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session2.account.get(),
                 }),
@@ -1494,6 +1615,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -1585,6 +1707,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -1640,6 +1763,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -1771,6 +1895,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -1843,6 +1968,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -1969,6 +2095,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2016,6 +2143,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session1.account.get(),
                 }),
@@ -2048,6 +2176,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2095,6 +2224,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session1.account.get(),
                 }),
@@ -2194,6 +2324,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2253,6 +2384,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2359,6 +2491,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2404,6 +2537,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2423,6 +2557,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2468,6 +2603,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2487,6 +2623,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2506,6 +2643,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2551,6 +2689,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2570,6 +2709,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2589,12 +2729,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
             ]);
 
-            const comment5 = await createPostComment(context.action(scenario.session2), {
+            await createPostComment(context.action(scenario.session2), {
                 postId: post2.id,
                 parentCommentIndex: null,
                 content: createSimpleMessageContent("comment5"),
@@ -2620,12 +2761,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment5.createdTime,
+                        createdTime: comment2.createdTime,
                         author: await scenario.session2.account.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("comment5"),
-                            references: emptyContentReferences,
+                            doc: scenario.mentionAccount1MessageContent,
+                            references: {
+                                ...emptyContentReferences,
+                                accountById: new Map([
+                                    [
+                                        scenario.session1.account.id,
+                                        await scenario.session1.account.get(),
+                                    ],
+                                ]),
+                            },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2645,6 +2795,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2664,6 +2815,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2709,6 +2861,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2722,12 +2875,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment5.createdTime,
+                        createdTime: comment2.createdTime,
                         author: await scenario.session2.account.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("comment5"),
-                            references: emptyContentReferences,
+                            doc: scenario.mentionAccount1MessageContent,
+                            references: {
+                                ...emptyContentReferences,
+                                accountById: new Map([
+                                    [
+                                        scenario.session1.account.id,
+                                        await scenario.session1.account.get(),
+                                    ],
+                                ]),
+                            },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2747,12 +2909,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
             ]);
 
-            const comment7 = await createPostComment(context.action(scenario.session2), {
+            await createPostComment(context.action(scenario.session2), {
                 postId: post2.id,
                 parentCommentIndex: null,
                 content: createSimpleMessageContent("comment7"),
@@ -2792,6 +2955,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2805,12 +2969,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment7.createdTime,
+                        createdTime: comment2.createdTime,
                         author: await scenario.session2.account.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("comment7"),
-                            references: emptyContentReferences,
+                            doc: scenario.mentionAccount1MessageContent,
+                            references: {
+                                ...emptyContentReferences,
+                                accountById: new Map([
+                                    [
+                                        scenario.session1.account.id,
+                                        await scenario.session1.account.get(),
+                                    ],
+                                ]),
+                            },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2830,6 +3003,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2875,6 +3049,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2902,6 +3077,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -2921,6 +3097,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3013,6 +3190,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3058,6 +3236,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3077,6 +3256,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3122,6 +3302,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3141,6 +3322,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3160,6 +3342,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3199,6 +3382,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3218,6 +3402,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3237,6 +3422,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3274,6 +3460,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3301,6 +3488,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3320,6 +3508,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3339,12 +3528,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
             ]);
 
-            const comment5 = await createPostComment(context.action(scenario.session2), {
+            await createPostComment(context.action(scenario.session2), {
                 postId: post2.id,
                 parentCommentIndex: null,
                 content: createSimpleMessageContent("comment5"),
@@ -3376,6 +3566,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3389,12 +3580,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment5.createdTime,
+                        createdTime: comment2.createdTime,
                         author: await scenario.session2.account.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("comment5"),
-                            references: emptyContentReferences,
+                            doc: scenario.mentionAccount1MessageContent,
+                            references: {
+                                ...emptyContentReferences,
+                                accountById: new Map([
+                                    [
+                                        scenario.session1.account.id,
+                                        await scenario.session1.account.get(),
+                                    ],
+                                ]),
+                            },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3414,6 +3614,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3433,6 +3634,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3470,6 +3672,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3483,12 +3686,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment5.createdTime,
+                        createdTime: comment2.createdTime,
                         author: await scenario.session2.account.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("comment5"),
-                            references: emptyContentReferences,
+                            doc: scenario.mentionAccount1MessageContent,
+                            references: {
+                                ...emptyContentReferences,
+                                accountById: new Map([
+                                    [
+                                        scenario.session1.account.id,
+                                        await scenario.session1.account.get(),
+                                    ],
+                                ]),
+                            },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3508,6 +3720,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment6"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3527,6 +3740,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3572,6 +3786,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3591,6 +3806,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3604,12 +3820,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment5.createdTime,
+                        createdTime: comment2.createdTime,
                         author: await scenario.session2.account.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("comment5"),
-                            references: emptyContentReferences,
+                            doc: scenario.mentionAccount1MessageContent,
+                            references: {
+                                ...emptyContentReferences,
+                                accountById: new Map([
+                                    [
+                                        scenario.session1.account.id,
+                                        await scenario.session1.account.get(),
+                                    ],
+                                ]),
+                            },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3629,6 +3854,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3727,6 +3953,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.account.get(),
                 }),
@@ -3764,6 +3991,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3783,6 +4011,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.account.get(),
                 }),
@@ -3830,6 +4059,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3882,6 +4112,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.account.get(),
                 }),
@@ -3919,6 +4150,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -3938,6 +4170,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.account.get(),
                 }),
@@ -4018,6 +4251,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.account.get(),
                 }),
@@ -4047,6 +4281,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.account.get(),
                 }),
@@ -4127,6 +4362,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.account.get(),
                 }),
@@ -4311,6 +4547,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -4338,6 +4575,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -4357,6 +4595,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.account.get(),
                 }),
@@ -4404,6 +4643,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -4483,6 +4723,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -4580,6 +4821,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -4627,6 +4869,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -4696,6 +4939,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -4723,6 +4967,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -4770,6 +5015,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -4831,6 +5077,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.account.get(),
                 }),
@@ -4858,6 +5105,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -4885,6 +5133,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -4932,6 +5181,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -4984,6 +5234,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.account.get(),
                 }),
@@ -5013,6 +5264,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.account.get(),
                 }),
@@ -5040,6 +5292,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -5067,6 +5320,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -5114,6 +5368,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -5238,6 +5493,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -5289,6 +5545,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment2"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -5366,6 +5623,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -5417,6 +5675,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment2"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -5486,6 +5745,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -5551,6 +5811,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment2"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session2.account.get(),
                 }),
@@ -6357,6 +6618,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment6"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6381,6 +6643,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment5"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6405,6 +6668,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment4"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6429,6 +6693,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment3"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6453,6 +6718,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment2"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6477,6 +6743,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment1"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6528,6 +6795,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment4"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6552,6 +6820,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment3"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6576,6 +6845,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment2"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6600,6 +6870,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment1"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6652,6 +6923,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment3"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6676,6 +6948,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment2"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6700,6 +6973,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment1"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6751,6 +7025,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment6"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6775,6 +7050,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment5"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6799,6 +7075,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment4"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6823,6 +7100,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment3"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6847,6 +7125,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment2"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6899,6 +7178,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment6"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6923,6 +7203,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment5"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6947,6 +7228,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment4"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -6971,6 +7253,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     doc: createSimpleMessageContent("comment3"),
                                     references: emptyContentReferences,
                                 }),
+                                isStickyMention: false,
                             },
                             otherCommentAuthor: null,
                         }),
@@ -7050,6 +7333,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7077,6 +7361,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7137,6 +7422,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7200,6 +7486,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7219,6 +7506,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7314,6 +7602,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7341,6 +7630,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7404,6 +7694,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7467,6 +7758,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7486,6 +7778,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session1.account.get(),
                 }),
@@ -7592,6 +7885,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7619,6 +7913,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7646,6 +7941,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7715,6 +8011,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7742,6 +8039,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7797,6 +8095,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7839,6 +8138,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7894,6 +8194,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7921,6 +8222,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -7991,6 +8293,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -8018,6 +8321,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -8045,6 +8349,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -8133,6 +8438,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -8160,6 +8466,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -8187,6 +8494,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -8259,6 +8567,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -8286,6 +8595,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -8333,6 +8643,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("test"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session1.account.get(),
                 }),
@@ -8378,6 +8689,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -8425,6 +8737,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("test"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session1.account.get(),
                 }),
@@ -8444,6 +8757,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("test"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session1.account.get(),
                 }),
@@ -8509,6 +8823,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("test"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session1.account.get(),
                 }),
@@ -8528,6 +8843,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("test"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session1.account.get(),
                 }),
@@ -8547,6 +8863,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("test"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session1.account.get(),
                 }),
@@ -8650,6 +8967,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -8677,6 +8995,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -8704,6 +9023,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -8749,6 +9069,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -8776,6 +9097,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -8795,6 +9117,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session1.account.get(),
                 }),
@@ -8832,6 +9155,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment5"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session1.account.get(),
                 }),
@@ -8859,6 +9183,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -8878,6 +9203,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session1.account.get(),
                 }),
@@ -9260,6 +9586,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -9445,6 +9772,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -9539,6 +9867,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -9603,6 +9932,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -9688,6 +10018,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: true,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -9748,6 +10079,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -9821,6 +10153,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -11601,105 +11934,407 @@ for (const [currentProcessingType, processingMultiple] of [
             });
         });
     });
+
+    test("if an account is mentioned then the mentioned message sticks around until archival", async () => {
+        const space = await TestSpace.create(context);
+
+        const session1 = await space.createSession();
+        const session2 = await space.createSession();
+
+        const channel = await createChannel(session1.action(), {
+            spaceId: space.id,
+            name: "Test channel",
+        });
+
+        const post = await createPost(session1.action(), {
+            channelId: channel.id,
+            content: createSimplePostContent("Test post"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                loudNotificationCount: 0,
+                channel: expect.any(ChannelPreviewModel),
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: expect.any(Object),
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        await createPostComment(session2.action(), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 1"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                loudNotificationCount: 0,
+                channel: expect.any(ChannelPreviewModel),
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: expect.any(Object),
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        await archiveInboxEntry(session2.action(), {
+            spaceId: space.id,
+            key: {type: "ChannelPosts", channelId: channel.id, bucketGeneration: 0},
+        });
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        const comment2 = await createPostComment(session1.action(), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 2"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                postId: post.id,
+                postAuthor: await session1.account.get(),
+                channel: expect.any(ChannelPreviewModel),
+                loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentTextSnippetIfMentioned: null,
+                latestComment: {
+                    createdTime: comment2.createdTime,
+                    author: await session1.account.get(),
+                    contentTextSnippet: printContentSingleLineTextSnippet({
+                        doc: createSimpleMessageContent("Test comment 2"),
+                        references: emptyContentReferences,
+                    }),
+                    isStickyMention: false,
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        const comment3 = await createPostComment(session1.action(), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 3"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                postId: post.id,
+                postAuthor: await session1.account.get(),
+                channel: expect.any(ChannelPreviewModel),
+                loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentTextSnippetIfMentioned: null,
+                latestComment: {
+                    createdTime: comment3.createdTime,
+                    author: await session1.account.get(),
+                    contentTextSnippet: printContentSingleLineTextSnippet({
+                        doc: createSimpleMessageContent("Test comment 3"),
+                        references: emptyContentReferences,
+                    }),
+                    isStickyMention: false,
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        const comment4 = await createPostComment(session1.action(), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: assertMessageContent(
+                MessageContentProsemirrorSchema.node("doc", {}, [
+                    MessageContentProsemirrorSchema.node("paragraph", {}, [
+                        MessageContentProsemirrorSchema.text("Test comment 4 "),
+                        MessageContentProsemirrorSchema.node("mention", {
+                            mention: {accountId: session2.account.id, isShort: false},
+                        }),
+                    ]),
+                ]),
+            ),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                postId: post.id,
+                postAuthor: await session1.account.get(),
+                channel: expect.any(ChannelPreviewModel),
+                loudNotificationCount: 1,
+                postCreatedTime: post.createdTime,
+                postContentTextSnippetIfMentioned: null,
+                latestComment: {
+                    createdTime: comment4.createdTime,
+                    author: await session1.account.get(),
+                    contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
+                    isStickyMention: true,
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        await createPostComment(session1.action(), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 5"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                postId: post.id,
+                postAuthor: await session1.account.get(),
+                channel: expect.any(ChannelPreviewModel),
+                loudNotificationCount: 1,
+                postCreatedTime: post.createdTime,
+                postContentTextSnippetIfMentioned: null,
+                latestComment: {
+                    createdTime: comment4.createdTime,
+                    author: await session1.account.get(),
+                    contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
+                    isStickyMention: true,
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        await createPostComment(session1.action(), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 6"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                postId: post.id,
+                postAuthor: await session1.account.get(),
+                channel: expect.any(ChannelPreviewModel),
+                loudNotificationCount: 1,
+                postCreatedTime: post.createdTime,
+                postContentTextSnippetIfMentioned: null,
+                latestComment: {
+                    createdTime: comment4.createdTime,
+                    author: await session1.account.get(),
+                    contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
+                    isStickyMention: true,
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        const comment7 = await createPostComment(session1.action(), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: assertMessageContent(
+                MessageContentProsemirrorSchema.node("doc", {}, [
+                    MessageContentProsemirrorSchema.node("paragraph", {}, [
+                        MessageContentProsemirrorSchema.text("Test comment 7 "),
+                        MessageContentProsemirrorSchema.node("mention", {
+                            mention: {accountId: session2.account.id, isShort: false},
+                        }),
+                    ]),
+                ]),
+            ),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                postId: post.id,
+                postAuthor: await session1.account.get(),
+                channel: expect.any(ChannelPreviewModel),
+                loudNotificationCount: 2,
+                postCreatedTime: post.createdTime,
+                postContentTextSnippetIfMentioned: null,
+                latestComment: {
+                    createdTime: comment7.createdTime,
+                    author: await session1.account.get(),
+                    contentTextSnippet: `Test comment 7 @${session2.account.initialName}`,
+                    isStickyMention: true,
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        await createPostComment(session1.action(), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 8"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                postId: post.id,
+                postAuthor: await session1.account.get(),
+                channel: expect.any(ChannelPreviewModel),
+                loudNotificationCount: 2,
+                postCreatedTime: post.createdTime,
+                postContentTextSnippetIfMentioned: null,
+                latestComment: {
+                    createdTime: comment7.createdTime,
+                    author: await session1.account.get(),
+                    contentTextSnippet: `Test comment 7 @${session2.account.initialName}`,
+                    isStickyMention: true,
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        await archiveInboxEntry(session2.action(), {
+            spaceId: space.id,
+            key: {type: "PostComments", postId: post.id},
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        const comment9 = await createPostComment(session1.action(), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 9"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                postId: post.id,
+                postAuthor: await session1.account.get(),
+                channel: expect.any(ChannelPreviewModel),
+                loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentTextSnippetIfMentioned: null,
+                latestComment: {
+                    createdTime: comment9.createdTime,
+                    author: await session1.account.get(),
+                    contentTextSnippet: "Test comment 9",
+                    isStickyMention: false,
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+    });
 }
-
-test("won't create two inbox entries if inbox is observed between serially event processing", async () => {
-    processingType = "TwiceSerially";
-
-    const scenario = await createNotificationsScenario(context);
-
-    const _channel = await createChannel(context.action(scenario.session2), {
-        spaceId: scenario.space.id,
-        name: "Test",
-    });
-
-    const channel = new ChannelPreviewModel({
-        id: _channel.id,
-        spaceId: scenario.space.id,
-        createdTime: _channel.createdTime,
-        name: "Test",
-    });
-
-    await createPost(context.action(scenario.session1), {
-        channelId: channel.id,
-        content: emptyPostContent,
-    });
-    await ProcessContextModule.waitForTestTasks();
-
-    const pausePromise1 = notificationEventAfterProcessingTestCheckpoint.pauseForTest(
-        scenario.session1.account.id,
-    );
-
-    const post2 = await createPost(context.action(scenario.session1), {
-        channelId: channel.id,
-        content: emptyPostContent,
-    });
-
-    const {unpause: unpause1} = await pausePromise1;
-
-    const pausePromise2 = notificationEventBeforeProcessingTestCheckpoint.pauseForTest(
-        scenario.session1.account.id,
-    );
-
-    unpause1();
-    const {unpause: unpause2} = await pausePromise2;
-
-    await observeInbox(context.action(scenario.session3), {spaceId: scenario.space.id});
-
-    unpause2();
-    await ProcessContextModule.waitForTestTasks();
-
-    expect(
-        await getInboxEntries(context.action(scenario.session2), {
-            spaceId: scenario.space.id,
-            filter: "New",
-            limit: 100,
-            afterCursor: null,
-        }).then(massageInboxEntriesQuery),
-    ).toEqual([
-        new InboxChannelPostsEntryModel({
-            spaceId: scenario.space.id,
-            accountId: scenario.session2.account.id,
-            loudNotificationCount: 0,
-            channel,
-            bucketGeneration: 0,
-            postCount: 2,
-            postAuthorCount: 1,
-            latestPost: {
-                author: await scenario.session1.account.get(),
-                createdTime: post2.createdTime,
-                contentTextSnippet: printContentSingleLineTextSnippet(
-                    emptyPostContentWithReferences,
-                ),
-            },
-            otherPostAuthor: null,
-        }),
-    ]);
-
-    expect(
-        await getInboxEntries(context.action(scenario.session3), {
-            spaceId: scenario.space.id,
-            filter: "New",
-            limit: 100,
-            afterCursor: null,
-        }).then(massageInboxEntriesQuery),
-    ).toEqual([
-        new InboxChannelPostsEntryModel({
-            spaceId: scenario.space.id,
-            accountId: scenario.session3.account.id,
-            loudNotificationCount: 0,
-            channel,
-            bucketGeneration: 0,
-            postCount: 2,
-            postAuthorCount: 1,
-            latestPost: {
-                author: await scenario.session1.account.get(),
-                createdTime: post2.createdTime,
-                contentTextSnippet: printContentSingleLineTextSnippet(
-                    emptyPostContentWithReferences,
-                ),
-            },
-            otherPostAuthor: null,
-        }),
-    ]);
-});

@@ -14,6 +14,7 @@ import {
     createNotificationsScenario,
     massageInboxEntriesQuery,
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
@@ -21,7 +22,11 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+    createSimpleMessageContent,
+} from "~/shared/messaging/message_content_schema.js";
 import {InboxChatEntryModel} from "~/shared/notifications/inbox_model.js";
 
 let processingType: "Once" | "TwiceSerially" | "ThriceConcurrently" = "Once";
@@ -146,6 +151,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -181,6 +187,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session1.account.get(),
                 }),
@@ -215,6 +222,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message2"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
@@ -241,6 +249,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message2"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session1.account.get(),
                 }),
@@ -293,6 +302,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -319,6 +329,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
@@ -394,6 +405,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -429,6 +441,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session1.account.get(),
                 }),
@@ -471,6 +484,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -514,6 +528,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session1.account.get(),
                 }),
@@ -556,6 +571,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -599,6 +615,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session1.account.get(),
                 }),
@@ -641,6 +658,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
@@ -675,6 +693,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session1.account.get(),
                 }),
@@ -763,6 +782,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -789,6 +809,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
@@ -831,6 +852,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -874,6 +896,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session1.account.get(),
                 }),
@@ -917,6 +940,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session1.account.get(),
                 }),
@@ -943,6 +967,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
@@ -985,6 +1010,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
@@ -1028,6 +1054,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session1.account.get(),
                 }),
@@ -1097,6 +1124,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1140,6 +1168,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1166,6 +1195,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message2"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1248,6 +1278,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session1.account.get(),
                 }),
@@ -1299,6 +1330,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session1.account.get(),
                 }),
@@ -1350,6 +1382,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session1.account.get(),
                 }),
@@ -1443,6 +1476,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
@@ -1469,6 +1503,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session1.account.get(),
                 }),
@@ -1498,6 +1533,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
@@ -1524,6 +1560,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session1.account.get(),
                 }),
@@ -1608,6 +1645,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1646,6 +1684,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1719,6 +1758,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1761,6 +1801,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1777,6 +1818,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1811,6 +1853,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -1835,6 +1878,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1851,6 +1895,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1885,6 +1930,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -1909,6 +1955,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1925,6 +1972,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1959,6 +2007,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -1975,6 +2024,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message5"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1991,6 +2041,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2033,6 +2084,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2049,6 +2101,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -2065,6 +2118,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message5"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2107,6 +2161,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2123,6 +2178,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -2139,6 +2195,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message7"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2181,6 +2238,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2205,6 +2263,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2221,6 +2280,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -2298,6 +2358,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2340,6 +2401,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2356,6 +2418,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2390,6 +2453,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -2414,6 +2478,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2430,6 +2495,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2458,6 +2524,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -2482,6 +2549,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2498,6 +2566,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2532,6 +2601,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.sharedSession.account.get(),
                 }),
@@ -2548,6 +2618,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -2572,6 +2643,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2588,6 +2660,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2622,6 +2695,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.sharedSession.account.get(),
                 }),
@@ -2638,6 +2712,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -2654,6 +2729,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message5"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2670,6 +2746,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2704,6 +2781,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.sharedSession.account.get(),
                 }),
@@ -2720,6 +2798,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message6"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -2736,6 +2815,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message5"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2752,6 +2832,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2794,6 +2875,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -2810,6 +2892,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.sharedSession.account.get(),
                 }),
@@ -2826,6 +2909,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message5"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2842,6 +2926,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2912,6 +2997,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -2946,6 +3032,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message2"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
@@ -2972,6 +3059,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message2"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session1.account.get(),
                 }),
@@ -3006,6 +3094,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
@@ -3032,6 +3121,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session1.account.get(),
                 }),
@@ -3076,6 +3166,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
@@ -3102,6 +3193,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message4"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session1.account.get(),
                 }),
@@ -3200,6 +3292,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3216,6 +3309,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -3250,6 +3344,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3266,6 +3361,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
@@ -3314,6 +3410,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3330,6 +3427,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -3364,6 +3462,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3404,6 +3503,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -3438,6 +3538,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3495,6 +3596,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3614,6 +3716,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -3638,6 +3741,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3654,6 +3758,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -3688,6 +3793,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3704,6 +3810,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
@@ -3762,6 +3869,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -3796,6 +3904,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3844,6 +3953,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -3870,6 +3980,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
@@ -3894,6 +4005,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3942,6 +4054,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3966,6 +4079,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -3992,6 +4106,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
@@ -4016,6 +4131,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -4056,6 +4172,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -4080,6 +4197,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -4104,6 +4222,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -4130,6 +4249,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
@@ -4154,6 +4274,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -4185,6 +4306,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -4211,6 +4333,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session3.account.get(),
                 }),
@@ -4235,6 +4358,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -4259,6 +4383,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -4285,6 +4410,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
@@ -4309,6 +4435,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 ]),
                             },
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -4363,6 +4490,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -4411,6 +4539,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message2"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -4465,6 +4594,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -4527,10 +4657,330 @@ for (const [currentProcessingType, processingMultiple] of [
                             doc: createSimpleMessageContent("message2"),
                             references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
                     },
                     otherChatAccount: await scenario.session2.account.get(),
                 }),
             ]);
         });
+    });
+
+    test("if an account is mentioned then the mentioned message sticks around until archival", async () => {
+        const space = await TestSpace.create(context);
+
+        const session1 = await space.createSession();
+        const session2 = await space.createSession();
+
+        const chatId = await getOrCreateChatForAccounts(context.action(session1), {
+            spaceId: space.id,
+            otherAccountIds: [session2.account.id],
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        const message1 = await sendChatMessage(session1.action(), {
+            chatId,
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("Test comment 2"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChatEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                chatId,
+                chatAccountCount: 2,
+                loudNotificationCount: 1,
+                latestMessage: {
+                    createdTime: message1.createdTime,
+                    author: await session1.account.get(),
+                    contentTextSnippet: printContentSingleLineTextSnippet({
+                        doc: createSimpleMessageContent("Test comment 2"),
+                        references: emptyContentReferences,
+                    }),
+                    isStickyMention: false,
+                },
+                otherChatAccount: null,
+            }),
+        ]);
+
+        const message3 = await sendChatMessage(session1.action(), {
+            chatId,
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("Test comment 3"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChatEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                chatId,
+                chatAccountCount: 2,
+                loudNotificationCount: 1,
+                latestMessage: {
+                    createdTime: message3.createdTime,
+                    author: await session1.account.get(),
+                    contentTextSnippet: printContentSingleLineTextSnippet({
+                        doc: createSimpleMessageContent("Test comment 3"),
+                        references: emptyContentReferences,
+                    }),
+                    isStickyMention: false,
+                },
+                otherChatAccount: null,
+            }),
+        ]);
+
+        const message4 = await sendChatMessage(session1.action(), {
+            chatId,
+            parentMessageIndex: null,
+            content: assertMessageContent(
+                MessageContentProsemirrorSchema.node("doc", {}, [
+                    MessageContentProsemirrorSchema.node("paragraph", {}, [
+                        MessageContentProsemirrorSchema.text("Test comment 4 "),
+                        MessageContentProsemirrorSchema.node("mention", {
+                            mention: {accountId: session2.account.id, isShort: false},
+                        }),
+                    ]),
+                ]),
+            ),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChatEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                chatId,
+                chatAccountCount: 2,
+                loudNotificationCount: 2,
+                latestMessage: {
+                    createdTime: message4.createdTime,
+                    author: await session1.account.get(),
+                    contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
+                    isStickyMention: true,
+                },
+                otherChatAccount: null,
+            }),
+        ]);
+
+        await sendChatMessage(session1.action(), {
+            chatId,
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("Test comment 5"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChatEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                chatId,
+                chatAccountCount: 2,
+                loudNotificationCount: 2,
+                latestMessage: {
+                    createdTime: message4.createdTime,
+                    author: await session1.account.get(),
+                    contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
+                    isStickyMention: true,
+                },
+                otherChatAccount: null,
+            }),
+        ]);
+
+        await sendChatMessage(session1.action(), {
+            chatId,
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("Test comment 6"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChatEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                chatId,
+                chatAccountCount: 2,
+                loudNotificationCount: 2,
+                latestMessage: {
+                    createdTime: message4.createdTime,
+                    author: await session1.account.get(),
+                    contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
+                    isStickyMention: true,
+                },
+                otherChatAccount: null,
+            }),
+        ]);
+
+        const message7 = await sendChatMessage(session1.action(), {
+            chatId,
+            parentMessageIndex: null,
+            content: assertMessageContent(
+                MessageContentProsemirrorSchema.node("doc", {}, [
+                    MessageContentProsemirrorSchema.node("paragraph", {}, [
+                        MessageContentProsemirrorSchema.text("Test comment 7 "),
+                        MessageContentProsemirrorSchema.node("mention", {
+                            mention: {accountId: session2.account.id, isShort: false},
+                        }),
+                    ]),
+                ]),
+            ),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChatEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                chatId,
+                chatAccountCount: 2,
+                loudNotificationCount: 3,
+                latestMessage: {
+                    createdTime: message7.createdTime,
+                    author: await session1.account.get(),
+                    contentTextSnippet: `Test comment 7 @${session2.account.initialName}`,
+                    isStickyMention: true,
+                },
+                otherChatAccount: null,
+            }),
+        ]);
+
+        await sendChatMessage(session1.action(), {
+            chatId,
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("Test comment 8"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChatEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                chatId,
+                chatAccountCount: 2,
+                loudNotificationCount: 3,
+                latestMessage: {
+                    createdTime: message7.createdTime,
+                    author: await session1.account.get(),
+                    contentTextSnippet: `Test comment 7 @${session2.account.initialName}`,
+                    isStickyMention: true,
+                },
+                otherChatAccount: null,
+            }),
+        ]);
+
+        await archiveInboxEntry(session2.action(), {
+            spaceId: space.id,
+            key: {type: "Chat", chatId},
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        const message9 = await sendChatMessage(session1.action(), {
+            chatId,
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("Test comment 9"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(session2.action(), {
+                spaceId: space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChatEntryModel({
+                spaceId: space.id,
+                accountId: session2.account.id,
+                chatId,
+                chatAccountCount: 2,
+                loudNotificationCount: 1,
+                latestMessage: {
+                    createdTime: message9.createdTime,
+                    author: await session1.account.get(),
+                    contentTextSnippet: "Test comment 9",
+                    isStickyMention: false,
+                },
+                otherChatAccount: null,
+            }),
+        ]);
     });
 }

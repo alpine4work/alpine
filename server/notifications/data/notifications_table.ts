@@ -272,12 +272,17 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         /**
                          * The last message in the chat. Will be used to render a preview of the chat
                          * on the entry before the user clicks in.
+                         *
+                         * `isStickyMention` means the message contains a mention and we want to keep
+                         * it as the `latestMessage` until there's either a new mention or this inbox
+                         * entry is archived.
                          */
                         latestMessage: Schema.object({
                             index: Schema.integer,
                             authorId: Schema.id<AccountId>(),
                             createdTime: Schema.date,
                             contentSnippet: MessageContentSchema,
+                            isStickyMention: Schema.boolean.default(false),
                         }),
 
                         /**
@@ -327,12 +332,17 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         /**
                          * The last comment on the post. Will be used to render a preview of the post
                          * on the entry before the user clicks in.
+                         *
+                         * `isStickyMention` means the message contains a mention and we want to keep
+                         * it as the `latestMessage` until there's either a new mention or this inbox
+                         * entry is archived.
                          */
                         latestComment: Schema.object({
                             index: Schema.integer,
                             authorId: Schema.id<AccountId>(),
                             createdTime: Schema.date,
                             contentSnippet: MessageContentSchema,
+                            isStickyMention: Schema.boolean.default(false),
                         }).nullable(),
 
                         /**
@@ -431,12 +441,17 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         /**
                          * The last comment on the thread. Will be used to render a preview of the
                          * thread on the entry before the user clicks in.
+                         *
+                         * `isStickyMention` means the message contains a mention and we want to keep
+                         * it as the `latestMessage` until there's either a new mention or this inbox
+                         * entry is archived.
                          */
                         latestComment: Schema.object({
                             index: Schema.integer,
                             authorId: Schema.id<AccountId>(),
                             createdTime: Schema.date,
                             contentSnippet: MessageContentSchema,
+                            isStickyMention: Schema.boolean.default(false),
                         }),
 
                         /**
@@ -558,6 +573,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 doc: item.latestMessage.contentSnippet,
                                 references,
                             }),
+                            isStickyMention: item.latestMessage.isStickyMention,
                         },
                         otherChatAccount,
                     });
@@ -621,6 +637,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                       doc: latestComment.comment.contentSnippet,
                                       references: latestComment.references,
                                   }),
+                                  isStickyMention: latestComment.comment.isStickyMention,
                               }
                             : null,
                         otherCommentAuthor,
@@ -708,6 +725,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 doc: item.latestComment.contentSnippet,
                                 references: latestCommentContentSnippetReferences,
                             }),
+                            isStickyMention: item.latestComment.isStickyMention,
                         },
                         otherCommentAuthor,
                     });
@@ -1263,7 +1281,7 @@ async function archiveInboxEntryItemKey(
 
         const archiveTime = new Date();
 
-        const newInboxEntryItem = {
+        let newInboxEntryItem = {
             ...inboxEntryItem,
             isArchived: true,
             // Archiving an entry clears all of its loud notifications.
@@ -1274,6 +1292,34 @@ async function archiveInboxEntryItemKey(
             // When we archive an item, it goes to the top of the archive.
             enteredTime: archiveTime,
         };
+
+        // Clear out the `isStickyMention` property for messaging entries.
+        if (
+            "latestMessage" in newInboxEntryItem &&
+            newInboxEntryItem.latestMessage.isStickyMention
+        ) {
+            newInboxEntryItem = {
+                ...newInboxEntryItem,
+                latestMessage: {
+                    ...newInboxEntryItem.latestMessage,
+                    isStickyMention: false,
+                },
+            };
+        }
+
+        // Clear out the `isStickyMention` property for messaging entries.
+        if (
+            "latestComment" in newInboxEntryItem &&
+            newInboxEntryItem.latestComment?.isStickyMention
+        ) {
+            newInboxEntryItem = {
+                ...newInboxEntryItem,
+                latestComment: {
+                    ...newInboxEntryItem.latestComment,
+                    isStickyMention: false,
+                },
+            };
+        }
 
         // `Math.max` to protect against in case we under-counted the number of inbox
         // entries at some point.
@@ -1795,10 +1841,14 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                         ? accountId === event.authorId
                         : oldItem.isArchived;
 
+                let isMention;
                 let loudNotificationCount;
                 if (isArchived) {
+                    isMention = false;
                     loudNotificationCount = 0;
                 } else {
+                    isMention = event.mentionedAccountIds.has(accountId);
+
                     // We increment the loud notification count if:
                     //
                     // - This account was mentioned in the message
@@ -1823,7 +1873,7 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                     // is the work involved to resolve your inbox entries is proportional to number
                     // of entries (vs number of messages within an entry).
                     const shouldIncrementLoudNotificationCount =
-                        event.mentionedAccountIds.has(accountId) ||
+                        isMention ||
                         oldItem?.isArchived ||
                         !oldItem?.latestMessage ||
                         // Events might arrive out-of-order but if events 10min+ apart are arriving
@@ -1842,13 +1892,21 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                     authorId: AccountId;
                     createdTime: Date;
                     contentSnippet: MessageContent;
+                    isStickyMention: boolean;
                 };
                 let otherAccountId: AccountId | null;
 
                 // Our events may arrive out-of-order. If we have an earlier message index then
                 // what's in the entry's latest message then don't bother updating the latest
                 // message.
-                if (oldItem && oldItem.latestMessage.index >= event.messageIndex) {
+                //
+                // Or if the latest comment was a mention then we'll leave that in place even
+                // if there are further comments added.
+                if (
+                    oldItem &&
+                    (oldItem.latestMessage.index >= event.messageIndex ||
+                        (oldItem.latestMessage.isStickyMention && !isMention && !isArchived))
+                ) {
                     latestMessage = oldItem.latestMessage;
                     otherAccountId = oldItem.otherAccountId;
                 } else {
@@ -1857,6 +1915,7 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                         authorId: event.authorId,
                         createdTime: event.createdTime,
                         contentSnippet: event.contentSnippet,
+                        isStickyMention: isMention,
                     };
 
                     if (!oldItem) {
@@ -1895,7 +1954,10 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                 return {
                     isArchived,
                     loudNotificationCount,
-                    latestMessage,
+                    latestMessage:
+                        isArchived && latestMessage.isStickyMention
+                            ? {...latestMessage, isStickyMention: false}
+                            : latestMessage,
                     otherAccountId,
                 };
             },
@@ -1942,15 +2004,18 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                         ? accountId === event.authorId
                         : oldItem.isArchived;
 
+                let isMention;
                 let loudNotificationCount;
                 if (isArchived) {
+                    isMention = false;
                     loudNotificationCount = 0;
                 } else {
+                    isMention = event.mentionedAccountIds.has(accountId);
+
                     // We increment the loud notification count only if someone is explicitly
                     // trying to get your attention by mentioning your account. Otherwise, we
                     // expect users will respond to new post comments in their own time.
-                    const shouldIncrementLoudNotificationCount =
-                        event.mentionedAccountIds.has(accountId);
+                    const shouldIncrementLoudNotificationCount = isMention;
 
                     loudNotificationCount =
                         (oldItem?.loudNotificationCount ?? 0) +
@@ -1962,13 +2027,21 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                     authorId: AccountId;
                     createdTime: Date;
                     contentSnippet: MessageContent;
+                    isStickyMention: boolean;
                 };
                 let otherCommentAuthorId: AccountId | null;
 
                 // Our events may arrive out-of-order. If we have an earlier message index then
                 // what's in the entry's latest message then don't bother updating the latest
                 // message.
-                if (oldItem?.latestComment && oldItem.latestComment.index >= event.commentIndex) {
+                //
+                // Or if the latest comment was a mention then we'll leave that in place even
+                // if there are further comments added.
+                if (
+                    oldItem?.latestComment &&
+                    (oldItem.latestComment.index >= event.commentIndex ||
+                        (oldItem.latestComment.isStickyMention && !isMention && !isArchived))
+                ) {
                     latestComment = oldItem.latestComment;
                     otherCommentAuthorId = oldItem.otherCommentAuthorId;
                 } else {
@@ -1977,6 +2050,7 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                         authorId: event.authorId,
                         createdTime: event.createdTime,
                         contentSnippet: event.contentSnippet,
+                        isStickyMention: isMention,
                     };
 
                     if (!oldItem) {
@@ -2006,7 +2080,10 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                     loudNotificationCount,
                     postCreatedTime,
                     postContentSnippetIfMentioned,
-                    latestComment,
+                    latestComment:
+                        isArchived && latestComment.isStickyMention
+                            ? {...latestComment, isStickyMention: false}
+                            : latestComment,
                     otherCommentAuthorId,
                 };
             },
@@ -2216,15 +2293,18 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                         ? accountId === event.authorId
                         : oldItem.isArchived;
 
+                let isMention;
                 let loudNotificationCount;
                 if (isArchived) {
+                    isMention = false;
                     loudNotificationCount = 0;
                 } else {
+                    isMention = event.mentionedAccountIds.has(accountId);
+
                     // We increment the loud notification count only if someone is explicitly
                     // trying to get your attention by mentioning your account. Otherwise, we
                     // expect users will respond to new post comments in their own time.
-                    const shouldIncrementLoudNotificationCount =
-                        event.mentionedAccountIds.has(accountId);
+                    const shouldIncrementLoudNotificationCount = isMention;
 
                     loudNotificationCount =
                         (oldItem?.loudNotificationCount ?? 0) +
@@ -2236,13 +2316,21 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                     authorId: AccountId;
                     createdTime: Date;
                     contentSnippet: MessageContent;
+                    isStickyMention: boolean;
                 };
                 let otherCommentAuthorId: AccountId | null;
 
                 // Our events may arrive out-of-order. If we have an earlier message index then
                 // what's in the entry's latest message then don't bother updating the latest
                 // message.
-                if (oldItem?.latestComment && oldItem.latestComment.index >= event.commentIndex) {
+                //
+                // Or if the latest comment was a mention then we'll leave that in place even
+                // if there are further comments added.
+                if (
+                    oldItem?.latestComment &&
+                    (oldItem.latestComment.index >= event.commentIndex ||
+                        (oldItem.latestComment.isStickyMention && !isMention && !isArchived))
+                ) {
                     latestComment = oldItem.latestComment;
                     otherCommentAuthorId = oldItem.otherCommentAuthorId;
                 } else {
@@ -2251,6 +2339,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                         authorId: event.authorId,
                         createdTime: event.createdTime,
                         contentSnippet: event.contentSnippet,
+                        isStickyMention: isMention,
                     };
 
                     if (!oldItem) {
@@ -2282,7 +2371,10 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                     isArchived,
                     loudNotificationCount,
                     firstCommentAuthorId,
-                    latestComment,
+                    latestComment:
+                        isArchived && latestComment.isStickyMention
+                            ? {...latestComment, isStickyMention: false}
+                            : latestComment,
                     otherCommentAuthorId,
                 };
             },
