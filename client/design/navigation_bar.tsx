@@ -9,12 +9,13 @@ import {
     forwardRef,
     useCallback,
     useImperativeHandle,
+    useMemo,
     useRef,
     useState,
 } from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
@@ -40,6 +41,7 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
     RemLength,
     Spacing,
+    addRemLengths,
     isSpacing,
     parseRemLengthNumber,
     remPxByPlatform,
@@ -297,6 +299,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontSize = "200",
     desktopTitleFontWeight = "semi-bold",
     desktopTitleLeftSlop,
+    desktopMarginTop,
     mobileTitleJustifyContents = "center",
 }: {
     /**
@@ -431,6 +434,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     mobileTitleJustifyContents?: "center" | "flex-start";
 }): NavigationBarResult {
     const isMobile = useIsMobile();
+    const remPx = useRemPx();
 
     const navigationBarRef = useRef<{
         initialize: (element: HTMLElement) => void;
@@ -482,6 +486,15 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
         ),
     );
 
+    const desktopMarginTopRem =
+        desktopMarginTop !== undefined
+            ? parseRemLengthNumber(
+                  desktopMarginTop.endsWith("rem")
+                      ? (desktopMarginTop as RemLength)
+                      : spacing[desktopMarginTop as Spacing],
+              )
+            : 0;
+
     const navigationBar = !isDisabled && (
         <NavigationBar
             isMobile={isMobile}
@@ -502,6 +515,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             desktopTitleFontSize={desktopTitleFontSize}
             desktopTitleFontWeight={desktopTitleFontWeight}
             desktopTitleLeftSlop={desktopTitleLeftSlop}
+            desktopMarginTopRem={desktopMarginTopRem}
             mobileTitleJustifyContents={mobileTitleJustifyContents}
         />
     );
@@ -509,11 +523,31 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     return {
         scrollViewRef,
         navigationBar,
-        scrollbarInsetTop: !isDisabled
-            ? isMobile
-                ? mobileNavigationBarScrollbarInsetTop
-                : desktopNavigationBarScrollbarInsetTop
-            : undefined,
+        scrollbarInsetTop: useMemo(
+            () =>
+                !isDisabled
+                    ? isMobile
+                        ? [
+                              desktopMarginTopRem !== 0
+                                  ? addRemLengths(
+                                        spacing[mobileNavigationBarHeight],
+                                        `${desktopMarginTopRem}rem`,
+                                    )
+                                  : spacing[mobileNavigationBarHeight],
+                              {withSafeArea: true},
+                          ]
+                        : [
+                              desktopMarginTopRem !== 0
+                                  ? addRemLengths(
+                                        spacing[desktopNavigationBarHeight],
+                                        `${desktopMarginTopRem}rem`,
+                                    )
+                                  : spacing[desktopNavigationBarHeight],
+                              {withSafeArea: true},
+                          ]
+                    : undefined,
+            [desktopMarginTopRem, isDisabled, isMobile],
+        ),
     };
 }
 
@@ -536,6 +570,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontSize,
     desktopTitleFontWeight,
     desktopTitleLeftSlop,
+    desktopMarginTopRem,
     mobileTitleJustifyContents,
 }: {
     isMobile: boolean;
@@ -559,6 +594,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontSize: FontSize;
     desktopTitleFontWeight: "semi-bold" | "bold";
     desktopTitleLeftSlop: Spacing | undefined;
+    desktopMarginTopRem: number;
     mobileTitleJustifyContents: "center" | "flex-start";
 }) {
     const {isAppleDevice, isNativeMobile} = useClientInfo();
@@ -721,7 +757,10 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
                         setScrollDirectionState({
                             scrollDirection: lastScrollDirectionRef.current,
-                            navigationBarTopOffset,
+                            navigationBarTopOffset: Math.max(
+                                0,
+                                navigationBarTopOffset - desktopMarginTopRem * remPx,
+                            ),
                             animateNavigationBarTranslateY: 0,
                         });
                     }
@@ -771,7 +810,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
                         const isNavigationBarOpaque = lastIsNavigationBarOpaque
                             ? scrollOffset > 0
-                            : scrollOffset > navigationBarHeight;
+                            : scrollOffset > navigationBarHeight + desktopMarginTopRem * remPx;
 
                         // Compute the title boundary scroll offset...
                         let titleBoundaryOffset: number | null = null;
@@ -910,7 +949,10 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
                         setScrollDirectionState({
                             scrollDirection,
-                            navigationBarTopOffset: lastNavigationBarTopOffset,
+                            navigationBarTopOffset: Math.max(
+                                0,
+                                lastNavigationBarTopOffset - desktopMarginTopRem * remPx,
+                            ),
                             animateNavigationBarTranslateY: 0,
                         });
                     }
@@ -979,7 +1021,10 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
                             setScrollDirectionState({
                                 scrollDirection,
-                                navigationBarTopOffset,
+                                navigationBarTopOffset: Math.max(
+                                    0,
+                                    navigationBarTopOffset - desktopMarginTopRem * remPx,
+                                ),
                                 animateNavigationBarTranslateY:
                                     navigationBarTopOffset - lastNavigationBarTopOffset,
                             });
@@ -988,7 +1033,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 },
             };
         },
-        [navigationBarHeightRem, titleBoundaryRef, withoutDisappearingTitle],
+        [desktopMarginTopRem, navigationBarHeightRem, titleBoundaryRef, withoutDisappearingTitle],
     );
 
     const lastAnimatedScrollDirectionStateRef = useRef(scrollDirectionState);
@@ -1066,7 +1111,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
             <div
                 style={{
                     position: "absolute",
-                    top: 0,
+                    top: !isMobile && desktopMarginTopRem !== 0 ? `${desktopMarginTopRem}rem` : 0,
                     left: 0,
                     right: 0,
                     // Extend the space our `position: sticky` element can scroll in. This way in
