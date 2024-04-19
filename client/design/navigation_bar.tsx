@@ -9,12 +9,13 @@ import {
     forwardRef,
     useCallback,
     useImperativeHandle,
+    useMemo,
     useRef,
     useState,
 } from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
@@ -40,6 +41,7 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
     RemLength,
     Spacing,
+    addRemLengths,
     isSpacing,
     parseRemLengthNumber,
     remPxByPlatform,
@@ -292,10 +294,13 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     shareButton,
     stickyBanner,
     desktopControls = null,
+    desktopMaxWidth,
     desktopTitleMaxWidth,
     desktopTitleFontSize = "200",
     desktopTitleFontWeight = "semi-bold",
     desktopTitleLeftSlop,
+    desktopMarginTop,
+    mobileTitleJustifyContents = "center",
 }: {
     /**
      * A ref for interacting with the navigation bar when mounted.
@@ -382,6 +387,18 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopControls?: ReactNode;
 
     /**
+     * The amount of space all content in the navigation bar can occupy on desktop.
+     * This also has the effect of centering the title container (of this width)
+     * when set.
+     *
+     * The difference between `desktopMaxWidth` and `desktopTitleMaxWidth` is that
+     * if `desktopTitleMaxWidth` is set then `menuActions` and `shareButton` will
+     * be aligned with the right side of the screen but if `desktopMaxWidth` is set
+     * then `menuActions` and `shareButton` are within the max width.
+     */
+    desktopMaxWidth?: Spacing | RemLength;
+
+    /**
      * The amount of space the title can occupy on desktop. This also has the
      * effect of centering the title container (of this width) when set.
      */
@@ -403,8 +420,21 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
      * the left.
      */
     desktopTitleLeftSlop?: Spacing;
+
+    /**
+     * Extra scroll space added above the navigation bar on desktop. Similar to safe
+     * area inset but the navigation bar doesn't cover this area when scrolled.
+     */
+    desktopMarginTop?: Spacing | RemLength;
+
+    /**
+     * How do we justify title contents on mobile? Defaults to `center`. To match
+     * desktop behavior use `flex-start`.
+     */
+    mobileTitleJustifyContents?: "center" | "flex-start";
 }): NavigationBarResult {
     const isMobile = useIsMobile();
+    const remPx = useRemPx();
 
     const navigationBarRef = useRef<{
         initialize: (element: HTMLElement) => void;
@@ -456,6 +486,15 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
         ),
     );
 
+    const desktopMarginTopRem =
+        desktopMarginTop !== undefined
+            ? parseRemLengthNumber(
+                  desktopMarginTop.endsWith("rem")
+                      ? (desktopMarginTop as RemLength)
+                      : spacing[desktopMarginTop as Spacing],
+              )
+            : 0;
+
     const navigationBar = !isDisabled && (
         <NavigationBar
             isMobile={isMobile}
@@ -471,21 +510,44 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             shareButton={shareButton}
             stickyBanner={stickyBanner}
             desktopControls={desktopControls}
+            desktopMaxWidth={desktopMaxWidth}
             desktopTitleMaxWidth={desktopTitleMaxWidth}
             desktopTitleFontSize={desktopTitleFontSize}
             desktopTitleFontWeight={desktopTitleFontWeight}
             desktopTitleLeftSlop={desktopTitleLeftSlop}
+            desktopMarginTopRem={desktopMarginTopRem}
+            mobileTitleJustifyContents={mobileTitleJustifyContents}
         />
     );
 
     return {
         scrollViewRef,
         navigationBar,
-        scrollbarInsetTop: !isDisabled
-            ? isMobile
-                ? mobileNavigationBarScrollbarInsetTop
-                : desktopNavigationBarScrollbarInsetTop
-            : undefined,
+        scrollbarInsetTop: useMemo(
+            () =>
+                !isDisabled
+                    ? isMobile
+                        ? [
+                              desktopMarginTopRem !== 0
+                                  ? addRemLengths(
+                                        spacing[mobileNavigationBarHeight],
+                                        `${desktopMarginTopRem}rem`,
+                                    )
+                                  : spacing[mobileNavigationBarHeight],
+                              {withSafeArea: true},
+                          ]
+                        : [
+                              desktopMarginTopRem !== 0
+                                  ? addRemLengths(
+                                        spacing[desktopNavigationBarHeight],
+                                        `${desktopMarginTopRem}rem`,
+                                    )
+                                  : spacing[desktopNavigationBarHeight],
+                              {withSafeArea: true},
+                          ]
+                    : undefined,
+            [desktopMarginTopRem, isDisabled, isMobile],
+        ),
     };
 }
 
@@ -503,10 +565,13 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     shareButton,
     stickyBanner,
     desktopControls,
+    desktopMaxWidth,
     desktopTitleMaxWidth,
     desktopTitleFontSize,
     desktopTitleFontWeight,
     desktopTitleLeftSlop,
+    desktopMarginTopRem,
+    mobileTitleJustifyContents,
 }: {
     isMobile: boolean;
     withMobileLayout: boolean;
@@ -524,10 +589,13 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     shareButton: {} | undefined;
     stickyBanner: ReactNode;
     desktopControls: ReactNode;
+    desktopMaxWidth: Spacing | RemLength | undefined;
     desktopTitleMaxWidth: Spacing | RemLength | undefined;
     desktopTitleFontSize: FontSize;
     desktopTitleFontWeight: "semi-bold" | "bold";
     desktopTitleLeftSlop: Spacing | undefined;
+    desktopMarginTopRem: number;
+    mobileTitleJustifyContents: "center" | "flex-start";
 }) {
     const {isAppleDevice, isNativeMobile} = useClientInfo();
 
@@ -655,6 +723,12 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     const lastScrollHeight = lastScrollHeightRef.current;
                     lastScrollHeightRef.current = scrollHeight;
 
+                    const lastNavigationBarScrollOffset = clamp(
+                        0,
+                        lastScrollOffset - lastNavigationBarTopOffsetRef.current,
+                        navigationBarHeight,
+                    );
+
                     // Edge case: If we resized and scrolled down at the same time (and scrolled
                     // the same amount we resized) then we don't want our navigation bar's scroll
                     // offset to change.
@@ -678,20 +752,15 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                         scrollOffset > lastScrollOffset &&
                         scrollOffset - lastScrollOffset == scrollHeight - lastScrollHeight
                     ) {
-                        const lastNavigationBarScrollOffset = Math.max(
-                            0,
-                            Math.min(
-                                lastScrollOffset - lastNavigationBarTopOffsetRef.current,
-                                navigationBarHeight,
-                            ),
-                        );
-
                         const navigationBarTopOffset = scrollOffset - lastNavigationBarScrollOffset;
                         lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
 
                         setScrollDirectionState({
                             scrollDirection: lastScrollDirectionRef.current,
-                            navigationBarTopOffset,
+                            navigationBarTopOffset: Math.max(
+                                0,
+                                navigationBarTopOffset - desktopMarginTopRem * remPx,
+                            ),
                             animateNavigationBarTranslateY: 0,
                         });
                     }
@@ -722,12 +791,6 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     // content opacity to zero so it doesn't conflict with operation system content
                     // in the safe area.
                     {
-                        const lastNavigationBarScrollOffset = clamp(
-                            0,
-                            lastScrollOffset - lastNavigationBarTopOffsetRef.current,
-                            navigationBarHeight,
-                        );
-
                         const navigationBarContainerElement = assertExists(
                             navigationBarContainerRef.current,
                         );
@@ -747,7 +810,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
                         const isNavigationBarOpaque = lastIsNavigationBarOpaque
                             ? scrollOffset > 0
-                            : scrollOffset > navigationBarHeight;
+                            : scrollOffset > navigationBarHeight + desktopMarginTopRem * remPx;
 
                         // Compute the title boundary scroll offset...
                         let titleBoundaryOffset: number | null = null;
@@ -880,12 +943,16 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     }
 
                     if (scrollDirection !== lastScrollDirection) {
-                        const navigationBarTopOffset = scrollOffset - navigationBarScrollOffset;
-                        lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
+                        const lastNavigationBarTopOffset =
+                            lastScrollOffset - lastNavigationBarScrollOffset;
+                        lastNavigationBarTopOffsetRef.current = lastNavigationBarTopOffset;
 
                         setScrollDirectionState({
                             scrollDirection,
-                            navigationBarTopOffset,
+                            navigationBarTopOffset: Math.max(
+                                0,
+                                lastNavigationBarTopOffset - desktopMarginTopRem * remPx,
+                            ),
                             animateNavigationBarTranslateY: 0,
                         });
                     }
@@ -954,7 +1021,10 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
                             setScrollDirectionState({
                                 scrollDirection,
-                                navigationBarTopOffset,
+                                navigationBarTopOffset: Math.max(
+                                    0,
+                                    navigationBarTopOffset - desktopMarginTopRem * remPx,
+                                ),
                                 animateNavigationBarTranslateY:
                                     navigationBarTopOffset - lastNavigationBarTopOffset,
                             });
@@ -963,7 +1033,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 },
             };
         },
-        [navigationBarHeightRem, titleBoundaryRef, withoutDisappearingTitle],
+        [desktopMarginTopRem, navigationBarHeightRem, titleBoundaryRef, withoutDisappearingTitle],
     );
 
     const lastAnimatedScrollDirectionStateRef = useRef(scrollDirectionState);
@@ -1041,7 +1111,9 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
             <div
                 style={{
                     position: "absolute",
-                    inset: 0,
+                    top: !isMobile && desktopMarginTopRem !== 0 ? `${desktopMarginTopRem}rem` : 0,
+                    left: 0,
+                    right: 0,
                     // Extend the space our `position: sticky` element can scroll in. This way in
                     // Safari for iOS or MacOS, if the user overscrolls at the bottom of the
                     // element, the sticky element will travel with the overscroll. Instead of being
@@ -1111,10 +1183,12 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             menuActions={menuActions}
                             shareButton={shareButton}
                             desktopControls={desktopControls}
+                            desktopMaxWidth={desktopMaxWidth}
                             desktopTitleMaxWidth={desktopTitleMaxWidth}
                             desktopTitleFontSize={desktopTitleFontSize}
                             desktopTitleFontWeight={desktopTitleFontWeight}
                             desktopTitleLeftSlop={desktopTitleLeftSlop}
+                            mobileTitleJustifyContents={mobileTitleJustifyContents}
                         />
                         {stickyBanner}
                     </Box>
@@ -1140,10 +1214,12 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         menuActions = emptyArray,
         shareButton,
         desktopControls,
+        desktopMaxWidth: desktopMaxWidthProp,
         desktopTitleMaxWidth: desktopTitleMaxWidthProp,
         desktopTitleFontSize = "200",
         desktopTitleFontWeight = "semi-bold",
         desktopTitleLeftSlop,
+        mobileTitleJustifyContents = "center",
     }: {
         withMobileLayout: boolean;
         title?: ReactNode;
@@ -1153,10 +1229,12 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
         shareButton?: {};
         desktopControls?: ReactNode;
+        desktopMaxWidth?: Spacing | RemLength;
         desktopTitleMaxWidth?: Spacing | RemLength;
         desktopTitleFontSize?: FontSize;
         desktopTitleFontWeight?: "semi-bold" | "bold";
         desktopTitleLeftSlop?: Spacing;
+        mobileTitleJustifyContents?: "center" | "flex-start";
     },
     ref: Ref<NavigationBarContentRef>,
 ) {
@@ -1181,6 +1259,13 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         [reconcileFocusedTextInput],
     );
 
+    const desktopMaxWidth =
+        desktopMaxWidthProp !== undefined
+            ? isSpacing(desktopMaxWidthProp)
+                ? spacing[desktopMaxWidthProp]
+                : desktopMaxWidthProp
+            : undefined;
+
     const desktopTitleMaxWidth =
         desktopTitleMaxWidthProp !== undefined
             ? isSpacing(desktopTitleMaxWidthProp)
@@ -1196,19 +1281,22 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
             width="full"
             height={navigationBarHeight}
             display="flex"
-            gap="5"
+            gap={isMobile ? "3" : "5"}
+            style={{
+                maxWidth: !isMobile ? desktopMaxWidth : undefined,
+                margin: !isMobile ? "0 auto" : undefined,
+            }}
         >
             <OverlayScopeContextProvider>
                 {isMobile ? (
                     <Box
-                        flexGrow="1"
                         flexShrink="0"
                         height={navigationBarHeight}
                         paddingLeft="3"
                         display="flex"
                         justifyContent="flex-start"
                         alignItems="center"
-                        style={{flexBasis: spacing["7"]}}
+                        style={{flexBasis: spacing["10"]}}
                         // Gives children `pointer-events: initial` so the user can interact with them.
                         className={pointerEventsNoneNotInheritedClassName}
                     >
@@ -1239,11 +1327,15 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                     height={navigationBarHeight}
                     paddingLeft={desktopTitleMaxWidth === undefined && !isMobile ? "5" : undefined}
                     display="flex"
-                    justifyContent={isMobile ? "center" : "flex-start"}
+                    justifyContent={isMobile ? mobileTitleJustifyContents : "flex-start"}
                     alignItems="center"
                     gap="3"
                     style={{
                         maxWidth: !isMobile ? desktopTitleMaxWidth : undefined,
+                        // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+                        // have `min-width: auto` which extends with content.
+                        // https://stackoverflow.com/a/66689926/1568890
+                        minWidth: 0,
                     }}
                 >
                     {!isMobile && desktopControls && (
@@ -1308,7 +1400,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                     </Box>
                 </Box>
                 <Box
-                    flexGrow="1"
+                    flexGrow={!isMobile ? "1" : undefined}
                     flexShrink="0"
                     height={navigationBarHeight}
                     paddingRight={isMobile ? "3" : "5"}
@@ -1318,7 +1410,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                     gap={isMobile ? "0.5" : "2"}
                     // Gives children `pointer-events: initial` so the user can interact with them.
                     className={pointerEventsNoneNotInheritedClassName}
-                    style={{flexBasis: spacing["7"]}}
+                    style={{flexBasis: spacing["10"]}}
                 >
                     {shareButton && !withMobileLayout && (
                         <Box paddingRight="3">
@@ -1347,6 +1439,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                     ) : (
                         (menuActions.length > 0 || (shareButton && withMobileLayout)) && (
                             <MenuButton
+                                placement="bottom-end"
                                 actions={
                                     shareButton && withMobileLayout
                                         ? [[createShareMenuItem({showToast})], ...menuActions]
