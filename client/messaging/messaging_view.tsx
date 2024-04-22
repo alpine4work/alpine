@@ -558,7 +558,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     useScrollToNewMessages({
         viewRef,
         inputRef,
-        isStickyPositioned: false,
+        isInputStickyPositioned: false,
         messages: state.messages,
         getItemKey: useCallback(
             (item: MessageListItem<Message>) => getMessageListItemKey(item, null),
@@ -572,7 +572,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     // Unless we are replying to a message or editing a message. Then we should
     // anchor to the message in question.
     //
-    // NOCOMMIT: Do this for document comment threads too?
+    // NOCOMMIT: Do the editing bits for document comment threads and post comments
+    // too?
     useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
         isPinned: true,
         getAnchorPosition: useEvent(oldVisibleRect => {

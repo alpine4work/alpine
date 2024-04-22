@@ -529,28 +529,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return this._initializationState.description;
     }
 
-    // NOCOMMIT:
-    // /**
-    //  * Get all indexes for a given item type.
-    //  */
-    // public getIndexConfigsByItemType(
-    //     partitionType: string,
-    //     sortRangeType: string,
-    // ): ReadonlyArray<DynamoTableSchemaIndexConfig> {
-    //     assert(this._initializationState.isInitialized, "Schema has not finished initializing");
-
-    //     // If our schema is read incompatible with the old schema then always throw an
-    //     // error when a user tries to observe the description.
-    //     if (this._initializationState.readCompatibilityError !== null)
-    //         throw this._initializationState.readCompatibilityError;
-
-    //     return (
-    //         this._initializationState.indexConfigsByItemType.get(
-    //             `${partitionType}#${sortRangeType}`,
-    //         ) ?? emptyArray
-    //     );
-    // }
-
     /**
      * Return the partition key attributes for a given partition. Throws an error
      * if the partition doesn't exist.
