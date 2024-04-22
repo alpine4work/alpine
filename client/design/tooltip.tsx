@@ -890,7 +890,7 @@ function Tooltip(
                         <Box
                             maxWidth="64"
                             paddingX="1.5"
-                            paddingY="0.5"
+                            paddingY="1"
                             fontSize="50"
                             color="grey-text"
                             backgroundColor="grey-0"
