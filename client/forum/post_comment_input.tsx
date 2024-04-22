@@ -28,6 +28,7 @@ export type PostRealtimeProcedures = {
 };
 
 export function PostCommentInput({
+    isStickyPositioned,
     post,
     viewRef,
     proceduresRef,
@@ -42,6 +43,7 @@ export function PostCommentInput({
     onPostRealtimeEventTransaction,
     paddingX,
 }: {
+    isStickyPositioned: boolean;
     post: PostModel;
     viewRef: RefObject<VirtualizedScrollViewRef>;
     proceduresRef: Ref<PostRealtimeProcedures>;
@@ -201,6 +203,7 @@ export function PostCommentInput({
     useScrollToNewMessages({
         viewRef,
         inputRef,
+        isInputStickyPositioned: isStickyPositioned,
         messages: postComments,
         getItemKey: useCallback(
             (item: MessageListItem<PostCommentModel>) => {

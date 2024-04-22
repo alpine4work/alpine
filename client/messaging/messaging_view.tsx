@@ -558,6 +558,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     useScrollToNewMessages({
         viewRef,
         inputRef,
+        isStickyPositioned: false,
         messages: state.messages,
         getItemKey: useCallback(
             (item: MessageListItem<Message>) => getMessageListItemKey(item, null),

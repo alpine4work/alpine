@@ -951,6 +951,7 @@ function DocumentCommentThreadListView(
                     // `render()` function is called since it's referentially stable.
                     const inputNode = (
                         <DocumentCommentInput
+                            isStickyPositioned={true}
                             viewRef={viewRef}
                             commentThread={item.commentThread}
                             comments={item.comments}
@@ -1162,6 +1163,7 @@ function DocumentCommentThreadListView(
 
                         return (
                             <DocumentCommentInput
+                                isStickyPositioned={false}
                                 inputRef={pinnedCommentInputRef}
                                 viewRef={viewRef}
                                 commentThread={item.commentThread}

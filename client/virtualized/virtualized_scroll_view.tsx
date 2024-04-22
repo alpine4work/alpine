@@ -277,6 +277,7 @@ export type VirtualizedScrollViewRef = {
     getPositionByKeyIfExists(key: Key): {
         offset: number;
         height: number;
+        getIndex: () => number;
     } | null;
 
     /**

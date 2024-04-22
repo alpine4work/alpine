@@ -2188,6 +2188,7 @@ export class VirtualizedScrollViewState {
     public getPositionByKeyIfExists(key: Key): {
         offset: number;
         height: number;
+        getIndex: () => number;
     } | null {
         const iterator1 = this._orderKeyByItemKey.find(key);
         if (!iterator1.node) return null;
@@ -2196,6 +2197,7 @@ export class VirtualizedScrollViewState {
         return {
             offset: this._getPreviousContentHeight(iterator2),
             height: iterator2.node.value.height,
+            getIndex: () => this._getPreviousItemCount(iterator2),
         };
     }
 }

@@ -45,8 +45,8 @@ import {
 } from "~/client/forum/post_content_view.js";
 import {PostEditing, usePostEditing} from "~/client/forum/post_editing.js";
 import {
-    PostListInterface,
     PostListChannelHeader,
+    PostListInterface,
     PostListPostContentItem,
     PostListWithChannelHeader,
 } from "~/client/forum/post_list.js";
@@ -93,8 +93,6 @@ import {
     updatePostContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
-
-// NOCOMMIT: There are some bugs send reply comments
 
 export const postViewMaxWidth: Spacing = "160";
 
@@ -1151,6 +1149,7 @@ function PostListView(
                     // `render()` function is called since it's referentially stable.
                     const inputNode = (
                         <PostCommentInput
+                            isStickyPositioned={true}
                             post={item.post}
                             viewRef={viewRef}
                             proceduresRef={procedures => {
@@ -1632,6 +1631,7 @@ function PostListView(
 
                         return (
                             <PostCommentInput
+                                isStickyPositioned={false}
                                 post={lastPostContentItem.post}
                                 viewRef={viewRef}
                                 proceduresRef={procedures => {

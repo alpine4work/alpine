@@ -14,11 +14,13 @@ import {messageViewMinHeight} from "~/shared/messaging/messaging_shared_styles.j
 export function useScrollToNewMessages<Message extends MessageModel>({
     viewRef,
     inputRef,
+    isInputStickyPositioned,
     messages,
     getItemKey,
 }: {
     viewRef: RefObject<VirtualizedScrollViewRef>;
     inputRef: RefObject<MessageInputRef>;
+    isInputStickyPositioned: boolean;
     messages: MessageList<Message>;
     getItemKey: Memo<(item: MessageListItem<Message>) => Key>;
 }) {
@@ -60,22 +62,32 @@ export function useScrollToNewMessages<Message extends MessageModel>({
             const input = assertExists(inputRef.current);
 
             const firstNewItem = messages.getItem(firstNewItemIndex);
-            const firstNewItemPosition = view.getPositionByKeyIfExists(getItemKey(firstNewItem));
+            const firstNewItemKey = getItemKey(firstNewItem);
+            const firstNewItemPosition = view.getPositionByKeyIfExists(firstNewItemKey);
 
             // If a position doesn't exist (maybe because the item is offscreen), don't
             // perform a scroll adjustment.
             if (!firstNewItemPosition) return;
+
+            const lastNewItemViewIndex =
+                firstNewItemPosition.getIndex() + (messages.getItemCount() - firstNewItemIndex) - 1;
+            const lastNewItemPosition = view.getPositionByIndex(lastNewItemViewIndex);
 
             const viewRect = view.getElement().getBoundingClientRect();
             const inputRect = input.getBoundingClientRect();
 
             const newItemsOffset = firstNewItemPosition.offset;
             const newItemsHeight =
-                view.getContentHeight() -
+                lastNewItemPosition.offset +
+                lastNewItemPosition.height -
                 newItemsOffset -
                 // Subtract margin added for safe area from new item heights. Particularly
                 // meaningful when the keyboard is open and there's lots of safe area.
-                Math.max(0, viewRect.bottom - inputRect.top);
+                //
+                // TODO(calebmer): Sticky positioned inputs will commonly be above
+                // `viewRect.bottom` based on their scroll position. I think we'll need
+                // different handling for sticky positioned inputs on mobile.
+                (!isInputStickyPositioned ? Math.max(0, viewRect.bottom - inputRect.top) : 0);
 
             const actualNewItemsTop =
                 viewRect.top + (firstNewItemPosition.offset - view.getScrollOffset());
@@ -133,5 +145,5 @@ export function useScrollToNewMessages<Message extends MessageModel>({
         return () => {
             isCancelled = true;
         };
-    }, [getItemKey, inputRef, messages, viewRef]);
+    }, [getItemKey, inputRef, isInputStickyPositioned, messages, viewRef]);
 }

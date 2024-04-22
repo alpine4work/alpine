@@ -23,6 +23,7 @@ import {
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export function DocumentCommentInput({
+    isStickyPositioned,
     inputRef: inputRefProp,
     viewRef,
     commentThread,
@@ -39,6 +40,7 @@ export function DocumentCommentInput({
     marginX,
     withMobileLayout,
 }: {
+    isStickyPositioned: boolean;
     inputRef?: Ref<MessageInputRef>;
     viewRef: RefObject<VirtualizedScrollViewRef>;
     commentThread: DocumentCommentThreadModel;
@@ -157,6 +159,7 @@ export function DocumentCommentInput({
     useScrollToNewMessages({
         viewRef,
         inputRef,
+        isInputStickyPositioned: isStickyPositioned,
         messages: comments,
         getItemKey: useCallback(
             (item: MessageListItem<DocumentCommentModel>) =>
