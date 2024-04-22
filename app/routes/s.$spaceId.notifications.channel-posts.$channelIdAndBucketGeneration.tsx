@@ -1,27 +1,30 @@
 import {useCallback, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {postContentViewMinHeightWithClosedCommentSection} from "~/client/forum/post_content_view.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
-import {PostListView, postViewMaxWidth} from "~/client/forum/post_list_view.js";
+import {PostListView} from "~/client/forum/post_list_view.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
+import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {getChannel} from "~/server/forum/data/forum_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
+import {ChannelRealtimeProtocol} from "~/shared/forum/channel_realtime_protocol.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isId} from "~/shared/id/id.js";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {getChannelWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitions.js";
 import {getInboxChannelPostsEntryPosts} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
@@ -31,7 +34,7 @@ const LoaderSchema = Schema.object({
     bucketGeneration: Schema.integer,
     postsResult: Schema.object({
         hasMorePosts: Schema.boolean,
-        posts: Schema.array(PostModel.schema()),
+        posts: Schema.array(createDynamoGeneralRealtimeItemSchema(PostModel.schema())),
     }),
 });
 
@@ -92,26 +95,50 @@ export default function ChannelPostsRoute({
     const context = useAppContext();
     const isMobile = useIsMobile();
     const {space} = useSpaceContext();
-    const rootNavigate = useRootNavigate();
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const {
-        channel,
+        channel: initialChannel,
         bucketGeneration,
         postsResult: initialPostsResult,
     } = useLoaderDataWithSchema(LoaderSchema);
 
+    const channelId = initialChannel.model.id;
+
     // While you're viewing new posts in a channel, this accrues affinity points to
     // the channel. Since you're taking time to pay attention to what's new in a
     // channel.
-    useSearchAffinityViewInteraction(`Channel:${channel.model.id}`);
+    useSearchAffinityViewInteraction(`Channel:${channelId}`);
+
+    const {isConnected, subscribeToEvents} = useWebSocket(
+        ChannelRealtimeProtocol,
+        `/api/durable-objects/channels/${channelId}`,
+    );
 
     const [posts, setPosts] = useState(() =>
-        PostBasicList.empty
-            .insertManyPostsAtEnd(initialPostsResult.posts)
-            .setHasMorePosts(initialPostsResult.hasMorePosts),
+        PostBasicList.new({
+            type: "Many",
+            posts: initialPostsResult.posts,
+            hasMorePosts: initialPostsResult.hasMorePosts,
+        }),
     );
+
+    const {item: channel} = useDynamoGeneralRealtimeItem(initialChannel, {
+        isConnected,
+        subscribeToEvents: useCallback(
+            subscriber =>
+                subscribeToEvents(({eventTransaction}) => {
+                    subscriber(eventTransaction);
+                    setPosts(posts => posts.handleEventTransaction(eventTransaction));
+                }),
+            [subscribeToEvents],
+        ),
+        reloadItemWithStrongReadConsistency: useCallback(async () => {
+            const {channel} = await getChannelWithStrongReadConsistency(context, {channelId});
+            return channel;
+        }, [channelId, context]),
+    });
 
     const navigationBarRef = useRef<NavigationBarRef>(null);
 
@@ -148,19 +175,14 @@ export default function ChannelPostsRoute({
                     channelId: channel.model.id,
                     bucketGeneration,
                     limit,
-                    afterPostId: posts.getLastPostIfExists()?.post.id ?? null,
+                    afterPostId: posts.getLastPostIdIfExists(),
                 });
 
-                setPosts(posts =>
-                    posts
-                        .insertManyPostsAtEnd(postsResult.posts)
-                        .setHasMorePosts(postsResult.hasMorePosts),
-                );
+                setPosts(posts => posts.loadMorePosts(postsResult));
             }}
-            // NOCOMMIT: This??
             shouldBeConnectedToChannelRealtime={true}
-            onPostRealtimeEventTransaction={useCallback(() => {
-                // NOCOMMIT: Implement!!
+            onPostRealtimeEventTransaction={useCallback(({eventTransaction}) => {
+                setPosts(posts => posts.handleEventTransaction(eventTransaction));
             }, [])}
             navigationBar={{...navigationBar, navigationBarRef}}
         />

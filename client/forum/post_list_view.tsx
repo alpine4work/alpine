@@ -45,7 +45,7 @@ import {
 } from "~/client/forum/post_content_view.js";
 import {PostEditing, usePostEditing} from "~/client/forum/post_editing.js";
 import {
-    PostListBase,
+    PostListInterface,
     PostListChannelHeader,
     PostListPostContentItem,
     PostListWithChannelHeader,
@@ -167,7 +167,7 @@ function PostListView(
         /**
          * The post content to be rendered in this post list view.
          */
-        posts: PostListBase;
+        posts: PostListInterface;
 
         /**
          * Toggle the comments for a post open and closed.

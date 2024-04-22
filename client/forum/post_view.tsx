@@ -44,16 +44,37 @@ export function PostView({
             postList.jumpToPostCommentIndex(initialPost.model.id, initialScrollToPostCommentIndex);
     }, [initialPost.model.id, initialScrollToPostCommentIndex]);
 
-    const [{post, posts}, setPostState] = useState(() => ({
-        post: initialPost,
-        posts: PostBasicList.empty.insertPostAtEnd(initialPost.model, {
+    const [postsFromState, setPosts] = useState(() =>
+        PostBasicList.new({
+            type: "One",
+            post: initialPost,
             postCommentsState: "AlwaysOpen",
-            initialLoadPostComments: {
+            postComments: {
                 comments: initialPostComments,
                 otherReferencedComments: initialOtherReferencedPostComments,
             },
         }),
-    }));
+    );
+
+    let posts = postsFromState;
+    let postResult = posts.getPostByIdIfExists(initialPost.model.id);
+
+    if (!postResult) {
+        const newPosts = PostBasicList.new({
+            type: "One",
+            post: initialPost,
+            postCommentsState: "AlwaysOpen",
+            postComments: {
+                comments: initialPostComments,
+                otherReferencedComments: initialOtherReferencedPostComments,
+            },
+        });
+
+        setPosts(newPosts);
+        posts = newPosts;
+
+        postResult = newPosts.getPostById(initialPost.model.id);
+    }
 
     const navigationBarRef = useRef<NavigationBarRef>(null);
 
@@ -63,7 +84,7 @@ export function PostView({
         withoutDisappearingTitle: true,
         title: (
             <PostContentViewHeader
-                post={post.model}
+                post={postResult.post}
                 shouldShowChannel={true}
                 withNavigationBarLayout={true}
             />
@@ -82,11 +103,11 @@ export function PostView({
         mobileTitleJustifyContents: "flex-start",
         menuActions: getPostMoreActions({
             currentAccount,
-            post: post.model,
+            post: postResult.post,
             onStartEditingPost: () => {
                 assertExists(postListRef.current).startEditingPost(
-                    post.model.id,
-                    post.model.content,
+                    postResult!.post.id,
+                    postResult!.post.content,
                 );
             },
         }),
@@ -96,39 +117,15 @@ export function PostView({
         <PostListView
             ref={postListRef}
             posts={posts}
-            onTogglePostComments={useCallback(
-                postId =>
-                    setPostState(({post, posts}) => ({
-                        post,
-                        posts: posts.togglePostComments(postId),
-                    })),
-                [],
-            )}
-            onUpdatePostComments={useCallback(
-                (postId, update) =>
-                    setPostState(({post, posts}) => ({
-                        post,
-                        posts: posts.updatePostComments(postId, update),
-                    })),
-                [],
-            )}
+            onTogglePostComments={useCallback(postId => {
+                setPosts(posts => posts.togglePostComments(postId));
+            }, [])}
+            onUpdatePostComments={useCallback((postId, update) => {
+                setPosts(posts => posts.updatePostComments(postId, update));
+            }, [])}
             shouldBeConnectedToChannelRealtime={false}
             onPostRealtimeEventTransaction={useCallback(({eventTransaction}) => {
-                setPostState(({post, posts}) => {
-                    for (const event of eventTransaction) {
-                        if (post.key === event.item.key) {
-                            // If our event transaction has a higher versioned item of the same key then
-                            // update our state.
-                            if (event.item.key === post.key && event.item.version > post.version) {
-                                post = event.item;
-                            }
-                        }
-                    }
-
-                    posts = posts.updatePost(post.model.id, () => post.model);
-
-                    return {post, posts};
-                });
+                setPosts(posts => posts.handleEventTransaction(eventTransaction));
             }, [])}
             withMobileLayout={withMobileLayout}
             navigationBar={{...navigationBar, navigationBarRef}}

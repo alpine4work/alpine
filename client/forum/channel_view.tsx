@@ -92,7 +92,7 @@ export function ChannelView({
                     update: (
                         query: PostQueryListDynamoGeneralRealtimeIndexQuery,
                     ) => PostQueryListDynamoGeneralRealtimeIndexQuery,
-                ) => setPosts(posts => posts.updateQuery(update(posts.query))),
+                ) => setPosts(posts => posts.updateQuery(update)),
                 [],
             ),
         },
@@ -130,8 +130,8 @@ export function ChannelView({
     useEffect(() => {
         return createPostEventEmitter.subscribe(event =>
             setPosts(posts =>
-                posts.updateQuery(
-                    posts.query.handleEventTransaction(event.readTime, event.eventTransaction),
+                posts.updateQuery(query =>
+                    query.handleEventTransaction(event.readTime, event.eventTransaction),
                 ),
             ),
         );
@@ -219,7 +219,7 @@ export function ChannelView({
     });
 
     const channelHeader = useMemo(
-        (): PostListChannelHeader => ({
+        (): PostListChannelHeader & {isOnlyNavigationBar: false} => ({
             isOnlyNavigationBar: false,
             channel,
             isCreatingChannel: false,
@@ -261,13 +261,13 @@ export function ChannelView({
                     beforeCursor: posts.query.getPreviousPageCursorIfExists(),
                 });
 
-                setPosts(posts => posts.updateQuery(posts.query.loadMore(postsResult)));
+                setPosts(posts => posts.updateQuery(query => query.loadMore(postsResult)));
             }}
             shouldBeConnectedToChannelRealtime={true}
             onPostRealtimeEventTransaction={useCallback(event => {
                 setPosts(posts =>
-                    posts.updateQuery(
-                        posts.query.handleEventTransaction(event.readTime, event.eventTransaction),
+                    posts.updateQuery(query =>
+                        query.handleEventTransaction(event.readTime, event.eventTransaction),
                     ),
                 );
             }, [])}

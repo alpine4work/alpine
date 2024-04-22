@@ -82,6 +82,13 @@ const context = createTestContext({
     },
 });
 
+async function testGetInboxChannelPostsEntryPosts(
+    ...args: Parameters<typeof getInboxChannelPostsEntryPosts>
+) {
+    const {hasMorePosts, posts} = await getInboxChannelPostsEntryPosts(...args);
+    return {hasMorePosts, posts: posts.map(post => post.model)};
+}
+
 test("won't create two inbox entries if inbox is observed between serially event processing", async () => {
     processingType = "TwiceSerially";
 
@@ -10784,7 +10791,7 @@ for (const [currentProcessingType, processingMultiple] of [
             await ProcessContextModule.waitForTestTasks();
 
             await expect(
-                getInboxChannelPostsEntryPosts(context.action(scenario.otherSession), {
+                testGetInboxChannelPostsEntryPosts(context.action(scenario.otherSession), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
@@ -10851,7 +10858,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
 
             expect(
-                await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
@@ -10891,7 +10898,7 @@ for (const [currentProcessingType, processingMultiple] of [
             });
 
             await expect(
-                getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 4,
@@ -10952,7 +10959,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
 
             expect(
-                await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
@@ -10992,7 +10999,7 @@ for (const [currentProcessingType, processingMultiple] of [
             });
 
             expect(
-                await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 2,
@@ -11087,7 +11094,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
 
             expect(
-                await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
@@ -11127,7 +11134,7 @@ for (const [currentProcessingType, processingMultiple] of [
             });
 
             expect(
-                await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 2,
@@ -11154,7 +11161,7 @@ for (const [currentProcessingType, processingMultiple] of [
             });
 
             expect(
-                await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 4,
@@ -11291,7 +11298,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
 
             expect(
-                await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
@@ -11382,7 +11389,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
 
             expect(
-                await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
@@ -11422,7 +11429,7 @@ for (const [currentProcessingType, processingMultiple] of [
             });
 
             expect(
-                await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 2,
@@ -11638,7 +11645,7 @@ for (const [currentProcessingType, processingMultiple] of [
             });
 
             expect(
-                await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
@@ -11660,7 +11667,7 @@ for (const [currentProcessingType, processingMultiple] of [
             });
 
             expect(
-                await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
@@ -11673,7 +11680,7 @@ for (const [currentProcessingType, processingMultiple] of [
             });
 
             expect(
-                await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
@@ -11694,7 +11701,7 @@ for (const [currentProcessingType, processingMultiple] of [
             });
 
             expect(
-                await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
@@ -11716,7 +11723,7 @@ for (const [currentProcessingType, processingMultiple] of [
             });
 
             expect(
-                await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
@@ -11729,7 +11736,7 @@ for (const [currentProcessingType, processingMultiple] of [
             });
 
             expect(
-                await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
@@ -11742,7 +11749,7 @@ for (const [currentProcessingType, processingMultiple] of [
             });
 
             expect(
-                await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
@@ -11755,7 +11762,7 @@ for (const [currentProcessingType, processingMultiple] of [
             });
 
             expect(
-                await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
@@ -11774,7 +11781,7 @@ for (const [currentProcessingType, processingMultiple] of [
             await ProcessContextModule.waitForTestTasks();
 
             await expect(
-                getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,

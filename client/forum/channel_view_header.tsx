@@ -74,6 +74,7 @@ export function ChannelViewHeader({
                 paddingX={postContentViewPaddingX}
             >
                 <PostFauxInputCreateButton
+                    withMobileLayout={withMobileLayout}
                     channel={channelHeader.channel}
                     isCreatingChannel={channelHeader.isCreatingChannel}
                 />

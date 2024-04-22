@@ -1,6 +1,6 @@
 import {
     PostBasicList,
-    PostListBase,
+    PostListInterface,
     PostListItem,
     PostListWithChannelHeader,
 } from "~/client/forum/post_list.js";
@@ -95,7 +95,7 @@ const testContent5WithReferences = {
  * Get all items in the list as an array. Accesses the items in random order to
  * exercise our caching logic.
  */
-function getItems(list: PostListBase) {
+function getItems(list: PostListInterface) {
     const indexOrder = shuffleArray(createArrayWithLength(list.getItemCount(), index => index));
 
     const items: Array<PostListItem | null> = createArrayWithLength(

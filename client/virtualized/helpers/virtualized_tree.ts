@@ -17,6 +17,39 @@ import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_ke
  * virtualized tree.
  */
 export abstract class VirtualizedTreeBase<NodeKey extends Key, NodeOrderKey, Node, Item> {
+    /**
+     * Should we iterate through `nodeByOrderKey` in reverse order?
+     */
+    protected readonly _isNodeByOrderKeyReversed: boolean = false;
+
+    /**
+     * The list of nodes in our tree. But this is a tree not a list you may say.
+     * Yes! It is a tree keyed by an `OrderKey`. This allows us to efficiently
+     * insert items in O(log(n)) time instead of O(n) time beginning or end.
+     *
+     * A persistent tree data structure also allows us to do caching on ranges of
+     * the list. For example, we can compute the number of items for the tree then
+     * when an update happens we can reuse our computation for parts of the tree
+     * that didn't change thanks to structural sharing.
+     */
+    protected readonly _nodeByOrderKey: Tree<NodeOrderKey, Node>;
+
+    /**
+     * Cache of the item count in `nodeByOrderKey` subtrees.
+     */
+    protected readonly _itemCountSubtreeCache: WeakMap<TreeNode<NodeOrderKey, Node>, number>;
+
+    protected constructor({
+        nodeByOrderKey,
+        itemCountSubtreeCache,
+    }: {
+        nodeByOrderKey: Tree<NodeOrderKey, Node>;
+        itemCountSubtreeCache: WeakMap<TreeNode<NodeOrderKey, Node>, number>;
+    }) {
+        this._nodeByOrderKey = nodeByOrderKey;
+        this._itemCountSubtreeCache = itemCountSubtreeCache;
+    }
+
     protected abstract _getNodeKey(node: Node): NodeKey;
     protected abstract _getNodeItemCount(node: Node): number;
     protected abstract _getNodeItem(
@@ -24,26 +57,6 @@ export abstract class VirtualizedTreeBase<NodeKey extends Key, NodeOrderKey, Nod
         nodeItemIndex: number,
         startItemIndex: number,
     ): Item;
-
-    /**
-     * Should we iterate through `nodeByOrderKey` in reverse order?
-     */
-    protected readonly _isNodeByOrderKeyReversed: boolean = false;
-
-    /**
-     * The underlying tree object representing the nodes of this tree. But not
-     * the items.
-     */
-    protected abstract readonly _nodeByOrderKey: Tree<NodeOrderKey, Node>;
-
-    /**
-     * Cache of the item count in `nodeByOrderKey` subtrees.
-     */
-    protected readonly _itemCountSubtreeCache: WeakMap<TreeNode<NodeOrderKey, Node>, number>;
-
-    protected constructor(itemCountSubtreeCache: WeakMap<TreeNode<NodeOrderKey, Node>, number>) {
-        this._itemCountSubtreeCache = itemCountSubtreeCache;
-    }
 
     /**
      * The number of nodes in the tree.
@@ -272,18 +285,6 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> extends Virtualize
     ) => Item;
 
     /**
-     * The list of nodes in our tree. But this is a tree not a list you may say.
-     * Yes! It is a tree keyed by an `OrderKey`. This allows us to efficiently
-     * insert items in O(log(n)) time instead of O(n) time beginning or end.
-     *
-     * A persistent tree data structure also allows us to do caching on ranges of
-     * the list. For example, we can compute the number of items for the tree then
-     * when an update happens we can reuse our computation for parts of the tree
-     * that didn't change thanks to structural sharing.
-     */
-    protected readonly _nodeByOrderKey: Tree<OrderKey, Node>;
-
-    /**
      * A map of node keys to the position of the node in our `nodeByOrderKey` tree.
      */
     private readonly _orderKeyByNodeKey: Tree<NodeKey, OrderKey>;
@@ -303,7 +304,7 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> extends Virtualize
         orderKeyByNodeKey: Tree<NodeKey, OrderKey>;
         itemCountSubtreeCache: WeakMap<TreeNode<OrderKey, Node>, number>;
     }) {
-        super(itemCountSubtreeCache);
+        super({nodeByOrderKey, itemCountSubtreeCache});
 
         assert(nodeByOrderKey.length === orderKeyByNodeKey.length);
 
@@ -313,7 +314,6 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> extends Virtualize
         this._getNodeKey = getNodeKey;
         this._getNodeItemCount = getNodeItemCount;
         this._getNodeItem = getNodeItem;
-        this._nodeByOrderKey = nodeByOrderKey;
         this._orderKeyByNodeKey = orderKeyByNodeKey;
     }
 

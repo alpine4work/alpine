@@ -801,6 +801,36 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     }
 
     /**
+     * Get an item's cursor by its key if the item is in the query's loaded range.
+     */
+    public getCursorByKeyIfExists(key: DynamoItemKey): DynamoIndexCursor | null {
+        const itemVisibility = this._itemVisibilityByKey.get(key);
+        if (!itemVisibility?.isVisible) return null;
+
+        // If the item is outside our loaded range then return null.
+        if (this._loadedPageInfo !== null) {
+            switch (this._loadedPageInfo.type) {
+                case "FromStart": {
+                    if (itemVisibility.cursor > this._loadedPageInfo.endCursor) {
+                        return null;
+                    }
+                    break;
+                }
+                case "FromEnd": {
+                    if (itemVisibility.cursor < this._loadedPageInfo.startCursor) {
+                        return null;
+                    }
+                    break;
+                }
+                default:
+                    throw exhaustive(this._loadedPageInfo);
+            }
+        }
+
+        return itemVisibility.cursor;
+    }
+
+    /**
      * Get an item by its key if it exists in the query and is loaded.
      */
     public getItemByKeyIfExists(key: DynamoItemKey): {
@@ -810,26 +840,15 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
             readonly extra: Extra | null;
         };
     } | null {
-        const itemVisibility = this._itemVisibilityByKey.get(key);
-        if (!itemVisibility?.isVisible) return null;
+        const cursor = this.getCursorByKeyIfExists(key);
+        if (cursor === null) return null;
 
-        const iterator = this._itemByCursor.find(itemVisibility.cursor);
+        const iterator = this._itemByCursor.find(cursor);
         assert(iterator.node);
 
-        const index = this._getIteratorIndex(iterator);
-        const loadedPageItemSlice = this._loadedPageItemSlice.get();
-
-        // Make sure the item is in our loaded items range.
-        if (
-            loadedPageItemSlice &&
-            (index < loadedPageItemSlice.startIndex || loadedPageItemSlice.endIndex < index)
-        ) {
-            return null;
-        }
-
         return {
-            index,
-            cursor: itemVisibility.cursor,
+            index: this._getIteratorIndex(iterator),
+            cursor,
             item: iterator.node.value,
         };
     }
@@ -985,20 +1004,32 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      * For instance, channels attach the realtime comment data of a post in the
      * `extra` property.
      */
-    public updateItemExtraIfExists(
+    public updateItemExtraByKeyIfExists(
         key: DynamoItemKey,
         update: (
             item: DynamoGeneralRealtimeItem<Model> & {readonly extra: Extra | null},
         ) => Extra | null,
     ): DynamoGeneralRealtimeIndexQuery<Model, Extra> {
-        const itemVisibility = this._itemVisibilityByKey.get(key);
-        if (!itemVisibility) return this;
+        const cursor = this.getCursorByKeyIfExists(key);
+        if (cursor === null) return this;
+        return this.updateItemExtraByCursorIfExists(cursor, update);
+    }
 
+    /**
+     * Set the `extra` property for the provided item. The `extra` property allows
+     * the client to attach some extra client-only data to an item in the query.
+     * For instance, channels attach the realtime comment data of a post in the
+     * `extra` property.
+     */
+    public updateItemExtraByCursorIfExists(
+        cursor: DynamoIndexCursor,
+        update: (
+            item: DynamoGeneralRealtimeItem<Model> & {readonly extra: Extra | null},
+        ) => Extra | null,
+    ): DynamoGeneralRealtimeIndexQuery<Model, Extra> {
         let itemByCursor = this._itemByCursor;
 
-        if (!itemVisibility.isVisible) return this;
-
-        const iterator = itemByCursor.find(itemVisibility.cursor);
+        const iterator = itemByCursor.find(cursor);
         assert(iterator.value);
 
         const newExtra = update(iterator.value);

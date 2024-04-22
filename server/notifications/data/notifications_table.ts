@@ -2409,7 +2409,7 @@ export async function getInboxChannelPostsEntryPosts(
     },
 ): Promise<{
     hasMorePosts: boolean;
-    posts: Array<PostModel>;
+    posts: Array<DynamoGeneralRealtimeItem<PostModel>>;
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
@@ -2478,7 +2478,7 @@ export async function getInboxChannelPostsEntryPosts(
         const posts = await runAllPromises(
             mapIterable(
                 sliceIterable(inboxEntryItem.postIds, 0, limit),
-                async postId => (await getPost(context, postId)).model,
+                async postId => await getPost(context, postId),
             ),
         );
 
@@ -2512,7 +2512,7 @@ export async function getInboxChannelPostsEntryPosts(
         const posts = await runAllPromises(
             postIds
                 .slice(afterPostIndex + 1, afterPostIndex + 1 + limit)
-                .map(async postId => (await getPost(context, postId)).model),
+                .map(async postId => await getPost(context, postId)),
         );
 
         return {

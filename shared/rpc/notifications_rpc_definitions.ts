@@ -86,6 +86,6 @@ export const getInboxChannelPostsEntryPosts = defineRpc({
     },
     output: {
         hasMorePosts: Schema.boolean,
-        posts: Schema.array(PostModel.schema()),
+        posts: Schema.array(createDynamoGeneralRealtimeItemSchema(PostModel.schema())),
     },
 });
