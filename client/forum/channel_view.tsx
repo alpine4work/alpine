@@ -1,5 +1,3 @@
-import "~/client/helpers/events/register_scroll_event_debugger.js";
-
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";

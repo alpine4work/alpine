@@ -26,6 +26,7 @@ import {
 } from "~/client/design/navigation_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {ChannelViewHeader, channelViewHeaderMinHeight} from "~/client/forum/channel_view_header.js";
 import {
     PostCommentInput,
@@ -666,6 +667,16 @@ function PostListView(
         }),
         [jumpToPostCommentIndex, postEditingDispatch],
     );
+
+    // Make sure the bottom of the scroll view stays visible when the keyboard
+    // opens and closes.
+    useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
+        isPinned: true,
+        getAnchorPosition: useCallback(
+            oldVisibleRect => ({top: oldVisibleRect.bottom, height: 0}),
+            [],
+        ),
+    });
 
     const idBase = useId();
 

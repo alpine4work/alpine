@@ -344,7 +344,10 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onBlur?.();
     };
 
-    useRegisterBottomBarFrame(inputContainerRef, {withMobileKeyboardToolbar: true});
+    useRegisterBottomBarFrame(inputContainerRef, {
+        isDisabled: !isBottomBar,
+        withMobileKeyboardToolbar: true,
+    });
 
     const id = useId();
 

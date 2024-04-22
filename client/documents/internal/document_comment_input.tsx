@@ -172,6 +172,9 @@ export function DocumentCommentInput({
         <MessageInput
             ref={useMergedRefs(inputRef, inputRefProp ?? null)}
             messageNoun="comment"
+            // NOCOMMIT: Sticky positioned message inputs on mobile? Probably should mount
+            // a brand new input instead of trying to animate this one.
+            isNotBottomBar={isStickyPositioned}
             messages={comments}
             onUpdateMessages={update =>
                 onUpdateCommentThread(({commentThread, comments}) => ({

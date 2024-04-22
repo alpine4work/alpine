@@ -38,6 +38,7 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
     placeholder?: string;
+    isNotBottomBar?: boolean;
     messages: MessageList<Message>;
     isMessageCreationDisabled?: boolean;
     onUpdateMessages: (update: (messages: MessageList<Message>) => MessageList<Message>) => void;
@@ -74,6 +75,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         messageNoun = "message",
         messageStartOfSentenceNoun,
         placeholder,
+        isNotBottomBar = false,
         messages,
         isMessageCreationDisabled,
         onUpdateMessages,
@@ -282,7 +284,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 onJumpToMessage={onJumpToMessage}
                 onShowTypingIndicator={onShowTypingIndicator}
                 onHideTypingIndicator={onHideTypingIndicator}
-                isBottomBar={true}
+                isBottomBar={!isNotBottomBar}
                 data-testid={dataTestId}
                 marginX={marginX}
                 withMobileLayout={withMobileLayout}
