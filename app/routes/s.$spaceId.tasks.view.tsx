@@ -5,6 +5,7 @@ import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_cl
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {TaskQueryView, defaultTaskQueryViewName} from "~/client/tasks/task_query_view.js";
@@ -47,8 +48,11 @@ const LoaderSchema = Schema.object({
     initialBottomGhostTaskId: Schema.id<TaskId>(),
 });
 
-// NOCOMMIT: Proper meta
-export const meta = createMetaFunction(LoaderSchema, () => [{title: defaultTaskQueryViewName}]);
+export const meta = createMetaFunction(LoaderSchema, ({location}) => {
+    const searchParams = new URLSearchParams(location.search);
+    const nameSearchParam = searchParams.get("name");
+    return [{title: nameSearchParam ?? defaultTaskQueryViewName}];
+});
 
 export async function loader({request, params, context: _context}: LoaderArgs) {
     const context = (await _context.actor.authenticate()).actor.authorizeSession();
@@ -157,6 +161,8 @@ export default function TaskQueryRoute({withMobileLayout = false}: {withMobileLa
 }
 
 function TaskQueryRouteInner({withMobileLayout}: {withMobileLayout: boolean}) {
+    const updateMetaTitle = useUpdateMetaTitle();
+
     const [searchParams, setSearchParams] = useSearchParams();
     const {initialGridViewExpansionState, initialBottomGhostTaskId} =
         useLoaderDataWithSchema(LoaderSchema);
@@ -220,6 +226,8 @@ function TaskQueryRouteInner({withMobileLayout}: {withMobileLayout: boolean}) {
                         // a new URL we want to load new data and re-render the route.
                         unstable_shouldRevalidate: false,
                     });
+
+                    updateMetaTitle(`${name}${metaTitlePostfix}`);
                 }}
                 initialFilters={initialFilters}
                 initialFilterReferences={initialFilterReferences}
