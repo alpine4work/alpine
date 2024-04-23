@@ -4,6 +4,8 @@ import {
     createAccountEmailAddressForTest,
     createAccountForTest,
     generateOneTimePassword,
+    getAccountByEmailAddressAsAdmin,
+    getAccountByIdAsAdmin,
     getAccountEmailAddressForTest,
     regenerateOneTimePasswordSignIn,
     rewindAccountEmailAddressOneTimePasswordSignInStateTimeForTest,
@@ -13,7 +15,13 @@ import {createTestSession} from "~/server/dynamo/test_helpers/create_test_sessio
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
-import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {
+    FailedPreconditionError,
+    InvalidArgumentError,
+    NotFoundError,
+    PermissionDeniedError,
+} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -905,4 +913,141 @@ test("can not get accounts through a space we don't have access to even if we ha
     await expect(() =>
         getAccountIfExists(context.action(space1Session1), space2.id, space1Session3.accountId),
     ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can get any account by id as admin", async () => {
+    const space1 = await TestSpace.create(context);
+    const space2 = await TestSpace.create(context);
+    const space3 = await TestSpace.create(context);
+
+    const session1 = await space1.createSession();
+    const session2 = await space2.createSession();
+    const session3 = await space3.createSession();
+    const session4a = await space1.createSession();
+    const session4b = await space2.createSession(session4a.account);
+
+    const adminSession = await space1.createSession({hasInternalAccess: true});
+
+    await expect(getAccountByIdAsAdmin(adminSession.action(), generateId())).rejects.toThrow(
+        NotFoundError,
+    );
+
+    await expect(
+        getAccountByIdAsAdmin(adminSession.action(), adminSession.account.id),
+    ).resolves.toEqual(await adminSession.get());
+    await expect(
+        getAccountByIdAsAdmin(adminSession.action(), session1.account.id),
+    ).resolves.toEqual(await session1.get());
+    await expect(
+        getAccountByIdAsAdmin(adminSession.action(), session2.account.id),
+    ).resolves.toEqual(await session2.get());
+    await expect(
+        getAccountByIdAsAdmin(adminSession.action(), session3.account.id),
+    ).resolves.toEqual(await session3.get());
+    await expect(
+        getAccountByIdAsAdmin(adminSession.action(), session4a.account.id),
+    ).resolves.toEqual(await session4a.get());
+    await expect(
+        getAccountByIdAsAdmin(adminSession.action(), session4b.account.id),
+    ).resolves.toEqual(await session4a.get());
+
+    for (const session of [session1, session2, session3, session4a, session4b]) {
+        await expect(
+            getAccountByIdAsAdmin(session.action(), adminSession.account.id),
+        ).rejects.toThrow(PermissionDeniedError);
+        await expect(getAccountByIdAsAdmin(session.action(), session1.account.id)).rejects.toThrow(
+            PermissionDeniedError,
+        );
+        await expect(getAccountByIdAsAdmin(session.action(), session2.account.id)).rejects.toThrow(
+            PermissionDeniedError,
+        );
+        await expect(getAccountByIdAsAdmin(session.action(), session3.account.id)).rejects.toThrow(
+            PermissionDeniedError,
+        );
+        await expect(getAccountByIdAsAdmin(session.action(), session4a.account.id)).rejects.toThrow(
+            PermissionDeniedError,
+        );
+        await expect(getAccountByIdAsAdmin(session.action(), session4b.account.id)).rejects.toThrow(
+            PermissionDeniedError,
+        );
+    }
+
+    await expect(
+        getAccountByIdAsAdmin(adminSession.action(), session1.account.id),
+    ).resolves.toEqual(await session1.get());
+});
+
+test("can get any account by email address as admin", async () => {
+    const space1 = await TestSpace.create(context);
+    const space2 = await TestSpace.create(context);
+    const space3 = await TestSpace.create(context);
+
+    const session1 = await space1.createSession();
+    const session2 = await space2.createSession();
+    const session3 = await space3.createSession();
+    const session4a = await space1.createSession();
+    const session4b = await space2.createSession(session4a.account);
+
+    const emailAddress1 = await session1.account.createEmailAddress();
+    const emailAddress3a = await session3.account.createEmailAddress();
+    const emailAddress3b = await session3.account.createEmailAddress();
+    const emailAddress4 = await session4a.account.createEmailAddress();
+
+    const adminSession = await space1.createSession({hasInternalAccess: true});
+    const adminEmailAddress = await adminSession.account.createEmailAddress();
+
+    await expect(
+        getAccountByEmailAddressAsAdmin(adminSession.action(), session1.account.id),
+    ).rejects.toThrow(InvalidArgumentError);
+
+    await expect(
+        getAccountByEmailAddressAsAdmin(
+            adminSession.action(),
+            `account.${generateId()}@test.cyberworlds.dev`,
+        ),
+    ).rejects.toThrow(NotFoundError);
+
+    await expect(
+        getAccountByEmailAddressAsAdmin(adminSession.action(), adminEmailAddress),
+    ).resolves.toEqual(await adminSession.get());
+    await expect(
+        getAccountByEmailAddressAsAdmin(adminSession.action(), emailAddress1),
+    ).resolves.toEqual(await session1.get());
+    await expect(
+        getAccountByEmailAddressAsAdmin(adminSession.action(), emailAddress3a),
+    ).resolves.toEqual(await session3.get());
+    await expect(
+        getAccountByEmailAddressAsAdmin(adminSession.action(), emailAddress3b),
+    ).resolves.toEqual(await session3.get());
+    await expect(
+        getAccountByEmailAddressAsAdmin(adminSession.action(), emailAddress4),
+    ).resolves.toEqual(await session4a.get());
+    await expect(
+        getAccountByEmailAddressAsAdmin(adminSession.action(), emailAddress4),
+    ).resolves.toEqual(await session4b.get());
+
+    for (const session of [session1, session2, session3, session4a, session4b]) {
+        await expect(
+            getAccountByEmailAddressAsAdmin(session.action(), adminEmailAddress),
+        ).rejects.toThrow(PermissionDeniedError);
+        await expect(
+            getAccountByEmailAddressAsAdmin(session.action(), emailAddress1),
+        ).rejects.toThrow(PermissionDeniedError);
+        await expect(
+            getAccountByEmailAddressAsAdmin(session.action(), emailAddress3a),
+        ).rejects.toThrow(PermissionDeniedError);
+        await expect(
+            getAccountByEmailAddressAsAdmin(session.action(), emailAddress3b),
+        ).rejects.toThrow(PermissionDeniedError);
+        await expect(
+            getAccountByEmailAddressAsAdmin(session.action(), emailAddress4),
+        ).rejects.toThrow(PermissionDeniedError);
+        await expect(
+            getAccountByEmailAddressAsAdmin(session.action(), emailAddress4),
+        ).rejects.toThrow(PermissionDeniedError);
+    }
+
+    await expect(
+        getAccountByEmailAddressAsAdmin(adminSession.action(), emailAddress3b),
+    ).resolves.toEqual(await session3.get());
 });

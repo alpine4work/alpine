@@ -10,7 +10,7 @@ import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistenc
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {EmailAddress} from "~/server/emails/email_address.js";
+import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {FromEmailAddress} from "~/server/emails/from_email_address.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
@@ -401,6 +401,50 @@ export function createAccountForAlphaTransactionEntries({
             isVerified: false,
         }),
     ];
+}
+
+/**
+ * Get any `AccountModel` by `AccountId`. The actor must have internal access
+ * to make this request.
+ */
+export async function getAccountByIdAsAdmin(
+    context: Context<{actor: DynamoActorContextModule} & DynamoContextModules>,
+    accountId: AccountId,
+): Promise<AccountModel> {
+    await authorizeInternalAccess(context);
+
+    const accountItem = await AccountsTable.getItem(context, {
+        partitionType: "Account",
+        sortRangeType: "Attributes",
+        accountId,
+    });
+
+    return createAccountModelFromItem(accountItem);
+}
+
+/**
+ * Get any `AccountModel` by `EmailAddress`. The actor must have internal access
+ * to make this request.
+ */
+export async function getAccountByEmailAddressAsAdmin(
+    context: Context<{actor: DynamoActorContextModule} & DynamoContextModules>,
+    emailAddress: string,
+): Promise<AccountModel> {
+    await authorizeInternalAccess(context);
+
+    const accountEmailAddressItem = await AccountsTable.getItem(context, {
+        partitionType: "AccountEmailAddress",
+        sortRangeType: "Attributes",
+        emailAddress: await validateEmailAddress(context, emailAddress),
+    });
+
+    const accountItem = await AccountsTable.getItem(context, {
+        partitionType: "Account",
+        sortRangeType: "Attributes",
+        accountId: accountEmailAddressItem.accountId,
+    });
+
+    return createAccountModelFromItem(accountItem);
 }
 
 /**

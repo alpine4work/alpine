@@ -2,6 +2,7 @@ import _Fuse from "fuse.js";
 import {
     authorizeInternalAccess,
     dangerouslyGetAccountIfExistsWithoutCaching,
+    getAccountByIdAsAdmin,
 } from "~/server/accounts/accounts_table.js";
 import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {
@@ -26,6 +27,7 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
     DeadlineExceededError,
+    FailedPreconditionError,
     InternalError,
     NotFoundError,
     PermissionDeniedError,
@@ -296,7 +298,28 @@ export async function seedTestSpaces(
  * will probably get rid of this afterwards.
  */
 export async function createSpaceAccountForAlphaTransactionEntries(
-    context: ServerSessionActionContext,
+    context: ServerActionContext,
+    options: {
+        spaceId: SpaceId;
+        accountId: AccountId;
+    },
+): Promise<Array<DynamoTransactionEntry>> {
+    return [
+        // Fail the transaction if the space does not exist.
+        SpacesTable.transactionConditionCheck({
+            partitionType: "Space",
+            sortRangeType: "Attributes",
+            spaceId: options.spaceId,
+        }),
+        ...(await createSpaceAccountForAlphaTransactionEntriesWithoutSpaceConditionCheck(
+            context,
+            options,
+        )),
+    ];
+}
+
+async function createSpaceAccountForAlphaTransactionEntriesWithoutSpaceConditionCheck(
+    context: ServerActionContext,
     {
         spaceId,
         accountId,
@@ -316,15 +339,14 @@ export async function createSpaceAccountForAlphaTransactionEntries(
     });
 
     const spaceIds: Set<SpaceId> = spacesItem ? new Set(spacesItem.spaceIds) : new Set();
+
+    if (spaceIds.has(spaceId)) {
+        throw new FailedPreconditionError("Account is already a member of space");
+    }
+
     spaceIds.add(spaceId);
 
     return [
-        // Fail the transaction if the space does not exist.
-        SpacesTable.transactionConditionCheck({
-            partitionType: "Space",
-            sortRangeType: "Attributes",
-            spaceId,
-        }),
         SpacesTable.transactionDirectlyUpdateItem({
             ...spacesItem,
             partitionType: "Account",
@@ -357,6 +379,75 @@ export async function createSpaceAccountForAlphaTransactionEntries(
             },
         ),
     ];
+}
+
+/**
+ * To implement `createAlphaSpaceAsAdmin()` we need to update `SpacesTable`
+ * and `ForumRealtimeTable`. However, `server/spaces` doesn't have access to
+ * `ForumRealtimeTable`. So we implement `createAlphaSpaceAsAdmin()` in
+ * `server/forum` and export this function which implements the `SpacesTable`
+ * updates we need.
+ */
+export async function createAlphaSpaceTransactionEntriesAsAdmin(
+    context: ServerActionContext,
+    {
+        name,
+        spaceId,
+        createdTime,
+        ownerAccountId,
+        welcomeChannelId,
+    }: {
+        spaceId: SpaceId;
+        createdTime: Date;
+        name: string;
+        ownerAccountId: AccountId;
+        welcomeChannelId: ChannelId;
+    },
+): Promise<Array<DynamoTransactionEntry>> {
+    await authorizeInternalAccess(context);
+
+    // Make sure the account exists before adding it to a space...
+    await getAccountByIdAsAdmin(context, ownerAccountId);
+
+    return [
+        SpacesTable.transactionCreateItem({
+            partitionType: "Space",
+            sortRangeType: "Attributes",
+            spaceId,
+            name,
+            createdTime,
+            alphaAccessDefaultChannelId: welcomeChannelId,
+        }),
+        // Don't check that the space exists since we create the space in this
+        // transaction.
+        ...(await createSpaceAccountForAlphaTransactionEntriesWithoutSpaceConditionCheck(context, {
+            spaceId,
+            accountId: ownerAccountId,
+        })),
+    ];
+}
+
+/**
+ * Add an account to some space. Only administrators may call this method. But
+ * administrators beware! Adding an account to a space gives the account access
+ * to data within the space. Make sure you've been given permission by the
+ * space owner before adding anyone new to their space.
+ */
+export async function dangerouslyCreateSpaceAccountAsAdmin(
+    context: ServerActionContext,
+    {spaceId, accountId}: {spaceId: SpaceId; accountId: AccountId},
+) {
+    await authorizeInternalAccess(context);
+
+    // Make sure the account exists before adding it to a space...
+    await getAccountByIdAsAdmin(context, accountId);
+
+    await context.dynamo.retryTransaction(async context => {
+        await DynamoTableSchema.executeTransaction(
+            context,
+            await createSpaceAccountForAlphaTransactionEntries(context, {spaceId, accountId}),
+        );
+    });
 }
 
 /**

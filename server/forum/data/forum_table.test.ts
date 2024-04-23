@@ -6,6 +6,7 @@ import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {
     backfillChannelPosts,
+    createAlphaSpaceAsAdmin,
     createChannel,
     createPost,
     createPostComment,
@@ -21,9 +22,21 @@ import {
     updatePostCommentContent,
     updatePostContent,
 } from "~/server/forum/data/forum_table.js";
+import {
+    dangerouslyCreateSpaceAccountAsAdmin,
+    getSessionActorAccountSpaces,
+} from "~/server/spaces/spaces_table.js";
+import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
+import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {
+    FailedPreconditionError,
+    InvalidArgumentError,
+    NotFoundError,
+    PermissionDeniedError,
+} from "~/shared/error/error.js";
 import {
     PostContentProsemirrorSchema,
     PostContentWithReferences,
@@ -2848,6 +2861,289 @@ test("broadcasts post realtime events to channel and post", async () => {
         `/api/durable-objects/posts/${post3.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
     ]);
+});
+
+test("can create alpha spaces as admin", async () => {
+    const adminAccount = await TestAccount.create(context, {hasInternalAccess: true});
+    const otherAccount = await TestAccount.create(context);
+
+    const adminSession = await TestSession.create(adminAccount);
+    const otherSession = await TestSession.create(otherAccount);
+
+    await expect(
+        createAlphaSpaceAsAdmin(otherSession.action(), {
+            name: "Hello",
+            ownerAccountId: otherSession.account.id,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        createAlphaSpaceAsAdmin(otherSession.action(), {
+            name: "Hello",
+            ownerAccountId: adminSession.account.id,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    const result1 = await createAlphaSpaceAsAdmin(adminSession.action(), {
+        name: "Hello 1",
+        ownerAccountId: otherSession.account.id,
+    });
+
+    const result2 = await createAlphaSpaceAsAdmin(adminSession.action(), {
+        name: "Hello 2",
+        ownerAccountId: adminSession.account.id,
+    });
+
+    await expect(
+        createAlphaSpaceAsAdmin(adminSession.action(), {
+            name: "Hello 3",
+            ownerAccountId: generateId(),
+        }),
+    ).rejects.toThrow(NotFoundError);
+
+    await expect(
+        createChannel(adminSession.action(), {
+            spaceId: result1.spaceId,
+            name: "Channel 1",
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    const channel1 = await createChannel(adminSession.action(), {
+        spaceId: result2.spaceId,
+        name: "Channel 2",
+    });
+
+    const channel2 = await createChannel(otherSession.action(), {
+        spaceId: result1.spaceId,
+        name: "Channel 3",
+    });
+
+    await expect(
+        createChannel(otherSession.action(), {
+            spaceId: result2.spaceId,
+            name: "Channel 4",
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await getChannel(adminSession.action(), channel1.id);
+    await expect(getChannel(otherSession.action(), channel1.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(getChannel(adminSession.action(), channel2.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await getChannel(otherSession.action(), channel2.id);
+});
+
+test("can add accounts to spaces as admin", async () => {
+    const space1 = await TestSpace.create(context);
+    const space2 = await TestSpace.create(context);
+
+    const session1 = await space1.createSession();
+    const session2 = await space2.createSession();
+    const session3 = await TestSession.create(await TestAccount.create(context));
+    const session4 = await TestSession.create(await TestAccount.create(context));
+
+    const adminSession = await TestSession.create(
+        await TestAccount.create(context, {hasInternalAccess: true}),
+    );
+
+    expect((await getSessionActorAccountSpaces(session1.action())).spaceIds).toEqual(
+        new Set([space1.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session2.action())).spaceIds).toEqual(
+        new Set([space2.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session3.action())).spaceIds).toEqual(new Set([]));
+    expect((await getSessionActorAccountSpaces(session4.action())).spaceIds).toEqual(new Set([]));
+    expect((await getSessionActorAccountSpaces(adminSession.action())).spaceIds).toEqual(
+        new Set([]),
+    );
+
+    await expect(
+        dangerouslyCreateSpaceAccountAsAdmin(session3.action(), {
+            spaceId: space1.id,
+            accountId: session3.account.id,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        dangerouslyCreateSpaceAccountAsAdmin(session3.action(), {
+            spaceId: space1.id,
+            accountId: session4.account.id,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        dangerouslyCreateSpaceAccountAsAdmin(session3.action(), {
+            spaceId: space1.id,
+            accountId: session1.account.id,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        dangerouslyCreateSpaceAccountAsAdmin(session3.action(), {
+            spaceId: space1.id,
+            accountId: session2.account.id,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        dangerouslyCreateSpaceAccountAsAdmin(session2.action(), {
+            spaceId: space2.id,
+            accountId: session2.account.id,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        dangerouslyCreateSpaceAccountAsAdmin(session2.action(), {
+            spaceId: space2.id,
+            accountId: session1.account.id,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect((await getSessionActorAccountSpaces(session1.action())).spaceIds).toEqual(
+        new Set([space1.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session2.action())).spaceIds).toEqual(
+        new Set([space2.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session3.action())).spaceIds).toEqual(new Set([]));
+    expect((await getSessionActorAccountSpaces(session4.action())).spaceIds).toEqual(new Set([]));
+    expect((await getSessionActorAccountSpaces(adminSession.action())).spaceIds).toEqual(
+        new Set([]),
+    );
+
+    const channel1 = await createChannel(session1.action(), {
+        spaceId: space1.id,
+        name: "Channel 1",
+    });
+
+    await expect(getChannel(session3.action(), channel1.id)).rejects.toThrow(PermissionDeniedError);
+
+    expect((await getSessionActorAccountSpaces(session1.action())).spaceIds).toEqual(
+        new Set([space1.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session2.action())).spaceIds).toEqual(
+        new Set([space2.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session3.action())).spaceIds).toEqual(new Set([]));
+    expect((await getSessionActorAccountSpaces(session4.action())).spaceIds).toEqual(new Set([]));
+    expect((await getSessionActorAccountSpaces(adminSession.action())).spaceIds).toEqual(
+        new Set([]),
+    );
+
+    await expect(
+        dangerouslyCreateSpaceAccountAsAdmin(adminSession.action(), {
+            spaceId: space1.id,
+            accountId: generateId(),
+        }),
+    ).rejects.toThrow(NotFoundError);
+
+    await expect(
+        dangerouslyCreateSpaceAccountAsAdmin(adminSession.action(), {
+            spaceId: generateId(),
+            accountId: session3.account.id,
+        }),
+    ).rejects.toThrow(FailedPreconditionError);
+
+    await dangerouslyCreateSpaceAccountAsAdmin(adminSession.action(), {
+        spaceId: space1.id,
+        accountId: session3.account.id,
+    });
+
+    await getChannel(session3.action(), channel1.id);
+
+    expect((await getSessionActorAccountSpaces(session1.action())).spaceIds).toEqual(
+        new Set([space1.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session2.action())).spaceIds).toEqual(
+        new Set([space2.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session3.action())).spaceIds).toEqual(
+        new Set([space1.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session4.action())).spaceIds).toEqual(new Set([]));
+    expect((await getSessionActorAccountSpaces(adminSession.action())).spaceIds).toEqual(
+        new Set([]),
+    );
+
+    await expect(getChannel(adminSession.action(), channel1.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await dangerouslyCreateSpaceAccountAsAdmin(adminSession.action(), {
+        spaceId: space1.id,
+        accountId: adminSession.account.id,
+    });
+
+    await getChannel(adminSession.action(), channel1.id);
+
+    expect((await getSessionActorAccountSpaces(session1.action())).spaceIds).toEqual(
+        new Set([space1.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session2.action())).spaceIds).toEqual(
+        new Set([space2.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session3.action())).spaceIds).toEqual(
+        new Set([space1.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session4.action())).spaceIds).toEqual(new Set([]));
+    expect((await getSessionActorAccountSpaces(adminSession.action())).spaceIds).toEqual(
+        new Set([space1.id]),
+    );
+
+    await expect(
+        dangerouslyCreateSpaceAccountAsAdmin(adminSession.action(), {
+            spaceId: space1.id,
+            accountId: session3.account.id,
+        }),
+    ).rejects.toThrow(FailedPreconditionError);
+
+    await expect(
+        dangerouslyCreateSpaceAccountAsAdmin(adminSession.action(), {
+            spaceId: space2.id,
+            accountId: session2.account.id,
+        }),
+    ).rejects.toThrow(FailedPreconditionError);
+
+    expect((await getSessionActorAccountSpaces(session1.action())).spaceIds).toEqual(
+        new Set([space1.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session2.action())).spaceIds).toEqual(
+        new Set([space2.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session3.action())).spaceIds).toEqual(
+        new Set([space1.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session4.action())).spaceIds).toEqual(new Set([]));
+    expect((await getSessionActorAccountSpaces(adminSession.action())).spaceIds).toEqual(
+        new Set([space1.id]),
+    );
+
+    await expect(getChannel(session2.action(), channel1.id)).rejects.toThrow(PermissionDeniedError);
+
+    await dangerouslyCreateSpaceAccountAsAdmin(adminSession.action(), {
+        spaceId: space1.id,
+        accountId: session2.account.id,
+    });
+
+    await getChannel(session2.action(), channel1.id);
+
+    expect((await getSessionActorAccountSpaces(session1.action())).spaceIds).toEqual(
+        new Set([space1.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session2.action())).spaceIds).toEqual(
+        new Set([space2.id, space1.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session3.action())).spaceIds).toEqual(
+        new Set([space1.id]),
+    );
+    expect((await getSessionActorAccountSpaces(session4.action())).spaceIds).toEqual(new Set([]));
+    expect((await getSessionActorAccountSpaces(adminSession.action())).spaceIds).toEqual(
+        new Set([space1.id]),
+    );
 });
 
 describe("Notification subscribers", () => {

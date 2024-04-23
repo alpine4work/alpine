@@ -1,8 +1,10 @@
 import {
+    createAccountEmailAddressForTest,
     createAccountForTest,
     dangerouslyGetAccountIfExistsWithoutCaching,
 } from "~/server/accounts/accounts_table.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
@@ -14,6 +16,8 @@ export class TestAccount {
     public readonly context: TestContext;
     public readonly id: AccountId;
     public readonly initialName: string;
+
+    private _emailAddressCount = 0;
 
     private constructor(context: TestContext, id: AccountId, initialName: string) {
         this.context = context;
@@ -29,8 +33,10 @@ export class TestAccount {
         context: TestContext,
         {
             name = TestAccount.getNewName(),
+            hasInternalAccess = false,
         }: {
             name?: string;
+            hasInternalAccess?: boolean;
         } = {},
     ) {
         const id = generateId<AccountId>();
@@ -38,9 +44,34 @@ export class TestAccount {
         await createAccountForTest(context, {
             id,
             name,
+            hasInternalAccess,
         });
 
         return new TestAccount(context, id, name);
+    }
+
+    /**
+     * Adds an email address to this account. If you call this multiple times then
+     * the account will have multiple email addresses it may sign in with.
+     */
+    public async createEmailAddress(): Promise<EmailAddress> {
+        const emailAddressNumber = this._emailAddressCount;
+        this._emailAddressCount += 1;
+
+        const emailAddress = await validateEmailAddress(
+            this.context,
+            `account.${this.id}${
+                emailAddressNumber > 0 ? `.${emailAddressNumber + 1}` : ""
+            }@test.cyberworlds.dev`,
+        );
+
+        await createAccountEmailAddressForTest(this.context, {
+            accountId: this.id,
+            emailAddress,
+            isEmailAddressVerified: true,
+        });
+
+        return emailAddress;
     }
 
     public async get(): Promise<AccountModel> {

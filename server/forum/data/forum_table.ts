@@ -1,3 +1,4 @@
+import {authorizeInternalAccess} from "~/server/accounts/accounts_table.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
@@ -28,6 +29,7 @@ import {
 import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
+    createAlphaSpaceTransactionEntriesAsAdmin,
     getAccount,
     isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_table.js";
@@ -711,6 +713,73 @@ export async function seedTestChannels(
             },
         });
     }
+}
+
+/**
+ * Create an alpha space owned by the provided `ownerAccountId`. Only
+ * administrators may call this function. We don't yet have self-serve space
+ * creation.
+ */
+export async function createAlphaSpaceAsAdmin(
+    context: ServerActionContext,
+    {name, ownerAccountId}: {name: string; ownerAccountId: AccountId},
+): Promise<{
+    spaceId: SpaceId;
+    welcomeChannelId: ChannelId;
+    createdTime: Date;
+}> {
+    await authorizeInternalAccess(context);
+
+    const spaceId = generateId<SpaceId>();
+    const welcomeChannelId = generateId<ChannelId>();
+    const createdTime = new Date();
+
+    await context.dynamo.retryTransaction(async context => {
+        await DynamoTableSchema.executeTransaction(context, [
+            ...(await createAlphaSpaceTransactionEntriesAsAdmin(context, {
+                name,
+                spaceId,
+                createdTime,
+                ownerAccountId,
+                welcomeChannelId,
+            })),
+            // We use this when creating an alpha space. So it's ok that we don't send a
+            // realtime event since there'll be no one around to subscribe to the event.
+            ForumRealtimeTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheckAndWithoutEvent(
+                {
+                    partitionType: "Channel",
+                    sortRangeType: "Attributes",
+                    channelId: welcomeChannelId,
+                    spaceId,
+                    createdTime,
+                    creatorId: ownerAccountId,
+                    name: "Welcome",
+                    description: emptyMessageContent,
+                },
+                {
+                    onAfterTransactionExecutedSuccessfully: () => {
+                        context.jobs.send({
+                            type: "IndexSearchEntity",
+                            spaceId,
+                            update: {
+                                type: "Channel",
+                                channelId: welcomeChannelId,
+                                // Nothing depends on this entity when it's created. Don't bother trying to
+                                // reindex dependencies.
+                                updatedTraits: {type: "None"},
+                            },
+                        });
+                    },
+                },
+            ),
+        ]);
+    });
+
+    return {
+        spaceId,
+        welcomeChannelId,
+        createdTime,
+    };
 }
 
 /**

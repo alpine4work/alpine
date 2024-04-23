@@ -60,7 +60,9 @@ export class TestSpace {
         return this.context.systemAction(this.id);
     }
 
-    public async createSession(account?: TestAccount | {name?: string}) {
+    public async createSession(
+        account?: TestAccount | {name?: string; hasInternalAccess?: boolean},
+    ) {
         if (!account || !(account instanceof TestAccount)) {
             account = await TestAccount.create(this.context, account);
         }

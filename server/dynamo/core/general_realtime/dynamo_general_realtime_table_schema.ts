@@ -910,13 +910,16 @@ export class DynamoGeneralRealtimeTableSchema<
      */
     public transactionDangerouslyCreateItemWithoutExistenceConditionCheckAndWithoutEvent<
         Item extends Types["Item"],
-    >(item: Item): DynamoTransactionEntry {
+    >(
+        item: Item,
+        options?: {onAfterTransactionExecutedSuccessfully?: () => void},
+    ): DynamoTransactionEntry {
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
             "Can't access private realtime partition",
         );
 
-        return this._table.transactionCreateOrReplaceItem(item);
+        return this._table.transactionCreateOrReplaceItem(item, options);
     }
 
     /**

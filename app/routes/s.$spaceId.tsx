@@ -48,8 +48,16 @@ import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_gene
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
+import {
+    getAccountByEmailAddressAsAdmin,
+    getAccountByIdAsAdmin,
+} from "~/shared/rpc/accounts_rpc_definitions.js";
+import {
+    createAlphaSpaceAsAdmin,
+    dangerouslyCreateSpaceAccountAsAdmin,
+} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     SearchOptions,
@@ -164,6 +172,27 @@ export default function SpaceLayoutRoute() {
     useEffect(() => {
         attachDevConsoleForAccountInProduction(currentAccount);
     }, [currentAccount]);
+
+    useDevConsoleTool("admin", () => ({
+        getAccountById: async (accountId: AccountId) => {
+            const {account} = await getAccountByIdAsAdmin(context, {accountId});
+            return account;
+        },
+        getAccountByEmailAddress: async (emailAddress: string) => {
+            const {account} = await getAccountByEmailAddressAsAdmin(context, {emailAddress});
+            return account;
+        },
+        createAlphaSpaceAsAdmin: async (input: {name: string; ownerAccountId: AccountId}) => {
+            const output = await createAlphaSpaceAsAdmin(context, input);
+            return output;
+        },
+        dangerouslyCreateSpaceAccountAsAdmin: async (input: {
+            spaceId: SpaceId;
+            accountId: AccountId;
+        }) => {
+            await dangerouslyCreateSpaceAccountAsAdmin(context, input);
+        },
+    }));
 
     // When the user types in a text input in a space we need to make sure the new
     // text isn't offscreen (or hidden by the native mobile keyboard).

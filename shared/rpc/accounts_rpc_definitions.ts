@@ -35,3 +35,23 @@ export const updateSessionActorAccountName = defineRpc({
         account: AccountModel.schema,
     },
 });
+
+export const getAccountByIdAsAdmin = defineRpc({
+    name: "getAccountByIdAsAdmin",
+    input: {
+        accountId: Schema.id<AccountId>(),
+    },
+    output: {
+        account: AccountModel.schema,
+    },
+});
+
+export const getAccountByEmailAddressAsAdmin = defineRpc({
+    name: "getAccountByEmailAddressAsAdmin",
+    input: {
+        emailAddress: Schema.string,
+    },
+    output: {
+        account: AccountModel.schema,
+    },
+});
