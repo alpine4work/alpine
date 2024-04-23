@@ -118,19 +118,18 @@ export class AwsDynamo {
             ([action, isAllowed]) => (isAllowed ? action : null),
         );
 
-        grantee.grantPrincipal.addToPrincipalPolicy(
-            new PolicyStatement({
-                actions: [
-                    ...allowedDynamoClientActions,
-                    // Write transaction entries that aren't top-level DynamoDB actions.
-                    "UpdateItem",
-                    "ConditionCheckItem",
-                ].map(action => `dynamodb:${action}`),
-                resources: this._tables.flatMap(table => [
-                    table.tableArn,
-                    `${table.tableArn}/index/*`,
-                ]),
-            }),
-        );
+        for (const table of this._tables) {
+            grantee.grantPrincipal.addToPrincipalPolicy(
+                new PolicyStatement({
+                    resources: [table.tableArn, `${table.tableArn}/index/*`],
+                    actions: [
+                        ...allowedDynamoClientActions,
+                        // Write transaction entries that aren't top-level DynamoDB actions.
+                        "UpdateItem",
+                        "ConditionCheckItem",
+                    ].map(action => `dynamodb:${action}`),
+                }),
+            );
+        }
     }
 }

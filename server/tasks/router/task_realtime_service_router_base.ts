@@ -30,9 +30,8 @@ export const taskRealtimeServiceRoutesRevalidateMs =
  * The time `TaskRealtimeService` waits before it considers itself to be
  * healthy. It's very important that `TaskRealtimeService` sees every new
  * committed `TaskAction`. If `TaskRealtimeService` misses a `TaskAction`
- * related to permissions it might then users may be allowed to view data
- * they're not supposed until, worst case, the `TaskRealtimeService`
- * instance restarts.
+ * related to permissions then users may be allowed to view data they're not
+ * supposed until, worst case, the `TaskRealtimeService` instance restarts.
  *
  * We can't consider `TaskRealtimeService` to be healthy until all of our other
  * services discover it. Until then we need to keep running our old
