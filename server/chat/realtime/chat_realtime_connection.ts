@@ -66,7 +66,10 @@ export class ChatRealtimeConnection {
         WorkerSessionActionContextModules,
         typeof ChatRealtimeProtocol
     > = {
-        backfillMessages: (context, input) => this._connection.backfillMessages(context, input),
+        backfillMessages: async (context, input) => {
+            const {extra, ...result} = await this._connection.backfillMessages(context, input);
+            return result;
+        },
         createMessage: (context, input) => this._connection.createMessage(context, input),
         updateMessageContent: (context, input) =>
             this._connection.updateMessageContent(context, input),

@@ -87,6 +87,7 @@ test("initializes a query with items from start", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -96,6 +97,7 @@ test("initializes a query with items from start", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -105,6 +107,7 @@ test("initializes a query with items from start", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -151,6 +154,7 @@ test("initializes a query with items from end", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -160,6 +164,7 @@ test("initializes a query with items from end", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -169,6 +174,7 @@ test("initializes a query with items from end", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -215,6 +221,7 @@ test("initializes a query with items from start and a next page", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -224,6 +231,7 @@ test("initializes a query with items from start and a next page", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -233,6 +241,7 @@ test("initializes a query with items from start and a next page", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
         {
@@ -285,6 +294,7 @@ test("initializes a query with items from end and a previous page", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -294,6 +304,7 @@ test("initializes a query with items from end and a previous page", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -303,6 +314,7 @@ test("initializes a query with items from end and a previous page", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -349,6 +361,7 @@ test("items update after receiving a realtime event", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -358,6 +371,7 @@ test("items update after receiving a realtime event", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -367,6 +381,7 @@ test("items update after receiving a realtime event", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -391,6 +406,7 @@ test("items update after receiving a realtime event", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -400,6 +416,7 @@ test("items update after receiving a realtime event", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -409,6 +426,7 @@ test("items update after receiving a realtime event", () => {
                 key: testItemKey("item2"),
                 version: 1,
                 model: "item2-v1",
+                extra: null,
             },
         },
     ]);
@@ -433,6 +451,7 @@ test("items update after receiving a realtime event", () => {
                 key: testItemKey("item0"),
                 version: 1,
                 model: "item0-v1",
+                extra: null,
             },
         },
         {
@@ -442,6 +461,7 @@ test("items update after receiving a realtime event", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -451,6 +471,7 @@ test("items update after receiving a realtime event", () => {
                 key: testItemKey("item2"),
                 version: 1,
                 model: "item2-v1",
+                extra: null,
             },
         },
     ]);
@@ -475,6 +496,7 @@ test("items update after receiving a realtime event", () => {
                 key: testItemKey("item0"),
                 version: 2,
                 model: "item0-v2",
+                extra: null,
             },
         },
         {
@@ -484,6 +506,7 @@ test("items update after receiving a realtime event", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -493,6 +516,7 @@ test("items update after receiving a realtime event", () => {
                 key: testItemKey("item2"),
                 version: 1,
                 model: "item2-v1",
+                extra: null,
             },
         },
     ]);
@@ -539,6 +563,7 @@ test("items update after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -548,6 +573,7 @@ test("items update after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -557,6 +583,7 @@ test("items update after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -581,6 +608,7 @@ test("items update after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -590,6 +618,7 @@ test("items update after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -599,6 +628,7 @@ test("items update after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item2"),
                 version: 1,
                 model: "item2-v1",
+                extra: null,
             },
         },
     ]);
@@ -623,6 +653,7 @@ test("items update after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item0"),
                 version: 2,
                 model: "item0-v2",
+                extra: null,
             },
         },
         {
@@ -632,6 +663,7 @@ test("items update after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -641,6 +673,7 @@ test("items update after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item2"),
                 version: 1,
                 model: "item2-v1",
+                extra: null,
             },
         },
     ]);
@@ -665,6 +698,7 @@ test("items update after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item0"),
                 version: 2,
                 model: "item0-v2",
+                extra: null,
             },
         },
         {
@@ -674,6 +708,7 @@ test("items update after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -683,6 +718,7 @@ test("items update after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item2"),
                 version: 1,
                 model: "item2-v1",
+                extra: null,
             },
         },
     ]);
@@ -729,6 +765,7 @@ test("items move after receiving a realtime event", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -738,6 +775,7 @@ test("items move after receiving a realtime event", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -747,6 +785,7 @@ test("items move after receiving a realtime event", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -771,6 +810,7 @@ test("items move after receiving a realtime event", () => {
                 key: testItemKey("item2"),
                 version: 1,
                 model: "item2",
+                extra: null,
             },
         },
         {
@@ -780,6 +820,7 @@ test("items move after receiving a realtime event", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -789,6 +830,7 @@ test("items move after receiving a realtime event", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
     ]);
@@ -813,6 +855,7 @@ test("items move after receiving a realtime event", () => {
                 key: testItemKey("item2"),
                 version: 1,
                 model: "item2",
+                extra: null,
             },
         },
         {
@@ -822,6 +865,7 @@ test("items move after receiving a realtime event", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -831,6 +875,7 @@ test("items move after receiving a realtime event", () => {
                 key: testItemKey("item0"),
                 version: 1,
                 model: "item0",
+                extra: null,
             },
         },
     ]);
@@ -877,6 +922,7 @@ test("items move after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item0"),
                 version: 2,
                 model: "item0-v2",
+                extra: null,
             },
         },
         {
@@ -886,6 +932,7 @@ test("items move after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -895,6 +942,7 @@ test("items move after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -919,6 +967,7 @@ test("items move after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item0"),
                 version: 2,
                 model: "item0-v2",
+                extra: null,
             },
         },
         {
@@ -928,6 +977,7 @@ test("items move after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -937,6 +987,7 @@ test("items move after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -961,6 +1012,7 @@ test("items move after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -970,6 +1022,7 @@ test("items move after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
         {
@@ -979,6 +1032,7 @@ test("items move after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item0"),
                 version: 4,
                 model: "item0-v4",
+                extra: null,
             },
         },
     ]);
@@ -1003,6 +1057,7 @@ test("items move after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -1012,6 +1067,7 @@ test("items move after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
         {
@@ -1021,6 +1077,7 @@ test("items move after receiving a realtime event out-of-order", () => {
                 key: testItemKey("item0"),
                 version: 4,
                 model: "item0-v4",
+                extra: null,
             },
         },
     ]);
@@ -1067,6 +1124,7 @@ test("items move out of bounds after receiving a realtime event", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -1076,6 +1134,7 @@ test("items move out of bounds after receiving a realtime event", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -1085,6 +1144,7 @@ test("items move out of bounds after receiving a realtime event", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -1109,6 +1169,7 @@ test("items move out of bounds after receiving a realtime event", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -1118,6 +1179,7 @@ test("items move out of bounds after receiving a realtime event", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
     ]);
@@ -1142,6 +1204,7 @@ test("items move out of bounds after receiving a realtime event", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
     ]);
@@ -1188,6 +1251,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -1197,6 +1261,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -1206,6 +1271,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -1230,6 +1296,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -1239,6 +1306,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
     ]);
@@ -1263,6 +1331,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
     ]);
@@ -1287,6 +1356,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
     ]);
@@ -1311,6 +1381,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
     ]);
@@ -1357,6 +1428,7 @@ test("item created within the query", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -1366,6 +1438,7 @@ test("item created within the query", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -1375,6 +1448,7 @@ test("item created within the query", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -1399,6 +1473,7 @@ test("item created within the query", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -1408,6 +1483,7 @@ test("item created within the query", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -1417,6 +1493,7 @@ test("item created within the query", () => {
                 key: testItemKey("item4"),
                 version: 0,
                 model: "item4",
+                extra: null,
             },
         },
         {
@@ -1426,6 +1503,7 @@ test("item created within the query", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -1472,6 +1550,7 @@ test("item created then moved out of bounds within the query", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -1481,6 +1560,7 @@ test("item created then moved out of bounds within the query", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -1490,6 +1570,7 @@ test("item created then moved out of bounds within the query", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -1514,6 +1595,7 @@ test("item created then moved out of bounds within the query", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -1523,6 +1605,7 @@ test("item created then moved out of bounds within the query", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -1532,6 +1615,7 @@ test("item created then moved out of bounds within the query", () => {
                 key: testItemKey("item4"),
                 version: 0,
                 model: "item4",
+                extra: null,
             },
         },
         {
@@ -1541,6 +1625,7 @@ test("item created then moved out of bounds within the query", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -1565,6 +1650,7 @@ test("item created then moved out of bounds within the query", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -1574,6 +1660,7 @@ test("item created then moved out of bounds within the query", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -1583,6 +1670,7 @@ test("item created then moved out of bounds within the query", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -1629,6 +1717,7 @@ test("item created then moved out of bounds within the query received out-of-ord
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -1638,6 +1727,7 @@ test("item created then moved out of bounds within the query received out-of-ord
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -1647,6 +1737,7 @@ test("item created then moved out of bounds within the query received out-of-ord
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -1671,6 +1762,7 @@ test("item created then moved out of bounds within the query received out-of-ord
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -1680,6 +1772,7 @@ test("item created then moved out of bounds within the query received out-of-ord
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -1689,6 +1782,7 @@ test("item created then moved out of bounds within the query received out-of-ord
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -1713,6 +1807,7 @@ test("item created then moved out of bounds within the query received out-of-ord
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -1722,6 +1817,7 @@ test("item created then moved out of bounds within the query received out-of-ord
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -1731,6 +1827,7 @@ test("item created then moved out of bounds within the query received out-of-ord
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -1777,6 +1874,7 @@ test("item moving in and out of bounds", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -1786,6 +1884,7 @@ test("item moving in and out of bounds", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -1795,6 +1894,7 @@ test("item moving in and out of bounds", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -1819,6 +1919,7 @@ test("item moving in and out of bounds", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -1828,6 +1929,7 @@ test("item moving in and out of bounds", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -1852,6 +1954,7 @@ test("item moving in and out of bounds", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -1861,6 +1964,7 @@ test("item moving in and out of bounds", () => {
                 key: testItemKey("item1"),
                 version: 2,
                 model: "item1-v2",
+                extra: null,
             },
         },
         {
@@ -1870,6 +1974,7 @@ test("item moving in and out of bounds", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -1894,6 +1999,7 @@ test("item moving in and out of bounds", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -1903,6 +2009,7 @@ test("item moving in and out of bounds", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -1949,6 +2056,7 @@ test("item moving in and out of bounds received out-of-order", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -1958,6 +2066,7 @@ test("item moving in and out of bounds received out-of-order", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -1967,6 +2076,7 @@ test("item moving in and out of bounds received out-of-order", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -1991,6 +2101,7 @@ test("item moving in and out of bounds received out-of-order", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -2000,6 +2111,7 @@ test("item moving in and out of bounds received out-of-order", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -2024,6 +2136,7 @@ test("item moving in and out of bounds received out-of-order", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -2033,6 +2146,7 @@ test("item moving in and out of bounds received out-of-order", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -2057,6 +2171,7 @@ test("item moving in and out of bounds received out-of-order", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -2066,6 +2181,7 @@ test("item moving in and out of bounds received out-of-order", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -2112,6 +2228,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -2121,6 +2238,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -2130,6 +2248,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
         {
@@ -2177,6 +2296,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -2186,6 +2306,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -2195,6 +2316,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
         {
@@ -2204,6 +2326,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item3"),
                 version: 0,
                 model: "item3",
+                extra: null,
             },
         },
         {
@@ -2213,6 +2336,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item4"),
                 version: 0,
                 model: "item4",
+                extra: null,
             },
         },
         {
@@ -2222,6 +2346,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item5"),
                 version: 0,
                 model: "item5",
+                extra: null,
             },
         },
         {
@@ -2269,6 +2394,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -2278,6 +2404,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -2287,6 +2414,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
         {
@@ -2296,6 +2424,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item3"),
                 version: 0,
                 model: "item3",
+                extra: null,
             },
         },
         {
@@ -2305,6 +2434,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item4"),
                 version: 0,
                 model: "item4",
+                extra: null,
             },
         },
         {
@@ -2314,6 +2444,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item5"),
                 version: 0,
                 model: "item5",
+                extra: null,
             },
         },
         {
@@ -2323,6 +2454,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item6"),
                 version: 0,
                 model: "item6",
+                extra: null,
             },
         },
         {
@@ -2332,6 +2464,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item7"),
                 version: 0,
                 model: "item7",
+                extra: null,
             },
         },
         {
@@ -2341,6 +2474,7 @@ test("can load more at the end of a query", () => {
                 key: testItemKey("item8"),
                 version: 0,
                 model: "item8",
+                extra: null,
             },
         },
     ]);
@@ -2390,6 +2524,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -2399,6 +2534,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -2408,6 +2544,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -2455,6 +2592,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item3"),
                 version: 0,
                 model: "item3",
+                extra: null,
             },
         },
         {
@@ -2464,6 +2602,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item4"),
                 version: 0,
                 model: "item4",
+                extra: null,
             },
         },
         {
@@ -2473,6 +2612,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item5"),
                 version: 0,
                 model: "item5",
+                extra: null,
             },
         },
         {
@@ -2482,6 +2622,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -2491,6 +2632,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -2500,6 +2642,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -2544,6 +2687,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item6"),
                 version: 0,
                 model: "item6",
+                extra: null,
             },
         },
         {
@@ -2553,6 +2697,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item7"),
                 version: 0,
                 model: "item7",
+                extra: null,
             },
         },
         {
@@ -2562,6 +2707,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item8"),
                 version: 0,
                 model: "item8",
+                extra: null,
             },
         },
         {
@@ -2571,6 +2717,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item3"),
                 version: 0,
                 model: "item3",
+                extra: null,
             },
         },
         {
@@ -2580,6 +2727,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item4"),
                 version: 0,
                 model: "item4",
+                extra: null,
             },
         },
         {
@@ -2589,6 +2737,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item5"),
                 version: 0,
                 model: "item5",
+                extra: null,
             },
         },
         {
@@ -2598,6 +2747,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -2607,6 +2757,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -2616,6 +2767,7 @@ test("can load more at the start of a query", () => {
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -2662,6 +2814,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -2671,6 +2824,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -2680,6 +2834,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
         {
@@ -2733,6 +2888,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -2742,6 +2898,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -2751,6 +2908,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
                 key: testItemKey("item2"),
                 version: 1,
                 model: "item2-v1",
+                extra: null,
             },
         },
         {
@@ -2760,6 +2918,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
                 key: testItemKey("item3"),
                 version: 0,
                 model: "item3",
+                extra: null,
             },
         },
         {
@@ -2769,6 +2928,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
                 key: testItemKey("item4"),
                 version: 0,
                 model: "item4",
+                extra: null,
             },
         },
         {
@@ -2778,6 +2938,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
                 key: testItemKey("item5"),
                 version: 0,
                 model: "item5",
+                extra: null,
             },
         },
     ]);
@@ -2824,6 +2985,7 @@ test("can load more at the end in a way that doesn't overlap with the last query
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -2833,6 +2995,7 @@ test("can load more at the end in a way that doesn't overlap with the last query
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -2842,6 +3005,7 @@ test("can load more at the end in a way that doesn't overlap with the last query
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
         {
@@ -2883,6 +3047,7 @@ test("can load more at the end in a way that doesn't overlap with the last query
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -2892,6 +3057,7 @@ test("can load more at the end in a way that doesn't overlap with the last query
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -2901,6 +3067,7 @@ test("can load more at the end in a way that doesn't overlap with the last query
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
         {
@@ -2953,6 +3120,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -2962,6 +3130,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -2971,6 +3140,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -3021,6 +3191,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
                 key: testItemKey("item3"),
                 version: 0,
                 model: "item3",
+                extra: null,
             },
         },
         {
@@ -3030,6 +3201,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
                 key: testItemKey("item4"),
                 version: 0,
                 model: "item4",
+                extra: null,
             },
         },
         {
@@ -3039,6 +3211,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
                 key: testItemKey("item5"),
                 version: 0,
                 model: "item5",
+                extra: null,
             },
         },
         {
@@ -3048,6 +3221,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
                 key: testItemKey("item0"),
                 version: 1,
                 model: "item0-v1",
+                extra: null,
             },
         },
         {
@@ -3057,6 +3231,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -3066,6 +3241,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -3115,6 +3291,7 @@ test("can load more at the start in a way that doesn't overlap with the last que
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -3124,6 +3301,7 @@ test("can load more at the start in a way that doesn't overlap with the last que
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -3133,6 +3311,7 @@ test("can load more at the start in a way that doesn't overlap with the last que
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);
@@ -3174,6 +3353,7 @@ test("can load more at the start in a way that doesn't overlap with the last que
                 key: testItemKey("item0"),
                 version: 0,
                 model: "item0",
+                extra: null,
             },
         },
         {
@@ -3183,6 +3363,7 @@ test("can load more at the start in a way that doesn't overlap with the last que
                 key: testItemKey("item1"),
                 version: 0,
                 model: "item1",
+                extra: null,
             },
         },
         {
@@ -3192,6 +3373,7 @@ test("can load more at the start in a way that doesn't overlap with the last que
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
             },
         },
     ]);

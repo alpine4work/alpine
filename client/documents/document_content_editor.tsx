@@ -13,11 +13,7 @@ import {redo, undo} from "prosemirror-history";
 import {Memo, Ref, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {createCommentThreadMetaKey} from "~/client/content/content_editor_state.js";
-import {
-    MessageInputRef,
-    messageInputAccountAvatarPaddingY,
-    messageInputAccountAvatarSize,
-} from "~/client/content/messaging/message_input_base.js";
+import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
@@ -96,6 +92,8 @@ import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {
+    messageInputAccountAvatarPaddingY,
+    messageInputAccountAvatarSize,
     messageInputMinHeight,
     messageViewBubbleBorderRadius,
     messageViewBubbleMinHeight,

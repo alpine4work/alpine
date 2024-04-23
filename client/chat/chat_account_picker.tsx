@@ -95,6 +95,11 @@ export function ChatAccountPicker({
     const accountStore = useAccountClientStore();
     const {currentAccount} = useSpaceContext();
 
+    const inputRef = useRef<HTMLInputElement>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const popoverRef = useRef<HTMLDivElement>(null);
+    const listBoxRef = useRef<HTMLUListElement>(null);
+
     // Preload accounts since we don't load accounts until the dropdown is open.
     useExpensivelyPreloadAllSpaceAccounts();
 
@@ -323,11 +328,6 @@ export function ChatAccountPicker({
         setSearchQuery({searchQuery, shouldCloseComboBox: false});
     }, [comboBoxState, searchQuery, shouldCloseComboBox]);
 
-    const inputRef = useRef<HTMLInputElement>(null);
-    const buttonRef = useRef<HTMLButtonElement>(null);
-    const popoverRef = useRef<HTMLDivElement>(null);
-    const listBoxRef = useRef<HTMLUListElement>(null);
-
     const {labelProps, inputProps, buttonProps, listBoxProps} = useComboBox(
         {
             ...comboBoxProps,
@@ -470,12 +470,11 @@ export function ChatAccountPicker({
                     borderRadius="full"
                     display="flex"
                     alignItems="center"
-                    // The first selected account is focusable via tab and you can use arrow keys
-                    // to focus the others.
-                    //
-                    // On mobile you can't select individual accounts so pointer events fallthrough
-                    // and focus the input.
-                    tabIndex={!isMobile ? (index === 0 ? 0 : -1) : undefined}
+                    tabIndex={index === 0 ? 0 : -1}
+                    // On mobile we want taps to fallthrough and focus the combobox input instead of
+                    // selecting the account. On mobile you can only press backspace to delete the
+                    // last account, you can't delete a specific account (unless you have an
+                    // external keyboard, then you can use arrow keys).
                     pointerEvents={!isMobile ? undefined : "none"}
                     onKeyDown={handleKeyDown}
                 >
@@ -562,13 +561,7 @@ export function ChatAccountPicker({
                     comboBoxState.isOpen && comboBoxState.selectionManager.focusedKey !== null
                 }
             >
-                <Box
-                    data-testid="ChatAccountPickerInput"
-                    // Border radius for the focus ring
-                    borderTopRadius={!withMobileLayout ? "md" : undefined}
-                    display="flex"
-                    alignItems="flex-start"
-                >
+                <Box data-testid="ChatAccountPickerInput" display="flex" alignItems="flex-start">
                     <label
                         {...labelProps}
                         className={sprinkles({

@@ -878,7 +878,7 @@ function PeekStackDraggable({
                     ...state.stack
                         .slice(0, state.unmountedStartStackIndex)
                         .map((entry, index) => (
-                            <PeekOverlay
+                            <PeekStackOverlay
                                 key={entry.id}
                                 state={state}
                                 dispatch={dispatch}
@@ -896,7 +896,7 @@ function PeekStackDraggable({
                         ))
                         .reverse(),
                     ...state.unmountingStack.map((entry, index) => (
-                        <PeekOverlay
+                        <PeekStackOverlay
                             key={entry.id}
                             state={state}
                             dispatch={dispatch}
@@ -928,7 +928,7 @@ function PeekStackDraggable({
     );
 }
 
-function PeekOverlay({
+function PeekStackOverlay({
     state,
     dispatch,
     peekRoutes,
@@ -961,7 +961,7 @@ function PeekOverlay({
     const overlayRef = useRef<HTMLDivElement>(null);
     const overlayContainerRef = useRef<HTMLDivElement>(null);
     const overlayContentContainerRef = useRef<HTMLDivElement>(null);
-    const overlayContentRef = useRef<PeekOverlayContentRef>(null);
+    const overlayContentRef = useRef<PeekStackOverlayContentRef>(null);
 
     const renderPopClickOverlay = (offset: number) => (
         <Box
@@ -1095,13 +1095,13 @@ function PeekOverlay({
             const initialIndex =
                 !state.disableEntranceAnimationsDuringNextRender && index > 0 ? index + 1 : index;
 
-            const {transform, opacity} = getPeekOverlayAnimationStyles(initialIndex);
+            const {transform, opacity} = getPeekStackOverlayAnimationStyles(initialIndex);
 
             overlayElement.style.transform = transform;
             overlayElement.style.opacity = opacity;
         }, [index, state.disableEntranceAnimationsDuringNextRender]);
 
-        const {transform, opacity} = getPeekOverlayAnimationStyles(index);
+        const {transform, opacity} = getPeekStackOverlayAnimationStyles(index);
 
         // Whenever our styles change, animate to the new styles. The `animate()`
         // function is interruptible so if an animation is ongoing we will continue
@@ -1267,6 +1267,7 @@ function PeekOverlay({
             >
                 <Box
                     ref={overlayRef}
+                    data-testid="PeekStackOverlay"
                     overflow="hidden"
                     borderTopRadius="md"
                     boxShadow={index === 0 ? "elevation-40" : "elevation-30"}
@@ -1323,7 +1324,7 @@ function PeekOverlay({
                                 <OverlayScopeContextProvider
                                 // Render overlays here so they get the `greyElevatedClassName` styles.
                                 >
-                                    <PeekOverlayContent
+                                    <PeekStackOverlayContent
                                         ref={overlayContentRef}
                                         state={state}
                                         dispatch={dispatch}
@@ -1355,7 +1356,7 @@ function PeekOverlay({
     );
 }
 
-function getPeekOverlayAnimationStyles(index: number) {
+function getPeekStackOverlayAnimationStyles(index: number) {
     const translateX = `${parseRemLengthNumber(peekUnderlayOffset) * Math.max(0, index)}rem`;
     const translateY = `${parseRemLengthNumber(peekUnderlayOffset) * Math.max(0, index)}rem`;
     const transform = `translate(${translateX}, ${translateY})`;
@@ -1363,20 +1364,20 @@ function getPeekOverlayAnimationStyles(index: number) {
     return {transform, opacity};
 }
 
-const PeekIsAnimatingOpenContext = createContext<boolean>(false);
+const PeekStackIsAnimatingOpenContext = createContext<boolean>(false);
 
 /**
  * Is the peek we are in animating open?
  */
-export function useIsPeekAnimatingOpen(): boolean {
-    return useContext(PeekIsAnimatingOpenContext);
+export function useIsPeekStackAnimatingOpen(): boolean {
+    return useContext(PeekStackIsAnimatingOpenContext);
 }
 
-type PeekOverlayContentRef = {
+type PeekStackOverlayContentRef = {
     focus(): void;
 };
 
-const PeekOverlayContent = forwardRef(function PeekOverlayContent(
+const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
     {
         state,
         dispatch,
@@ -1409,7 +1410,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
         isAnimatingOpen: boolean;
         onClosePress: (event: PressEvent) => void;
     },
-    ref: Ref<PeekOverlayContentRef>,
+    ref: Ref<PeekStackOverlayContentRef>,
 ) {
     const contentRef = useRef<HTMLDivElement>(null);
     const closeButtonRef = useRef<HTMLElement>(null);
@@ -1501,7 +1502,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
     }, [entry.history, routerResult.isPending, routerResult.value]);
 
     return (
-        <PeekIsAnimatingOpenContext.Provider value={isAnimatingOpen}>
+        <PeekStackIsAnimatingOpenContext.Provider value={isAnimatingOpen}>
             <GlobalKeyDownEvent
                 onGlobalKeyDown={event => {
                     if (event.key === "Escape" && state.stack.length > 0) {
@@ -1685,7 +1686,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                     )}
                 </Box>
             </GlobalKeyDownEvent>
-        </PeekIsAnimatingOpenContext.Provider>
+        </PeekStackIsAnimatingOpenContext.Provider>
     );
 });
 

@@ -32,6 +32,7 @@ import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/te
 import {TestLocalJobSender} from "~/server/dynamo/test_helpers/test_local_job_sender.js";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
+import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
@@ -79,6 +80,7 @@ export type TestContext = ServerProcessContext & {
         session:
             | {id: SessionId; account: {id: AccountId}; createdTime: Date}
             | {sessionId: SessionId; accountId: AccountId; createdTime: Date},
+        options?: {serviceName: ActorServiceName},
     ): Context<
         ServerSessionActionContextModules & {
             fork: ForkActionContextModule;
@@ -88,7 +90,10 @@ export type TestContext = ServerProcessContext & {
     /**
      * An authenticated system action.
      */
-    systemAction(spaceId: SpaceId): ServerSystemActionContext;
+    systemAction(
+        spaceId: SpaceId,
+        options?: {serviceName: ActorServiceName},
+    ): ServerSystemActionContext;
 
     /**
      * Escalate one of our existing test contexts to a system context.
@@ -245,6 +250,12 @@ export function createTestContext({
         session:
             | {id: SessionId; account: {id: AccountId}; createdTime: Date}
             | {sessionId: SessionId; accountId: AccountId; createdTime: Date},
+        {
+            // Dangerously allow pretending to be from any context in tests.
+            serviceName = "Test",
+        }: {
+            serviceName?: ActorServiceName;
+        } = {},
     ): Context<
         ServerSessionActionContextModules & {
             fork: ForkActionContextModule;
@@ -253,16 +264,27 @@ export function createTestContext({
         return processContext.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
-            actor: DynamoSessionActorContextModule.dangerouslyNew("Test", Session.test(session)),
+            actor: DynamoSessionActorContextModule.dangerouslyNew(
+                serviceName,
+                Session.test(session),
+            ),
             fork: new ForkActionContextModule(),
         });
     };
 
-    const createSystemContext = (spaceId: SpaceId): ServerSystemActionContext => {
+    const createSystemContext = (
+        spaceId: SpaceId,
+        {
+            // Dangerously allow pretending to be from any context in tests.
+            serviceName = "Test",
+        }: {
+            serviceName?: ActorServiceName;
+        } = {},
+    ): ServerSystemActionContext => {
         return processContext.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
-            actor: DynamoSystemActorContextModule.dangerouslyNew("Test", spaceId),
+            actor: DynamoSystemActorContextModule.dangerouslyNew(serviceName, spaceId),
         });
     };
 

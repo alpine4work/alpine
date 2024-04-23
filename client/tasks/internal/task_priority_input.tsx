@@ -4,9 +4,9 @@ import {Ref, forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useS
 import {useComboBox} from "react-aria";
 import {ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
-import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
@@ -108,6 +108,10 @@ function TaskPriorityInput(
         type: "Selection",
         disableAnimationOut: false,
     });
+
+    const inputRef = useRef<HTMLInputElement>(null);
+    const popoverRef = useRef<HTMLDivElement>(null);
+    const listBoxRef = useRef<HTMLUListElement>(null);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (inputState.type === "Typing" && inputState.shouldSelect) {
@@ -310,10 +314,6 @@ function TaskPriorityInput(
 
         comboBoxState.close();
     }
-
-    const inputRef = useRef<HTMLInputElement>(null);
-    const popoverRef = useRef<HTMLDivElement>(null);
-    const listBoxRef = useRef<HTMLUListElement>(null);
 
     const {inputProps, listBoxProps} = useComboBox(
         {

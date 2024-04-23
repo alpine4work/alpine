@@ -24,34 +24,34 @@ test("will remember the account being messaged in a chat peek", async ({
     await page.goto(`/s/${space.id}/documents/${document.id}`);
 
     await page.getByRole("button", {name: "Create"}).click();
-    await page.getByRole("menuitem", {name: "Send a chat message"}).click();
+    await page.getByRole("menuitem", {name: "Message"}).click();
 
     await expect(page.getByText("Siobahn Roy")).toBeHidden();
     await expect(page.getByText("Kendall Roy")).toBeHidden();
     await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
 
-    await expect(page.getByRole("combobox", {name: "To"})).toBeVisible();
-    await page.getByRole("combobox", {name: "To"}).click();
     await page.getByText("Siobahn Roy").click();
 
     await expect(page.getByText("Siobahn Roy")).toBeVisible();
     await expect(page.getByText("Kendall Roy")).toBeHidden();
     await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
 
-    // After selecting a chat member, we have to wait for a network request until
-    // Remix considers the peek to have a new URL and so can open the chat message
-    // peek again.
-    await expect(async () => {
-        await page.getByRole("button", {name: "Create"}).click();
-        await page.getByRole("menuitem", {name: "Send a chat message"}).click();
+    await expect(page.getByTestId("PeekStackOverlay")).toHaveCount(1);
 
-        await expect(page.getByText("Siobahn Roy")).toBeHidden();
-        await expect(page.getByText("Kendall Roy")).toBeHidden();
-        await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
-    }).toPass();
+    await page.getByRole("button", {name: "Create"}).click();
+    await page.getByRole("menuitem", {name: "Document"}).click();
 
-    await expect(page.getByRole("combobox", {name: "To"})).toBeVisible();
-    await page.getByRole("combobox", {name: "To"}).click();
+    await expect(page.getByTestId("PeekStackOverlay")).toHaveCount(2);
+
+    await expect(page.getByText("Siobahn Roy")).toBeHidden();
+    await expect(page.getByText("Kendall Roy")).toBeHidden();
+    await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
+
+    await page.getByRole("button", {name: "Create"}).click();
+    await page.getByRole("menuitem", {name: "Message"}).click();
+
+    await expect(page.getByTestId("PeekStackOverlay")).toHaveCount(3);
+
     await page.getByText("Kendall Roy").click();
 
     await expect(page.getByText("Kendall Roy")).toBeVisible();
@@ -59,13 +59,14 @@ test("will remember the account being messaged in a chat peek", async ({
     await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
 
     await page.getByRole("button", {name: "Create"}).click();
-    await page.getByRole("menuitem", {name: "Create a document"}).click();
+    await page.getByRole("menuitem", {name: "Document"}).click();
 
     await expect(page.getByRole("combobox", {name: "To"})).toBeHidden();
     await expect(page.getByText("Siobahn Roy")).toBeHidden();
     await expect(page.getByText("Kendall Roy")).toBeHidden();
     await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
 
+    await page.keyboard.press("ArrowDown");
     await page.keyboard.type("Test document content 2");
     await expect(page.getByText("Test document content 2")).toBeVisible();
 
@@ -73,12 +74,18 @@ test("will remember the account being messaged in a chat peek", async ({
 
     await expect(page.getByText("Test document content 2")).toBeHidden();
 
+    await page.getByRole("button", {name: "Close"}).click();
+
     await expect(page.getByRole("combobox", {name: "To"})).toBeVisible();
     await expect(page.getByText("Siobahn Roy")).toBeHidden();
     await expect(page.getByText("Kendall Roy")).toBeVisible();
     await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
 
     await page.getByRole("button", {name: "Close"}).click();
+
+    await expect(
+        page.getByTestId("PeekStack").getByRole("textbox", {name: "Document"}),
+    ).toBeHidden();
 
     await expect(page.getByText("Kendall Roy")).toBeHidden();
     await expect(page.getByRole("combobox", {name: "To"})).toBeVisible();
@@ -111,7 +118,7 @@ test("will expand chat peek on top of chat peek with different selection", async
     await expect(page.getByText("Kendall Roy")).toBeHidden();
 
     await page.getByRole("button", {name: "Create"}).click();
-    await page.getByRole("menuitem", {name: "Send a chat message"}).click();
+    await page.getByRole("menuitem", {name: "Message"}).click();
 
     await expect(page.getByTestId("PeekStack")).toBeVisible();
 

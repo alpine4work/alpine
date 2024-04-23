@@ -11,7 +11,7 @@ const {context, services} = createTestServices();
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space);
 
-test("can create posts", async ({page, context: browserContext}) => {
+test("can create posts", async ({page, context: browserContext, isMobile}) => {
     const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
@@ -24,26 +24,36 @@ test("can create posts", async ({page, context: browserContext}) => {
 
     await page.getByRole("button", {name: "Post"}).click();
 
-    await expect(page.getByTestId("PeekStack").getByRole("button", {name: "Post"})).toBeDisabled();
+    const newPostLocator = !isMobile ? page.getByTestId("PeekStack") : page;
+
+    await expect(newPostLocator.getByRole("button", {name: "Post"})).toBeDisabled();
     await page.getByLabel("New post").type("Test post content 1");
+    await page.getByLabel("New post").blur();
     await expect(page.getByLabel("New post")).toHaveText("Test post content 1");
     await expect(page.getByText("0 comments")).toBeHidden();
-    await expect(page.getByTestId("PeekStack").getByRole("button", {name: "Post"})).toBeEnabled();
-    await page.getByTestId("PeekStack").getByRole("button", {name: "Post"}).click();
+    await expect(newPostLocator.getByRole("button", {name: "Post"})).toBeEnabled();
+    await newPostLocator.getByRole("button", {name: "Post"}).click();
     await expect(page.getByTestId("PeekStack")).toBeHidden();
     await expect(page.getByText("0 comments")).toBeVisible();
     await expect(page.getByText("Test post content 1")).toBeVisible();
 
-    await page.getByRole("button", {name: "Post"}).click();
+    if (!isMobile) {
+        await page.getByRole("button", {name: "Post"}).click();
+    } else {
+        await expect(page.getByRole("button", {name: "Post"})).toBeHidden();
+        await page.goBack();
+        await page.getByRole("button", {name: "Post"}).click();
+    }
 
     await page.getByLabel("New post").type("Test post content 2");
+    await page.getByLabel("New post").blur();
     await expect(page.getByLabel("New post")).toHaveText("Test post content 2");
-    await page.getByTestId("PeekStack").getByRole("button", {name: "Post"}).click();
+    await newPostLocator.getByRole("button", {name: "Post"}).click();
     await expect(page.getByTestId("PeekStack")).toBeHidden();
     await expect(page.getByText("Test post content 2")).toBeVisible();
 });
 
-test("can create multiline formatted posts", async ({page, context: browserContext}) => {
+test("can create multiline formatted posts", async ({page, context: browserContext, isMobile}) => {
     const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
@@ -54,16 +64,19 @@ test("can create multiline formatted posts", async ({page, context: browserConte
 
     await expect(page.getByText("Test Channel")).toBeVisible();
 
+    const newPostLocator = !isMobile ? page.getByTestId("PeekStack") : page;
+
     await page.getByRole("button", {name: "Post"}).click();
-    await expect(page.getByTestId("PeekStack").getByRole("button", {name: "Post"})).toBeDisabled();
+    await expect(newPostLocator.getByRole("button", {name: "Post"})).toBeDisabled();
     await page.getByLabel("New post").type("Test post content 1");
     await page.getByLabel("New post").press("Enter");
     await page.getByLabel("New post").type("# Test heading");
     await page.getByLabel("New post").press("Enter");
     await page.getByLabel("New post").type("More test post content");
-    await expect(page.getByTestId("PeekStack").getByRole("button", {name: "Post"})).toBeEnabled();
+    await page.getByLabel("New post").blur();
+    await expect(newPostLocator.getByRole("button", {name: "Post"})).toBeEnabled();
 
-    await page.getByTestId("PeekStack").getByRole("button", {name: "Post"}).click();
+    await newPostLocator.getByRole("button", {name: "Post"}).click();
     await expect(page.getByTestId("PeekStack")).toBeHidden();
 
     await expect(page.getByText("0 comments")).toBeVisible();
@@ -120,7 +133,7 @@ test("can edit a post in a channel", async ({page, context: browserContext}) => 
     await expect(page.getByText("Test post content 3")).toBeVisible();
 });
 
-test("can edit a standalone post", async ({page, context: browserContext}) => {
+test("can edit a standalone post", async ({page, context: browserContext, isMobile}) => {
     const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
@@ -145,7 +158,15 @@ test("can edit a standalone post", async ({page, context: browserContext}) => {
     // Can update with the save button.
     await page.getByLabel("Post", {exact: true}).press("Backspace");
     await page.getByLabel("Post", {exact: true}).type("2");
-    await page.getByRole("button", {name: "Save"}).click();
+    if (!isMobile) {
+        await page.getByRole("button", {name: "Save"}).click();
+    } else {
+        await page.getByLabel("Post", {exact: true}).blur();
+
+        // TODO(calebmer): We should open a `<MobileModal>` on mobile when editing a
+        // post so we can have a save button in the header.
+        await page.getByLabel("Post", {exact: true}).press(`${modifier}+Enter`);
+    }
 
     await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
     await expect(page.getByText("Test post content 1")).toBeHidden();

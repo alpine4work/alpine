@@ -6,9 +6,9 @@ import {ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
-import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
@@ -117,6 +117,10 @@ function TaskAssigneeInput(
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const accountStore = useAccountClientStore();
     const {currentAccount} = useSpaceContext();
+
+    const inputRef = useRef<HTMLInputElement>(null);
+    const popoverRef = useRef<HTMLDivElement>(null);
+    const listBoxRef = useRef<HTMLUListElement>(null);
 
     const [inputState, setInputState] = useState<TaskAssigneeInputState>({
         type: "Selection",
@@ -423,10 +427,6 @@ function TaskAssigneeInput(
 
         comboBoxState.close();
     }
-
-    const inputRef = useRef<HTMLInputElement>(null);
-    const popoverRef = useRef<HTMLDivElement>(null);
-    const listBoxRef = useRef<HTMLUListElement>(null);
 
     const {inputProps, listBoxProps} = useComboBox(
         {

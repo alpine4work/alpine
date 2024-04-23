@@ -2,7 +2,13 @@
 // `client/messaging` by packages that don't want to take a dependency on
 // `client/messaging`. For example `client/content`.
 
-import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {
+    RemLength,
+    Spacing,
+    addRemLengths,
+    parseRemLengthNumber,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {contentSchemaStyles, fontSizesByPlatform} from "~/shared/styles/styles.js";
 
 export const messageInputMinHeight: RemLength = "3.875rem";
@@ -57,3 +63,11 @@ export const messageViewReplyPreviewBubbleOpacity = 0.7;
 
 export const getMessageBubbleMarginLeft = (marginX: Spacing) =>
     addRemLengths(spacing[marginX], spacing["7"], spacing["2"]);
+
+export const messageInputPaddingY: Spacing = "3";
+export const messageInputAccountAvatarSize: Spacing = "7";
+export const messageInputAccountAvatarPaddingY: RemLength = `${
+    (parseRemLengthNumber(messageViewBubbleMinHeight) -
+        parseRemLengthNumber(spacing[messageInputAccountAvatarSize])) /
+    2
+}rem`;

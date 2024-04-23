@@ -53,10 +53,17 @@ test("can search for an account in mention menu", async ({
         await page.getByTestId("ContentEditorMentionFloater").getByText("Siobahn").click();
     }
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeHidden();
-    await expect(page.getByText("Siobahn", {exact: true})).toBeVisible();
-    await expect(page.getByText("Kendall", {exact: true})).toBeHidden();
-    await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
-    await expect(page.getByText("Kendall Roy", {exact: true})).toBeHidden();
+    if (!isMobile) {
+        await expect(page.getByText("Siobahn", {exact: true})).toBeVisible();
+        await expect(page.getByText("Kendall", {exact: true})).toBeHidden();
+        await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
+        await expect(page.getByText("Kendall Roy", {exact: true})).toBeHidden();
+    } else {
+        await expect(page.getByText("Siobahn Roy", {exact: true})).toBeVisible();
+        await expect(page.getByText("Kendall Roy", {exact: true})).toBeHidden();
+        await expect(page.getByText("Siobahn", {exact: true})).toBeHidden();
+        await expect(page.getByText("Kendall", {exact: true})).toBeHidden();
+    }
     await expect(page.getByRole("button", {name: "Send comment"})).toBeEnabled();
     if (!isMobile) {
         await page.getByRole("textbox", {name: "New comment"}).press("Enter");
@@ -65,27 +72,55 @@ test("can search for an account in mention menu", async ({
     }
     await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
 
-    await expect(page.getByText("Siobahn", {exact: true})).toBeVisible();
-    await expect(page.getByText("Kendall", {exact: true})).toBeHidden();
-    await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
-    await expect(page.getByText("Kendall Roy", {exact: true})).toBeHidden();
-    await expect(
-        page.getByTestId(`MessageView:${post.id}:0`).getByText("Siobahn", {exact: true}),
-    ).toBeVisible();
-    await expect(
-        page.getByTestId(`MessageView:${post.id}:0`).getByText("Siobahn Roy", {exact: true}),
-    ).toBeHidden();
+    if (!isMobile) {
+        await expect(page.getByText("Siobahn", {exact: true})).toBeVisible();
+        await expect(page.getByText("Kendall", {exact: true})).toBeHidden();
+        await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
+        await expect(page.getByText("Kendall Roy", {exact: true})).toBeHidden();
+        await expect(
+            page.getByTestId(`MessageView:${post.id}:0`).getByText("Siobahn", {exact: true}),
+        ).toBeVisible();
+        await expect(
+            page.getByTestId(`MessageView:${post.id}:0`).getByText("Siobahn Roy", {exact: true}),
+        ).toBeHidden();
+    } else {
+        await expect(page.getByText("Siobahn Roy", {exact: true})).toBeVisible();
+        await expect(page.getByText("Kendall Roy", {exact: true})).toBeHidden();
+        await expect(page.getByText("Siobahn", {exact: true})).toBeHidden();
+        await expect(page.getByText("Kendall", {exact: true})).toBeHidden();
+        await expect(
+            page.getByTestId(`MessageView:${post.id}:0`).getByText("Siobahn Roy", {exact: true}),
+        ).toBeVisible();
+        await expect(
+            page.getByTestId(`MessageView:${post.id}:0`).getByText("Siobahn", {exact: true}),
+        ).toBeHidden();
+    }
 
     await page.reload();
 
-    await expect(page.getByText("Siobahn", {exact: true})).toBeVisible();
-    await expect(page.getByText("Kendall", {exact: true})).toBeHidden();
-    await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
-    await expect(page.getByText("Kendall Roy", {exact: true})).toBeHidden();
-    await expect(page.getByTestId(`MessageView:${post.id}:0`).getByText("Siobahn")).toBeVisible();
-    await expect(
-        page.getByTestId(`MessageView:${post.id}:0`).getByText("Siobahn Roy"),
-    ).toBeHidden();
+    if (!isMobile) {
+        await expect(page.getByText("Siobahn", {exact: true})).toBeVisible();
+        await expect(page.getByText("Kendall", {exact: true})).toBeHidden();
+        await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
+        await expect(page.getByText("Kendall Roy", {exact: true})).toBeHidden();
+        await expect(
+            page.getByTestId(`MessageView:${post.id}:0`).getByText("Siobahn", {exact: true}),
+        ).toBeVisible();
+        await expect(
+            page.getByTestId(`MessageView:${post.id}:0`).getByText("Siobahn Roy", {exact: true}),
+        ).toBeHidden();
+    } else {
+        await expect(page.getByText("Siobahn Roy", {exact: true})).toBeVisible();
+        await expect(page.getByText("Kendall Roy", {exact: true})).toBeHidden();
+        await expect(page.getByText("Siobahn", {exact: true})).toBeHidden();
+        await expect(page.getByText("Kendall", {exact: true})).toBeHidden();
+        await expect(
+            page.getByTestId(`MessageView:${post.id}:0`).getByText("Siobahn Roy", {exact: true}),
+        ).toBeVisible();
+        await expect(
+            page.getByTestId(`MessageView:${post.id}:0`).getByText("Siobahn", {exact: true}),
+        ).toBeHidden();
+    }
 });
 
 test("can undo to get the full mention when a short mention was inferred", async ({
@@ -109,23 +144,29 @@ test("can undo to get the full mention when a short mention was inferred", async
     await page.getByRole("textbox", {name: "New comment"}).type("@");
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeVisible();
     await page.getByRole("textbox", {name: "New comment"}).type("Siobahn");
+
+    // On mobile the user doesn't commonly have cmd-z so we insert the full mention
+    // and let them press backspace to get the short version.
     if (!isMobile) {
         await page.getByRole("textbox", {name: "New comment"}).press("ArrowDown");
+        await page.getByRole("textbox", {name: "New comment"}).press("Enter");
+
+        await expect(page.getByTestId("ContentEditorMentionFloater")).toBeHidden();
+        await expect(page.getByText("Siobahn", {exact: true})).toBeVisible();
+        await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
+        await page.getByRole("textbox", {name: "New comment"}).press(`${modifier}+z`);
+        await expect(page.getByText("Siobahn Roy", {exact: true})).toBeVisible();
+        await expect(page.getByText("Siobahn", {exact: true})).toBeHidden();
+        await expect(page.getByRole("button", {name: "Send comment"})).toBeEnabled();
         await page.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
         // NOTE(calebmer): In CI mobile doesn't seem to like `ArrowDown`?
         await page.getByTestId("ContentEditorMentionFloater").getByText("Siobahn").click();
-    }
-    await expect(page.getByTestId("ContentEditorMentionFloater")).toBeHidden();
-    await expect(page.getByText("Siobahn", {exact: true})).toBeVisible();
-    await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
-    await page.getByRole("textbox", {name: "New comment"}).press(`${modifier}+z`);
-    await expect(page.getByText("Siobahn Roy", {exact: true})).toBeVisible();
-    await expect(page.getByText("Siobahn", {exact: true})).toBeHidden();
-    await expect(page.getByRole("button", {name: "Send comment"})).toBeEnabled();
-    if (!isMobile) {
-        await page.getByRole("textbox", {name: "New comment"}).press("Enter");
-    } else {
+
+        await expect(page.getByTestId("ContentEditorMentionFloater")).toBeHidden();
+        await expect(page.getByText("Siobahn Roy", {exact: true})).toBeVisible();
+        await expect(page.getByText("Siobahn", {exact: true})).toBeHidden();
+        await expect(page.getByRole("button", {name: "Send comment"})).toBeEnabled();
         await page.getByRole("button", {name: "Send comment"}).click();
     }
     await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();

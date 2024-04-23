@@ -1,3 +1,9 @@
+// To update generated snapshots run:
+//
+// ```
+// bazel run //client/content:internal/content_editor_html_test -- --updateSnapshot
+// ```
+
 import {fireEvent, render, screen} from "@testing-library/react";
 import {Mark, Node} from "prosemirror-model";
 import {useState} from "react";

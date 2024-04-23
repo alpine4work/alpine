@@ -638,8 +638,6 @@ test("processing account name update action only updates one space", async () =>
     const space1 = await TestSpace.create(context);
     const space2 = await TestSpace.create(context);
     const account = await TestAccount.create(context);
-    await space1.addAccount(account);
-    await space2.addAccount(account);
 
     const session1 = await space1.createSession(account);
     const session2 = await space2.createSession(account);

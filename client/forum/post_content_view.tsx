@@ -3,7 +3,6 @@ import {CSSProperties, useContext, useEffect, useMemo, useRef, useState} from "r
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentView} from "~/client/content/content_view.js";
-import {messageInputPaddingY} from "~/client/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -55,6 +54,7 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {messageInputPaddingY} from "~/shared/messaging/messaging_shared_styles.js";
 import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions.js";
 import {
     colorSchemeVars,

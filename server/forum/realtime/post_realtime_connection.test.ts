@@ -7,7 +7,6 @@ import {
 } from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel} from "~/shared/forum/post_model.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {generateId} from "~/shared/id/id.js";
 import {PostId} from "~/shared/id/types/id_types.js";
@@ -55,12 +54,14 @@ testMessagingRealtimeImplementation<PostId, TestPostRealtimeConnection>(context,
             spaceId,
             postId,
             sendEvent: (context, event) => {
-                cast<"Comments">(event.type);
-                return sendEvent(context, event.event);
+                if (event.type === "Comments") {
+                    sendEvent(context, event.event);
+                }
             },
             sendEventToOthers: (context, event) => {
-                cast<"Comments">(event.type);
-                return sendEventToOthers(context, event.event);
+                if (event.type === "Comments") {
+                    sendEventToOthers(context, event.event);
+                }
             },
             iterateOtherConnections: () =>
                 mapIterable(iterateOtherConnections(), connection => connection.actualConnection),

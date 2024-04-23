@@ -3680,6 +3680,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                         "reuseReferenceId": "05d7837f"
                                                     },
                                                     "optional": false
+                                                },
+                                                "isStickyMention": {
+                                                    "valueSchema": {
+                                                        "type": "Boolean"
+                                                    },
+                                                    "optional": true
                                                 }
                                             }
                                         },
@@ -3784,6 +3790,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                             "reuseReferenceId": "05d7837f"
                                                         },
                                                         "optional": false
+                                                    },
+                                                    "isStickyMention": {
+                                                        "valueSchema": {
+                                                            "type": "Boolean"
+                                                        },
+                                                        "optional": true
                                                     }
                                                 }
                                             }
@@ -3972,6 +3984,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                         "reuseReferenceId": "05d7837f"
                                                     },
                                                     "optional": false
+                                                },
+                                                "isStickyMention": {
+                                                    "valueSchema": {
+                                                        "type": "Boolean"
+                                                    },
+                                                    "optional": true
                                                 }
                                             }
                                         },

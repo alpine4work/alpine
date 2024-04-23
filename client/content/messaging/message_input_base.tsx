@@ -35,13 +35,7 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {
-    RemLength,
-    Spacing,
-    addRemLengths,
-    parseRemLengthNumber,
-    spacing,
-} from "~/shared/design/spacing.js";
+import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getTruncatedMessageContentForReplyPreview} from "~/shared/messaging/get_truncated_message_content_for_reply_preview.js";
@@ -53,7 +47,10 @@ import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     defaultMessageViewMarginX,
     getMessageBubbleMarginLeft,
+    messageInputAccountAvatarPaddingY,
+    messageInputAccountAvatarSize,
     messageInputMinHeight,
+    messageInputPaddingY,
     messageViewBubbleBorderRadius,
     messageViewBubbleMinHeight,
     messageViewBubblePaddingX,
@@ -68,14 +65,6 @@ import {
     contentViewStyles,
     sprinkles,
 } from "~/shared/styles/styles.js";
-
-export const messageInputPaddingY: Spacing = "3";
-export const messageInputAccountAvatarSize: Spacing = "7";
-export const messageInputAccountAvatarPaddingY: RemLength = `${
-    (parseRemLengthNumber(messageViewBubbleMinHeight) -
-        parseRemLengthNumber(spacing[messageInputAccountAvatarSize])) /
-    2
-}rem`;
 
 export type MessageInputRef = {
     isFocused(): boolean;
@@ -655,7 +644,11 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                     }}
                                     onFocus={handleFocus}
                                     onBlur={handleBlur}
-                                    aria-label={`New ${messageNoun}`}
+                                    aria-label={
+                                        isEditingMessage
+                                            ? messageStartOfSentenceNoun
+                                            : `New ${messageNoun}`
+                                    }
                                     placeholder={placeholder}
                                     className={sprinkles({
                                         paddingX: messageViewBubblePaddingX,

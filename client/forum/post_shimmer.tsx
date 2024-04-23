@@ -9,12 +9,7 @@ import {
 } from "~/client/forum/post_content_view.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {
-    colorSchemeVars,
-    fontSizes,
-    pulseAnimationClassName,
-    sprinkles,
-} from "~/shared/styles/styles.js";
+import {colorSchemeVars, fontSizes, pulseAnimationClassName} from "~/shared/styles/styles.js";
 
 export function PostShimmer() {
     const shimmerRef = useRef<HTMLDivElement>(null);

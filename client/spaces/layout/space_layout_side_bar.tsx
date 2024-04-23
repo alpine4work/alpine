@@ -47,7 +47,7 @@ export function SpaceLayoutSideBar({
             borderRight="grey-10"
             style={{width: "4.5rem"}}
         >
-            <Box paddingTop="5" display="flex" flexDirection="column" alignItems="center" gap="4">
+            <Box paddingTop="5" display="flex" flexDirection="column" alignItems="center" gap="5">
                 <Box
                     backgroundColor="grey-30-const"
                     width="8"
@@ -66,51 +66,53 @@ export function SpaceLayoutSideBar({
                         }, [space.name])}
                     </Box>
                 </Box>
-                <IconButton
-                    size="lg"
-                    description="Home"
-                    tooltipPlacement="right"
-                    pressErrorTitle="Couldn’t open home page"
-                    onPress={async () => {
-                        if (space.alphaAccessDefaultChannelId) {
-                            await rootNavigate(
-                                `/s/${space.id}/channels/${space.alphaAccessDefaultChannelId}`,
-                            );
-                        } else {
-                            showToast({
-                                type: "Error",
-                                title: "Can’t open the home page",
-                                error: new UnimplementedError(
-                                    "The home page hasn't been implemented yet",
-                                    {
-                                        displayMessage: errorDisplayMessage`The home page hasn’t been implemented yet.`,
-                                    },
-                                ),
-                            });
-                        }
-                    }}
-                >
-                    <House />
-                </IconButton>
-                <IconButton
-                    size="lg"
-                    description="Search"
-                    tooltipPlacement="right"
-                    keyboardShortcutHint="shift+shift"
-                    onPress={onSearchPress}
-                >
-                    <MagnifyingGlass />
-                </IconButton>
-                <SpaceLayoutSideBarInboxButton initialInbox={initialInbox} />
-                <SpaceLayoutSideBarCreateButton />
+                <Box display="flex" flexDirection="column" alignItems="center" gap="3">
+                    <IconButton
+                        size="lg"
+                        description="Home"
+                        tooltipPlacement="right"
+                        pressErrorTitle="Couldn’t open home page"
+                        onPress={async () => {
+                            if (space.alphaAccessDefaultChannelId) {
+                                await rootNavigate(
+                                    `/s/${space.id}/channels/${space.alphaAccessDefaultChannelId}`,
+                                );
+                            } else {
+                                showToast({
+                                    type: "Error",
+                                    title: "Can’t open the home page",
+                                    error: new UnimplementedError(
+                                        "The home page hasn't been implemented yet",
+                                        {
+                                            displayMessage: errorDisplayMessage`The home page hasn’t been implemented yet.`,
+                                        },
+                                    ),
+                                });
+                            }
+                        }}
+                    >
+                        <House />
+                    </IconButton>
+                    <IconButton
+                        size="lg"
+                        description="Search"
+                        tooltipPlacement="right"
+                        keyboardShortcutHint="shift+shift"
+                        onPress={onSearchPress}
+                    >
+                        <MagnifyingGlass />
+                    </IconButton>
+                    <SpaceLayoutSideBarInboxButton initialInbox={initialInbox} />
+                    <SpaceLayoutSideBarCreateButton />
+                </Box>
             </Box>
             <Box flexGrow="1" />
             <Box
-                paddingBottom="5"
+                paddingBottom="3"
                 display="flex"
                 flexDirection="column"
                 alignItems="center"
-                gap="4"
+                gap="2.5"
             >
                 <SpaceLayoutSideBarAccountButton />
                 <SpaceLayoutSideBarNavigationButtons />

@@ -234,7 +234,7 @@ export function printContentSingleLineTextSnippetWithHighlighting(
  * `hello.` will return true and so will `"hello."`.
  */
 export function isTextEndedWithPunctuation(text: string): boolean {
-    return /(?:\p{Sentence_Terminal}|\p{Terminal_Punctuation})\s*(?:\p{Pi}|\p{Pf}|["'])*\s*$/.test(
+    return /(?:\p{Sentence_Terminal}|\p{Terminal_Punctuation})\s*(?:\p{Pi}|\p{Pf}|["'])*\s*$/u.test(
         text,
     );
 }

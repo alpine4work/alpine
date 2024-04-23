@@ -99,7 +99,10 @@ export function NewChannelView({
                 }),
                 [channel],
             )}
-            posts={useMemo(() => PostBasicList.empty, [])}
+            posts={useMemo(
+                () => PostBasicList.new({type: "Many", hasMorePosts: false, posts: []}),
+                [],
+            )}
             onTogglePostComments={useCallback(() => {}, [])}
             onUpdatePostComments={useCallback(() => {}, [])}
             onLoadMorePosts={asyncNoop}

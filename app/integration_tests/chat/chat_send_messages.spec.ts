@@ -1,17 +1,21 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
-import {getOrCreateChatForAccounts} from "~/server/chat/data/chat_table.js";
-import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
-import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
+import {getOrCreateChatForAccounts, sendChatMessage} from "~/server/chat/data/chat_table.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const {context, services} = createTestServices();
-const space = createTestSpace(context);
-const session1 = createTestSession(context, space, {name: "Logan Roy"});
-const session2 = createTestSession(context, space, {name: "Siobahn Roy"});
-const session3 = createTestSession(context, space, {name: "Kendall Roy"});
-const session4 = createTestSession(context, space, {name: "Roman Roy"});
 
 test("chat message stays when changing chat selection", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const [session1] = await runAllPromises([
+        space.createSession({name: "Logan Roy"}),
+        space.createSession({name: "Siobahn Roy"}),
+        space.createSession({name: "Kendall Roy"}),
+        space.createSession({name: "Roman Roy"}),
+    ]);
+
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
@@ -73,6 +77,14 @@ test("chat message stays when changing chat selection", async ({page, context: b
 });
 
 test("send chat message to another account", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const [session1] = await runAllPromises([
+        space.createSession({name: "Logan Roy"}),
+        space.createSession({name: "Siobahn Roy"}),
+        space.createSession({name: "Kendall Roy"}),
+        space.createSession({name: "Roman Roy"}),
+    ]);
+
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
@@ -105,6 +117,25 @@ test("send chat message to another account", async ({page, context: browserConte
 });
 
 test("can see chat message from recipient account", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession({name: "Logan Roy"}),
+        space.createSession({name: "Siobahn Roy"}),
+        space.createSession({name: "Kendall Roy"}),
+        space.createSession({name: "Roman Roy"}),
+    ]);
+
+    const chatId1 = await getOrCreateChatForAccounts(context.action(session1), {
+        spaceId: space.id,
+        otherAccountIds: [session2.account.id],
+    });
+
+    await sendChatMessage(session1.action(), {
+        chatId: chatId1,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message1"),
+    });
+
     await services.signIn(browserContext, session2);
     await page.goto(`/s/${space.id}/chat/new`);
 
@@ -120,6 +151,25 @@ test("can not see chat message from non-recipient account but can send a differe
     page,
     context: browserContext,
 }) => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await runAllPromises([
+        space.createSession({name: "Logan Roy"}),
+        space.createSession({name: "Siobahn Roy"}),
+        space.createSession({name: "Kendall Roy"}),
+        space.createSession({name: "Roman Roy"}),
+    ]);
+
+    const chatId1 = await getOrCreateChatForAccounts(context.action(session1), {
+        spaceId: space.id,
+        otherAccountIds: [session2.account.id],
+    });
+
+    await sendChatMessage(session1.action(), {
+        chatId: chatId1,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message1"),
+    });
+
     await services.signIn(browserContext, session3);
     await page.goto(`/s/${space.id}/chat/new`);
 
@@ -143,6 +193,36 @@ test("can not see chat message from non-recipient account but can send a differe
 });
 
 test("send chat message to multiple accounts", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await runAllPromises([
+        space.createSession({name: "Logan Roy"}),
+        space.createSession({name: "Siobahn Roy"}),
+        space.createSession({name: "Kendall Roy"}),
+        space.createSession({name: "Roman Roy"}),
+    ]);
+
+    const chatId1 = await getOrCreateChatForAccounts(context.action(session1), {
+        spaceId: space.id,
+        otherAccountIds: [session2.account.id],
+    });
+
+    const chatId2 = await getOrCreateChatForAccounts(context.action(session1), {
+        spaceId: space.id,
+        otherAccountIds: [session3.account.id],
+    });
+
+    await sendChatMessage(session1.action(), {
+        chatId: chatId1,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message1"),
+    });
+
+    await sendChatMessage(session3.action(), {
+        chatId: chatId2,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message2"),
+    });
+
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
@@ -193,6 +273,47 @@ test("send chat message to multiple accounts", async ({page, context: browserCon
 });
 
 test("reloading the page will keep the chat selection", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await runAllPromises([
+        space.createSession({name: "Logan Roy"}),
+        space.createSession({name: "Siobahn Roy"}),
+        space.createSession({name: "Kendall Roy"}),
+        space.createSession({name: "Roman Roy"}),
+    ]);
+
+    const chatId1 = await getOrCreateChatForAccounts(context.action(session1), {
+        spaceId: space.id,
+        otherAccountIds: [session2.account.id],
+    });
+
+    const chatId2 = await getOrCreateChatForAccounts(context.action(session1), {
+        spaceId: space.id,
+        otherAccountIds: [session3.account.id],
+    });
+
+    const chatId3 = await getOrCreateChatForAccounts(context.action(session1), {
+        spaceId: space.id,
+        otherAccountIds: [session2.account.id, session3.account.id],
+    });
+
+    await sendChatMessage(session1.action(), {
+        chatId: chatId1,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message1"),
+    });
+
+    await sendChatMessage(session3.action(), {
+        chatId: chatId2,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message2"),
+    });
+
+    await sendChatMessage(session1.action(), {
+        chatId: chatId3,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message3"),
+    });
+
     await services.signIn(browserContext, session2);
     await page.goto(`/s/${space.id}/chat/new`);
 
@@ -228,6 +349,47 @@ test("reloading the page will keep the chat selection", async ({page, context: b
 });
 
 test("can remove selected chat accounts", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await runAllPromises([
+        space.createSession({name: "Logan Roy"}),
+        space.createSession({name: "Siobahn Roy"}),
+        space.createSession({name: "Kendall Roy"}),
+        space.createSession({name: "Roman Roy"}),
+    ]);
+
+    const chatId1 = await getOrCreateChatForAccounts(context.action(session1), {
+        spaceId: space.id,
+        otherAccountIds: [session2.account.id],
+    });
+
+    const chatId2 = await getOrCreateChatForAccounts(context.action(session1), {
+        spaceId: space.id,
+        otherAccountIds: [session3.account.id],
+    });
+
+    const chatId3 = await getOrCreateChatForAccounts(context.action(session1), {
+        spaceId: space.id,
+        otherAccountIds: [session2.account.id, session3.account.id],
+    });
+
+    await sendChatMessage(session1.action(), {
+        chatId: chatId1,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message1"),
+    });
+
+    await sendChatMessage(session3.action(), {
+        chatId: chatId2,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message2"),
+    });
+
+    await sendChatMessage(session1.action(), {
+        chatId: chatId3,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message3"),
+    });
+
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
@@ -264,10 +426,10 @@ test("can remove selected chat accounts", async ({page, context: browserContext}
     await expect(page.getByText("message3")).toBeHidden();
 
     await page.getByRole("combobox", {name: "To"}).type("Siobahn");
-    await page.getByText("Siobahn Roy").click();
+    await page.getByRole("listbox").getByText("Siobahn Roy").click();
 
     await page.getByRole("combobox", {name: "To"}).type("Kendall");
-    await page.getByText("Kendall Roy").click();
+    await page.getByRole("listbox").getByText("Kendall Roy").click();
 
     await expect(page.getByText("message3")).toBeVisible();
     await expect(page.getByText("message1")).toBeHidden();
@@ -298,6 +460,47 @@ test("includes recommended group chats for autocomplete", async ({
     page,
     context: browserContext,
 }) => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await runAllPromises([
+        space.createSession({name: "Logan Roy"}),
+        space.createSession({name: "Siobahn Roy"}),
+        space.createSession({name: "Kendall Roy"}),
+        space.createSession({name: "Roman Roy"}),
+    ]);
+
+    const chatId1 = await getOrCreateChatForAccounts(context.action(session1), {
+        spaceId: space.id,
+        otherAccountIds: [session2.account.id],
+    });
+
+    const chatId2 = await getOrCreateChatForAccounts(context.action(session1), {
+        spaceId: space.id,
+        otherAccountIds: [session3.account.id],
+    });
+
+    const chatId3 = await getOrCreateChatForAccounts(context.action(session1), {
+        spaceId: space.id,
+        otherAccountIds: [session2.account.id, session3.account.id],
+    });
+
+    await sendChatMessage(session1.action(), {
+        chatId: chatId1,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message1"),
+    });
+
+    await sendChatMessage(session3.action(), {
+        chatId: chatId2,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message2"),
+    });
+
+    await sendChatMessage(session1.action(), {
+        chatId: chatId3,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message3"),
+    });
+
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
@@ -389,26 +592,52 @@ test("includes recommended group chats for autocomplete", async ({
 });
 
 test("can open chat directly by id", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await runAllPromises([
+        space.createSession({name: "Logan Roy"}),
+        space.createSession({name: "Siobahn Roy"}),
+        space.createSession({name: "Kendall Roy"}),
+        space.createSession({name: "Roman Roy"}),
+    ]);
+
     const chatId1 = await getOrCreateChatForAccounts(context.action(session1), {
         spaceId: space.id,
-        otherAccountIds: [session2.accountId],
+        otherAccountIds: [session2.account.id],
     });
 
     const chatId2 = await getOrCreateChatForAccounts(context.action(session1), {
         spaceId: space.id,
-        otherAccountIds: [session3.accountId],
+        otherAccountIds: [session3.account.id],
     });
 
     const chatId3 = await getOrCreateChatForAccounts(context.action(session1), {
         spaceId: space.id,
-        otherAccountIds: [session2.accountId, session3.accountId],
+        otherAccountIds: [session2.account.id, session3.account.id],
+    });
+
+    await sendChatMessage(session1.action(), {
+        chatId: chatId1,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message1"),
+    });
+
+    await sendChatMessage(session3.action(), {
+        chatId: chatId2,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message2"),
+    });
+
+    await sendChatMessage(session1.action(), {
+        chatId: chatId3,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message3"),
     });
 
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/${chatId1}`);
 
-    await expect(page.getByRole("heading", {name: "Siobahn", exact: true})).toBeVisible();
-    await expect(page.getByRole("heading", {name: "Kendall", exact: true})).toBeHidden();
+    await expect(page.getByRole("heading", {name: "Siobahn"})).toBeVisible();
+    await expect(page.getByRole("heading", {name: "Kendall"})).toBeHidden();
     await expect(page.getByRole("heading", {name: "Kendall and Siobahn"})).toBeHidden();
 
     await expect(page.getByText("message1")).toBeVisible();
@@ -417,8 +646,8 @@ test("can open chat directly by id", async ({page, context: browserContext}) => 
 
     await page.goto(`/s/${space.id}/chat/${chatId2}`);
 
-    await expect(page.getByRole("heading", {name: "Kendall", exact: true})).toBeVisible();
-    await expect(page.getByRole("heading", {name: "Siobahn", exact: true})).toBeHidden();
+    await expect(page.getByRole("heading", {name: "Kendall"})).toBeVisible();
+    await expect(page.getByRole("heading", {name: "Siobahn"})).toBeHidden();
     await expect(page.getByRole("heading", {name: "Kendall and Siobahn"})).toBeHidden();
 
     await expect(page.getByText("message2")).toBeVisible();
@@ -430,13 +659,76 @@ test("can open chat directly by id", async ({page, context: browserContext}) => 
     await expect(page.getByRole("heading", {name: "Kendall and Siobahn"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Siobahn", exact: true})).toBeHidden();
     await expect(page.getByRole("heading", {name: "Kendall", exact: true})).toBeHidden();
+    await expect(page.getByRole("heading", {name: "Siobahn Roy", exact: true})).toBeHidden();
+    await expect(page.getByRole("heading", {name: "Kendall Roy", exact: true})).toBeHidden();
 
     await expect(page.getByText("message3")).toBeVisible();
     await expect(page.getByText("message1")).toBeHidden();
     await expect(page.getByText("message2")).toBeHidden();
+
+    await page.goto(`/s/${space.id}/chat/with/${session2.account.id}`);
+
+    await expect(page.getByRole("heading", {name: "Siobahn"})).toBeVisible();
+    await expect(page.getByRole("heading", {name: "Kendall"})).toBeHidden();
+    await expect(page.getByRole("heading", {name: "Kendall and Siobahn"})).toBeHidden();
+
+    await expect(page.getByText("message1")).toBeVisible();
+    await expect(page.getByText("message2")).toBeHidden();
+    await expect(page.getByText("message3")).toBeHidden();
+
+    await page.goto(`/s/${space.id}/chat/with/${session3.account.id}`);
+
+    await expect(page.getByRole("heading", {name: "Kendall"})).toBeVisible();
+    await expect(page.getByRole("heading", {name: "Siobahn"})).toBeHidden();
+    await expect(page.getByRole("heading", {name: "Kendall and Siobahn"})).toBeHidden();
+
+    await expect(page.getByText("message2")).toBeVisible();
+    await expect(page.getByText("message1")).toBeHidden();
+    await expect(page.getByText("message3")).toBeHidden();
 });
 
 test("can send self a message", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await runAllPromises([
+        space.createSession({name: "Logan Roy"}),
+        space.createSession({name: "Siobahn Roy"}),
+        space.createSession({name: "Kendall Roy"}),
+        space.createSession({name: "Roman Roy"}),
+    ]);
+
+    const chatId1 = await getOrCreateChatForAccounts(context.action(session1), {
+        spaceId: space.id,
+        otherAccountIds: [session2.account.id],
+    });
+
+    const chatId2 = await getOrCreateChatForAccounts(context.action(session1), {
+        spaceId: space.id,
+        otherAccountIds: [session3.account.id],
+    });
+
+    const chatId3 = await getOrCreateChatForAccounts(context.action(session1), {
+        spaceId: space.id,
+        otherAccountIds: [session2.account.id, session3.account.id],
+    });
+
+    await sendChatMessage(session1.action(), {
+        chatId: chatId1,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message1"),
+    });
+
+    await sendChatMessage(session3.action(), {
+        chatId: chatId2,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message2"),
+    });
+
+    await sendChatMessage(session1.action(), {
+        chatId: chatId3,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("message3"),
+    });
+
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
@@ -488,6 +780,14 @@ test("two accounts can look at an empty chat and see new messages appear in real
     context: browserContext1,
     page: page1,
 }) => {
+    const space = await TestSpace.create(context);
+    const [session1, , , session4] = await runAllPromises([
+        space.createSession({name: "Logan Roy"}),
+        space.createSession({name: "Siobahn Roy"}),
+        space.createSession({name: "Kendall Roy"}),
+        space.createSession({name: "Roman Roy"}),
+    ]);
+
     await services.signIn(browserContext1, session1);
     await page1.goto(`/s/${space.id}/chat/new`);
 

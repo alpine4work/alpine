@@ -1,8 +1,5 @@
-import {
-    convertRemLengthToPx,
-    parseRemLengthNumber,
-    remPxByPlatform,
-} from "~/shared/design/spacing.js";
+import {parseRemLengthNumber, remPxByPlatform} from "~/shared/design/spacing.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 // eslint-disable-next-line no-restricted-imports
 import {fontSizesByPlatform} from "~/shared/styles/styles.js";
 
@@ -16,13 +13,8 @@ test("letter spacing matches Inter tracking formula", () => {
             Object.entries(fontSizesByPlatform).map(([fontSizeName, {desktop, mobile}]) => [
                 fontSizeName,
                 {
-                    desktop: `${Math.round(getTracking(desktop.fontSize) * 1000) / 1000}em`,
-                    mobile:
-                        // Special case for 13. It's the only tracking value not rounded to 3 places
-                        // on https://rsms.me/inter/dynmetrics
-                        mobile.fontSize === 13
-                            ? "-0.0025em"
-                            : `${Math.round(getTracking(mobile.fontSize) * 1000) / 1000}em`,
+                    desktop: `${Math.round(getTracking(desktop.fontSize) * 1e4) / 1e4}em`,
+                    mobile: `${Math.round(getTracking(mobile.fontSize) * 1e4) / 1e4}em`,
                 },
             ]),
         ),
@@ -75,25 +67,28 @@ test("line heights are a multiple of 8", () => {
     );
 });
 
-test("line heights are approximately 1.3x font sizes", () => {
+test("line heights are determined algorithmically from font sizes", () => {
+    // Font scale algorithm determined here:
+    // https://www.desmos.com/calculator/rewoqdxtac
+    const getAveragedLineHeight = (n: number) => clamp(1.2, -0.0115385 * n + 1.66154, 1.5);
+
+    const getLineHeight = (n1: number, n2: number) =>
+        Math.round(8 * ((getAveragedLineHeight((n1 + n2) / 2) * n1) / 16)) / 8;
+
     expect(
         Object.fromEntries(
             Object.entries(fontSizesByPlatform).map(([fontSizeName, {desktop, mobile}]) => [
                 fontSizeName,
                 {
-                    desktop: String(
-                        Math.round(
-                            (convertRemLengthToPx(desktop.lineHeight, remPxByPlatform.desktop) /
-                                desktop.fontSize) *
-                                10,
-                        ) / 10,
+                    desktop: Math.round(
+                        (getLineHeight(desktop.fontSize, mobile.fontSize) *
+                            remPxByPlatform.desktop) /
+                            (parseRemLengthNumber(desktop.lineHeight) * remPxByPlatform.desktop),
                     ),
-                    mobile: String(
-                        Math.round(
-                            (convertRemLengthToPx(mobile.lineHeight, remPxByPlatform.mobile) /
-                                mobile.fontSize) *
-                                10,
-                        ) / 10,
+                    mobile: Math.round(
+                        (getLineHeight(desktop.fontSize, mobile.fontSize) *
+                            remPxByPlatform.mobile) /
+                            (parseRemLengthNumber(mobile.lineHeight) * remPxByPlatform.mobile),
                     ),
                 },
             ]),
@@ -102,7 +97,7 @@ test("line heights are approximately 1.3x font sizes", () => {
         Object.fromEntries(
             Object.entries(fontSizesByPlatform).map(([fontSizeName]) => [
                 fontSizeName,
-                {desktop: "1.3", mobile: expect.stringMatching(/^1\.3|1\.4$/)},
+                {desktop: 1, mobile: 1},
             ]),
         ),
     );

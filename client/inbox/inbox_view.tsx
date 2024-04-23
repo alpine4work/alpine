@@ -12,7 +12,6 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
-import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {
     InboxEntryView,
     inboxEntryDeleteAnimationDurationMs,

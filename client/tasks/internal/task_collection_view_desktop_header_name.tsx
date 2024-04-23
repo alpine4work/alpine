@@ -23,7 +23,7 @@ import {Tooltip} from "~/client/design/tooltip.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack.js";
+import {useIsPeekStackAnimatingOpen} from "~/client/peek/peek_stack.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
     TaskClientStore,
@@ -233,7 +233,7 @@ function TaskCollectionViewDesktopHeaderNameEditor({
     onCancel: () => MaybePromise<void>;
     onSave: (name: string) => MaybePromise<void>;
 }) {
-    const isPeekAnimatingOpen = useIsPeekAnimatingOpen();
+    const isPeekAnimatingOpen = useIsPeekStackAnimatingOpen();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const [name, setName] = useState(initialName);

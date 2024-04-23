@@ -226,14 +226,14 @@ test("can navigate within peek", async ({context: browserContext, page}) => {
     await expect(page.getByText("Test document content 2")).toBeHidden();
     await expect(page.getByText("Test document content 1")).toBeVisible();
 
-    await page.getByRole("button", {name: "Back"}).click();
+    await page.getByTestId("PeekStackOverlay").getByRole("button", {name: "Back"}).click();
 
     await expect(page.getByText("Test document content 4")).toBeHidden();
     await expect(page.getByText("Test document content 3")).toBeVisible();
     await expect(page.getByText("Test document content 2")).toBeHidden();
     await expect(page.getByText("Test document content 1")).toBeVisible();
 
-    await page.getByRole("button", {name: "Forwards"}).click();
+    await page.getByTestId("PeekStackOverlay").getByRole("button", {name: "Forwards"}).click();
 
     await expect(page.getByText("Test document content 4")).toBeVisible();
     await expect(page.getByText("Test document content 3")).toBeHidden();
@@ -565,7 +565,7 @@ test("remembers peek state across page reloads", async ({context: browserContext
     await expect(page.getByText("Test document content 2")).toBeHidden();
     await expect(page.getByText("Test document content 1")).toBeVisible();
 
-    await page.getByRole("button", {name: "Back"}).click();
+    await page.getByTestId("PeekStackOverlay").getByRole("button", {name: "Back"}).click();
 
     await expect(page.getByText("Test document content 5")).toBeHidden();
     await expect(page.getByText("Test document content 4")).toBeHidden();

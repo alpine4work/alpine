@@ -419,6 +419,7 @@ test("can backfill task notes steps our durable object remembers", async () => {
     ).toEqual({
         result: {
             type: "Available",
+            persistedVersion: 2,
             newVersion: 2,
             steps: [
                 {step: new ReplaceStep(1, 1, textSlice("a")), clientId: client1Id},
@@ -497,6 +498,7 @@ test("can current task notes version", async () => {
     ).toEqual({
         result: {
             type: "Available",
+            persistedVersion: 2,
             newVersion: 2,
             steps: [],
             stepsContentReferences: emptyContentReferences,
@@ -556,6 +558,7 @@ test("can backfill task note steps but can't update if you only have view access
     ).toEqual({
         result: {
             type: "Available",
+            persistedVersion: 2,
             newVersion: 2,
             steps: [
                 {step: new ReplaceStep(1, 1, textSlice("a")), clientId: client1Id},

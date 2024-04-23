@@ -1877,7 +1877,7 @@ test("search by semantics will highlight matching words", async () => {
     ).toEqual({
         results: [
             {
-                entityId: `Document:${document.id}`,
+                id: `Document:${document.id}`,
                 score: expect.any(Number),
                 title: "This is a test",
                 bodyTextSnippet: [
@@ -1972,7 +1972,7 @@ test("searches with natural language parsing works", async () => {
     ).toEqual({
         results: [
             {
-                entityId: `Post:${post.id}`,
+                id: `Post:${post.id}`,
                 score: expect.any(Number),
                 title: null,
                 bodyTextSnippet: [
@@ -2003,7 +2003,7 @@ test("searches with natural language parsing works", async () => {
                 },
             },
             {
-                entityId: `Document:${document1.id}`,
+                id: `Document:${document1.id}`,
                 score: expect.any(Number),
                 title: "Test 1",
                 bodyTextSnippet: [
@@ -2015,7 +2015,7 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             },
             {
-                entityId: `Document:${document4.id}`,
+                id: `Document:${document4.id}`,
                 score: expect.any(Number),
                 title: "Test 4",
                 bodyTextSnippet: [
@@ -2027,7 +2027,7 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             },
             {
-                entityId: `Document:${document2.id}`,
+                id: `Document:${document2.id}`,
                 score: expect.any(Number),
                 title: "Test 2",
                 bodyTextSnippet: [
@@ -2050,7 +2050,7 @@ test("searches with natural language parsing works", async () => {
     ).toEqual({
         results: [
             {
-                entityId: `Document:${document1.id}`,
+                id: `Document:${document1.id}`,
                 score: expect.any(Number),
                 title: "Test 1",
                 bodyTextSnippet: [
@@ -2062,7 +2062,7 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             },
             {
-                entityId: `Document:${document4.id}`,
+                id: `Document:${document4.id}`,
                 score: expect.any(Number),
                 title: "Test 4",
                 bodyTextSnippet: [
@@ -2074,7 +2074,7 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             },
             {
-                entityId: `Document:${document2.id}`,
+                id: `Document:${document2.id}`,
                 score: expect.any(Number),
                 title: "Test 2",
                 bodyTextSnippet: [
@@ -2084,7 +2084,7 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             },
             {
-                entityId: `Post:${post.id}`,
+                id: `Post:${post.id}`,
                 score: expect.any(Number),
                 title: null,
                 bodyTextSnippet: [
@@ -2130,28 +2130,28 @@ test("searches with natural language parsing works", async () => {
     ).toEqual({
         results: [
             {
-                entityId: `Document:${document4.id}`,
+                id: `Document:${document4.id}`,
                 score: expect.any(Number),
                 title: "Test 4",
                 bodyTextSnippet: [{isHighlighted: false, text: "By: John. Trains! Trains!"}],
                 media: null,
             },
             {
-                entityId: `Document:${document3.id}`,
+                id: `Document:${document3.id}`,
                 score: expect.any(Number),
                 title: "Test 3",
                 bodyTextSnippet: [{isHighlighted: false, text: "By: Sara"}],
                 media: null,
             },
             {
-                entityId: `Document:${document1.id}`,
+                id: `Document:${document1.id}`,
                 score: expect.any(Number),
                 title: "Test 1",
                 bodyTextSnippet: [{isHighlighted: false, text: "Trains! Trains!"}],
                 media: null,
             },
             {
-                entityId: `Post:${post.id}`,
+                id: `Post:${post.id}`,
                 score: expect.any(Number),
                 title: null,
                 bodyTextSnippet: [
@@ -2178,7 +2178,7 @@ test("searches with natural language parsing works", async () => {
     ).toEqual({
         results: [
             {
-                entityId: `Document:${document1.id}`,
+                id: `Document:${document1.id}`,
                 score: expect.any(Number),
                 title: "Test 1",
                 bodyTextSnippet: [
@@ -2190,7 +2190,7 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             },
             {
-                entityId: `Document:${document4.id}`,
+                id: `Document:${document4.id}`,
                 score: expect.any(Number),
                 title: "Test 4",
                 bodyTextSnippet: [
@@ -2202,7 +2202,7 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             },
             {
-                entityId: `Post:${post.id}`,
+                id: `Post:${post.id}`,
                 score: expect.any(Number),
                 title: null,
                 bodyTextSnippet: [
@@ -2248,7 +2248,7 @@ test("searches with natural language parsing works", async () => {
     ).toEqual({
         results: [
             {
-                entityId: `Document:${document2.id}`,
+                id: `Document:${document2.id}`,
                 score: expect.any(Number),
                 title: "Test 2",
                 bodyTextSnippet: [
@@ -2258,7 +2258,7 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             },
             {
-                entityId: `Post:${post.id}`,
+                id: `Post:${post.id}`,
                 score: expect.any(Number),
                 title: null,
                 bodyTextSnippet: [
@@ -2304,7 +2304,7 @@ test("searches with natural language parsing works", async () => {
     ).toEqual({
         results: [
             {
-                entityId: `Document:${document5.id}`,
+                id: `Document:${document5.id}`,
                 score: expect.any(Number),
                 title: "Test 5",
                 bodyTextSnippet: [
@@ -2314,14 +2314,14 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             },
             {
-                entityId: `Document:${document2.id}`,
+                id: `Document:${document2.id}`,
                 score: expect.any(Number),
                 title: "Test 2",
                 bodyTextSnippet: [{isHighlighted: false, text: "By: John. Trains!"}],
                 media: null,
             },
             {
-                entityId: `Document:${document3.id}`,
+                id: `Document:${document3.id}`,
                 score: expect.any(Number),
                 title: "Test 3",
                 bodyTextSnippet: [
@@ -2331,7 +2331,7 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             },
             {
-                entityId: `Post:${post.id}`,
+                id: `Post:${post.id}`,
                 score: expect.any(Number),
                 title: null,
                 bodyTextSnippet: [
@@ -2358,7 +2358,7 @@ test("searches with natural language parsing works", async () => {
     ).toEqual({
         results: [
             {
-                entityId: `Document:${document4.id}`,
+                id: `Document:${document4.id}`,
                 score: expect.any(Number),
                 title: "Test 4",
                 bodyTextSnippet: [
@@ -2369,21 +2369,21 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             },
             {
-                entityId: `Document:${document3.id}`,
+                id: `Document:${document3.id}`,
                 score: expect.any(Number),
                 title: "Test 3",
                 bodyTextSnippet: [{isHighlighted: false, text: "By: Sara"}],
                 media: null,
             },
             {
-                entityId: `Document:${document1.id}`,
+                id: `Document:${document1.id}`,
                 score: expect.any(Number),
                 title: "Test 1",
                 bodyTextSnippet: [{isHighlighted: false, text: "Trains! Trains!"}],
                 media: null,
             },
             {
-                entityId: `Document:${document2.id}`,
+                id: `Document:${document2.id}`,
                 score: expect.any(Number),
                 title: "Test 2",
                 bodyTextSnippet: [
@@ -2394,7 +2394,7 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             },
             {
-                entityId: `Post:${post.id}`,
+                id: `Post:${post.id}`,
                 score: expect.any(Number),
                 title: null,
                 bodyTextSnippet: [
@@ -2495,7 +2495,7 @@ test("highlighting bullet points with bold formatting works well", async () => {
     ).toEqual({
         results: [
             {
-                entityId: `Document:${document.id}`,
+                id: `Document:${document.id}`,
                 score: expect.any(Number),
                 title: "Document with bullet points that have strong titles",
                 bodyTextSnippet: [

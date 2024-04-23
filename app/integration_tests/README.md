@@ -24,4 +24,17 @@ Some useful things to know when working with Playwright tests:
     the error ocurred by surrounding your test in `try`/`catch` and adding a `page.pause()` call in
     the `catch` block.
 
+    For example:
+
+    ```ts
+    test("will remember the account being messaged in a chat peek", async () => {
+        try {
+            // ...
+        } catch (error) {
+            await page.pause();
+            throw error;
+        }
+    });
+    ```
+
 [1]: https://playwright.dev/

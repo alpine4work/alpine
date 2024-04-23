@@ -25,13 +25,24 @@ test("can search for an account in mention menu", async ({
         content: emptyDocumentContent,
     });
 
+    const canPrimaryInputHover = await page.evaluate(
+        () => !window.matchMedia("(hover: none)").matches,
+    );
+
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/documents/${document.id}`);
 
     await page.getByRole("textbox", {name: "Document"}).focus();
-    await page
-        .getByRole("textbox", {name: "Document"})
-        .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
+
+    if (canPrimaryInputHover) {
+        await page
+            .getByRole("textbox", {name: "Document"})
+            .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
+    } else {
+        await page
+            .getByRole("textbox", {name: "Document"})
+            .tap({position: {x: viewport.width / 2, y: viewport.height - 100}});
+    }
 
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeHidden();
     await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
@@ -47,9 +58,17 @@ test("can search for an account in mention menu", async ({
     await page.getByTestId("ContentEditorMentionFloater").getByText("Siobahn").click();
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeHidden();
 
-    await expect(page.getByText("Siobahn", {exact: true})).toBeVisible();
-    await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
-    await expect(page.getByText("Kendall Roy", {exact: true})).toBeHidden();
+    // We only default to short names on desktop when the user can press cmd-z to
+    // quickly get the full name.
+    if (!isMobile) {
+        await expect(page.getByText("Siobahn", {exact: true})).toBeVisible();
+        await expect(page.getByText("Siobahn Roy", {exact: true})).toBeHidden();
+        await expect(page.getByText("Kendall Roy", {exact: true})).toBeHidden();
+    } else {
+        await expect(page.getByText("Siobahn Roy", {exact: true})).toBeVisible();
+        await expect(page.getByText("Siobahn", {exact: true})).toBeHidden();
+        await expect(page.getByText("Kendall Roy", {exact: true})).toBeHidden();
+    }
 });
 
 test("can see a mention added by another user", async ({
@@ -57,6 +76,7 @@ test("can see a mention added by another user", async ({
     context: browserContext1,
     browser,
     viewport,
+    isMobile,
 }) => {
     assert(viewport);
 
@@ -64,6 +84,10 @@ test("can see a mention added by another user", async ({
         spaceId: space.id,
         content: emptyDocumentContent,
     });
+
+    const canPrimaryInputHover = await page1.evaluate(
+        () => !window.matchMedia("(hover: none)").matches,
+    );
 
     await services.signIn(browserContext1, session1);
     await page1.goto(`/s/${space.id}/documents/${document.id}`);
@@ -74,9 +98,16 @@ test("can see a mention added by another user", async ({
     await page2.goto(`/s/${space.id}/documents/${document.id}`);
 
     await page1.getByRole("textbox", {name: "Document"}).focus();
-    await page1
-        .getByRole("textbox", {name: "Document"})
-        .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
+
+    if (canPrimaryInputHover) {
+        await page1
+            .getByRole("textbox", {name: "Document"})
+            .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
+    } else {
+        await page1
+            .getByRole("textbox", {name: "Document"})
+            .tap({position: {x: viewport.width / 2, y: viewport.height - 100}});
+    }
 
     // Focusing the document in the second browser will wait for the document to
     // be interactive.
@@ -116,12 +147,25 @@ test("can see a mention added by another user", async ({
     await page1.getByRole("textbox", {name: "Document"}).press("ArrowDown");
     await page1.getByRole("textbox", {name: "Document"}).press("Enter");
 
-    await expect(page1.getByTestId("ContentEditorMentionFloater")).toBeHidden();
-    await expect(page1.getByText("Siobahn", {exact: true})).toBeVisible();
-    await expect(page1.getByText("Siobahn Roy", {exact: true})).toBeHidden();
-    await expect(page1.getByText("Kendall Roy", {exact: true})).toBeHidden();
-    await expect(page2.getByTestId("ContentEditorMentionFloater")).toBeHidden();
-    await expect(page2.getByText("Siobahn", {exact: true})).toBeVisible();
-    await expect(page2.getByText("Siobahn Roy", {exact: true})).toBeHidden();
-    await expect(page2.getByText("Kendall Roy", {exact: true})).toBeHidden();
+    // We only default to short names on desktop when the user can press cmd-z to
+    // quickly get the full name.
+    if (!isMobile) {
+        await expect(page1.getByTestId("ContentEditorMentionFloater")).toBeHidden();
+        await expect(page1.getByText("Siobahn", {exact: true})).toBeVisible();
+        await expect(page1.getByText("Siobahn Roy", {exact: true})).toBeHidden();
+        await expect(page1.getByText("Kendall Roy", {exact: true})).toBeHidden();
+        await expect(page2.getByTestId("ContentEditorMentionFloater")).toBeHidden();
+        await expect(page2.getByText("Siobahn", {exact: true})).toBeVisible();
+        await expect(page2.getByText("Siobahn Roy", {exact: true})).toBeHidden();
+        await expect(page2.getByText("Kendall Roy", {exact: true})).toBeHidden();
+    } else {
+        await expect(page1.getByTestId("ContentEditorMentionFloater")).toBeHidden();
+        await expect(page1.getByText("Siobahn Roy", {exact: true})).toBeVisible();
+        await expect(page1.getByText("Siobahn", {exact: true})).toBeHidden();
+        await expect(page1.getByText("Kendall Roy", {exact: true})).toBeHidden();
+        await expect(page2.getByTestId("ContentEditorMentionFloater")).toBeHidden();
+        await expect(page2.getByText("Siobahn Roy", {exact: true})).toBeVisible();
+        await expect(page2.getByText("Siobahn", {exact: true})).toBeHidden();
+        await expect(page2.getByText("Kendall Roy", {exact: true})).toBeHidden();
+    }
 });

@@ -37,6 +37,11 @@ test("can comment on a document and use the comment thread sidebar", async ({
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/documents/${document.id}`);
 
+    // Make pages a bit wider so comment thread decorations show up even when the
+    // comment sidebar is open.
+    await page1.setViewportSize({width: viewport.width + 100, height: viewport.height});
+    await page2.setViewportSize({width: viewport.width + 100, height: viewport.height});
+
     await page1.getByRole("textbox", {name: "Document"}).focus();
 
     // Moving the mouse should open the styling toolbar.

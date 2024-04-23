@@ -37,6 +37,25 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/posts/${post.id}`);
 
+    const replyToTestId = async (testId: string) => {
+        if (!isMobile) {
+            await page.getByTestId(testId).getByRole("button", {name: "Reply"}).press("Enter");
+            return;
+        }
+
+        // Simulate a long press on mobile devices...
+
+        const message = page.getByTestId(testId).getByTestId("MessageViewBubble");
+        await expect(message).toBeVisible();
+
+        await expect(page.getByRole("menuitem", {name: "Reply"})).toBeHidden();
+        await message.dispatchEvent("touchstart");
+        await expect(page.getByRole("menuitem", {name: "Reply"})).toBeVisible();
+        await message.dispatchEvent("touchend");
+
+        await page.getByRole("menuitem", {name: "Reply"}).click();
+    };
+
     // Existing messages aren't replying to anything.
     await expect(page.getByTestId(`MessageView:${post.id}:0`).getByText("replied to")).toBeHidden();
     await expect(page.getByTestId(`MessageView:${post.id}:1`).getByText("replied to")).toBeHidden();
@@ -49,10 +68,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
                 .getByText("Test post comment content 1"),
         ).toBeHidden();
 
-        await page
-            .getByTestId(`MessageView:${post.id}:0`)
-            .getByRole("button", {name: "Reply"})
-            .press("Enter");
+        await replyToTestId(`MessageView:${post.id}:0`);
 
         await expect(
             page
@@ -95,10 +111,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
                 .getByText("Test post comment content 1"),
         ).toBeHidden();
 
-        await page
-            .getByTestId(`MessageView:${post.id}:0`)
-            .getByRole("button", {name: "Reply"})
-            .press("Enter");
+        await replyToTestId(`MessageView:${post.id}:0`);
 
         await expect(
             page
@@ -123,10 +136,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
                 .getByText("Test post comment content 2"),
         ).toBeHidden();
 
-        await page
-            .getByTestId(`MessageView:${post.id}:1`)
-            .getByRole("button", {name: "Reply"})
-            .press("Enter");
+        await replyToTestId(`MessageView:${post.id}:1`);
 
         await expect(
             page

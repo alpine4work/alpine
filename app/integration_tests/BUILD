@@ -10,14 +10,13 @@ ts_playwright_tests(
         "//server/tasks/realtime",
     ],
     skip_projects_by_src = {
+        # Explicitly desktop only tests.
+        "documents/document_comments_desktop.spec.ts": ["webkit_mobile"],
+        "inbox/inbox_chat_desktop.spec.ts": ["webkit_mobile"],
         # Peeks only work on desktop.
         "chat/chat_peek.spec.ts": ["webkit_mobile"],
         "documents/document_peek.spec.ts": ["webkit_mobile"],
-        # We have not mobile optimized document comments yet.
-        "documents/document_comments.spec.ts": ["webkit_mobile"],
-        # We have not mobile optimized inbox yet.
-        "inbox/inbox_chat.spec.ts": ["webkit_mobile"],
-        # We have not mobile optimized tasks yet.
+        # These were written before tasks had mobile support.
         "tasks/task_detail_view_updates.spec.ts": ["webkit_mobile"],
         "tasks/task_grid_view_updates.spec.ts": ["webkit_mobile"],
         "tasks/task_notepad.spec.ts": ["webkit_mobile"],

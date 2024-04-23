@@ -45,14 +45,14 @@ export function createTestWorkerContext(): TestWorkerContext {
 
     const context: TestWorkerContext = {
         ...baseContext,
-        action: session => {
-            return baseContext.action(session).clone({
+        action: (session, options) => {
+            return baseContext.action(session, options).clone({
                 rpc: new LocalRpcContextModule(),
                 fork: new ForkActionContextModule(),
             });
         },
-        systemAction: session => {
-            return baseContext.systemAction(session).clone({
+        systemAction: (session, options) => {
+            return baseContext.systemAction(session, options).clone({
                 rpc: new LocalRpcContextModule(),
                 fork: new ForkActionContextModule(),
             });

@@ -229,7 +229,64 @@ export default function SpaceLayoutRoute() {
         }
     }, [isInitialAppRender, isMobile, setSearchState]);
 
-    const lastShiftKeyDownTimeRef = useRef<number | null>(null);
+    const lastShiftKeyDownRef = useRef<{location: number; time: number} | null>(null);
+
+    // Listen for double shift events. We don't use `<GlobalKeyDownEvent>` since we
+    // need to attach a capture `keydown` listener. Since any `keydown` that's not
+    // `Shift` should cancel our double shift timer. However, by convention if a
+    // component handles a keypress it calls `event.preventDefault()` and
+    // `event.stopPropagation()`. Which means or search event handler won't see if
+    // and so can't cancel a pending double shift.
+    //
+    // As a capture listener, double shift can't be stopped with
+    // `event.stopPropagation()` by a child element. But we're ok with that, it
+    // would be strange to the user if search sometimes didn't open given it's a
+    // product-wide global shortcut.
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            // Double shift opens the search modal.
+            if (
+                event.key === "Shift" &&
+                !event.altKey &&
+                !event.metaKey &&
+                !event.ctrlKey &&
+                // Don't open the search modal on mobile.
+                !isMobile
+            ) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const currentTime = Date.now();
+                const lastShiftKeyDown = lastShiftKeyDownRef.current;
+
+                if (lastShiftKeyDown === null) {
+                    lastShiftKeyDownRef.current = {
+                        location: event.location,
+                        time: currentTime,
+                    };
+                } else {
+                    lastShiftKeyDownRef.current = null;
+
+                    if (currentTime - lastShiftKeyDown.time < doubleClickDelayMs) {
+                        setSearchState(searchState => {
+                            if (searchState) return searchState;
+                            return {initialQueryText: ""};
+                        });
+                    }
+                }
+            } else {
+                // If the user presses a key other than `Shift` then reset the double shift
+                // timer. This happens often when typing text like “I <3 NY” fast. Since you
+                // type `Shift`, `I`, `Shift`, `,` (since `Shift+,` is `<`).
+                lastShiftKeyDownRef.current = null;
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown, true);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown, true);
+        };
+    }, [isMobile, setSearchState]);
 
     const nativeMobileRouterState = isNativeMobileRouterState(dataRouterStateContext)
         ? dataRouterStateContext
@@ -360,39 +417,6 @@ export default function SpaceLayoutRoute() {
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
-                // Double shift opens the search modal.
-                if (
-                    event.key === "Shift" &&
-                    !event.altKey &&
-                    !event.metaKey &&
-                    !event.ctrlKey &&
-                    // Don't open the search modal on mobile.
-                    !isMobile
-                ) {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    const currentTime = Date.now();
-                    const lastShiftKeyDownTime = lastShiftKeyDownTimeRef.current;
-                    lastShiftKeyDownTimeRef.current = currentTime;
-
-                    if (
-                        lastShiftKeyDownTime !== null &&
-                        currentTime - lastShiftKeyDownTime < doubleClickDelayMs
-                    ) {
-                        setSearchState(searchState => {
-                            if (searchState) return searchState;
-                            return {initialQueryText: ""};
-                        });
-                    }
-                    return;
-                }
-
-                // If the user presses a key other than `Shift` then reset the double shift
-                // timer. This happens often when typing text like “I <3 NY” fast. Since you
-                // type `Shift`, `I`, `Shift`, `,` (since `Shift+,` is `<`).
-                lastShiftKeyDownTimeRef.current = null;
-
                 switch (event.key) {
                     // Disable Home/End browser behavior. Don't let them scroll our page. Scrolling
                     // to the extremity of a lazy loaded virtualized scroll view with Home/End

@@ -1,30 +1,63 @@
+import {ArrowRight} from "phosphor-react";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useCallback, useEffect, useRef, useState} from "react";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {
     ContentEditorState,
     createCommentThreadMetaKey,
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
-import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {IconButton} from "~/client/design/icon_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
-import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
-import {messageInputMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
+import {
+    MessageContentWithReferences,
+    emptyMessageContentWithReferences,
+} from "~/shared/messaging/message_content_schema.js";
+import {
+    messageInputAccountAvatarPaddingY,
+    messageInputAccountAvatarSize,
+    messageViewBubbleBorderRadius,
+    messageViewBubbleMinHeight,
+    messageViewBubblePaddingX,
+    messageViewBubblePaddingY,
+} from "~/shared/messaging/messaging_shared_styles.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
-import {greyElevated2ClassName, overlayFadeOutAnimationDurationMs} from "~/shared/styles/styles.js";
+import {
+    greyElevated2ClassName,
+    overlayFadeOutAnimationDurationMs,
+    sprinkles,
+} from "~/shared/styles/styles.js";
+
+const contentEditorCommentInputFloaterPaddingY = "2.5";
+
+const contentEditorCommentInputFloaterPaddingYDifferenceRem =
+    parseRemLengthNumber(spacing[contentEditorCommentInputFloaterPaddingY]) -
+    parseRemLengthNumber(spacing[messageViewBubblePaddingY]);
+
+const contentEditorCommentInputFloaterMinHeight: RemLength = `${
+    parseRemLengthNumber(messageViewBubbleMinHeight) +
+    contentEditorCommentInputFloaterPaddingYDifferenceRem * 2
+}rem`;
+
+const contentEditorCommentInputFloaterAccountAvatarPaddingY: RemLength = `${
+    parseRemLengthNumber(messageInputAccountAvatarPaddingY) +
+    contentEditorCommentInputFloaterPaddingYDifferenceRem
+}rem`;
 
 export function ContentEditorCommentInputFloater({
     state,
@@ -76,7 +109,7 @@ export function ContentEditorCommentInputFloater({
             disableAnimation={!isClosing}
             placement="bottom-start"
             offset="3"
-            offsetAlong="-24"
+            offsetAlong="-16"
             // No fallback placements! The comment input always stays at the end of the
             // text its commenting on.
             fallbackPlacements={[]}
@@ -115,7 +148,6 @@ function ContentEditorCommentInput({
     onCloseWithoutAnimation: () => void;
     onCloseWithAnimation: () => void;
 }) {
-    const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
 
     const [commentState, setCommentState] = useState(() =>
@@ -123,9 +155,10 @@ function ContentEditorCommentInput({
     );
     const [shouldShowConfirmCloseDialog, setShouldShowConfirmCloseDialog] = useState(false);
 
-    const [isSendButtonPending, setIsSendButtonPending] = useState(false);
+    const isSendButtonDisabled = isContentEmpty(commentState.getDoc());
 
-    const inputRef = useRef<MessageInputRef>(null);
+    const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
+    const sendButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
     const shouldFocusNextRenderRef = useRef(true);
 
     useEffect(() => {
@@ -135,11 +168,11 @@ function ContentEditorCommentInput({
         if (!shouldFocusNextRenderRef.current) return;
         shouldFocusNextRenderRef.current = false;
 
-        const input = assertExists(inputRef.current);
-        input.focus({preventScroll: true});
+        const editor = assertExists(editorRef.current);
+        editor.focus({preventScroll: true});
     }, [shouldShowConfirmCloseDialog]);
 
-    const sendCommentWithoutPromiseHandling = async () => {
+    const sendComment = async () => {
         const content = commentState.getContent();
         if (isContentEmpty(content.doc)) return;
 
@@ -182,43 +215,27 @@ function ContentEditorCommentInput({
         onCloseWithoutAnimation();
     };
 
-    const sendComment = () => {
-        const content = commentState.getContent();
-        if (isContentEmpty(content.doc)) return;
-
-        setIsSendButtonPending(true);
-
-        runPromiseWithoutAwaiting(async () => {
-            try {
-                await sendCommentWithoutPromiseHandling();
-            } catch (error) {
-                showToast({
-                    type: "Error",
-                    title: "Can’t save comment",
-                    error,
-                });
-            } finally {
-                setIsSendButtonPending(false);
-            }
-        });
-    };
-
     return (
         <>
             <Box
-                width="96"
-                style={{minHeight: messageInputMinHeight}}
                 overflow="hidden"
+                width="96"
+                display="flex"
                 color="grey-text"
                 backgroundColor="grey-0"
-                borderRadius="lg"
+                borderRadius={messageViewBubbleBorderRadius}
                 boxShadow="elevation-20"
                 className={greyElevated2ClassName}
+                style={{paddingRight: contentEditorCommentInputFloaterAccountAvatarPaddingY}}
                 onKeyDown={event => {
                     if (event.key === "Escape") {
                         event.preventDefault();
                         event.stopPropagation();
-                        onCloseWithoutAnimation();
+                        if (isSendButtonDisabled) {
+                            onCloseWithoutAnimation();
+                        } else {
+                            setShouldShowConfirmCloseDialog(true);
+                        }
                         return;
                     }
                 }}
@@ -228,17 +245,112 @@ function ContentEditorCommentInput({
                     onCancelSave: onCloseWithAnimation,
                     onConfirmSave: () => setShouldShowConfirmCloseDialog(true),
                 })}
+                onPointerDownCapture={event => {
+                    const editor = assertExists(editorRef.current);
+
+                    // Tapping anywhere on the message input shouldn't unfocus the content editor
+                    // since that will hide the virtual keyboard on mobile.
+                    if (
+                        event.target instanceof Element &&
+                        // Exclude tapping in a portaled element. Like inputs in the link modal.
+                        event.currentTarget.contains(event.target) &&
+                        // Exclude tapping in the message input itself. Tapping there should do
+                        // something.
+                        !editor.contains(event.target)
+                    ) {
+                        event.preventDefault();
+                    }
+                }}
             >
-                <MessageInputBase
-                    ref={inputRef}
-                    messageNoun="comment"
-                    state={commentState}
-                    onChange={setCommentState}
-                    onSend={sendComment}
-                    isSendBottomArrowRight={true}
-                    isSendButtonPending={isSendButtonPending}
-                    withMobileLayout={true}
-                />
+                <FocusRing offset="border" isVisibleWhenFocusWithin={true}>
+                    <Box
+                        flexGrow="1"
+                        overflow="hidden"
+                        borderLeftRadius={messageViewBubbleBorderRadius}
+                        style={{minHeight: contentEditorCommentInputFloaterMinHeight}}
+                    >
+                        <Box
+                            ref={useScrollbar({
+                                insetTop: contentEditorCommentInputFloaterAccountAvatarPaddingY,
+                                insetBottom: contentEditorCommentInputFloaterAccountAvatarPaddingY,
+                            })}
+                            maxHeight="96"
+                            position="relative"
+                            overflowX="hidden"
+                            overflowY="auto"
+                        >
+                            <ContentEditor
+                                ref={editorRef}
+                                state={commentState}
+                                onChange={setCommentState}
+                                aria-label="New comment"
+                                placeholder="Add a comment"
+                                className={sprinkles({
+                                    paddingX: messageViewBubblePaddingX,
+                                    paddingY: contentEditorCommentInputFloaterPaddingY,
+                                })}
+                                onEnterFromPhysicalKeyboard={event => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    assertExists(sendButtonRef.current).press();
+                                }}
+                                // Don't render the default content editor mobile keyboard toolbar. We render
+                                // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
+                                withoutMobileKeyboardToolbar={true}
+                                // Message input is always editable, never interactive on mobile. So you can't
+                                // click links among other things.
+                                withoutMobileDualModality={true}
+                            />
+                        </Box>
+                    </Box>
+                </FocusRing>
+                <Box
+                    // This comment input is designed to resemble `<MessageInputBase>` but without
+                    // an internal border since the floater overlay provides that division. Add a
+                    // vertical border separating the send button from the comment since in
+                    // `<MessageInputBase>` the `grey-10` border around the message content would
+                    // separate the `<ContentEditor>` from the send button. This creates the same
+                    // visual separation.
+                    flexShrink="0"
+                    style={{
+                        paddingTop: contentEditorCommentInputFloaterAccountAvatarPaddingY,
+                        paddingBottom: contentEditorCommentInputFloaterAccountAvatarPaddingY,
+                        paddingRight: contentEditorCommentInputFloaterAccountAvatarPaddingY,
+                    }}
+                >
+                    <Box height="full" borderLeft="grey-5" />
+                </Box>
+                <Box flexShrink="0" display="flex" alignItems="flex-end">
+                    <Box
+                        width={messageInputAccountAvatarSize}
+                        style={{
+                            paddingTop: contentEditorCommentInputFloaterAccountAvatarPaddingY,
+                            paddingBottom: contentEditorCommentInputFloaterAccountAvatarPaddingY,
+                        }}
+                    >
+                        <IconButton
+                            ref={sendButtonRef}
+                            variant="accent"
+                            description="Save comment"
+                            pressErrorTitle="Can’t save comment"
+                            onPress={sendComment}
+                            isDisabled={isSendButtonDisabled}
+                            // The send icon button is not focusable. That's because we don't want to
+                            // remove focus from the message input when the send button is pressed. That
+                            // way on mobile you can keep typing and sending messages because the software
+                            // keyboard doesn't disappear.
+                            //
+                            // On desktop, hitting enter in the message input is sufficient for keyboard
+                            // control of the message input.
+                            isFocusable={false}
+                        >
+                            <ArrowRight
+                                size={spacing["4"]}
+                                weight={!isSendButtonDisabled ? "bold" : undefined}
+                            />
+                        </IconButton>
+                    </Box>
+                </Box>
             </Box>
             {shouldShowConfirmCloseDialog && (
                 <ModalDialog
@@ -252,7 +364,7 @@ function ContentEditorCommentInput({
                     }}
                     primaryButtonLabel="Save"
                     primaryButtonPressErrorTitle="Can’t save comment"
-                    onPrimaryButtonPress={sendCommentWithoutPromiseHandling}
+                    onPrimaryButtonPress={sendComment}
                     cancelButtonLabel="Discard comment"
                     onCancelButtonPress={onCloseWithoutAnimation}
                 />

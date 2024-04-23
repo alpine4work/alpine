@@ -24,7 +24,7 @@ import {shouldDisplayTextAsBigEmojiMessage} from "~/client/messaging/internal/sh
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {MessageViewTouchLightbox} from "~/client/messaging/message_view_touch_lightbox.js";
-import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack.js";
+import {useIsPeekStackAnimatingOpen} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -309,7 +309,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     }, [shouldShowOptimisticLoadingIndicatorAfterDelay]);
 
     const [shouldHighlight, setShouldHighlight] = useState(false);
-    const isPeekAnimatingOpen = useIsPeekAnimatingOpen();
+    const isPeekAnimatingOpen = useIsPeekStackAnimatingOpen();
 
     // If the ref we were provided told us to highlight then update our state and
     // clear the ref so we only highlight once for the ref.
@@ -731,6 +731,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return (
             <div
                 ref={messageRef}
+                data-testid={
+                    process.env.NODE_ENV !== "production" ? "MessageViewBubble" : undefined
+                }
                 className={sprinkles({
                     position: "relative",
                     zIndex: "20",

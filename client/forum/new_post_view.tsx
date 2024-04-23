@@ -21,7 +21,7 @@ import {
 import {PostContentViewHeaderBase} from "~/client/forum/post_content_view_header.js";
 import {postViewMaxWidth} from "~/client/forum/post_list_view.js";
 import {useSessionStorage} from "~/client/helpers/use_local_storage.js";
-import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack.js";
+import {useIsPeekStackAnimatingOpen} from "~/client/peek/peek_stack.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -112,7 +112,7 @@ export function NewPostView({
         }),
     );
 
-    const isPeekAnimatingOpen = useIsPeekAnimatingOpen();
+    const isPeekAnimatingOpen = useIsPeekStackAnimatingOpen();
     const hasInitiallyFocusedRef = useRef(false);
 
     useEffect(() => {

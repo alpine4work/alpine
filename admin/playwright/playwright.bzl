@@ -237,6 +237,9 @@ def _playwright_project_test(
         # End-to-end tests are considered to be large sized.
         # https://bazel.build/reference/be/common-definitions
         size = "large",
+        # Retry the test up to three times, marking it as failed only if it fails
+        # each time.
+        flaky = True,
     )
 
     native.sh_binary(

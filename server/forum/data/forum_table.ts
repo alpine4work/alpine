@@ -818,13 +818,15 @@ export async function getChannelIfPossible(
         return channel;
     })();
 
+    const cachedGetPromise = getPromise.then(channel => channel?.model.asPreview() ?? null);
+
+    // Make sure errors thrown by this promise aren't treated as uncaught
+    // exceptions. We catch them below when we await `getPromise`.
+    cachedGetPromise.catch(() => {});
+
     // If we're loading the channel, we can use the channel item in our
     // `ChannelPreviewModel` cache to avoid extra fetches.
-    ChannelPreviewCache.set(
-        context,
-        channelId,
-        getPromise.then(channel => channel?.model.asPreview() ?? null),
-    );
+    ChannelPreviewCache.set(context, channelId, cachedGetPromise);
 
     try {
         const channel = await getPromise;

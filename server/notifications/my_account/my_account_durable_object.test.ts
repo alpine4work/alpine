@@ -10,13 +10,13 @@ const baseContext = createTestWorkerContext();
 
 const context = {
     ...baseContext,
-    action: session => {
-        return baseContext.action(session).clone({
+    action: (session, options?) => {
+        return baseContext.action(session, options).clone({
             rpc: new LocalRpcContextModule(),
         });
     },
-    systemAction: spaceId => {
-        return baseContext.systemAction(spaceId).clone({
+    systemAction: (spaceId, options?) => {
+        return baseContext.systemAction(spaceId, options).clone({
             rpc: new LocalRpcContextModule(),
         });
     },
@@ -46,9 +46,9 @@ test("can not connect after initialization as the wrong account", async () => {
     );
 });
 
-test("can broadcast realtime events", async () => {
+test("can broadcast realtime events as session actor", async () => {
     await fetchForTest(
-        context.systemAction(space.id),
+        context.action(session1, {serviceName: "AppService"}),
         session1.accountId,
         new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
             method: "POST",
@@ -63,10 +63,101 @@ test("can broadcast realtime events", async () => {
     );
 });
 
-test("can not broadcast realtime events as session", async () => {
+test("can broadcast realtime events as system actor", async () => {
+    await fetchForTest(
+        context.systemAction(space.id, {serviceName: "AppService"}),
+        session1.accountId,
+        new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
+            method: "POST",
+            headers: {
+                "content-type": "application/json",
+            },
+            body: JSON.stringify({
+                readTime: new Date(),
+                eventTransaction: [],
+            }),
+        }),
+    );
+});
+
+test("can broadcast realtime events as session actor after initialization", async () => {
+    await connectForTest(context.action(session1), session1.accountId);
+
+    await fetchForTest(
+        context.action(session1, {serviceName: "AppService"}),
+        session1.accountId,
+        new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
+            method: "POST",
+            headers: {
+                "content-type": "application/json",
+            },
+            body: JSON.stringify({
+                readTime: new Date(),
+                eventTransaction: [],
+            }),
+        }),
+    );
+});
+
+test("can broadcast realtime events as system actor after initialization", async () => {
+    await connectForTest(context.action(session1), session1.accountId);
+
+    await fetchForTest(
+        context.systemAction(space.id, {serviceName: "AppService"}),
+        session1.accountId,
+        new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
+            method: "POST",
+            headers: {
+                "content-type": "application/json",
+            },
+            body: JSON.stringify({
+                readTime: new Date(),
+                eventTransaction: [],
+            }),
+        }),
+    );
+});
+
+test("can't broadcast realtime events from session actor from `AppClient`", async () => {
     await expect(
         fetchForTest(
-            context.action(session1),
+            context.action(session1, {serviceName: "AppClient"}),
+            session1.accountId,
+            new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json",
+                },
+                body: JSON.stringify({
+                    readTime: new Date(),
+                    eventTransaction: [],
+                }),
+            }),
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        fetchForTest(
+            context.systemAction(space.id, {serviceName: "AppClient"}),
+            session1.accountId,
+            new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json",
+                },
+                body: JSON.stringify({
+                    readTime: new Date(),
+                    eventTransaction: [],
+                }),
+            }),
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can't broadcast realtime events from system actor from `TaskRealtimeService`", async () => {
+    await expect(
+        fetchForTest(
+            context.systemAction(space.id, {serviceName: "TaskRealtimeService"}),
             session1.accountId,
             new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
                 method: "POST",
@@ -85,28 +176,7 @@ test("can not broadcast realtime events as session", async () => {
 test("can not broadcast realtime events as wrong space", async () => {
     await expect(
         fetchForTest(
-            context.systemAction(otherSpace.id),
-            session1.accountId,
-            new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
-                method: "POST",
-                headers: {
-                    "content-type": "application/json",
-                },
-                body: JSON.stringify({
-                    readTime: new Date(),
-                    eventTransaction: [],
-                }),
-            }),
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-});
-
-test("can not broadcast realtime events as session after initialization", async () => {
-    await connectForTest(context.action(session1), session1.accountId);
-
-    await expect(
-        fetchForTest(
-            context.action(session1),
+            context.systemAction(otherSpace.id, {serviceName: "AppService"}),
             session1.accountId,
             new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
                 method: "POST",
@@ -127,7 +197,7 @@ test("can not broadcast realtime events as wrong space after initialization", as
 
     await expect(
         fetchForTest(
-            context.systemAction(otherSpace.id),
+            context.systemAction(otherSpace.id, {serviceName: "AppService"}),
             session1.accountId,
             new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
                 method: "POST",
@@ -147,7 +217,7 @@ test("can not broadcast realtime events as wrong space multiple times after init
     await connectForTest(context.action(session1), session1.accountId);
 
     await fetchForTest(
-        context.systemAction(space.id),
+        context.systemAction(space.id, {serviceName: "AppService"}),
         session1.accountId,
         new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
             method: "POST",
@@ -163,7 +233,7 @@ test("can not broadcast realtime events as wrong space multiple times after init
 
     await expect(
         fetchForTest(
-            context.systemAction(otherSpace.id),
+            context.systemAction(otherSpace.id, {serviceName: "AppService"}),
             session1.accountId,
             new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
                 method: "POST",
@@ -180,7 +250,7 @@ test("can not broadcast realtime events as wrong space multiple times after init
 
     await expect(
         fetchForTest(
-            context.systemAction(otherSpace.id),
+            context.systemAction(otherSpace.id, {serviceName: "AppService"}),
             session1.accountId,
             new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
                 method: "POST",
@@ -196,7 +266,7 @@ test("can not broadcast realtime events as wrong space multiple times after init
     ).rejects.toThrow(PermissionDeniedError);
 
     await fetchForTest(
-        context.systemAction(space.id),
+        context.systemAction(space.id, {serviceName: "AppService"}),
         session1.accountId,
         new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
             method: "POST",
@@ -212,7 +282,7 @@ test("can not broadcast realtime events as wrong space multiple times after init
 
     await expect(
         fetchForTest(
-            context.systemAction(otherSpace.id),
+            context.systemAction(otherSpace.id, {serviceName: "AppService"}),
             session1.accountId,
             new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
                 method: "POST",
@@ -228,7 +298,7 @@ test("can not broadcast realtime events as wrong space multiple times after init
     ).rejects.toThrow(PermissionDeniedError);
 
     await fetchForTest(
-        context.systemAction(space.id),
+        context.systemAction(space.id, {serviceName: "AppService"}),
         session1.accountId,
         new Request("http://localhost/broadcast-inbox-realtime-event-transaction", {
             method: "POST",

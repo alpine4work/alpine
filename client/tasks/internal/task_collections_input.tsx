@@ -145,6 +145,9 @@ function TaskCollectionsInput(
     const {store} = referencesSubscription;
 
     const containerRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const popoverRef = useRef<HTMLDivElement>(null);
+    const listBoxRef = useRef<HTMLUListElement>(null);
 
     useImperativeHandle(
         ref,
@@ -385,10 +388,6 @@ function TaskCollectionsInput(
     };
 
     const comboBoxState = useComboBoxState(comboBoxProps);
-
-    const inputRef = useRef<HTMLInputElement>(null);
-    const popoverRef = useRef<HTMLDivElement>(null);
-    const listBoxRef = useRef<HTMLUListElement>(null);
 
     const collectionRefs = useMemo(
         () => createArrayWithLength(displayCollections.length, () => createRef<HTMLDivElement>()),

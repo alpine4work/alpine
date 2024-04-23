@@ -97,6 +97,10 @@ function NewPostViewChannelSelectorInput(
     const isMobile = useIsMobile();
     const {space} = useSpaceContext();
 
+    const inputRef = useRef<HTMLInputElement>(null);
+    const popoverRef = useRef<HTMLDivElement>(null);
+    const listBoxRef = useRef<HTMLUListElement>(null);
+
     useImperativeHandle(
         ref,
         () => ({
@@ -353,10 +357,6 @@ function NewPostViewChannelSelectorInput(
     };
 
     const comboBoxState = useComboBoxState(comboBoxProps);
-
-    const inputRef = useRef<HTMLInputElement>(null);
-    const popoverRef = useRef<HTMLDivElement>(null);
-    const listBoxRef = useRef<HTMLUListElement>(null);
 
     const {inputProps, listBoxProps, buttonProps} = useComboBox(
         {

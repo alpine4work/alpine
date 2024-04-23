@@ -10,7 +10,7 @@ import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_a
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack.js";
+import {useIsPeekStackAnimatingOpen} from "~/client/peek/peek_stack.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -33,7 +33,7 @@ export function ChannelViewNameEditor({
     onSave: (name: string) => Promise<void>;
 }) {
     const showToast = useShowToast();
-    const isPeekAnimatingOpen = useIsPeekAnimatingOpen();
+    const isPeekAnimatingOpen = useIsPeekStackAnimatingOpen();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const [name, setName] = useState(initialName);
