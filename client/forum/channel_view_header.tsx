@@ -45,29 +45,31 @@ export function ChannelViewHeader({
 }) {
     return (
         <>
-            {withMobileLayout && !isContentEmpty(channelHeader.channel.description.doc) && (
-                <Box paddingBottom="2" paddingX="3">
-                    <h3
-                        className={sprinkles({
-                            paddingLeft: "2",
-                            color: "grey-50",
-                        })}
-                    >
-                        About
-                    </h3>
-                    {!channelHeader.isEditingDescription ? (
-                        <ChannelViewHeaderMobileDescription
-                            description={channelHeader.channel.description}
-                        />
-                    ) : (
-                        <ChannelViewHeaderMobileDescriptionEditor
-                            initialDescription={channelHeader.channel.description}
-                            onCancel={channelHeader.onCancelDescriptionEditing}
-                            onSave={channelHeader.onSaveDescription}
-                        />
-                    )}
-                </Box>
-            )}
+            {withMobileLayout &&
+                (channelHeader.isEditingDescription ||
+                    !isContentEmpty(channelHeader.channel.description.doc)) && (
+                    <Box paddingBottom="2" paddingX="3">
+                        <h3
+                            className={sprinkles({
+                                paddingLeft: "2",
+                                color: "grey-50",
+                            })}
+                        >
+                            About
+                        </h3>
+                        {!channelHeader.isEditingDescription ? (
+                            <ChannelViewHeaderMobileDescription
+                                description={channelHeader.channel.description}
+                            />
+                        ) : (
+                            <ChannelViewHeaderMobileDescriptionEditor
+                                initialDescription={channelHeader.channel.description}
+                                onCancel={channelHeader.onCancelDescriptionEditing}
+                                onSave={channelHeader.onSaveDescription}
+                            />
+                        )}
+                    </Box>
+                )}
             <Box
                 paddingTop={channelViewAsidePaddingY}
                 paddingBottom={postContentViewOuterMarginY}
