@@ -226,7 +226,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 }) ? bottomBarKeyboardToolbarHeight : 0)
     }
 
-    private var hasCalledKeyboardDidHide = false
+    private var keyboardWillHideCallCount: UInt = 0
     private var keyboardWillHideAnimationTimer: Timer?
 
     private var lastApplicationDidBecomeActiveNotificationTime: DispatchTime?
@@ -1498,7 +1498,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     @objc private func keyboardWillHide(notification: NSNotification) {
-        hasCalledKeyboardDidHide = false
+        keyboardWillHideCallCount += 1
         keyboardWillHideAnimationTimer?.invalidate()
         keyboardWillHideAnimationTimer = nil
 
@@ -1568,8 +1568,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     @objc private func keyboardDidHide(notification: NSNotification) { actuallyKeyboardDidHide() }
 
     private func actuallyKeyboardDidHide() {
-        if hasCalledKeyboardDidHide { return }
-        hasCalledKeyboardDidHide = true
+        if keyboardWillHideCallCount == 0 { return }
+        keyboardWillHideCallCount -= 1
         keyboardWillHideAnimationTimer?.invalidate()
         keyboardWillHideAnimationTimer = nil
 

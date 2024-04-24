@@ -12,6 +12,7 @@ import {
 } from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
+import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
@@ -27,8 +28,37 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 let currentMobileKeyboardHeight = 0;
 
 if (isMobileKeyboardFrameChangeEnabled) {
-    subscribeToMobileKeyboardFrameChange(({newKeyboardHeight}) => {
+    subscribeToMobileKeyboardFrameChange(({oldKeyboardHeight, newKeyboardHeight}) => {
         currentMobileKeyboardHeight = newKeyboardHeight;
+
+        // We've observed that in our native iOS app when
+        // `scrollView.keyboardDismissMode = .interactive` is set, when the keyboard
+        // closes because the user scrolls down in a scroll view WebKit doesn't unfocus
+        // the element that opened the keyboard in the first place. This is likely an
+        // oversight on the part of the WebKit developers since they didn't intend for
+        // `scrollView.keyboardDismissMode = .interactive` to be enabled in WebKit. Our
+        // fix is to detect when the keyboard closes and if a text input is still
+        // focused after the text input closes, manually blur it ourselves.
+        //
+        // We wait half a second before blurring so the keyboard close animation
+        // followed by any changes from the blur (e.g. hiding overlays) isn't too
+        // jarring.
+        if (
+            NativeMobileBridge &&
+            isMobileWebKit &&
+            newKeyboardHeight === 0 &&
+            oldKeyboardHeight > 0 &&
+            document.activeElement &&
+            isTextInputElement(document.activeElement)
+        ) {
+            const activeElement = document.activeElement;
+
+            setTimeout(() => {
+                if (activeElement === document.activeElement) {
+                    activeElement.blur();
+                }
+            }, 500);
+        }
     });
 }
 
