@@ -1,11 +1,13 @@
 import {CalendarDate} from "@internationalized/date";
 import classNames from "classnames";
 import {CalendarBlank} from "phosphor-react";
-import {useMemo, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
+import {getCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
@@ -13,7 +15,7 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
 import {TaskDateInputCalendar} from "~/client/tasks/internal/task_date_input_calendar.js";
 import {TaskDateInputText} from "~/client/tasks/internal/task_date_input_text.js";
-import {RemLength, Spacing, spacing} from "~/shared/design/spacing.js";
+import {RemLength, Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -101,6 +103,86 @@ export function TaskDateInput({
     const [isFocusWithinOverlay, setIsFocusWithinOverlay] = useState(false);
 
     const isEditing = !isReadOnly && (isFocusWithinInput || isFocusWithinOverlay);
+
+    // When our calendar overlay opens on mobile we need to scroll it into view if
+    // it's rendered offscreen.
+    //
+    // `useScrollToAvoidBottomBarsAndMobileKeyboard()` does nothing when the task
+    // date input is focused. Since that hooks is designed to avoid the mobile
+    // keyboard when the mobile keyboard opens. However, if the mobile keyboard is
+    // already open and the user focuses a date input then we still need to scroll
+    // the date input into view. Instead of competing with
+    // `useScrollToAvoidBottomBarsAndMobileKeyboard()` we fully implement scroll
+    // logic for when the date input is focused here.
+    //
+    // We have a hook that does basically the same thing in
+    // `<TaskCollectionsInput>`. If you make a change here you should also probably
+    // make a change there.
+    const lastIsEditingRef = useRef(isEditing);
+    useEffect(() => {
+        if (lastIsEditingRef.current === isEditing) return;
+        lastIsEditingRef.current = isEditing;
+
+        if (!isMobile) return;
+        if (!isEditing) return;
+
+        const run = () => {
+            const overlayElement = assertExists(overlayRef.current);
+
+            let scrollableElement: HTMLElement | null = overlayElement.parentElement;
+            while (scrollableElement !== null) {
+                const {overflowY} = getComputedStyle(scrollableElement);
+
+                // We found our scrollable element!
+                if (overflowY === "scroll" || overflowY === "auto") break;
+
+                scrollableElement = scrollableElement.parentElement;
+            }
+
+            if (scrollableElement === null) return;
+
+            const overlayRect = overlayElement.getBoundingClientRect();
+            const viewportHeight = document.documentElement.getBoundingClientRect().height;
+
+            const clearanceBottom =
+                viewportHeight -
+                getCurrentCoveredHeight() -
+                convertRemLengthToPx(spacing["1"], getRemPxWithoutListening());
+
+            if (overlayRect.bottom <= clearanceBottom) return;
+
+            const scrollDelta = overlayRect.bottom - clearanceBottom;
+
+            scrollableElement.scrollTo({
+                top: scrollableElement.scrollTop + scrollDelta,
+                behavior: "smooth",
+            });
+        };
+
+        let isCancelled = false;
+
+        // This effect needs to run after `NativeMobileBridge` calls
+        // `keyboard.subscribeToFrameChange` subscribers. That way we can properly
+        // avoid the keyboard. In testing it seems like
+        // `keyboard.subscribeToFrameChange` is consistently called after double
+        // `requestAnimationFrame()` (which ensures we finish the current animation
+        // frame).
+        //
+        // NOTE(calebmer): I don't know enough about how WebKit does cross-thread
+        // communication to know if it's a guarantee that we'll always get
+        // `keyboard.subscribeToFrameChange` within two animation frames. Maybe as a
+        // fallback we should wait for 2 request animation frames AND ~50ms?
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                if (isCancelled) return;
+                run();
+            });
+        });
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [isEditing, isMobile]);
 
     const insetMarginY = height === "full" ? undefined : isMobile ? "2.5" : undefined;
 
@@ -300,15 +382,15 @@ export function TaskDateInput({
                     })}
                     style={{opacity: !isEditing && formattedDate ? 0 : undefined}}
                     onFocus={event => {
-                        // `<FocusRing>` updates are run with immediate priority. Make sure this update
-                        // is as well so we see both update in the same render.
+                        // `<FocusRing>` updates are run with immediate priority. Make sure this updates
+                        // with immediate priority as well so we see both update in the same render.
                         runWithImmediatePriority(() => {
                             setIsFocusWithinInput(event.currentTarget.contains(event.target));
                         });
                     }}
                     onBlur={event => {
-                        // `<FocusRing>` updates are run with immediate priority. Make sure this update
-                        // is as well so we see both update in the same render.
+                        // `<FocusRing>` updates are run with immediate priority. Make sure this updates
+                        // with immediate priority as well so we see both update in the same render.
                         runWithImmediatePriority(() => {
                             setIsFocusWithinInput(
                                 event.currentTarget.contains(event.relatedTarget),

@@ -6,6 +6,7 @@ import {
     Ref,
     createRef,
     forwardRef,
+    useEffect,
     useImperativeHandle,
     useMemo,
     useRef,
@@ -17,12 +18,14 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
+import {getCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -56,7 +59,7 @@ import {
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
-import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -458,6 +461,86 @@ function TaskCollectionsInput(
         },
         comboBoxState,
     );
+
+    // When our calendar overlay opens on mobile we need to scroll it into view if
+    // it's rendered offscreen.
+    //
+    // `useScrollToAvoidBottomBarsAndMobileKeyboard()` does nothing when the task
+    // date input is focused. Since that hooks is designed to avoid the mobile
+    // keyboard when the mobile keyboard opens. However, if the mobile keyboard is
+    // already open and the user focuses a date input then we still need to scroll
+    // the date input into view. Instead of competing with
+    // `useScrollToAvoidBottomBarsAndMobileKeyboard()` we fully implement scroll
+    // logic for when the date input is focused here.
+    //
+    // We have a hook that does basically the same thing in
+    // `<TaskDateInput>`. If you make a change here you should also probably make a
+    // change there.
+    const lastIsOpenRef = useRef(comboBoxState.isOpen);
+    useEffect(() => {
+        if (lastIsOpenRef.current === comboBoxState.isOpen) return;
+        lastIsOpenRef.current = comboBoxState.isOpen;
+
+        if (!isMobile) return;
+        if (!comboBoxState.isOpen) return;
+
+        const run = () => {
+            const popoverElement = assertExists(popoverRef.current);
+
+            let scrollableElement: HTMLElement | null = popoverElement.parentElement;
+            while (scrollableElement !== null) {
+                const {overflowY} = getComputedStyle(scrollableElement);
+
+                // We found our scrollable element!
+                if (overflowY === "scroll" || overflowY === "auto") break;
+
+                scrollableElement = scrollableElement.parentElement;
+            }
+
+            if (scrollableElement === null) return;
+
+            const popoverRect = popoverElement.getBoundingClientRect();
+            const viewportHeight = document.documentElement.getBoundingClientRect().height;
+
+            const clearanceBottom =
+                viewportHeight -
+                getCurrentCoveredHeight() -
+                convertRemLengthToPx(spacing["1"], getRemPxWithoutListening());
+
+            if (popoverRect.bottom <= clearanceBottom) return;
+
+            const scrollDelta = popoverRect.bottom - clearanceBottom;
+
+            scrollableElement.scrollTo({
+                top: scrollableElement.scrollTop + scrollDelta,
+                behavior: "smooth",
+            });
+        };
+
+        let isCancelled = false;
+
+        // This effect needs to run after `NativeMobileBridge` calls
+        // `keyboard.subscribeToFrameChange` subscribers. That way we can properly
+        // avoid the keyboard. In testing it seems like
+        // `keyboard.subscribeToFrameChange` is consistently called after double
+        // `requestAnimationFrame()` (which ensures we finish the current animation
+        // frame).
+        //
+        // NOTE(calebmer): I don't know enough about how WebKit does cross-thread
+        // communication to know if it's a guarantee that we'll always get
+        // `keyboard.subscribeToFrameChange` within two animation frames. Maybe as a
+        // fallback we should wait for 2 request animation frames AND ~50ms?
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                if (isCancelled) return;
+                run();
+            });
+        });
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [comboBoxState.isOpen, isMobile]);
 
     const inputPlaceholder = "Add";
 

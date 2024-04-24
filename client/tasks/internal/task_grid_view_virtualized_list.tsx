@@ -450,7 +450,7 @@ export function useTaskGridViewVirtualizedList({
     // space for the title text.
     //
     // It's purely a client-side limitation.
-    const maxGridExpandableTaskDepth = isMobile ? 3 : 4;
+    const maxGridExpandableTaskDepth = isMobile ? 2 : 4;
 
     const stateStore = useMemo(
         () =>
@@ -1827,57 +1827,23 @@ export function useTaskGridViewVirtualizedList({
                     return null;
                 }
 
-                const activeRect = activeElement.getBoundingClientRect();
-
-                // If we've focused a date input text segment then we want to include the
-                // calendar overlay in our anchor position. So search up the DOM tree for the
-                // `aria-owns` property added by `<Overlay>` which points to the calendar
-                // overlay.
+                // `<TaskDateInput>` and `<TaskCollectionsInput>` handle their own scrolling
+                // when focused since they need to make sure their overlays are visible on
+                // screen even when the keyboard is already open. So don't adjust to avoid the
+                // keyboard if we're focusing one of those components. See those components for
+                // their custom scroll to avoid keyboard implementation.
                 if (
                     activeElement.classList.contains(
                         tasksStyles.taskDateInputTextSegmentClassName,
                     ) ||
-                    // This mainly targets `<TaskCollectionsInput>` in `<TaskDetailView>`.
                     activeElement.classList.contains(
                         tasksStyles.taskCollectionsInputAddInputClassName,
                     )
                 ) {
-                    let parentElement = activeElement.parentElement;
-                    let ownedElement: HTMLElement | null = null;
-
-                    while (parentElement !== null) {
-                        const ariaOwnsAttribute = parentElement.getAttribute("aria-owns");
-                        if (ariaOwnsAttribute) {
-                            const ariaOwns = ariaOwnsAttribute.split(" ")[0]!;
-                            ownedElement = document.getElementById(ariaOwns);
-                            break;
-                        }
-
-                        parentElement = parentElement.parentElement;
-                    }
-
-                    if (ownedElement) {
-                        const ownedRect = ownedElement.getBoundingClientRect();
-
-                        const top =
-                            Math.min(activeRect.top, ownedRect.top) -
-                            // If this is a date input in a task row, we'd like to make sure some of the
-                            // task's content remains visible so the user doesn't lose context. If this is
-                            // a date or collection input in detail view fields, its fine to have a bit of
-                            // top margin.
-                            convertRemLengthToPx(
-                                spacing[taskRowViewMinHeight],
-                                getRemPxWithoutListening(),
-                            );
-
-                        const bottom = Math.max(activeRect.bottom, ownedRect.bottom);
-
-                        return {
-                            top,
-                            height: bottom - top,
-                        };
-                    }
+                    return null;
                 }
+
+                const activeRect = activeElement.getBoundingClientRect();
 
                 // If we focused on a listbox, scroll to make sure the element the listbox
                 // controls is visible. For example, the collections combobox opened by the
