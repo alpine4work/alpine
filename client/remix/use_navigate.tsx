@@ -12,9 +12,10 @@ import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 
 export interface NavigateFunction {
-    (to: To, options?: NavigateOptions): Promise<void>;
+    (to: To, options?: NavigateOptions & {stopPropagation?: boolean}): Promise<void>;
     (delta: number): Promise<void>;
 }
 
@@ -45,7 +46,7 @@ export function useNavigate(): Memo<NavigateFunction> {
     // from its `navigate()` function. Can we use that instead of watching the
     // transition here?
     const navigate = useCallback(
-        (to: To | number, options?: NavigateOptions) => {
+        (to: To | number, options?: NavigateOptions & {stopPropagation?: boolean}) => {
             if (waitForNextNavigation === null) return unsupportedNavigateForTest();
 
             if (typeof to === "number") {
@@ -53,8 +54,10 @@ export function useNavigate(): Memo<NavigateFunction> {
                 return waitForNextNavigation();
             }
 
-            const result = onNavigate?.(to, options);
-            if (result?.preventDefault) return result.promise;
+            if (!options?.stopPropagation) {
+                const result = onNavigate?.(to, options);
+                if (result?.preventDefault) return result.promise;
+            }
 
             originalNavigate(to, options);
             return waitForNextNavigation();
@@ -155,7 +158,10 @@ const NavigationEventContext = createContext<Memo<
     (
         to: To,
         options?: NavigateOptions,
-    ) => {preventDefault: false} | {preventDefault: true; promise: Promise<void>}
+    ) => {stopPropagation?: boolean} & (
+        | {preventDefault: false}
+        | {preventDefault: true; promise: Promise<void>}
+    )
 > | null>(null);
 
 /**
@@ -170,7 +176,12 @@ export function NavigationEventContextProvider({
         (
             to: To,
             options?: NavigateOptions,
-        ) => {preventDefault: false} | {preventDefault: true; promise: Promise<void>}
+        ) =>
+            | ({stopPropagation?: boolean} & (
+                  | {preventDefault: false}
+                  | {preventDefault: true; promise: Promise<void>}
+              ))
+            | void
     >;
     children?: ReactNode;
 }) {
@@ -179,10 +190,35 @@ export function NavigationEventContextProvider({
     return (
         <NavigationEventContext.Provider
             value={useCallback(
-                (to: To, options?: NavigateOptions) => {
-                    const result = onNavigate(to, options);
-                    if (result.preventDefault) return result;
-                    return parentOnNavigate?.(to, options) ?? {preventDefault: false};
+                (
+                    to: To,
+                    options?: NavigateOptions,
+                ): {stopPropagation?: boolean} & (
+                    | {preventDefault: false}
+                    | {preventDefault: true; promise: Promise<void>}
+                ) => {
+                    const result = onNavigate(to, options) ?? {preventDefault: false};
+                    if (result.stopPropagation) return result;
+
+                    if (!parentOnNavigate) return result;
+
+                    const parentResult = parentOnNavigate(to, options);
+
+                    if (!result.preventDefault && !parentResult.preventDefault) {
+                        return {
+                            stopPropagation: parentResult.stopPropagation,
+                            preventDefault: false,
+                        };
+                    } else {
+                        return {
+                            stopPropagation: parentResult.stopPropagation,
+                            preventDefault: true,
+                            promise: runAllPromises([
+                                result.preventDefault ? result.promise : null,
+                                parentResult.preventDefault ? parentResult.promise : null,
+                            ]).then(() => {}),
+                        };
+                    }
                 },
                 [onNavigate, parentOnNavigate],
             )}

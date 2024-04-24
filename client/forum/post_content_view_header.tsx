@@ -1,5 +1,5 @@
 import {ReactNode} from "react";
-import {useHover} from "react-aria";
+import {mergeProps, useHover, usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {Box} from "~/client/design/box.js";
@@ -92,29 +92,36 @@ export function PostContentViewHeaderBase({
 
 function PostContentViewHeaderChannelBase({channel}: {channel: ChannelPreviewModel}) {
     const navigate = useNavigate();
-    const {isHovered: isChannelHovered, hoverProps: channelHoverProps} = useHover({});
+    const {isPressed, pressProps} = usePress({
+        onPress: () => {
+            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+            void navigate(`/s/${channel.spaceId}/channels/${channel.id}`, {
+                // Don't let the route open in `<PeekStack>`.
+                stopPropagation: true,
+            });
+        },
+    });
 
     return (
         <>
             {" "}
             in{" "}
             <a
-                {...channelHoverProps}
+                {...pressProps}
                 className={sprinkles({
                     color: "grey-text",
                     fontStyle: "semi-bold",
                     // This design has a weak link affordance so use a pointer cursor to make it
                     // clear this text is clickable.
                     cursor: "pointer",
+                    opacity: isPressed ? "60" : undefined,
                 })}
-                style={{textDecoration: isChannelHovered ? "underline" : undefined}}
                 href={`/s/${channel.spaceId}/channels/${channel.id}`}
                 onClick={event => {
                     // Custom link navigation handling...
                     event.preventDefault();
 
-                    // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                    void navigate(`/s/${channel.spaceId}/channels/${channel.id}`);
+                    pressProps.onClick?.(event);
                 }}
             >
                 {channel.name}

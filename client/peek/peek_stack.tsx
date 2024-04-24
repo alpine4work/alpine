@@ -520,11 +520,11 @@ function PeekStackContextProvider(
                 <NavigationEventContextProvider
                     onNavigate={useEvent((to, options) => {
                         // Always perform full page navigations on mobile.
-                        if (isMobile) return {preventDefault: false};
+                        if (isMobile) return;
 
                         // Only intercept navigation events that want to push a new history entry. We
                         // will instead push a peek.
-                        if (options?.replace) return {preventDefault: false};
+                        if (options?.replace) return;
 
                         const path = resolvePath(
                             to,
@@ -537,14 +537,14 @@ function PeekStackContextProvider(
                             path.pathname === location.pathname &&
                             path.search === location.search
                         ) {
-                            return {preventDefault: false};
+                            return;
                         }
 
                         // Determine whether there is a peek route for the path we are navigating to.
                         const peekPath = convertSpacePathToPeekPath(path);
-                        if (!peekPath) return {preventDefault: false};
+                        if (!peekPath) return;
                         const peekRouteMatches = matchRoutes(peekRoutes, peekPath.pathname);
-                        if (!peekRouteMatches) return {preventDefault: false};
+                        if (!peekRouteMatches) return;
 
                         const routeMatches = matchRoutes(
                             dataRouterContext.router.routes,
@@ -579,7 +579,7 @@ function PeekStackContextProvider(
                                 peekRouteMatches[peekRouteMatches.length - 1]?.params ?? {},
                             )
                         ) {
-                            return {preventDefault: false};
+                            return;
                         }
 
                         // If the top of the peek stack is the URL we're navigating to then do nothing.

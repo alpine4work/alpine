@@ -1524,6 +1524,10 @@ function TaskDetailViewParentBreadcrumbs({
                                 `/s/${parentTaskEntry.task.getSpaceId()}/tasks/${
                                     parentTaskEntry.task.id
                                 }`,
+                                {
+                                    // Don't let the route open in `<PeekStack>`.
+                                    stopPropagation: true,
+                                },
                             )
                         }
                     >
