@@ -2817,7 +2817,19 @@ private class WebInputAccessoryObserverView: UIView {
         guard let superview = superview else { return 0 }
         guard let superSuperview = superview.superview else { return 0 }
 
-        return max(0, superSuperview.bounds.height - superview.frame.origin.y - frame.size.height)
+        var keyboardOffset =
+            superSuperview.bounds.height - superview.frame.origin.y - frame.size.height
+
+        keyboardOffset = max(0, keyboardOffset)
+
+        // Round keyboard offset to the nearest fourth point. This is typically what
+        // CSS heights and widths in our product will be due to our spacing scale.
+        // Rounding prevents small arbitrary updates like 4.999999999 to 5.000001
+        // (which we've observed happen in iOS rendering code) from triggering an
+        // update.
+        keyboardOffset = round(keyboardOffset * 4) / 4
+
+        return keyboardOffset
     }
 }
 
