@@ -447,6 +447,7 @@ function VirtualizedScrollView(
         scrollbarInsetBottom,
         extraChildren,
         extraChildrenOutsideContentElement,
+        extraChildrenContentHeight = 0,
     }: {
         /**
          * The total number of virtualized items. You do not need all the items loaded
@@ -619,6 +620,18 @@ function VirtualizedScrollView(
                   viewHeight: number;
                   shouldRenderWithRelativePositioning: boolean;
               }) => ReactNode);
+
+        /**
+         * If the height contributed by `extraChildren` could be larger than the view's
+         * content height it's recommended you measure your `extraChildren`'s height
+         * and pass it in here.
+         *
+         * We'll use this value in the DOM to make sure anyone setting `height: 100%`
+         * includes the extra children content height.
+         *
+         * This is an advanced property. You probably don't need it.
+         */
+        extraChildrenContentHeight?: number;
     },
     ref: Ref<VirtualizedScrollViewRef>,
 ) {
@@ -1808,7 +1821,7 @@ function VirtualizedScrollView(
                 }}
                 onScroll={handleScroll}
             >
-                <div style={{height: contentHeight}} />
+                <div style={{height: Math.max(contentHeight, extraChildrenContentHeight)}} />
                 <div
                     ref={contentRef}
                     style={{
@@ -1816,7 +1829,7 @@ function VirtualizedScrollView(
                         left: 0,
                         right: 0,
                         top: 0 - (scrollAnchorAdjustmentDuringMobileWebKitScroll ?? 0),
-                        height: contentHeight,
+                        height: Math.max(contentHeight, extraChildrenContentHeight),
                         zIndex: "0", // Make sure we create a new z-index stacking context
                     }}
                 >

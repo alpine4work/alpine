@@ -1510,6 +1510,13 @@ function PostListView(
                             };
                         });
                     }}
+                    // If the aside is larger than our virtualized list's content then we need to
+                    // make sure the `<VirtualizedScrollView>`s DOM includes the aside's height in
+                    // some measurements. Otherwise the navigation bar among other things start to
+                    // break down.
+                    extraChildrenContentHeight={
+                        asideSize ? asideSize.height + navigationBarHeightPx : 0
+                    }
                     extraChildren={
                         <>
                             {navigationBar && isSingleLayoutWithPinnedCommentInput
@@ -1573,7 +1580,9 @@ function PostListView(
                                                 ? {
                                                       top:
                                                           viewSize && asideSize
-                                                              ? viewSize.height - asideSize.height
+                                                              ? viewSize.height -
+                                                                navigationBarHeightPx -
+                                                                asideSize.height
                                                               : 0,
                                                   }
                                                 : {
@@ -1613,7 +1622,11 @@ function PostListView(
                                                     pointerEvents: "auto",
                                                     paddingX: "5",
                                                 })}
-                                                style={{minHeight: viewSize?.height}}
+                                                style={{
+                                                    minHeight: viewSize
+                                                        ? viewSize.height - navigationBarHeightPx
+                                                        : 0,
+                                                }}
                                             >
                                                 {aside}
                                             </aside>
