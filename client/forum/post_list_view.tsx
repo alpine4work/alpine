@@ -47,7 +47,11 @@ import {
 import {PostEditing, usePostEditing} from "~/client/forum/post_editing.js";
 import {
     PostListChannelHeader,
+    PostListChannelHeaderItem,
     PostListInterface,
+    PostListItem,
+    PostListMoreUnloadedPostsItem,
+    PostListPostCommentInputItem,
     PostListPostContentItem,
     PostListWithChannelHeader,
 } from "~/client/forum/post_list.js";
@@ -62,7 +66,10 @@ import {
     MessagingTypingIndicators,
     messagingTypingIndicatorsMinHeight,
 } from "~/client/messaging/messaging_typing_indicators.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {
+    getInitialLoadMessageCount,
+    messagingViewMarginBottom,
+} from "~/client/messaging/messaging_view.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -82,6 +89,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
+import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 import {
@@ -670,12 +678,64 @@ function PostListView(
 
     // Make sure the bottom of the scroll view stays visible when the keyboard
     // opens and closes.
+    //
+    // Unless we are replying to a message or editing a message. Then we should
+    // anchor to the message in question. Similar code also exists in
+    // `post_list_view.tsx` and `document_comment_thread_list_view.tsx`. If we
+    // update the code here we also probably need to update there.
     useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
         isPinned: true,
-        getAnchorPosition: useCallback(
-            oldVisibleRect => ({top: oldVisibleRect.bottom, height: 0}),
-            [],
-        ),
+        getAnchorPosition: useEvent(oldVisibleRect => {
+            const view = assertExists(viewRef.current);
+
+            const anchorMessageIndex = messageEditing.state.isEditing
+                ? ([
+                      messageEditing.state.messageRoomKey,
+                      messageEditing.state.messageIndex,
+                  ] as const)
+                : isSingleLayoutWithPinnedCommentInput
+                ? iterableFirst(replyingToPostCommentIndexByPostId.entries()) ?? null
+                : null;
+
+            if (anchorMessageIndex !== null) {
+                const itemIndex = posts
+                    .getPostById(anchorMessageIndex[0])
+                    .getPostCommentIndex(anchorMessageIndex[1]);
+                const item = posts.getItem(itemIndex);
+
+                if (
+                    item.type === "ChannelHeader" ||
+                    item.type === "PostContent" ||
+                    item.type === "PostCommentInput" ||
+                    item.type === "MoreUnloadedPosts"
+                ) {
+                    return null;
+                }
+
+                const position = view.getPositionByKeyIfExists(getPostListPostCommentItemKey(item));
+                if (!position) return null;
+
+                const anchorPositionTop =
+                    oldVisibleRect.top + (position.offset - view.getScrollOffset());
+
+                // Only include visible bits of the message in the anchor. This way, we exclude
+                // safe area margin bottom on the last message in the anchor position.
+                const anchorPosition = {
+                    top: Math.max(oldVisibleRect.top, anchorPositionTop),
+                    bottom: Math.min(
+                        Math.max(oldVisibleRect.bottom, anchorPositionTop),
+                        anchorPositionTop + position.height,
+                    ),
+                };
+
+                return {
+                    top: anchorPositionTop,
+                    height: anchorPosition.bottom - anchorPosition.top,
+                };
+            }
+
+            return {top: oldVisibleRect.bottom, height: 0};
+        }),
     });
 
     const idBase = useId();
@@ -1033,6 +1093,15 @@ function PostListView(
                                                 />
                                             )}
                                             {messageNode}
+                                            {isSingleLayoutWithPinnedCommentInput &&
+                                                // -2 instead of -1 since when
+                                                // `isSingleLayoutWithPinnedCommentInput` is true we don't
+                                                // actually render the final comment input item in `posts`.
+                                                index === posts.getItemCount() - 2 && (
+                                                    <div
+                                                        style={{height: messagingViewMarginBottom}}
+                                                    />
+                                                )}
                                         </div>
                                         {hasAside && (
                                             <div
@@ -1110,6 +1179,13 @@ function PostListView(
                                     )}
                                     <MessagingTypingIndicators
                                         typingStateByConnectionId={item.typingStateByConnectionId}
+                                        shouldAddMarginBottom={
+                                            isSingleLayoutWithPinnedCommentInput &&
+                                            // -2 instead of -1 since when
+                                            // `isSingleLayoutWithPinnedCommentInput` is true we don't
+                                            // actually render the final comment input item in `posts`.
+                                            index === posts.getItemCount() - 2
+                                        }
                                     />
                                 </div>
                                 {hasAside && (
@@ -1712,4 +1788,27 @@ function PostListView(
             </div>
         </>
     );
+}
+
+type PostListPostCommentItem = Exclude<
+    PostListItem,
+    | PostListChannelHeaderItem
+    | PostListPostContentItem
+    | PostListPostCommentInputItem
+    | PostListMoreUnloadedPostsItem
+>;
+
+function getPostListPostCommentItemKey(item: PostListPostCommentItem) {
+    switch (item.type) {
+        case "LoadedPostComment":
+            return `PostComment:${item.post.id}:${item.postComment.index}`;
+        case "OptimisticPostComment":
+            return `PostComment:${item.post.id}:${item.postCommentIndex}`;
+        case "UnloadedPostComment":
+            return `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`;
+        case "PostCommentsTypingIndicator":
+            return `PostCommentsTypingIndicator:${item.post.id}`;
+        default:
+            throw exhaustive(item);
+    }
 }
