@@ -1,5 +1,5 @@
 import {ArrowLeft} from "phosphor-react";
-import {Memo, Ref, useCallback, useEffect, useRef, useState} from "react";
+import {Memo, Ref, useCallback, useEffect, useRef} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
@@ -215,29 +215,43 @@ function ChatMessagingViewHeader({
 
     const minHeight = chatMessagingViewHeaderMinHeightRem * remPx;
 
-    const getHeight = useCallback(() => {
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (shouldRenderWithRelativePositioning) return;
+
+        const element = assertExists(internalRef.current);
+
         // Exclude safe area contributed by the keyboard opening/closing from the chat
         // messaging view header height. This makes sure scroll animations from
         // `useScrollToAvoidBottomBarsAndMobileKeyboard()` are nice and smooth.
         //
         // We need to update the header height in a layout effect
-        const keyboardSafeAreaBottom = internalRef.current
-            ? getElementSafeAreaInsetBottomPx(internalRef.current) -
-              getElementWindowSafeAreaInsetBottomPx(internalRef.current) -
-              (NativeMobileBridge?.tabBar.height ?? 0)
-            : 0;
+        const keyboardSafeAreaBottom =
+            getElementSafeAreaInsetBottomPx(element) -
+            getElementWindowSafeAreaInsetBottomPx(element) -
+            (NativeMobileBridge?.tabBar.height ?? 0);
 
-        return Math.max(
+        const height = Math.max(
             minHeight,
             viewHeight - (originalContentHeight - keyboardSafeAreaBottom - originalHeight),
         );
-    }, [minHeight, originalContentHeight, originalHeight, viewHeight]);
 
-    const [height, setHeight] = useState(getHeight);
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        setHeight(getHeight());
-    }, [getHeight]);
+        // Directly update the height style without scheduling another React render.
+        // React should never override this style since from React's perspective the
+        // height is always `chatMessagingViewHeaderMinHeight`.
+        //
+        // It's important we directly update the DOM instead of scheduling another
+        // render so that other hooks like `useScrollToNewMessages()` that run in the
+        // same render will read the correct height.
+        if (height !== element.clientHeight) {
+            element.style.height = `${height}px`;
+        }
+    }, [
+        minHeight,
+        originalContentHeight,
+        originalHeight,
+        shouldRenderWithRelativePositioning,
+        viewHeight,
+    ]);
 
     return (
         <div
@@ -254,7 +268,7 @@ function ChatMessagingViewHeader({
                           top: offset,
                           left: 0,
                           right: 0,
-                          height,
+                          height: chatMessagingViewHeaderMinHeight,
                       }),
             }}
         />

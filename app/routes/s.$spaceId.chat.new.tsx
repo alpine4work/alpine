@@ -152,6 +152,11 @@ export default function NewChatRoute({withMobileLayout = false}: {withMobileLayo
     // make a scroll adjustment on resize to make sure the last message stays in
     // place.
     //
+    // Note that this only really kicks into gear if the chat you START with when
+    // `<ChatAccountPicker>` grows is filled with messages. Otherwise the chat
+    // messaging view header (aptly named `chatMessagingViewHeader`) that pushes
+    // content to the bottom will end up keeping the scroll position correct.
+    //
     // This effect does a similar job as
     // `useScrollToAvoidBottomBarsAndMobileKeyboard()`. But whereas
     // `useScrollToAvoidBottomBarsAndMobileKeyboard()` is focused on making sure we
