@@ -769,12 +769,6 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     const lastScrollHeight = lastScrollHeightRef.current;
                     lastScrollHeightRef.current = scrollHeight;
 
-                    const lastNavigationBarScrollOffset = clamp(
-                        0,
-                        lastScrollOffset - lastNavigationBarTopOffsetRef.current,
-                        navigationBarHeight,
-                    );
-
                     // Edge case: If we resized and scrolled down at the same time (and scrolled
                     // the same amount we resized) then we don't want our navigation bar's scroll
                     // offset to change.
@@ -793,6 +787,12 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                         scrollOffset > lastScrollOffset &&
                         scrollOffset - lastScrollOffset == scrollHeight - lastScrollHeight
                     ) {
+                        const lastNavigationBarScrollOffset = clamp(
+                            0,
+                            lastScrollOffset - lastNavigationBarTopOffsetRef.current,
+                            navigationBarHeight,
+                        );
+
                         const navigationBarTopOffset = scrollOffset - lastNavigationBarScrollOffset;
                         lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
 
@@ -814,9 +814,36 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     const lastScrollDirection = lastScrollDirectionRef.current;
                     lastScrollDirectionRef.current = scrollDirection;
 
+                    const lastNavigationBarTopOffset = lastNavigationBarTopOffsetRef.current;
+                    let navigationBarTopOffset = lastNavigationBarTopOffset;
+
+                    const lastNavigationBarScrollOffset = clamp(
+                        0,
+                        lastScrollOffset - lastNavigationBarTopOffset,
+                        navigationBarHeight,
+                    );
+
+                    if (scrollDirection !== lastScrollDirection) {
+                        navigationBarTopOffset = lastScrollOffset - lastNavigationBarScrollOffset;
+                        lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
+
+                        // Immediately update our sticky positioning CSS to avoid potential jankiness.
+                        flushSync(() => {
+                            setScrollDirectionState({
+                                scrollDirection,
+                                navigationBarTopOffset: Math.max(
+                                    0,
+                                    navigationBarTopOffset -
+                                        (!isMobile ? desktopMarginTopRem * remPx : 0),
+                                ),
+                                animateNavigationBarTranslateY: 0,
+                            });
+                        });
+                    }
+
                     const navigationBarScrollOffset = clamp(
                         0,
-                        scrollOffset - lastNavigationBarTopOffsetRef.current,
+                        scrollOffset - navigationBarTopOffset,
                         navigationBarHeight,
                     );
 
@@ -936,6 +963,15 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                 navigationBarBackgroundFadeOutAnimationClassName,
                             );
 
+                            // NOTE(calebmer): I'm seeing some issues in mobile Safari when using
+                            // `scrollTo({behavior: "smooth"})` which is an animation driven by iOS's UI
+                            // thread and not the web thread. This causes some jankiness as JavaScript is
+                            // behind native so opacity may not be updated in a timely manner.
+                            //
+                            // I'd love to move these opacity updates to [CSS scroll-driven animations][1]
+                            // when they're available in WebKit.
+                            //
+                            // [1]: https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_scroll-driven_animations
                             navigationBarContentElement.style.opacity = `${
                                 1 - Math.min(1, navigationBarScrollPercentage * 2)
                             }`;
@@ -986,25 +1022,6 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                 );
                             }
                         }
-                    }
-
-                    if (scrollDirection !== lastScrollDirection) {
-                        const lastNavigationBarTopOffset =
-                            lastScrollOffset - lastNavigationBarScrollOffset;
-                        lastNavigationBarTopOffsetRef.current = lastNavigationBarTopOffset;
-
-                        // Immediately update our sticky positioning CSS to avoid potential jankiness.
-                        flushSync(() => {
-                            setScrollDirectionState({
-                                scrollDirection,
-                                navigationBarTopOffset: Math.max(
-                                    0,
-                                    lastNavigationBarTopOffset -
-                                        (!isMobile ? desktopMarginTopRem * remPx : 0),
-                                ),
-                                animateNavigationBarTranslateY: 0,
-                            });
-                        });
                     }
 
                     scrollDebounceTimeout?.clear();
@@ -1090,11 +1107,27 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     // currently have for `scrollDirection`, then update our state so that our
                     // sticky positioning CSS is ready for the scroll.
                     if (scrollDirection !== lastScrollDirectionRef.current) {
+                        lastScrollDirectionRef.current = scrollDirection;
+
+                        const remPx = getRemPxWithoutListening();
+                        const navigationBarHeight = navigationBarHeightRem * remPx;
+
+                        const lastNavigationBarTopOffset = lastNavigationBarTopOffsetRef.current;
+
+                        const navigationBarScrollOffset = clamp(
+                            0,
+                            scrollOffset - lastNavigationBarTopOffset,
+                            navigationBarHeight,
+                        );
+
+                        const navigationBarTopOffset = scrollOffset - navigationBarScrollOffset;
+                        lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
+
                         // Immediately update our sticky positioning CSS to avoid potential jankiness.
                         flushSync(() => {
                             setScrollDirectionState({
                                 scrollDirection,
-                                navigationBarTopOffset: lastNavigationBarTopOffsetRef.current,
+                                navigationBarTopOffset,
                                 animateNavigationBarTranslateY: 0,
                             });
                         });
