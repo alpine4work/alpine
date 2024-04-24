@@ -114,7 +114,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private struct WebScrollViewState {
         var isMain: Bool
         let delegateForwarder: UIScrollViewDelegateForwarder
-        let delegateResizeObserver: UIScrollViewDelegateResizeObserver
+        let resizeObserver: UIViewResizeObserver
     }
 
     /// Bottom bars are HTML elements which we optimistially translate in native
@@ -150,14 +150,21 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let id: String
         let type: WebBottomBarViewType
         var reconcileTimer: Timer?
+        let resizeObserver: UIViewResizeObserver
 
         private var isAwaiting = false
         private var actionQueue = [() -> Void]()
 
-        init(id: String, type: WebBottomBarViewType, reconcileTimer: Timer?) {
+        init(
+            id: String,
+            type: WebBottomBarViewType,
+            reconcileTimer: Timer?,
+            resizeObserver: UIViewResizeObserver
+        ) {
             self.id = id
             self.type = type
             self.reconcileTimer = reconcileTimer
+            self.resizeObserver = resizeObserver
         }
 
         // This is not thread safe but since it's always called from the main thread we
@@ -213,6 +220,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 !(keyboardAnimationState != nil || keyboardOffsetWithoutToolbar > 0)
         }
     }
+
+    private var lastKeyboardOffsetWithoutToolbar = 0.0
 
     private var keyboardOffset: Double {
         keyboardOffsetWithoutToolbar
@@ -1239,9 +1248,17 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     scrollView: webScrollView,
                     delegate: self
                 ),
-                delegateResizeObserver: UIScrollViewDelegateResizeObserver(
-                    scrollView: webScrollView,
-                    delegate: self
+                // We've observed that `UIScrollViewDelegate.scrollViewDidScroll(_:)` is not
+                // called after the `UIScrollView` has resized. This is not documented
+                // anywhere. So watch when `bounds` changes and call
+                // `UIScrollViewDelegate.scrollViewDidScroll(_:)` whenever the width or height
+                // changes even if the content offset didn't change. The delegate's
+                // `UIScrollViewDelegate.scrollViewDidScroll(_:)` implementation must be
+                // idempotent since there may not have actually been a scroll when it's
+                // called.
+                resizeObserver: UIViewResizeObserver(
+                    view: webScrollView,
+                    action: { [weak self] in self?.scrollViewDidScroll(webScrollView) }
                 )
             )
 
@@ -1349,13 +1366,23 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     let webBottomBarViewState = WebBottomBarViewState(
                         id: String(match.1),
                         type: webBottomBarViewType,
-                        reconcileTimer: nil
+                        reconcileTimer: nil,
+                        resizeObserver: UIViewResizeObserver(
+                            view: webBottomBarView,
+                            action: { [weak self] in
+                                // Whenever any bottom bar resizes, update everything that depends on the
+                                // bottom bar's height.
+                                self?.setAllWebScrollViewScrollIndicatorInsets()
+                                self?.updateWebInputAccessoryObserverViewHeight()
+                            }
+                        )
                     )
 
                     webBottomBarViews[webBottomBarView] = webBottomBarViewState
 
                     updateWebBottomBarFrame(webBottomBarView, webBottomBarViewState)
                     setAllWebScrollViewScrollIndicatorInsets()
+                    updateWebInputAccessoryObserverViewHeight()
                 }
             }
         }
@@ -1406,10 +1433,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             webScrollViews.removeValue(forKey: webScrollView)
         }
 
-        // Remove with `schedule` to prevent race conditions. If
-        // `viewTreeObserver(didAdd:)` is called then `viewTreeObserver(didRemove:)` is
-        // called immediately after, the scheduled block from
-        // `viewTreeObserver(didAdd:)` may not have been run.
         if type(of: webSubview).description() == "WKCompositingView" {
             if webBottomBarViews[webSubview] != nil {
                 let webBottomBarViewState = webBottomBarViews.removeValue(forKey: webSubview)
@@ -1417,6 +1440,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 webBottomBarViewState?.reconcileTimer = nil
 
                 setAllWebScrollViewScrollIndicatorInsets()
+                updateWebInputAccessoryObserverViewHeight()
             }
         }
 
@@ -1439,13 +1463,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // after that method.
         setAllWebScrollViewScrollIndicatorInsets()
 
-        let screen = notification.object as! UIScreen
-        let beginScreenFrame =
-            (notification.userInfo![UIResponder.keyboardFrameBeginUserInfoKey] as! NSValue)
-            .cgRectValue
-        let endScreenFrame =
-            (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
-            .cgRectValue
         let animationCurve =
             (notification.userInfo![UIResponder.keyboardAnimationCurveUserInfoKey] as! UInt)
         let animationDuration =
@@ -1463,7 +1480,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // with identical keyboard offset is a noop.
         webInputAccessoryObserverView(
             nil,
-            didMoveTo: screen.coordinateSpace.bounds.height - endScreenFrame.origin.y
+            didMoveTo: webInputAccessoryObserverView?.getKeyboardOffset() ?? 0
         )
 
         // While the keyboard is opening:
@@ -1478,12 +1495,26 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // keyboard open animation is like this.
         updateWebViewSafeAreaInsets(
             alsoCallFrameChangeListeners: (
-                screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y,
-                screen.coordinateSpace.bounds.height - endScreenFrame.origin.y,
+                // We use `keyboardOffsetWithoutToolbar` for measuring the keyboard which is
+                // populated by `webInputAccessoryObserverView` instead of
+                // `notification.userInfo`'s `keyboardFrameBeginUserInfoKey` and
+                // `keyboardFrameEndUserInfoKey`. We do this because
+                // `webInputAccessoryObserverView` gives us the correct keyboard offset even
+                // when the user is scrolling down to dismiss the keyboard and we want one
+                // consistent keyboard height measurement everywhere.
+                //
+                // Also `notification.userInfo`'s `keyboardFrameBeginUserInfoKey` and
+                // `keyboardFrameEndUserInfoKey` include the keyboard input accessory view's
+                // height which we don't want.
+                lastKeyboardOffsetWithoutToolbar, keyboardOffsetWithoutToolbar,
                 shouldDisableScrollFromKeyboardFrameChange == 0,
                 UIView.inheritedAnimationDuration > 0
             )
         )
+
+        // After sending an update to web code, update
+        // `lastKeyboardOffsetWithoutToolbar`.
+        lastKeyboardOffsetWithoutToolbar = keyboardOffsetWithoutToolbar
     }
 
     @objc private func keyboardDidShow(notification: NSNotification) {
@@ -1507,13 +1538,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // after that method.
         setAllWebScrollViewScrollIndicatorInsets()
 
-        let screen = notification.object as! UIScreen
-        let beginScreenFrame =
-            (notification.userInfo![UIResponder.keyboardFrameBeginUserInfoKey] as! NSValue)
-            .cgRectValue
-        let endScreenFrame =
-            (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
-            .cgRectValue
         let animationCurve =
             (notification.userInfo![UIResponder.keyboardAnimationCurveUserInfoKey] as! UInt)
         let animationDuration =
@@ -1531,12 +1555,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // with identical keyboard offset is a noop.
         webInputAccessoryObserverView(
             nil,
-            didMoveTo: screen.coordinateSpace.bounds.height - endScreenFrame.origin.y
+            didMoveTo: webInputAccessoryObserverView?.getKeyboardOffset() ?? 0
         )
 
         let args = [
-            "\(screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y)",
-            "\(screen.coordinateSpace.bounds.height - endScreenFrame.origin.y)",
+            "\(lastKeyboardOffsetWithoutToolbar)", "\(keyboardOffsetWithoutToolbar)",
             "\(shouldDisableScrollFromKeyboardFrameChange == 0)",
             "\(UIView.inheritedAnimationDuration > 0)",
         ]
@@ -1547,6 +1570,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         webView.evaluateJavaScript(
             "window.__NativeMobileBridge.keyboard._callFrameChangeListeners(\(args))"
         )
+
+        // After sending an update to web code, update
+        // `lastKeyboardOffsetWithoutToolbar`.
+        lastKeyboardOffsetWithoutToolbar = keyboardOffsetWithoutToolbar
 
         // We observe that `keyboardDidHide()` is called after ~500ms whereas
         // `animationDuration` is 250ms. We want to call our keyboard animation
@@ -1663,6 +1690,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // Scroll indicator insets and masked view masks change when window safe
         // area changes.
         setAllWebScrollViewScrollIndicatorInsets()
+        updateWebInputAccessoryObserverViewHeight()
         updateAllWebMaskedViewMasks()
     }
 
@@ -1830,6 +1858,63 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             ),
             right: verticalScrollIndicatorInsets.right
         )
+    }
+
+    /// Update `webInputAccessoryObserverView`'s height to be equal to the height of
+    /// our web view bottom bars. The input accessory view's height determines where
+    /// the keyboard scroll to dismiss gesture
+    /// (`scrollView.keyboardDismissMode = .interactive`) begins. We want the
+    /// gesture to be gin at the top of our bottom bar, not where the keyboard
+    /// starts.
+    ///
+    /// To make sure the input accessory view is the right height you can add the
+    /// following to `webInputAccessoryObserverView` to help you debug.
+    ///
+    /// ```
+    /// backgroundColor = .red
+    /// layer.opacity = 0.5
+    /// ```
+    private func updateWebInputAccessoryObserverViewHeight() {
+        guard let webInputAccessoryObserverView = webInputAccessoryObserverView else { return }
+
+        var maxWebBottomBarHeight = 0.0
+
+        for (webBottomBarView, webBottomBarViewState) in webBottomBarViews {
+            let webBottomBarViewOriginY = webBottomBarView.superview!
+                .convert(
+                    CGPoint(
+                        x: 0,
+                        // `view.layer.position`, `view.layer.anchorPoint`, and `view.layer.bounds`
+                        // gives us layer sizing before `view.layer.transform` is applied. [The
+                        // documentation tells us][1] to not use `view.frame` if there's a transform
+                        // so instead we use `view.layer` properties.
+                        //
+                        // [1]: https://developer.apple.com/documentation/uikit/uiview/1622621-frame
+                        y: webBottomBarView.layer.position.y
+                            - (webBottomBarView.layer.anchorPoint.y
+                                * webBottomBarView.layer.bounds.height)
+                    ),
+                    to: view
+                )
+                .y
+
+            // Include the keyboard toolbar height in the input accessory view's height
+            // even when the keyboard is not expanded.
+            let extraWebBottomBarHeight =
+                switch webBottomBarViewState.type {
+                case .normal(let withKeyboardToolbar):
+                    withKeyboardToolbar ? bottomBarKeyboardToolbarHeight : 0
+                case .keyboardToolbar: bottomBarKeyboardToolbarHeight
+                }
+
+            let webBottomBarHeight =
+                (view.bounds.height - windowSafeAreaInsets.bottom - webBottomBarViewOriginY)
+                + extraWebBottomBarHeight
+
+            maxWebBottomBarHeight = max(maxWebBottomBarHeight, webBottomBarHeight)
+        }
+
+        webInputAccessoryObserverView.frame.size.height = maxWebBottomBarHeight
     }
 
     override func pushViewController(_ viewController: UIViewController, animated: Bool) {
@@ -2681,6 +2766,28 @@ private protocol WebInputAccessoryObserverViewDelegate: AnyObject {
 private class WebInputAccessoryObserverView: UIView {
     weak var delegate: WebInputAccessoryObserverViewDelegate?
 
+    // In order for the input accessory view to stay on top of the keyboard when
+    // the height changes we need this bit of code. Adapted from:
+    // https://stackoverflow.com/a/33988855/1568890
+    //
+    // To help you debug the accessory view's size is correct add this to
+    // `init()`:
+    //
+    // ```
+    // backgroundColor = .red
+    // layer.opacity = 0.5
+    // ```
+    override var frame: CGRect {
+        didSet {
+            for constraint in constraints {
+                if constraint.firstAttribute == .height {
+                    constraint.constant = frame.size.height
+                    break
+                }
+            }
+        }
+    }
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         isUserInteractionEnabled = false
@@ -2703,13 +2810,14 @@ private class WebInputAccessoryObserverView: UIView {
     ) {
         if keyPath != "center" { return }
 
-        let superview = object as! UIView
+        delegate?.webInputAccessoryObserverView(self, didMoveTo: getKeyboardOffset())
+    }
 
-        if let superSuperview = superview.superview {
-            let keyboardOffset = max(0, superSuperview.bounds.height - superview.frame.origin.y)
+    func getKeyboardOffset() -> Double {
+        guard let superview = superview else { return 0 }
+        guard let superSuperview = superview.superview else { return 0 }
 
-            delegate?.webInputAccessoryObserverView(self, didMoveTo: keyboardOffset)
-        }
+        return max(0, superSuperview.bounds.height - superview.frame.origin.y - frame.size.height)
     }
 }
 
