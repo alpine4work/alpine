@@ -14,6 +14,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {flushSync} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
@@ -102,6 +103,36 @@ export function getNavigationBarHeightPxWithoutListening(): number {
     const mobileNavigationBarHeight = 70;
 
     assert(mobileNavigationBarHeight === mobileNavigationBarHeightRem * remPxByPlatform.mobile);
+}
+
+const onNavigationBarPrepareSmoothScrollToSymbol = Symbol("onNavigationBarPrepareSmoothScrollTo");
+
+/**
+ * When we call `scrollTo({top: newScrollTop, behavior: "smooth"})` then in
+ * mobile WebKit a scroll animation will be started on iOS's UI thread. We may
+ * get scroll events after a delay as iOS prioritizes animation performance.
+ *
+ * If this scroll would change the scroll direction then we need to update our
+ * navigation bar's `scrollDirectionState` BEFORE the animation starts so our
+ * sticky positioning CSS is ready for the animation. Otherwise there may be a
+ * little jank in the animation as sticky positioning thinks we're scrolling in
+ * the wrong direction.
+ *
+ * Ideally we'd call this before any
+ * `scrollTo({top: newScrollTop, behavior: "smooth"})` call but since we don't
+ * want to mutate `Element.prototype` instead we'll manually call this function
+ * when necessary.
+ *
+ * Example of bug this fixes:
+ * https://gist.github.com/calebmer/91334a35af1e9ee8043bea5e1c105728
+ */
+export function dispatchNavigationBarPrepareSmoothScrollTo(
+    element: Element & {
+        [onNavigationBarPrepareSmoothScrollToSymbol]?: (scrollTop: number) => void;
+    },
+    scrollTop: number,
+) {
+    element[onNavigationBarPrepareSmoothScrollToSymbol]?.(scrollTop);
 }
 
 type ScrollDirectionState = {
@@ -439,6 +470,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     const navigationBarRef = useRef<{
         initialize: (element: HTMLElement) => void;
         onScroll: (element: HTMLElement) => void;
+        onPrepareSmoothScrollTo: (element: HTMLElement, scrollTop: number) => void;
     } | null>(null);
 
     const [scrollViewSize, setScrollViewSize] = useState<{height: number; width: number} | null>(
@@ -468,6 +500,13 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
                     assertExists(navigationBarRef.current).onScroll(element);
                 };
 
+                const handlePrepareSmoothScrollTo = (scrollTop: number) => {
+                    assertExists(navigationBarRef.current).onPrepareSmoothScrollTo(
+                        element,
+                        scrollTop,
+                    );
+                };
+
                 // Immediately populate the content rect with our element's dimensions
                 // on mount.
                 handleResize();
@@ -476,10 +515,13 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
 
                 addResizeListenerForElement(element, handleResize);
                 element.addEventListener("scroll", handleScroll);
+                (element as any)[onNavigationBarPrepareSmoothScrollToSymbol] =
+                    handlePrepareSmoothScrollTo;
 
                 return () => {
                     element.removeEventListener("scroll", handleScroll);
                     removeResizeListenerForElement(element, handleResize);
+                    (element as any)[onNavigationBarPrepareSmoothScrollToSymbol] = undefined;
                 };
             },
             [isDisabled],
@@ -580,6 +622,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     handleRef: MutableRefObject<{
         initialize: (element: HTMLElement) => void;
         onScroll: (element: HTMLElement) => void;
+        onPrepareSmoothScrollTo: (element: HTMLElement, scrollTop: number) => void;
     } | null>;
     scrollViewSize: {width: number; height: number} | null;
     navigationBarRef: Ref<NavigationBarRef> | undefined;
@@ -746,11 +789,6 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     // paints to the screen, but web code doesn't have a good way to listen for
                     // scroll view content resize. (Whereas in iOS native code we can use KVO to
                     // listen to `contentSize` on `UIScrollView`.)
-                    //
-                    // NOCOMMIT: Test that this actually works. We may need a `flushSync()` in a
-                    // resize observer to make sure this update occurs in the same paint as the
-                    // resize. See code d7bd291ec6a9941fadc9c01c279b9da2ca347f1f for a version that
-                    // uses `ResizeObserver`.
                     if (
                         scrollOffset > lastScrollOffset &&
                         scrollOffset - lastScrollOffset == scrollHeight - lastScrollHeight
@@ -758,13 +796,17 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                         const navigationBarTopOffset = scrollOffset - lastNavigationBarScrollOffset;
                         lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
 
-                        setScrollDirectionState({
-                            scrollDirection: lastScrollDirectionRef.current,
-                            navigationBarTopOffset: Math.max(
-                                0,
-                                navigationBarTopOffset - desktopMarginTopRem * remPx,
-                            ),
-                            animateNavigationBarTranslateY: 0,
+                        // Immediately update our sticky positioning CSS to avoid potential jankiness.
+                        flushSync(() => {
+                            setScrollDirectionState({
+                                scrollDirection: lastScrollDirectionRef.current,
+                                navigationBarTopOffset: Math.max(
+                                    0,
+                                    navigationBarTopOffset -
+                                        (!isMobile ? desktopMarginTopRem * remPx : 0),
+                                ),
+                                animateNavigationBarTranslateY: 0,
+                            });
                         });
                     }
 
@@ -813,7 +855,8 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
                         const isNavigationBarOpaque = lastIsNavigationBarOpaque
                             ? scrollOffset > 0
-                            : scrollOffset > navigationBarHeight + desktopMarginTopRem * remPx;
+                            : scrollOffset >
+                              navigationBarHeight + (!isMobile ? desktopMarginTopRem * remPx : 0);
 
                         // Compute the title boundary scroll offset...
                         let titleBoundaryOffset: number | null = null;
@@ -950,13 +993,17 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             lastScrollOffset - lastNavigationBarScrollOffset;
                         lastNavigationBarTopOffsetRef.current = lastNavigationBarTopOffset;
 
-                        setScrollDirectionState({
-                            scrollDirection,
-                            navigationBarTopOffset: Math.max(
-                                0,
-                                lastNavigationBarTopOffset - desktopMarginTopRem * remPx,
-                            ),
-                            animateNavigationBarTranslateY: 0,
+                        // Immediately update our sticky positioning CSS to avoid potential jankiness.
+                        flushSync(() => {
+                            setScrollDirectionState({
+                                scrollDirection,
+                                navigationBarTopOffset: Math.max(
+                                    0,
+                                    lastNavigationBarTopOffset -
+                                        (!isMobile ? desktopMarginTopRem * remPx : 0),
+                                ),
+                                animateNavigationBarTranslateY: 0,
+                            });
                         });
                     }
 
@@ -1026,7 +1073,8 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                 scrollDirection,
                                 navigationBarTopOffset: Math.max(
                                     0,
-                                    navigationBarTopOffset - desktopMarginTopRem * remPx,
+                                    navigationBarTopOffset -
+                                        (!isMobile ? desktopMarginTopRem * remPx : 0),
                                 ),
                                 animateNavigationBarTranslateY:
                                     navigationBarTopOffset - lastNavigationBarTopOffset,
@@ -1034,9 +1082,33 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                         }, navigationBarTransitionDebounceScrollTimeoutMs);
                     }
                 },
+                onPrepareSmoothScrollTo: (element: HTMLElement, nextScrollOffset: number) => {
+                    const scrollOffset = lastScrollOffsetRef.current;
+                    const scrollDirection = nextScrollOffset > scrollOffset ? "Down" : "Up";
+
+                    // If the `scrollTo()` is going to scroll in a different direction than what we
+                    // currently have for `scrollDirection`, then update our state so that our
+                    // sticky positioning CSS is ready for the scroll.
+                    if (scrollDirection !== lastScrollDirectionRef.current) {
+                        // Immediately update our sticky positioning CSS to avoid potential jankiness.
+                        flushSync(() => {
+                            setScrollDirectionState({
+                                scrollDirection,
+                                navigationBarTopOffset: lastNavigationBarTopOffsetRef.current,
+                                animateNavigationBarTranslateY: 0,
+                            });
+                        });
+                    }
+                },
             };
         },
-        [desktopMarginTopRem, navigationBarHeightRem, titleBoundaryRef, withoutDisappearingTitle],
+        [
+            desktopMarginTopRem,
+            isMobile,
+            navigationBarHeightRem,
+            titleBoundaryRef,
+            withoutDisappearingTitle,
+        ],
     );
 
     const lastAnimatedScrollDirectionStateRef = useRef(scrollDirectionState);

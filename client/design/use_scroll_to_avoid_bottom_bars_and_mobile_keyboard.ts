@@ -1,6 +1,9 @@
 import {Memo, RefObject, useEffect} from "react";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
-import {getNavigationBarHeightPxWithoutListening} from "~/client/design/navigation_bar.js";
+import {
+    dispatchNavigationBarPrepareSmoothScrollTo,
+    getNavigationBarHeightPxWithoutListening,
+} from "~/client/design/navigation_bar.js";
 import {getElementWindowSafeAreaInsetBottomPx} from "~/client/design/safe_area_inset.js";
 import {
     getCurrentBottomBarHeight,
@@ -316,8 +319,21 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 const newScrollBottom = scrollBottom - visibleRectBottomDelta;
                 if (newScrollBottom >= 0) return;
 
+                const newScrollTop = scrollableElement.scrollTop + newScrollBottom;
+
+                // Prepare navigation bar scroll direction state for a smooth scroll animation
+                // run by the native platform. For example, on mobile WebKit scroll events may
+                // be sent to the web thread after a delay as scroll animation performance is
+                // prioritized.
+                //
+                // Example of bug this fixes:
+                // https://gist.github.com/calebmer/91334a35af1e9ee8043bea5e1c105728
+                if (isAnimated) {
+                    dispatchNavigationBarPrepareSmoothScrollTo(scrollableElement, newScrollTop);
+                }
+
                 scrollableElement.scrollTo({
-                    top: scrollableElement.scrollTop + newScrollBottom,
+                    top: newScrollTop,
                     behavior: isAnimated ? "smooth" : "instant",
                 });
             };
@@ -547,8 +563,21 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                     : tabBarHeight;
 
             if (tabBarHeightAfterScroll === tabBarHeight) {
+                const newScrollTop = scrollableElement.scrollTop + scrollDelta;
+
+                // Prepare navigation bar scroll direction state for a smooth scroll animation
+                // run by the native platform. For example, on mobile WebKit scroll events may
+                // be sent to the web thread after a delay as scroll animation performance is
+                // prioritized.
+                //
+                // Example of bug this fixes:
+                // https://gist.github.com/calebmer/91334a35af1e9ee8043bea5e1c105728
+                if (isAnimated) {
+                    dispatchNavigationBarPrepareSmoothScrollTo(scrollableElement, newScrollTop);
+                }
+
                 scrollableElement.scrollTo({
-                    top: scrollableElement.scrollTop + scrollDelta,
+                    top: newScrollTop,
                     behavior: isAnimated ? "smooth" : "instant",
                 });
             } else {
@@ -602,8 +631,21 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                     scrollDelta += recoveringScrollDelta.scrollDeltaDifference;
                 }
 
+                const newScrollTop = scrollableElement.scrollTop + scrollDelta;
+
+                // Prepare navigation bar scroll direction state for a smooth scroll animation
+                // run by the native platform. For example, on mobile WebKit scroll events may
+                // be sent to the web thread after a delay as scroll animation performance is
+                // prioritized.
+                //
+                // Example of bug this fixes:
+                // https://gist.github.com/calebmer/91334a35af1e9ee8043bea5e1c105728
+                if (isAnimated) {
+                    dispatchNavigationBarPrepareSmoothScrollTo(scrollableElement, newScrollTop);
+                }
+
                 scrollableElement.scrollTo({
-                    top: scrollableElement.scrollTop + scrollDelta,
+                    top: newScrollTop,
                     behavior: isAnimated ? "smooth" : "instant",
                 });
 
