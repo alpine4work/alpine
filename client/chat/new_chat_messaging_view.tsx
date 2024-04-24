@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
 
-import {useCallback, useRef} from "react";
+import {Ref, forwardRef, useCallback, useRef} from "react";
 import {chatMessagingViewHeader} from "~/client/chat/chat_view.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {MessagingView} from "~/client/messaging/messaging_view.js";
+import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
@@ -14,15 +14,21 @@ import {
     getChatMessagesFromStart,
 } from "~/shared/rpc/chat_rpc_definitions.js";
 
-export function NewChatMessagingView({
-    selectedChat,
-}: {
-    selectedChat: {
-        chat: ChatModel;
-        initialMessages: ReadonlyArray<ChatMessageModel>;
-        initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
-    } | null;
-}) {
+const NewChatMessagingViewForwardRef = forwardRef(NewChatMessagingView);
+export {NewChatMessagingViewForwardRef as NewChatMessagingView};
+
+function NewChatMessagingView(
+    {
+        selectedChat,
+    }: {
+        selectedChat: {
+            chat: ChatModel;
+            initialMessages: ReadonlyArray<ChatMessageModel>;
+            initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
+        } | null;
+    },
+    ref: Ref<MessagingViewRef>,
+) {
     const context = useAppContext();
 
     const {isConnected, procedures, subscribeToEvents} = useWebSocket(
@@ -37,6 +43,7 @@ export function NewChatMessagingView({
 
     return (
         <MessagingView
+            ref={ref}
             key={selectedChat?.chat.id ?? "unknown"}
             initialScrollOffset="bottom"
             initialMessagesResult={

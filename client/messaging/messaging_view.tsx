@@ -183,6 +183,8 @@ const Box = null;
 
 export type MessagingViewRef = {
     jumpToMessageIndex(messageIndex: number): void;
+    getScrollOffset(): number;
+    setScrollOffset(scrollOffset: number): void;
 };
 
 const MessagingViewForwardRef = forwardRef(MessagingView);
@@ -531,7 +533,16 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         [jumpToMessageIndex],
     );
 
-    useImperativeHandle(ref, () => ({jumpToMessageIndex}), [jumpToMessageIndex]);
+    useImperativeHandle(
+        ref,
+        () => ({
+            jumpToMessageIndex,
+            getScrollOffset: () => assertExists(viewRef.current).getScrollOffset(),
+            setScrollOffset: scrollOffset =>
+                assertExists(viewRef.current).setScrollOffset(scrollOffset),
+        }),
+        [jumpToMessageIndex],
+    );
 
     useMessagingRealtime({
         messages: state.messages,

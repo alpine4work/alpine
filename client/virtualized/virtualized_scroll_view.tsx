@@ -1284,9 +1284,10 @@ function VirtualizedScrollView(
         lastScrollTopRef.current = scrollTop;
     };
 
-    const stateRef = useRef({state, itemCount, getItemWithoutRender});
+    const stateRefCurrent = {state, itemCount, getItemWithoutRender};
+    const stateRef = useRef(stateRefCurrent);
     useLayoutEffectWithoutServerSideWarning(() => {
-        stateRef.current = {state, itemCount, getItemWithoutRender};
+        stateRef.current = stateRefCurrent;
     });
 
     const previousScrollAnchorAdjustmentDuringMobileWebKitScrollRef = useRef(
@@ -1497,17 +1498,14 @@ function VirtualizedScrollView(
     useLayoutEffectWithoutServerSideWarning(() => {
         const scrollElement = assertExists(scrollRef.current);
 
-        let lastViewHeight = scrollElement.clientHeight;
-
         const handleResize = () => {
             const viewHeight = scrollElement.clientHeight;
 
-            if (lastViewHeight === viewHeight) return;
-            lastViewHeight = viewHeight;
+            if (stateRef.current.state.getViewHeight() === viewHeight) return;
 
             setActualState(actualState => {
                 if (actualState.state.getViewHeight() === viewHeight) return actualState;
-                return {...actualState, state: state.setViewHeight(viewHeight)};
+                return {...actualState, state: actualState.state.setViewHeight(viewHeight)};
             });
         };
 
@@ -1523,7 +1521,7 @@ function VirtualizedScrollView(
             removeSuppressResizeLoopErrorNotificationForElement(scrollElement);
             removeResizeListenerForElement(scrollElement, handleResize);
         };
-    });
+    }, []);
 
     // Effect to report the rendered range back to our callback.
     const events = useEvents({
