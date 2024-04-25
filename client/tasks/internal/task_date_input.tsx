@@ -7,7 +7,7 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
-import {getCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
+import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
@@ -104,6 +104,8 @@ export function TaskDateInput({
 
     const isEditing = !isReadOnly && (isFocusWithinInput || isFocusWithinOverlay);
 
+    const getCurrentCoveredHeight = useGetCurrentCoveredHeight();
+
     // When our calendar overlay opens on mobile we need to scroll it into view if
     // it's rendered offscreen.
     //
@@ -182,7 +184,7 @@ export function TaskDateInput({
         return () => {
             isCancelled = true;
         };
-    }, [isEditing, isMobile]);
+    }, [getCurrentCoveredHeight, isEditing, isMobile]);
 
     const insetMarginY = height === "full" ? undefined : isMobile ? "2.5" : undefined;
 

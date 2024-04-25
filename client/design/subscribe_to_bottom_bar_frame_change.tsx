@@ -1,6 +1,7 @@
-import {RefObject} from "react";
+import {Memo, ReactNode, RefObject, createContext, useCallback, useContext, useState} from "react";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {mobileBottomBarKeyboardToolbarHeightRem} from "~/client/design/mobile_bottom_bar.js";
+import {throwIfRendering} from "~/client/helpers/lifecycle/throw_if_rendering.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {
     addResizeListenerForElement,
@@ -9,27 +10,90 @@ import {
     removeSuppressResizeLoopErrorNotificationForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
+import {InternalError} from "~/shared/error/error.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 
-let currentBottomBarHeight: {visibleMobileKeyboard: number; hiddenMobileKeyboard: number} | null =
-    null;
+type BottomBarFrameContext = {
+    currentBottomBarHeight: {
+        readonly visibleMobileKeyboard: number;
+        readonly hiddenMobileKeyboard: number;
+    } | null;
+    bottomBarFrameChangeEmitter: EventEmitter<{
+        oldBottomBarHeight: {
+            readonly visibleMobileKeyboard: number;
+            readonly hiddenMobileKeyboard: number;
+        };
+        newBottomBarHeight: {
+            readonly visibleMobileKeyboard: number;
+            readonly hiddenMobileKeyboard: number;
+        };
+    }> | null;
+    bottomBarFrames: Set<{readonly height: number; readonly withMobileKeyboardToolbar: boolean}>;
+};
 
-let bottomBarFrameChangeEmitter: EventEmitter<{
-    oldBottomBarHeight: {visibleMobileKeyboard: number; hiddenMobileKeyboard: number};
-    newBottomBarHeight: {visibleMobileKeyboard: number; hiddenMobileKeyboard: number};
-}> | null = null;
-let bottomBarFrames: Set<{height: number; withMobileKeyboardToolbar: boolean}> | null = null;
+const BottomBarFrameContext = createContext<BottomBarFrameContext | null>(null);
+
+function getInitialBottomBarFrameContext(): BottomBarFrameContext {
+    return {
+        currentBottomBarHeight: null,
+        bottomBarFrameChangeEmitter: null,
+        bottomBarFrames: new Set(),
+    };
+}
+
+const bottomBarFrameContextForTest: BottomBarFrameContext | null = import.meta.jest
+    ? getInitialBottomBarFrameContext()
+    : null;
+
+function useBottomBarFrameContext(): BottomBarFrameContext {
+    const context = useContext(BottomBarFrameContext);
+
+    if (context === null) {
+        // In Jest tests, act like we are not in the initial render unless an
+        // `<BottomBarFrameContextProvider>` is explicitly used.
+        if (import.meta.jest) return assertExists(bottomBarFrameContextForTest);
+
+        throw new InternalError("Must be rendered in an `<BottomBarFrameContextProvider>`");
+    }
+
+    return context;
+}
+
+export function BottomBarFrameContextProvider({children}: {children?: ReactNode}) {
+    const [context] = useState<BottomBarFrameContext>(getInitialBottomBarFrameContext);
+
+    return (
+        <BottomBarFrameContext.Provider value={context}>{children}</BottomBarFrameContext.Provider>
+    );
+}
+
+const zeroBottomBarHeight = {visibleMobileKeyboard: 0, hiddenMobileKeyboard: 0};
 
 /**
  * Get the current bottom bar height.
+ *
+ * The returned function reads mutable state so you may not call it
+ * during React renders.
  */
-export function getCurrentBottomBarHeight(): {
-    readonly visibleMobileKeyboard: number;
-    readonly hiddenMobileKeyboard: number;
-} {
-    return (currentBottomBarHeight ??= {visibleMobileKeyboard: 0, hiddenMobileKeyboard: 0});
+export function useGetCurrentBottomBarHeight(): Memo<
+    () => {
+        readonly visibleMobileKeyboard: number;
+        readonly hiddenMobileKeyboard: number;
+    }
+> {
+    const context = useContext(BottomBarFrameContext);
+
+    return useCallback(() => {
+        // We read mutable state (`context.currentBottomBarHeight`) so this function
+        // can't be called during a React render.
+        throwIfRendering();
+
+        if (context === null) return zeroBottomBarHeight;
+
+        return (context.currentBottomBarHeight ??= zeroBottomBarHeight);
+    }, [context]);
 }
 
 /**
@@ -43,6 +107,7 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
         withMobileKeyboardToolbar = false,
     }: {isDisabled?: boolean; withMobileKeyboardToolbar?: boolean} = {},
 ) {
+    const context = useBottomBarFrameContext();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
 
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -82,7 +147,7 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
                 currentHeight = height;
 
                 const oldUnregister = unregister;
-                unregister = registerBottomBarFrame(height, {withMobileKeyboardToolbar});
+                unregister = registerBottomBarFrame(context, height, {withMobileKeyboardToolbar});
 
                 // Make sure to unregister AFTER registering the new height. That way if the
                 // height didn't change there will be no update notifications.
@@ -117,7 +182,7 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
                 });
             });
         };
-    }, [elementRef, isDisabled, isInertNativeMobileRoute, withMobileKeyboardToolbar]);
+    }, [context, elementRef, isDisabled, isInertNativeMobileRoute, withMobileKeyboardToolbar]);
 }
 
 /**
@@ -127,6 +192,7 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
 export function useRegisterBottomBarMobileKeyboardToolbarFrame({
     isDisabled = false,
 }: {isDisabled?: boolean} = {}) {
+    const context = useBottomBarFrameContext();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
 
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -143,7 +209,7 @@ export function useRegisterBottomBarMobileKeyboardToolbarFrame({
         scheduleMicrotask(() => {
             if (isCancelled) return;
 
-            unregister = registerBottomBarMobileKeyboardToolbarFrame();
+            unregister = registerBottomBarMobileKeyboardToolbarFrame(context);
         });
 
         return () => {
@@ -163,7 +229,7 @@ export function useRegisterBottomBarMobileKeyboardToolbarFrame({
                 });
             });
         };
-    }, [isDisabled, isInertNativeMobileRoute]);
+    }, [context, isDisabled, isInertNativeMobileRoute]);
 }
 
 /**
@@ -171,51 +237,52 @@ export function useRegisterBottomBarMobileKeyboardToolbarFrame({
  * `subscribeToMobilBottomBarFrameChange()`.
  */
 function registerBottomBarFrame(
+    context: BottomBarFrameContext,
     height: number,
     {withMobileKeyboardToolbar = false}: {withMobileKeyboardToolbar?: boolean} = {},
 ): () => void {
     const bottomBarFrame = {height, withMobileKeyboardToolbar};
 
-    (bottomBarFrames ??= new Set()).add(bottomBarFrame);
+    (context.bottomBarFrames ??= new Set()).add(bottomBarFrame);
 
-    const oldBottomBarHeight = (currentBottomBarHeight ??= {
+    const oldBottomBarHeight = (context.currentBottomBarHeight ??= {
         visibleMobileKeyboard: 0,
         hiddenMobileKeyboard: 0,
     });
     const newBottomBarHeight = {
-        visibleMobileKeyboard: getMobileBottomBarHeight(true),
-        hiddenMobileKeyboard: getMobileBottomBarHeight(false),
+        visibleMobileKeyboard: getMobileBottomBarHeight(context, true),
+        hiddenMobileKeyboard: getMobileBottomBarHeight(context, false),
     };
     if (
         oldBottomBarHeight.hiddenMobileKeyboard !== newBottomBarHeight.hiddenMobileKeyboard ||
         oldBottomBarHeight.visibleMobileKeyboard !== newBottomBarHeight.visibleMobileKeyboard
     ) {
-        currentBottomBarHeight = newBottomBarHeight;
-        (bottomBarFrameChangeEmitter ??= new EventEmitter()).emit({
+        context.currentBottomBarHeight = newBottomBarHeight;
+        (context.bottomBarFrameChangeEmitter ??= new EventEmitter()).emit({
             oldBottomBarHeight,
-            newBottomBarHeight: currentBottomBarHeight,
+            newBottomBarHeight: context.currentBottomBarHeight,
         });
     }
 
     return () => {
-        (bottomBarFrames ??= new Set()).delete(bottomBarFrame);
+        (context.bottomBarFrames ??= new Set()).delete(bottomBarFrame);
 
-        const oldBottomBarHeight = (currentBottomBarHeight ??= {
+        const oldBottomBarHeight = (context.currentBottomBarHeight ??= {
             visibleMobileKeyboard: 0,
             hiddenMobileKeyboard: 0,
         });
         const newBottomBarHeight = {
-            visibleMobileKeyboard: getMobileBottomBarHeight(true),
-            hiddenMobileKeyboard: getMobileBottomBarHeight(false),
+            visibleMobileKeyboard: getMobileBottomBarHeight(context, true),
+            hiddenMobileKeyboard: getMobileBottomBarHeight(context, false),
         };
         if (
             oldBottomBarHeight.hiddenMobileKeyboard !== newBottomBarHeight.hiddenMobileKeyboard ||
             oldBottomBarHeight.visibleMobileKeyboard !== newBottomBarHeight.visibleMobileKeyboard
         ) {
-            currentBottomBarHeight = newBottomBarHeight;
-            (bottomBarFrameChangeEmitter ??= new EventEmitter()).emit({
+            context.currentBottomBarHeight = newBottomBarHeight;
+            (context.bottomBarFrameChangeEmitter ??= new EventEmitter()).emit({
                 oldBottomBarHeight,
-                newBottomBarHeight: currentBottomBarHeight,
+                newBottomBarHeight: context.currentBottomBarHeight,
             });
         }
     };
@@ -225,16 +292,19 @@ function registerBottomBarFrame(
  * Register a mobile bottom bar that just provides a keyboard toolbar for the
  * height calculations of `subscribeToMobilBottomBarFrameChange()`.
  */
-function registerBottomBarMobileKeyboardToolbarFrame() {
-    return registerBottomBarFrame(0, {withMobileKeyboardToolbar: true});
+function registerBottomBarMobileKeyboardToolbarFrame(context: BottomBarFrameContext) {
+    return registerBottomBarFrame(context, 0, {withMobileKeyboardToolbar: true});
 }
 
-function getMobileBottomBarHeight(isMobileKeyboardVisible: boolean): number {
+function getMobileBottomBarHeight(
+    context: BottomBarFrameContext,
+    isMobileKeyboardVisible: boolean,
+): number {
     const remPx = getRemPxWithoutListening();
 
     let bottomBarHeight = 0;
 
-    for (const bottomBar of bottomBarFrames ?? []) {
+    for (const bottomBar of context.bottomBarFrames ?? []) {
         bottomBarHeight = Math.max(
             bottomBarHeight,
             bottomBar.height +
@@ -252,17 +322,26 @@ function getMobileBottomBarHeight(isMobileKeyboardVisible: boolean): number {
  *
  * Does nothing outside of mobile environments.
  */
-export function subscribeToBottomBarFrameChange(
-    listener: (event: {
-        readonly oldBottomBarHeight: {
-            readonly visibleMobileKeyboard: number;
-            readonly hiddenMobileKeyboard: number;
-        };
-        readonly newBottomBarHeight: {
-            readonly visibleMobileKeyboard: number;
-            readonly hiddenMobileKeyboard: number;
-        };
-    }) => void,
-): () => void {
-    return (bottomBarFrameChangeEmitter ??= new EventEmitter()).subscribe(listener);
+export function useSubscribeToBottomBarFrameChange(): Memo<
+    (
+        listener: (event: {
+            readonly oldBottomBarHeight: {
+                readonly visibleMobileKeyboard: number;
+                readonly hiddenMobileKeyboard: number;
+            };
+            readonly newBottomBarHeight: {
+                readonly visibleMobileKeyboard: number;
+                readonly hiddenMobileKeyboard: number;
+            };
+        }) => void,
+    ) => () => void
+> {
+    const context = useBottomBarFrameContext();
+
+    return useCallback(
+        listener => {
+            return (context.bottomBarFrameChangeEmitter ??= new EventEmitter()).subscribe(listener);
+        },
+        [context],
+    );
 }

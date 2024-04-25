@@ -25,7 +25,7 @@ import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
-import {maintainTextInputVisibility} from "~/client/design/register_text_input_visibility_maintainer.js";
+import {maintainTextInputVisibility} from "~/client/design/use_text_input_visibility_maintainer.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";

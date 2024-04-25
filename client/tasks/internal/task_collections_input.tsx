@@ -25,7 +25,7 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
-import {getCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
+import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -462,6 +462,8 @@ function TaskCollectionsInput(
         comboBoxState,
     );
 
+    const getCurrentCoveredHeight = useGetCurrentCoveredHeight();
+
     // When our calendar overlay opens on mobile we need to scroll it into view if
     // it's rendered offscreen.
     //
@@ -540,7 +542,7 @@ function TaskCollectionsInput(
         return () => {
             isCancelled = true;
         };
-    }, [comboBoxState.isOpen, isMobile]);
+    }, [comboBoxState.isOpen, getCurrentCoveredHeight, isMobile]);
 
     const inputPlaceholder = "Add";
 

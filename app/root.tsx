@@ -24,6 +24,7 @@ import {AppContextProvider, useAppContext} from "~/client/context/app_context.js
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {BottomBarFrameContextProvider} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
 import {ToastContextProvider} from "~/client/design/toast.js";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip.js";
 import {
@@ -385,13 +386,15 @@ export default function Root() {
                                     <WaitForNavigationContextProvider>
                                         <GlobalKeyDownRootContextProvider>
                                             <AccountClientStoreContextProvider>
-                                                <OverlayScopeContextProvider>
-                                                    <TooltipCoordinationContextProvider>
-                                                        <ToastContextProvider>
-                                                            {nodes}
-                                                        </ToastContextProvider>
-                                                    </TooltipCoordinationContextProvider>
-                                                </OverlayScopeContextProvider>
+                                                <BottomBarFrameContextProvider>
+                                                    <OverlayScopeContextProvider>
+                                                        <TooltipCoordinationContextProvider>
+                                                            <ToastContextProvider>
+                                                                {nodes}
+                                                            </ToastContextProvider>
+                                                        </TooltipCoordinationContextProvider>
+                                                    </OverlayScopeContextProvider>
+                                                </BottomBarFrameContextProvider>
                                             </AccountClientStoreContextProvider>
                                         </GlobalKeyDownRootContextProvider>
                                     </WaitForNavigationContextProvider>

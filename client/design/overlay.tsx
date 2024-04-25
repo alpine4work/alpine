@@ -21,7 +21,7 @@ import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_eleme
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {subscribeToMobileKeyboardFrameChange} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
-import {getCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
+import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
@@ -256,6 +256,8 @@ function Overlay(
         setPortalElement(portalRef.current);
     }, [isVisible, portalRef]);
 
+    const getCurrentCoveredHeight = useGetCurrentCoveredHeight();
+
     const targetLifecycleRef = useCallback(
         (targetElement: HTMLElement) => {
             assert(
@@ -489,6 +491,10 @@ function Overlay(
         [
             isVisible,
             portalElement,
+            sameWidth,
+            sameHeight,
+            defaultTargetElementId,
+            getCurrentCoveredHeight,
             overlaySink.insetLeft,
             overlaySink.insetRight,
             placement,
@@ -496,9 +502,6 @@ function Overlay(
             fallbackPlacements,
             offsetAlong,
             offset,
-            sameWidth,
-            sameHeight,
-            defaultTargetElementId,
         ],
     );
 

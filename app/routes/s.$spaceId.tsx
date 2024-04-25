@@ -13,9 +13,9 @@ import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {ContextMenuManager} from "~/client/design/context_menu.js";
 import {OverlayMobileKeyboardSinkContextProvider} from "~/client/design/overlay_mobile_keyboard_sink_context_provider.js";
-import {registerTextInputVisibilityMaintainer} from "~/client/design/register_text_input_visibility_maintainer.js";
 import {emitMobileKeyboardFrameChangeIfNotNative} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
 import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
+import {useTextInputVisibilityMaintainer} from "~/client/design/use_text_input_visibility_maintainer.js";
 import {
     attachDevConsoleForAccountInProduction,
     useDevConsoleTool,
@@ -196,7 +196,7 @@ export default function SpaceLayoutRoute() {
 
     // When the user types in a text input in a space we need to make sure the new
     // text isn't offscreen (or hidden by the native mobile keyboard).
-    useEffect(registerTextInputVisibilityMaintainer, []);
+    useTextInputVisibilityMaintainer();
 
     const {resizedWindowHeightForMobileWebKit} = useMobileWebKitKeyboardSupport();
 

@@ -1,4 +1,4 @@
-import {Memo, RefObject, useEffect} from "react";
+import {Memo, RefObject, useCallback, useEffect} from "react";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {
     dispatchNavigationBarPrepareSmoothScrollTo,
@@ -6,8 +6,8 @@ import {
 } from "~/client/design/navigation_bar.js";
 import {getElementWindowSafeAreaInsetBottomPx} from "~/client/design/safe_area_inset.js";
 import {
-    getCurrentBottomBarHeight,
-    subscribeToBottomBarFrameChange,
+    useGetCurrentBottomBarHeight,
+    useSubscribeToBottomBarFrameChange,
 } from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
 import {
     isMobileKeyboardFrameChangeEnabled,
@@ -16,6 +16,7 @@ import {
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
+import {throwIfRendering} from "~/client/helpers/lifecycle/throw_if_rendering.js";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
@@ -69,26 +70,42 @@ export function getCurrentMobileKeyboardHeight(): number {
     return currentMobileKeyboardHeight;
 }
 
-export function getCurrentCoveredHeight(): number {
-    const mobileKeyboardHeight = currentMobileKeyboardHeight;
-    const bottomBarHeight = getCurrentBottomBarHeight();
+/**
+ * Get the space on our screen covered by safe area, the tab bar, the mobile
+ * keyboard, and any bottom bars.
+ *
+ * The returned function reads mutable state so you may not call it
+ * during React renders.
+ */
+export function useGetCurrentCoveredHeight(): Memo<() => number> {
+    const getBottomBarHeight = useGetCurrentBottomBarHeight();
 
-    const tabBarHeight =
-        NativeMobileBridge && !NativeMobileBridge.tabBar.isDisabled()
-            ? NativeMobileBridge.tabBar.height - NativeMobileBridge.tabBar.getDeferredScrollOffset()
-            : 0;
+    return useCallback(() => {
+        // We read mutable state (`currentMobileKeyboardHeight` and
+        // `getElementWindowSafeAreaInsetBottomPx()`) so this function can't be called
+        // during a React render.
+        throwIfRendering();
 
-    const windowSafeAreaInsetBottom = getElementWindowSafeAreaInsetBottomPx(
-        document.documentElement,
-    );
+        const mobileKeyboardHeight = currentMobileKeyboardHeight;
 
-    const coveredHeight =
-        Math.max(mobileKeyboardHeight, windowSafeAreaInsetBottom + tabBarHeight) +
-        bottomBarHeight[
-            mobileKeyboardHeight > 0 ? "visibleMobileKeyboard" : "hiddenMobileKeyboard"
-        ];
+        const tabBarHeight =
+            NativeMobileBridge && !NativeMobileBridge.tabBar.isDisabled()
+                ? NativeMobileBridge.tabBar.height -
+                  NativeMobileBridge.tabBar.getDeferredScrollOffset()
+                : 0;
 
-    return coveredHeight;
+        const windowSafeAreaInsetBottom = getElementWindowSafeAreaInsetBottomPx(
+            document.documentElement,
+        );
+
+        const coveredHeight =
+            Math.max(mobileKeyboardHeight, windowSafeAreaInsetBottom + tabBarHeight) +
+            getBottomBarHeight()[
+                mobileKeyboardHeight > 0 ? "visibleMobileKeyboard" : "hiddenMobileKeyboard"
+            ];
+
+        return coveredHeight;
+    }, [getBottomBarHeight]);
 }
 
 /**
@@ -152,6 +169,8 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
         scrollableInsetBottom?: RemLength | number;
     },
 ) {
+    const getCurrentBottomBarHeight = useGetCurrentBottomBarHeight();
+    const subscribeToBottomBarFrameChange = useSubscribeToBottomBarFrameChange();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
 
     useEffect(() => {
@@ -693,10 +712,12 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
         };
     }, [
         getAnchorPosition,
+        getCurrentBottomBarHeight,
         isDisabled,
         isInertNativeMobileRoute,
         isPinned,
         scrollableInsetBottom,
         scrollableRef,
+        subscribeToBottomBarFrameChange,
     ]);
 }
