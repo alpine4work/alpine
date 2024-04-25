@@ -1020,6 +1020,10 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      * the client to attach some extra client-only data to an item in the query.
      * For instance, channels attach the realtime comment data of a post in the
      * `extra` property.
+     *
+     * You may update the `extra` of an item outside the loaded range with this
+     * method if the item exists in our query. (Because realtime has told us about
+     * it.)
      */
     public updateItemExtraByCursorIfExists(
         cursor: DynamoIndexCursor,
@@ -1039,6 +1043,52 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
             ...iterator.value,
             extra: newExtra,
         });
+
+        return new DynamoGeneralRealtimeIndexQuery({
+            indexName: this._indexName,
+            startCursorBound: this._startCursorBound,
+            endCursorBound: this._endCursorBound,
+            readTime: this._readTime,
+            itemByCursor,
+            itemVisibilityByKey: this._itemVisibilityByKey,
+            loadedPageInfo: this._loadedPageInfo,
+        });
+    }
+
+    /**
+     * Update the `extra` property of every item in the query.
+     *
+     * Includes items outside of the query's loaded range. There may be items
+     * outside of the query's loaded range that realtime tells us about.
+     */
+    public updateAllItemExtras(
+        update: (
+            item: DynamoGeneralRealtimeItem<Model> & {readonly extra: Extra | null},
+            cursor: DynamoIndexCursor,
+        ) => Extra | null,
+    ): DynamoGeneralRealtimeIndexQuery<Model, Extra> {
+        let itemByCursor = this._itemByCursor;
+
+        let iterator = itemByCursor.begin;
+        while (iterator.node) {
+            const node = iterator.node;
+
+            const newExtra = update(node.value, node.key);
+            if (newExtra === node.value.extra) {
+                iterator.next();
+                continue;
+            }
+
+            itemByCursor = iterator.update({
+                ...node.value,
+                extra: newExtra,
+            });
+            iterator = itemByCursor.find(node.key);
+            iterator.next();
+        }
+
+        // Optimization: Nothing changed, return a referentially equal query.
+        if (itemByCursor === this._itemByCursor) return this;
 
         return new DynamoGeneralRealtimeIndexQuery({
             indexName: this._indexName,

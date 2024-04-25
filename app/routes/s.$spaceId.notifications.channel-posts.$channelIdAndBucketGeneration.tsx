@@ -124,6 +124,13 @@ export default function ChannelPostsRoute({
         }),
     );
 
+    // On mobile, the comment button doesn't expand/collapse. Instead it opens the
+    // post in a new route. `<PostListView>` will throw if you pass in `posts` with
+    // expanded comments on mobile. So make sure to close them all.
+    if (isMobile && posts.hasOpenPostComments()) {
+        setPosts(posts.closeAllPostComments());
+    }
+
     const {item: channel} = useDynamoGeneralRealtimeItem(initialChannel, {
         isConnected,
         subscribeToEvents: useCallback(

@@ -1,4 +1,4 @@
-import {ChatCircle, Check, DotsThree, IconContext, Smiley, X} from "phosphor-react";
+import {ChatCircle, ChatCircleDots, Check, DotsThree, IconContext, Smiley, X} from "phosphor-react";
 import {CSSProperties, useContext, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
@@ -29,6 +29,7 @@ import {MessageList} from "~/client/messaging/message_list.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {
@@ -376,6 +377,8 @@ function PostContentViewFooter({
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
 }) {
+    const isMobile = useIsMobile();
+    const navigate = useNavigate();
     const showToast = useShowToast();
 
     return (
@@ -392,11 +395,14 @@ function PostContentViewFooter({
         >
             <Box marginLeft="-1.5" display="flex" alignItems="center" gap="1.5">
                 {postCommentsState === "AlwaysOpen" ? (
-                    <Box paddingX="1.5" color="grey-60">
-                        <PrettyNumber
-                            number={postComments.getMessageCountIncludingOptimisticMessages()}
-                            label="comment"
-                        />
+                    <Box paddingX="1.5" color="grey-50" display="flex" alignItems="center" gap="1">
+                        <ChatCircleDots size={spacing[postContentViewFooterButtonIconSize]} />
+                        <span style={{lineHeight: 1}}>
+                            <PrettyNumber
+                                number={postComments.getMessageCountIncludingOptimisticMessages()}
+                                label="comment"
+                            />
+                        </span>
                     </Box>
                 ) : (
                     <Button
@@ -404,36 +410,49 @@ function PostContentViewFooter({
                         height={postContentViewFooterButtonHeight}
                         paddingX="1.5"
                         icon={
-                            <Box
-                                position="relative"
-                                width={postContentViewFooterButtonIconSize}
-                                height={postContentViewFooterButtonIconSize}
-                            >
-                                <ChatCircle size={spacing[postContentViewFooterButtonIconSize]} />
+                            isMobile ? (
+                                <ChatCircleDots
+                                    size={spacing[postContentViewFooterButtonIconSize]}
+                                />
+                            ) : (
                                 <Box
-                                    position="absolute"
-                                    inset="0"
-                                    display="flex"
-                                    justifyContent="center"
-                                    alignItems="center"
+                                    position="relative"
+                                    width={postContentViewFooterButtonIconSize}
+                                    height={postContentViewFooterButtonIconSize}
                                 >
-                                    <CaretUpWithCustomizableStrokeWidth
-                                        size={spacing["2"]}
-                                        strokeWidthScale={4 / 2}
-                                        style={{
-                                            transform:
-                                                postCommentsState !== "Closed"
-                                                    ? "rotate(-180deg)"
-                                                    : "rotate(0deg)",
-                                            transition: "transform 250ms ease",
-                                        }}
+                                    <ChatCircle
+                                        size={spacing[postContentViewFooterButtonIconSize]}
                                     />
+                                    <Box
+                                        position="absolute"
+                                        inset="0"
+                                        display="flex"
+                                        justifyContent="center"
+                                        alignItems="center"
+                                    >
+                                        <CaretUpWithCustomizableStrokeWidth
+                                            size={spacing["2"]}
+                                            strokeWidthScale={4 / 2}
+                                            style={{
+                                                transform:
+                                                    postCommentsState !== "Closed"
+                                                        ? "rotate(-180deg)"
+                                                        : "rotate(0deg)",
+                                                transition: "transform 250ms ease",
+                                            }}
+                                        />
+                                    </Box>
                                 </Box>
-                            </Box>
+                            )
                         }
                         iconPlacement="start"
                         pressErrorTitle="Couldn’t open comments"
                         onPress={async () => {
+                            if (isMobile) {
+                                await navigate(`/s/${post.spaceId}/posts/${post.id}`);
+                                return;
+                            }
+
                             if (postCommentsState !== "Closed") {
                                 onTogglePostComments();
                                 return;

@@ -79,6 +79,13 @@ export function ChannelView({
 
     const [posts, setPosts] = useState(() => PostQueryList.new(initialPostsResult));
 
+    // On mobile, the comment button doesn't expand/collapse. Instead it opens the
+    // post in a new route. `<PostListView>` will throw if you pass in `posts` with
+    // expanded comments on mobile. So make sure to close them all.
+    if (isMobile && posts.hasOpenPostComments()) {
+        setPosts(posts.closeAllPostComments());
+    }
+
     useDevConsoleTool("channel", () => ({
         posts,
         toggleShouldConnect,

@@ -320,6 +320,19 @@ function PostListView(
         posts.getPostCount() === 1 &&
         posts.getPostContentItemIfExists(0)?.postCommentsState === "AlwaysOpen";
 
+    // On mobile, the comment button doesn't expand/collapse. Instead it opens the
+    // post in a new route. Because:
+    //
+    // - It's a challenging UI problem to have a sticky comment input while also
+    //   avoiding the keyboard and tab bar.
+    // - Because there's less space on mobile, it may be harder to mentally stay
+    //   aware of the fact that you're looking at a comment section in the middle
+    //   of a feed of posts. Opening in a new route with a post-specific header
+    //   lets the user stay focused.
+    if (isMobile && !isSingleLayoutWithPinnedCommentInput) {
+        assert(!posts.hasOpenPostComments(), "Posts can't have open comments on mobile");
+    }
+
     const isLoadingRef = useRef(false);
     const [errorState, setErrorState] = useState<
         {hasError: false} | {hasError: true; error: unknown}
@@ -821,6 +834,12 @@ function PostListView(
                                     display: "flex",
                                     justifyContent: "center",
                                 })}
+                                style={{
+                                    paddingBottom:
+                                        index === posts.getItemCount() - 1
+                                            ? "var(--safe-area-inset-bottom, 0px)"
+                                            : undefined,
+                                }}
                             >
                                 <div
                                     className={sprinkles({
@@ -1229,6 +1248,11 @@ function PostListView(
                 // a good abstraction here is so following the advice "no abstraction is better
                 // than the wrong abstraction".
                 case "PostCommentInput": {
+                    // On mobile, the comment button doesn't expand/collapse. Instead it opens the
+                    // post in a new route. Supplemental sanity check to the assert at the beginning
+                    // of this component.
+                    assert(!isMobile);
+
                     const replyingToPostCommentIndex = replyingToPostCommentIndexByPostId.get(
                         item.post.id,
                     );
@@ -1284,11 +1308,9 @@ function PostListView(
                         />
                     );
 
-                    const marginY = spacing["0"];
-
                     return {
                         key: `PostCommentInput:${item.post.id}`,
-                        minHeight: addRemLengths(postCommentInputMinHeight, marginY),
+                        minHeight: postCommentInputMinHeight,
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({
@@ -1331,9 +1353,12 @@ function PostListView(
                                         style={{
                                             ...(!shouldRenderWithRelativePositioning && {
                                                 position: "sticky",
-                                                bottom: `-${marginY}`,
+                                                bottom: 0,
                                             }),
-                                            paddingBottom: marginY,
+                                            paddingBottom:
+                                                index === posts.getItemCount() - 1
+                                                    ? "var(--safe-area-inset-bottom, 0px)"
+                                                    : undefined,
                                         }}
                                         className={sprinkles({
                                             width: "full",
@@ -1438,13 +1463,16 @@ function PostListView(
                 case "MoreUnloadedPosts": {
                     return {
                         key: "MoreUnloadedPosts",
-                        minHeight: "36.125rem",
+                        minHeight: !isMobile ? "36.125rem" : "26.25rem",
                         node: (
                             <div
                                 className={sprinkles({
                                     display: "flex",
                                     justifyContent: "center",
                                 })}
+                                style={{
+                                    paddingBottom: "var(--safe-area-inset-bottom, 0px)",
+                                }}
                             >
                                 <div
                                     className={sprinkles({
@@ -1458,7 +1486,7 @@ function PostListView(
                                 >
                                     <PostShimmer />
                                     <PostShimmer />
-                                    <PostShimmer />
+                                    {!isMobile && <PostShimmer />}
                                     <div
                                         className={sprinkles({
                                             position: "relative",

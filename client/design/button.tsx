@@ -558,6 +558,10 @@ function Button(
                         // Keep the icon and label in the DOM so we keep the shape of the button but
                         // hide them so we can show a spinner.
                         opacity: shouldShowPendingSpinner && !iconChild ? 0 : undefined,
+                        // We've observed iOS WebKit's text centering in a flexbox element is a little
+                        // off compared to Chrome when line height is greater than 1. This helps make
+                        // sure button label text is properly centered compared to icons.
+                        lineHeight: "1",
                     }}
                 >
                     {iconPlacement === "start" &&

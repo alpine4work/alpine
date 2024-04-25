@@ -109,6 +109,12 @@ export interface PostListInterface {
          */
         getPostCommentIndex: (postCommentIndex: number) => number;
     } | null;
+
+    /**
+     * Does the post list have any posts with open comments? Used by mobile since
+     * in a list of posts, no post should have open comments.
+     */
+    hasOpenPostComments(): boolean;
 }
 
 /**
@@ -208,6 +214,10 @@ export class PostListWithChannelHeader implements PostListInterface {
             postContentItemIndex: postContentItemIndex + 1,
             getPostCommentIndex: postCommentIndex => getPostCommentIndex(postCommentIndex) + 1,
         };
+    }
+
+    hasOpenPostComments(): boolean {
+        return this._posts.hasOpenPostComments();
     }
 }
 
@@ -312,6 +322,11 @@ abstract class PostListBase<NodeOrderKey> implements PostListInterface {
         }
 
         return this._posts.getItem(index);
+    }
+
+    public hasOpenPostComments(): boolean {
+        // If all posts are closed then there will only be one item for each node.
+        return this._posts.getItemCount() > this._posts.getNodeCount();
     }
 }
 
@@ -637,6 +652,17 @@ export class PostBasicList extends PostListBase<number> {
             posts: newPosts,
         });
     }
+
+    public closeAllPostComments(): PostBasicList {
+        const newPosts = this._posts.closeAllPostComments();
+
+        if (newPosts === this._posts) return this;
+
+        return new PostBasicList({
+            hasMorePosts: this._hasMorePosts,
+            posts: newPosts,
+        });
+    }
 }
 
 class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
@@ -914,6 +940,40 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
             itemCountSubtreeCache: this._itemCountSubtreeCache,
         });
     }
+
+    /**
+     * Iterate through every post in our list updating each `PostCommentsState`
+     * to `Closed`.
+     */
+    public closeAllPostComments(): PostBasicListVirtualizedTree {
+        let nodeByOrderKey = this._nodeByOrderKey;
+
+        let iterator = nodeByOrderKey.begin;
+        while (iterator.node) {
+            const node = iterator.node;
+
+            if (!node.value.extra || node.value.extra.postCommentsState === "Closed") {
+                iterator.next();
+                continue;
+            }
+
+            nodeByOrderKey = iterator.update({
+                ...node.value,
+                extra: {
+                    postCommentsState: "Closed",
+                    postComments: node.value.extra.postComments,
+                },
+            });
+            iterator = nodeByOrderKey.find(node.key);
+            iterator.next();
+        }
+
+        return new PostBasicListVirtualizedTree({
+            postVisibilityById: this._postVisibilityById,
+            nodeByOrderKey,
+            itemCountSubtreeCache: this._itemCountSubtreeCache,
+        });
+    }
 }
 
 export type PostQueryListDynamoGeneralRealtimeIndexQuery = DynamoGeneralRealtimeIndexQuery<
@@ -967,6 +1027,12 @@ export class PostQueryList extends PostListBase<DynamoIndexCursor> {
         update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
     ): PostQueryList {
         const newPosts = this._posts.updatePostComments(postId, update);
+        if (newPosts === this._posts) return this;
+        return new PostQueryList(newPosts);
+    }
+
+    public closeAllPostComments(): PostQueryList {
+        const newPosts = this._posts.closeAllPostComments();
         if (newPosts === this._posts) return this;
         return new PostQueryList(newPosts);
     }
@@ -1122,6 +1188,24 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
             return {
                 postCommentsState,
                 postComments: newPostComments,
+            };
+        });
+
+        return this.updateQuery(newQuery);
+    }
+
+    /**
+     * Iterate through every post in our list updating each `PostCommentsState`
+     * to `Closed`.
+     */
+    public closeAllPostComments(): PostQueryListVirtualizedTree {
+        const newQuery = this.query.updateAllItemExtras(item => {
+            if (item.extra === null || item.extra.postCommentsState === "Closed") {
+                return item.extra;
+            }
+            return {
+                postCommentsState: "Closed",
+                postComments: item.extra.postComments,
             };
         });
 
