@@ -33,7 +33,7 @@ import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
-import {renderMessageListItem} from "~/client/messaging/messaging_view.js";
+import {getMessageListItemKey, renderMessageListItem} from "~/client/messaging/messaging_view.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -59,6 +59,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
+import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
@@ -681,12 +682,61 @@ function DocumentCommentThreadListView(
 
     // Make sure the bottom of the scroll view stays visible when the keyboard
     // opens and closes.
+    //
+    // Unless we are replying to a message or editing a message. Then we should
+    // anchor to the message in question. Similar code also exists in
+    // `post_list_view.tsx` and `messaging_view.tsx`. If we update the code here
+    // we also probably need to update there.
     useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
         isPinned: true,
-        getAnchorPosition: useCallback(
-            oldVisibleRect => ({top: oldVisibleRect.bottom, height: 0}),
-            [],
-        ),
+        getAnchorPosition: useEvent(oldVisibleRect => {
+            const view = assertExists(viewRef.current);
+
+            const anchorMessageIndex = messageEditing.state.isEditing
+                ? ([
+                      decodeDocumentCommentRoomKey(messageEditing.state.messageRoomKey)[1],
+                      messageEditing.state.messageIndex,
+                  ] as const)
+                : isSingleCommentThreadWithPinnedCommentInput
+                ? iterableFirst(replyingToCommentIndexByCommentThreadId.entries()) ?? null
+                : null;
+
+            if (anchorMessageIndex !== null) {
+                const node = tree.getNodeByKeyIfExists(anchorMessageIndex[0]);
+                if (node === null) return null;
+
+                const itemIndex = node.startItemIndex + 1 + anchorMessageIndex[1];
+                if (itemIndex >= tree.getItemCount()) return null;
+
+                const item = tree.getItem(itemIndex);
+                if (item.type !== "DocumentComment") return null;
+
+                const position = view.getPositionByKeyIfExists(
+                    getMessageListItemKey(item.commentItem, anchorMessageIndex[0]),
+                );
+                if (!position) return null;
+
+                const anchorPositionTop =
+                    oldVisibleRect.top + (position.offset - view.getScrollOffset());
+
+                // Only include visible bits of the message in the anchor. This way, we exclude
+                // safe area margin bottom on the last message in the anchor position.
+                const anchorPosition = {
+                    top: Math.max(oldVisibleRect.top, anchorPositionTop),
+                    bottom: Math.min(
+                        Math.max(oldVisibleRect.bottom, anchorPositionTop),
+                        anchorPositionTop + position.height,
+                    ),
+                };
+
+                return {
+                    top: anchorPositionTop,
+                    height: anchorPosition.bottom - anchorPosition.top,
+                };
+            }
+
+            return {top: oldVisibleRect.bottom, height: 0};
+        }),
         // Don't consider the background slop as valid scrollable area...
         scrollableInsetBottom: isSingleCommentThreadWithPinnedCommentInput
             ? backgroundSlopBottomIfPinnedCommentInput
@@ -880,6 +930,9 @@ function DocumentCommentThreadListView(
                             documentCommentThreadListViewPaddingX[isMobile ? "mobile" : "desktop"],
                         shouldAddMarginBottom:
                             isSingleCommentThreadWithPinnedCommentInput &&
+                            // -2 instead of -1 since when
+                            // `isSingleCommentThreadWithPinnedCommentInput` is true we don't
+                            // actually render the final comment input item in `tree`.
                             index === tree.getItemCount() - 2
                                 ? backgroundSlopBottomIfPinnedCommentInput
                                     ? `calc(var(--keyboard-safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px) + ${backgroundSlopBottomIfPinnedCommentInput})`

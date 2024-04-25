@@ -99,7 +99,7 @@ export interface PostListInterface {
     /**
      * Get a post by its `PostId`.
      */
-    getPostById(postId: PostId): {
+    getPostByIdIfExists(postId: PostId): {
         post: PostModel;
         postComments: MessageList<PostCommentModel>;
         postContentItemIndex: number;
@@ -108,7 +108,7 @@ export interface PostListInterface {
          * this post or if the comment index is out of bounds this will throw an error.
          */
         getPostCommentIndex: (postCommentIndex: number) => number;
-    };
+    } | null;
 }
 
 /**
@@ -191,14 +191,16 @@ export class PostListWithChannelHeader implements PostListInterface {
         }
     }
 
-    getPostById(postId: PostId): {
+    getPostByIdIfExists(postId: PostId): {
         post: PostModel;
         postComments: MessageList<PostCommentModel>;
         postContentItemIndex: number;
         getPostCommentIndex: (postCommentIndex: number) => number;
-    } {
-        const {post, postComments, postContentItemIndex, getPostCommentIndex} =
-            this._posts.getPostById(postId);
+    } | null {
+        const postResult = this._posts.getPostByIdIfExists(postId);
+        if (!postResult) return null;
+
+        const {post, postComments, postContentItemIndex, getPostCommentIndex} = postResult;
 
         return {
             post,

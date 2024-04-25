@@ -622,7 +622,9 @@ function PostListView(
 
         const view = assertExists(viewRef.current);
 
-        const scrollToIndex = posts.getPostById(postId).getPostCommentIndex(postCommentIndex);
+        const scrollToIndex = assertExists(posts.getPostByIdIfExists(postId)).getPostCommentIndex(
+            postCommentIndex,
+        );
 
         const peekRenderedRange = view.peekRenderedRangeAfterScrollToIndex(scrollToIndex);
         const result = tryLoadingMoreData(peekRenderedRange);
@@ -699,10 +701,13 @@ function PostListView(
 
             if (anchorMessageIndex !== null) {
                 const itemIndex = posts
-                    .getPostById(anchorMessageIndex[0])
-                    .getPostCommentIndex(anchorMessageIndex[1]);
-                const item = posts.getItem(itemIndex);
+                    .getPostByIdIfExists(anchorMessageIndex[0])
+                    ?.getPostCommentIndex(anchorMessageIndex[1]);
 
+                if (itemIndex === undefined) return null;
+                if (itemIndex >= posts.getItemCount()) return null;
+
+                const item = posts.getItem(itemIndex);
                 if (
                     item.type === "ChannelHeader" ||
                     item.type === "PostContent" ||

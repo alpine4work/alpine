@@ -584,8 +584,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     // anchor to the message in question. Similar code also exists in
     // `post_list_view.tsx` and `document_comment_thread_list_view.tsx`. If we
     // update the code here we also probably need to update there.
-    //
-    // NOCOMMIT: Do the editing bits for document comment threads too?
     useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
         isPinned: true,
         getAnchorPosition: useEvent(oldVisibleRect => {
