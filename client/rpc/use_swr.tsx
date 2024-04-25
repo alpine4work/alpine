@@ -580,11 +580,14 @@ export function useIdlyPreloadSwr(
     const cache = useContext(SwrCacheContext);
     if (!cache) throw new InternalError("Expected to be child of `<SwrCacheContextProvider>`");
 
+    const retainedKeyRef = useRef<string | null>(null);
     useEffect(() => {
         if (key === null) return;
 
+        retainedKeyRef.current = key;
         cache.retainEntry(key);
         return () => {
+            retainedKeyRef.current = null;
             cache.releaseEntry(key);
         };
     }, [cache, key]);
@@ -616,8 +619,15 @@ export function useIdlyPreloadSwr(
             });
         }
 
+        assert(retainedKeyRef.current === key);
+
         scheduledIdlePreloadRpcCallbacks.push(() => {
-            cache.revalidateEntryIfNotAvailable(key, fetcher, {dedupingInterval});
+            // Make sure `key` is still retained. If `key` changes or the component
+            // unmounts after we scheduled the idle callback then we need to not run our
+            // idle callback.
+            if (retainedKeyRef.current === key) {
+                cache.revalidateEntryIfNotAvailable(key, fetcher, {dedupingInterval});
+            }
         });
     }, [cache, dedupingInterval, fetcher, key]);
 }
