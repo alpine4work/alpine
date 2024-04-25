@@ -221,8 +221,8 @@ function DocumentCommentThreadListView(
         procedures,
         subscribeToCommentThreadEvents,
         unpersistedResolutionStateByCommentThreadId: allUnpersistedResolutionStateByCommentThreadId,
-        withMobileLayout: withMobileLayoutProp = false,
         withoutCommentThreadPreview = false,
+        withCommentInputMobileMaxHeight = false,
         paddingX,
         header,
         navigationBar,
@@ -255,20 +255,16 @@ function DocumentCommentThreadListView(
         >;
 
         /**
-         * Use the mobile layout for a document comment thread list view even
-         * on desktop.
-         *
-         * The mobile layout doesn't have margins and will pin the comment input for
-         * single comment threads to the bottom of the screen.
-         */
-        withMobileLayout?: boolean;
-
-        /**
          * If we should disable rendering of the comment thread preview. Used when
          * rendering a comment thread in document in mobile layouts since the document
          * text is displayed above.
          */
         withoutCommentThreadPreview?: boolean;
+
+        /**
+         * Whether we should use the mobile max height for comment inputs.
+         */
+        withCommentInputMobileMaxHeight?: boolean;
 
         /**
          * Customize the amount of margin on messages.
@@ -318,7 +314,6 @@ function DocumentCommentThreadListView(
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
     const isMobile = useIsMobile();
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const {space} = useSpaceContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -1009,7 +1004,7 @@ function DocumentCommentThreadListView(
                                     isMobile ? "mobile" : "desktop"
                                 ]
                             }
-                            withMobileLayout={withMobileLayout}
+                            withMobileMaxHeight={withCommentInputMobileMaxHeight}
                         />
                     );
 
@@ -1109,7 +1104,7 @@ function DocumentCommentThreadListView(
             replyingToCommentIndexByCommentThreadId,
             isConnected,
             subscribeToCommentThreadEvents,
-            withMobileLayout,
+            withCommentInputMobileMaxHeight,
         ],
     );
 
@@ -1221,7 +1216,7 @@ function DocumentCommentThreadListView(
                                         isMobile ? "mobile" : "desktop"
                                     ]
                                 }
-                                withMobileLayout={withMobileLayout}
+                                withMobileMaxHeight={withCommentInputMobileMaxHeight}
                             />
                         );
                     })()}

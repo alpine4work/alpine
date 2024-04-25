@@ -138,7 +138,6 @@ export function ContentEditorMobileCommentInputBottomBar({
                         ref={inputRef}
                         messageNoun="comment"
                         isBottomBar={true}
-                        withMobileLayout={true}
                         state={state}
                         onChange={setState}
                         onSend={sendComment}

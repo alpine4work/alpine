@@ -2218,9 +2218,11 @@ function DocumentContentEditorSidebar({
                                 unpersistedResolutionStateByCommentThreadId={
                                     unpersistedResolutionStateByCommentThreadId
                                 }
-                                // Always use mobile layout when rendered in sidebar.
-                                withMobileLayout={true}
                                 withoutCommentThreadPreview={withMobileLayout}
+                                // When we render the comment input in a bottom sheet on desktop we need the
+                                // comment input to have a smaller max height so it doesn't completely fill the
+                                // bottom sheet.
+                                withCommentInputMobileMaxHeight={withMobileLayout}
                                 // Slightly reduce the amount of margin on messages in a comment thread
                                 // because we have less space.
                                 paddingX="4"

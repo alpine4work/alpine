@@ -59,7 +59,7 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
         isFocused: boolean;
     } | null>;
     marginX?: Spacing;
-    withMobileLayout?: boolean;
+    withMobileMaxHeight?: boolean;
 };
 
 const MessageInputForwardRef = forwardRef(MessageInput) as <
@@ -90,7 +90,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         "data-testid": dataTestId,
         restoreStateRef,
         marginX = defaultMessageViewMarginX,
-        withMobileLayout,
+        withMobileMaxHeight,
     }: MessageInputProps<RoomKey, Message>,
     externalRef: Ref<MessageInputRef>,
 ) {
@@ -287,7 +287,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 isBottomBar={!isNotBottomBar}
                 data-testid={dataTestId}
                 marginX={marginX}
-                withMobileLayout={withMobileLayout}
+                withMobileMaxHeight={withMobileMaxHeight}
                 onFocus={() => {
                     if (restoreStateRef?.current) restoreStateRef.current.isFocused = true;
                 }}

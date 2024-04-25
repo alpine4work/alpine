@@ -38,7 +38,7 @@ export function DocumentCommentInput({
     procedures,
     subscribeToCommentThreadEvents,
     marginX,
-    withMobileLayout,
+    withMobileMaxHeight,
 }: {
     isStickyPositioned: boolean;
     inputRef?: Ref<MessageInputRef>;
@@ -62,8 +62,8 @@ export function DocumentCommentInput({
     isConnected: boolean;
     procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
-    marginX?: Spacing;
-    withMobileLayout?: boolean;
+    marginX: Spacing;
+    withMobileMaxHeight: boolean;
 }) {
     const context = useAppContext();
 
@@ -219,7 +219,7 @@ export function DocumentCommentInput({
                     );
             }}
             marginX={marginX}
-            withMobileLayout={withMobileLayout}
+            withMobileMaxHeight={withMobileMaxHeight}
         />
     );
 }

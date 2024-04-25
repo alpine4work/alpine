@@ -82,7 +82,6 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     onChange: (state: ContentEditorState<MessageContentWithReferences>) => void;
     onSend: () => void;
     isBottomBar?: boolean;
-    withMobileLayout?: boolean;
     isSendBottomArrowRight?: boolean;
     isSendButtonDisabled?: boolean;
     isSendButtonPending?: boolean;
@@ -97,6 +96,7 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     onHideTypingIndicator?: () => void;
     "data-testid"?: string;
     marginX?: Spacing;
+    withMobileMaxHeight?: boolean;
     onFocus?: () => void;
     onBlur?: () => void;
     onArrowUp?: (event: KeyboardEvent) => void;
@@ -127,7 +127,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onChange,
         onSend: onSendProp,
         isBottomBar = false,
-        withMobileLayout: withMobileLayoutProp,
         isSendBottomArrowRight,
         isSendButtonDisabled: isSendButtonDisabledProp,
         isSendButtonPending,
@@ -139,6 +138,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onHideTypingIndicator,
         "data-testid": dataTestId,
         marginX = defaultMessageViewMarginX,
+        withMobileMaxHeight,
         onFocus,
         onBlur,
         onArrowUp,
@@ -151,8 +151,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     const isMobile = useIsMobile();
     const clientInfo = useClientInfo();
     const {currentAccount} = useSpaceContext();
-
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const containerRef = useRef<HTMLDivElement>(null);
     const inputContainerRef = useRef<HTMLDivElement>(null);
@@ -430,7 +428,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                         paddingBottom="3"
                         color="grey-80"
                         style={{
-                            paddingLeft: withMobileLayout
+                            paddingLeft: isMobile
                                 ? spacing["3"]
                                 : getMessageBubbleMarginLeft(marginX),
                             paddingRight: addRemLengths(spacing["2"], spacing["7"], spacing["5"]),
@@ -484,7 +482,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 position="relative"
                                 paddingBottom="4"
                                 style={{
-                                    paddingLeft: withMobileLayout
+                                    paddingLeft: isMobile
                                         ? spacing["3"]
                                         : getMessageBubbleMarginLeft(marginX),
                                     paddingRight: addRemLengths(
@@ -592,13 +590,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             </Box>
                         );
                     })()}
-                <Box
-                    overflow="hidden"
-                    display="flex"
-                    paddingX={withMobileLayout ? "3" : marginX}
-                    gap="2"
-                >
-                    {!withMobileLayout && (
+                <Box overflow="hidden" display="flex" paddingX={isMobile ? "3" : marginX} gap="2">
+                    {!isMobile && (
                         <Box display="flex" alignItems="flex-end">
                             <Box
                                 width={messageInputAccountAvatarSize}
@@ -630,7 +623,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                     insetTop: borderRadius[messageViewBubbleBorderRadius],
                                     insetBottom: borderRadius[messageViewBubbleBorderRadius],
                                 })}
-                                maxHeight={isMobile ? "48" : "96"}
+                                maxHeight={isMobile || withMobileMaxHeight ? "48" : "96"}
                                 position="relative"
                                 overflowX="hidden"
                                 overflowY="auto"
