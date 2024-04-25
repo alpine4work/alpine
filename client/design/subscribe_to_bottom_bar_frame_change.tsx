@@ -29,6 +29,7 @@ type BottomBarFrameContext = {
             readonly visibleMobileKeyboard: number;
             readonly hiddenMobileKeyboard: number;
         };
+        wasBottomBarIntroduced: boolean;
     }> | null;
     bottomBarFrames: Set<{readonly height: number; readonly withMobileKeyboardToolbar: boolean}>;
 };
@@ -119,6 +120,7 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
         let isCancelled = false;
         let hasFinishedEffectSetup = false;
         let hasCalledHandleResizeDuringEffectSetup = false;
+        let isIntroduction = true;
 
         // Emit change after a microtask so it doesn't run as part of React's
         // mounting phase which may have not finished setting up refs that may be used
@@ -147,7 +149,11 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
                 currentHeight = height;
 
                 const oldUnregister = unregister;
-                unregister = registerBottomBarFrame(context, height, {withMobileKeyboardToolbar});
+                unregister = registerBottomBarFrame(context, height, {
+                    isIntroduction,
+                    withMobileKeyboardToolbar,
+                });
+                isIntroduction = false;
 
                 // Make sure to unregister AFTER registering the new height. That way if the
                 // height didn't change there will be no update notifications.
@@ -209,7 +215,12 @@ export function useRegisterBottomBarMobileKeyboardToolbarFrame({
         scheduleMicrotask(() => {
             if (isCancelled) return;
 
-            unregister = registerBottomBarMobileKeyboardToolbarFrame(context);
+            unregister = registerBottomBarFrame(context, 0, {
+                // Keyboard mobile toolbar frames don't resize. We only really
+                // unregister/re-register if `isDisabled` changes.
+                isIntroduction: true,
+                withMobileKeyboardToolbar: true,
+            });
         });
 
         return () => {
@@ -239,7 +250,13 @@ export function useRegisterBottomBarMobileKeyboardToolbarFrame({
 function registerBottomBarFrame(
     context: BottomBarFrameContext,
     height: number,
-    {withMobileKeyboardToolbar = false}: {withMobileKeyboardToolbar?: boolean} = {},
+    {
+        isIntroduction,
+        withMobileKeyboardToolbar = false,
+    }: {
+        isIntroduction: boolean;
+        withMobileKeyboardToolbar: boolean;
+    },
 ): () => void {
     const bottomBarFrame = {height, withMobileKeyboardToolbar};
 
@@ -261,6 +278,7 @@ function registerBottomBarFrame(
         (context.bottomBarFrameChangeEmitter ??= new EventEmitter()).emit({
             oldBottomBarHeight,
             newBottomBarHeight: context.currentBottomBarHeight,
+            wasBottomBarIntroduced: isIntroduction,
         });
     }
 
@@ -283,17 +301,10 @@ function registerBottomBarFrame(
             (context.bottomBarFrameChangeEmitter ??= new EventEmitter()).emit({
                 oldBottomBarHeight,
                 newBottomBarHeight: context.currentBottomBarHeight,
+                wasBottomBarIntroduced: isIntroduction,
             });
         }
     };
-}
-
-/**
- * Register a mobile bottom bar that just provides a keyboard toolbar for the
- * height calculations of `subscribeToMobilBottomBarFrameChange()`.
- */
-function registerBottomBarMobileKeyboardToolbarFrame(context: BottomBarFrameContext) {
-    return registerBottomBarFrame(context, 0, {withMobileKeyboardToolbar: true});
 }
 
 function getMobileBottomBarHeight(
@@ -333,6 +344,7 @@ export function useSubscribeToBottomBarFrameChange(): Memo<
                 readonly visibleMobileKeyboard: number;
                 readonly hiddenMobileKeyboard: number;
             };
+            readonly wasBottomBarIntroduced: boolean;
         }) => void,
     ) => () => void
 > {

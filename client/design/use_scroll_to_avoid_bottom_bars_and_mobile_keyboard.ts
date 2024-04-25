@@ -200,18 +200,26 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
         } | null = null;
 
         const scroll = ({
+            isAnimated,
             oldMobileKeyboardHeight,
             newMobileKeyboardHeight,
             oldBottomBarHeight,
             newBottomBarHeight,
-            isAnimated,
+            wasBottomBarIntroduced,
         }: {
+            isAnimated: boolean;
             oldMobileKeyboardHeight: number;
             newMobileKeyboardHeight: number;
             oldBottomBarHeight: {visibleMobileKeyboard: number; hiddenMobileKeyboard: number};
             newBottomBarHeight: {visibleMobileKeyboard: number; hiddenMobileKeyboard: number};
-            isAnimated: boolean;
+            wasBottomBarIntroduced: boolean;
         }) => {
+            // Don't scroll for covered height changes that introduce a new bottom bar. If
+            // the bottom bar is net new then we'll go from 0 to the bottom bar's height
+            // when the component mounts. The user hasn't seen any content yet so it
+            // doesn't make sense to scroll them.
+            if (wasBottomBarIntroduced) return;
+
             const remPx = getRemPxWithoutListening();
 
             const viewportHeight = document.documentElement.getBoundingClientRect().height;
@@ -684,23 +692,25 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 const currentBottomBarHeight = getCurrentBottomBarHeight();
 
                 scroll({
+                    isAnimated,
                     oldMobileKeyboardHeight: oldKeyboardHeight,
                     newMobileKeyboardHeight: newKeyboardHeight,
                     oldBottomBarHeight: currentBottomBarHeight,
                     newBottomBarHeight: currentBottomBarHeight,
-                    isAnimated,
+                    wasBottomBarIntroduced: false,
                 });
             },
         );
 
         const unsubscribe2 = subscribeToBottomBarFrameChange(
-            ({oldBottomBarHeight, newBottomBarHeight}) => {
+            ({oldBottomBarHeight, newBottomBarHeight, wasBottomBarIntroduced}) => {
                 scroll({
+                    isAnimated: false,
                     oldMobileKeyboardHeight: currentMobileKeyboardHeight,
                     newMobileKeyboardHeight: currentMobileKeyboardHeight,
                     oldBottomBarHeight,
                     newBottomBarHeight,
-                    isAnimated: false,
+                    wasBottomBarIntroduced,
                 });
             },
         );
