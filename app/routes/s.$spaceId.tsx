@@ -46,6 +46,7 @@ import {getSpace} from "~/server/spaces/spaces_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -727,11 +728,16 @@ function useMobileWebKitKeyboardSupport() {
         const oldKeyboardHeight = windowHeight - lastResizedWindowHeightForMobileWebKit;
         const newKeyboardHeight = windowHeight - resizedWindowHeightForMobileWebKit;
 
-        emitMobileKeyboardFrameChangeIfNotNative({
-            newKeyboardHeight,
-            oldKeyboardHeight,
-            shouldScroll: true,
-            isAnimated: true,
+        // This emit function triggers some listeners that might call `flushSync()`
+        // react warns if `flushSync()` is called during a lifecycle method. So
+        // schedule a microtask so we don't end up calling in a lifecycle method.
+        scheduleMicrotask(() => {
+            emitMobileKeyboardFrameChangeIfNotNative({
+                newKeyboardHeight,
+                oldKeyboardHeight,
+                shouldScroll: true,
+                isAnimated: true,
+            });
         });
     }, [resizedWindowHeightForMobileWebKit]);
 
