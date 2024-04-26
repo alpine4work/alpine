@@ -1726,10 +1726,7 @@ function PostListView(
                                         >
                                             <aside
                                                 ref={asideRef}
-                                                className={sprinkles({
-                                                    pointerEvents: "auto",
-                                                    paddingX: "5",
-                                                })}
+                                                className={sprinkles({pointerEvents: "auto"})}
                                                 style={{
                                                     minHeight: viewSize
                                                         ? viewSize.height - navigationBarHeightPx
