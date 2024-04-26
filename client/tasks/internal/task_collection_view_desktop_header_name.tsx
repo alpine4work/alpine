@@ -19,11 +19,11 @@ import {
 } from "~/client/design/input_with_auto_growing_width.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {useIsPeekStackAnimatingOpen} from "~/client/peek/peek_stack.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
     TaskClientStore,
@@ -233,8 +233,6 @@ function TaskCollectionViewDesktopHeaderNameEditor({
     onCancel: () => MaybePromise<void>;
     onSave: (name: string) => MaybePromise<void>;
 }) {
-    const isPeekAnimatingOpen = useIsPeekStackAnimatingOpen();
-
     const inputRef = useRef<HTMLInputElement>(null);
     const [name, setName] = useState(initialName);
     const [shouldShowConfirmSaveDialog, setShouldShowConfirmSaveDialog] = useState(false);
@@ -242,19 +240,18 @@ function TaskCollectionViewDesktopHeaderNameEditor({
     const shouldFocusNextRenderRef = useRef(shouldInitiallyFocus);
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        // If we're in a peek, don't focus until we finish animating open.
-        if (isPeekAnimatingOpen) return;
-
         // If the close confirmation dialog is open, we can't focus our editor.
         if (shouldShowConfirmSaveDialog) return;
 
         if (!shouldFocusNextRenderRef.current) return;
         shouldFocusNextRenderRef.current = false;
 
-        const inputElement = assertExists(inputRef.current);
-        inputElement.select();
-        inputElement.focus({preventScroll: true});
-    }, [isPeekAnimatingOpen, shouldShowConfirmSaveDialog]);
+        return scheduleAfterNavigationAnimation(() => {
+            const inputElement = assertExists(inputRef.current);
+            inputElement.select();
+            inputElement.focus({preventScroll: true});
+        });
+    }, [shouldShowConfirmSaveDialog]);
 
     return (
         <>

@@ -47,7 +47,7 @@ if (typeof window !== "undefined") {
 
     HTMLElement.prototype.focus = function () {
         const debugId = getScrollElementDebugId(this);
-        console.log(`[FocusEventDebugger#${debugId}] focus()`, ...arguments);
+        console.trace(`[FocusEventDebugger#${debugId}] focus()`, ...arguments);
         return originalFocus.apply(this, arguments as any);
     };
 
@@ -56,7 +56,7 @@ if (typeof window !== "undefined") {
 
     HTMLElement.prototype.blur = function () {
         const debugId = getScrollElementDebugId(this);
-        console.log(`[FocusEventDebugger#${debugId}] blur()`, ...arguments);
+        console.trace(`[FocusEventDebugger#${debugId}] blur()`, ...arguments);
         return originalBlur.apply(this, arguments as any);
     };
 }

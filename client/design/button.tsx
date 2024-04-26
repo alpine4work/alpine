@@ -307,15 +307,33 @@ function Button(
     const iconSize: Spacing = "3";
 
     const iconChild = icon ? (
-        <IconContext.Provider
-            value={{
-                color: "currentColor",
-                size: spacing[iconSize],
-                weight: isBold ? "bold" : "regular",
-            }}
+        <span
+            className={sprinkles({
+                position: "relative",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+            })}
         >
-            {icon}
-        </IconContext.Provider>
+            <span style={{opacity: shouldShowPendingSpinner ? 0 : undefined}}>
+                <IconContext.Provider
+                    value={{
+                        color: "currentColor",
+                        size: spacing[iconSize],
+                        weight: isBold ? "bold" : "regular",
+                    }}
+                >
+                    {icon}
+                </IconContext.Provider>
+            </span>
+            {shouldShowPendingSpinner && (
+                <SpinnerGap
+                    className={spinAnimationClassName}
+                    size={spacing[iconSize]}
+                    style={{position: "absolute"}}
+                />
+            )}
+        </span>
     ) : null;
 
     const stylesByVariant: {[K in ButtonVariant]: Sprinkles} = {
@@ -564,27 +582,9 @@ function Button(
                         lineHeight: "1",
                     }}
                 >
-                    {iconPlacement === "start" &&
-                        iconChild &&
-                        (shouldShowPendingSpinner ? (
-                            <SpinnerGap
-                                className={spinAnimationClassName}
-                                size={spacing[iconSize]}
-                            />
-                        ) : (
-                            iconChild
-                        ))}
+                    {iconPlacement === "start" && iconChild}
                     {labelChild}
-                    {iconPlacement === "end" &&
-                        iconChild &&
-                        (shouldShowPendingSpinner ? (
-                            <SpinnerGap
-                                className={spinAnimationClassName}
-                                size={spacing[iconSize]}
-                            />
-                        ) : (
-                            iconChild
-                        ))}
+                    {iconPlacement === "end" && iconChild}
                 </span>,
             )}
         </FocusRing>

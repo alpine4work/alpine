@@ -56,7 +56,7 @@ export function PostContentViewHeaderBase({
                 account={author}
                 size={withNavigationBarLayout && isMobile ? "7" : postContentViewHeaderAvatarSize}
             />
-            <Box paddingLeft={withNavigationBarLayout && isMobile ? "2" : "3"} overflow="hidden">
+            <Box paddingLeft={{mobile: "2", desktop: "3"}} overflow="hidden">
                 <Box fontSize="75" fontStyle="truncate" color="grey-70">
                     <span className={sprinkles({color: "grey-text", fontStyle: "semi-bold"})}>
                         {useAccountModel(author).name}

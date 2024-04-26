@@ -11,6 +11,7 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
+import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {formatMessageViewTimestampDividerDate} from "~/client/messaging/format_message_view_timestamp_divider_date.js";
@@ -24,7 +25,6 @@ import {shouldDisplayTextAsBigEmojiMessage} from "~/client/messaging/internal/sh
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {MessageViewTouchLightbox} from "~/client/messaging/message_view_touch_lightbox.js";
-import {useIsPeekStackAnimatingOpen} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -309,29 +309,34 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     }, [shouldShowOptimisticLoadingIndicatorAfterDelay]);
 
     const [shouldHighlight, setShouldHighlight] = useState(false);
-    const isPeekAnimatingOpen = useIsPeekStackAnimatingOpen();
 
     // If the ref we were provided told us to highlight then update our state and
     // clear the ref so we only highlight once for the ref.
     useEffect(() => {
-        // Delay our message highlight animation until after the peek is open.
-        if (isPeekAnimatingOpen) return;
-
         if (!shouldHighlightRef?.current) return;
 
-        // Wait a bit before highlighting in case this component is immediately
-        // unmounted. This will happen if while measuring content the virtualized
-        // scroll view thinks this is offscreen before our scroll anchoring puts it
-        // back in place. Arguably this is a bug in the virtualized scroll view.
-        const timeout = createTimeout(() => {
-            if (!shouldHighlightRef?.current) return;
-            shouldHighlightRef.current = false;
+        let cleanup: (() => void) | undefined;
 
-            setShouldHighlight(true);
-        }, 10);
+        const unschedule = scheduleAfterNavigationAnimation(() => {
+            // Wait a bit before highlighting in case this component is immediately
+            // unmounted. This will happen if while measuring content the virtualized
+            // scroll view thinks this is offscreen before our scroll anchoring puts it
+            // back in place. Arguably this is a bug in the virtualized scroll view.
+            const timeout = createTimeout(() => {
+                if (!shouldHighlightRef?.current) return;
+                shouldHighlightRef.current = false;
 
-        return () => timeout.clear();
-    }, [isPeekAnimatingOpen, shouldHighlightRef]);
+                setShouldHighlight(true);
+            }, 10);
+
+            cleanup = () => timeout.clear();
+        });
+
+        return () => {
+            unschedule();
+            cleanup?.();
+        };
+    }, [shouldHighlightRef]);
 
     useEffect(() => {
         if (!shouldHighlight) return;

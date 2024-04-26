@@ -24,6 +24,7 @@ import {
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {RemLength, convertRemLengthToPx} from "~/shared/design/spacing.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
@@ -32,8 +33,15 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 let currentMobileKeyboardHeight = 0;
 
 if (isMobileKeyboardFrameChangeEnabled) {
+    let blurTimeout: Timeout | null = null;
+
     subscribeToMobileKeyboardFrameChange(({oldKeyboardHeight, newKeyboardHeight}) => {
         currentMobileKeyboardHeight = newKeyboardHeight;
+
+        blurTimeout?.clear();
+        blurTimeout = null;
+
+        console.log("mobile keyboard frame change", {oldKeyboardHeight, newKeyboardHeight});
 
         // We've observed that in our native iOS app when
         // `scrollView.keyboardDismissMode = .interactive` is set, when the keyboard
@@ -57,7 +65,8 @@ if (isMobileKeyboardFrameChangeEnabled) {
         ) {
             const activeElement = document.activeElement;
 
-            setTimeout(() => {
+            blurTimeout = createTimeout(() => {
+                blurTimeout = null;
                 if (activeElement === document.activeElement) {
                     activeElement.blur();
                 }

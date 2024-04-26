@@ -398,7 +398,7 @@ function NewPostViewChannelSelectorInput(
                 }
             }}
         >
-            <Box position="relative" height="7" width="48">
+            <Box position="relative" height="7" width="48" style={{maxWidth: "50vw"}}>
                 <FocusRing offset="border">
                     <input
                         {...inputProps}

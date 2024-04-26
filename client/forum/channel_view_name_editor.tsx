@@ -5,12 +5,12 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
+import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {useIsPeekStackAnimatingOpen} from "~/client/peek/peek_stack.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -33,7 +33,6 @@ export function ChannelViewNameEditor({
     onSave: (name: string) => Promise<void>;
 }) {
     const showToast = useShowToast();
-    const isPeekAnimatingOpen = useIsPeekStackAnimatingOpen();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const [name, setName] = useState(initialName);
@@ -45,19 +44,18 @@ export function ChannelViewNameEditor({
     const shouldFocusNextRenderRef = useRef(shouldInitiallyFocusChannelName);
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        // If we're in a peek, don't focus until we finish animating open.
-        if (isPeekAnimatingOpen) return;
-
         // If the close confirmation dialog is open, we can't focus our editor.
         if (shouldShowConfirmSaveDialog) return;
 
         if (!shouldFocusNextRenderRef.current) return;
         shouldFocusNextRenderRef.current = false;
 
-        const inputElement = assertExists(inputRef.current);
-        inputElement.select();
-        inputElement.focus({preventScroll: true});
-    }, [isPeekAnimatingOpen, shouldShowConfirmSaveDialog]);
+        return scheduleAfterNavigationAnimation(() => {
+            const inputElement = assertExists(inputRef.current);
+            inputElement.select();
+            inputElement.focus({preventScroll: true});
+        });
+    }, [shouldShowConfirmSaveDialog]);
 
     return (
         <>

@@ -5,6 +5,8 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
+import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {safeAreaOnlyScrollbarInsetTop, useScrollbar} from "~/client/design/scrollbar.js";
 import {
     NewPostViewChannelSelectorInput,
@@ -20,8 +22,8 @@ import {
 } from "~/client/forum/post_content_view.js";
 import {PostContentViewHeaderBase} from "~/client/forum/post_content_view_header.js";
 import {postViewMaxWidth} from "~/client/forum/post_list_view.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useSessionStorage} from "~/client/helpers/use_local_storage.js";
-import {useIsPeekStackAnimatingOpen} from "~/client/peek/peek_stack.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -112,33 +114,38 @@ export function NewPostView({
         }),
     );
 
-    const isPeekAnimatingOpen = useIsPeekStackAnimatingOpen();
     const hasInitiallyFocusedRef = useRef(false);
 
     useEffect(() => {
-        // Don't focus if we're in a peek that's animating open.
-        if (isPeekAnimatingOpen) return;
-
         if (hasInitiallyFocusedRef.current) return;
         hasInitiallyFocusedRef.current = true;
 
-        switch (initiallyFocus) {
-            case null: {
-                // noop...
-                break;
+        return scheduleAfterNavigationAnimation(() => {
+            switch (initiallyFocus) {
+                case null: {
+                    // noop...
+                    break;
+                }
+                case "ContentEditor": {
+                    assertExists(contentEditorRef.current).focus();
+                    break;
+                }
+                case "ChannelSelector": {
+                    assertExists(channelSelectorRef.current).focus();
+                    break;
+                }
+                default:
+                    throw exhaustive(initiallyFocus);
             }
-            case "ContentEditor": {
-                assertExists(contentEditorRef.current).focus();
-                break;
-            }
-            case "ChannelSelector": {
-                assertExists(channelSelectorRef.current).focus();
-                break;
-            }
-            default:
-                throw exhaustive(initiallyFocus);
-        }
-    }, [initiallyFocus, isPeekAnimatingOpen]);
+        });
+    }, [initiallyFocus]);
+
+    const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
+        isDisabled: !isMobile,
+        withMobileLayout,
+        title: "New post",
+        withoutDisappearingTitle: true,
+    });
 
     return (
         <Box
@@ -160,7 +167,10 @@ export function NewPostView({
                 style={{height: "var(--safe-area-inset-top, 0px)"}}
             />
             <Box
-                ref={useScrollbar({insetTop: safeAreaOnlyScrollbarInsetTop})}
+                ref={useMergedRefs<HTMLDivElement>(
+                    scrollViewRef,
+                    useScrollbar({insetTop: scrollbarInsetTop ?? safeAreaOnlyScrollbarInsetTop}),
+                )}
                 flexGrow="1"
                 width="full"
                 position="relative"
@@ -181,6 +191,8 @@ export function NewPostView({
                         }),
                     }}
                 >
+                    {navigationBar}
+                    {isMobile && <Box height={navigationBarHeight} />}
                     <Box
                         flexShrink="0"
                         width="full"

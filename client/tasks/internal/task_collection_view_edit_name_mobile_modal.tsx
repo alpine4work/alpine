@@ -4,9 +4,9 @@ import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar.js";
+import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
-import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
@@ -68,17 +68,10 @@ export function TaskCollectionViewEditNameMobileModal({
 
         if (!initiallyFocusName) return;
 
-        if (!NativeMobileBridge) {
+        return scheduleAfterNavigationAnimation(() => {
             nameInputRef.current?.focus();
             nameInputRef.current?.select();
-        } else {
-            // Focus input after the push animation finishes. Otherwise the web view may
-            // not be mounted to the screen.
-            NativeMobileBridge.navigation.scheduleAfterAnimation(() => {
-                nameInputRef.current?.focus();
-                nameInputRef.current?.select();
-            });
-        }
+        });
     }, [initiallyFocusName]);
 
     return (
