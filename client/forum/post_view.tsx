@@ -99,7 +99,7 @@ export function PostView({
             : `${mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar}rem`,
         // `<PostListView>` needs this prop to specifically be set to null so we can
         // replace it when in a post editing state.
-        desktopReplaceActions: null,
+        replaceActions: null,
         mobileTitleJustifyContents: "flex-start",
         menuActions: getPostMoreActions({
             currentAccount,

@@ -1,5 +1,5 @@
 import {ReactNode} from "react";
-import {mergeProps, useHover, usePress} from "react-aria";
+import {usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {Box} from "~/client/design/box.js";
@@ -73,9 +73,14 @@ export function PostContentViewHeaderBase({
             </Box>
             {channelSelector && (
                 <Box
+                    flexGrow={isMobile ? "1" : undefined}
                     flexShrink="0"
                     display="flex"
                     alignItems="center"
+                    // On mobile devices, we'd like for the channel selector to be aligned with the
+                    // right edge of the phone screen so increase the amount of space surrounding
+                    // the text "in". This looks a little weird for short names.
+                    justifyContent="flex-end"
                     gap="1.5"
                     paddingLeft="1"
                     style={{paddingBottom: fontSizes["50"].lineHeight}}

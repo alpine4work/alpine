@@ -298,15 +298,7 @@ function NewPostViewChannelSelectorInput(
         onSelectionChange: _key => {
             if (isClosingComboBox) return;
 
-            // If the user deleted all content then hit enter, we want to interpret that as
-            // setting the channel to null.
-            const key = !(
-                comboBoxState.selectionManager.focusedKey == null &&
-                selectedKey !== null &&
-                trimmedInputValue.length === 0
-            )
-                ? (_key as ChannelId)
-                : null;
+            const key = _key as ChannelId;
 
             let item: NewPostViewChannelSelectorItem | null;
             if (key === null) {
@@ -398,7 +390,7 @@ function NewPostViewChannelSelectorInput(
                 }
             }}
         >
-            <Box position="relative" height="7" width="48" style={{maxWidth: "50vw"}}>
+            <Box position="relative" height="7" width="48">
                 <FocusRing offset="border">
                     <input
                         {...inputProps}
@@ -420,10 +412,7 @@ function NewPostViewChannelSelectorInput(
                         onKeyDown={event => {
                             if (
                                 event.key === "Enter" &&
-                                comboBoxState.selectionManager.focusedKey == null &&
-                                // If the user is pressing enter after deleting the text input then
-                                // `onSelectionChange` will clear out the channel.
-                                !(selectedKey !== null && trimmedInputValue.length === 0)
+                                comboBoxState.selectionManager.focusedKey == null
                             ) {
                                 // NOTE(calebmer): By default, `@react-aria/combobox` [calls `state.commit()`
                                 // whenever `Enter` is pressed][1] whether or not an option is focused. If an

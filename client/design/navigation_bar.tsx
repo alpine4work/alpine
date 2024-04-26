@@ -105,6 +105,9 @@ export function getNavigationBarHeightPxWithoutListening(): number {
     assert(mobileNavigationBarHeight === mobileNavigationBarHeightRem * remPxByPlatform.mobile);
 }
 
+export const navigationBarActionsFlexBasis: Spacing = "10";
+export const mobileNavigationBarGap: Spacing = "3";
+
 const onNavigationBarPrepareSmoothScrollToSymbol = Symbol("onNavigationBarPrepareSmoothScrollTo");
 
 /**
@@ -314,6 +317,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     menuActions = emptyArray,
     shareButton,
     stickyBanner,
+    replaceActions,
     desktopControls = null,
     desktopMaxWidth,
     desktopTitleMaxWidth,
@@ -321,7 +325,6 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontWeight = "semi-bold",
     desktopTitleLeftSlop,
     desktopMarginTop,
-    desktopReplaceActions,
     mobileTitleJustifyContents = "center",
 }: {
     /**
@@ -396,6 +399,16 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     stickyBanner?: ReactNode;
 
     /**
+     * If provided, completely replace the actions in this navigation bar's content
+     * (which includes `menuActions` and `shareButton`) with the contents of this
+     * node.
+     *
+     * Useful if you're entering an edit modality and need controls to exit the
+     * editing modality.
+     */
+    replaceActions?: ReactNode;
+
+    /**
      * Only rendered on desktop (not mobile).
      *
      * Controls at the far left of the navigation bar that renders at the top of
@@ -448,16 +461,6 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
      * area inset but the navigation bar doesn't cover this area when scrolled.
      */
     desktopMarginTop?: Spacing | RemLength;
-
-    /**
-     * If provided, completely replace the actions in this navigation bar's content
-     * (which includes `menuActions` and `shareButton`) with the contents of this
-     * node.
-     *
-     * Useful if you're entering an edit modality and need controls to exit the
-     * editing modality.
-     */
-    desktopReplaceActions?: ReactNode;
 
     /**
      * How do we justify title contents on mobile? Defaults to `center`. To match
@@ -551,6 +554,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             menuActions={menuActions}
             shareButton={shareButton}
             stickyBanner={stickyBanner}
+            replaceActions={replaceActions}
             desktopControls={desktopControls}
             desktopMaxWidth={desktopMaxWidth}
             desktopTitleMaxWidth={desktopTitleMaxWidth}
@@ -558,7 +562,6 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             desktopTitleFontWeight={desktopTitleFontWeight}
             desktopTitleLeftSlop={desktopTitleLeftSlop}
             desktopMarginTopRem={desktopMarginTopRem}
-            desktopReplaceActions={desktopReplaceActions}
             mobileTitleJustifyContents={mobileTitleJustifyContents}
         />
     ) : null;
@@ -607,6 +610,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     menuActions,
     shareButton,
     stickyBanner,
+    replaceActions,
     desktopControls,
     desktopMaxWidth,
     desktopTitleMaxWidth,
@@ -614,7 +618,6 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontWeight,
     desktopTitleLeftSlop,
     desktopMarginTopRem,
-    desktopReplaceActions,
     mobileTitleJustifyContents,
 }: {
     isMobile: boolean;
@@ -633,6 +636,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
     shareButton: {} | undefined;
     stickyBanner: ReactNode;
+    replaceActions: ReactNode;
     desktopControls: ReactNode;
     desktopMaxWidth: Spacing | RemLength | undefined;
     desktopTitleMaxWidth: Spacing | RemLength | undefined;
@@ -640,7 +644,6 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontWeight: "semi-bold" | "bold";
     desktopTitleLeftSlop: Spacing | undefined;
     desktopMarginTopRem: number;
-    desktopReplaceActions: ReactNode;
     mobileTitleJustifyContents: "center" | "flex-start";
 }) {
     const {isAppleDevice, isNativeMobile} = useClientInfo();
@@ -1290,13 +1293,13 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             subtitle={subtitle}
                             menuActions={menuActions}
                             shareButton={shareButton}
+                            replaceActions={replaceActions}
                             desktopControls={desktopControls}
                             desktopMaxWidth={desktopMaxWidth}
                             desktopTitleMaxWidth={desktopTitleMaxWidth}
                             desktopTitleFontSize={desktopTitleFontSize}
                             desktopTitleFontWeight={desktopTitleFontWeight}
                             desktopTitleLeftSlop={desktopTitleLeftSlop}
-                            desktopReplaceActions={desktopReplaceActions}
                             mobileTitleJustifyContents={mobileTitleJustifyContents}
                         />
                         {stickyBanner}
@@ -1322,13 +1325,13 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         subtitle,
         menuActions = emptyArray,
         shareButton,
+        replaceActions,
         desktopControls,
         desktopMaxWidth: desktopMaxWidthProp,
         desktopTitleMaxWidth: desktopTitleMaxWidthProp,
         desktopTitleFontSize = "200",
         desktopTitleFontWeight = "semi-bold",
         desktopTitleLeftSlop,
-        desktopReplaceActions,
         mobileTitleJustifyContents = "center",
     }: {
         withMobileLayout: boolean;
@@ -1338,13 +1341,13 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         subtitle?: string;
         menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
         shareButton?: {};
+        replaceActions?: ReactNode;
         desktopControls?: ReactNode;
         desktopMaxWidth?: Spacing | RemLength;
         desktopTitleMaxWidth?: Spacing | RemLength;
         desktopTitleFontSize?: FontSize;
         desktopTitleFontWeight?: "semi-bold" | "bold";
         desktopTitleLeftSlop?: Spacing;
-        desktopReplaceActions?: ReactNode;
         mobileTitleJustifyContents?: "center" | "flex-start";
     },
     ref: Ref<NavigationBarContentRef>,
@@ -1392,7 +1395,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
             width="full"
             height={navigationBarHeight}
             display="flex"
-            gap={isMobile ? "3" : "5"}
+            gap={isMobile ? mobileNavigationBarGap : "5"}
             style={{
                 maxWidth: !isMobile ? desktopMaxWidth : undefined,
                 margin: !isMobile ? "0 auto" : undefined,
@@ -1403,11 +1406,11 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                     <Box
                         flexShrink="0"
                         height={navigationBarHeight}
-                        paddingLeft="3"
+                        paddingLeft={mobileNavigationBarGap}
                         display="flex"
                         justifyContent="flex-start"
                         alignItems="center"
-                        style={{flexBasis: spacing["10"]}}
+                        style={{flexBasis: spacing[navigationBarActionsFlexBasis]}}
                         // Gives children `pointer-events: initial` so the user can interact with them.
                         className={pointerEventsNoneNotInheritedClassName}
                     >
@@ -1514,17 +1517,17 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                     flexGrow={!isMobile ? "1" : undefined}
                     flexShrink="0"
                     height={navigationBarHeight}
-                    paddingRight={isMobile ? "3" : "5"}
+                    paddingRight={isMobile ? mobileNavigationBarGap : "5"}
                     display="flex"
                     justifyContent="flex-end"
                     alignItems="center"
                     gap={isMobile ? "0.5" : "2"}
                     // Gives children `pointer-events: initial` so the user can interact with them.
                     className={pointerEventsNoneNotInheritedClassName}
-                    style={{flexBasis: spacing["10"]}}
+                    style={{flexBasis: spacing[navigationBarActionsFlexBasis]}}
                 >
-                    {!isMobile && desktopReplaceActions ? (
-                        desktopReplaceActions
+                    {replaceActions ? (
+                        replaceActions
                     ) : (
                         <>
                             {shareButton && !withMobileLayout && (

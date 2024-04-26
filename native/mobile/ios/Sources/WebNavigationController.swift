@@ -3015,6 +3015,9 @@ private let webBridgeSource = """
                         }
                     }
                 },
+                isSubstituteOpen: () => {
+                    return isKeyboardSubstituteOpen;
+                },
                 prepareForSubstitute: () => {
                     if (!isKeyboardSubstituteOpen) {
                         disableTabBarCount += 1;

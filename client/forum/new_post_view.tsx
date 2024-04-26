@@ -5,7 +5,12 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {
+    mobileNavigationBarGap,
+    navigationBarActionsFlexBasis,
+    navigationBarHeight,
+    useNavigationBar,
+} from "~/client/design/navigation_bar.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {safeAreaOnlyScrollbarInsetTop, useScrollbar} from "~/client/design/scrollbar.js";
 import {
@@ -140,11 +145,65 @@ export function NewPostView({
         });
     }, [initiallyFocus]);
 
+    const createButtonNode = (
+        <Button
+            ref={createButtonRef}
+            variant="neutral"
+            withoutMinWidth={isMobile}
+            isDisabled={!hasContentChanged || isContentEmpty(state.getDoc()) || !channel}
+            pressErrorTitle="Couldn’t create post"
+            onPress={async () => {
+                if (!channel) return;
+
+                const {post, readTime, eventTransaction} = await createPost(context, {
+                    channelId: channel.id,
+                    content: state.getDoc(),
+                });
+
+                // While the client should get their new post data through `<ChannelView>`s
+                // WebSocket connection, we emit the realtime event returned by
+                // `createPost()` so `<ChannelView>` can use that too in case the WebSocket
+                // is slow.
+                createPostEventEmitter.emit({readTime, eventTransaction});
+
+                if (shouldReturnBack) {
+                    await navigate(-1);
+                } else {
+                    await navigate(`/s/${space.id}/posts/${post.id}`, {
+                        replace: true,
+                    });
+                }
+
+                // Quietly cleanup draft from session storage without re-rendering our
+                // component which is about to be unmounted.
+                sessionStorage.removeItem(sessionStorageKey);
+            }}
+        >
+            Post
+        </Button>
+    );
+
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         isDisabled: !isMobile,
         withMobileLayout,
         title: "New post",
         withoutDisappearingTitle: true,
+        replaceActions: isMobile && (
+            <Box
+                display="flex"
+                justifyContent="flex-end"
+                style={{
+                    // Make sure the width is equal to our flex basis width so the title is
+                    // properly center aligned.
+                    width: subtractRemLengths(
+                        spacing[navigationBarActionsFlexBasis],
+                        spacing[mobileNavigationBarGap],
+                    ),
+                }}
+            >
+                {createButtonNode}
+            </Box>
+        ),
     });
 
     return (
@@ -248,58 +307,22 @@ export function NewPostView({
                             assertExists(createButtonRef.current).press();
                         }}
                     />
-                    <Box
-                        flexShrink="0"
-                        width="full"
-                        marginX="center"
-                        maxWidth={postViewMaxWidth}
-                        style={{
-                            paddingBottom: "var(--safe-area-inset-bottom, 0px)",
-                        }}
-                    >
-                        <Box height="12" paddingX="2.5" display="flex" alignItems="center">
-                            <Box flexGrow="1" />
-                            <Button
-                                ref={createButtonRef}
-                                variant="neutral"
-                                isDisabled={
-                                    !hasContentChanged || isContentEmpty(state.getDoc()) || !channel
-                                }
-                                pressErrorTitle="Couldn’t create post"
-                                onPress={async () => {
-                                    if (!channel) return;
-
-                                    const {post, readTime, eventTransaction} = await createPost(
-                                        context,
-                                        {
-                                            channelId: channel.id,
-                                            content: state.getDoc(),
-                                        },
-                                    );
-
-                                    // While the client should get their new post data through `<ChannelView>`s
-                                    // WebSocket connection, we emit the realtime event returned by
-                                    // `createPost()` so `<ChannelView>` can use that too in case the WebSocket
-                                    // is slow.
-                                    createPostEventEmitter.emit({readTime, eventTransaction});
-
-                                    if (shouldReturnBack) {
-                                        await navigate(-1);
-                                    } else {
-                                        await navigate(`/s/${space.id}/posts/${post.id}`, {
-                                            replace: true,
-                                        });
-                                    }
-
-                                    // Quietly cleanup draft from session storage without re-rendering our
-                                    // component which is about to be unmounted.
-                                    sessionStorage.removeItem(sessionStorageKey);
-                                }}
-                            >
-                                Post
-                            </Button>
+                    {!isMobile && (
+                        <Box
+                            flexShrink="0"
+                            width="full"
+                            marginX="center"
+                            maxWidth={postViewMaxWidth}
+                            style={{
+                                paddingBottom: "var(--safe-area-inset-bottom, 0px)",
+                            }}
+                        >
+                            <Box height="12" paddingX="2.5" display="flex" alignItems="center">
+                                <Box flexGrow="1" />
+                                {createButtonNode}
+                            </Box>
                         </Box>
-                    </Box>
+                    )}
                 </Box>
             </Box>
         </Box>

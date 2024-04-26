@@ -41,8 +41,6 @@ if (isMobileKeyboardFrameChangeEnabled) {
         blurTimeout?.clear();
         blurTimeout = null;
 
-        console.log("mobile keyboard frame change", {oldKeyboardHeight, newKeyboardHeight});
-
         // We've observed that in our native iOS app when
         // `scrollView.keyboardDismissMode = .interactive` is set, when the keyboard
         // closes because the user scrolls down in a scroll view WebKit doesn't unfocus
@@ -58,6 +56,9 @@ if (isMobileKeyboardFrameChangeEnabled) {
         if (
             NativeMobileBridge &&
             isMobileWebKit &&
+            // If a keyboard substitute is open we're intentionally closing the keyboard
+            // while still wanting to maintain focus.
+            !NativeMobileBridge.keyboard.isSubstituteOpen() &&
             newKeyboardHeight === 0 &&
             oldKeyboardHeight > 0 &&
             document.activeElement &&

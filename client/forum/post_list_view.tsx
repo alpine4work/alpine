@@ -1643,21 +1643,20 @@ function PostListView(
                                       // view header in a navigation bar and put the more actions button in that
                                       // navigation bar. `<PostView>` does not have access to `postEditing` state
                                       // though. So what we do is we intercept the `navigationBar` passed to
-                                      // `<PostListView>` by props and inject the `desktopReplaceActions` prop.
+                                      // `<PostListView>` by props and inject the `replaceActions` prop.
                                       //
                                       // This assertion makes sure `navigationBarElement` is a `ReactElement` that
-                                      // accepts the `desktopReplaceActions` prop.
+                                      // accepts the `replaceActions` prop.
                                       assert(
-                                          "desktopReplaceActions" in navigationBarElement.props &&
-                                              navigationBarElement.props.desktopReplaceActions ===
-                                                  null,
-                                          "Expected React element with a null `desktopReplaceActions` prop",
+                                          "replaceActions" in navigationBarElement.props &&
+                                              navigationBarElement.props.replaceActions === null,
+                                          "Expected React element with a null `replaceActions` prop",
                                       );
 
                                       if (!postEditing.state.isEditing) return navigationBarElement;
 
                                       return cloneElement(navigationBarElement, {
-                                          desktopReplaceActions: (
+                                          replaceActions: (
                                               <PostContentViewEditingActions
                                                   idBase={idBase}
                                                   postEditing={

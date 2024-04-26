@@ -415,6 +415,9 @@ function MessageInputMobileKeyboardToolbarButton({
 }) {
     const {isHovered, hoverProps} = useHover({});
     const {isPressed, pressProps} = usePress({
+        // Toolbar buttons should not be focusable since we don't want the content
+        // editor to lose focus.
+        preventFocusOnPress: true,
         isDisabled,
         onPress,
     });

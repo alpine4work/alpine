@@ -104,6 +104,13 @@ function Button(
         fullWidth?: boolean;
 
         /**
+         * Should the button not have a default minimum width? Can be used when there's
+         * not much available space. Normally short buttons like "Ok" need a minimum
+         * width to continue looking like a button.
+         */
+        withoutMinWidth?: boolean;
+
+        /**
          * Should this button submit an HTML `<form>` element that it is inside? You
          * don't need a press event if true.
          */
@@ -185,6 +192,7 @@ function Button(
         keyboardShortcutHint,
         isPending: isPendingFromProps,
         fullWidth = false,
+        withoutMinWidth = false,
         shouldSubmitForm = false,
         onPress,
         pressErrorTitle,
@@ -504,7 +512,7 @@ function Button(
                         justifyContent: "center",
                         alignItems: "center",
                         height,
-                        minWidth: !isQuietVariant ? "16" : undefined,
+                        minWidth: !withoutMinWidth && !isQuietVariant ? "16" : undefined,
                         width: fullWidth ? "full" : undefined,
                         paddingX,
                         fontSize,

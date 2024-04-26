@@ -430,6 +430,12 @@ export const NativeMobileBridge: {
         ): () => void;
 
         /**
+         * Is a keyboard substitute open? True if `prepareForSubstitute()` was called
+         * and `cleanupAfterSubstitute()` has not been called yet.
+         */
+        isSubstituteOpen(): boolean;
+
+        /**
          * Web code may choose to substitute out the native keyboard with some custom
          * UI if useful. This is used in content editors to provide advanced formatting
          * options to the user.
