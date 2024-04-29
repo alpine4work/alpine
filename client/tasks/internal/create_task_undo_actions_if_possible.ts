@@ -339,7 +339,7 @@ export function createTaskUndoActionsIfPossible(
                                           ),
                                           // NOTE(calebmer): You may only set `assignerId` to your current account.
                                           // Otherwise there's a `PermissionDeniedError` as you're taking an action on
-                                          // another task's behalf. So if you change the assignee then hit undo you
+                                          // another account's behalf. So if you change the assignee then hit undo you
                                           // become the new assigner.
                                           //
                                           // However, this is an unintuitive user experience. So do we sacrifice security
