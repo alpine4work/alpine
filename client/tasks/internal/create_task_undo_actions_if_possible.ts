@@ -337,6 +337,26 @@ export function createTaskUndoActionsIfPossible(
                                           ...upcastTaskAssigneeWithSortableAccount(
                                               task.rawData.assignee.value,
                                           ),
+                                          // NOTE(calebmer): You may only set `assignerId` to your current account.
+                                          // Otherwise there's a `PermissionDeniedError` as you're taking an action on
+                                          // another task's behalf. So if you change the assignee then hit undo you
+                                          // become the new assigner.
+                                          //
+                                          // However, this is an unintuitive user experience. So do we sacrifice security
+                                          // or usability? Some thoughts on solutions:
+                                          //
+                                          // - Maybe we determine the attack vector of an attacker setting an arbitrary
+                                          //   account as `assignerId` isn't that bad and remove the
+                                          //   `PermissionDeniedError`. We'd have to thoroughly think through
+                                          //   all the implications before doing this.
+                                          //
+                                          // - We have a lease system (look around for `TaskActionTransactionLeaseId`)
+                                          //   that will let you commit actions that would have caused a
+                                          //   `PermissionDeniedError` when you're undoing a change you made recently.
+                                          //   Right now we only create leases if your change causes you to fully lose
+                                          //   access. Maybe we should extend the lease system to handle this case? So a
+                                          //   a lease is created when you update the assignee allowing you to put the
+                                          //   old assigner back with an undo.
                                           assignerId: store.currentAccountId,
                                       }
                                     : null,
