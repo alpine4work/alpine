@@ -20,6 +20,7 @@ import {upcastTaskStatusWithSortableAccount} from "~/shared/tasks/task_status.js
 // store or accessing `store.clock`.
 interface TaskClientStoreInterface {
     readonly spaceId: SpaceId;
+    readonly currentAccountId: AccountId;
     readonly accountStore: AccountClientStore;
     getTaskEntryStoreIfExists(task: TaskId): Store<TaskClientStoreTaskEntry> | null;
 }
@@ -331,9 +332,14 @@ export function createTaskUndoActionsIfPossible(
                             taskId: action.taskId,
                             taskAction: {
                                 type: "UpdateAssignee",
-                                assignee: upcastTaskAssigneeWithSortableAccount(
-                                    task.rawData.assignee.value,
-                                ),
+                                assignee: task.rawData.assignee.value
+                                    ? {
+                                          ...upcastTaskAssigneeWithSortableAccount(
+                                              task.rawData.assignee.value,
+                                          ),
+                                          assignerId: store.currentAccountId,
+                                      }
+                                    : null,
                                 assigneeStatus: task.rawData.assigneeStatus.value,
                             },
                         });

@@ -166,6 +166,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -315,6 +316,7 @@ test("task can be added to query through backfill", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -359,6 +361,7 @@ test("task can be added to query through previously backfilled tasks", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -422,6 +425,7 @@ test("task can be added to query through action", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -514,6 +518,7 @@ test("task can be removed from a query through an action", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -597,6 +602,7 @@ test("task can be moved in query through an action", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -710,6 +716,7 @@ test("task can be left alone through an action", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -820,6 +827,7 @@ test("task references can be added to query through backfill", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -1077,6 +1085,7 @@ test("task references can be added to query through previous backfill", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -1353,6 +1362,7 @@ test("task references can be added to query through action", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -1641,6 +1651,7 @@ test("task references can be removed from query through actions", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -1980,6 +1991,7 @@ test("references from optimistic task can be removed", async () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -2293,6 +2305,7 @@ test("task references can be added and removed through actions", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -2578,6 +2591,7 @@ test("task references can be added and removed through actions on a referenced t
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -2881,6 +2895,7 @@ test("task references can be added and removed through actions on a task that's 
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -3203,6 +3218,7 @@ test("can handle a temporary cycle", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -3360,6 +3376,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -3533,6 +3550,7 @@ test("temporarily holds on to actions applied to task that wasn't backfilled", (
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -3580,6 +3598,7 @@ test("temporarily holds on to actions applied to collection that wasn't backfill
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -3622,6 +3641,7 @@ test("action removing from the query immediately releases task", async () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -3723,6 +3743,7 @@ test("optimistic update retains task until resolved", async () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -3827,6 +3848,7 @@ test("optimistic update retains task until rejected", async () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -3933,6 +3955,7 @@ test("deleting task and all children when subscribed to task and its children", 
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -4165,6 +4188,7 @@ test("backfilling tasks a store already has adds them to query", async () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -4261,6 +4285,7 @@ test("peek task over collection initial load scenario", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -4611,6 +4636,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 

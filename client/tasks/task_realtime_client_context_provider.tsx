@@ -23,7 +23,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
 import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {taskStoreLoaderDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {TaskStoreLoaderDataSchema} from "~/shared/remix/task_store_loader_data.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
@@ -189,9 +189,11 @@ const TaskClientStoreContext = createContext<TaskClientStore | null>(null);
  */
 export function TaskRealtimeClientContextProvider({
     spaceId,
+    currentAccountId,
     children,
 }: {
     spaceId: SpaceId;
+    currentAccountId: AccountId;
     children: ReactNode;
 }) {
     const dataRouterStateContext = useContext(DataRouterStateContext);
@@ -218,6 +220,7 @@ export function TaskRealtimeClientContextProvider({
                 // the account store doesn't change.
                 accountStore,
                 spaceId,
+                currentAccountId,
                 browserId,
                 onDisplayError: ({title, error}) => showToast({type: "Error", title, error}),
             });

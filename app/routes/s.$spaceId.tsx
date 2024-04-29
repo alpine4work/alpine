@@ -489,7 +489,10 @@ export default function SpaceLayoutRoute() {
                     space={space}
                     currentAccount={currentAccount}
                 >
-                    <TaskRealtimeClientContextProvider spaceId={space.id}>
+                    <TaskRealtimeClientContextProvider
+                        spaceId={space.id}
+                        currentAccountId={currentAccount.id}
+                    >
                         <ContextMenuManager />
                         <PeekStackContextProvider ref={peekStackRef}>
                             {nodes}

@@ -8,7 +8,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {testTaskActionPermutations} from "~/shared/tasks/test_helpers/test_task_action_permutations.js";
 
 const clock = new HybridLogicalClock(unsynchronizedSystemClock);
@@ -16,6 +16,7 @@ const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 const accountStore = getAccountClientStoreForClient();
 
 const spaceId = generateId<SpaceId>();
+const currentAccountId = generateId<AccountId>();
 
 let store: TaskClientStore;
 let retainedTaskIds = new Set<TaskId>();
@@ -32,6 +33,7 @@ beforeEach(() => {
     store = new TaskClientStore({
         accountStore,
         spaceId,
+        currentAccountId,
         onError: handleError,
     });
 

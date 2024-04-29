@@ -269,15 +269,18 @@ export class TaskClientStore {
     private readonly _internal: TaskClientStoreInternal;
     public readonly accountStore: AccountClientStore;
     public readonly spaceId: SpaceId;
+    public readonly currentAccountId: AccountId;
     public readonly clock: HybridLogicalClock;
 
     constructor({
         accountStore,
         spaceId,
+        currentAccountId,
         onError,
     }: {
         accountStore: AccountClientStore;
         spaceId: SpaceId;
+        currentAccountId: AccountId;
         onError: (
             options:
                 | {display: true; title: string; error: unknown}
@@ -287,10 +290,12 @@ export class TaskClientStore {
         this._internal = new TaskClientStoreInternal(this, {
             accountStore,
             spaceId,
+            currentAccountId,
             onError,
         });
         this.accountStore = this._internal.accountStore;
         this.spaceId = this._internal.spaceId;
+        this.currentAccountId = this._internal.currentAccountId;
         this.clock = this._internal.clock;
     }
 
@@ -457,6 +462,7 @@ export class TaskClientStoreInternal {
 
     public readonly accountStore: AccountClientStore;
     public readonly spaceId: SpaceId;
+    public readonly currentAccountId: AccountId;
     private readonly _onError: (
         options: {display: true; title: string; error: unknown} | {display: false; error: unknown},
     ) => void;
@@ -563,10 +569,12 @@ export class TaskClientStoreInternal {
         {
             accountStore,
             spaceId,
+            currentAccountId,
             onError,
         }: {
             accountStore: AccountClientStore;
             spaceId: SpaceId;
+            currentAccountId: AccountId;
             onError: (
                 options:
                     | {display: true; title: string; error: unknown}
@@ -577,6 +585,7 @@ export class TaskClientStoreInternal {
         this.external = external;
         this.accountStore = accountStore;
         this.spaceId = spaceId;
+        this.currentAccountId = currentAccountId;
         this._onError = onError;
 
         const synchronizedSystemClockPromise = getSynchronizedSystemClock();

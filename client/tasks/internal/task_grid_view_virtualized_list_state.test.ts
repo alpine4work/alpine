@@ -148,6 +148,7 @@ test("can represent items of an empty query", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -196,6 +197,7 @@ test("can represent items of a query", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -288,6 +290,7 @@ test("can represent items of a query with some expanded unloaded child tasks", (
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -591,6 +594,7 @@ test("can represent items of a query with some expanded child tasks", () => {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -1087,6 +1091,7 @@ test("can represent items of a query with some expanded child tasks and extra un
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -1673,6 +1678,7 @@ test("can represent items of a query with some expanded child tasks where task r
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -2145,6 +2151,7 @@ test("can represent items of a query with some double nested expanded child task
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
@@ -2652,6 +2659,7 @@ test("can get the index of items including nested items if the path to the task 
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 

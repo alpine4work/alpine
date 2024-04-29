@@ -16,7 +16,7 @@ import {
     mobileBottomBarKeyboardToolbarHeight,
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
-import {useOverlayMobileKeyboardPortalElement} from "~/client/design/overlay_mobile_keyboard_sink_context_provider.js";
+import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
 import {useRegisterBottomBarMobileKeyboardToolbarFrame} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
@@ -133,7 +133,7 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
 }) {
     const {isNativeMobile} = useClientInfo();
     const portalElement = assertExists(
-        useOverlayMobileKeyboardPortalElement(),
+        useOverlayRootPortalElement(),
         "Can't server render `<TaskGridViewMobileKeyboardToolbar>`",
     );
 

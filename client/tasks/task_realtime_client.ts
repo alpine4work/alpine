@@ -16,6 +16,7 @@ import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {
+    AccountId,
     BrowserId,
     SpaceId,
     TaskRealtimeCollectionSubscriptionId,
@@ -67,11 +68,13 @@ export class TaskRealtimeClient {
         {
             accountStore,
             spaceId,
+            currentAccountId,
             browserId,
             onDisplayError,
         }: {
             accountStore: AccountClientStore;
             spaceId: SpaceId;
+            currentAccountId: AccountId;
             browserId: BrowserId;
             onDisplayError: (options: {title: string; error: unknown}) => void;
         },
@@ -90,6 +93,7 @@ export class TaskRealtimeClient {
         this.store = new TaskClientStore({
             accountStore,
             spaceId,
+            currentAccountId,
             onError: options => {
                 if (options.display) {
                     onDisplayError(options);

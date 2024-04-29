@@ -192,6 +192,7 @@ function createAutoRetainStore() {
     const store = new TaskClientStore({
         accountStore,
         spaceId: generateId(),
+        currentAccountId: generateId(),
         onError: handleError,
     });
 
