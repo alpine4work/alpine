@@ -1,35 +1,8 @@
 diff --git a/dist/import.mjs b/dist/import.mjs
-index 7361913febdd7b6395867621a1d2c94203dcca77..573f3e32841d7a6fd7f828e7b2316a2eff74f7a3 100644
+index 7361913febdd7b6395867621a1d2c94203dcca77..59f996ab9804b2182a0bf585c0e470940712b819 100644
 --- a/dist/import.mjs
 +++ b/dist/import.mjs
-@@ -246,9 +246,26 @@ function $9bf71ea28793e738$var$createFocusManagerForScope(scopeRef) {
-             let previousNode = walker.previousNode();
-             if (previousNode) $9bf71ea28793e738$var$focusElement(previousNode, true);
-             return previousNode;
-+        },
-+        isFocusable () {
-+            return (
-+                !$9bf71ea28793e738$var$activeScope ||
-+                !$9bf71ea28793e738$var$shouldContainFocus($9bf71ea28793e738$var$activeScope) ||
-+                $9bf71ea28793e738$var$activeScope === scopeRef ||
-+                $9bf71ea28793e738$var$isAncestorScope($9bf71ea28793e738$var$activeScope, scopeRef)
-+            );
-         }
-     };
- }
-+// NOTE(calebmer): Is the provided focus manager focusable? (Checked by
-+// `FocusManager.isFocusable()`.) If no focus manager is provided we return
-+// whether an element outside of all `<FocusScope>`s is focusable. In that case,
-+// returns true by default but will return false if there's an active
-+// `<FocusScope>` with `contain`.
-+function isFocusManagerFocusable(focusManager) {
-+    if (focusManager) return focusManager.isFocusable();
-+    return !$9bf71ea28793e738$var$activeScope || !$9bf71ea28793e738$var$shouldContainFocus($9bf71ea28793e738$var$activeScope);
-+}
- const $9bf71ea28793e738$var$focusableElements = [
-     "input:not([disabled]):not([type=hidden])",
-     "select:not([disabled])",
-@@ -327,7 +344,17 @@ function $9bf71ea28793e738$var$useFocusContainment(scopeRef, contain) {
+@@ -327,7 +327,17 @@ function $9bf71ea28793e738$var$useFocusContainment(scopeRef, contain) {
              if (raf.current) cancelAnimationFrame(raf.current);
              raf.current = requestAnimationFrame(()=>{
                  // Use document.activeElement instead of e.relatedTarget so we can tell if user clicked into iframe
@@ -48,7 +21,7 @@ index 7361913febdd7b6395867621a1d2c94203dcca77..573f3e32841d7a6fd7f828e7b2316a2e
                      $9bf71ea28793e738$var$activeScope = scopeRef;
                      if (document.body.contains(e.target)) {
                          focusedNode.current = e.target;
-@@ -363,8 +390,35 @@ function $9bf71ea28793e738$var$useFocusContainment(scopeRef, contain) {
+@@ -363,8 +373,35 @@ function $9bf71ea28793e738$var$useFocusContainment(scopeRef, contain) {
  function $9bf71ea28793e738$var$isElementInAnyScope(element) {
      return $9bf71ea28793e738$var$isElementInChildScope(element);
  }
@@ -86,55 +59,18 @@ index 7361913febdd7b6395867621a1d2c94203dcca77..573f3e32841d7a6fd7f828e7b2316a2e
  }
  function $9bf71ea28793e738$var$isElementInChildScope(element, scope = null) {
      // If the element is within a top layer element (e.g. toasts), always allow moving focus there.
-@@ -914,5 +968,6 @@ function $83013635b024ae3d$export$eac1895992b9f3d6(ref, options) {
+@@ -915,4 +952,5 @@ function $83013635b024ae3d$export$eac1895992b9f3d6(ref, options) {
  
  
- 
--export {$9bf71ea28793e738$export$20e40289641fbbb6 as FocusScope, $9bf71ea28793e738$export$10c5169755ce7bd7 as useFocusManager, $9bf71ea28793e738$export$2d6ec8fc375ceafa as getFocusableTreeWalker, $9bf71ea28793e738$export$c5251b9e124bf29 as createFocusManager, $9bf71ea28793e738$export$1258395f99bf9cbf as isElementInChildOfActiveScope, $907718708eab68af$export$1a38b4ad7f578e1d as FocusRing, $e6afbd83fe6ebbd2$export$13f3202a3e5ddd5 as FocusableProvider, $e6afbd83fe6ebbd2$export$4c014de7c8940b4c as useFocusable, $f7dceffc5ad7768b$export$4e328f61c538687f as useFocusRing, $6a99195332edec8b$export$80f3e147d781571c as focusSafely, $83013635b024ae3d$export$eac1895992b9f3d6 as useHasTabbableChild};
+ export {$9bf71ea28793e738$export$20e40289641fbbb6 as FocusScope, $9bf71ea28793e738$export$10c5169755ce7bd7 as useFocusManager, $9bf71ea28793e738$export$2d6ec8fc375ceafa as getFocusableTreeWalker, $9bf71ea28793e738$export$c5251b9e124bf29 as createFocusManager, $9bf71ea28793e738$export$1258395f99bf9cbf as isElementInChildOfActiveScope, $907718708eab68af$export$1a38b4ad7f578e1d as FocusRing, $e6afbd83fe6ebbd2$export$13f3202a3e5ddd5 as FocusableProvider, $e6afbd83fe6ebbd2$export$4c014de7c8940b4c as useFocusable, $f7dceffc5ad7768b$export$4e328f61c538687f as useFocusRing, $6a99195332edec8b$export$80f3e147d781571c as focusSafely, $83013635b024ae3d$export$eac1895992b9f3d6 as useHasTabbableChild};
 -//# sourceMappingURL=module.js.map
-+export {$9bf71ea28793e738$export$20e40289641fbbb6 as FocusScope, $9bf71ea28793e738$export$10c5169755ce7bd7 as useFocusManager, isFocusManagerFocusable, $9bf71ea28793e738$export$2d6ec8fc375ceafa as getFocusableTreeWalker, $9bf71ea28793e738$export$c5251b9e124bf29 as createFocusManager, $9bf71ea28793e738$export$1258395f99bf9cbf as isElementInChildOfActiveScope, $907718708eab68af$export$1a38b4ad7f578e1d as FocusRing, $e6afbd83fe6ebbd2$export$13f3202a3e5ddd5 as FocusableProvider, $e6afbd83fe6ebbd2$export$4c014de7c8940b4c as useFocusable, $f7dceffc5ad7768b$export$4e328f61c538687f as useFocusRing, $6a99195332edec8b$export$80f3e147d781571c as focusSafely, $83013635b024ae3d$export$eac1895992b9f3d6 as useHasTabbableChild};
 +// NOTE(calebmer): Make it easier to debug the patched code by removing
 +// source maps.
 diff --git a/dist/main.js b/dist/main.js
-index afa0b41d35e67a2751887c0586f637859606e6e6..2ec982ebc47bba9da8bd0762ad92bb156b314e52 100644
+index afa0b41d35e67a2751887c0586f637859606e6e6..99ceebdb6b1ae5d83f9a6aa42776aa6e4186f27b 100644
 --- a/dist/main.js
 +++ b/dist/main.js
-@@ -12,6 +12,7 @@ function $parcel$interopDefault(a) {
- 
- $parcel$export(module.exports, "FocusScope", () => $a7a032acae3ddda9$export$20e40289641fbbb6);
- $parcel$export(module.exports, "useFocusManager", () => $a7a032acae3ddda9$export$10c5169755ce7bd7);
-+$parcel$export(module.exports, "isFocusManagerFocusable", () => isFocusManagerFocusable);
- $parcel$export(module.exports, "getFocusableTreeWalker", () => $a7a032acae3ddda9$export$2d6ec8fc375ceafa);
- $parcel$export(module.exports, "createFocusManager", () => $a7a032acae3ddda9$export$c5251b9e124bf29);
- $parcel$export(module.exports, "isElementInChildOfActiveScope", () => $a7a032acae3ddda9$export$1258395f99bf9cbf);
-@@ -264,9 +265,26 @@ function $a7a032acae3ddda9$var$createFocusManagerForScope(scopeRef) {
-             let previousNode = walker.previousNode();
-             if (previousNode) $a7a032acae3ddda9$var$focusElement(previousNode, true);
-             return previousNode;
-+        },
-+        isFocusable () {
-+            return (
-+                !$a7a032acae3ddda9$var$activeScope ||
-+                !$a7a032acae3ddda9$var$shouldContainFocus($a7a032acae3ddda9$var$activeScope) ||
-+                $a7a032acae3ddda9$var$activeScope === scopeRef ||
-+                $a7a032acae3ddda9$var$isAncestorScope($a7a032acae3ddda9$var$activeScope, scopeRef)
-+            );
-         }
-     };
- }
-+// NOTE(calebmer): Is the provided focus manager focusable? (Checked by
-+// `FocusManager.isFocusable()`.) If no focus manager is provided we return
-+// whether an element outside of all `<FocusScope>`s is focusable. In that case,
-+// returns true by default but will return false if there's an active
-+// `<FocusScope>` with `contain`.
-+function isFocusManagerFocusable(focusManager) {
-+    if (focusManager) return focusManager.isFocusable();
-+    return !$a7a032acae3ddda9$var$activeScope || !$a7a032acae3ddda9$var$shouldContainFocus($a7a032acae3ddda9$var$activeScope);
-+}
- const $a7a032acae3ddda9$var$focusableElements = [
-     "input:not([disabled]):not([type=hidden])",
-     "select:not([disabled])",
-@@ -345,7 +363,17 @@ function $a7a032acae3ddda9$var$useFocusContainment(scopeRef, contain) {
+@@ -345,7 +345,17 @@ function $a7a032acae3ddda9$var$useFocusContainment(scopeRef, contain) {
              if (raf.current) cancelAnimationFrame(raf.current);
              raf.current = requestAnimationFrame(()=>{
                  // Use document.activeElement instead of e.relatedTarget so we can tell if user clicked into iframe
@@ -153,7 +89,7 @@ index afa0b41d35e67a2751887c0586f637859606e6e6..2ec982ebc47bba9da8bd0762ad92bb15
                      $a7a032acae3ddda9$var$activeScope = scopeRef;
                      if (document.body.contains(e.target)) {
                          focusedNode.current = e.target;
-@@ -381,8 +409,35 @@ function $a7a032acae3ddda9$var$useFocusContainment(scopeRef, contain) {
+@@ -381,8 +391,35 @@ function $a7a032acae3ddda9$var$useFocusContainment(scopeRef, contain) {
  function $a7a032acae3ddda9$var$isElementInAnyScope(element) {
      return $a7a032acae3ddda9$var$isElementInChildScope(element);
  }
@@ -191,7 +127,7 @@ index afa0b41d35e67a2751887c0586f637859606e6e6..2ec982ebc47bba9da8bd0762ad92bb15
  }
  function $a7a032acae3ddda9$var$isElementInChildScope(element, scope = null) {
      // If the element is within a top layer element (e.g. toasts), always allow moving focus there.
-@@ -932,4 +987,5 @@ function $259c6413a286f2e6$export$eac1895992b9f3d6(ref, options) {
+@@ -932,4 +969,5 @@ function $259c6413a286f2e6$export$eac1895992b9f3d6(ref, options) {
  
  
  
@@ -199,37 +135,10 @@ index afa0b41d35e67a2751887c0586f637859606e6e6..2ec982ebc47bba9da8bd0762ad92bb15
 +// NOTE(calebmer): Make it easier to debug the patched code by removing
 +// source maps.
 diff --git a/dist/module.js b/dist/module.js
-index 7361913febdd7b6395867621a1d2c94203dcca77..573f3e32841d7a6fd7f828e7b2316a2eff74f7a3 100644
+index 7361913febdd7b6395867621a1d2c94203dcca77..59f996ab9804b2182a0bf585c0e470940712b819 100644
 --- a/dist/module.js
 +++ b/dist/module.js
-@@ -246,9 +246,26 @@ function $9bf71ea28793e738$var$createFocusManagerForScope(scopeRef) {
-             let previousNode = walker.previousNode();
-             if (previousNode) $9bf71ea28793e738$var$focusElement(previousNode, true);
-             return previousNode;
-+        },
-+        isFocusable () {
-+            return (
-+                !$9bf71ea28793e738$var$activeScope ||
-+                !$9bf71ea28793e738$var$shouldContainFocus($9bf71ea28793e738$var$activeScope) ||
-+                $9bf71ea28793e738$var$activeScope === scopeRef ||
-+                $9bf71ea28793e738$var$isAncestorScope($9bf71ea28793e738$var$activeScope, scopeRef)
-+            );
-         }
-     };
- }
-+// NOTE(calebmer): Is the provided focus manager focusable? (Checked by
-+// `FocusManager.isFocusable()`.) If no focus manager is provided we return
-+// whether an element outside of all `<FocusScope>`s is focusable. In that case,
-+// returns true by default but will return false if there's an active
-+// `<FocusScope>` with `contain`.
-+function isFocusManagerFocusable(focusManager) {
-+    if (focusManager) return focusManager.isFocusable();
-+    return !$9bf71ea28793e738$var$activeScope || !$9bf71ea28793e738$var$shouldContainFocus($9bf71ea28793e738$var$activeScope);
-+}
- const $9bf71ea28793e738$var$focusableElements = [
-     "input:not([disabled]):not([type=hidden])",
-     "select:not([disabled])",
-@@ -327,7 +344,17 @@ function $9bf71ea28793e738$var$useFocusContainment(scopeRef, contain) {
+@@ -327,7 +327,17 @@ function $9bf71ea28793e738$var$useFocusContainment(scopeRef, contain) {
              if (raf.current) cancelAnimationFrame(raf.current);
              raf.current = requestAnimationFrame(()=>{
                  // Use document.activeElement instead of e.relatedTarget so we can tell if user clicked into iframe
@@ -248,7 +157,7 @@ index 7361913febdd7b6395867621a1d2c94203dcca77..573f3e32841d7a6fd7f828e7b2316a2e
                      $9bf71ea28793e738$var$activeScope = scopeRef;
                      if (document.body.contains(e.target)) {
                          focusedNode.current = e.target;
-@@ -363,8 +390,35 @@ function $9bf71ea28793e738$var$useFocusContainment(scopeRef, contain) {
+@@ -363,8 +373,35 @@ function $9bf71ea28793e738$var$useFocusContainment(scopeRef, contain) {
  function $9bf71ea28793e738$var$isElementInAnyScope(element) {
      return $9bf71ea28793e738$var$isElementInChildScope(element);
  }
@@ -286,105 +195,18 @@ index 7361913febdd7b6395867621a1d2c94203dcca77..573f3e32841d7a6fd7f828e7b2316a2e
  }
  function $9bf71ea28793e738$var$isElementInChildScope(element, scope = null) {
      // If the element is within a top layer element (e.g. toasts), always allow moving focus there.
-@@ -914,5 +968,6 @@ function $83013635b024ae3d$export$eac1895992b9f3d6(ref, options) {
+@@ -915,4 +952,5 @@ function $83013635b024ae3d$export$eac1895992b9f3d6(ref, options) {
  
  
- 
--export {$9bf71ea28793e738$export$20e40289641fbbb6 as FocusScope, $9bf71ea28793e738$export$10c5169755ce7bd7 as useFocusManager, $9bf71ea28793e738$export$2d6ec8fc375ceafa as getFocusableTreeWalker, $9bf71ea28793e738$export$c5251b9e124bf29 as createFocusManager, $9bf71ea28793e738$export$1258395f99bf9cbf as isElementInChildOfActiveScope, $907718708eab68af$export$1a38b4ad7f578e1d as FocusRing, $e6afbd83fe6ebbd2$export$13f3202a3e5ddd5 as FocusableProvider, $e6afbd83fe6ebbd2$export$4c014de7c8940b4c as useFocusable, $f7dceffc5ad7768b$export$4e328f61c538687f as useFocusRing, $6a99195332edec8b$export$80f3e147d781571c as focusSafely, $83013635b024ae3d$export$eac1895992b9f3d6 as useHasTabbableChild};
+ export {$9bf71ea28793e738$export$20e40289641fbbb6 as FocusScope, $9bf71ea28793e738$export$10c5169755ce7bd7 as useFocusManager, $9bf71ea28793e738$export$2d6ec8fc375ceafa as getFocusableTreeWalker, $9bf71ea28793e738$export$c5251b9e124bf29 as createFocusManager, $9bf71ea28793e738$export$1258395f99bf9cbf as isElementInChildOfActiveScope, $907718708eab68af$export$1a38b4ad7f578e1d as FocusRing, $e6afbd83fe6ebbd2$export$13f3202a3e5ddd5 as FocusableProvider, $e6afbd83fe6ebbd2$export$4c014de7c8940b4c as useFocusable, $f7dceffc5ad7768b$export$4e328f61c538687f as useFocusRing, $6a99195332edec8b$export$80f3e147d781571c as focusSafely, $83013635b024ae3d$export$eac1895992b9f3d6 as useHasTabbableChild};
 -//# sourceMappingURL=module.js.map
-+export {$9bf71ea28793e738$export$20e40289641fbbb6 as FocusScope, $9bf71ea28793e738$export$10c5169755ce7bd7 as useFocusManager, isFocusManagerFocusable, $9bf71ea28793e738$export$2d6ec8fc375ceafa as getFocusableTreeWalker, $9bf71ea28793e738$export$c5251b9e124bf29 as createFocusManager, $9bf71ea28793e738$export$1258395f99bf9cbf as isElementInChildOfActiveScope, $907718708eab68af$export$1a38b4ad7f578e1d as FocusRing, $e6afbd83fe6ebbd2$export$13f3202a3e5ddd5 as FocusableProvider, $e6afbd83fe6ebbd2$export$4c014de7c8940b4c as useFocusable, $f7dceffc5ad7768b$export$4e328f61c538687f as useFocusRing, $6a99195332edec8b$export$80f3e147d781571c as focusSafely, $83013635b024ae3d$export$eac1895992b9f3d6 as useHasTabbableChild};
 +// NOTE(calebmer): Make it easier to debug the patched code by removing
 +// source maps.
-diff --git a/dist/types.d.ts b/dist/types.d.ts
-index 84e7b91b8542cb64d3766e221735cc09a1326306..b930f3457a84f953667a1ddc80a2c750170cf39d 100644
---- a/dist/types.d.ts
-+++ b/dist/types.d.ts
-@@ -40,6 +40,10 @@ export interface FocusManager {
-     focusFirst(opts?: FocusManagerOptions): FocusableElement;
-     /** Moves focus to the last focusable or tabbable element in the focus scope. */
-     focusLast(opts?: FocusManagerOptions): FocusableElement;
-+    // NOTE(calebmer): Are the elements in this focus manager focusable? True by
-+    // default but false if there's an active `<FocusScope>` with `contain` that's
-+    // not a parent of our focus manager.
-+    isFocusable(): boolean;
- }
- /**
-  * A FocusScope manages focus for its descendants. It supports containing focus inside
-@@ -54,7 +58,14 @@ export function FocusScope(props: FocusScopeProps): React.JSX.Element;
-  * A FocusManager can be used to programmatically move focus within
-  * a FocusScope, e.g. in response to user events like keyboard navigation.
-  */
--export function useFocusManager(): FocusManager;
-+// NOTE(calebmer): Fixed types.
-+export function useFocusManager(): FocusManager | undefined;
-+// NOTE(calebmer): Is the provided focus manager focusable? (Checked by
-+// `FocusManager.isFocusable()`.) If no focus manager is provided we return
-+// whether an element outside of all `<FocusScope>`s is focusable. In that case,
-+// returns true by default but will return false if there's an active
-+// `<FocusScope>` with `contain`.
-+export function isFocusManagerFocusable(focusManager: FocusManager | undefined): boolean;
- /** @private */
- export function isElementInChildOfActiveScope(element: Element): boolean;
- /**
 diff --git a/src/FocusScope.tsx b/src/FocusScope.tsx
-index dada73642c21d5232e1f34635b6b4f8a5df65c2f..7cebeac20fe259d5c1dbe7262a0dc3113b587cc8 100644
+index dada73642c21d5232e1f34635b6b4f8a5df65c2f..5b53e89a9a7e083aa1499513110124a5fb2f8031 100644
 --- a/src/FocusScope.tsx
 +++ b/src/FocusScope.tsx
-@@ -55,8 +55,12 @@ export interface FocusManager {
-   focusPrevious(opts?: FocusManagerOptions): FocusableElement,
-   /** Moves focus to the first focusable or tabbable element in the focus scope. */
-   focusFirst(opts?: FocusManagerOptions): FocusableElement,
--    /** Moves focus to the last focusable or tabbable element in the focus scope. */
--  focusLast(opts?: FocusManagerOptions): FocusableElement
-+  /** Moves focus to the last focusable or tabbable element in the focus scope. */
-+  focusLast(opts?: FocusManagerOptions): FocusableElement,
-+  // NOTE(calebmer): Are the elements in this focus manager focusable? True by
-+  // default but false if there's an active `<FocusScope>` with `contain` that's
-+  // not a parent of our focus manager.
-+  isFocusable(): boolean
- }
- 
- type ScopeRef = RefObject<Element[]>;
-@@ -188,7 +192,8 @@ export function FocusScope(props: FocusScopeProps) {
-  * A FocusManager can be used to programmatically move focus within
-  * a FocusScope, e.g. in response to user events like keyboard navigation.
-  */
--export function useFocusManager(): FocusManager {
-+// NOTE(calebmer): Fixed types.
-+export function useFocusManager(): FocusManager | undefined {
-   return useContext(FocusContext)?.focusManager;
- }
- 
-@@ -249,10 +254,28 @@ function createFocusManagerForScope(scopeRef: React.RefObject<Element[]>): Focus
-         focusElement(previousNode, true);
-       }
-       return previousNode;
-+    },
-+    isFocusable() {
-+      return (
-+        !activeScope ||
-+        !shouldContainFocus(activeScope) ||
-+        activeScope === scopeRef ||
-+        isAncestorScope(activeScope, scopeRef)
-+      );
-     }
-   };
- }
- 
-+// NOTE(calebmer): Is the provided focus manager focusable? (Checked by
-+// `FocusManager.isFocusable()`.) If no focus manager is provided we return
-+// whether an element outside of all `<FocusScope>`s is focusable. In that case,
-+// returns true by default but will return false if there's an active
-+// `<FocusScope>` with `contain`.
-+export function isFocusManagerFocusable(focusManager: FocusManager | undefined): boolean {
-+  if (focusManager) return focusManager.isFocusable();
-+  return !activeScope || !shouldContainFocus(activeScope);
-+}
-+
- const focusableElements = [
-   'input:not([disabled]):not([type=hidden])',
-   'select:not([disabled])',
-@@ -358,7 +381,17 @@ function useFocusContainment(scopeRef: RefObject<Element[]>, contain: boolean) {
+@@ -358,7 +358,17 @@ function useFocusContainment(scopeRef: RefObject<Element[]>, contain: boolean) {
        }
        raf.current = requestAnimationFrame(() => {
          // Use document.activeElement instead of e.relatedTarget so we can tell if user clicked into iframe
@@ -403,7 +225,7 @@ index dada73642c21d5232e1f34635b6b4f8a5df65c2f..7cebeac20fe259d5c1dbe7262a0dc311
            activeScope = scopeRef;
            if (document.body.contains(e.target)) {
              focusedNode.current = e.target;
-@@ -397,8 +430,35 @@ function isElementInAnyScope(element: Element) {
+@@ -397,8 +407,35 @@ function isElementInAnyScope(element: Element) {
    return isElementInChildScope(element);
  }
  
@@ -441,16 +263,3 @@ index dada73642c21d5232e1f34635b6b4f8a5df65c2f..7cebeac20fe259d5c1dbe7262a0dc311
  }
  
  function isElementInChildScope(element: Element, scope: ScopeRef = null) {
-diff --git a/src/index.ts b/src/index.ts
-index a66c49251fddd808eac57fed5e0e56fb804acd6f..4b097fbd0c503c095ec37ed8c3f9423228715a4a 100644
---- a/src/index.ts
-+++ b/src/index.ts
-@@ -10,7 +10,7 @@
-  * governing permissions and limitations under the License.
-  */
- 
--export {FocusScope, useFocusManager, getFocusableTreeWalker, createFocusManager, isElementInChildOfActiveScope} from './FocusScope';
-+export {FocusScope, useFocusManager, isFocusManagerFocusable, getFocusableTreeWalker, createFocusManager, isElementInChildOfActiveScope} from './FocusScope';
- export {FocusRing} from './FocusRing';
- export {FocusableProvider, useFocusable} from './useFocusable';
- export {useFocusRing} from './useFocusRing';
