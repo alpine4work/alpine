@@ -6,7 +6,7 @@ import {
 } from "prosemirror-inputrules";
 import {MarkType, NodeType} from "prosemirror-model";
 import {findWrapping} from "prosemirror-transform";
-import {getSharedInputRules} from "~/client/content/helpers/get_shared_input_rules_plugin.js";
+import {getSharedContentInputRulesPlugin} from "~/client/content/get_shared_content_input_rules_plugin.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -16,7 +16,7 @@ export function buildInputRulesPlugin(schema: ContentProsemirrorSchema) {
     const rules: Array<InputRule> = [];
 
     // get "smart quotes" and emoji shared input rules
-    const sharedRules = getSharedInputRules();
+    const sharedRules = getSharedContentInputRulesPlugin();
     rules.push(...sharedRules);
 
     // `@` opens a mention search/selector interface
@@ -191,15 +191,6 @@ export function buildInputRulesPlugin(schema: ContentProsemirrorSchema) {
                 .addMark(start + offset, end, markType.create());
         });
     }
-
-    // Misc glyphs
-    rules.push(new InputRule(/--$/, "\u{2014}")); // em dash (https://graphemica.com/2014)
-    rules.push(new InputRule(/\.\.\.$/, "\u{2026}")); // ellipsis (https://graphemica.com/2026)
-    rules.push(new InputRule(/->$/, "\u{2192}")); // rightwards arrow (https://graphemica.com/2192)
-    rules.push(new InputRule(/<-$/, "\u{2190}")); // leftwards arrow (https://graphemica.com/2190)
-    rules.push(new InputRule(/\^2$/, "\u{00B2}")); // superscript two (https://graphemica.com/00B2)
-    rules.push(new InputRule(/\^3$/, "\u{00B3}")); // superscript three (https://graphemica.com/00B3)
-    rules.push(new InputRule(/\^(?:tm|TM)$/, "\u{2122}")); // trademark (https://graphemica.com/2122)
 
     return inputRules({rules});
 }
