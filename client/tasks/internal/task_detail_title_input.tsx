@@ -4,6 +4,7 @@ import {EditorView} from "prosemirror-view";
 import {Ref, forwardRef, useCallback, useImperativeHandle, useInsertionEffect, useRef} from "react";
 import {ySyncPlugin, ySyncPluginKey, yUndoPlugin} from "y-prosemirror";
 import * as Y from "yjs";
+import {buildSharedInputRulesPlugin} from "~/client/content/helpers/get_shared_input_rules_plugin.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -121,6 +122,7 @@ function TaskDetailTitleInput(
                         doc: titleRef.current.getProsemirrorNode(),
                         plugins: [
                             ySyncPlugin(titleYDoc.getXmlFragment("doc")),
+                            buildSharedInputRulesPlugin(),
                             // We install the Y.js undo plugin but we don't install the `undo`/`redo`
                             // commands from `y-prosemirror` in a keymap. Instead `useTaskTitleModelYDoc()`
                             // registers us with our global undo stack.
