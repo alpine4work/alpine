@@ -1,8 +1,9 @@
 import {useCallback, useMemo, useRef} from "react";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {ChannelViewNameEditor} from "~/client/forum/channel_view_name_editor.js";
+import {postViewMaxWidth} from "~/client/forum/post_content_view.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
-import {PostListView, postViewMaxWidth} from "~/client/forum/post_list_view.js";
+import {PostListView} from "~/client/forum/post_list_view.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -12,7 +13,7 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 
-export function NewChannelView({
+export function ChannelCreatorView({
     withMobileLayout,
     channelId,
     shouldInitiallyFocusChannelName,

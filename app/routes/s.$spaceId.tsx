@@ -12,7 +12,8 @@ import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {ContextMenuManager} from "~/client/design/context_menu.js";
-import {OverlayMobileKeyboardSinkContextProvider} from "~/client/design/overlay_mobile_keyboard_sink_context_provider.js";
+import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
+import {RootOverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {emitMobileKeyboardFrameChangeIfNotNative} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
 import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
 import {useTextInputVisibilityMaintainer} from "~/client/design/use_text_input_visibility_maintainer.js";
@@ -133,6 +134,20 @@ const defaultSearchDebugOptionsSchema: SchemaType<typeof SearchDebugOptionsSchem
 };
 
 const spaceNativeMobileOutletParentRouteIds = ["root", "routes/s.$spaceId"] as const;
+
+const outletContainerContainerClassName = sprinkles({
+    overflow: "hidden",
+    position: "relative",
+    zIndex: "0",
+});
+
+const outletContainerClassName = sprinkles({
+    display: "flex",
+    flexDirection: "row",
+    overflow: "hidden",
+    position: "relative",
+    zIndex: "0",
+});
 
 /**
  * Routes that render under `/s/$spaceId` should generally render
@@ -322,31 +337,30 @@ export default function SpaceLayoutRoute() {
         ? dataRouterStateContext
         : null;
 
+    const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
+    const isInert = isBehindMobileFullScreenModal;
+
     const nodes = [];
     let nodeKey = 1;
 
-    const outletContainerClassName = sprinkles({
-        display: "flex",
-        flexDirection: "row",
-        overflow: "hidden",
-        position: "relative",
-        zIndex: "0",
-    });
-
-    // `height` is not a typo here. Even though all our containers (e.g. `html` and
-    // `body`) use `minHeight`. For space content, we use nested scroll views when
-    // we need to scroll instead of body scrolling. See how body scrolling is
-    // disabled with `body {overflow: hidden}` in the `links()` function above.
-    //
-    // 100svh is the default so our content isn't occluded by browser navigation
-    // elements on mobile devices. (Like the URL bar.)
-    const outletContainerStyle = {
+    const outletContainerContainerStyle = {
+        // `height` is not a typo here. Even though all our containers (e.g. `html` and
+        // `body`) use `minHeight`. For space content, we use nested scroll views when
+        // we need to scroll instead of body scrolling. See how body scrolling is
+        // disabled with `body {overflow: hidden}` in the `links()` function above.
+        //
+        // 100svh is the default so our content isn't occluded by browser navigation
+        // elements on mobile devices. (Like the URL bar.)
         height: resizedWindowHeightForMobileWebKit ?? "100svh",
         // This border is visible on mobile WebKit when the keyboard opens/closes
         // leaving empty white space on the page while it animates. We use `box-shadow`
         // instead of border so it renders outside the bounds of the outlet. Usually
         // offscreen (with the exception of mobile WebKit keyboarding).
         boxShadow: `0 0 0 1px ${colorSchemeVars["grey-5"]}`,
+    };
+
+    const outletContainerStyle = {
+        height: outletContainerContainerStyle.height,
     };
 
     if (resizedWindowHeightForMobileWebKit !== null) {
@@ -357,22 +371,67 @@ export default function SpaceLayoutRoute() {
 
     if (!nativeMobileRouterState) {
         nodes.push(
-            <div key={nodeKey++} className={outletContainerClassName} style={outletContainerStyle}>
-                <OverlayMobileKeyboardSinkContextProvider>
-                    {!isMobile && (
-                        <SpaceLayoutSideBar
-                            space={space}
-                            initialInbox={inbox}
-                            onSearchPress={() => {
-                                setSearchState(searchState => {
-                                    if (searchState) return searchState;
-                                    return {initialQueryText: ""};
-                                });
-                            }}
-                        />
-                    )}
-                    {error !== undefined ? <SpaceRouteErrorRenderer error={error} /> : <Outlet />}
-                </OverlayMobileKeyboardSinkContextProvider>
+            <div
+                key={nodeKey++}
+                className={outletContainerContainerClassName}
+                style={outletContainerContainerStyle}
+            >
+                <RootOverlayScopeContextProvider
+                    // Only create a root overlay scope here if we'll be shrinking our outlet height
+                    // when the mobile keyboard opens.
+                    isDisabled={!isMobile}
+                >
+                    <div
+                        className={outletContainerClassName}
+                        style={{
+                            ...outletContainerStyle,
+                            // While inert, remove the document from the content flow and make
+                            // it invisible. `bottom: 0` is so that a tall inert route doesn't grow
+                            // our `<body>`'s height.
+                            position: isInert ? "absolute" : "relative",
+                            bottom: isInert ? "0" : undefined,
+                            visibility: isInert ? "hidden" : undefined,
+                            // A `<div>` positioned relatively is implicitly `width: 100%`. Make sure the
+                            // absolutely positioned inert route gets the same width.
+                            left: isInert ? "0" : undefined,
+                            right: isInert ? "0" : undefined,
+                        }}
+                        // The [`<Offscreen>` component][1] React claims is coming may be a better
+                        // fit here so we don't actually render content in the DOM. `inert` has good
+                        // browser support though!
+                        //
+                        // [1]: https://react.dev/blog/2022/03/29/react-v18
+                        // [2]: https://caniuse.com/?search=inert
+                        //
+                        // TypeScript doesn't know about this property yet. True is the [empty string
+                        // and false is null][3].
+                        //
+                        // [3]: https://github.com/WICG/inert/issues/58#issuecomment-618016847
+                        //
+                        // @ts-expect-error
+                        inert={isInert ? "" : null}
+                        // Make sure inert content is not in the accessibility tree.
+                        aria-hidden={isInert ? "true" : undefined}
+                    >
+                        {!isMobile && (
+                            <SpaceLayoutSideBar
+                                space={space}
+                                initialInbox={inbox}
+                                onSearchPress={() => {
+                                    setSearchState(searchState => {
+                                        if (searchState) return searchState;
+                                        return {initialQueryText: ""};
+                                    });
+                                }}
+                            />
+                        )}
+                        {error !== undefined ? (
+                            <SpaceRouteErrorRenderer error={error} />
+                        ) : (
+                            <Outlet />
+                        )}
+                    </div>
+                </RootOverlayScopeContextProvider>
             </div>,
         );
     } else {
@@ -430,6 +489,7 @@ export default function SpaceLayoutRoute() {
                     key={nodeKey++}
                     parentRouteIds={spaceNativeMobileOutletParentRouteIds}
                     tracer={context.tracer.getRoot()}
+                    isInert={isInert}
                     inertRouterState={null}
                     onUpdateMetaTitle={updateMetaTitle}
                     className={outletContainerClassName}

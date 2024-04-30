@@ -7,18 +7,17 @@ import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {ChannelViewAside} from "~/client/forum/channel_view_aside.js";
 import {ChannelViewNameEditor} from "~/client/forum/channel_view_name_editor.js";
-import {createPostEventEmitter} from "~/client/forum/new_post_view.js";
-import {postContentViewMinHeightWithClosedCommentSection} from "~/client/forum/post_content_view.js";
+import {
+    postContentViewMinHeightWithClosedCommentSection,
+    postViewMaxWidth,
+} from "~/client/forum/post_content_view.js";
+import {createPostEventEmitter} from "~/client/forum/post_creator_view.js";
 import {
     PostListChannelHeader,
     PostQueryList,
     PostQueryListDynamoGeneralRealtimeIndexQuery,
 } from "~/client/forum/post_list.js";
-import {
-    PostListView,
-    postListViewAsideMaxWidth,
-    postViewMaxWidth,
-} from "~/client/forum/post_list_view.js";
+import {PostListView, postListViewAsideMaxWidth} from "~/client/forum/post_list_view.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";

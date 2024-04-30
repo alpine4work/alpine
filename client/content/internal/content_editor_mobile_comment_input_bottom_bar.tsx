@@ -10,7 +10,7 @@ import {
 import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {Box} from "~/client/design/box.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {useOverlayMobileKeyboardPortalElement} from "~/client/design/overlay_mobile_keyboard_sink_context_provider.js";
+import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -31,7 +31,7 @@ export function ContentEditorMobileCommentInputBottomBar({
     onClose: () => void;
 }) {
     const portalElement = assertExists(
-        useOverlayMobileKeyboardPortalElement(),
+        useOverlayRootPortalElement(),
         "Can't server render `<ContentEditorMobileCommentInputBottomBar>`",
     );
 
@@ -138,6 +138,10 @@ export function ContentEditorMobileCommentInputBottomBar({
                         ref={inputRef}
                         messageNoun="comment"
                         isBottomBar={true}
+                        // We're replacing `<ContentEditorMobileKeyboardToolbar>`. This makes it so
+                        // `useScrollToAvoidBottomBarsAndMobileKeyboard()` doesn't ignore the initial
+                        // mount of this bottom bar.
+                        isReplacingOtherBottomBar={true}
                         state={state}
                         onChange={setState}
                         onSend={sendComment}

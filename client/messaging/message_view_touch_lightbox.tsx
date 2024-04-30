@@ -28,7 +28,6 @@ import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spac
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {getTruncatedMessageContentForReplyPreview} from "~/shared/messaging/get_truncated_message_content_for_reply_preview.js";
 import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
@@ -323,6 +322,90 @@ export function MessageViewTouchLightbox<
         );
     }, [messageStartOfSentenceNoun, messageTextForBigEmojiMessage, parentMessage]);
 
+    const menuActions: Array<Array<MenuAction>> = [];
+
+    menuActions.push([
+        {
+            label: "Reply",
+            icon: <ArrowBendUpLeft />,
+            iconPlacement: "end",
+            onPress: () => {
+                // Start editing once the lightbox has finished animating shut. So the
+                // animation completes smoothly. Otherwise the keyboard opening would throw
+                // things off.
+                onCloseWithoutAnimationCallbacksRef.current.push(onReplyToMessage);
+            },
+        },
+    ]);
+
+    {
+        const copyMenuActions: Array<MenuAction> = [];
+
+        if (message.payload.type === "Content") {
+            copyMenuActions.push({
+                label: "Copy text",
+                icon: <Copy />,
+                iconPlacement: "end",
+                pressErrorTitle: `Couldn’t copy ${messageNoun} text`,
+                onPress: async () => {
+                    assert(message.payload.type === "Content");
+
+                    await writeContentToClipboard(message.payload.content);
+                },
+            });
+        }
+
+        if (!message.isOptimistic) {
+            copyMenuActions.push({
+                label: "Copy link",
+                icon: <LinkIcon />,
+                iconPlacement: "end",
+                pressErrorTitle: `Couldn’t copy ${messageNoun} link`,
+                onPress: async () => {
+                    await writeTextToClipboard(getMessageUrl(message.index).toString());
+                },
+            });
+        }
+
+        menuActions.push(copyMenuActions);
+    }
+
+    if (
+        currentAccount.id === message.author.id &&
+        !message.isOptimistic &&
+        message.payload.type === "Content"
+    ) {
+        menuActions.push([
+            {
+                label: "Edit",
+                icon: <PencilSimple />,
+                iconPlacement: "end",
+                onPress: () => {
+                    // Start editing once the lightbox has finished animating shut. So the
+                    // animation completes smoothly. Otherwise the keyboard opening would throw
+                    // things off.
+                    onCloseWithoutAnimationCallbacksRef.current.push(() => {
+                        if (message.payload.type === "Content") {
+                            messageEditing.dispatch({
+                                type: "StartEditing",
+                                messageIndex: message.index,
+                                messageRoomKey: message.getRoomKey(),
+                                messagePayload: message.payload,
+                                returnFocusAfterEditing: null,
+                            });
+                        }
+                    });
+                },
+            },
+            {
+                label: "Delete",
+                icon: <Trash />,
+                iconPlacement: "end",
+                onPress: onShowDeleteConfirmationDialog,
+            },
+        ]);
+    }
+
     return createPortal(
         <Box
             ref={backdropRef}
@@ -497,104 +580,7 @@ export function MessageViewTouchLightbox<
                     }}
                 >
                     <Menu
-                        actions={[
-                            [
-                                {
-                                    label: "Reply",
-                                    icon: <ArrowBendUpLeft />,
-                                    iconPlacement: "end",
-                                    onPress: () => {
-                                        // Start editing once the lightbox has finished animating shut. So the
-                                        // animation completes smoothly. Otherwise the keyboard opening would throw
-                                        // things off.
-                                        onCloseWithoutAnimationCallbacksRef.current.push(
-                                            onReplyToMessage,
-                                        );
-                                    },
-                                },
-                            ],
-                            [
-                                ...(message.payload.type === "Content"
-                                    ? [
-                                          cast<MenuAction>({
-                                              label: "Copy text",
-                                              icon: <Copy />,
-                                              iconPlacement: "end",
-                                              pressErrorTitle: `Couldn’t copy ${messageNoun} text`,
-                                              onPress: async () => {
-                                                  assert(message.payload.type === "Content");
-
-                                                  await writeContentToClipboard(
-                                                      message.payload.content,
-                                                  );
-                                              },
-                                          }),
-                                      ]
-                                    : []),
-                                ...(!message.isOptimistic
-                                    ? [
-                                          cast<MenuAction>({
-                                              label: "Copy link",
-                                              icon: <LinkIcon />,
-                                              iconPlacement: "end",
-                                              pressErrorTitle: `Couldn’t copy ${messageNoun} link`,
-                                              onPress: async () => {
-                                                  await writeTextToClipboard(
-                                                      getMessageUrl(message.index).toString(),
-                                                  );
-                                              },
-                                          }),
-                                      ]
-                                    : []),
-                            ],
-                            ...(currentAccount.id === message.author.id
-                                ? [
-                                      [
-                                          ...(!message.isOptimistic &&
-                                          message.payload.type === "Content"
-                                              ? [
-                                                    cast<MenuAction>({
-                                                        label: "Edit",
-                                                        icon: <PencilSimple />,
-                                                        iconPlacement: "end",
-                                                        onPress: () => {
-                                                            // Start editing once the lightbox has finished animating shut. So the
-                                                            // animation completes smoothly. Otherwise the keyboard opening would throw
-                                                            // things off.
-                                                            onCloseWithoutAnimationCallbacksRef.current.push(
-                                                                () => {
-                                                                    if (
-                                                                        message.payload.type ===
-                                                                        "Content"
-                                                                    ) {
-                                                                        messageEditing.dispatch({
-                                                                            type: "StartEditing",
-                                                                            messageIndex:
-                                                                                message.index,
-                                                                            messageRoomKey:
-                                                                                message.getRoomKey(),
-                                                                            messagePayload:
-                                                                                message.payload,
-                                                                            returnFocusAfterEditing:
-                                                                                null,
-                                                                        });
-                                                                    }
-                                                                },
-                                                            );
-                                                        },
-                                                    }),
-                                                ]
-                                              : []),
-                                          cast<MenuAction>({
-                                              label: "Delete",
-                                              icon: <Trash />,
-                                              iconPlacement: "end",
-                                              onPress: onShowDeleteConfirmationDialog,
-                                          }),
-                                      ],
-                                  ]
-                                : []),
-                        ]}
+                        actions={menuActions}
                         extraBottom={
                             <MessageViewMenuCreatedTime
                                 createdTime={message.createdTime}

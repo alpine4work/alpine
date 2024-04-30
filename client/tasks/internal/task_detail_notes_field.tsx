@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {
     Memo,
     Ref,
@@ -22,7 +23,7 @@ import {Spacing, assertSpacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {sprinkles} from "~/shared/styles/styles.js";
+import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 
 export type TaskDetailNotesFieldRef = {
@@ -122,10 +123,6 @@ function TaskDetailNotesField(
     // to update the document content.
     if (state?.errorState.hasError) throw state.errorState.error;
 
-    // 20 perfectly fits 4 lines of regular text before the input needs to
-    // start growing.
-    const minHeight: Spacing = "20";
-
     return (
         <Box>
             <span
@@ -145,7 +142,7 @@ function TaskDetailNotesField(
             </span>
             <FocusRing insetX={paddingX} isVisibleWhenFocusWithin>
                 {isReadOnly ? (
-                    <Box height="full" minHeight={minHeight}>
+                    <Box className={tasksStyles.detailNotesContentEditorClassName}>
                         <ContentView
                             aria-labelledby={labelId}
                             content={state.editorState.getContent()}
@@ -163,11 +160,12 @@ function TaskDetailNotesField(
                             state={state.editorState}
                             onChange={state => client.changeEditorState(state)}
                             placeholder="Add more details…"
-                            className={sprinkles({
-                                paddingX: assertSpacing(`${parseInt(paddingX, 10) - 2}`),
-                                height: "full",
-                                minHeight,
-                            })}
+                            className={classNames(
+                                tasksStyles.detailNotesContentEditorClassName,
+                                sprinkles({
+                                    paddingX: assertSpacing(`${parseInt(paddingX, 10) - 2}`),
+                                }),
+                            )}
                             onUndoStackEntryPushed={() => {
                                 pushUndoStackEntry({
                                     type: "Notes",

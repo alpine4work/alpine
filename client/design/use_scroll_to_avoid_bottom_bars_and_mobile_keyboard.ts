@@ -1,5 +1,6 @@
 import {Memo, RefObject, useCallback, useEffect} from "react";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {
     dispatchNavigationBarPrepareSmoothScrollTo,
     getNavigationBarHeightPxWithoutListening,
@@ -182,12 +183,14 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
     const getCurrentBottomBarHeight = useGetCurrentBottomBarHeight();
     const subscribeToBottomBarFrameChange = useSubscribeToBottomBarFrameChange();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
+    const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
+    const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
 
     useEffect(() => {
         if (isDisabled) return;
 
         // Don't scroll when the keyboard opens if we're part of an inert route.
-        if (isInertNativeMobileRoute) return;
+        if (isInert) return;
 
         const scrollable = assertExists(scrollableRef.current);
         const scrollableElement: HTMLElement =
@@ -734,7 +737,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
         getAnchorPosition,
         getCurrentBottomBarHeight,
         isDisabled,
-        isInertNativeMobileRoute,
+        isInert,
         isPinned,
         scrollableInsetBottom,
         scrollableRef,

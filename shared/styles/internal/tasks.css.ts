@@ -1,7 +1,11 @@
 import {globalStyle, style} from "@vanilla-extract/css";
-import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css.js";
+import {
+    defaultParagraphMargin,
+    paragraphLineHeight,
+} from "~/shared/styles/internal/content_schema.css.js";
 import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css.js";
 import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css.js";
 
@@ -112,15 +116,15 @@ export const rowTitleInputOverflowGradientRightContainerClassName = style({
     },
 });
 
-export const taskDateInputTextSegmentClassName = style({});
+export const dateInputTextSegmentClassName = style({});
 
-globalStyle(`${taskDateInputTextSegmentClassName}::selection`, {
+globalStyle(`${dateInputTextSegmentClassName}::selection`, {
     // When a text segment is selected we already apply the selection background
     // color. Don't apply it again with the proper text selection highlight.
     background: "none",
 });
 
-export const taskCollectionsInputAddInputClassName = style({});
+export const collectionsInputAddInputClassName = style({});
 
 export const rowNumberCounterName = "task-row-number";
 
@@ -155,16 +159,24 @@ export const rowNumberClassName = style({
     },
 });
 
-export const taskRowTitleInputMultilineAfterWidth = "32";
+export const rowTitleInputMultilineAfterWidth = "32";
 
-export const taskRowTitleInputMultilineAfterClassName = style({
+export const rowTitleInputMultilineAfterClassName = style({
     selectors: {
         "&::after": {
             content: '""',
             display: "inline-block",
             userSelect: "none",
             pointerEvents: "none",
-            width: spacing[taskRowTitleInputMultilineAfterWidth],
+            width: spacing[rowTitleInputMultilineAfterWidth],
         },
     },
+});
+
+export const detailNotesContentEditorClassName = style({
+    height: "100%",
+    minHeight: `${
+        parseRemLengthNumber(paragraphLineHeight) * 2 +
+        parseRemLengthNumber(defaultParagraphMargin) * 1
+    }rem`,
 });

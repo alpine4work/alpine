@@ -1,0 +1,243 @@
+import {assignInlineVars} from "@vanilla-extract/dynamic";
+import classNames from "classnames";
+import {useCallback, useEffect, useRef, useState} from "react";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {useAppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {
+    mobileNavigationBarActionsWidthFittingFlexBasis,
+    navigationBarHeight,
+    useNavigationBar,
+} from "~/client/design/navigation_bar.js";
+import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
+import {useScrollbar} from "~/client/design/scrollbar.js";
+import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
+import {
+    mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
+    mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
+    postContentViewContentPaddingX,
+    postContentViewInnerMarginY,
+    postContentViewPaddingX,
+    postViewMaxWidth,
+} from "~/client/forum/post_content_view.js";
+import {PostContentViewHeader} from "~/client/forum/post_content_view_header.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
+import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {PostContent, PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
+import {PostModel} from "~/shared/forum/post_model.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {updatePostContent} from "~/shared/rpc/forum_rpc_definitions.js";
+import {contentSchemaStyles, forumStyles, sprinkles} from "~/shared/styles/styles.js";
+
+const postContentEditorBlockMaxWidth = mapObjectValues(postContentViewPaddingX, paddingX =>
+    subtractRemLengths(spacing[postViewMaxWidth], spacing[paddingX]),
+);
+
+export function PostMobileEditorView({
+    post: postFromProps,
+    contentEditorState: state,
+    onContentEditorStateChange: onChange,
+    initialContent,
+    onCloseWithAnimation,
+    onPostRealtimeEventTransaction,
+}: {
+    post: PostModel | null;
+    contentEditorState: ContentEditorState<PostContentWithReferences>;
+    onContentEditorStateChange: (
+        contentEditorState: ContentEditorState<PostContentWithReferences>,
+    ) => void;
+    initialContent: PostContent;
+    onCloseWithAnimation: () => void;
+    onPostRealtimeEventTransaction: (event: {
+        readTime: Date;
+        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
+    }) => void;
+}) {
+    const isInitialAppRender = useIsInitialAppRender();
+    const isMobile = useIsMobile();
+    const context = useAppContext();
+
+    const [postFromState, setPost] = useState(postFromProps);
+    let post = assertExists(
+        postFromState,
+        "`<PostMobileEditorView>`'s `post` prop must be non-null on initial render",
+    );
+
+    // If `postFromProps` becomes null (the parent component lost the data somehow)
+    // we want to keep the initial post we saw in state.
+    if (postFromProps !== null && post !== postFromProps) {
+        post = postFromProps;
+        setPost(postFromProps);
+    }
+
+    const editorContainerRef = useRef<HTMLDivElement>(null);
+    const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
+    const createButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
+
+    const hasInitiallyFocusedRef = useRef(false);
+
+    useEffect(() => {
+        if (hasInitiallyFocusedRef.current) return;
+        hasInitiallyFocusedRef.current = true;
+
+        return scheduleAfterNavigationAnimation(() => {
+            assertExists(editorRef.current).focus();
+        });
+    }, []);
+
+    useScrollToAvoidBottomBarsAndMobileKeyboard(editorContainerRef, {
+        // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on
+        //   initial render.
+        // - Disable on `sidebarState.isOpen` since the comment view should be
+        //   scrolling not the document.
+        isDisabled: isInitialAppRender,
+        getAnchorPosition: useCallback(() => {
+            const editor = assertExists(editorRef.current);
+            const editorState = editor.getState();
+
+            const coords = editor.coordsAtPos(editorState.getSelection().from);
+
+            const paragraphLineHeight = convertRemLengthToPx(
+                contentSchemaStyles.paragraphLineHeight,
+                getRemPxWithoutListening(),
+            );
+
+            // Add a paragraph line height in either direction as slop. We consider the
+            // selection offscreen if there's less than a line of space between it and the
+            // keyboard.
+            return {
+                top: coords.top - paragraphLineHeight,
+                height: coords.bottom - coords.top + paragraphLineHeight * 2,
+            };
+        }, []),
+    });
+
+    const hasContentChanged = state.getDoc() !== initialContent;
+
+    const saveButtonNode = (
+        <Button
+            ref={createButtonRef}
+            variant="neutral"
+            withoutMinWidth={true}
+            isDisabled={!hasContentChanged || isContentEmpty(state.getDoc())}
+            pressErrorTitle="Couldn’t save post"
+            onPress={async () => {
+                const event = await updatePostContent(context, {
+                    postId: post.id,
+                    content: state.getDoc(),
+                });
+
+                onPostRealtimeEventTransaction(event);
+                onCloseWithAnimation();
+            }}
+        >
+            Save
+        </Button>
+    );
+
+    const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
+        withMobileLayout: true,
+        title: "Edit post",
+        withoutDisappearingTitle: true,
+        replaceActions: (
+            <Box
+                display="flex"
+                justifyContent="flex-end"
+                style={{width: mobileNavigationBarActionsWidthFittingFlexBasis}}
+            >
+                {saveButtonNode}
+            </Box>
+        ),
+        // Instead of calling `navigate(-1)` the navigation bar needs a cancel button.
+        onMobileCancel: onCloseWithAnimation,
+    });
+
+    return (
+        <Box
+            position="relative"
+            flexGrow="1"
+            width="full"
+            height="full"
+            overflow="hidden"
+            display="flex"
+            flexDirection="column"
+        >
+            <Box
+                ref={useMergedRefs<HTMLDivElement>(
+                    editorContainerRef,
+                    scrollViewRef,
+                    useScrollbar({insetTop: scrollbarInsetTop}),
+                )}
+                flexGrow="1"
+                width="full"
+                position="relative"
+                zIndex="0"
+                overflowX="hidden"
+                overflowY="auto"
+            >
+                <Box
+                    position="relative"
+                    minHeight="full"
+                    display="flex"
+                    flexDirection="column"
+                    style={{
+                        paddingTop: "var(--safe-area-inset-top, 0px)",
+                        ...assignInlineVars({
+                            [contentSchemaStyles.blockMaxWidthVar]:
+                                postContentEditorBlockMaxWidth[isMobile ? "mobile" : "desktop"],
+                        }),
+                    }}
+                >
+                    {navigationBar}
+                    {isMobile && <Box height={navigationBarHeight} />}
+                    <Box
+                        flexShrink="0"
+                        width="full"
+                        maxWidth={postViewMaxWidth}
+                        marginX="center"
+                        paddingX={postContentViewPaddingX}
+                        paddingBottom={postContentViewInnerMarginY}
+                        style={{
+                            paddingTop: isMobile
+                                ? `${mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`
+                                : `${mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`,
+                        }}
+                    >
+                        <PostContentViewHeader post={post} shouldShowChannel={true} />
+                    </Box>
+                    <ContentEditor
+                        ref={editorRef}
+                        aria-label="Post"
+                        state={state}
+                        onChange={onChange}
+                        // On mobile, don't allow interactions when unfocused. We're already in an
+                        // editing modality.
+                        withoutMobileDualModality={true}
+                        placeholder="Share your ideas…"
+                        containerClassName={sprinkles({
+                            flexGrow: "1",
+                        })}
+                        className={classNames(
+                            forumStyles.fullScreenContentEditorClassName,
+                            sprinkles({paddingX: postContentViewContentPaddingX}),
+                        )}
+                        onModEnter={() => {
+                            // Programmatically press the button instead of calling `createPost()`
+                            // directly to correctly handle loading and error states.
+                            assertExists(createButtonRef.current).press();
+                        }}
+                    />
+                </Box>
+            </Box>
+        </Box>
+    );
+}

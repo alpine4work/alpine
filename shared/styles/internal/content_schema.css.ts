@@ -70,6 +70,8 @@ const blockPaddingXSpacing = "2";
 export {blockPaddingXSpacing as blockPaddingX};
 const blockPaddingX = spacing[blockPaddingXSpacing];
 
+export const defaultParagraphMargin = spacing["2"];
+
 const defaultBlockMaxWidthWithoutPadding = spacing["160"];
 
 export const defaultBlockMaxWidth = addRemLengths(
@@ -84,7 +86,7 @@ export const blockMaxWidthVar: CssVarFunction = createVar("block-max-width");
 
 globalStyle(":root", {
     vars: {
-        [paragraphMarginVar]: spacing["2"],
+        [paragraphMarginVar]: defaultParagraphMargin,
         [listItemOffsetVar]: spacing["0"],
         [blockMaxWidthVar]: defaultBlockMaxWidth,
     },

@@ -2,9 +2,9 @@ import {useEffect, useState} from "react";
 import {ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {Box} from "~/client/design/box.js";
+import {ChannelCreatorView} from "~/client/forum/channel_creator_view.js";
 import {ChannelView} from "~/client/forum/channel_view.js";
 import {newChannelNamePlaceholder} from "~/client/forum/channel_view_name_editor.js";
-import {NewChannelView} from "~/client/forum/new_channel_view.js";
 import {postContentViewMinHeightWithClosedCommentSection} from "~/client/forum/post_content_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -203,7 +203,7 @@ export default function ChannelRoute({withMobileLayout = false}: {withMobileLayo
                     initialPostsResult={channelState.postsResult}
                 />
             ) : (
-                <NewChannelView
+                <ChannelCreatorView
                     withMobileLayout={withMobileLayout}
                     channelId={channelId}
                     shouldInitiallyFocusChannelName={shouldInitiallyFocusChannelName}

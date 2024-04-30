@@ -45,15 +45,21 @@ import {
     onParentScrollWhenPointerDownAndOverInteractiveMarkSymbol,
 } from "~/client/content/internal/content_editor_link_mark_view.js";
 import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view.js";
+import {ContentEditorMobileCommentInputBottomBar} from "~/client/content/internal/content_editor_mobile_comment_input_bottom_bar.js";
+import {ContentEditorMobileKeyboardToolbar} from "~/client/content/internal/content_editor_mobile_keyboard_toolbar.js";
 import {
-    ContentEditorMobileKeyboardToolbar,
-    ContentEditorMobileKeyboardToolbarRef,
-} from "~/client/content/internal/content_editor_mobile_keyboard_toolbar.js";
+    ContentEditorMobileLinkModal,
+    ContentEditorMobileLinkModalState,
+} from "~/client/content/internal/content_editor_mobile_link_modal.js";
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view.js";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {
+    MobileFullScreenModal,
+    useIsBehindMobileFullScreenModal,
+} from "~/client/design/mobile_full_screen_modal.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event.js";
@@ -524,6 +530,8 @@ function ContentEditor<Content extends ContentWithReferences>(
     const isMobile = useIsMobile();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
+    const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
+    const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
     const withMobileLayout = isMobile || withMobileLayoutProp;
 
     // We choose our interaction mode based on whether the device's primary input
@@ -584,7 +592,6 @@ function ContentEditor<Content extends ContentWithReferences>(
     });
 
     const viewRef = useRef<EditorView | null>(null);
-    const mobileKeyboardToolbarRef = useRef<ContentEditorMobileKeyboardToolbarRef | null>(null);
 
     useImperativeHandle(
         editorRef,
@@ -621,7 +628,14 @@ function ContentEditor<Content extends ContentWithReferences>(
                 command(view.state, view.dispatch.bind(view), view);
             },
             openMobileKeyboardToolbarCommentInputIfPossible: () => {
-                mobileKeyboardToolbarRef.current?.openCommentInput();
+                const view = assertExists(viewRef.current);
+
+                if (
+                    view.state.schema.marks.comment &&
+                    view.state.selection.from !== view.state.selection.to
+                ) {
+                    setIsMobileCommentInputOpen(true);
+                }
             },
             _getInternalView: () => {
                 return assertExists(viewRef.current);
@@ -1349,9 +1363,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         }
     }, [isBodyEmpty, isTitleEmpty, placeholder]);
 
-    // When the content editor is unfocused give the editor's text selection a
-    // light grey background. That way the user can see what will be selected when
-    // they focus the editor back.
+    // When the content editor is unfocused and there's a floater give the editor's
+    // selection some style so the user knows what the floater is editing.
     //
     // This is important for the link and highlight floater which gives the user's
     // keyboard focus to another element that's still targeting the content editor.
@@ -1664,7 +1677,59 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     useContentEditorDebugTools(viewRef);
 
+    const unwrappedState = unwrap(state);
+
     const maintainInteractionModalityRef = useRef<Modality | null>(null);
+
+    const [mobileLinkModalState, setMobileLinkModalState] =
+        useState<ContentEditorMobileLinkModalState | null>(null);
+    if (!(isMobile && !withoutMobileKeyboardToolbar) && mobileLinkModalState) {
+        setMobileLinkModalState(null);
+    }
+
+    const [isMobileCommentInputOpen, setIsMobileCommentInputOpen] = useState(false);
+    if (
+        (!unwrappedState.schema.marks.comment || !(isMobile && !withoutMobileKeyboardToolbar)) &&
+        isMobileCommentInputOpen
+    ) {
+        setIsMobileCommentInputOpen(false);
+    }
+
+    const setSelectionAfterCommentInputOpenRef = useRef<Selection | null>(null);
+
+    useLayoutEffect(() => {
+        if (!isMobileCommentInputOpen) return;
+
+        const view = assertExists(viewRef.current);
+
+        if (setSelectionAfterCommentInputOpenRef.current) {
+            const selection = setSelectionAfterCommentInputOpenRef.current;
+            setSelectionAfterCommentInputOpenRef.current = null;
+            view.dispatch(view.state.tr.setSelection(selection));
+        }
+
+        const decorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
+            return decorationSet.add(state.doc, [
+                Decoration.inline(state.selection.from, state.selection.to, {
+                    class: contentSchemaStyles.commentClassName,
+                }),
+            ]);
+        };
+
+        setDecorationCallbacks(decorationCallbacks => {
+            const newDecorationCallbacks = new Set(decorationCallbacks);
+            newDecorationCallbacks.add(decorationCallback);
+            return newDecorationCallbacks;
+        });
+
+        return () => {
+            setDecorationCallbacks(decorationCallbacks => {
+                const newDecorationCallbacks = new Set(decorationCallbacks);
+                newDecorationCallbacks.delete(decorationCallback);
+                return newDecorationCallbacks;
+            });
+        };
+    }, [isMobileCommentInputOpen, setDecorationCallbacks, viewRef]);
 
     return (
         <div
@@ -1705,7 +1770,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         >
             <ContentEditorFloater
                 isMobile={isMobile}
-                state={unwrap(state)}
+                state={unwrappedState}
                 viewRef={viewRef}
                 floaterState={floaterState}
                 setFloaterState={floaterState => {
@@ -1725,19 +1790,49 @@ function ContentEditor<Content extends ContentWithReferences>(
             {phantomSelections?.map(phantomSelection => (
                 <ContentEditorPhantomSelectionCursor
                     key={phantomSelection.key}
-                    state={unwrap(state)}
+                    state={unwrappedState}
                     viewRef={viewRef}
                     phantomSelection={phantomSelection}
                 />
             ))}
-            {isMobile && !isInertNativeMobileRoute && !withoutMobileKeyboardToolbar && (
+            {isMobile && !isInert && !withoutMobileKeyboardToolbar && (
                 <ContentEditorMobileKeyboardToolbar
-                    ref={mobileKeyboardToolbarRef}
-                    state={unwrap(state)}
+                    state={unwrappedState}
                     viewRef={viewRef}
                     isFocused={isFocused}
-                    setDecorationCallbacks={setDecorationCallbacks}
                     openCommentThread={props.openCommentThread}
+                    onLinkModalOpen={setMobileLinkModalState}
+                    onCommentInputOpen={setSelection => {
+                        if (setSelection) {
+                            setSelectionAfterCommentInputOpenRef.current = setSelection;
+                        }
+
+                        setIsMobileCommentInputOpen(true);
+                    }}
+                />
+            )}
+            {mobileLinkModalState && (
+                // Needs to be rendered outside of `<ContentEditorMobileKeyboardToolbar>` so
+                // that when we go inert this is still rendered.
+                <MobileFullScreenModal onClose={() => setMobileLinkModalState(null)}>
+                    {({onCloseWithAnimation}) => (
+                        <ContentEditorMobileLinkModal
+                            viewRef={viewRef}
+                            initialText={mobileLinkModalState.initialText}
+                            isTextEditable={mobileLinkModalState.isTextEditable}
+                            initialUrl={mobileLinkModalState.initialUrl}
+                            onCloseWithAnimation={onCloseWithAnimation}
+                        />
+                    )}
+                </MobileFullScreenModal>
+            )}
+            {unwrappedState.schema.marks.comment && isMobileCommentInputOpen && (
+                // Needs to be rendered outside of `<ContentEditorMobileKeyboardToolbar>` so
+                // that when we go inert this is still rendered.
+                <ContentEditorMobileCommentInputBottomBar
+                    state={unwrappedState}
+                    viewRef={viewRef}
+                    onClose={() => setIsMobileCommentInputOpen(false)}
                 />
             )}
         </div>

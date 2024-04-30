@@ -320,14 +320,42 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let animationDuration: Double
     }
 
-    /// The navigation entry we've presented modally or null if we haven't
+    /// The latest navigation entry we've presented modally or null if we haven't
     /// presented a navigation entry modally.
     fileprivate var modalPresentedViewController: WebNavigationEntryController? {
-        if let presentedViewController = presentedViewController as? WebNavigationEntryController {
-            return presentedViewController
-        } else {
-            return nil
+        var viewController = presentedViewController as? WebNavigationEntryController
+
+        while let currentViewController = viewController {
+            if let newViewController = currentViewController.presentedViewController
+                as? WebNavigationEntryController
+            {
+                viewController = newViewController
+            } else {
+                break
+            }
         }
+
+        return viewController
+    }
+
+    /// The previous navigation entry we've presented modally or null if we haven't
+    /// presented a navigation entry modally.
+    fileprivate var previousModalPresentedViewController: WebNavigationEntryController? {
+        var previousViewController: WebNavigationEntryController? = nil
+        var viewController = presentedViewController as? WebNavigationEntryController
+
+        while let currentViewController = viewController {
+            if let newViewController = currentViewController.presentedViewController
+                as? WebNavigationEntryController
+            {
+                previousViewController = viewController
+                viewController = newViewController
+            } else {
+                break
+            }
+        }
+
+        return previousViewController
     }
 
     private var preparingNavigationEntry: WebNavigationEntry?
@@ -813,13 +841,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             preparingNavigationEntry = WebNavigationEntry()
             hasAddedMainScrollViewWhilePreparingNavigation = false
 
-            cleanupModalPresentedViewController()
-
             isNavigationAnimating = true
 
             // Beware! If `NativeMobileBridge.navigation.presentModal()` is not promptly called
             // the app will appear frozen.
-            (topViewController! as! WebNavigationEntryController).replaceWebViewWithSnapshotView()
+            (modalPresentedViewController ?? topViewController! as! WebNavigationEntryController)
+                .replaceWebViewWithSnapshotView()
             return nil
         } else if prompt == "%%%navigation.prepareDismissModal" {
             preparingNavigationEntry = (topViewController as! WebNavigationEntryController).entry
@@ -827,11 +854,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
             isNavigationAnimating = true
 
-            if let modalPresentedViewController = modalPresentedViewController {
-                // Beware! If `NativeMobileBridge.navigation.dismissModal()` is not promptly
-                // called the app will appear frozen.
-                modalPresentedViewController.replaceWebViewWithSnapshotView()
-            }
+            // Beware! If `NativeMobileBridge.navigation.dismissModal()` is not promptly
+            // called the app will appear frozen.
+            modalPresentedViewController?.replaceWebViewWithSnapshotView()
             return nil
         } else {
             // Unrecognized prompt command. Do nothing.
@@ -997,8 +1022,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             }
             (topViewController! as! WebNavigationEntryController).url = url
         } else if messageBody == "navigation.presentModal" {
-            cleanupModalPresentedViewController()
-
             let viewController = WebNavigationEntryController(
                 entry: preparingNavigationEntry ?? WebNavigationEntry(),
                 url: (topViewController! as! WebNavigationEntryController).url,
@@ -1016,18 +1039,21 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             preparingNavigationEntry = nil
             hasAddedMainScrollViewWhilePreparingNavigation = false
 
-            present(viewController, animated: true) { [self] in
-                isNavigationAnimating = false
+            (modalPresentedViewController ?? (topViewController as! WebNavigationEntryController))
+                .present(viewController, animated: true) { [self] in
+                    isNavigationAnimating = false
 
-                if isAfterNavigationAnimationCallbackScheduled {
-                    isAfterNavigationAnimationCallbackScheduled = false
-                    webView.evaluateJavaScript(
-                        "window.__NativeMobileBridge.navigation._callScheduledAfterAnimationCallbacks()"
-                    )
+                    if isAfterNavigationAnimationCallbackScheduled {
+                        isAfterNavigationAnimationCallbackScheduled = false
+                        webView.evaluateJavaScript(
+                            "window.__NativeMobileBridge.navigation._callScheduledAfterAnimationCallbacks()"
+                        )
+                    }
                 }
-            }
         } else if messageBody == "navigation.dismissModal" {
-            (topViewController as! WebNavigationEntryController).moveWebViewInto(webView)
+            ((previousModalPresentedViewController ?? topViewController)
+                as! WebNavigationEntryController)
+                .moveWebViewInto(webView)
 
             webDelegate?.webNavigationController?(
                 self,
@@ -1038,8 +1064,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             preparingNavigationEntry = nil
             hasAddedMainScrollViewWhilePreparingNavigation = false
 
-            if modalPresentedViewController != nil {
-                dismiss(animated: true) { [self] in
+            (previousModalPresentedViewController ?? topViewController!)
+                .dismiss(animated: true) { [self] in
                     isNavigationAnimating = false
 
                     if isAfterNavigationAnimationCallbackScheduled {
@@ -1049,7 +1075,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                         )
                     }
                 }
-            }
         } else if messageBody == "navigation.scheduleAfterAnimation" {
             if !isNavigationAnimating {
                 isAfterNavigationAnimationCallbackScheduled = false
@@ -1151,10 +1176,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             alertController.addAction(primaryAction)
             alertController.preferredAction = primaryAction
 
-            // TODO(calebmer): What happens in the case of conflicting presented view
-            // controllers? How the presentation system works with multiple `present()`
-            // calls is a little confusing to me. I'd love to create our own presenter
-            // system that can confidentally handle multiple presented view controllers.
             (modalPresentedViewController ?? topViewController)!
                 .present(alertController, animated: true)
         } else if messageBody == "editMenu.enableAddCommentAction" {
@@ -2320,7 +2341,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 healthState: webViewHealthState
             )
 
-        dismiss(animated: false)
+        topViewController!.dismiss(animated: false)
     }
 }
 

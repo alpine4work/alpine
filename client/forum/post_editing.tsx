@@ -35,6 +35,7 @@ export type PostEditingAction =
           readonly type: "StartEditing";
           readonly postId: PostId;
           readonly currentContent: PostContentWithReferences;
+          readonly isMobile: boolean;
       }
     | {
           readonly type: "ContentEditorStateChange";
@@ -66,9 +67,10 @@ function reduce(state: PostEditingState, action: PostEditingAction): PostEditing
                 isEditing: true,
                 postId: action.postId,
                 contentEditorState: ContentEditorState.create(action.currentContent, {
-                    // The user is much more likely to need to edit from the end of the message than
-                    // the start. This is especially convenient on mobile.
-                    selectionAt: "end",
+                    // The user is much more likely to need to edit from the end of the post than
+                    // the start. But on mobile, if the post is long, editing should start at the
+                    // start of the post so the cursor is visible.
+                    selectionAt: action.isMobile ? "start" : "end",
                 }),
                 initialContent: action.currentContent.doc,
                 isSaving: false,
@@ -183,19 +185,21 @@ export function usePostEditing({
         if (state.isAwaitingSaveRef.current) return;
         state.isAwaitingSaveRef.current = true;
 
+        const {savePromiseResolver} = state;
+
         onUpdatePostContent({
             postId: state.postId,
             content: state.contentEditorState.getDoc(),
         }).then(
             () => {
-                state.savePromiseResolver?.resolve();
+                savePromiseResolver?.resolve();
 
                 dispatch({type: "FinishedSavingContent", shouldCancelEditing: true});
             },
             error => {
                 // Expect the promise resolver to handle the error.
-                if (state.savePromiseResolver) {
-                    state.savePromiseResolver.reject(error);
+                if (savePromiseResolver) {
+                    savePromiseResolver.reject(error);
                 } else {
                     showToast({
                         type: "Error",

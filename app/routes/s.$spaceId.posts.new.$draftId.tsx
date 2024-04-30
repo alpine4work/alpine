@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {useSearchParams} from "react-router-dom";
-import {NewPostView} from "~/client/forum/new_post_view.js";
+import {PostCreatorView} from "~/client/forum/post_creator_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {getChannelPreview} from "~/server/forum/data/forum_table.js";
@@ -80,7 +80,7 @@ export default function PostCreateRoute({withMobileLayout = false}: {withMobileL
     }, [focusSearchParam, searchParams, setSearchParams]);
 
     return (
-        <NewPostView
+        <PostCreatorView
             withMobileLayout={withMobileLayout}
             draftId={draftId}
             displayCreatedTime={displayCreatedTime}

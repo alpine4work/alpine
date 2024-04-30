@@ -1328,7 +1328,8 @@ function PeekStackOverlay({
                                 }}
                             >
                                 <OverlayScopeContextProvider
-                                // Render overlays here so they get the `greyElevatedClassName` styles.
+                                // Make sure any overlays from the peek render here so they get the
+                                // `greyElevatedClassName` styles.
                                 >
                                     <PeekStackOverlayContent
                                         ref={overlayContentRef}

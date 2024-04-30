@@ -26,28 +26,36 @@ if (typeof window !== "undefined") {
         return debugId;
     }
 
-    document.addEventListener("focusin", event => {
-        if (event.target instanceof HTMLElement) {
-            const debugId = getScrollElementDebugId(event.target);
+    document.addEventListener(
+        "focusin",
+        event => {
+            if (event.target instanceof HTMLElement) {
+                const debugId = getScrollElementDebugId(event.target);
 
-            console.log(`[FocusEventDebugger#${debugId}] focus event`);
-        }
-    });
+                console.log(`[FocusEventDebugger#${debugId}] focus event`);
+            }
+        },
+        {capture: true},
+    );
 
-    document.addEventListener("focusout", event => {
-        if (event.target instanceof HTMLElement) {
-            const debugId = getScrollElementDebugId(event.target);
+    document.addEventListener(
+        "focusout",
+        event => {
+            if (event.target instanceof HTMLElement) {
+                const debugId = getScrollElementDebugId(event.target);
 
-            console.log(`[FocusEventDebugger#${debugId}] blur event`);
-        }
-    });
+                console.log(`[FocusEventDebugger#${debugId}] blur event`);
+            }
+        },
+        {capture: true},
+    );
 
     // eslint-disable-next-line @typescript-eslint/unbound-method
     const originalFocus = HTMLElement.prototype.focus;
 
     HTMLElement.prototype.focus = function () {
         const debugId = getScrollElementDebugId(this);
-        console.trace(`[FocusEventDebugger#${debugId}] focus()`, ...arguments);
+        console.log(`[FocusEventDebugger#${debugId}] focus()`, ...arguments);
         return originalFocus.apply(this, arguments as any);
     };
 
@@ -56,7 +64,7 @@ if (typeof window !== "undefined") {
 
     HTMLElement.prototype.blur = function () {
         const debugId = getScrollElementDebugId(this);
-        console.trace(`[FocusEventDebugger#${debugId}] blur()`, ...arguments);
+        console.log(`[FocusEventDebugger#${debugId}] blur()`, ...arguments);
         return originalBlur.apply(this, arguments as any);
     };
 }

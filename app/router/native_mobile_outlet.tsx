@@ -22,6 +22,7 @@ import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 export function NativeMobileOutlet({
     parentRouteIds,
     tracer,
+    isInert: isInertFromProps = false,
     inertRouterState,
     onUpdateMetaTitle,
     className,
@@ -29,12 +30,13 @@ export function NativeMobileOutlet({
 }: {
     parentRouteIds: ReadonlyArray<string>;
     tracer: TracerRoot;
+    isInert?: boolean;
     inertRouterState: RouterState | null;
     onUpdateMetaTitle: Memo<(title: string) => void>;
     className?: string;
     style?: CSSProperties;
 }) {
-    const isInert = inertRouterState !== null;
+    const isInert = isInertFromProps || inertRouterState !== null;
 
     const currentDataRouterContext = assertExists(useContext(DataRouterContext));
     const currentDataRouterStateContext = useContext(DataRouterStateContext);
@@ -57,6 +59,8 @@ export function NativeMobileOutlet({
             const currentRouter = currentDataRouterContext.router;
 
             const router: Router & {_isInert: boolean} = {
+                // NOTE(calebmer): `useIsInertNativeMobileRoute()` looks for this in order to
+                // return true when we're in an inert route.
                 _isInert: true,
 
                 initialize: () => router,

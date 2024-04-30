@@ -24,9 +24,10 @@ import * as Y from "yjs";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
-import {maintainTextInputVisibility} from "~/client/design/use_text_input_visibility_maintainer.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
+import {maintainTextInputVisibility} from "~/client/design/use_text_input_visibility_maintainer.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
@@ -382,6 +383,8 @@ export function useTaskGridViewVirtualizedList({
     const context = useAppContext();
     const remPx = useRemPx();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
+    const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
+    const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
 
     const mobileKeyboardToolbarPortalRef = useRef<HTMLDivElement>(null);
 
@@ -1833,12 +1836,8 @@ export function useTaskGridViewVirtualizedList({
                 // keyboard if we're focusing one of those components. See those components for
                 // their custom scroll to avoid keyboard implementation.
                 if (
-                    activeElement.classList.contains(
-                        tasksStyles.taskDateInputTextSegmentClassName,
-                    ) ||
-                    activeElement.classList.contains(
-                        tasksStyles.taskCollectionsInputAddInputClassName,
-                    )
+                    activeElement.classList.contains(tasksStyles.dateInputTextSegmentClassName) ||
+                    activeElement.classList.contains(tasksStyles.collectionsInputAddInputClassName)
                 ) {
                     return null;
                 }
@@ -2194,7 +2193,7 @@ export function useTaskGridViewVirtualizedList({
                         onAfterDelete={taskDeleteConfirmationState.onAfterDelete}
                     />
                 )}
-                {!isInitialAppRender && isMobile && !isInertNativeMobileRoute && (
+                {!isInitialAppRender && isMobile && !isInert && (
                     // The mobile keyboard toolbar is only modal-ish? Maybe we should rename
                     // this prop.
                     <TaskGridViewMobileKeyboardToolbarContainer

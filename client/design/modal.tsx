@@ -167,124 +167,122 @@ export function Modal({
             style={{animation: isFadingOut ? modalStyles.modalFadeOutAnimation : undefined}}
             overflow="hidden"
         >
-            <OverlayScopeContextProvider>
-                <Box
-                    position="absolute"
-                    inset="0"
-                    zIndex="-10"
-                    backgroundColor="grey-dark"
-                    style={{
-                        opacity: modalStyles.modalUnderlayOpacityVar,
-                        animation: !withoutOpenAnimation
-                            ? modalStyles.modalUnderlayFadeInAnimation
-                            : undefined,
-                    }}
-                    // If the underlay is clicked, we close the modal. This element is not
-                    // focusable or keyboard accessible. You can hit the "Escape" key as a shortcut
-                    // to close the modal.
-                    onClick={onCloseWithAnimation}
-                />
-                <FocusScope restoreFocus contain>
-                    <GlobalKeyDownEventModal>
-                        <GlobalKeyDownEvent
-                            onGlobalKeyDown={event => {
-                                if (event.key === "Escape") {
-                                    event.stopPropagation();
-                                    event.preventDefault();
-                                    onCloseWithoutAnimation();
-                                }
+            <Box
+                position="absolute"
+                inset="0"
+                zIndex="-10"
+                backgroundColor="grey-dark"
+                style={{
+                    opacity: modalStyles.modalUnderlayOpacityVar,
+                    animation: !withoutOpenAnimation
+                        ? modalStyles.modalUnderlayFadeInAnimation
+                        : undefined,
+                }}
+                // If the underlay is clicked, we close the modal. This element is not
+                // focusable or keyboard accessible. You can hit the "Escape" key as a shortcut
+                // to close the modal.
+                onClick={onCloseWithAnimation}
+            />
+            <FocusScope restoreFocus contain>
+                <GlobalKeyDownEventModal>
+                    <GlobalKeyDownEvent
+                        onGlobalKeyDown={event => {
+                            if (event.key === "Escape") {
+                                event.stopPropagation();
+                                event.preventDefault();
+                                onCloseWithoutAnimation();
+                            }
+                        }}
+                    >
+                        <section
+                            role="alertdialog"
+                            // It's important the modal is focusable for `<FocusScope contain>`. That way
+                            // when you click out of a focusable element in the modal, focus goes to this
+                            // element instead of `document.body`. If `<FocusScope contain>` sees focus on
+                            // `document.body` then it will move focus right back to the element that was
+                            // blurred which is not what the user wants.
+                            tabIndex={-1}
+                            aria-modal="true"
+                            aria-label={ariaLabel}
+                            aria-labelledby={ariaLabelledBy}
+                            aria-describedby={ariaDescribedBy}
+                            className={classNames(
+                                greyElevated1ClassName,
+                                sprinkles({
+                                    position: "relative",
+                                    zIndex: "0",
+                                    width: "full",
+                                    height,
+                                    backgroundColor: "grey-0",
+                                    boxShadow: "elevation-40",
+                                    borderRadius,
+                                    display: "flex",
+                                    overflow: "hidden",
+                                }),
+                            )}
+                            style={{
+                                maxWidth:
+                                    maxWidth === "full"
+                                        ? "100%"
+                                        : isRemLength(maxWidth)
+                                        ? maxWidth
+                                        : spacing[maxWidth],
+                                maxHeight:
+                                    maxHeight === "full"
+                                        ? "100%"
+                                        : isRemLength(maxHeight)
+                                        ? maxHeight
+                                        : spacing[maxHeight],
+                                animation: !withoutOpenAnimation
+                                    ? modalStyles.modalOverlayFadeInAnimation
+                                    : undefined,
                             }}
                         >
-                            <section
-                                role="alertdialog"
-                                // It's important the modal is focusable for `<FocusScope contain>`. That way
-                                // when you click out of a focusable element in the modal, focus goes to this
-                                // element instead of `document.body`. If `<FocusScope contain>` sees focus on
-                                // `document.body` then it will move focus right back to the element that was
-                                // blurred which is not what the user wants.
-                                tabIndex={-1}
-                                aria-modal="true"
-                                aria-label={ariaLabel}
-                                aria-labelledby={ariaLabelledBy}
-                                aria-describedby={ariaDescribedBy}
-                                className={classNames(
-                                    greyElevated1ClassName,
-                                    sprinkles({
-                                        position: "relative",
-                                        zIndex: "0",
-                                        width: "full",
-                                        height,
-                                        backgroundColor: "grey-0",
-                                        boxShadow: "elevation-40",
-                                        borderRadius,
-                                        display: "flex",
-                                        overflow: "hidden",
-                                    }),
-                                )}
+                            <Box
+                                width="full"
+                                maxHeight="full"
+                                overflow="hidden"
                                 style={{
-                                    maxWidth:
-                                        maxWidth === "full"
-                                            ? "100%"
-                                            : isRemLength(maxWidth)
-                                            ? maxWidth
-                                            : spacing[maxWidth],
-                                    maxHeight:
-                                        maxHeight === "full"
-                                            ? "100%"
-                                            : isRemLength(maxHeight)
-                                            ? maxHeight
-                                            : spacing[maxHeight],
-                                    animation: !withoutOpenAnimation
-                                        ? modalStyles.modalOverlayFadeInAnimation
+                                    animation: isFadingOut
+                                        ? modalStyles.modalContentFadeOutAnimation
+                                        : !withoutOpenAnimation
+                                        ? modalStyles.modalContentFadeInAnimation
                                         : undefined,
                                 }}
                             >
-                                <Box
-                                    width="full"
-                                    maxHeight="full"
-                                    overflow="hidden"
-                                    style={{
-                                        animation: isFadingOut
-                                            ? modalStyles.modalContentFadeOutAnimation
-                                            : !withoutOpenAnimation
-                                            ? modalStyles.modalContentFadeInAnimation
-                                            : undefined,
-                                    }}
+                                <OverlayScopeContextProvider
+                                // Render an overlay scope so any initially mounted overlays get the same
+                                // opacity/scale animations as the modal content.
+                                //
+                                // `<FocusRing>` is a common example of an initially mounted overlay when we
+                                // auto-focus some content in the modal.
                                 >
-                                    <OverlayScopeContextProvider
-                                    // Render an overlay scope so any initially mounted overlays get the same
-                                    // opacity/scale animations as the modal content.
-                                    //
-                                    // `<FocusRing>` is a common example of an initially mounted overlay when we
-                                    // auto-focus some content in the modal.
-                                    >
-                                        {typeof children === "function"
-                                            ? children({
-                                                  onCloseWithAnimation,
-                                                  onCloseWithoutAnimation,
-                                              })
-                                            : children}
-                                        {!withoutCloseButton && (
-                                            <Box position="absolute" top="2" right="2">
-                                                <IconButton
-                                                    size="xs"
-                                                    description="Close"
-                                                    withoutTooltip={true}
-                                                    // Our animation principle is to respond to user input immediately
-                                                    // without animation.
-                                                    onPress={onCloseWithoutAnimation}
-                                                >
-                                                    <X />
-                                                </IconButton>
-                                            </Box>
-                                        )}
-                                    </OverlayScopeContextProvider>
-                                </Box>
-                            </section>
-                        </GlobalKeyDownEvent>
-                    </GlobalKeyDownEventModal>
-                </FocusScope>
-            </OverlayScopeContextProvider>
+                                    {typeof children === "function"
+                                        ? children({
+                                              onCloseWithAnimation,
+                                              onCloseWithoutAnimation,
+                                          })
+                                        : children}
+                                    {!withoutCloseButton && (
+                                        <Box position="absolute" top="2" right="2">
+                                            <IconButton
+                                                size="xs"
+                                                description="Close"
+                                                withoutTooltip={true}
+                                                // Our animation principle is to respond to user input immediately
+                                                // without animation.
+                                                onPress={onCloseWithoutAnimation}
+                                            >
+                                                <X />
+                                            </IconButton>
+                                        </Box>
+                                    )}
+                                </OverlayScopeContextProvider>
+                            </Box>
+                        </section>
+                    </GlobalKeyDownEvent>
+                </GlobalKeyDownEventModal>
+            </FocusScope>
         </Box>,
         portalElement,
     );

@@ -64,6 +64,8 @@ import {
     sprinkles,
 } from "~/shared/styles/styles.js";
 
+export const postViewMaxWidth: Spacing = "160";
+
 export const postContentViewPaddingX: {mobile: Spacing; desktop: Spacing} = {
     mobile: "3",
     desktop: "5",
@@ -230,7 +232,8 @@ export function PostContentView({
     const {currentAccount} = useSpaceContext();
 
     const postEditingForThisPost =
-        postEditing.state.isEditing && postEditing.state.postId === post.id
+        // On mobile we use a modal for the editing UI instead of inline editing.
+        !isMobile && postEditing.state.isEditing && postEditing.state.postId === post.id
             ? (postEditing as PostEditing & {state: {isEditing: true}})
             : null;
 
@@ -284,6 +287,7 @@ export function PostContentView({
                                             type: "StartEditing",
                                             postId: post.id,
                                             currentContent: post.content,
+                                            isMobile,
                                         });
                                     },
                                 })}

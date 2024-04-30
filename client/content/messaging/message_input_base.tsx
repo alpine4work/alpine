@@ -1,22 +1,29 @@
 import {animate} from "motion";
 import {ArrowArcLeft, ArrowRight, ArrowUp, PencilSimple, X} from "phosphor-react";
+import {EditorView} from "prosemirror-view";
 import {
     Key,
     ReactElement,
     Ref,
     RefAttributes,
+    RefObject,
     forwardRef,
     useEffect,
     useId,
     useImperativeHandle,
     useMemo,
     useRef,
+    useState,
 } from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentView} from "~/client/content/content_view.js";
+import {
+    ContentEditorMobileLinkModal,
+    ContentEditorMobileLinkModalState,
+} from "~/client/content/internal/content_editor_mobile_link_modal.js";
 import {MessageInputMobileKeyboardToolbar} from "~/client/content/messaging/message_input_mobile_keyboard_toolbar.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -26,12 +33,17 @@ import {
     mobileBottomBarKeyboardToolbarHeight,
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
+import {
+    MobileFullScreenModal,
+    useIsBehindMobileFullScreenModal,
+} from "~/client/design/mobile_full_screen_modal.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useRegisterBottomBarFrame} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -82,6 +94,7 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     onChange: (state: ContentEditorState<MessageContentWithReferences>) => void;
     onSend: () => void;
     isBottomBar?: boolean;
+    isReplacingOtherBottomBar?: boolean;
     isSendBottomArrowRight?: boolean;
     isSendButtonDisabled?: boolean;
     isSendButtonPending?: boolean;
@@ -127,6 +140,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onChange,
         onSend: onSendProp,
         isBottomBar = false,
+        isReplacingOtherBottomBar = false,
         isSendBottomArrowRight,
         isSendButtonDisabled: isSendButtonDisabledProp,
         isSendButtonPending,
@@ -151,10 +165,23 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     const isMobile = useIsMobile();
     const clientInfo = useClientInfo();
     const {currentAccount} = useSpaceContext();
+    const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
+    const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
+    const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
 
-    const containerRef = useRef<HTMLDivElement>(null);
     const inputContainerRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLDivElement>(null);
+    const inputContentRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
+
+    const viewRef: RefObject<EditorView> = useMemo(
+        () => ({
+            get current() {
+                return editorRef.current?._getInternalView() ?? null;
+            },
+        }),
+        [editorRef],
+    );
 
     const clear = useEvent(() => {
         onChange(ContentEditorState.create(emptyMessageContentWithReferences));
@@ -167,7 +194,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             focus: options => assertExists(editorRef.current).focus(options),
             isEmpty: () => isContentEmpty(assertExists(editorRef.current).getState().getDoc()),
             clear,
-            getBoundingClientRect: () => assertExists(containerRef.current).getBoundingClientRect(),
+            getBoundingClientRect: () => assertExists(inputRef.current).getBoundingClientRect(),
         }),
         [clear],
     );
@@ -288,11 +315,11 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         if (lastIsKeyboardToolbarVisibleRef.current === isKeyboardToolbarVisible) return;
         lastIsKeyboardToolbarVisibleRef.current = isKeyboardToolbarVisible;
 
-        const containerElement = assertExists(containerRef.current);
+        const inputElement = assertExists(inputRef.current);
 
         if (isKeyboardToolbarVisible) {
             animate(
-                containerElement,
+                inputElement,
                 {
                     y: [0, -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening()],
                 },
@@ -306,7 +333,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             );
         } else {
             animate(
-                containerElement,
+                inputElement,
                 {
                     y: [-mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening(), 0],
                 },
@@ -331,12 +358,38 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onBlur?.();
     };
 
-    useRegisterBottomBarFrame(inputContainerRef, {
+    useRegisterBottomBarFrame(inputContentRef, {
         isDisabled: !isBottomBar,
         withMobileKeyboardToolbar: true,
+        isReplacingOtherBottomBar,
     });
 
-    const id = useId();
+    const [linkModalState, setLinkModalState] = useState<ContentEditorMobileLinkModalState | null>(
+        null,
+    );
+
+    const lastLinkModalStateRef = useRef(linkModalState);
+    useEffect(() => {
+        if (lastLinkModalStateRef.current === linkModalState) return;
+        lastLinkModalStateRef.current = linkModalState;
+
+        if (!linkModalState) {
+            // Refocus the content editor after the modal is done closing.
+            if (!NativeMobileBridge) {
+                assertExists(editorRef.current).focus();
+            } else {
+                // Focus after the navigation animation finishes. The keyboard can't open while
+                // the navigation animation is running.
+                NativeMobileBridge.navigation.scheduleAfterAnimation(() => {
+                    assertExists(editorRef.current).focus();
+                });
+            }
+        }
+    }, [linkModalState]);
+
+    const idBase = useId();
+    const containerId = `${idBase}-container`;
+    const id = isBottomBar && clientInfo.isNativeMobile && !isInert ? `nmbb-wkt-${idBase}` : idBase;
 
     // Extra slop that extends beneath the bottom of the message input. This is
     // always cut off on desktop. However, it matters in our native mobile app.
@@ -350,248 +403,352 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
     return (
         <Box
-            ref={containerRef}
-            data-testid={dataTestId}
-            id={isBottomBar && clientInfo.isNativeMobile ? `nmbb-wkt-${id}` : id}
+            ref={inputContainerRef}
+            id={containerId}
+            // Focusable, but not by keyboard. Only by JavaScript.
+            tabIndex={-1}
             flexShrink="0"
-            width="full"
-            backgroundColor="grey-0"
-            style={{
-                minHeight: !isBottomBar
-                    ? messageInputMinHeight
-                    : `calc(${messageInputMinHeight} + var(--window-safe-area-inset-bottom, 0px))`,
-                paddingBottom: isBottomBar
-                    ? clientInfo.isNativeMobile
-                        ? `calc(${bottomBarBackgroundSlopBottom} + var(--window-safe-area-inset-bottom, 0px))`
-                        : "var(--window-safe-area-inset-bottom, 0px)"
-                    : undefined,
-                marginBottom:
-                    isBottomBar && clientInfo.isNativeMobile
-                        ? `-${addRemLengths(
-                              bottomBarBackgroundSlopBottom,
-                              spacing[mobileBottomBarKeyboardToolbarHeight],
-                          )}`
-                        : isBottomBar && isMobile
-                        ? `-${spacing[mobileBottomBarKeyboardToolbarHeight]}`
-                        : undefined,
-                // Our native mobile wrapper looks for compositing layers created from an
-                // element with an ID that starts with `nmbb-` and ties their position to
-                // the tab bar and software keyboard. So we get smooth animations while the
-                // keyboard opens or the tab bar shifts offscreen. To create a compositing
-                // layer we need to set `will-change: transform`. It's not specified that
-                // `will-change: transform` MUST create a compositing layer, instead some
-                // browser engines implement this hint themselves as an optimization.
-                //
-                // It so happens that WebKit is one of those browsers. Here's the code in
-                // WebKit that does this: [part 1][1], [part 2][2].
-                //
-                // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
-                // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
-                willChange: isBottomBar && clientInfo.isNativeMobile ? "transform" : undefined,
-                // Set `transform` to its initial value assuming the tab bar is up.
-                transform:
-                    isBottomBar && clientInfo.isNativeMobile
-                        ? "translateY(calc(var(--window-safe-area-inset-bottom, 0px) - var(--safe-area-inset-bottom, 0px)))"
-                        : undefined,
-            }}
-            // Suppress React hydration warnings in our native mobile app. The native
-            // mobile app sets the `transform` property on this element. Sometimes before
-            // React finishes hydrating. This is expected, React can ignore the difference.
-            suppressHydrationWarning={isBottomBar && clientInfo.isNativeMobile ? true : undefined}
-            onPointerDownCapture={event => {
-                const editor = assertExists(editorRef.current);
-
-                // Tapping anywhere on the message input shouldn't unfocus the content editor
-                // since that will hide the virtual keyboard on mobile.
-                if (
-                    event.target instanceof Element &&
-                    // Exclude tapping in a portaled element. Like inputs in the link modal.
-                    event.currentTarget.contains(event.target) &&
-                    // Exclude tapping in the message input itself. Tapping there should do
-                    // something.
-                    !editor.contains(event.target)
-                ) {
-                    event.preventDefault();
-                }
-            }}
         >
             <Box
-                ref={inputContainerRef}
+                ref={inputRef}
+                // Completely remount the component if the `id` changes. The `id` only really
+                // changes if the message input stops being a native mobile bottom bar (aka
+                // `isInert` changes). That way our native wrapper app correctly detects the
+                // bottom bar change.
+                key={id}
+                data-testid={dataTestId}
+                id={id}
                 width="full"
-                maxWidth="160"
-                marginX="center"
-                paddingY={messageInputPaddingY}
+                backgroundColor="grey-0"
+                style={{
+                    minHeight: !isBottomBar
+                        ? messageInputMinHeight
+                        : `calc(${messageInputMinHeight} + var(--window-safe-area-inset-bottom, 0px))`,
+                    paddingBottom: isBottomBar
+                        ? clientInfo.isNativeMobile
+                            ? `calc(${bottomBarBackgroundSlopBottom} + var(--window-safe-area-inset-bottom, 0px))`
+                            : "var(--window-safe-area-inset-bottom, 0px)"
+                        : undefined,
+                    marginBottom:
+                        isBottomBar && clientInfo.isNativeMobile
+                            ? `-${addRemLengths(
+                                  bottomBarBackgroundSlopBottom,
+                                  spacing[mobileBottomBarKeyboardToolbarHeight],
+                              )}`
+                            : isBottomBar && isMobile
+                            ? `-${spacing[mobileBottomBarKeyboardToolbarHeight]}`
+                            : undefined,
+                    // Our native mobile wrapper looks for compositing layers created from an
+                    // element with an ID that starts with `nmbb-` and ties their position to
+                    // the tab bar and software keyboard. So we get smooth animations while the
+                    // keyboard opens or the tab bar shifts offscreen. To create a compositing
+                    // layer we need to set `will-change: transform`. It's not specified that
+                    // `will-change: transform` MUST create a compositing layer, instead some
+                    // browser engines implement this hint themselves as an optimization.
+                    //
+                    // It so happens that WebKit is one of those browsers. Here's the code in
+                    // WebKit that does this: [part 1][1], [part 2][2].
+                    //
+                    // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
+                    // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
+                    willChange:
+                        isBottomBar && clientInfo.isNativeMobile && !isInert
+                            ? "transform"
+                            : undefined,
+                    // Set `transform` to its initial value assuming the tab bar is up.
+                    transform:
+                        isBottomBar && clientInfo.isNativeMobile
+                            ? "translateY(calc(var(--window-safe-area-inset-bottom, 0px) - var(--safe-area-inset-bottom, 0px)))"
+                            : undefined,
+                }}
+                // Suppress React hydration warnings in our native mobile app. The native
+                // mobile app sets the `transform` property on this element. Sometimes before
+                // React finishes hydrating. This is expected, React can ignore the difference.
+                suppressHydrationWarning={
+                    isBottomBar && clientInfo.isNativeMobile && !isInert ? true : undefined
+                }
+                onPointerDownCapture={event => {
+                    const editor = assertExists(editorRef.current);
+
+                    // Tapping anywhere on the message input shouldn't unfocus the content editor
+                    // since that will hide the virtual keyboard on mobile.
+                    if (
+                        event.target instanceof Element &&
+                        // Exclude tapping in a portaled element. Like inputs in the link modal.
+                        event.currentTarget.contains(event.target) &&
+                        // Exclude tapping in the message input itself. Tapping there should do
+                        // something.
+                        !editor.contains(event.target)
+                    ) {
+                        event.preventDefault();
+                    }
+                }}
             >
-                {isEditingMessage && (
-                    <Box
-                        position="relative"
-                        paddingBottom="3"
-                        color="grey-80"
-                        style={{
-                            paddingLeft: isMobile
-                                ? spacing["3"]
-                                : getMessageBubbleMarginLeft(marginX),
-                            paddingRight: addRemLengths(spacing["2"], spacing["7"], spacing["5"]),
-                        }}
-                    >
+                <Box
+                    ref={inputContentRef}
+                    width="full"
+                    maxWidth="160"
+                    marginX="center"
+                    paddingY={messageInputPaddingY}
+                >
+                    {isEditingMessage && (
                         <Box
-                            paddingLeft="0.5"
-                            display="flex"
-                            alignItems="center"
-                            gap="1"
-                            fontSize="50"
-                            fontStyle="truncate"
+                            position="relative"
+                            paddingBottom="3"
+                            color="grey-80"
+                            style={{
+                                paddingLeft: isMobile
+                                    ? spacing["3"]
+                                    : getMessageBubbleMarginLeft(marginX),
+                                paddingRight: addRemLengths(
+                                    spacing["2"],
+                                    spacing["7"],
+                                    spacing["5"],
+                                ),
+                            }}
                         >
-                            <PencilSimple size={spacing["3"]} />
-                            <span>Editing message</span>
-                            <Box paddingLeft="1" style={{transform: "translateY(1px)"}}>
-                                <IconButton
-                                    size="xs"
-                                    description="Cancel editing"
-                                    onPress={() => {
-                                        messageEditingForThisInput.dispatch({
-                                            type: "CancelEditing",
-                                        });
-                                    }}
-                                    // Not focusable so clicking on this button doesn't unfocus
-                                    // the input.
-                                    isFocusable={false}
-                                >
-                                    <X />
-                                </IconButton>
+                            <Box
+                                paddingLeft="0.5"
+                                display="flex"
+                                alignItems="center"
+                                gap="1"
+                                fontSize="50"
+                                fontStyle="truncate"
+                            >
+                                <PencilSimple size={spacing["3"]} />
+                                <span>Editing message</span>
+                                <Box paddingLeft="1" style={{transform: "translateY(1px)"}}>
+                                    <IconButton
+                                        size="xs"
+                                        description="Cancel editing"
+                                        onPress={() => {
+                                            messageEditingForThisInput.dispatch({
+                                                type: "CancelEditing",
+                                            });
+                                        }}
+                                        // Not focusable so clicking on this button doesn't unfocus
+                                        // the input.
+                                        isFocusable={false}
+                                    >
+                                        <X />
+                                    </IconButton>
+                                </Box>
                             </Box>
                         </Box>
-                    </Box>
-                )}
-                {replyingToMessage &&
-                    (() => {
-                        const height = addRemLengths(
-                            spacing["1.5"],
-                            contentViewStyles.truncatedHeight,
-                            spacing["1.5"],
-                        );
+                    )}
+                    {replyingToMessage &&
+                        (() => {
+                            const height = addRemLengths(
+                                spacing["1.5"],
+                                contentViewStyles.truncatedHeight,
+                                spacing["1.5"],
+                            );
 
-                        const scaledHeight = `${
-                            Math.round(
-                                parseRemLengthNumber(height) * messageViewReplyPreviewScale * 16,
-                            ) / 16
-                        }rem`;
+                            const scaledHeight = `${
+                                Math.round(
+                                    parseRemLengthNumber(height) *
+                                        messageViewReplyPreviewScale *
+                                        16,
+                                ) / 16
+                            }rem`;
 
-                        return (
+                            return (
+                                <Box
+                                    position="relative"
+                                    paddingBottom="4"
+                                    style={{
+                                        paddingLeft: isMobile
+                                            ? spacing["3"]
+                                            : getMessageBubbleMarginLeft(marginX),
+                                        paddingRight: addRemLengths(
+                                            spacing["2"],
+                                            spacing["7"],
+                                            spacing["5"],
+                                        ),
+                                    }}
+                                >
+                                    <Box
+                                        paddingLeft="1.5"
+                                        paddingBottom="1"
+                                        display="flex"
+                                        alignItems="center"
+                                        gap="1"
+                                        fontSize="50"
+                                        fontStyle="truncate"
+                                    >
+                                        <ArrowArcLeft size={spacing["3"]} />
+                                        <span>
+                                            Replying to{" "}
+                                            <span className={sprinkles({fontStyle: "bold"})}>
+                                                <AccountShortName
+                                                    account={replyingToMessage.message.author}
+                                                />
+                                            </span>
+                                        </span>
+                                        <Box paddingLeft="1" style={{transform: "translateY(1px)"}}>
+                                            <IconButton
+                                                size="xs"
+                                                description="Cancel reply"
+                                                onPress={onClearReplyingToMessage}
+                                                // Not focusable so clicking on this button doesn't unfocus
+                                                // the input.
+                                                isFocusable={false}
+                                            >
+                                                <X />
+                                            </IconButton>
+                                        </Box>
+                                    </Box>
+                                    <Box style={{height: scaledHeight}}>
+                                        <FocusRing>
+                                            <Box
+                                                // This is a simulated link. When the user clicks on it our code navigates us
+                                                // to the right message instead of relying on browser URL navigation.
+                                                //
+                                                // See: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/link_role
+                                                role="link"
+                                                tabIndex={0}
+                                                // We don't use a pointer cursor for buttons in our product because buttons
+                                                // they clearly appear clickable. We call this a strong affordance. A reply
+                                                // preview is clickable and gives some affordance (different color) but it's a
+                                                // weak affordance. So we use a pointer to make this element unambiguously
+                                                // clickable.
+                                                //
+                                                // Also, this element is semantically a link which the pointer cursor was
+                                                // originally designed for.
+                                                //
+                                                // See: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
+                                                cursor="pointer"
+                                                position="relative"
+                                                zIndex="0"
+                                                display="inline-block"
+                                                maxWidth="full"
+                                                paddingX={messageViewBubblePaddingX}
+                                                paddingY={messageViewBubblePaddingY}
+                                                borderRadius={messageViewBubbleBorderRadius}
+                                                style={{
+                                                    opacity: messageViewReplyPreviewOpacity,
+                                                    transform: `scale(${messageViewReplyPreviewScale})`,
+                                                    transformOrigin: "0% 0% 0",
+                                                }}
+                                                onClick={() =>
+                                                    onJumpToMessage?.(replyingToMessage.message)
+                                                }
+                                                onKeyDown={event => {
+                                                    if (
+                                                        event.key === "Enter" ||
+                                                        event.key === " "
+                                                    ) {
+                                                        event.preventDefault();
+                                                        event.stopPropagation();
+                                                        onJumpToMessage?.(
+                                                            replyingToMessage.message,
+                                                        );
+                                                        return;
+                                                    }
+                                                }}
+                                            >
+                                                <Box
+                                                    position="absolute"
+                                                    inset="0"
+                                                    zIndex="-10"
+                                                    borderRadius={messageViewBubbleBorderRadius}
+                                                    backgroundColor="grey-5"
+                                                    style={{
+                                                        opacity:
+                                                            messageViewReplyPreviewBubbleOpacity,
+                                                    }}
+                                                />
+                                                <Box overflow="hidden" pointerEvents="none">
+                                                    <ContentView
+                                                        isInert={true}
+                                                        isTruncated={true}
+                                                        content={replyingToMessage.truncatedContent}
+                                                    />
+                                                </Box>
+                                            </Box>
+                                        </FocusRing>
+                                    </Box>
+                                </Box>
+                            );
+                        })()}
+                    <Box
+                        overflow="hidden"
+                        display="flex"
+                        paddingX={isMobile ? "3" : marginX}
+                        gap="2"
+                    >
+                        {!isMobile && (
+                            <Box display="flex" alignItems="flex-end">
+                                <Box
+                                    width={messageInputAccountAvatarSize}
+                                    style={{
+                                        paddingTop: messageInputAccountAvatarPaddingY,
+                                        paddingBottom: messageInputAccountAvatarPaddingY,
+                                    }}
+                                >
+                                    <AccountAvatar
+                                        account={currentAccount}
+                                        size={messageInputAccountAvatarSize}
+                                    />
+                                </Box>
+                            </Box>
+                        )}
+                        <FocusRing offset="border" isVisibleWhenFocusWithin={true}>
                             <Box
-                                position="relative"
-                                paddingBottom="4"
+                                flexGrow="1"
+                                overflow="hidden"
+                                backgroundColor="grey-0"
+                                borderRadius={messageViewBubbleBorderRadius}
                                 style={{
-                                    paddingLeft: isMobile
-                                        ? spacing["3"]
-                                        : getMessageBubbleMarginLeft(marginX),
-                                    paddingRight: addRemLengths(
-                                        spacing["2"],
-                                        spacing["7"],
-                                        spacing["5"],
-                                    ),
+                                    minHeight: messageViewBubbleMinHeight,
+                                    boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                                 }}
                             >
                                 <Box
-                                    paddingLeft="1.5"
-                                    paddingBottom="1"
-                                    display="flex"
-                                    alignItems="center"
-                                    gap="1"
-                                    fontSize="50"
-                                    fontStyle="truncate"
+                                    ref={useScrollbar({
+                                        insetTop: borderRadius[messageViewBubbleBorderRadius],
+                                        insetBottom: borderRadius[messageViewBubbleBorderRadius],
+                                    })}
+                                    maxHeight={isMobile || withMobileMaxHeight ? "48" : "96"}
+                                    position="relative"
+                                    overflowX="hidden"
+                                    overflowY="auto"
                                 >
-                                    <ArrowArcLeft size={spacing["3"]} />
-                                    <span>
-                                        Replying to{" "}
-                                        <span className={sprinkles({fontStyle: "bold"})}>
-                                            <AccountShortName
-                                                account={replyingToMessage.message.author}
-                                            />
-                                        </span>
-                                    </span>
-                                    <Box paddingLeft="1" style={{transform: "translateY(1px)"}}>
-                                        <IconButton
-                                            size="xs"
-                                            description="Cancel reply"
-                                            onPress={onClearReplyingToMessage}
-                                            // Not focusable so clicking on this button doesn't unfocus
-                                            // the input.
-                                            isFocusable={false}
-                                        >
-                                            <X />
-                                        </IconButton>
-                                    </Box>
-                                </Box>
-                                <Box style={{height: scaledHeight}}>
-                                    <FocusRing>
-                                        <Box
-                                            // This is a simulated link. When the user clicks on it our code navigates us
-                                            // to the right message instead of relying on browser URL navigation.
-                                            //
-                                            // See: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/link_role
-                                            role="link"
-                                            tabIndex={0}
-                                            // We don't use a pointer cursor for buttons in our product because buttons
-                                            // they clearly appear clickable. We call this a strong affordance. A reply
-                                            // preview is clickable and gives some affordance (different color) but it's a
-                                            // weak affordance. So we use a pointer to make this element unambiguously
-                                            // clickable.
-                                            //
-                                            // Also, this element is semantically a link which the pointer cursor was
-                                            // originally designed for.
-                                            //
-                                            // See: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
-                                            cursor="pointer"
-                                            position="relative"
-                                            zIndex="0"
-                                            display="inline-block"
-                                            maxWidth="full"
-                                            paddingX={messageViewBubblePaddingX}
-                                            paddingY={messageViewBubblePaddingY}
-                                            borderRadius={messageViewBubbleBorderRadius}
-                                            style={{
-                                                opacity: messageViewReplyPreviewOpacity,
-                                                transform: `scale(${messageViewReplyPreviewScale})`,
-                                                transformOrigin: "0% 0% 0",
-                                            }}
-                                            onClick={() =>
-                                                onJumpToMessage?.(replyingToMessage.message)
-                                            }
-                                            onKeyDown={event => {
-                                                if (event.key === "Enter" || event.key === " ") {
-                                                    event.preventDefault();
-                                                    event.stopPropagation();
-                                                    onJumpToMessage?.(replyingToMessage.message);
-                                                    return;
-                                                }
-                                            }}
-                                        >
-                                            <Box
-                                                position="absolute"
-                                                inset="0"
-                                                zIndex="-10"
-                                                borderRadius={messageViewBubbleBorderRadius}
-                                                backgroundColor="grey-5"
-                                                style={{
-                                                    opacity: messageViewReplyPreviewBubbleOpacity,
-                                                }}
-                                            />
-                                            <Box overflow="hidden" pointerEvents="none">
-                                                <ContentView
-                                                    isInert={true}
-                                                    isTruncated={true}
-                                                    content={replyingToMessage.truncatedContent}
-                                                />
-                                            </Box>
-                                        </Box>
-                                    </FocusRing>
+                                    <ContentEditor
+                                        ref={editorRef}
+                                        state={state}
+                                        onChange={(state, transaction) => {
+                                            onChange(state);
+                                            if (transaction.docChanged) showTypingIndicator();
+                                        }}
+                                        onFocus={handleFocus}
+                                        onBlur={handleBlur}
+                                        aria-label={
+                                            isEditingMessage
+                                                ? messageStartOfSentenceNoun
+                                                : `New ${messageNoun}`
+                                        }
+                                        placeholder={placeholder}
+                                        className={sprinkles({
+                                            paddingX: messageViewBubblePaddingX,
+                                            paddingY: messageViewBubblePaddingY,
+                                        })}
+                                        onEnterFromPhysicalKeyboard={event => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            onSend();
+                                        }}
+                                        onArrowUp={onArrowUp}
+                                        // Don't render the default content editor mobile keyboard toolbar. We render
+                                        // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
+                                        withoutMobileKeyboardToolbar={true}
+                                        // Message input is always editable, never interactive on mobile. So you can't
+                                        // click links among other things.
+                                        withoutMobileDualModality={true}
+                                    />
                                 </Box>
                             </Box>
-                        );
-                    })()}
-                <Box overflow="hidden" display="flex" paddingX={isMobile ? "3" : marginX} gap="2">
-                    {!isMobile && (
+                        </FocusRing>
                         <Box display="flex" alignItems="flex-end">
                             <Box
                                 width={messageInputAccountAvatarSize}
@@ -600,116 +757,123 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                     paddingBottom: messageInputAccountAvatarPaddingY,
                                 }}
                             >
-                                <AccountAvatar
-                                    account={currentAccount}
-                                    size={messageInputAccountAvatarSize}
-                                />
-                            </Box>
-                        </Box>
-                    )}
-                    <FocusRing offset="border" isVisibleWhenFocusWithin={true}>
-                        <Box
-                            flexGrow="1"
-                            overflow="hidden"
-                            backgroundColor="grey-0"
-                            borderRadius={messageViewBubbleBorderRadius}
-                            style={{
-                                minHeight: messageViewBubbleMinHeight,
-                                boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
-                            }}
-                        >
-                            <Box
-                                ref={useScrollbar({
-                                    insetTop: borderRadius[messageViewBubbleBorderRadius],
-                                    insetBottom: borderRadius[messageViewBubbleBorderRadius],
-                                })}
-                                maxHeight={isMobile || withMobileMaxHeight ? "48" : "96"}
-                                position="relative"
-                                overflowX="hidden"
-                                overflowY="auto"
-                            >
-                                <ContentEditor
-                                    ref={editorRef}
-                                    state={state}
-                                    onChange={(state, transaction) => {
-                                        onChange(state);
-                                        if (transaction.docChanged) showTypingIndicator();
-                                    }}
-                                    onFocus={handleFocus}
-                                    onBlur={handleBlur}
-                                    aria-label={
+                                <IconButton
+                                    variant="accent"
+                                    description={
                                         isEditingMessage
-                                            ? messageStartOfSentenceNoun
-                                            : `New ${messageNoun}`
+                                            ? `Save ${messageNoun}`
+                                            : `Send ${messageNoun}`
                                     }
-                                    placeholder={placeholder}
-                                    className={sprinkles({
-                                        paddingX: messageViewBubblePaddingX,
-                                        paddingY: messageViewBubblePaddingY,
-                                    })}
-                                    onEnterFromPhysicalKeyboard={event => {
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                        onSend();
-                                    }}
-                                    onArrowUp={onArrowUp}
-                                    // Don't render the default content editor mobile keyboard toolbar. We render
-                                    // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
-                                    withoutMobileKeyboardToolbar={true}
-                                    // Message input is always editable, never interactive on mobile. So you can't
-                                    // click links among other things.
-                                    withoutMobileDualModality={true}
-                                />
+                                    onPress={onSend}
+                                    isDisabled={isSendButtonDisabled}
+                                    isPending={isSendButtonPending}
+                                    // The send icon button is not focusable. That's because we don't want to
+                                    // remove focus from the message input when the send button is pressed. That
+                                    // way on mobile you can keep typing and sending messages because the software
+                                    // keyboard doesn't disappear.
+                                    //
+                                    // On desktop, hitting enter in the message input is sufficient for keyboard
+                                    // control of the message input.
+                                    isFocusable={false}
+                                >
+                                    {isSendBottomArrowRight ? (
+                                        <ArrowRight
+                                            size={spacing["4"]}
+                                            weight={!isSendButtonDisabled ? "bold" : undefined}
+                                        />
+                                    ) : (
+                                        <ArrowUp
+                                            size={spacing["4"]}
+                                            weight={!isSendButtonDisabled ? "bold" : undefined}
+                                        />
+                                    )}
+                                </IconButton>
                             </Box>
-                        </Box>
-                    </FocusRing>
-                    <Box display="flex" alignItems="flex-end">
-                        <Box
-                            width={messageInputAccountAvatarSize}
-                            style={{
-                                paddingTop: messageInputAccountAvatarPaddingY,
-                                paddingBottom: messageInputAccountAvatarPaddingY,
-                            }}
-                        >
-                            <IconButton
-                                variant="accent"
-                                description={
-                                    isEditingMessage ? `Save ${messageNoun}` : `Send ${messageNoun}`
-                                }
-                                onPress={onSend}
-                                isDisabled={isSendButtonDisabled}
-                                isPending={isSendButtonPending}
-                                // The send icon button is not focusable. That's because we don't want to
-                                // remove focus from the message input when the send button is pressed. That
-                                // way on mobile you can keep typing and sending messages because the software
-                                // keyboard doesn't disappear.
-                                //
-                                // On desktop, hitting enter in the message input is sufficient for keyboard
-                                // control of the message input.
-                                isFocusable={false}
-                            >
-                                {isSendBottomArrowRight ? (
-                                    <ArrowRight
-                                        size={spacing["4"]}
-                                        weight={!isSendButtonDisabled ? "bold" : undefined}
-                                    />
-                                ) : (
-                                    <ArrowUp
-                                        size={spacing["4"]}
-                                        weight={!isSendButtonDisabled ? "bold" : undefined}
-                                    />
-                                )}
-                            </IconButton>
                         </Box>
                     </Box>
                 </Box>
+                {isMobile && isBottomBar && (
+                    <MessageInputMobileKeyboardToolbar
+                        state={state._getInternalState()}
+                        viewRef={viewRef}
+                        isVisible={isKeyboardToolbarVisible}
+                        onLinkModalOpen={setLinkModalState}
+                        inputContainerRef={inputContainerRef}
+                    />
+                )}
             </Box>
-            {isMobile && isBottomBar && (
-                <MessageInputMobileKeyboardToolbar
-                    state={state}
-                    editorRef={editorRef}
-                    isVisible={isKeyboardToolbarVisible}
-                />
+            {linkModalState && (
+                // Important: This must live outside the message input element which changes
+                // its `key` when it becomes inert which would cause this component to unmount.
+                <MobileFullScreenModal
+                    // Important: Tells `useConfirmSaveAfterLosingFocus()` (used by document comment
+                    // input) that when focus is within the link modal we're still actually editing
+                    // the comment input.
+                    data-ownedby={containerId}
+                    onClose={() => setLinkModalState(null)}
+                >
+                    {({onCloseWithAnimation}) => (
+                        <ContentEditorMobileLinkModal
+                            viewRef={viewRef}
+                            initialText={linkModalState.initialText}
+                            isTextEditable={linkModalState.isTextEditable}
+                            initialUrl={linkModalState.initialUrl}
+                            onCloseWithAnimation={() => {
+                                const inputContainerElement = assertExists(
+                                    inputContainerRef.current,
+                                );
+
+                                // In our native mobile app, blur the link modal input before animating the
+                                // modal closed. In our web mobile app, we want to keep focus in a hidden input
+                                // so the keyboard doesn't close.
+                                //
+                                // - In native mobile, even if we maintain focus in the DOM, iOS will do the
+                                //   keyboard open/close animation. We might as well control the timing there.
+                                //
+                                // - In web mobile, the keyboard open/close animation is incredibly janky since
+                                //   we don't have the same level of control as we do in native. So it feels
+                                //   better to keep the keyboard open the whole time.
+                                if (NativeMobileBridge) {
+                                    // Instead of blurring the link modal input, focus the toolbar element (which
+                                    // has the same effect). That way `useConfirmSaveAfterLosingFocus()` (which we
+                                    // use for document comment editing) sees that focus stays within the message
+                                    // input.
+                                    inputContainerElement.focus();
+
+                                    NativeMobileBridge.keyboard.scheduleAfterAnimation(() => {
+                                        onCloseWithAnimation({withoutFocus: true});
+                                    });
+                                } else {
+                                    // If there's currently an element with focus in the link modal, move focus to
+                                    // a temporary, invisible, element to keep the keyboard open. Once we've
+                                    // finished closing the modal then focus will return to the content editor.
+                                    if (document.activeElement) {
+                                        const temporaryInputElement =
+                                            document.createElement("input");
+                                        temporaryInputElement.style.width = "0";
+                                        temporaryInputElement.style.height = "0";
+                                        temporaryInputElement.style.margin = "0";
+                                        temporaryInputElement.style.padding = "0";
+                                        temporaryInputElement.style.border = "0";
+                                        temporaryInputElement.style.opacity = "0";
+                                        temporaryInputElement.style.position = "absolute";
+                                        temporaryInputElement.style.top = "0px";
+                                        temporaryInputElement.style.left = "0px";
+                                        inputContainerElement.appendChild(temporaryInputElement);
+                                        temporaryInputElement.addEventListener("blur", () => {
+                                            inputContainerElement.removeChild(
+                                                temporaryInputElement,
+                                            );
+                                        });
+                                        temporaryInputElement.focus();
+                                    }
+
+                                    onCloseWithAnimation({withoutFocus: true});
+                                }
+                            }}
+                        />
+                    )}
+                </MobileFullScreenModal>
             )}
         </Box>
     );

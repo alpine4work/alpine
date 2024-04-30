@@ -8,6 +8,7 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@popperjs/core",
+        "//:node_modules/@react-aria/focus",
         "//:node_modules/@react-aria/interactions",
         "//:node_modules/@react-types/shared",
         "//:node_modules/@remix-run/router",

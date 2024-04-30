@@ -1,6 +1,7 @@
 import {Memo, ReactNode, RefObject, createContext, useCallback, useContext, useState} from "react";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {mobileBottomBarKeyboardToolbarHeightRem} from "~/client/design/mobile_bottom_bar.js";
+import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {throwIfRendering} from "~/client/helpers/lifecycle/throw_if_rendering.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {
@@ -31,7 +32,10 @@ type BottomBarFrameContext = {
         };
         wasBottomBarIntroduced: boolean;
     }> | null;
-    bottomBarFrames: Set<{readonly height: number; readonly withMobileKeyboardToolbar: boolean}>;
+    bottomBarFrames: Set<{
+        readonly height: number;
+        readonly withMobileKeyboardToolbar: boolean;
+    }>;
 };
 
 const BottomBarFrameContext = createContext<BottomBarFrameContext | null>(null);
@@ -98,6 +102,36 @@ export function useGetCurrentBottomBarHeight(): Memo<
 }
 
 /**
+ * Subscribe to changes in mobile bottom bar frame sizes.
+ *
+ * Does nothing outside of mobile environments.
+ */
+export function useSubscribeToBottomBarFrameChange(): Memo<
+    (
+        listener: (event: {
+            readonly oldBottomBarHeight: {
+                readonly visibleMobileKeyboard: number;
+                readonly hiddenMobileKeyboard: number;
+            };
+            readonly newBottomBarHeight: {
+                readonly visibleMobileKeyboard: number;
+                readonly hiddenMobileKeyboard: number;
+            };
+            readonly wasBottomBarIntroduced: boolean;
+        }) => void,
+    ) => () => void
+> {
+    const context = useBottomBarFrameContext();
+
+    return useCallback(
+        listener => {
+            return (context.bottomBarFrameChangeEmitter ??= new EventEmitter()).subscribe(listener);
+        },
+        [context],
+    );
+}
+
+/**
  * Register a mobile bottom bar for the height calculations of
  * `subscribeToMobilBottomBarFrameChange()`.
  */
@@ -106,13 +140,20 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
     {
         isDisabled = false,
         withMobileKeyboardToolbar = false,
-    }: {isDisabled?: boolean; withMobileKeyboardToolbar?: boolean} = {},
+        isReplacingOtherBottomBar = false,
+    }: {
+        isDisabled?: boolean;
+        withMobileKeyboardToolbar?: boolean;
+        isReplacingOtherBottomBar?: boolean;
+    } = {},
 ) {
     const context = useBottomBarFrameContext();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
+    const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
+    const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (isInertNativeMobileRoute) return;
+        if (isInert) return;
         if (isDisabled) return;
 
         const element = assertExists(elementRef.current);
@@ -120,7 +161,7 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
         let isCancelled = false;
         let hasFinishedEffectSetup = false;
         let hasCalledHandleResizeDuringEffectSetup = false;
-        let isIntroduction = true;
+        let isIntroduction = !isReplacingOtherBottomBar;
 
         // Emit change after a microtask so it doesn't run as part of React's
         // mounting phase which may have not finished setting up refs that may be used
@@ -188,7 +229,14 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
                 });
             });
         };
-    }, [context, elementRef, isDisabled, isInertNativeMobileRoute, withMobileKeyboardToolbar]);
+    }, [
+        context,
+        elementRef,
+        isDisabled,
+        isInert,
+        isReplacingOtherBottomBar,
+        withMobileKeyboardToolbar,
+    ]);
 }
 
 /**
@@ -200,9 +248,11 @@ export function useRegisterBottomBarMobileKeyboardToolbarFrame({
 }: {isDisabled?: boolean} = {}) {
     const context = useBottomBarFrameContext();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
+    const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
+    const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (isInertNativeMobileRoute) return;
+        if (isInert) return;
         if (isDisabled) return;
 
         let isCancelled = false;
@@ -240,7 +290,7 @@ export function useRegisterBottomBarMobileKeyboardToolbarFrame({
                 });
             });
         };
-    }, [context, isDisabled, isInertNativeMobileRoute]);
+    }, [context, isDisabled, isInert]);
 }
 
 /**
@@ -275,7 +325,7 @@ function registerBottomBarFrame(
         oldBottomBarHeight.visibleMobileKeyboard !== newBottomBarHeight.visibleMobileKeyboard
     ) {
         context.currentBottomBarHeight = newBottomBarHeight;
-        (context.bottomBarFrameChangeEmitter ??= new EventEmitter()).emit({
+        context.bottomBarFrameChangeEmitter?.emit({
             oldBottomBarHeight,
             newBottomBarHeight: context.currentBottomBarHeight,
             wasBottomBarIntroduced: isIntroduction,
@@ -298,7 +348,7 @@ function registerBottomBarFrame(
             oldBottomBarHeight.visibleMobileKeyboard !== newBottomBarHeight.visibleMobileKeyboard
         ) {
             context.currentBottomBarHeight = newBottomBarHeight;
-            (context.bottomBarFrameChangeEmitter ??= new EventEmitter()).emit({
+            context.bottomBarFrameChangeEmitter?.emit({
                 oldBottomBarHeight,
                 newBottomBarHeight: context.currentBottomBarHeight,
                 wasBottomBarIntroduced: isIntroduction,
@@ -326,34 +376,4 @@ function getMobileBottomBarHeight(
     }
 
     return bottomBarHeight;
-}
-
-/**
- * Subscribe to changes in mobile bottom bar frame sizes.
- *
- * Does nothing outside of mobile environments.
- */
-export function useSubscribeToBottomBarFrameChange(): Memo<
-    (
-        listener: (event: {
-            readonly oldBottomBarHeight: {
-                readonly visibleMobileKeyboard: number;
-                readonly hiddenMobileKeyboard: number;
-            };
-            readonly newBottomBarHeight: {
-                readonly visibleMobileKeyboard: number;
-                readonly hiddenMobileKeyboard: number;
-            };
-            readonly wasBottomBarIntroduced: boolean;
-        }) => void,
-    ) => () => void
-> {
-    const context = useBottomBarFrameContext();
-
-    return useCallback(
-        listener => {
-            return (context.bottomBarFrameChangeEmitter ??= new EventEmitter()).subscribe(listener);
-        },
-        [context],
-    );
 }

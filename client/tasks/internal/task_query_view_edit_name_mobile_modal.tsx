@@ -5,6 +5,7 @@ import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {spacing} from "~/shared/design/spacing.js";
 
 export function TaskQueryViewEditNameMobileModal({
     initialName,
@@ -55,23 +56,37 @@ export function TaskQueryViewEditNameMobileModal({
                 justifyContent="space-between"
                 alignItems="center"
             >
-                <Button
-                    fontSize="100"
-                    pressErrorTitle="Couldn’t go back"
-                    onPress={onCloseWithAnimation}
+                <Box
+                    flexGrow="1"
+                    display="flex"
+                    justifyContent="flex-start"
+                    style={{flexBasis: spacing["10"]}}
                 >
-                    Cancel
-                </Button>
+                    <Button
+                        fontSize="100"
+                        pressErrorTitle="Couldn’t go back"
+                        onPress={onCloseWithAnimation}
+                    >
+                        Cancel
+                    </Button>
+                </Box>
                 <Box fontSize="100" fontStyle="semi-bold">
                     Edit name
                 </Box>
-                <Button
-                    fontSize="100"
-                    isDisabled={!hasNameChanged || name.trim().length === 0}
-                    onPress={save}
+                <Box
+                    flexGrow="1"
+                    display="flex"
+                    justifyContent="flex-end"
+                    style={{flexBasis: spacing["10"]}}
                 >
-                    Save
-                </Button>
+                    <Button
+                        fontSize="100"
+                        isDisabled={!hasNameChanged || name.trim().length === 0}
+                        onPress={save}
+                    >
+                        Save
+                    </Button>
+                </Box>
             </Box>
             <Box paddingX="4">
                 <Spacer space="8" />

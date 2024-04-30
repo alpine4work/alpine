@@ -57,7 +57,7 @@ import {
  */
 const channelSelectorSearchResultLimit = 20;
 
-type NewPostViewChannelSelectorInputState =
+type PostCreatorViewChannelSelectorInputState =
     | {
           readonly type: "Selection";
           readonly disableAnimationOut: boolean;
@@ -69,7 +69,7 @@ type NewPostViewChannelSelectorInputState =
           readonly shouldSelect: boolean;
       };
 
-type NewPostViewChannelSelectorItem = {
+type PostCreatorViewChannelSelectorItem = {
     readonly key: ChannelId;
     readonly channel: ChannelPreviewModel;
     readonly descriptionTextSnippet: string;
@@ -77,14 +77,16 @@ type NewPostViewChannelSelectorItem = {
 
 let isClosingComboBox = false;
 
-export type NewPostViewChannelSelectorInputRef = {
+export type PostCreatorViewChannelSelectorInputRef = {
     focus(): void;
 };
 
-const NewPostViewChannelSelectorInputForwardRef = forwardRef(NewPostViewChannelSelectorInput);
-export {NewPostViewChannelSelectorInputForwardRef as NewPostViewChannelSelectorInput};
+const PostCreatorViewChannelSelectorInputForwardRef = forwardRef(
+    PostCreatorViewChannelSelectorInput,
+);
+export {PostCreatorViewChannelSelectorInputForwardRef as PostCreatorViewChannelSelectorInput};
 
-function NewPostViewChannelSelectorInput(
+function PostCreatorViewChannelSelectorInput(
     {
         channel,
         onChannelChange,
@@ -92,7 +94,7 @@ function NewPostViewChannelSelectorInput(
         channel: ChannelPreviewModel | null;
         onChannelChange: (channel: ChannelPreviewModel | null) => void;
     },
-    ref: Ref<NewPostViewChannelSelectorInputRef>,
+    ref: Ref<PostCreatorViewChannelSelectorInputRef>,
 ) {
     const isMobile = useIsMobile();
     const {space} = useSpaceContext();
@@ -111,7 +113,7 @@ function NewPostViewChannelSelectorInput(
 
     const [shouldLoadItems, setShouldLoadItems] = useState(false);
 
-    const [inputState, setInputState] = useState<NewPostViewChannelSelectorInputState>({
+    const [inputState, setInputState] = useState<PostCreatorViewChannelSelectorInputState>({
         type: "Selection",
         disableAnimationOut: false,
     });
@@ -166,7 +168,7 @@ function NewPostViewChannelSelectorInput(
 
     const shouldShowSearchLoadingIndicator = useDelayLoadingIndicator(isSearchLoading);
 
-    const items: ReadonlyArray<NewPostViewChannelSelectorItem> | null = useMemo(() => {
+    const items: ReadonlyArray<PostCreatorViewChannelSelectorItem> | null = useMemo(() => {
         if (searchByKeywordsOutput) {
             const channelIdsFromSearchByAffinity = searchByAffinityOutput
                 ? new Set(
@@ -211,7 +213,7 @@ function NewPostViewChannelSelectorInput(
 
     const selectedKey = channel?.id ?? null;
 
-    const comboBoxProps: ComboBoxStateOptions<NewPostViewChannelSelectorItem> = {
+    const comboBoxProps: ComboBoxStateOptions<PostCreatorViewChannelSelectorItem> = {
         menuTrigger: "manual",
         // Don't close when there are no items.
         allowsEmptyCollection: true,
@@ -286,10 +288,10 @@ function NewPostViewChannelSelectorInput(
         },
 
         items: items ?? emptyArray,
-        children: useCallback((item: NewPostViewChannelSelectorItem) => {
+        children: useCallback((item: PostCreatorViewChannelSelectorItem) => {
             return (
                 <Item textValue={item.channel.name}>
-                    <NewPostViewChannelSelectorListBoxOptionItem item={item} />
+                    <PostCreatorViewChannelSelectorListBoxOptionItem item={item} />
                 </Item>
             );
         }, []),
@@ -300,7 +302,7 @@ function NewPostViewChannelSelectorInput(
 
             const key = _key as ChannelId;
 
-            let item: NewPostViewChannelSelectorItem | null;
+            let item: PostCreatorViewChannelSelectorItem | null;
             if (key === null) {
                 item = null;
             } else {
@@ -374,7 +376,7 @@ function NewPostViewChannelSelectorInput(
             placement="bottom-start"
             overlay={
                 <Box ref={popoverRef} position="relative">
-                    <NewPostViewChannelSelectorListBox
+                    <PostCreatorViewChannelSelectorListBox
                         comboBoxState={comboBoxState}
                         listBoxRef={listBoxRef}
                         listBoxProps={listBoxProps}
@@ -485,16 +487,16 @@ function NewPostViewChannelSelectorInput(
     );
 }
 
-function NewPostViewChannelSelectorListBox({
+function PostCreatorViewChannelSelectorListBox({
     comboBoxState,
     listBoxRef,
     listBoxProps: _listBoxProps,
     selectedKey,
     areItemsLoading,
 }: {
-    comboBoxState: ComboBoxState<NewPostViewChannelSelectorItem>;
+    comboBoxState: ComboBoxState<PostCreatorViewChannelSelectorItem>;
     listBoxRef: RefObject<HTMLUListElement>;
-    listBoxProps: AriaListBoxOptions<NewPostViewChannelSelectorItem>;
+    listBoxProps: AriaListBoxOptions<PostCreatorViewChannelSelectorItem>;
     selectedKey: string | null;
     areItemsLoading: boolean;
 }) {
@@ -551,7 +553,7 @@ function NewPostViewChannelSelectorListBox({
                 </Box>
             ) : (
                 Array.from(comboBoxState.collection, item => (
-                    <NewPostViewChannelSelectorListBoxOption
+                    <PostCreatorViewChannelSelectorListBoxOption
                         key={item.key}
                         comboBoxState={comboBoxState}
                         item={item}
@@ -563,13 +565,13 @@ function NewPostViewChannelSelectorListBox({
     );
 }
 
-function NewPostViewChannelSelectorListBoxOption({
+function PostCreatorViewChannelSelectorListBoxOption({
     comboBoxState,
     item,
     selectedKey,
 }: {
-    comboBoxState: ComboBoxState<NewPostViewChannelSelectorItem>;
-    item: Node<NewPostViewChannelSelectorItem>;
+    comboBoxState: ComboBoxState<PostCreatorViewChannelSelectorItem>;
+    item: Node<PostCreatorViewChannelSelectorItem>;
     selectedKey: string | null;
 }) {
     const optionRef = useRef(null);
@@ -618,12 +620,12 @@ function NewPostViewChannelSelectorListBoxOption({
     );
 }
 
-function NewPostViewChannelSelectorListBoxOptionItem({
+function PostCreatorViewChannelSelectorListBoxOptionItem({
     item,
     isSelected,
     isPressed,
 }: {
-    item: NewPostViewChannelSelectorItem;
+    item: PostCreatorViewChannelSelectorItem;
     isSelected?: boolean;
     isPressed?: boolean;
 }) {

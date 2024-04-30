@@ -923,7 +923,7 @@ function TaskCollectionsInput(
                                     type="text"
                                     tabIndex={!isTabbable ? -1 : undefined}
                                     className={classNames(
-                                        tasksStyles.taskCollectionsInputAddInputClassName,
+                                        tasksStyles.collectionsInputAddInputClassName,
                                         sprinkles({
                                             position: "absolute",
                                             inset: "0",

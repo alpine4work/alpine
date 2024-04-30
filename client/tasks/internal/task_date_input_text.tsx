@@ -462,7 +462,7 @@ function TaskDateInputTextSegment({
                 ref={ref}
                 tabIndex={!isTabbable ? -1 : segmentProps.tabIndex}
                 className={classNames(
-                    tasksStyles.taskDateInputTextSegmentClassName,
+                    tasksStyles.dateInputTextSegmentClassName,
                     sprinkles({
                         backgroundColor: isFocused ? "theme-selection" : undefined,
                     }),

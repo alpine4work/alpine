@@ -205,10 +205,7 @@ export function NavigationEventContextProvider({
                     const parentResult = parentOnNavigate(to, options);
 
                     if (!result.preventDefault && !parentResult.preventDefault) {
-                        return {
-                            stopPropagation: parentResult.stopPropagation,
-                            preventDefault: false,
-                        };
+                        return parentResult;
                     } else {
                         return {
                             stopPropagation: parentResult.stopPropagation,

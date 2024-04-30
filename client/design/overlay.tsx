@@ -555,64 +555,17 @@ function Overlay(
     );
 }
 
-const OverlaySinkContext = createContext<{
-    rootPortalRef: RefObject<HTMLDivElement>;
-    rootBlockingPortalRef: RefObject<HTMLDivElement>;
-    portalRef: RefObject<HTMLDivElement>;
-    insetLeft: RemLength | number | null;
-    insetRight: RemLength | number | null;
-} | null>(null);
+type OverlaySinkContext = {
+    readonly rootPortalRef: RefObject<HTMLDivElement>;
+    readonly rootBlockingPortalRef: RefObject<HTMLDivElement>;
+    readonly portalRef: RefObject<HTMLDivElement>;
+    readonly insetLeft: RemLength | number | null;
+    readonly insetRight: RemLength | number | null;
+};
 
-/**
- * Child `<Overlay>` components will be rendered inside this component.
- *
- * Generally you want to render one of these inside every scrollable element.
- * That way the overlays naturally scroll with the element and can't render
- * outside the element.
- */
-export function OverlayScopeContextProvider({
-    children,
-    insetLeft,
-    insetRight,
-}: {
-    children: ReactNode;
-    insetLeft?: RemLength | number;
-    insetRight?: RemLength | number;
-}) {
-    const parentOverlaySink = useContext(OverlaySinkContext);
-    const portalRef = useRef<HTMLDivElement>(null);
-    const blockingPortalRef = useRef<HTMLDivElement>(null);
+const OverlaySinkContext = createContext<OverlaySinkContext | null>(null);
 
-    return (
-        <OverlaySinkContext.Provider
-            value={useMemo(
-                () => ({
-                    rootPortalRef: parentOverlaySink?.rootPortalRef ?? portalRef,
-                    rootBlockingPortalRef:
-                        parentOverlaySink?.rootBlockingPortalRef ?? blockingPortalRef,
-                    portalRef,
-                    insetLeft: insetLeft ?? null,
-                    insetRight: insetRight ?? null,
-                }),
-                [insetLeft, insetRight, parentOverlaySink],
-            )}
-        >
-            {children}
-            {renderOverlayPortal(portalRef)}
-            {!parentOverlaySink &&
-                renderOverlayPortal(
-                    blockingPortalRef,
-                    // Render at the absolute top of the page. Even over other overlays.
-                    "70",
-                )}
-        </OverlaySinkContext.Provider>
-    );
-}
-
-export function renderOverlayPortal(
-    ref: RefObject<HTMLDivElement>,
-    zIndex: Sprinkles["zIndex"] = "50",
-) {
+function renderOverlayPortal(ref: RefObject<HTMLDivElement>, zIndex: Sprinkles["zIndex"] = "50") {
     return (
         <Box
             ref={ref}
@@ -628,6 +581,113 @@ export function renderOverlayPortal(
             // Render above anything on the page.
             zIndex={zIndex}
         />
+    );
+}
+
+/**
+ * Root overlay scope. Most have one of these at the root of the application.
+ *
+ * Generally you only want one root overlay scope at the root of your
+ * application. However, there are some cases where it may make sense to have
+ * nested root overlay scopes. For example, on mobile web when the keyboard
+ * opens we shrink the viewport in `s.$spaceId.tsx` to the visible space above
+ * the keyboard. (In our native mobile app we have different keyboard handling
+ * with `--safe-area-inset-bottom`.) We want root overlays with `bottom: 0` to
+ * be able to render above the keyboard instead of the space under the
+ * keyboard.
+ */
+export function RootOverlayScopeContextProvider({
+    isDisabled = false,
+    children,
+}: {
+    isDisabled?: boolean;
+    children?: ReactNode;
+}) {
+    const parentOverlaySink = useContext(OverlaySinkContext);
+
+    const portalRef = useRef<HTMLDivElement>(null);
+    const blockingPortalRef = useRef<HTMLDivElement>(null);
+
+    const overlaySink = useMemo(
+        (): OverlaySinkContext => ({
+            rootPortalRef: portalRef,
+            rootBlockingPortalRef: blockingPortalRef,
+            portalRef,
+            insetLeft: null,
+            insetRight: null,
+        }),
+        [],
+    );
+
+    return (
+        <OverlaySinkContext.Provider
+            value={
+                !isDisabled
+                    ? overlaySink
+                    : assertExists(
+                          parentOverlaySink,
+                          "Expected a parent `<RootOverlayScopeContextProvider>` component",
+                      )
+            }
+        >
+            {children}
+            {!isDisabled && renderOverlayPortal(portalRef)}
+            {!isDisabled &&
+                renderOverlayPortal(
+                    blockingPortalRef,
+                    // Render at the absolute top of the page. Even over other overlays.
+                    "70",
+                )}
+        </OverlaySinkContext.Provider>
+    );
+}
+
+/**
+ * Child `<Overlay>` components will be rendered inside this component.
+ *
+ * Generally you want to render one of these inside every scrollable element.
+ * That way the overlays naturally scroll with the element and can't render
+ * outside the element. Otherwise when you scroll, overlays will follow the
+ * scroll but the user will see stutter as it won't happen on the scroll
+ * animation thread.
+ *
+ * See `useMobileWebKitKeyboardSupport()` for more information.
+ */
+export function OverlayScopeContextProvider({
+    children,
+    insetLeft,
+    insetRight,
+}: {
+    children: ReactNode;
+    insetLeft?: RemLength | number;
+    insetRight?: RemLength | number;
+}) {
+    const parentOverlaySink = useContext(OverlaySinkContext);
+    assert(parentOverlaySink, "Expected a parent `<RootOverlayScopeContextProvider>` component");
+
+    const portalRef = useRef<HTMLDivElement>(null);
+
+    const overlaySink = useMemo(
+        (): OverlaySinkContext => ({
+            rootPortalRef: parentOverlaySink.rootPortalRef,
+            rootBlockingPortalRef: parentOverlaySink.rootBlockingPortalRef,
+            portalRef,
+            insetLeft: insetLeft ?? null,
+            insetRight: insetRight ?? null,
+        }),
+        [
+            insetLeft,
+            insetRight,
+            parentOverlaySink.rootBlockingPortalRef,
+            parentOverlaySink.rootPortalRef,
+        ],
+    );
+
+    return (
+        <OverlaySinkContext.Provider value={overlaySink}>
+            {children}
+            {renderOverlayPortal(portalRef)}
+        </OverlaySinkContext.Provider>
     );
 }
 

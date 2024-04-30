@@ -1,4 +1,5 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
+import classNames from "classnames";
 import {useEffect, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
@@ -6,17 +7,12 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {
-    mobileNavigationBarGap,
-    navigationBarActionsFlexBasis,
+    mobileNavigationBarActionsWidthFittingFlexBasis,
     navigationBarHeight,
     useNavigationBar,
 } from "~/client/design/navigation_bar.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {safeAreaOnlyScrollbarInsetTop, useScrollbar} from "~/client/design/scrollbar.js";
-import {
-    NewPostViewChannelSelectorInput,
-    NewPostViewChannelSelectorInputRef,
-} from "~/client/forum/new_post_view_channel_selector_input.js";
 import {
     desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
@@ -24,9 +20,13 @@ import {
     postContentViewContentPaddingX,
     postContentViewInnerMarginY,
     postContentViewPaddingX,
+    postViewMaxWidth,
 } from "~/client/forum/post_content_view.js";
 import {PostContentViewHeaderBase} from "~/client/forum/post_content_view_header.js";
-import {postViewMaxWidth} from "~/client/forum/post_list_view.js";
+import {
+    PostCreatorViewChannelSelectorInput,
+    PostCreatorViewChannelSelectorInputRef,
+} from "~/client/forum/post_creator_view_channel_selector_input.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useSessionStorage} from "~/client/helpers/use_local_storage.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -49,7 +49,7 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {Id} from "~/shared/id/id.js";
 import {createPost} from "~/shared/rpc/forum_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
+import {contentSchemaStyles, forumStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export const createPostEventEmitter = new EventEmitter<{
     readTime: Date;
@@ -77,7 +77,7 @@ const postContentEditorBlockMaxWidth = mapObjectValues(postContentViewPaddingX, 
     subtractRemLengths(spacing[postViewMaxWidth], spacing[paddingX]),
 );
 
-export function NewPostView({
+export function PostCreatorView({
     withMobileLayout: withMobileLayoutProp,
     draftId,
     displayCreatedTime,
@@ -99,7 +99,7 @@ export function NewPostView({
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContext();
 
-    const channelSelectorRef = useRef<NewPostViewChannelSelectorInputRef>(null);
+    const channelSelectorRef = useRef<PostCreatorViewChannelSelectorInputRef>(null);
     const contentEditorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
     const createButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
@@ -192,14 +192,7 @@ export function NewPostView({
             <Box
                 display="flex"
                 justifyContent="flex-end"
-                style={{
-                    // Make sure the width is equal to our flex basis width so the title is
-                    // properly center aligned.
-                    width: subtractRemLengths(
-                        spacing[navigationBarActionsFlexBasis],
-                        spacing[mobileNavigationBarGap],
-                    ),
-                }}
+                style={{width: mobileNavigationBarActionsWidthFittingFlexBasis}}
             >
                 {createButtonNode}
             </Box>
@@ -216,15 +209,18 @@ export function NewPostView({
             display="flex"
             flexDirection="column"
         >
-            <Box
-                position="absolute"
-                top="0"
-                left="0"
-                right="0"
-                zIndex="10"
-                backgroundColor="grey-0"
-                style={{height: "var(--safe-area-inset-top, 0px)"}}
-            />
+            {!isMobile && (
+                // No cover on mobile since the navigation bar will act as a safe area cover.
+                <Box
+                    position="absolute"
+                    top="0"
+                    left="0"
+                    right="0"
+                    zIndex="10"
+                    backgroundColor="grey-0"
+                    style={{height: "var(--safe-area-inset-top, 0px)"}}
+                />
+            )}
             <Box
                 ref={useMergedRefs<HTMLDivElement>(
                     scrollViewRef,
@@ -272,7 +268,7 @@ export function NewPostView({
                             createdTime={displayCreatedTime}
                             shouldCreatedTimeExcludeTime
                             channelSelector={
-                                <NewPostViewChannelSelectorInput
+                                <PostCreatorViewChannelSelectorInput
                                     ref={channelSelectorRef}
                                     channel={channel}
                                     onChannelChange={onChannelChange}
@@ -297,10 +293,10 @@ export function NewPostView({
                         containerClassName={sprinkles({
                             flexGrow: "1",
                         })}
-                        className={sprinkles({
-                            paddingX: postContentViewContentPaddingX,
-                            paddingBottom: "6",
-                        })}
+                        className={classNames(
+                            forumStyles.fullScreenContentEditorClassName,
+                            sprinkles({paddingX: postContentViewContentPaddingX}),
+                        )}
                         onModEnter={() => {
                             // Programmatically press the button instead of calling `createPost()`
                             // directly to correctly handle loading and error states.

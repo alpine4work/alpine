@@ -354,7 +354,7 @@ export function createTaskUndoActionsIfPossible(
                                           //   that will let you commit actions that would have caused a
                                           //   `PermissionDeniedError` when you're undoing a change you made recently.
                                           //   Right now we only create leases if your change causes you to fully lose
-                                          //   access. Maybe we should extend the lease system to handle this case? So a
+                                          //   access. Maybe we should extend the lease system to handle this case? So
                                           //   a lease is created when you update the assignee allowing you to put the
                                           //   old assigner back with an undo.
                                           assignerId: store.currentAccountId,

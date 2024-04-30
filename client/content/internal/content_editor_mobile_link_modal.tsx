@@ -9,19 +9,20 @@ import {TextInput} from "~/client/design/text_input.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 // NOTE(calebmer): Apps like Google Docs put a search under the URL input to
 // allow easy linking to headings or other docs. Could be nice to have this
 // capability too.
 
-export type ContentEditorMobileLinkMobileModalState = {
+export type ContentEditorMobileLinkModalState = {
     readonly initialText: string;
     readonly isTextEditable: boolean;
     readonly initialUrl: string;
 };
 
-export function ContentEditorMobileLinkMobileModal({
+export function ContentEditorMobileLinkModal({
     viewRef,
     initialText,
     isTextEditable,
@@ -132,33 +133,47 @@ export function ContentEditorMobileLinkMobileModal({
                     event.preventDefault();
                 }}
             >
-                <Button
-                    // Not focusable since we want to return focus to the underlying content editor
-                    // when the button is pressed. The button itself should not be focused. If you
-                    // have a keyboard you can use keyboard shortcuts instead of tabbing into these
-                    // buttons.
-                    isFocusable={false}
-                    fontSize="100"
-                    pressErrorTitle="Couldn’t go back"
-                    onPress={onCloseWithAnimation}
+                <Box
+                    flexGrow="1"
+                    display="flex"
+                    justifyContent="flex-start"
+                    style={{flexBasis: spacing["10"]}}
                 >
-                    Cancel
-                </Button>
+                    <Button
+                        // Not focusable since we want to return focus to the underlying content editor
+                        // when the button is pressed. The button itself should not be focused. If you
+                        // have a keyboard you can use keyboard shortcuts instead of tabbing into these
+                        // buttons.
+                        isFocusable={false}
+                        fontSize="100"
+                        pressErrorTitle="Couldn’t cancel"
+                        onPress={onCloseWithAnimation}
+                    >
+                        Cancel
+                    </Button>
+                </Box>
                 <Box fontSize="100" fontStyle="semi-bold">
                     Insert link
                 </Box>
-                <Button
-                    // Not focusable since we want to return focus to the underlying content editor
-                    // when the button is pressed. The button itself should not be focused. If you
-                    // have a keyboard you can use keyboard shortcuts instead of tabbing into these
-                    // buttons.
-                    isFocusable={false}
-                    fontSize="100"
-                    isDisabled={!hasTextChanged && !hasUrlChanged}
-                    onPress={save}
+                <Box
+                    flexGrow="1"
+                    display="flex"
+                    justifyContent="flex-end"
+                    style={{flexBasis: spacing["10"]}}
                 >
-                    Save
-                </Button>
+                    <Button
+                        // Not focusable since we want to return focus to the underlying content editor
+                        // when the button is pressed. The button itself should not be focused. If you
+                        // have a keyboard you can use keyboard shortcuts instead of tabbing into these
+                        // buttons.
+                        isFocusable={false}
+                        fontSize="100"
+                        isDisabled={!hasTextChanged && !hasUrlChanged}
+                        onPress={save}
+                    >
+                        Save
+                    </Button>
+                </Box>
             </Box>
             <Box paddingX="4">
                 <Spacer space="8" />

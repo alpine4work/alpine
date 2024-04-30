@@ -13,7 +13,7 @@ import {
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {MenuAction} from "~/client/design/menu_button.js";
-import {MobileModal} from "~/client/design/mobile_modal.js";
+import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
@@ -981,7 +981,7 @@ export function TaskCollectionView({
                 />
             </GlobalKeyDownEvent>
             {editNameMobileModalState && (
-                <MobileModal onClose={() => setEditNameMobileModalState(null)}>
+                <MobileFullScreenModal onClose={() => setEditNameMobileModalState(null)}>
                     {({onCloseWithAnimation}) => (
                         <TaskCollectionViewEditNameMobileModal
                             initiallyFocusName={editNameMobileModalState.initiallyFocusName}
@@ -1033,7 +1033,7 @@ export function TaskCollectionView({
                             onCloseWithAnimation={onCloseWithAnimation}
                         />
                     )}
-                </MobileModal>
+                </MobileFullScreenModal>
             )}
         </Box>
     );

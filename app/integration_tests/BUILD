@@ -41,3 +41,13 @@ ts_playwright_tests(
         "//server/tokens",
     ],
 )
+
+# NOCOMMIT: Insert a link on mobile in the following places:
+#
+# - A chat message
+# - A post comment
+# - A new post
+# - While editing a post
+# - On a document
+# - While adding a new comment to a document
+# - In a comment thread on a document

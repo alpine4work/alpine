@@ -35,9 +35,9 @@ import {mergeProps, useHover, usePress} from "react-aria";
 import {createPortal} from "react-dom";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {
-    ContentEditorMobileLinkMobileModalState,
+    ContentEditorMobileLinkModalState,
     getContentEditorMobileLinkModalSelectionSliceText,
-} from "~/client/content/internal/content_editor_mobile_link_mobile_modal.js";
+} from "~/client/content/internal/content_editor_mobile_link_modal.js";
 import {areAllNodesBlockType} from "~/client/content/internal/helpers/are_all_nodes_block_type.js";
 import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
 import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/create_toggle_block_type_command.js";
@@ -51,10 +51,10 @@ import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {mobileBottomBarKeyboardSubstituteHeight} from "~/client/design/mobile_bottom_bar.js";
 import {
-    mobileModalAnimationDurationMs,
-    mobileModalAnimationEasingParsedCubicBezier,
-} from "~/client/design/mobile_modal.js";
-import {useOverlayMobileKeyboardPortalElement} from "~/client/design/overlay_mobile_keyboard_sink_context_provider.js";
+    mobileFullScreenModalAnimationDurationMs,
+    mobileFullScreenModalAnimationEasingParsedCubicBezier,
+} from "~/client/design/mobile_full_screen_modal.js";
+import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
@@ -89,14 +89,14 @@ function ContentEditorMobileKeyboardSubstitute(
         state: EditorState & {schema: ContentProsemirrorSchema};
         viewRef: RefObject<EditorView | null>;
         onClose: () => void;
-        onLinkModalOpen: (state: ContentEditorMobileLinkMobileModalState) => void;
+        onLinkModalOpen: (state: ContentEditorMobileLinkModalState) => void;
     },
     ref: Ref<ContentEditorMobileKeyboardSubstituteRef>,
 ) {
     const {schema} = state;
 
     const portalElement = assertExists(
-        useOverlayMobileKeyboardPortalElement(),
+        useOverlayRootPortalElement(),
         "Can't server render `<ContentEditorMobileKeyboardSubstitute>`",
     );
 
@@ -115,8 +115,8 @@ function ContentEditorMobileKeyboardSubstitute(
             substituteElement,
             {y: [0, -substituteElement.getBoundingClientRect().height]},
             {
-                duration: mobileModalAnimationDurationMs / 1000,
-                easing: mobileModalAnimationEasingParsedCubicBezier,
+                duration: mobileFullScreenModalAnimationDurationMs / 1000,
+                easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
                 // Make sure we use hardware acceleration for this animation in WebKit. By
                 // default `motion` turns it off.
                 // https://motion.dev/guides/performance#webkits-exceptions
@@ -137,8 +137,8 @@ function ContentEditorMobileKeyboardSubstitute(
             substituteElement,
             {y: [-substituteElement.getBoundingClientRect().height, 0]},
             {
-                duration: mobileModalAnimationDurationMs / 1000,
-                easing: mobileModalAnimationEasingParsedCubicBezier,
+                duration: mobileFullScreenModalAnimationDurationMs / 1000,
+                easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
                 // Make sure we use hardware acceleration for this animation in WebKit. By
                 // default `motion` turns it off.
                 // https://motion.dev/guides/performance#webkits-exceptions
@@ -303,7 +303,7 @@ function ContentEditorMobileKeyboardSubstituteMain({
     viewRef: RefObject<EditorView | null>;
     selectionMarks: ReadonlyArray<Mark>;
     activeHighlightMark: Mark | null;
-    onLinkModalOpen: (state: ContentEditorMobileLinkMobileModalState) => void;
+    onLinkModalOpen: (state: ContentEditorMobileLinkModalState) => void;
     onHighlightSelectorOpen: () => void;
     onSelectHighlightColor: (highlightColor: HighlightColor | null) => void;
 }) {

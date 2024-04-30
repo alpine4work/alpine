@@ -866,6 +866,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 <OverlayScopeContextProvider
                 // We render an overlay scope here so that a focus ring around the reply
                 // preview will render underneath the replying message instead of on top.
+                //
+                // TODO(calebmer): An `<OverlayScopeContextProvider>` for just the
+                // `<FocusRing>` seems a little overkill. I wonder if instead there's some prop
+                // we could design for `<FocusRing>`?
                 >
                     <FocusRing>
                         <div

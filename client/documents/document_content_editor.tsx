@@ -21,10 +21,11 @@ import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_re
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
 import {
-    mobileModalAnimationDurationLongMs,
-    mobileModalAnimationDurationMs,
-    mobileModalAnimationEasingParsedCubicBezier,
-} from "~/client/design/mobile_modal.js";
+    mobileFullScreenModalAnimationDurationLongMs,
+    mobileFullScreenModalAnimationDurationMs,
+    mobileFullScreenModalAnimationEasingParsedCubicBezier,
+    useIsBehindMobileFullScreenModal,
+} from "~/client/design/mobile_full_screen_modal.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
@@ -343,7 +344,7 @@ function DocumentContentEditorStateful({
                         sidebarElement,
                         {y: [sidebarHeight, 0]},
                         {
-                            easing: mobileModalAnimationEasingParsedCubicBezier,
+                            easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
                             // Make sure we use hardware acceleration for this animation in WebKit. By
                             // default `motion` turns it off.
                             // https://motion.dev/guides/performance#webkits-exceptions
@@ -355,7 +356,7 @@ function DocumentContentEditorStateful({
                         {y: [sidebarHeight, 0]},
                         {
                             at: 0,
-                            easing: mobileModalAnimationEasingParsedCubicBezier,
+                            easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
                             // Make sure we use hardware acceleration for this animation in WebKit. By
                             // default `motion` turns it off.
                             // https://motion.dev/guides/performance#webkits-exceptions
@@ -364,7 +365,7 @@ function DocumentContentEditorStateful({
                     ],
                 ],
                 {
-                    duration: mobileModalAnimationDurationLongMs / 1000,
+                    duration: mobileFullScreenModalAnimationDurationLongMs / 1000,
                 },
             );
         } else {
@@ -484,7 +485,7 @@ function DocumentContentEditorStateful({
                         sidebarElement,
                         {y: [0, sidebarHeight]},
                         {
-                            easing: mobileModalAnimationEasingParsedCubicBezier,
+                            easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
                             // Make sure we use hardware acceleration for this animation in WebKit. By
                             // default `motion` turns it off.
                             // https://motion.dev/guides/performance#webkits-exceptions
@@ -496,7 +497,7 @@ function DocumentContentEditorStateful({
                         {y: [0, sidebarHeight]},
                         {
                             at: 0,
-                            easing: mobileModalAnimationEasingParsedCubicBezier,
+                            easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
                             // Make sure we use hardware acceleration for this animation in WebKit. By
                             // default `motion` turns it off.
                             // https://motion.dev/guides/performance#webkits-exceptions
@@ -505,7 +506,7 @@ function DocumentContentEditorStateful({
                     ],
                 ],
                 {
-                    duration: mobileModalAnimationDurationLongMs / 1000,
+                    duration: mobileFullScreenModalAnimationDurationLongMs / 1000,
                 },
             );
         } else {
@@ -646,8 +647,8 @@ function DocumentContentEditorStateful({
             sidebarElement,
             {y: [0, -offset]},
             {
-                duration: mobileModalAnimationDurationMs / 1000,
-                easing: mobileModalAnimationEasingParsedCubicBezier,
+                duration: mobileFullScreenModalAnimationDurationMs / 1000,
+                easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
                 // Make sure we use hardware acceleration for this animation in WebKit. By
                 // default `motion` turns it off.
                 // https://motion.dev/guides/performance#webkits-exceptions
@@ -704,8 +705,8 @@ function DocumentContentEditorStateful({
             sidebarElement,
             {y: [-offset, 0]},
             {
-                duration: mobileModalAnimationDurationMs / 1000,
-                easing: mobileModalAnimationEasingParsedCubicBezier,
+                duration: mobileFullScreenModalAnimationDurationMs / 1000,
+                easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
                 // Make sure we use hardware acceleration for this animation in WebKit. By
                 // default `motion` turns it off.
                 // https://motion.dev/guides/performance#webkits-exceptions
@@ -1275,6 +1276,8 @@ function DocumentContentEditorStateful({
     \* ========================================================================== */
 
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
+    const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
+    const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
 
     useScrollToAvoidBottomBarsAndMobileKeyboard(editorContainerRef, {
         // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on
@@ -1306,7 +1309,7 @@ function DocumentContentEditorStateful({
     useEffect(() => {
         if (!NativeMobileBridge) return;
         if (isInitialAppRender) return;
-        if (isInertNativeMobileRoute) return;
+        if (isInert) return;
 
         const editor = assertExists(editorRef.current);
 
@@ -1361,7 +1364,7 @@ function DocumentContentEditorStateful({
             document.removeEventListener("focusout", handleFocusChange);
             document.removeEventListener("selectionchange", handleFocusChange);
         };
-    }, [isInertNativeMobileRoute, isInitialAppRender]);
+    }, [isInert, isInitialAppRender]);
 
     // Hide the tab bar when the sidebar is open. Sidebar is render as a bottom
     // sheet on mobile.
@@ -1782,12 +1785,9 @@ function DocumentContentEditorStateful({
                                             </Box>
                                         </Box>
                                     </Box>
-                                    {isNativeMobile && (
+                                    {isNativeMobile && !isInert && (
                                         // In our native mobile app, include an invisible bottom bar which only serves
                                         // to make sure the vertical scroll indicator insets are correct.
-                                        //
-                                        // We don't make our fake element above a native bottom bar since we want web
-                                        // code to control its CSS `transform` property.
                                         <Box
                                             id={`nmbb-${editorContainerId}`}
                                             position="absolute"

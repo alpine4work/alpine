@@ -171,7 +171,7 @@ const marginRightContainerClassName = sprinkles({
 });
 
 const taskRowTitleInputMultilineAfterWidthRem = parseRemLengthNumber(
-    spacing[tasksStyles.taskRowTitleInputMultilineAfterWidth],
+    spacing[tasksStyles.rowTitleInputMultilineAfterWidth],
 );
 
 const marginRightContentContainerClassName = sprinkles({
@@ -644,7 +644,7 @@ function TaskRowTitleInput(
             viewElement.ariaLabel = taskRowTitleInputAriaLabel;
             viewElement.className = capabilities.hasMultilineTitle
                 ? hasMultilineTitleAndShouldShowMarginRightContent
-                    ? `${taskRowTitleInputMultilineClassName} ${tasksStyles.taskRowTitleInputMultilineAfterClassName}`
+                    ? `${taskRowTitleInputMultilineClassName} ${tasksStyles.rowTitleInputMultilineAfterClassName}`
                     : taskRowTitleInputMultilineClassName
                 : taskRowTitleInputSingleLineClassName;
             Object.assign(
@@ -1446,13 +1446,13 @@ function TaskRowTitleInput(
                             ? multilineState
                                 ? multilineState.remainingWidth
                                 : `calc(100% + ${
-                                      spacing[tasksStyles.taskRowTitleInputMultilineAfterWidth]
+                                      spacing[tasksStyles.rowTitleInputMultilineAfterWidth]
                                   })`
                             : undefined,
                         marginLeft: capabilities.hasMultilineTitle
                             ? multilineState
                                 ? undefined
-                                : `-${spacing[tasksStyles.taskRowTitleInputMultilineAfterWidth]}`
+                                : `-${spacing[tasksStyles.rowTitleInputMultilineAfterWidth]}`
                             : undefined,
                         flexShrink:
                             capabilities.hasMultilineTitle && multilineState ? "0" : undefined,

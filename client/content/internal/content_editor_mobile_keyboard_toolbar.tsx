@@ -12,33 +12,16 @@ import {
     TextItalic,
     TextOutdent,
 } from "phosphor-react";
-import {Command, EditorState, Selection} from "prosemirror-state";
-import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
-import {
-    Dispatch,
-    ReactNode,
-    Ref,
-    RefObject,
-    SetStateAction,
-    forwardRef,
-    useEffect,
-    useId,
-    useImperativeHandle,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import {Command, EditorState, TextSelection} from "prosemirror-state";
+import {EditorView} from "prosemirror-view";
+import {ReactNode, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {createPortal} from "react-dom";
-import {ContentEditorMobileCommentInputBottomBar} from "~/client/content/internal/content_editor_mobile_comment_input_bottom_bar.js";
 import {
     ContentEditorMobileKeyboardSubstitute,
     ContentEditorMobileKeyboardSubstituteRef,
 } from "~/client/content/internal/content_editor_mobile_keyboard_substitute.js";
-import {
-    ContentEditorMobileLinkMobileModal,
-    ContentEditorMobileLinkMobileModalState,
-} from "~/client/content/internal/content_editor_mobile_link_mobile_modal.js";
+import {ContentEditorMobileLinkModalState} from "~/client/content/internal/content_editor_mobile_link_modal.js";
 import {openMentionFloaterMetaKey} from "~/client/content/internal/content_editor_plugin_input_rules.js";
 import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
@@ -55,12 +38,10 @@ import {
     mobileBottomBarKeyboardToolbarHeight,
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
-import {MobileModal} from "~/client/design/mobile_modal.js";
-import {useOverlayMobileKeyboardPortalElement} from "~/client/design/overlay_mobile_keyboard_sink_context_provider.js";
+import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
 import {useRegisterBottomBarMobileKeyboardToolbarFrame} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
@@ -69,47 +50,32 @@ import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {assertId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
-import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 // NOCOMMIT: Haptic feedback when style is selected? This feels like a nice way
 // to reward.
 
-export type ContentEditorMobileKeyboardToolbarRef = {
-    openCommentInput(): void;
-};
-
-const ContentEditorMobileKeyboardToolbarForwardRef = forwardRef(ContentEditorMobileKeyboardToolbar);
-export {ContentEditorMobileKeyboardToolbarForwardRef as ContentEditorMobileKeyboardToolbar};
-
-function ContentEditorMobileKeyboardToolbar(
-    {
-        state,
-        viewRef,
-        isFocused,
-        setDecorationCallbacks,
-        openCommentThread,
-    }: {
-        state: EditorState & {schema: ContentProsemirrorSchema};
-        viewRef: RefObject<EditorView | null>;
-        isFocused: boolean;
-        setDecorationCallbacks: Dispatch<
-            SetStateAction<
-                ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
-            >
-        >;
-        openCommentThread:
-            | ((commentThreadId: DocumentCommentThreadId) => Promise<void>)
-            | undefined;
-    },
-    ref: Ref<ContentEditorMobileKeyboardToolbarRef>,
-) {
+export function ContentEditorMobileKeyboardToolbar({
+    state,
+    viewRef,
+    isFocused,
+    openCommentThread,
+    onLinkModalOpen,
+    onCommentInputOpen,
+}: {
+    state: EditorState & {schema: ContentProsemirrorSchema};
+    viewRef: RefObject<EditorView | null>;
+    isFocused: boolean;
+    openCommentThread: ((commentThreadId: DocumentCommentThreadId) => Promise<void>) | undefined;
+    onLinkModalOpen: (state: ContentEditorMobileLinkModalState) => void;
+    onCommentInputOpen: (setSelection?: TextSelection | null) => void;
+}) {
     const {schema} = state;
 
     const isMounted = useIsMounted();
     const {isNativeMobile} = useClientInfo();
 
     const portalElement = assertExists(
-        useOverlayMobileKeyboardPortalElement(),
+        useOverlayRootPortalElement(),
         "Can't server render `<ContentEditorMobileKeyboardToolbar>`",
     );
 
@@ -190,27 +156,6 @@ function ContentEditorMobileKeyboardToolbar(
     }, [isFocused, isToolbarRenderedFromState]);
 
     const [isSubstituteOpen, setIsSubstituteOpen] = useState(false);
-    const [isCommentInputOpen, setIsCommentInputOpen] = useState(false);
-    if (!schema.marks.comment && isCommentInputOpen) setIsCommentInputOpen(false);
-    const [linkModalState, setLinkModalState] =
-        useState<ContentEditorMobileLinkMobileModalState | null>(null);
-
-    useImperativeHandle(
-        ref,
-        () => ({
-            openCommentInput: () => {
-                const view = assertExists(viewRef.current);
-
-                if (
-                    view.state.schema.marks.comment &&
-                    view.state.selection.from !== view.state.selection.to
-                ) {
-                    setIsCommentInputOpen(true);
-                }
-            },
-        }),
-        [viewRef],
-    );
 
     useEffect(() => {
         if (!isFocused && isSubstituteOpen) {
@@ -235,41 +180,6 @@ function ContentEditorMobileKeyboardToolbar(
         () => expandEmptySelectionAroundWord(state.doc, state.selection),
         [state.doc, state.selection],
     );
-    const setSelectionAfterCommentInputOpenRef = useRef<Selection | null>(null);
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (!isCommentInputOpen) return;
-
-        const view = assertExists(viewRef.current);
-
-        if (setSelectionAfterCommentInputOpenRef.current) {
-            const selection = setSelectionAfterCommentInputOpenRef.current;
-            setSelectionAfterCommentInputOpenRef.current = null;
-            view.dispatch(view.state.tr.setSelection(selection));
-        }
-
-        const decorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
-            return decorationSet.add(state.doc, [
-                Decoration.inline(state.selection.from, state.selection.to, {
-                    class: contentSchemaStyles.commentClassName,
-                }),
-            ]);
-        };
-
-        setDecorationCallbacks(decorationCallbacks => {
-            const newDecorationCallbacks = new Set(decorationCallbacks);
-            newDecorationCallbacks.add(decorationCallback);
-            return newDecorationCallbacks;
-        });
-
-        return () => {
-            setDecorationCallbacks(decorationCallbacks => {
-                const newDecorationCallbacks = new Set(decorationCallbacks);
-                newDecorationCallbacks.delete(decorationCallback);
-                return newDecorationCallbacks;
-            });
-        };
-    }, [isCommentInputOpen, setDecorationCallbacks, viewRef]);
 
     const {isBoldActive, isItalicActive} = useMemo(() => {
         const marks = getMarksSpanningAcrossEntireRange(state.doc, state.selection);
@@ -531,14 +441,11 @@ function ContentEditorMobileKeyboardToolbar(
                                             return;
                                         }
 
-                                        // Set the selection after the comment input opens so the mobile selection
-                                        // renderer doesn't flash in/out.
-                                        if (wordSelectionIfEmpty) {
-                                            setSelectionAfterCommentInputOpenRef.current =
-                                                wordSelectionIfEmpty;
-                                        }
-
-                                        setIsCommentInputOpen(true);
+                                        onCommentInputOpen(
+                                            // Set the selection after the comment input opens so the mobile selection
+                                            // renderer doesn't flash in/out.
+                                            wordSelectionIfEmpty,
+                                        );
                                     }}
                                 >
                                     <ChatCircleText />
@@ -577,27 +484,7 @@ function ContentEditorMobileKeyboardToolbar(
                         setIsSubstituteOpen(false);
                         void NativeMobileBridge?.keyboard.cleanupAfterSubstitute();
                     }}
-                    onLinkModalOpen={setLinkModalState}
-                />
-            )}
-            {linkModalState && (
-                <MobileModal onClose={() => setLinkModalState(null)}>
-                    {({onCloseWithAnimation}) => (
-                        <ContentEditorMobileLinkMobileModal
-                            viewRef={viewRef}
-                            initialText={linkModalState.initialText}
-                            isTextEditable={linkModalState.isTextEditable}
-                            initialUrl={linkModalState.initialUrl}
-                            onCloseWithAnimation={onCloseWithAnimation}
-                        />
-                    )}
-                </MobileModal>
-            )}
-            {schema.marks.comment && isCommentInputOpen && (
-                <ContentEditorMobileCommentInputBottomBar
-                    state={state}
-                    viewRef={viewRef}
-                    onClose={() => setIsCommentInputOpen(false)}
+                    onLinkModalOpen={onLinkModalOpen}
                 />
             )}
         </>

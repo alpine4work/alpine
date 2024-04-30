@@ -17,6 +17,7 @@ import {
 } from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {
     NavigationBarRef,
     NavigationBarResult,
@@ -43,6 +44,7 @@ import {
     postContentViewMinHeightWithClosedCommentSection,
     postContentViewMinHeightWithOpenCommentSection,
     postContentViewPaddingX,
+    postViewMaxWidth,
 } from "~/client/forum/post_content_view.js";
 import {PostEditing, usePostEditing} from "~/client/forum/post_editing.js";
 import {
@@ -55,6 +57,7 @@ import {
     PostListPostContentItem,
     PostListWithChannelHeader,
 } from "~/client/forum/post_list.js";
+import {PostMobileEditorView} from "~/client/forum/post_mobile_editor_view.js";
 import {PostShimmer} from "~/client/forum/post_shimmer.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
@@ -102,8 +105,6 @@ import {
     updatePostContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
-
-export const postViewMaxWidth: Spacing = "160";
 
 export const postListViewAsideMaxWidth: Spacing = "96";
 
@@ -685,10 +686,11 @@ function PostListView(
                     type: "StartEditing",
                     postId,
                     currentContent,
+                    isMobile,
                 });
             },
         }),
-        [jumpToPostCommentIndex, postEditingDispatch],
+        [isMobile, jumpToPostCommentIndex, postEditingDispatch],
     );
 
     // Make sure the bottom of the scroll view stays visible when the keyboard
@@ -836,7 +838,9 @@ function PostListView(
                                 })}
                                 style={{
                                     paddingBottom:
-                                        index === posts.getItemCount() - 1
+                                        index ===
+                                        posts.getItemCount() -
+                                            (isSingleLayoutWithPinnedCommentInput ? 2 : 1)
                                             ? "var(--safe-area-inset-bottom, 0px)"
                                             : undefined,
                                 }}
@@ -1550,6 +1554,34 @@ function PostListView(
         <>
             {messageEditingModals}
             {postEditingModals}
+            {isMobile && postEditing.state.isEditing && (
+                <MobileFullScreenModal
+                    onClose={() => postEditing.dispatch({type: "CancelEditing"})}
+                >
+                    {({onCloseWithAnimation}) => {
+                        assert(postEditing.state.isEditing);
+
+                        return (
+                            <PostMobileEditorView
+                                post={
+                                    posts.getPostByIdIfExists(postEditing.state.postId)?.post ??
+                                    null
+                                }
+                                contentEditorState={postEditing.state.contentEditorState}
+                                onContentEditorStateChange={contentEditorState =>
+                                    postEditing.dispatch({
+                                        type: "ContentEditorStateChange",
+                                        contentEditorState,
+                                    })
+                                }
+                                initialContent={postEditing.state.initialContent}
+                                onCloseWithAnimation={onCloseWithAnimation}
+                                onPostRealtimeEventTransaction={onPostRealtimeEventTransaction}
+                            />
+                        );
+                    }}
+                </MobileFullScreenModal>
+            )}
             <div
                 ref={viewContainerRef}
                 className={sprinkles({
@@ -1632,6 +1664,10 @@ function PostListView(
                                 ? (() => {
                                       const navigationBarElement = navigationBar.navigationBar;
                                       if (!navigationBarElement) return null;
+
+                                      // For mobile devices we open `<PostMobileEditorView>` for editing so we don't
+                                      // need to replace the more button.
+                                      if (isMobile) return navigationBarElement;
 
                                       // NOTE(calebmer): Ok, this is admittedly a bit hacky. Generally we should
                                       // avoid using `cloneElement()` but this is the cleanest way I could imagine
