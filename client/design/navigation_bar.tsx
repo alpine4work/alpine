@@ -47,6 +47,7 @@ import {
     parseRemLengthNumber,
     remPxByPlatform,
     spacing,
+    subtractRemLengths,
 } from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -105,8 +106,13 @@ export function getNavigationBarHeightPxWithoutListening(): number {
     assert(mobileNavigationBarHeight === mobileNavigationBarHeightRem * remPxByPlatform.mobile);
 }
 
-export const navigationBarActionsFlexBasis: Spacing = "10";
-export const mobileNavigationBarGap: Spacing = "3";
+const navigationBarActionsFlexBasis: Spacing = "10";
+const mobileNavigationBarGap: Spacing = "3";
+
+export const mobileNavigationBarActionsWidthFittingFlexBasis = subtractRemLengths(
+    spacing[navigationBarActionsFlexBasis],
+    spacing[mobileNavigationBarGap],
+);
 
 const onNavigationBarPrepareSmoothScrollToSymbol = Symbol("onNavigationBarPrepareSmoothScrollTo");
 
@@ -326,6 +332,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleLeftSlop,
     desktopMarginTop,
     mobileTitleJustifyContents = "center",
+    onMobileCancel,
 }: {
     /**
      * A ref for interacting with the navigation bar when mounted.
@@ -467,6 +474,17 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
      * desktop behavior use `flex-start`.
      */
     mobileTitleJustifyContents?: "center" | "flex-start";
+
+    /**
+     * By default, the navigation bar on mobile has a back button which calls
+     * `navigate(-1)`. If you'd like to provide custom back navigation behavior
+     * then you may pass this prop which will switch the back button to a "Cancel"
+     * button that calls the function when pressed.
+     *
+     * For instance, if you use this in a `<MobileFullScreenModal>` you need to
+     * close the modal instead of calling `navigate(-1)`.
+     */
+    onMobileCancel?: () => void;
 }): NavigationBarResult {
     const isMobile = useIsMobile();
 
@@ -563,6 +581,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             desktopTitleLeftSlop={desktopTitleLeftSlop}
             desktopMarginTopRem={desktopMarginTopRem}
             mobileTitleJustifyContents={mobileTitleJustifyContents}
+            onMobileCancel={onMobileCancel}
         />
     ) : null;
 
@@ -619,6 +638,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleLeftSlop,
     desktopMarginTopRem,
     mobileTitleJustifyContents,
+    onMobileCancel,
 }: {
     isMobile: boolean;
     withMobileLayout: boolean;
@@ -645,6 +665,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleLeftSlop: Spacing | undefined;
     desktopMarginTopRem: number;
     mobileTitleJustifyContents: "center" | "flex-start";
+    onMobileCancel: (() => void) | undefined;
 }) {
     const {isAppleDevice, isNativeMobile} = useClientInfo();
 
@@ -1301,6 +1322,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             desktopTitleFontWeight={desktopTitleFontWeight}
                             desktopTitleLeftSlop={desktopTitleLeftSlop}
                             mobileTitleJustifyContents={mobileTitleJustifyContents}
+                            onMobileCancel={onMobileCancel}
                         />
                         {stickyBanner}
                     </Box>
@@ -1333,6 +1355,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         desktopTitleFontWeight = "semi-bold",
         desktopTitleLeftSlop,
         mobileTitleJustifyContents = "center",
+        onMobileCancel,
     }: {
         withMobileLayout: boolean;
         title?: ReactNode;
@@ -1349,6 +1372,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         desktopTitleFontWeight?: "semi-bold" | "bold";
         desktopTitleLeftSlop?: Spacing;
         mobileTitleJustifyContents?: "center" | "flex-start";
+        onMobileCancel?: () => void;
     },
     ref: Ref<NavigationBarContentRef>,
 ) {
@@ -1414,15 +1438,31 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                         // Gives children `pointer-events: initial` so the user can interact with them.
                         className={pointerEventsNoneNotInheritedClassName}
                     >
-                        <IconButton
-                            size="base"
-                            description="Go back"
-                            withoutTooltip={true}
-                            pressErrorTitle="Couldn’t go back"
-                            onPress={() => navigate(-1)}
-                        >
-                            <ArrowLeft />
-                        </IconButton>
+                        {onMobileCancel ? (
+                            <Box
+                                display="flex"
+                                justifyContent="flex-start"
+                                style={{width: mobileNavigationBarActionsWidthFittingFlexBasis}}
+                            >
+                                <Button
+                                    fontSize="100"
+                                    pressErrorTitle="Couldn’t cancel"
+                                    onPress={onMobileCancel}
+                                >
+                                    Cancel
+                                </Button>
+                            </Box>
+                        ) : (
+                            <IconButton
+                                size="base"
+                                description="Go back"
+                                withoutTooltip={true}
+                                pressErrorTitle="Couldn’t go back"
+                                onPress={() => navigate(-1)}
+                            >
+                                <ArrowLeft />
+                            </IconButton>
+                        )}
                     </Box>
                 ) : (
                     desktopTitleMaxWidth !== undefined && (
