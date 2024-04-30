@@ -5,30 +5,25 @@ import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
-import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
-export function TaskQueryViewEditNameMobileModal({
+export function ChannelViewEditNameMobileModal({
     initialName,
-    onNameChange,
     onCloseWithAnimation,
+    onSave,
 }: {
     initialName: string;
-    onNameChange: (name: string) => void;
     onCloseWithAnimation: () => void;
+    onSave: (name: string) => Promise<void>;
 }) {
     const nameInputRef = useRef<HTMLInputElement>(null);
+    const saveButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
-    const [{name, hasNameChanged}, setNameState] = useState({
+    const [{name, hasNameChanged}, setNameState] = useState(() => ({
         name: initialName,
         hasNameChanged: false,
-    });
-
-    const save = () => {
-        onNameChange(name.trim());
-        onCloseWithAnimation();
-    };
+    }));
 
     const hasInitiallyMountedRef = useRef(false);
     useEffect(() => {
@@ -70,7 +65,7 @@ export function TaskQueryViewEditNameMobileModal({
                     </Button>
                 </Box>
                 <Box fontSize="100" fontStyle="semi-bold">
-                    Edit name
+                    Edit channel
                 </Box>
                 <Box
                     flexGrow="1"
@@ -79,9 +74,14 @@ export function TaskQueryViewEditNameMobileModal({
                     style={{flexBasis: spacing["10"]}}
                 >
                     <Button
+                        ref={saveButtonRef}
                         fontSize="100"
                         isDisabled={!hasNameChanged || name.trim().length === 0}
-                        onPress={save}
+                        pressErrorTitle="Couldn’t save channel"
+                        onPress={async () => {
+                            await onSave(name.trim());
+                            onCloseWithAnimation();
+                        }}
                     >
                         Save
                     </Button>
@@ -95,7 +95,7 @@ export function TaskQueryViewEditNameMobileModal({
                     label="Name"
                     value={name}
                     onChange={name => setNameState({name, hasNameChanged: true})}
-                    onEnter={save}
+                    onEnter={() => assertExists(saveButtonRef.current).press()}
                 />
             </Box>
         </Box>

@@ -1,11 +1,13 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
+import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {ChannelViewAside} from "~/client/forum/internal/channel_view_aside.js";
+import {ChannelViewEditNameMobileModal} from "~/client/forum/internal/channel_view_edit_name_mobile_modal.js";
 import {ChannelViewNameEditor} from "~/client/forum/internal/channel_view_name_editor.js";
 import {
     postContentViewMinHeightWithClosedCommentSection,
@@ -145,14 +147,31 @@ export function ChannelView({
         );
     }, []);
 
-    const [isEditingName, setIsEditingName] = useState(false);
-    if (isEditingName && isMobile) setIsEditingName(false);
+    const [isEditingNameInline, setIsEditingNameInline] = useState(false);
+    if (isEditingNameInline && isMobile) setIsEditingNameInline(false);
 
-    const [isEditingDescription, setIsEditingDescription] = useState(false);
-    if (isEditingDescription && isMobile) setIsEditingDescription(false);
+    const [isEditNameMobileModalOpen, setIsEditNameMobileModalOpen] = useState(false);
+    if (isEditNameMobileModalOpen && !isMobile) setIsEditNameMobileModalOpen(false);
+
+    const [isEditingDescriptionInline, setIsEditingDescriptionInline] = useState(false);
+    if (isEditingDescriptionInline && isMobile) setIsEditingDescriptionInline(false);
+
+    const saveName = async (name: string) => {
+        const event = await updateChannelName(context, {
+            channelId,
+            name,
+        });
+
+        setIsEditingNameInline(false);
+
+        // Immediately apply a realtime event transaction to update our channel in case
+        // our realtime WebSocket connection is slow.
+        handleEventTransactionForChannel(event.eventTransaction);
+    };
 
     const hasAside =
-        !withMobileLayout && (!isContentEmpty(channel.description.doc) || isEditingDescription);
+        !withMobileLayout &&
+        (!isContentEmpty(channel.description.doc) || isEditingDescriptionInline);
 
     const navigationBarRef = useRef<NavigationBarRef>(null);
 
@@ -160,23 +179,12 @@ export function ChannelView({
         ref: navigationBarRef,
         withMobileLayout,
         withoutDisappearingTitle: true,
-        title: isEditingName ? (
+        title: isEditingNameInline ? (
             <ChannelViewNameEditor
                 isCreatingChannel={false}
                 initialName={channel.name}
-                onCancel={() => setIsEditingName(false)}
-                onSave={async name => {
-                    const event = await updateChannelName(context, {
-                        channelId,
-                        name,
-                    });
-
-                    setIsEditingName(false);
-
-                    // Immediately apply a realtime event transaction to update our channel in case
-                    // our realtime WebSocket connection is slow.
-                    handleEventTransactionForChannel(event.eventTransaction);
-                }}
+                onCancel={() => setIsEditingNameInline(false)}
+                onSave={saveName}
             />
         ) : (
             <Box
@@ -185,7 +193,9 @@ export function ChannelView({
                     // Disable selection from double click.
                     event.preventDefault();
 
-                    setIsEditingName(true);
+                    if (!isMobile) {
+                        setIsEditingNameInline(true);
+                    }
                 }}
             >
                 {channel.name}
@@ -216,11 +226,23 @@ export function ChannelView({
             [
                 {
                     label: "Edit name",
-                    onPress: () => setIsEditingName(true),
+                    onPress: () => {
+                        if (!isMobile) {
+                            setIsEditingNameInline(true);
+                        } else {
+                            setIsEditNameMobileModalOpen(true);
+                        }
+                    },
                 },
                 {
                     label: "Edit description",
-                    onPress: () => setIsEditingDescription(true),
+                    onPress: () => {
+                        if (!isMobile) {
+                            setIsEditingDescriptionInline(true);
+                        } else {
+                            // NOCOMMIT: Implement
+                        }
+                    },
                 },
             ],
         ],
@@ -231,65 +253,78 @@ export function ChannelView({
             isOnlyNavigationBar: false,
             channel,
             isCreatingChannel: false,
-            isEditingDescription,
-            onCancelDescriptionEditing: () => setIsEditingDescription(false),
+            isEditingDescription: isEditingDescriptionInline,
+            onCancelDescriptionEditing: () => setIsEditingDescriptionInline(false),
             onSaveDescription: async description => {
                 const event = await updateChannelDescription(context, {
                     channelId,
                     description,
                 });
 
-                setIsEditingDescription(false);
+                setIsEditingDescriptionInline(false);
 
                 // Immediately apply a realtime event transaction to update our channel in case
                 // our realtime WebSocket connection is slow.
                 handleEventTransactionForChannel(event.eventTransaction);
             },
         }),
-        [channel, channelId, context, handleEventTransactionForChannel, isEditingDescription],
+        [channel, channelId, context, handleEventTransactionForChannel, isEditingDescriptionInline],
     );
 
     return (
-        <PostListView
-            withMobileLayout={withMobileLayout}
-            channelHeader={channelHeader}
-            posts={posts}
-            onTogglePostComments={useCallback(
-                postId => setPosts(posts => posts.togglePostComments(postId)),
-                [],
-            )}
-            onUpdatePostComments={useCallback(
-                (postId, update) => setPosts(posts => posts.updatePostComments(postId, update)),
-                [],
-            )}
-            onLoadMorePosts={async ({limit}) => {
-                const {postsResult} = await getChannelPosts(context, {
-                    channelId: channel.id,
-                    limit,
-                    beforeCursor: posts.query.getPreviousPageCursorIfExists(),
-                });
+        <>
+            <PostListView
+                withMobileLayout={withMobileLayout}
+                channelHeader={channelHeader}
+                posts={posts}
+                onTogglePostComments={useCallback(
+                    postId => setPosts(posts => posts.togglePostComments(postId)),
+                    [],
+                )}
+                onUpdatePostComments={useCallback(
+                    (postId, update) => setPosts(posts => posts.updatePostComments(postId, update)),
+                    [],
+                )}
+                onLoadMorePosts={async ({limit}) => {
+                    const {postsResult} = await getChannelPosts(context, {
+                        channelId: channel.id,
+                        limit,
+                        beforeCursor: posts.query.getPreviousPageCursorIfExists(),
+                    });
 
-                setPosts(posts => posts.updateQuery(query => query.loadMore(postsResult)));
-            }}
-            shouldBeConnectedToChannelRealtime={true}
-            onPostRealtimeEventTransaction={useCallback(event => {
-                setPosts(posts =>
-                    posts.updateQuery(query =>
-                        query.handleEventTransaction(event.readTime, event.eventTransaction),
-                    ),
-                );
-            }, [])}
-            aside={
-                hasAside && (
-                    <ChannelViewAside
-                        channel={channel}
-                        isEditingDescription={isEditingDescription}
-                        onCancelEditingDescription={channelHeader.onCancelDescriptionEditing}
-                        onSaveDescription={channelHeader.onSaveDescription}
-                    />
-                )
-            }
-            navigationBar={{...navigationBar, navigationBarRef}}
-        />
+                    setPosts(posts => posts.updateQuery(query => query.loadMore(postsResult)));
+                }}
+                shouldBeConnectedToChannelRealtime={true}
+                onPostRealtimeEventTransaction={useCallback(event => {
+                    setPosts(posts =>
+                        posts.updateQuery(query =>
+                            query.handleEventTransaction(event.readTime, event.eventTransaction),
+                        ),
+                    );
+                }, [])}
+                aside={
+                    hasAside && (
+                        <ChannelViewAside
+                            channel={channel}
+                            isEditingDescription={isEditingDescriptionInline}
+                            onCancelEditingDescription={channelHeader.onCancelDescriptionEditing}
+                            onSaveDescription={channelHeader.onSaveDescription}
+                        />
+                    )
+                }
+                navigationBar={{...navigationBar, navigationBarRef}}
+            />
+            {isEditNameMobileModalOpen && (
+                <MobileFullScreenModal onClose={() => setIsEditNameMobileModalOpen(false)}>
+                    {({onCloseWithAnimation}) => (
+                        <ChannelViewEditNameMobileModal
+                            initialName={channel.name}
+                            onSave={saveName}
+                            onCloseWithAnimation={onCloseWithAnimation}
+                        />
+                    )}
+                </MobileFullScreenModal>
+            )}
+        </>
     );
 }

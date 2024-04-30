@@ -9,6 +9,7 @@ import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
@@ -69,9 +70,13 @@ export function TaskCollectionViewEditNameMobileModal({
 
         if (!initiallyFocusName) return;
 
+        const nameInputElement = assertExists(nameInputRef.current);
+
         return scheduleAfterNavigationAnimation(() => {
-            nameInputRef.current?.focus();
-            nameInputRef.current?.select();
+            nameInputElement.focus();
+
+            nameInputElement.selectionStart = nameInputElement.selectionEnd =
+                nameInputElement.value.length;
         });
     }, [initiallyFocusName]);
 
