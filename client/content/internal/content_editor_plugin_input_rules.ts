@@ -1,12 +1,12 @@
 import {
     InputRule,
     inputRules,
-    smartQuotes,
     textblockTypeInputRule,
     wrappingInputRule,
 } from "prosemirror-inputrules";
 import {MarkType, NodeType} from "prosemirror-model";
 import {findWrapping} from "prosemirror-transform";
+import {getSharedContentInputRulesPlugin} from "~/client/content/get_shared_content_input_rules_plugin.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -14,6 +14,10 @@ export const openMentionFloaterMetaKey = "openMentionFloater";
 
 export function buildInputRulesPlugin(schema: ContentProsemirrorSchema) {
     const rules: Array<InputRule> = [];
+
+    // get "smart quotes" and emoji shared input rules
+    const sharedRules = getSharedContentInputRulesPlugin();
+    rules.push(...sharedRules);
 
     // `@` opens a mention search/selector interface
     rules.push(
@@ -23,9 +27,6 @@ export function buildInputRulesPlugin(schema: ContentProsemirrorSchema) {
                 .setMeta(openMentionFloaterMetaKey, true),
         ),
     );
-
-    // "smart quotes"
-    rules.push(...smartQuotes);
 
     // `# `, `## `, or `### ` creates a heading
     if (schema.nodes.heading) {
@@ -190,26 +191,6 @@ export function buildInputRulesPlugin(schema: ContentProsemirrorSchema) {
                 .addMark(start + offset, end, markType.create());
         });
     }
-
-    // Misc glyphs
-    rules.push(new InputRule(/--$/, "\u{2014}")); // em dash (https://graphemica.com/2014)
-    rules.push(new InputRule(/\.\.\.$/, "\u{2026}")); // ellipsis (https://graphemica.com/2026)
-    rules.push(new InputRule(/->$/, "\u{2192}")); // rightwards arrow (https://graphemica.com/2192)
-    rules.push(new InputRule(/<-$/, "\u{2190}")); // leftwards arrow (https://graphemica.com/2190)
-    rules.push(new InputRule(/\^2$/, "\u{00B2}")); // superscript two (https://graphemica.com/00B2)
-    rules.push(new InputRule(/\^3$/, "\u{00B3}")); // superscript three (https://graphemica.com/00B3)
-    rules.push(new InputRule(/\^(?:tm|TM)$/, "\u{2122}")); // trademark (https://graphemica.com/2122)
-
-    // Emojis should be either at the beginning of the block or should come after
-    // a space.
-    rules.push(new InputRule(/(?:^|\s)(:\))$/, "\u{1F642}")); // 🙂 (https://graphemica.com/1F642)
-    rules.push(new InputRule(/(?:^|\s)(:\()$/, "\u{1F615}")); // 😕 (https://graphemica.com/1F615)
-    rules.push(new InputRule(/(?:^|\s)(;\))$/, "\u{1F609}")); // 😉 (https://graphemica.com/1F609)
-    rules.push(new InputRule(/(?:^|\s)(:D)$/, "\u{1F600}")); // 😀 (https://graphemica.com/1F600)
-    rules.push(new InputRule(/(?:^|\s)(:P)$/, "\u{1F61B}")); // 😛 (https://graphemica.com/1F61B)
-    rules.push(new InputRule(/(?:^|\s)(:O)$/, "\u{1F62E}")); // 😮 (https://graphemica.com/1F62E)
-    rules.push(new InputRule(/(?:^|\s)(<3)$/, "\u{2764}\u{FE0F}")); // ❤️ (https://graphemica.com/2764 and https://graphemica.com/FE0F)
-    rules.push(new InputRule(/(?:^|\s)(\+\+)$/, "\u{1F44D}")); // 👍 (https://graphemica.com/1F44D)
 
     return inputRules({rules});
 }

@@ -18,6 +18,7 @@ import {flushSync} from "react-dom";
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {ySyncPlugin, ySyncPluginKey, yUndoPlugin, yXmlFragmentToProsemirror} from "y-prosemirror";
 import * as Y from "yjs";
+import {buildSharedContentInputRulesPlugin} from "~/client/content/get_shared_content_input_rules_plugin.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
@@ -671,6 +672,7 @@ function TaskRowTitleInput(
                         doc: yXmlFragmentToProsemirror(TaskTitleProsemirrorSchema, yXmlFragment),
                         plugins: [
                             ySyncPlugin(yXmlFragment),
+                            buildSharedContentInputRulesPlugin(),
                             // We install the Y.js undo plugin but we don't install the `undo`/`redo`
                             // commands from `y-prosemirror` in a keymap. Instead `useTaskTitleModelYDoc()`
                             // registers us with our global undo stack.
