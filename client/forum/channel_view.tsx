@@ -7,7 +7,7 @@ import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {ChannelViewAside} from "~/client/forum/internal/channel_view_aside.js";
-import {ChannelViewEditNameMobileModal} from "~/client/forum/internal/channel_view_edit_name_mobile_modal.js";
+import {ChannelViewEditNameAndDescriptionMobileModal} from "~/client/forum/internal/channel_view_edit_name_and_description_mobile_modal.js";
 import {ChannelViewNameEditor} from "~/client/forum/internal/channel_view_name_editor.js";
 import {
     postContentViewMinHeightWithClosedCommentSection,
@@ -40,6 +40,7 @@ import {
     getChannelWithStrongReadConsistency,
     updateChannelDescription,
     updateChannelName,
+    updateChannelNameAndDescription,
 } from "~/shared/rpc/forum_rpc_definitions.js";
 
 export {newChannelNamePlaceholder} from "~/client/forum/internal/channel_view_name_editor.js";
@@ -150,24 +151,13 @@ export function ChannelView({
     const [isEditingNameInline, setIsEditingNameInline] = useState(false);
     if (isEditingNameInline && isMobile) setIsEditingNameInline(false);
 
-    const [isEditNameMobileModalOpen, setIsEditNameMobileModalOpen] = useState(false);
-    if (isEditNameMobileModalOpen && !isMobile) setIsEditNameMobileModalOpen(false);
-
     const [isEditingDescriptionInline, setIsEditingDescriptionInline] = useState(false);
     if (isEditingDescriptionInline && isMobile) setIsEditingDescriptionInline(false);
 
-    const saveName = async (name: string) => {
-        const event = await updateChannelName(context, {
-            channelId,
-            name,
-        });
-
-        setIsEditingNameInline(false);
-
-        // Immediately apply a realtime event transaction to update our channel in case
-        // our realtime WebSocket connection is slow.
-        handleEventTransactionForChannel(event.eventTransaction);
-    };
+    const [editNameAndDescriptionMobileModalState, setEditNameAndDescriptionMobileModalState] =
+        useState<{readonly initiallyFocus: "Name" | "Description"} | null>(null);
+    if (editNameAndDescriptionMobileModalState && !isMobile)
+        setEditNameAndDescriptionMobileModalState(null);
 
     const hasAside =
         !withMobileLayout &&
@@ -184,7 +174,18 @@ export function ChannelView({
                 isCreatingChannel={false}
                 initialName={channel.name}
                 onCancel={() => setIsEditingNameInline(false)}
-                onSave={saveName}
+                onSave={async name => {
+                    const event = await updateChannelName(context, {
+                        channelId,
+                        name,
+                    });
+
+                    setIsEditingNameInline(false);
+
+                    // Immediately apply a realtime event transaction to update our channel in case
+                    // our realtime WebSocket connection is slow.
+                    handleEventTransactionForChannel(event.eventTransaction);
+                }}
             />
         ) : (
             <Box
@@ -230,7 +231,7 @@ export function ChannelView({
                         if (!isMobile) {
                             setIsEditingNameInline(true);
                         } else {
-                            setIsEditNameMobileModalOpen(true);
+                            setEditNameAndDescriptionMobileModalState({initiallyFocus: "Name"});
                         }
                     },
                 },
@@ -240,7 +241,9 @@ export function ChannelView({
                         if (!isMobile) {
                             setIsEditingDescriptionInline(true);
                         } else {
-                            // NOCOMMIT: Implement
+                            setEditNameAndDescriptionMobileModalState({
+                                initiallyFocus: "Description",
+                            });
                         }
                     },
                 },
@@ -314,12 +317,26 @@ export function ChannelView({
                 }
                 navigationBar={{...navigationBar, navigationBarRef}}
             />
-            {isEditNameMobileModalOpen && (
-                <MobileFullScreenModal onClose={() => setIsEditNameMobileModalOpen(false)}>
+            {editNameAndDescriptionMobileModalState && (
+                <MobileFullScreenModal
+                    onClose={() => setEditNameAndDescriptionMobileModalState(null)}
+                >
                     {({onCloseWithAnimation}) => (
-                        <ChannelViewEditNameMobileModal
+                        <ChannelViewEditNameAndDescriptionMobileModal
+                            initiallyFocus={editNameAndDescriptionMobileModalState.initiallyFocus}
                             initialName={channel.name}
-                            onSave={saveName}
+                            initialDescription={channel.description}
+                            onSave={async ({name, description}) => {
+                                const event = await updateChannelNameAndDescription(context, {
+                                    channelId,
+                                    name,
+                                    description,
+                                });
+
+                                // Immediately apply a realtime event transaction to update our channel in case
+                                // our realtime WebSocket connection is slow.
+                                handleEventTransactionForChannel(event.eventTransaction);
+                            }}
                             onCloseWithAnimation={onCloseWithAnimation}
                         />
                     )}

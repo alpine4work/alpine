@@ -87,7 +87,7 @@ export function TaskQueryViewEditNameMobileModal({
                     </Button>
                 </Box>
             </Box>
-            <Box paddingX="4">
+            <Box paddingX="3">
                 <Spacer space="8" />
                 <TextInput
                     ref={nameInputRef}

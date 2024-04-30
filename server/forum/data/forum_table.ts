@@ -1211,6 +1211,78 @@ export async function updateChannelDescription(
 }
 
 /**
+ * Updates the name and description of the channel.
+ */
+export async function updateChannelNameAndDescription(
+    context: ServerActionContext,
+    {
+        channelId,
+        name,
+        description,
+    }: {
+        channelId: ChannelId;
+        name: string;
+        description: MessageContent;
+    },
+): Promise<{
+    getDynamoGeneralRealtimeEventTransaction: () => Promise<{
+        readTime: Date;
+        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel>>;
+    }>;
+}> {
+    // Give the user a nice error message if there was an error validating the new
+    // channel name.
+    LabelStringSchema.validate?.(name, {
+        errorDisplayMessagePrefix: errorDisplayMessage`The name you typed`,
+    });
+
+    let spaceId: SpaceId | null = null;
+
+    const readTime = new Date();
+
+    const result = await ForumRealtimeTable.updateItem(
+        context,
+        {partitionType: "Channel", sortRangeType: "Attributes", channelId},
+        async channelItem => {
+            if (!channelItem) throw new NotFoundError("Channel not found");
+            spaceId = channelItem.spaceId;
+            await authorizeSpaceAccess(context, spaceId);
+
+            return {
+                ...channelItem,
+                name,
+                description,
+            };
+        },
+    );
+
+    assert(spaceId);
+
+    context.jobs.send({
+        type: "IndexSearchEntity",
+        spaceId,
+        update: {
+            type: "Channel",
+            channelId,
+            updatedTraits: {type: "Some", traits: ["Preview"]},
+        },
+    });
+
+    return {
+        getDynamoGeneralRealtimeEventTransaction: async () => ({
+            readTime,
+            eventTransaction: [
+                {
+                    type: "PutItem",
+                    item: await result.getRealtimeItem(),
+                    cursorByIndexName: result.getCursorByIndexName(),
+                },
+            ],
+        }),
+    };
+}
+
+/**
  * Get the latest posts in a channel in reverse chronological order. The newest
  * post will be the first in the array.
  */

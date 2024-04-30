@@ -19,6 +19,7 @@ import {
     getPostNotificationSubscribers,
     updateChannelDescription,
     updateChannelName,
+    updateChannelNameAndDescription,
     updatePostCommentContent,
     updatePostContent,
 } from "~/server/forum/data/forum_table.js";
@@ -281,6 +282,58 @@ test("can not update a channel's description with invalid content", async () => 
     expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
         testMessageContent1,
     );
+});
+
+test("can update a channel's name and description", async () => {
+    const channel = await createChannel(context.action(session1), {
+        spaceId: space.id,
+        name: "Test 1",
+    });
+
+    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 1");
+    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
+        emptyMessageContent,
+    );
+
+    await updateChannelNameAndDescription(context.action(session1), {
+        channelId: channel.id,
+        name: "Test 2",
+        description: testMessageContent1,
+    });
+
+    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 2");
+    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
+        testMessageContent1,
+    );
+});
+
+test("can not update a channel's name and description from a different space", async () => {
+    const channel = await createChannel(context.action(session1), {
+        spaceId: space.id,
+        name: "Test 1",
+    });
+
+    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 1");
+
+    await expect(
+        updateChannelNameAndDescription(context.action(otherSession), {
+            channelId: channel.id,
+            name: "Test 2",
+            description: emptyMessageContent,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 1");
+});
+
+test("can not update the name and description of a channel that does not exist", async () => {
+    await expect(
+        updateChannelNameAndDescription(context.action(otherSession), {
+            channelId: generateId(),
+            name: "Test 2",
+            description: emptyMessageContent,
+        }),
+    ).rejects.toThrow(NotFoundError);
 });
 
 test("can create a post", async () => {

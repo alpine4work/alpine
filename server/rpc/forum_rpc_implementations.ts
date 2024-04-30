@@ -15,6 +15,7 @@ import {
     getPostCommentsFromStart,
     updateChannelDescription,
     updateChannelName,
+    updateChannelNameAndDescription,
     updatePostCommentContent,
     updatePostContent,
 } from "~/server/forum/data/forum_table.js";
@@ -33,6 +34,18 @@ implementRpc(
     {visibility: ["AppClient"]},
     async (context, input) => {
         const {getDynamoGeneralRealtimeEventTransaction} = await updateChannelDescription(
+            context,
+            input,
+        );
+        return getDynamoGeneralRealtimeEventTransaction();
+    },
+);
+
+implementRpc(
+    definition.updateChannelNameAndDescription,
+    {visibility: ["AppClient"]},
+    async (context, input) => {
+        const {getDynamoGeneralRealtimeEventTransaction} = await updateChannelNameAndDescription(
             context,
             input,
         );
