@@ -1201,6 +1201,7 @@ export async function searchByKeywords(
                     await getTaskCollectionSearchResultBodyTextSnippetIfPossible(
                         context,
                         assertId<TaskCollectionId>(hit.id.slice(15)),
+                        timeZone,
                         currentTime,
                     );
 
@@ -1638,7 +1639,7 @@ export async function getSearchEntitiesTitleAndMediaIfExist(
  */
 export async function searchByAffinity(
     context: ServerSessionActionContext,
-    {spaceId, limit}: {spaceId: SpaceId; limit: number},
+    {spaceId, limit, timeZone}: {spaceId: SpaceId; limit: number; timeZone: TimeZone},
 ): Promise<{results: Array<SearchResult>}> {
     await authorizeSpaceAccess(context, spaceId);
 
@@ -1668,6 +1669,7 @@ export async function searchByAffinity(
                         isHighlighted: false,
                         text: lastViewedTime
                             ? `Last opened ${formatPrettyRelativeDateWithoutFullTimeTooltip(
+                                  timeZone,
                                   currentTime,
                                   lastViewedTime,
                                   "Days",

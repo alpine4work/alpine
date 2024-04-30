@@ -7,6 +7,7 @@ import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {
     ExecuteSearchOutput,
@@ -177,10 +178,12 @@ const affinitiveSearchEntitiesLimit = 40;
  */
 export function usePreloadSearchByAffinity() {
     const {space} = useSpaceContext();
+    const {timeZone} = useClientInfo();
 
     useIdlyPreloadRpc(searchByAffinity, {
         spaceId: space.id,
         limit: affinitiveSearchEntitiesLimit,
+        timeZone,
     });
 }
 
@@ -206,12 +209,14 @@ export function useSearchState({
 } {
     const context = useAppContext();
     const {space} = useSpaceContext();
+    const {timeZone} = useClientInfo();
 
     const options = debugOptions ?? standardSearchOptions;
 
     const affinityOutput = useLazyLoadRpc(searchByAffinity, {
         spaceId: space.id,
         limit: affinitiveSearchEntitiesLimit,
+        timeZone,
     });
 
     const affinityResultById = useMemo(() => {

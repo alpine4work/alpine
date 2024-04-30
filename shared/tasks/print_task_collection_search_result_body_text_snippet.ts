@@ -1,11 +1,14 @@
 import {formatPrettyRelativeDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_relative_date_without_full_time_tooltip.js";
+import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 
 export function printTaskCollectionSearchResultBodyTextSnippet({
+    timeZone,
     currentTime,
     createdTime,
     lastTaskAddedTime,
     openTaskCount,
 }: {
+    timeZone: TimeZone;
     currentTime: Date;
     createdTime: Date;
     lastTaskAddedTime: Date | null;
@@ -16,6 +19,7 @@ export function printTaskCollectionSearchResultBodyTextSnippet({
         "," +
         (!lastTaskAddedTime ? " created " : " updated ") +
         formatPrettyRelativeDateWithoutFullTimeTooltip(
+            timeZone,
             currentTime,
             !lastTaskAddedTime ? new Date(createdTime) : new Date(lastTaskAddedTime),
             "Weeks",

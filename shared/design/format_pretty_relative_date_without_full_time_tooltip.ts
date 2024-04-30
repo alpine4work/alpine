@@ -1,3 +1,4 @@
+import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {
     differenceInDays,
     differenceInMonths,
@@ -6,6 +7,7 @@ import {
     startOfWeek,
 } from "date-fns";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 
 const nameByNumber = new Map([
     [1, "one"],
@@ -29,10 +31,20 @@ const nameByNumber = new Map([
  * should also include a tooltip with the exact time for the user.
  */
 export function formatPrettyRelativeDateWithoutFullTimeTooltip(
+    timeZone: TimeZone,
     currentTime: Date,
     time: Date,
     smallestGranularity: "Weeks" | "Days",
 ): string {
+    const currentDate = toCalendarDate(parseAbsolute(currentTime.toISOString(), timeZone));
+    const date = toCalendarDate(parseAbsolute(time.toISOString(), timeZone));
+
+    // Normalize times to the start of the day in the provided time zone. A time 23
+    // hours ago should generally be marked as "Yesterday" not "Today" unless the
+    // time was at 1am.
+    currentTime = currentDate.toDate(timeZone);
+    time = date.toDate(timeZone);
+
     const years = differenceInYears(currentTime, time);
 
     if (years === 1) {

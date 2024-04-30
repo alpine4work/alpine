@@ -7,6 +7,7 @@ ts_project(
         "//client:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@internationalized/date",
         "//:node_modules/@types/jest",
         "//:node_modules/@types/react",
         "//:node_modules/functional-red-black-tree",

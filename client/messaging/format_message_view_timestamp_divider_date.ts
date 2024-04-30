@@ -1,4 +1,5 @@
-import {differenceInDays, startOfDay} from "date-fns";
+import {parseAbsolute, toCalendarDate} from "@internationalized/date";
+import {differenceInDays} from "date-fns";
 import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 
 let formatter1: Intl.DateTimeFormat | undefined;
@@ -10,10 +11,16 @@ export function formatMessageViewTimestampDividerDate(
     time: Date,
     {currentTime, locale, timeZone}: {currentTime: Date; locale: string; timeZone: TimeZone},
 ) {
-    const timeStartOfDay = startOfDay(time);
-    const currentTimeStartOfDay = startOfDay(currentTime);
+    const currentDate = toCalendarDate(parseAbsolute(currentTime.toISOString(), timeZone));
+    const date = toCalendarDate(parseAbsolute(time.toISOString(), timeZone));
 
-    const dayDifference = differenceInDays(currentTimeStartOfDay, timeStartOfDay);
+    // Normalize times to the start of the day in the provided time zone. A time 23
+    // hours ago should generally be marked as "Yesterday" not "Today" unless the
+    // time was at 1am.
+    currentTime = currentDate.toDate(timeZone);
+    time = date.toDate(timeZone);
+
+    const dayDifference = differenceInDays(currentTime, time);
     if (dayDifference < 7) {
         const formatter =
             dayDifference >= 2

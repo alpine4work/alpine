@@ -1,6 +1,7 @@
 import {SpinnerGap} from "phosphor-react";
 import {Box} from "~/client/design/box.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
@@ -17,6 +18,8 @@ export function TaskCollectionOption({
     collectionResult: TaskCollectionModelSearchResult;
     isPending?: boolean;
 }) {
+    const {timeZone} = useClientInfo();
+
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
     const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
@@ -43,6 +46,7 @@ export function TaskCollectionOption({
                 <Box fontStyle="truncate">{collectionResult.collection.getName()}</Box>
                 <Box fontSize="50" color={taskCollectionOptionSecondaryTextColor}>
                     {printTaskCollectionSearchResultBodyTextSnippet({
+                        timeZone,
                         currentTime: useCurrentTimeRoundedToHour(),
                         createdTime: new Date(collectionResult.collection.getCreatedTime()[0]),
                         lastTaskAddedTime: collectionResult.lastTaskAddedTime

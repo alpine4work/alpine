@@ -55,6 +55,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
+import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
@@ -4666,6 +4667,7 @@ function createTaskCollectionModelSearchResultFromItem(
 export async function getTaskCollectionSearchResultBodyTextSnippetIfPossible(
     context: ServerSessionActionContext,
     collectionId: TaskCollectionId,
+    timeZone: TimeZone,
     currentTime: Date,
 ): Promise<string | null> {
     const collectionItem = await TaskTable.getItem(context, {
@@ -4690,6 +4692,7 @@ export async function getTaskCollectionSearchResultBodyTextSnippetIfPossible(
     if (!hasAccess) return null;
 
     return printTaskCollectionSearchResultBodyTextSnippet({
+        timeZone,
         currentTime,
         createdTime: new Date(collectionItem.createdTime[0]),
         lastTaskAddedTime: collectionItem.lastTaskAddedTime

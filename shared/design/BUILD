@@ -4,6 +4,7 @@ ts_project(
     name = "design",
     visibility = ["//visibility:public"],
     deps = [
+        "//:node_modules/@internationalized/date",
         "//:node_modules/@types/d3-interpolate",
         "//:node_modules/d3-interpolate",
         "//:node_modules/date-fns",
