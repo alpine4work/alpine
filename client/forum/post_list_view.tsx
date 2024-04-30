@@ -28,12 +28,18 @@ import {
 import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
-import {ChannelViewHeader, channelViewHeaderMinHeight} from "~/client/forum/channel_view_header.js";
+import {
+    ChannelViewHeader,
+    channelViewHeaderMinHeight,
+} from "~/client/forum/internal/channel_view_header.js";
 import {
     PostCommentInput,
     PostRealtimeProcedures,
     postCommentInputMinHeight,
-} from "~/client/forum/post_comment_input.js";
+} from "~/client/forum/internal/post_comment_input.js";
+import {PostEditing, usePostEditing} from "~/client/forum/internal/post_editing.js";
+import {PostMobileEditorView} from "~/client/forum/internal/post_mobile_editor_view.js";
+import {PostShimmer} from "~/client/forum/internal/post_shimmer.js";
 import {
     PostContentView,
     PostContentViewEditingActions,
@@ -46,7 +52,6 @@ import {
     postContentViewPaddingX,
     postViewMaxWidth,
 } from "~/client/forum/post_content_view.js";
-import {PostEditing, usePostEditing} from "~/client/forum/post_editing.js";
 import {
     PostListChannelHeader,
     PostListChannelHeaderItem,
@@ -57,8 +62,6 @@ import {
     PostListPostContentItem,
     PostListWithChannelHeader,
 } from "~/client/forum/post_list.js";
-import {PostMobileEditorView} from "~/client/forum/post_mobile_editor_view.js";
-import {PostShimmer} from "~/client/forum/post_shimmer.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";

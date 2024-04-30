@@ -5,8 +5,8 @@ import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
-import {ChannelViewAside} from "~/client/forum/channel_view_aside.js";
-import {ChannelViewNameEditor} from "~/client/forum/channel_view_name_editor.js";
+import {ChannelViewAside} from "~/client/forum/internal/channel_view_aside.js";
+import {ChannelViewNameEditor} from "~/client/forum/internal/channel_view_name_editor.js";
 import {
     postContentViewMinHeightWithClosedCommentSection,
     postViewMaxWidth,
@@ -39,6 +39,8 @@ import {
     updateChannelDescription,
     updateChannelName,
 } from "~/shared/rpc/forum_rpc_definitions.js";
+
+export {newChannelNamePlaceholder} from "~/client/forum/internal/channel_view_name_editor.js";
 
 export function ChannelView({
     withMobileLayout: withMobileLayoutProp,

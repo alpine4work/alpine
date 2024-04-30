@@ -15,6 +15,7 @@ import {
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
+import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
 import {
     mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
@@ -23,11 +24,9 @@ import {
     postContentViewPaddingX,
     postViewMaxWidth,
 } from "~/client/forum/post_content_view.js";
-import {PostContentViewHeader} from "~/client/forum/post_content_view_header.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";

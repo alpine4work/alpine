@@ -1,6 +1,6 @@
 import {useCallback, useMemo, useRef} from "react";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
-import {ChannelViewNameEditor} from "~/client/forum/channel_view_name_editor.js";
+import {ChannelViewNameEditor} from "~/client/forum/internal/channel_view_name_editor.js";
 import {postViewMaxWidth} from "~/client/forum/post_content_view.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";

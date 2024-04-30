@@ -20,8 +20,8 @@ import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_a
 import {
     PostContentViewHeader,
     postContentViewHeaderHeight,
-} from "~/client/forum/post_content_view_header.js";
-import {PostEditing} from "~/client/forum/post_editing.js";
+} from "~/client/forum/internal/post_content_view_header.js";
+import {PostEditing} from "~/client/forum/internal/post_editing.js";
 import {PostCommentsState} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";

@@ -1,12 +1,12 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
 import {
     desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
     getPostMoreActions,
     mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
     postViewMaxWidth,
 } from "~/client/forum/post_content_view.js";
-import {PostContentViewHeader} from "~/client/forum/post_content_view_header.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView, PostListViewRef} from "~/client/forum/post_list_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";

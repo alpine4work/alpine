@@ -13,6 +13,11 @@ import {
 } from "~/client/design/navigation_bar.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {safeAreaOnlyScrollbarInsetTop, useScrollbar} from "~/client/design/scrollbar.js";
+import {PostContentViewHeaderBase} from "~/client/forum/internal/post_content_view_header.js";
+import {
+    PostCreatorViewChannelSelectorInput,
+    PostCreatorViewChannelSelectorInputRef,
+} from "~/client/forum/internal/post_creator_view_channel_selector_input.js";
 import {
     desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
@@ -22,11 +27,6 @@ import {
     postContentViewPaddingX,
     postViewMaxWidth,
 } from "~/client/forum/post_content_view.js";
-import {PostContentViewHeaderBase} from "~/client/forum/post_content_view_header.js";
-import {
-    PostCreatorViewChannelSelectorInput,
-    PostCreatorViewChannelSelectorInputRef,
-} from "~/client/forum/post_creator_view_channel_selector_input.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useSessionStorage} from "~/client/helpers/use_local_storage.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
