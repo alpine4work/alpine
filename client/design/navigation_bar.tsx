@@ -147,13 +147,19 @@ export function dispatchNavigationBarPrepareSmoothScrollTo(
 type ScrollDirectionState = {
     readonly scrollDirection: "Up" | "Down";
     readonly navigationBarTopOffset: number;
-    readonly animateNavigationBarTranslateY: number;
+    readonly animateNavigationBar: {
+        readonly translateY: number;
+        readonly isOpaque: boolean;
+        readonly isTitleVisible: boolean;
+        readonly lastIsOpaque: boolean;
+        readonly lastIsTitleVisible: boolean;
+    } | null;
 };
 
 const initialScrollDirectionState: ScrollDirectionState = {
     scrollDirection: "Down",
     navigationBarTopOffset: 0,
-    animateNavigationBarTranslateY: 0,
+    animateNavigationBar: null,
 };
 
 /**
@@ -744,7 +750,19 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     scrollDebounceTimeout = null;
                 },
                 onScroll: (element: HTMLElement) => {
+                    const navigationBarContainerElement = assertExists(
+                        navigationBarContainerRef.current,
+                    );
+                    const navigationBarBackgroundElement = assertExists(
+                        navigationBarBackgroundRef.current,
+                    );
                     const navigationBarContent = assertExists(navigationBarContentRef.current);
+                    const navigationBarContentElement = navigationBarContent.getElement();
+                    const navigationBarTitleElement = navigationBarContent.getTitleElement();
+
+                    const doesNavigationBarHaveSafeAreaInsetTop =
+                        navigationBarBackgroundElement.clientHeight >
+                        navigationBarContentElement.clientHeight;
 
                     // Web code only: I've observed in mobile Safari if focus changes because the
                     // focused element was removed from the DOM a `focusout` event is not
@@ -829,7 +847,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                     navigationBarTopOffset -
                                         (!isMobile ? desktopMarginTopRem * remPx : 0),
                                 ),
-                                animateNavigationBarTranslateY: 0,
+                                animateNavigationBar: null,
                             });
                         });
                     }
@@ -860,7 +878,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                     navigationBarTopOffset -
                                         (!isMobile ? desktopMarginTopRem * remPx : 0),
                                 ),
-                                animateNavigationBarTranslateY: 0,
+                                animateNavigationBar: null,
                             });
                         });
                     }
@@ -870,6 +888,42 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                         scrollOffset - navigationBarTopOffset,
                         navigationBarHeight,
                     );
+
+                    // The following is web code only:
+                    const getTitleBoundaryOffset = (): number | null => {
+                        if (withoutDisappearingTitle) return null;
+                        if (!titleBoundaryRef?.current) return null;
+
+                        let titleBoundaryParentElement: HTMLElement = titleBoundaryRef.current;
+
+                        let titleBoundaryOffset =
+                            titleBoundaryParentElement.offsetTop +
+                            titleBoundaryParentElement.clientHeight;
+                        while (
+                            titleBoundaryParentElement.offsetParent instanceof HTMLElement &&
+                            titleBoundaryParentElement.offsetParent !== element
+                        ) {
+                            titleBoundaryParentElement = titleBoundaryParentElement.offsetParent;
+                            titleBoundaryOffset += titleBoundaryParentElement.offsetTop;
+                        }
+
+                        // If the title boundary element is not in our scroll view then consider our
+                        // boundary offset to be unset.
+                        if (titleBoundaryParentElement.offsetParent !== element) return null;
+
+                        // If our scroll view has safe area then don't include the safe area in the
+                        // scroll offset. The scroll offset starts below our safe area.
+                        if (doesNavigationBarHaveSafeAreaInsetTop) {
+                            titleBoundaryOffset -=
+                                navigationBarBackgroundElement.clientHeight -
+                                navigationBarContentElement.clientHeight;
+                        }
+
+                        // Hide the title a bit after the title is actually in view.
+                        titleBoundaryOffset -= 0.5 * remPx;
+
+                        return titleBoundaryOffset;
+                    };
 
                     // The following is web code only: Change whether navigation bar is translucent
                     // or opaque based on how far the page has been scrolled.
@@ -887,19 +941,6 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     // content opacity to zero so it doesn't conflict with operation system content
                     // in the safe area.
                     {
-                        const navigationBarContainerElement = assertExists(
-                            navigationBarContainerRef.current,
-                        );
-                        const navigationBarBackgroundElement = assertExists(
-                            navigationBarBackgroundRef.current,
-                        );
-                        const navigationBarContentElement = navigationBarContent.getElement();
-                        const navigationBarTitleElement = navigationBarContent.getTitleElement();
-
-                        const doesNavigationBarHaveSafeAreaInsetTop =
-                            navigationBarBackgroundElement.clientHeight >
-                            navigationBarContentElement.clientHeight;
-
                         const lastIsNavigationBarOpaque = lastIsNavigationBarOpaqueRef.current;
                         const lastIsNavigationBarTitleVisible =
                             lastIsNavigationBarTitleVisibleRef.current;
@@ -909,42 +950,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             : scrollOffset >
                               navigationBarHeight + (!isMobile ? desktopMarginTopRem * remPx : 0);
 
-                        // Compute the title boundary scroll offset...
-                        let titleBoundaryOffset: number | null = null;
-                        if (!withoutDisappearingTitle && titleBoundaryRef?.current) {
-                            let titleBoundaryParentElement: HTMLElement = titleBoundaryRef.current;
-
-                            titleBoundaryOffset =
-                                titleBoundaryParentElement.offsetTop +
-                                titleBoundaryParentElement.clientHeight;
-                            while (
-                                titleBoundaryParentElement.offsetParent instanceof HTMLElement &&
-                                titleBoundaryParentElement.offsetParent !== element
-                            ) {
-                                titleBoundaryParentElement =
-                                    titleBoundaryParentElement.offsetParent;
-                                titleBoundaryOffset += titleBoundaryParentElement.offsetTop;
-                            }
-
-                            // If the title boundary element is not in our scroll view then consider our
-                            // boundary offset to be unset.
-                            if (titleBoundaryParentElement.offsetParent !== element) {
-                                titleBoundaryOffset = null;
-                            }
-
-                            if (titleBoundaryOffset !== null) {
-                                // If our scroll view has safe area then don't include the safe area in the
-                                // scroll offset. The scroll offset starts below our safe area.
-                                if (doesNavigationBarHaveSafeAreaInsetTop) {
-                                    titleBoundaryOffset -=
-                                        navigationBarBackgroundElement.clientHeight -
-                                        navigationBarContentElement.clientHeight;
-                                }
-
-                                // Hide the title a bit before the title is actually in view.
-                                titleBoundaryOffset += 0.75 * remPx;
-                            }
-                        }
+                        const titleBoundaryOffset = getTitleBoundaryOffset();
 
                         const isNavigationBarTitleVisible =
                             withoutDisappearingTitle ||
@@ -1068,6 +1074,10 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
                             const remPx = getRemPxWithoutListening();
 
+                            const lastIsNavigationBarOpaque = lastIsNavigationBarOpaqueRef.current;
+                            const lastIsNavigationBarTitleVisible =
+                                lastIsNavigationBarTitleVisibleRef.current;
+
                             // Reveal the navigation bar if:
                             //
                             // - We pass the visible height threshold; OR
@@ -1078,19 +1088,30 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             // action they could make is to scroll up which would reveal the tab bar. This
                             // also means, in our native mobile app, we're not showing extra safe area at
                             // the bottom of the page.
-                            let navigationBarTopOffset: number;
+                            let nextNavigationBarTopOffset: number;
+                            let nextIsNavigationBarOpaque: boolean;
                             if (
                                 navigationBarHeight - navigationBarScrollOffset >=
                                     navigationBarVisibleHeightThresholdForRevealRem * remPx ||
                                 scrollOffset >= scrollHeight - clientHeight
                             ) {
-                                navigationBarTopOffset = scrollOffset;
+                                nextNavigationBarTopOffset = scrollOffset;
+                                nextIsNavigationBarOpaque = true;
                             } else {
-                                navigationBarTopOffset = Math.max(
+                                nextNavigationBarTopOffset = Math.max(
                                     0,
                                     scrollOffset - navigationBarHeight,
                                 );
+                                nextIsNavigationBarOpaque = false;
                             }
+
+                            const titleBoundaryOffset = getTitleBoundaryOffset();
+
+                            const nextIsNavigationBarTitleVisible =
+                                withoutDisappearingTitle ||
+                                (nextIsNavigationBarOpaque &&
+                                    (titleBoundaryOffset === null ||
+                                        scrollOffset >= titleBoundaryOffset - navigationBarHeight));
 
                             const lastNavigationBarTopOffset =
                                 scrollOffset >= scrollHeight - clientHeight
@@ -1108,17 +1129,40 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                           scrollHeight - clientHeight - navigationBarHeight,
                                       )
                                     : lastNavigationBarTopOffsetRef.current;
-                            lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
+
+                            lastNavigationBarTopOffsetRef.current = nextNavigationBarTopOffset;
+                            lastIsNavigationBarOpaqueRef.current = nextIsNavigationBarOpaque;
+                            lastIsNavigationBarTitleVisibleRef.current =
+                                nextIsNavigationBarTitleVisible;
+
+                            // We'll animate the navigation bar title's opacity with `motion` in our effect
+                            // after the state update but update these non-animatable properties
+                            // immediately.
+                            if (
+                                nextIsNavigationBarTitleVisible !== lastIsNavigationBarTitleVisible
+                            ) {
+                                navigationBarTitleElement.style.pointerEvents =
+                                    nextIsNavigationBarTitleVisible ? "auto" : "none";
+                                navigationBarTitleElement.classList.remove(
+                                    navigationBarTitleFadeOutAnimationClassName,
+                                );
+                            }
 
                             setScrollDirectionState({
                                 scrollDirection,
                                 navigationBarTopOffset: Math.max(
                                     0,
-                                    navigationBarTopOffset -
+                                    nextNavigationBarTopOffset -
                                         (!isMobile ? desktopMarginTopRem * remPx : 0),
                                 ),
-                                animateNavigationBarTranslateY:
-                                    navigationBarTopOffset - lastNavigationBarTopOffset,
+                                animateNavigationBar: {
+                                    translateY:
+                                        nextNavigationBarTopOffset - lastNavigationBarTopOffset,
+                                    isOpaque: nextIsNavigationBarOpaque,
+                                    isTitleVisible: nextIsNavigationBarTitleVisible,
+                                    lastIsOpaque: lastIsNavigationBarOpaque,
+                                    lastIsTitleVisible: lastIsNavigationBarTitleVisible,
+                                },
                             });
                         }, navigationBarTransitionDebounceScrollTimeoutMs);
                     }
@@ -1152,7 +1196,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             setScrollDirectionState({
                                 scrollDirection,
                                 navigationBarTopOffset,
-                                animateNavigationBarTranslateY: 0,
+                                animateNavigationBar: null,
                             });
                         });
                     }
@@ -1173,32 +1217,49 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     useLayoutEffectWithoutServerSideWarning(() => {
         const navigationBarElement = assertExists(navigationBarRef.current);
         const navigationBarBackgroundElement = assertExists(navigationBarBackgroundRef.current);
-        const navigationBarContentElement = assertExists(
-            navigationBarContentRef.current,
-        ).getElement();
+        const navigationBarContent = assertExists(navigationBarContentRef.current);
+        const navigationBarContentElement = navigationBarContent.getElement();
+        const navigationBarTitleElement = navigationBarContent.getTitleElement();
 
         if (lastAnimatedScrollDirectionStateRef.current === scrollDirectionState) return;
         lastAnimatedScrollDirectionStateRef.current = scrollDirectionState;
 
-        if (scrollDirectionState.animateNavigationBarTranslateY === 0) return;
+        if (!scrollDirectionState.animateNavigationBar) return;
+        const {
+            translateY,
+            isOpaque: isNavigationBarOpaque,
+            isTitleVisible: isNavigationBarTitleVisible,
+            lastIsOpaque: lastIsNavigationBarOpaque,
+            lastIsTitleVisible: lastIsNavigationBarTitleVisible,
+        } = scrollDirectionState.animateNavigationBar;
 
         const doesNavigationBarHaveSafeAreaInsetTop =
             navigationBarBackgroundElement.clientHeight > navigationBarContentElement.clientHeight;
 
         const timelineDefinition: Parameters<typeof timeline>[0] = [
-            [
-                navigationBarElement,
-                {y: [-scrollDirectionState.animateNavigationBarTranslateY, 0]},
-                {easing: "ease-in-out"},
-            ],
+            [navigationBarElement, {y: [-translateY, 0]}, {easing: "ease-in-out"}],
         ];
 
         if (doesNavigationBarHaveSafeAreaInsetTop) {
             timelineDefinition.push([
                 navigationBarContentElement,
-                {
-                    opacity: scrollDirectionState.animateNavigationBarTranslateY > 0 ? 1 : 0,
-                },
+                {opacity: translateY > 0 ? 1 : 0},
+                {at: "<", easing: "ease-in"},
+            ]);
+        }
+
+        if (isNavigationBarOpaque !== lastIsNavigationBarOpaque) {
+            timelineDefinition.push([
+                navigationBarBackgroundElement,
+                {opacity: isNavigationBarOpaque ? 1 : 0},
+                {at: "<", easing: "ease-in"},
+            ]);
+        }
+
+        if (isNavigationBarTitleVisible !== lastIsNavigationBarTitleVisible) {
+            timelineDefinition.push([
+                navigationBarTitleElement,
+                {opacity: isNavigationBarTitleVisible ? 1 : 0},
                 {at: "<", easing: "ease-in"},
             ]);
         }
