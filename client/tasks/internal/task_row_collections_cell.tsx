@@ -11,7 +11,9 @@ import {
     useRef,
     useState,
 } from "react";
+import {flushSync} from "react-dom";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
+import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -238,7 +240,19 @@ function TaskRowCollectionsCell(
 
     return (
         <div
-            ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
+            ref={useMergedRefs<HTMLDivElement>(
+                cellRef,
+                hoverRef,
+                useOutsideInteraction(() => {
+                    // `flushSync()` since we want to stop rendering the overlay at the same time as
+                    // the `<FocusRing>`.
+                    if (isFocusWithin) {
+                        flushSync(() => {
+                            setIsFocusWithin(false);
+                        });
+                    }
+                }),
+            )}
             data-testid={
                 process.env.NODE_ENV !== "production" ? "TaskRowCollectionsCell" : undefined
             }
@@ -249,9 +263,6 @@ function TaskRowCollectionsCell(
             )}
             style={{width: taskRowViewCollectionsColumnWidth}}
             onFocus={() => setIsFocusWithin(true)}
-            onBlur={event => {
-                setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
-            }}
             onKeyDown={event => {
                 switch (event.key) {
                     case "Backspace":
