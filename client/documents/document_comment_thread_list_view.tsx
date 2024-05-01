@@ -33,7 +33,12 @@ import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
-import {getMessageListItemKey, renderMessageListItem} from "~/client/messaging/messaging_view.js";
+import {
+    getMessageListItemKey,
+    messagingViewMarginBottom,
+    messagingViewMarginBottomCalcExpression,
+    renderMessageListItem,
+} from "~/client/messaging/messaging_view.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -229,6 +234,7 @@ function DocumentCommentThreadListView(
         navigationBar,
         scrollbarInsetTop,
         pinnedCommentInputRef,
+        isNativeMobileTabBarDisabled = false,
         backgroundSlopBottomIfPinnedCommentInput,
     }: {
         documentId: DocumentId;
@@ -299,6 +305,12 @@ function DocumentCommentThreadListView(
          * mobile layout and there's only one comment thread.
          */
         pinnedCommentInputRef?: Ref<MessageInputRef>;
+
+        /**
+         * Have we called `NativeMobileBridge.tabBar.disable()`? If true then we need
+         * to handle safe area a bit differently.
+         */
+        isNativeMobileTabBarDisabled?: boolean;
 
         /**
          * Add some background slop if there's a pinned comment input.
@@ -939,10 +951,18 @@ function DocumentCommentThreadListView(
                             // -2 instead of -1 since when
                             // `isSingleCommentThreadWithPinnedCommentInput` is true we don't
                             // actually render the final comment input item in `tree`.
+                            //
+                            // We intentionally use `--keyboard-safe-area-inset-bottom` here for comment
+                            // threads rendered on top of a document since the native tab bar is hidden in
+                            // this case.
                             index === tree.getItemCount() - 2
-                                ? backgroundSlopBottomIfPinnedCommentInput
-                                    ? `calc(var(--keyboard-safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px) + ${backgroundSlopBottomIfPinnedCommentInput})`
-                                    : "calc(var(--keyboard-safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px))"
+                                ? isNativeMobileTabBarDisabled
+                                    ? backgroundSlopBottomIfPinnedCommentInput
+                                        ? `calc(var(--keyboard-safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px) + ${backgroundSlopBottomIfPinnedCommentInput})`
+                                        : "calc(var(--keyboard-safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px))"
+                                    : backgroundSlopBottomIfPinnedCommentInput
+                                    ? `calc(${messagingViewMarginBottomCalcExpression} + ${backgroundSlopBottomIfPinnedCommentInput})`
+                                    : messagingViewMarginBottom
                                 : undefined,
                         render: node => (
                             <div
@@ -1158,6 +1178,7 @@ function DocumentCommentThreadListView(
             highlightComment,
             handleJumpToComment,
             isMobile,
+            isNativeMobileTabBarDisabled,
             backgroundSlopBottomIfPinnedCommentInput,
             space.id,
             replyingToCommentIndexByCommentThreadId,

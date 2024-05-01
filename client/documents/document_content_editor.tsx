@@ -1983,7 +1983,7 @@ function DocumentContentEditorSidebar({
     openCommentThread: Memo<(commentThreadId: DocumentCommentThreadId) => Promise<void>>;
 }) {
     const context = useAppContext();
-    const {isAppleDevice} = useClientInfo();
+    const {isAppleDevice, isNativeMobile} = useClientInfo();
 
     const previousCommentThreadButtonRef = useRef<HTMLElement & {press(): void}>(null);
     const nextCommentThreadButtonRef = useRef<HTMLElement & {press(): void}>(null);
@@ -2257,6 +2257,9 @@ function DocumentContentEditorSidebar({
                                 // because we have less space.
                                 paddingX="4"
                                 pinnedCommentInputRef={pinnedCommentInputRef}
+                                // We disable the tab bar while a comment thread is open to get more vertical
+                                // space. This changes how our component should handle safe area insets.
+                                isNativeMobileTabBarDisabled={isNativeMobile && withMobileLayout}
                                 // When on mobile, add some background slop so we can easily animate our
                                 // comment thread list view to the full screen size.
                                 backgroundSlopBottomIfPinnedCommentInput={
@@ -2277,6 +2280,7 @@ function DocumentContentEditorSidebar({
                         initialDataResult.value,
                         isConnected,
                         isMobile,
+                        isNativeMobile,
                         mobileState,
                         onCommentThreadSnippetPress,
                         pinnedCommentInputRef,

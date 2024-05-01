@@ -1,6 +1,8 @@
-import {useMemo} from "react";
+import {CaretLeft, CaretRight} from "phosphor-react";
+import {useMemo, useState} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
+import {IconButton} from "~/client/design/icon_button.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {
@@ -28,6 +30,7 @@ import {
 } from "~/shared/documents/document_model.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -107,7 +110,7 @@ export default function DocumentNewCommentThreadsRoute({
 
     const {
         document: initialDocument,
-        commentThreads,
+        commentThreads: initialCommentThreads,
         initialCommentsByCommentThreadId,
     } = useLoaderDataWithSchema(LoaderSchema);
 
@@ -140,10 +143,62 @@ export default function DocumentNewCommentThreadsRoute({
         },
     });
 
+    const commentThreadCount = initialCommentThreads.length;
+
+    const initialCommentThreadsResult = useMemo(
+        () =>
+            initialCommentThreads.map(commentThread => ({
+                commentThread,
+                comments: initialCommentsByCommentThreadId.get(commentThread.id)?.comments ?? [],
+                otherReferencedComments:
+                    initialCommentsByCommentThreadId.get(commentThread.id)
+                        ?.otherReferencedComments ?? [],
+                optimisticComments: [],
+            })),
+        [initialCommentThreads, initialCommentsByCommentThreadId],
+    );
+
+    const [mobileCurrentCommentThreadIndexFromState, setMobileCurrentCommentThreadIndex] =
+        useState<number>(0);
+
+    const mobileCurrentCommentThreadIndex = isMobile
+        ? clamp(0, mobileCurrentCommentThreadIndexFromState, commentThreadCount - 1)
+        : 0;
+    if (mobileCurrentCommentThreadIndex !== mobileCurrentCommentThreadIndexFromState) {
+        setMobileCurrentCommentThreadIndex(mobileCurrentCommentThreadIndex);
+    }
+
+    // NOCOMMIT: Load more comments when switching between comment threads
     const navigationBar = useNavigationBar({
         isDisabled: !withMobileLayout,
         withMobileLayout,
-        title: (
+        title: isMobile ? (
+            <Box display="flex" justifyContent="center" alignItems="center" gap="1">
+                <IconButton
+                    size="md"
+                    description="Previous thread"
+                    isDisabled={mobileCurrentCommentThreadIndex === 0}
+                    onPress={() =>
+                        setMobileCurrentCommentThreadIndex(mobileCurrentCommentThreadIndex - 1)
+                    }
+                >
+                    <CaretLeft />
+                </IconButton>
+                <Box minWidth="12" paddingX="1.5" textAlign="center">
+                    Thread {mobileCurrentCommentThreadIndex + 1} of {commentThreadCount}
+                </Box>
+                <IconButton
+                    size="md"
+                    description="Next thread"
+                    isDisabled={mobileCurrentCommentThreadIndex === commentThreadCount - 1}
+                    onPress={() =>
+                        setMobileCurrentCommentThreadIndex(mobileCurrentCommentThreadIndex + 1)
+                    }
+                >
+                    <CaretRight />
+                </IconButton>
+            </Box>
+        ) : (
             <span
                 {...titlePressProps}
                 className={sprinkles({
@@ -154,12 +209,16 @@ export default function DocumentNewCommentThreadsRoute({
                 {documentTitle}
             </span>
         ),
-        subtitle: "New comments",
+        subtitle: !isMobile ? "New comments" : undefined,
         withoutDisappearingTitle: true,
     });
 
     return (
         <DocumentCommentThreadListView
+            // When rendering for mobile, we render one comment thread at a time. Instead of
+            // rendering them all in a list. Since our sticky comment input UI pattern
+            // doesn't work particularly well on mobile.
+            key={isMobile ? `mobile-${mobileCurrentCommentThreadIndex}` : "desktop"}
             documentId={initialDocument.id}
             content={documentContent}
             isConnected={isConnected}
@@ -191,14 +250,14 @@ export default function DocumentNewCommentThreadsRoute({
                     });
                 });
             })}
-            initialCommentThreadsResult={commentThreads.map(commentThread => ({
-                commentThread,
-                comments: initialCommentsByCommentThreadId.get(commentThread.id)?.comments ?? [],
-                otherReferencedComments:
-                    initialCommentsByCommentThreadId.get(commentThread.id)
-                        ?.otherReferencedComments ?? [],
-                optimisticComments: [],
-            }))}
+            initialCommentThreadsResult={useMemo(
+                () =>
+                    // Show one comment thread at a time on mobile.
+                    isMobile
+                        ? [initialCommentThreadsResult[mobileCurrentCommentThreadIndex]!]
+                        : initialCommentThreadsResult,
+                [initialCommentThreadsResult, isMobile, mobileCurrentCommentThreadIndex],
+            )}
             navigationBar={navigationBar}
             header={useMemo(() => {
                 if (!withMobileLayout) return undefined;
