@@ -1,7 +1,10 @@
 import {ShouldRevalidateFunction, useSearchParams} from "@remix-run/react";
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
-import {DocumentContentEditor} from "~/client/documents/document_content_editor.js";
+import {
+    DocumentContentEditor,
+    DocumentContentEditorInitialScroll,
+} from "~/client/documents/document_content_editor.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -24,8 +27,9 @@ import {
     DocumentModel,
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
+import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
@@ -111,11 +115,21 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     const currentUrl = new URL(_currentUrl);
     const nextUrl = new URL(_nextUrl);
 
+    // Used when creating documents:
     nextUrl.searchParams.delete("create");
     currentUrl.searchParams.delete("create");
 
+    // Used to open a comment thread:
     nextUrl.searchParams.delete("comments");
     currentUrl.searchParams.delete("comments");
+
+    // Used to scroll to a specific comment in a comment thread:
+    nextUrl.searchParams.delete("comment");
+    currentUrl.searchParams.delete("comment");
+
+    // Used to scroll somewhere in the document:
+    nextUrl.searchParams.delete("scroll");
+    currentUrl.searchParams.delete("scroll");
 
     return nextUrl.toString() !== currentUrl.toString();
 };
@@ -126,6 +140,23 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
     const updateMetaTitle = useUpdateMetaTitle();
     const context = useAppContext();
     const {space} = useSpaceContext();
+
+    const [initialScroll] = useState((): DocumentContentEditorInitialScroll | null => {
+        const scrollString = searchParams.get("scroll");
+        if (!scrollString) return null;
+
+        // NOTE(calebmer): Prefix with `comments-` since in the future I could see us
+        // initially scrolling to headings or other things in the document.
+        if (scrollString.startsWith("comments-")) {
+            const commentThreadId = scrollString.slice(9);
+            if (!isId<DocumentCommentThreadId>(commentThreadId)) {
+                throw new InvalidArgumentError("Expected comment thread ID");
+            }
+            return {type: "CommentThread", commentThreadId};
+        }
+
+        return null;
+    });
 
     // Remove the `create` search param.
     useEffect(() => {
@@ -148,7 +179,10 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
             withMobileLayout={withMobileLayout}
             initialDocument={initialDocument}
             initialCommentThreadResult={commentThreadResult}
+            // Scrolling to an initial comment index is a little different than
+            // `initialScroll` since it depends on the comment thread being opened.
             initialScrollToCommentIndex={commentIndex}
+            initialScroll={initialScroll}
             onContentChange={content => {
                 updateMetaTitle(`${getDocumentContentTitle(content)}${metaTitlePostfix}`);
             }}

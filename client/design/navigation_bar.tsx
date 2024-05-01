@@ -50,6 +50,7 @@ import {
     subtractRemLengths,
 } from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -496,14 +497,10 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
 
     const navigationBarRef = useRef<{
         initialize: (element: HTMLElement) => void;
+        onResize: (element: HTMLElement) => void;
         onScroll: (element: HTMLElement) => void;
         onPrepareSmoothScrollTo: (element: HTMLElement, scrollTop: number) => void;
     } | null>(null);
-
-    const [scrollViewSize, setScrollViewSize] = useState<{height: number; width: number} | null>(
-        null,
-    );
-    if (scrollViewSize !== null && isDisabled) setScrollViewSize(null);
 
     const scrollViewRef = useLifecycleRef<HTMLElement>(
         useCallback(
@@ -511,16 +508,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
                 if (isDisabled) return;
 
                 const handleResize = () => {
-                    const newScrollViewSize = {
-                        height: element.offsetHeight,
-                        width: element.offsetWidth,
-                    };
-                    setScrollViewSize(scrollViewSize => {
-                        return newScrollViewSize.height !== scrollViewSize?.height ||
-                            newScrollViewSize.width !== scrollViewSize.width
-                            ? newScrollViewSize
-                            : scrollViewSize;
-                    });
+                    assertExists(navigationBarRef.current).onResize(element);
                 };
 
                 const handleScroll = () => {
@@ -534,21 +522,48 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
                     );
                 };
 
-                // Immediately populate the content rect with our element's dimensions
-                // on mount.
-                handleResize();
+                let isCancelled = false;
+                let cleanup: (() => void) | undefined;
 
-                assertExists(navigationBarRef.current).initialize(element);
+                // Run after a microtask so if a `useLayoutEffect()` scrolls the view then the
+                // scroll change is seen by `initialize()`. Initial scrolls shouldn't hide the
+                // navigation bar. Coincidentally, our native wrapper works the same way. It
+                // doesn't see the initial scroll.
+                //
+                // Test case: On mobile click a document comment thread preview (from a
+                // document comment thread notification) it should open the document scrolled
+                // to the comment (but without the comment thread open) and the navigation bar
+                // should be visible.
+                scheduleMicrotask(() => {
+                    if (isCancelled) return;
 
-                addResizeListenerForElement(element, handleResize);
-                element.addEventListener("scroll", handleScroll);
-                (element as any)[onNavigationBarPrepareSmoothScrollToSymbol] =
-                    handlePrepareSmoothScrollTo;
+                    // Call `flushSync()` since if this update was happening inside the layout
+                    // effect it would be synchronously flushed. We need changes from this function
+                    // to be applied before the next browser paint.
+                    flushSync(() => {
+                        assertExists(navigationBarRef.current).initialize(element);
+
+                        // Immediately populate the content rect with our element's dimensions
+                        // on mount.
+                        handleResize();
+
+                        addResizeListenerForElement(element, handleResize);
+                        element.addEventListener("scroll", handleScroll);
+                        (element as any)[onNavigationBarPrepareSmoothScrollToSymbol] =
+                            handlePrepareSmoothScrollTo;
+
+                        cleanup = () => {
+                            element.removeEventListener("scroll", handleScroll);
+                            removeResizeListenerForElement(element, handleResize);
+                            (element as any)[onNavigationBarPrepareSmoothScrollToSymbol] =
+                                undefined;
+                        };
+                    });
+                });
 
                 return () => {
-                    element.removeEventListener("scroll", handleScroll);
-                    removeResizeListenerForElement(element, handleResize);
-                    (element as any)[onNavigationBarPrepareSmoothScrollToSymbol] = undefined;
+                    isCancelled = true;
+                    cleanup?.();
                 };
             },
             [isDisabled],
@@ -569,7 +584,6 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             isMobile={isMobile}
             withMobileLayout={withMobileLayout || isMobile}
             handleRef={navigationBarRef}
-            scrollViewSize={scrollViewSize}
             navigationBarRef={ref}
             title={title}
             titleBoundaryRef={titleBoundaryRef}
@@ -626,7 +640,6 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     isMobile,
     withMobileLayout,
     handleRef,
-    scrollViewSize,
     navigationBarRef: externalNavigationBarRef,
     title,
     titleBoundaryRef,
@@ -651,9 +664,9 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     handleRef: MutableRefObject<{
         initialize: (element: HTMLElement) => void;
         onScroll: (element: HTMLElement) => void;
+        onResize: (element: HTMLElement) => void;
         onPrepareSmoothScrollTo: (element: HTMLElement, scrollTop: number) => void;
     } | null>;
-    scrollViewSize: {width: number; height: number} | null;
     navigationBarRef: Ref<NavigationBarRef> | undefined;
     title: ReactNode;
     titleBoundaryRef: RefObject<TitleBoundaryElement> | undefined;
@@ -674,6 +687,10 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     onMobileCancel: (() => void) | undefined;
 }) {
     const {isAppleDevice, isNativeMobile} = useClientInfo();
+
+    const [scrollViewSize, setScrollViewSize] = useState<{height: number; width: number} | null>(
+        null,
+    );
 
     const navigationBarHeightRem = isMobile
         ? mobileNavigationBarHeightRem
@@ -735,472 +752,584 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     useImperativeHandle(
         handleRef,
         () => {
+            let navigationBarContainerElement: HTMLDivElement | undefined;
+            let navigationBarBackgroundElement: HTMLDivElement | undefined;
+            let navigationBarContent: NavigationBarContentRef | undefined;
+            let navigationBarContentElement: HTMLElement | undefined;
+            let navigationBarTitleElement: HTMLElement | undefined;
+
             let scrollDebounceTimeout: Timeout | null = null;
 
-            return {
-                initialize: (element: HTMLElement) => {
-                    const scrollOffset = Math.max(0, element.scrollTop);
+            const getTitleBoundaryOffset = (element: HTMLElement): number | null => {
+                navigationBarBackgroundElement ??= assertExists(navigationBarBackgroundRef.current);
+                navigationBarContent ??= assertExists(navigationBarContentRef.current);
+                navigationBarContentElement ??= navigationBarContent.getElement();
 
-                    lastScrollOffsetRef.current = scrollOffset;
-                    lastScrollHeightRef.current = element.scrollHeight;
-                    lastScrollDirectionRef.current = "Down";
-                    lastNavigationBarTopOffsetRef.current = scrollOffset;
+                if (withoutDisappearingTitle) return null;
+                if (!titleBoundaryRef?.current) return null;
 
-                    scrollDebounceTimeout?.clear();
-                    scrollDebounceTimeout = null;
-                },
-                onScroll: (element: HTMLElement) => {
-                    const navigationBarContainerElement = assertExists(
-                        navigationBarContainerRef.current,
-                    );
-                    const navigationBarBackgroundElement = assertExists(
-                        navigationBarBackgroundRef.current,
-                    );
-                    const navigationBarContent = assertExists(navigationBarContentRef.current);
-                    const navigationBarContentElement = navigationBarContent.getElement();
-                    const navigationBarTitleElement = navigationBarContent.getTitleElement();
+                let titleBoundaryParentElement: HTMLElement = titleBoundaryRef.current;
 
-                    const doesNavigationBarHaveSafeAreaInsetTop =
-                        navigationBarBackgroundElement.clientHeight >
-                        navigationBarContentElement.clientHeight;
+                let titleBoundaryOffset =
+                    titleBoundaryParentElement.offsetTop + titleBoundaryParentElement.clientHeight;
+                while (
+                    titleBoundaryParentElement.offsetParent instanceof HTMLElement &&
+                    titleBoundaryParentElement.offsetParent !== element
+                ) {
+                    titleBoundaryParentElement = titleBoundaryParentElement.offsetParent;
+                    titleBoundaryOffset += titleBoundaryParentElement.offsetTop;
+                }
 
-                    // Web code only: I've observed in mobile Safari if focus changes because the
-                    // focused element was removed from the DOM a `focusout` event is not
-                    // dispatched. So we manually check on scroll events if the focused element is
-                    // still in the DOM.
-                    //
-                    // We check on scroll events since the main reason a focused element would
-                    // unmount is a `<VirtualizedScrollView>` scrolls the element out of the
-                    // virtualization window.
-                    navigationBarContent.reconcileFocusedTextInputIfMobile();
+                // If the title boundary element is not in our scroll view then consider our
+                // boundary offset to be unset.
+                if (titleBoundaryParentElement.offsetParent !== element) return null;
 
-                    // Clamp scroll offset so it's not affected by overscroll at the top of the
-                    // scroll view. Overscroll at the bottom of the scroll view is desired! We want
-                    // the top bar (which should be collapsed) to continue with the scroll window
-                    // when at the bottom of the view.
-                    //
-                    // This also creates a neat effect where when the overscroll bounces back the
-                    // navigation bar is revealed. If the user is at the end of the scroll view
-                    // they probably need the navigation bar to navigate out.
-                    const scrollOffset = Math.max(0, element.scrollTop);
+                // If our scroll view has safe area then don't include the safe area in the
+                // scroll offset. The scroll offset starts below our safe area.
+                titleBoundaryOffset -= Math.max(
+                    0,
+                    navigationBarBackgroundElement.clientHeight -
+                        navigationBarContentElement.clientHeight,
+                );
 
-                    // Sometimes native code sends us a scroll event twice for the same scroll
-                    // offset. Since scroll offsets may not be integers (e.g. 574.3333) this may be
-                    // the fractional part changing but when rounded there's no change. Whatever
-                    // the reason, ignore scroll events that repeat a scroll offset.
-                    if (scrollOffset === lastScrollOffsetRef.current) return;
+                // Hide the title a bit after the title is actually in view.
+                titleBoundaryOffset -= 0.5 * getRemPxWithoutListening();
 
-                    const {scrollHeight, clientHeight} = element;
+                return titleBoundaryOffset;
+            };
 
-                    // Immediately finish any animations when scrolling begins.
-                    if (animationControlsRef.current) {
-                        const animationControls = animationControlsRef.current;
-                        animationControlsRef.current = null;
+            const initialize = (element: HTMLElement) => {
+                navigationBarBackgroundElement ??= assertExists(navigationBarBackgroundRef.current);
+                navigationBarContent ??= assertExists(navigationBarContentRef.current);
+                navigationBarTitleElement ??= navigationBarContent.getTitleElement();
 
-                        for (const animationControl of animationControls) {
-                            animationControl.finish();
-                        }
+                // Immediately finish any animations when scrolling begins.
+                if (animationControlsRef.current) {
+                    const animationControls = animationControlsRef.current;
+                    animationControlsRef.current = null;
+
+                    for (const animationControl of animationControls) {
+                        animationControl.finish();
                     }
+                }
 
-                    const remPx = getRemPxWithoutListening();
-                    const navigationBarHeight = navigationBarHeightRem * remPx;
+                scrollDebounceTimeout?.clear();
+                scrollDebounceTimeout = null;
 
-                    const lastScrollOffset = lastScrollOffsetRef.current;
-                    lastScrollOffsetRef.current = scrollOffset;
+                const remPx = getRemPxWithoutListening();
+                const navigationBarHeight = navigationBarHeightRem * remPx;
 
-                    const lastScrollHeight = lastScrollHeightRef.current;
-                    lastScrollHeightRef.current = scrollHeight;
+                const scrollOffset = Math.max(0, element.scrollTop);
 
-                    // Edge case: If we resized and scrolled down at the same time (and scrolled
-                    // the same amount we resized) then we don't want our navigation bar's scroll
-                    // offset to change.
-                    //
-                    // This happens when the typing indicator appears then disappears. Try going to
-                    // a chat then typing in another tab to show the typing indicator, wait for it
-                    // to disappear, then type again. Do this a couple times. When the typing
-                    // indicator appears the view scrolls down to show it. We don't want that
-                    // scroll down to hide our tab bar.
-                    //
-                    // Ideally this logic would run only after a resize and before the resize
-                    // paints to the screen, but web code doesn't have a good way to listen for
-                    // scroll view content resize. (Whereas in iOS native code we can use KVO to
-                    // listen to `contentSize` on `UIScrollView`.)
-                    if (
-                        scrollOffset > lastScrollOffset &&
-                        scrollOffset - lastScrollOffset == scrollHeight - lastScrollHeight
-                    ) {
-                        const lastNavigationBarScrollOffset = clamp(
-                            0,
-                            lastScrollOffset - lastNavigationBarTopOffsetRef.current,
-                            navigationBarHeight,
-                        );
+                const lastScrollDirection = lastScrollDirectionRef.current;
+                const lastNavigationBarTopOffset = lastNavigationBarTopOffsetRef.current;
+                const lastIsNavigationBarOpaque = lastIsNavigationBarOpaqueRef.current;
+                const lastIsNavigationBarTitleVisible = lastIsNavigationBarTitleVisibleRef.current;
 
-                        const navigationBarTopOffset = scrollOffset - lastNavigationBarScrollOffset;
-                        lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
+                lastScrollOffsetRef.current = scrollOffset;
+                lastScrollHeightRef.current = element.scrollHeight;
+                // Initialize scroll direction to `Up` if the scroll view has initially
+                // scrolled since we've observed some janky when immediately scrolling up after
+                // initialization.
+                const scrollDirection = (lastScrollDirectionRef.current =
+                    scrollOffset > navigationBarHeight ? "Up" : "Down");
+                const navigationBarTopOffset = (lastNavigationBarTopOffsetRef.current =
+                    scrollOffset);
 
-                        // Immediately update our sticky positioning CSS to avoid potential jankiness.
-                        flushSync(() => {
-                            setScrollDirectionState({
-                                scrollDirection: lastScrollDirectionRef.current,
-                                navigationBarTopOffset: Math.max(
-                                    0,
-                                    navigationBarTopOffset -
-                                        (!isMobile ? desktopMarginTopRem * remPx : 0),
-                                ),
-                                animateNavigationBar: null,
-                            });
+                const isNavigationBarOpaque = (lastIsNavigationBarOpaqueRef.current =
+                    scrollOffset > navigationBarHeight);
+
+                const titleBoundaryOffset = getTitleBoundaryOffset(element);
+
+                const isNavigationBarTitleVisible = (lastIsNavigationBarTitleVisibleRef.current =
+                    withoutDisappearingTitle ||
+                    (isNavigationBarOpaque &&
+                        (titleBoundaryOffset === null ||
+                            scrollOffset >= titleBoundaryOffset - navigationBarHeight)));
+
+                if (
+                    lastScrollDirection !== scrollDirection ||
+                    lastNavigationBarTopOffset !== navigationBarTopOffset
+                ) {
+                    flushSync(() => {
+                        setScrollDirectionState({
+                            scrollDirection,
+                            navigationBarTopOffset,
+                            animateNavigationBar: null,
                         });
+                    });
+                }
+
+                if (isNavigationBarOpaque !== lastIsNavigationBarOpaque) {
+                    navigationBarBackgroundElement.style.opacity = isNavigationBarOpaque
+                        ? "1"
+                        : "0";
+                    navigationBarBackgroundElement.style.pointerEvents = isNavigationBarOpaque
+                        ? "auto"
+                        : "none";
+                    navigationBarBackgroundElement.style.pointerEvents = isNavigationBarOpaque
+                        ? "80"
+                        : "40";
+                    navigationBarBackgroundElement.classList.remove(
+                        navigationBarBackgroundFadeOutAnimationClassName,
+                    );
+                }
+
+                if (isNavigationBarTitleVisible !== lastIsNavigationBarTitleVisible) {
+                    navigationBarTitleElement.style.opacity = isNavigationBarTitleVisible
+                        ? "1"
+                        : "0";
+                    navigationBarTitleElement.style.pointerEvents = isNavigationBarTitleVisible
+                        ? "auto"
+                        : "none";
+                    navigationBarTitleElement.classList.remove(
+                        navigationBarTitleFadeOutAnimationClassName,
+                    );
+                }
+            };
+
+            const onResize = (element: HTMLElement) => {
+                const newScrollViewSize = {
+                    height: element.offsetHeight,
+                    width: element.offsetWidth,
+                };
+                setScrollViewSize(scrollViewSize => {
+                    return newScrollViewSize.height !== scrollViewSize?.height ||
+                        newScrollViewSize.width !== scrollViewSize.width
+                        ? newScrollViewSize
+                        : scrollViewSize;
+                });
+            };
+
+            const onScroll = (element: HTMLElement) => {
+                navigationBarContainerElement ??= assertExists(navigationBarContainerRef.current);
+                navigationBarBackgroundElement ??= assertExists(navigationBarBackgroundRef.current);
+                navigationBarContent ??= assertExists(navigationBarContentRef.current);
+                navigationBarContentElement ??= navigationBarContent.getElement();
+                navigationBarTitleElement ??= navigationBarContent.getTitleElement();
+
+                const doesNavigationBarHaveSafeAreaInsetTop =
+                    navigationBarBackgroundElement.clientHeight >
+                    navigationBarContentElement.clientHeight;
+
+                // Web code only: I've observed in mobile Safari if focus changes because the
+                // focused element was removed from the DOM a `focusout` event is not
+                // dispatched. So we manually check on scroll events if the focused element is
+                // still in the DOM.
+                //
+                // We check on scroll events since the main reason a focused element would
+                // unmount is a `<VirtualizedScrollView>` scrolls the element out of the
+                // virtualization window.
+                navigationBarContent.reconcileFocusedTextInputIfMobile();
+
+                // Clamp scroll offset so it's not affected by overscroll at the top of the
+                // scroll view. Overscroll at the bottom of the scroll view is desired! We want
+                // the top bar (which should be collapsed) to continue with the scroll window
+                // when at the bottom of the view.
+                //
+                // This also creates a neat effect where when the overscroll bounces back the
+                // navigation bar is revealed. If the user is at the end of the scroll view
+                // they probably need the navigation bar to navigate out.
+                const scrollOffset = Math.max(0, element.scrollTop);
+
+                // Sometimes native code sends us a scroll event twice for the same scroll
+                // offset. Since scroll offsets may not be integers (e.g. 574.3333) this may be
+                // the fractional part changing but when rounded there's no change. Whatever
+                // the reason, ignore scroll events that repeat a scroll offset.
+                if (scrollOffset === lastScrollOffsetRef.current) return;
+
+                const {scrollHeight, clientHeight} = element;
+
+                // Immediately finish any animations when scrolling begins.
+                if (animationControlsRef.current) {
+                    const animationControls = animationControlsRef.current;
+                    animationControlsRef.current = null;
+
+                    for (const animationControl of animationControls) {
+                        animationControl.finish();
                     }
+                }
 
-                    const scrollDirection = scrollOffset > lastScrollOffset ? "Down" : "Up";
-                    const lastScrollDirection = lastScrollDirectionRef.current;
-                    lastScrollDirectionRef.current = scrollDirection;
+                const remPx = getRemPxWithoutListening();
+                const navigationBarHeight = navigationBarHeightRem * remPx;
 
-                    const lastNavigationBarTopOffset = lastNavigationBarTopOffsetRef.current;
-                    let navigationBarTopOffset = lastNavigationBarTopOffset;
+                const lastScrollOffset = lastScrollOffsetRef.current;
+                lastScrollOffsetRef.current = scrollOffset;
 
+                const lastScrollHeight = lastScrollHeightRef.current;
+                lastScrollHeightRef.current = scrollHeight;
+
+                // Edge case: If we resized and scrolled down at the same time (and scrolled
+                // the same amount we resized) then we don't want our navigation bar's scroll
+                // offset to change.
+                //
+                // This happens when the typing indicator appears then disappears. Try going to
+                // a chat then typing in another tab to show the typing indicator, wait for it
+                // to disappear, then type again. Do this a couple times. When the typing
+                // indicator appears the view scrolls down to show it. We don't want that
+                // scroll down to hide our tab bar.
+                //
+                // Ideally this logic would run only after a resize and before the resize
+                // paints to the screen, but web code doesn't have a good way to listen for
+                // scroll view content resize. (Whereas in iOS native code we can use KVO to
+                // listen to `contentSize` on `UIScrollView`.)
+                if (
+                    scrollOffset > lastScrollOffset &&
+                    scrollOffset - lastScrollOffset == scrollHeight - lastScrollHeight
+                ) {
                     const lastNavigationBarScrollOffset = clamp(
                         0,
-                        lastScrollOffset - lastNavigationBarTopOffset,
+                        lastScrollOffset - lastNavigationBarTopOffsetRef.current,
                         navigationBarHeight,
                     );
 
-                    if (scrollDirection !== lastScrollDirection) {
-                        navigationBarTopOffset = lastScrollOffset - lastNavigationBarScrollOffset;
-                        lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
+                    const navigationBarTopOffset = scrollOffset - lastNavigationBarScrollOffset;
+                    lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
 
-                        // Immediately update our sticky positioning CSS to avoid potential jankiness.
-                        flushSync(() => {
-                            setScrollDirectionState({
-                                scrollDirection,
-                                navigationBarTopOffset: Math.max(
-                                    0,
-                                    navigationBarTopOffset -
-                                        (!isMobile ? desktopMarginTopRem * remPx : 0),
-                                ),
-                                animateNavigationBar: null,
-                            });
+                    // Immediately update our sticky positioning CSS to avoid potential jankiness.
+                    flushSync(() => {
+                        setScrollDirectionState({
+                            scrollDirection: lastScrollDirectionRef.current,
+                            navigationBarTopOffset: Math.max(
+                                0,
+                                navigationBarTopOffset -
+                                    (!isMobile ? desktopMarginTopRem * remPx : 0),
+                            ),
+                            animateNavigationBar: null,
                         });
+                    });
+                }
+
+                const scrollDirection = scrollOffset > lastScrollOffset ? "Down" : "Up";
+                const lastScrollDirection = lastScrollDirectionRef.current;
+                lastScrollDirectionRef.current = scrollDirection;
+
+                const lastNavigationBarTopOffset = lastNavigationBarTopOffsetRef.current;
+                let navigationBarTopOffset = lastNavigationBarTopOffset;
+
+                const lastNavigationBarScrollOffset = clamp(
+                    0,
+                    lastScrollOffset - lastNavigationBarTopOffset,
+                    navigationBarHeight,
+                );
+
+                if (scrollDirection !== lastScrollDirection) {
+                    navigationBarTopOffset = lastScrollOffset - lastNavigationBarScrollOffset;
+                    lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
+
+                    // Immediately update our sticky positioning CSS to avoid potential jankiness.
+                    flushSync(() => {
+                        setScrollDirectionState({
+                            scrollDirection,
+                            navigationBarTopOffset: Math.max(
+                                0,
+                                navigationBarTopOffset -
+                                    (!isMobile ? desktopMarginTopRem * remPx : 0),
+                            ),
+                            animateNavigationBar: null,
+                        });
+                    });
+                }
+
+                const navigationBarScrollOffset = clamp(
+                    0,
+                    scrollOffset - navigationBarTopOffset,
+                    navigationBarHeight,
+                );
+
+                // The following is web code only: Change whether navigation bar is translucent
+                // or opaque based on how far the page has been scrolled.
+                //
+                // The navigation bar is translucent at the top of the screen and rests inline
+                // with the content. As you scroll it becomes an opaque, fixed, navigation bar.
+                // In general, when your scroll offset is 0 the navigation bar is translucent.
+                // If your scroll offset is greater than 0 the navigation bar is opaque. With
+                // an exception for when you scroll down for the first time. Since when
+                // scrolling down for the first time, the navigation bar is not sticky so it
+                // would be weird if it jumped from translucent to opaque.
+                //
+                // Additionally, if we have some safe area at the top of our screen then the
+                // navigation bar content moves into the safe area. We need to decrease the
+                // content opacity to zero so it doesn't conflict with operation system content
+                // in the safe area.
+                {
+                    const lastIsNavigationBarOpaque = lastIsNavigationBarOpaqueRef.current;
+                    const lastIsNavigationBarTitleVisible =
+                        lastIsNavigationBarTitleVisibleRef.current;
+
+                    const isNavigationBarOpaque = lastIsNavigationBarOpaque
+                        ? scrollOffset > 0
+                        : scrollOffset >
+                          navigationBarHeight + (!isMobile ? desktopMarginTopRem * remPx : 0);
+
+                    const titleBoundaryOffset = getTitleBoundaryOffset(element);
+
+                    const isNavigationBarTitleVisible =
+                        withoutDisappearingTitle ||
+                        (isNavigationBarOpaque &&
+                            (titleBoundaryOffset === null ||
+                                scrollOffset >= titleBoundaryOffset - navigationBarHeight) &&
+                            (navigationBarScrollOffset >= navigationBarHeight ||
+                                lastIsNavigationBarTitleVisible));
+
+                    lastIsNavigationBarOpaqueRef.current = isNavigationBarOpaque;
+                    lastIsNavigationBarTitleVisibleRef.current = isNavigationBarTitleVisible;
+
+                    // If our navigation bar includes some safe area inset then as we scroll up we
+                    // want to decrease the opacity of content in the navigation bar so it doesn't
+                    // conflict with operating system content in the safe area.
+                    if (
+                        doesNavigationBarHaveSafeAreaInsetTop &&
+                        navigationBarScrollOffset !== lastNavigationBarScrollOffset
+                    ) {
+                        const navigationBarScrollPercentage =
+                            navigationBarScrollOffset / navigationBarHeight;
+
+                        if (isNavigationBarOpaque) {
+                            navigationBarBackgroundElement.style.opacity = "1";
+                            navigationBarBackgroundElement.style.pointerEvents = "auto";
+
+                            // Render over overlays while opaque.
+                            navigationBarContainerElement.style.zIndex = "80";
+                        } else {
+                            navigationBarBackgroundElement.style.opacity = `${navigationBarScrollPercentage}`;
+                            navigationBarBackgroundElement.style.pointerEvents =
+                                navigationBarScrollPercentage === 0 ? "none" : "auto";
+
+                            // Render under overlays while translucent.
+                            navigationBarContainerElement.style.zIndex = "40";
+                        }
+
+                        // If we have a fade out animation running, cancel it.
+                        navigationBarBackgroundElement.classList.remove(
+                            navigationBarBackgroundFadeOutAnimationClassName,
+                        );
+
+                        // NOTE(calebmer): I'm seeing some issues in mobile Safari when using
+                        // `scrollTo({behavior: "smooth"})` which is an animation driven by iOS's UI
+                        // thread and not the web thread. This causes some jankiness as JavaScript is
+                        // behind native so opacity may not be updated in a timely manner.
+                        //
+                        // I'd love to move these opacity updates to [CSS scroll-driven animations][1]
+                        // when they're available in WebKit.
+                        //
+                        // [1]: https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_scroll-driven_animations
+                        navigationBarContentElement.style.opacity = `${
+                            1 - Math.min(1, navigationBarScrollPercentage * 2)
+                        }`;
                     }
 
-                    const navigationBarScrollOffset = clamp(
-                        0,
-                        scrollOffset - navigationBarTopOffset,
-                        navigationBarHeight,
-                    );
+                    // Handle the transition from a translucent navigation bar to an opaque
+                    // navigation bar.
+                    if (lastIsNavigationBarOpaque !== isNavigationBarOpaque) {
+                        if (!isNavigationBarOpaque) {
+                            navigationBarBackgroundElement.style.opacity = "0";
+                            navigationBarBackgroundElement.style.pointerEvents = "none";
 
-                    // The following is web code only:
-                    const getTitleBoundaryOffset = (): number | null => {
-                        if (withoutDisappearingTitle) return null;
-                        if (!titleBoundaryRef?.current) return null;
+                            navigationBarBackgroundElement.classList.add(
+                                navigationBarBackgroundFadeOutAnimationClassName,
+                            );
 
-                        let titleBoundaryParentElement: HTMLElement = titleBoundaryRef.current;
+                            // Render under overlays while translucent.
+                            navigationBarContainerElement.style.zIndex = "40";
+                        } else {
+                            navigationBarBackgroundElement.style.opacity = "1";
+                            navigationBarBackgroundElement.style.pointerEvents = "auto";
 
-                        let titleBoundaryOffset =
-                            titleBoundaryParentElement.offsetTop +
-                            titleBoundaryParentElement.clientHeight;
-                        while (
-                            titleBoundaryParentElement.offsetParent instanceof HTMLElement &&
-                            titleBoundaryParentElement.offsetParent !== element
-                        ) {
-                            titleBoundaryParentElement = titleBoundaryParentElement.offsetParent;
-                            titleBoundaryOffset += titleBoundaryParentElement.offsetTop;
-                        }
-
-                        // If the title boundary element is not in our scroll view then consider our
-                        // boundary offset to be unset.
-                        if (titleBoundaryParentElement.offsetParent !== element) return null;
-
-                        // If our scroll view has safe area then don't include the safe area in the
-                        // scroll offset. The scroll offset starts below our safe area.
-                        if (doesNavigationBarHaveSafeAreaInsetTop) {
-                            titleBoundaryOffset -=
-                                navigationBarBackgroundElement.clientHeight -
-                                navigationBarContentElement.clientHeight;
-                        }
-
-                        // Hide the title a bit after the title is actually in view.
-                        titleBoundaryOffset -= 0.5 * remPx;
-
-                        return titleBoundaryOffset;
-                    };
-
-                    // The following is web code only: Change whether navigation bar is translucent
-                    // or opaque based on how far the page has been scrolled.
-                    //
-                    // The navigation bar is translucent at the top of the screen and rests inline
-                    // with the content. As you scroll it becomes an opaque, fixed, navigation bar.
-                    // In general, when your scroll offset is 0 the navigation bar is translucent.
-                    // If your scroll offset is greater than 0 the navigation bar is opaque. With
-                    // an exception for when you scroll down for the first time. Since when
-                    // scrolling down for the first time, the navigation bar is not sticky so it
-                    // would be weird if it jumped from translucent to opaque.
-                    //
-                    // Additionally, if we have some safe area at the top of our screen then the
-                    // navigation bar content moves into the safe area. We need to decrease the
-                    // content opacity to zero so it doesn't conflict with operation system content
-                    // in the safe area.
-                    {
-                        const lastIsNavigationBarOpaque = lastIsNavigationBarOpaqueRef.current;
-                        const lastIsNavigationBarTitleVisible =
-                            lastIsNavigationBarTitleVisibleRef.current;
-
-                        const isNavigationBarOpaque = lastIsNavigationBarOpaque
-                            ? scrollOffset > 0
-                            : scrollOffset >
-                              navigationBarHeight + (!isMobile ? desktopMarginTopRem * remPx : 0);
-
-                        const titleBoundaryOffset = getTitleBoundaryOffset();
-
-                        const isNavigationBarTitleVisible =
-                            withoutDisappearingTitle ||
-                            (isNavigationBarOpaque &&
-                                (titleBoundaryOffset === null ||
-                                    scrollOffset >= titleBoundaryOffset - navigationBarHeight) &&
-                                (navigationBarScrollOffset >= navigationBarHeight ||
-                                    lastIsNavigationBarTitleVisible));
-
-                        lastIsNavigationBarOpaqueRef.current = isNavigationBarOpaque;
-                        lastIsNavigationBarTitleVisibleRef.current = isNavigationBarTitleVisible;
-
-                        // If our navigation bar includes some safe area inset then as we scroll up we
-                        // want to decrease the opacity of content in the navigation bar so it doesn't
-                        // conflict with operating system content in the safe area.
-                        if (
-                            doesNavigationBarHaveSafeAreaInsetTop &&
-                            navigationBarScrollOffset !== lastNavigationBarScrollOffset
-                        ) {
-                            const navigationBarScrollPercentage =
-                                navigationBarScrollOffset / navigationBarHeight;
-
-                            if (isNavigationBarOpaque) {
-                                navigationBarBackgroundElement.style.opacity = "1";
-                                navigationBarBackgroundElement.style.pointerEvents = "auto";
-
-                                // Render over overlays while opaque.
-                                navigationBarContainerElement.style.zIndex = "80";
-                            } else {
-                                navigationBarBackgroundElement.style.opacity = `${navigationBarScrollPercentage}`;
-                                navigationBarBackgroundElement.style.pointerEvents =
-                                    navigationBarScrollPercentage === 0 ? "none" : "auto";
-
-                                // Render under overlays while translucent.
-                                navigationBarContainerElement.style.zIndex = "40";
-                            }
-
-                            // If we have a fade out animation running, cancel it.
                             navigationBarBackgroundElement.classList.remove(
                                 navigationBarBackgroundFadeOutAnimationClassName,
                             );
 
-                            // NOTE(calebmer): I'm seeing some issues in mobile Safari when using
-                            // `scrollTo({behavior: "smooth"})` which is an animation driven by iOS's UI
-                            // thread and not the web thread. This causes some jankiness as JavaScript is
-                            // behind native so opacity may not be updated in a timely manner.
-                            //
-                            // I'd love to move these opacity updates to [CSS scroll-driven animations][1]
-                            // when they're available in WebKit.
-                            //
-                            // [1]: https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_scroll-driven_animations
-                            navigationBarContentElement.style.opacity = `${
-                                1 - Math.min(1, navigationBarScrollPercentage * 2)
-                            }`;
-                        }
-
-                        // Handle the transition from a translucent navigation bar to an opaque
-                        // navigation bar.
-                        if (lastIsNavigationBarOpaque !== isNavigationBarOpaque) {
-                            if (!isNavigationBarOpaque) {
-                                navigationBarBackgroundElement.style.opacity = "0";
-                                navigationBarBackgroundElement.style.pointerEvents = "none";
-
-                                navigationBarBackgroundElement.classList.add(
-                                    navigationBarBackgroundFadeOutAnimationClassName,
-                                );
-
-                                // Render under overlays while translucent.
-                                navigationBarContainerElement.style.zIndex = "40";
-                            } else {
-                                navigationBarBackgroundElement.style.opacity = "1";
-                                navigationBarBackgroundElement.style.pointerEvents = "auto";
-
-                                navigationBarBackgroundElement.classList.remove(
-                                    navigationBarBackgroundFadeOutAnimationClassName,
-                                );
-
-                                // Render over overlays while opaque.
-                                navigationBarContainerElement.style.zIndex = "80";
-                            }
-                        }
-
-                        // Handle the transition from a visible navigation bar title to a hidden
-                        // navigation bar title.
-                        if (lastIsNavigationBarTitleVisible !== isNavigationBarTitleVisible) {
-                            if (!isNavigationBarTitleVisible) {
-                                navigationBarTitleElement.style.opacity = "0";
-                                navigationBarTitleElement.style.pointerEvents = "none";
-
-                                navigationBarTitleElement.classList.add(
-                                    navigationBarTitleFadeOutAnimationClassName,
-                                );
-                            } else {
-                                navigationBarTitleElement.style.opacity = "1";
-                                navigationBarTitleElement.style.pointerEvents = "auto";
-
-                                navigationBarTitleElement.classList.remove(
-                                    navigationBarTitleFadeOutAnimationClassName,
-                                );
-                            }
+                            // Render over overlays while opaque.
+                            navigationBarContainerElement.style.zIndex = "80";
                         }
                     }
 
-                    scrollDebounceTimeout?.clear();
-                    scrollDebounceTimeout = null;
+                    // Handle the transition from a visible navigation bar title to a hidden
+                    // navigation bar title.
+                    if (lastIsNavigationBarTitleVisible !== isNavigationBarTitleVisible) {
+                        if (!isNavigationBarTitleVisible) {
+                            navigationBarTitleElement.style.opacity = "0";
+                            navigationBarTitleElement.style.pointerEvents = "none";
 
-                    // We only need a timeout to run our reveal/hide animation if the navigation
-                    // bar:
-                    //
-                    // - Isn't completely scrolled in or completely scrolled out; OR
-                    // - Is completely scrolled to the bottom (native mobile app only)
-                    if (
-                        navigationBarScrollOffset !== 0 &&
-                        (navigationBarScrollOffset !== navigationBarHeight ||
-                            (NativeMobileBridge && scrollOffset >= scrollHeight - clientHeight))
-                    ) {
-                        scrollDebounceTimeout = createTimeout(() => {
-                            // Precaution: Make sure native runs its timeout at the same time as we run ours
-                            // so our animations are synced.
-                            NativeMobileBridge?.navigationBar.runScrollDebounceTimeout();
+                            navigationBarTitleElement.classList.add(
+                                navigationBarTitleFadeOutAnimationClassName,
+                            );
+                        } else {
+                            navigationBarTitleElement.style.opacity = "1";
+                            navigationBarTitleElement.style.pointerEvents = "auto";
 
-                            const remPx = getRemPxWithoutListening();
-
-                            const lastIsNavigationBarOpaque = lastIsNavigationBarOpaqueRef.current;
-                            const lastIsNavigationBarTitleVisible =
-                                lastIsNavigationBarTitleVisibleRef.current;
-
-                            // Reveal the navigation bar if:
-                            //
-                            // - We pass the visible height threshold; OR
-                            // - We've completely scrolled to the bottom (native mobile app only)
-                            //
-                            // We always show the navigation bar at the bottom since we assume the user has
-                            // completed reading the page and they're ready to take action. The only scroll
-                            // action they could make is to scroll up which would reveal the tab bar. This
-                            // also means, in our native mobile app, we're not showing extra safe area at
-                            // the bottom of the page.
-                            let nextNavigationBarTopOffset: number;
-                            let nextIsNavigationBarOpaque: boolean;
-                            if (
-                                navigationBarHeight - navigationBarScrollOffset >=
-                                    navigationBarVisibleHeightThresholdForRevealRem * remPx ||
-                                scrollOffset >= scrollHeight - clientHeight
-                            ) {
-                                nextNavigationBarTopOffset = scrollOffset;
-                                nextIsNavigationBarOpaque = true;
-                            } else {
-                                nextNavigationBarTopOffset = Math.max(
-                                    0,
-                                    scrollOffset - navigationBarHeight,
-                                );
-                                nextIsNavigationBarOpaque = false;
-                            }
-
-                            const titleBoundaryOffset = getTitleBoundaryOffset();
-
-                            const nextIsNavigationBarTitleVisible =
-                                withoutDisappearingTitle ||
-                                (nextIsNavigationBarOpaque &&
-                                    (titleBoundaryOffset === null ||
-                                        scrollOffset >= titleBoundaryOffset - navigationBarHeight));
-
-                            const lastNavigationBarTopOffset =
-                                scrollOffset >= scrollHeight - clientHeight
-                                    ? // If we're at the bottom of the screen, the last navigation bar top offset may
-                                      // be many pixels above us (where the last scroll direction change happened).
-                                      // This happens when you perfectly scroll to the end of the scroll view and
-                                      // don't overscroll (hard to do with a finger gesture on iOS).
-                                      //
-                                      // We saw an issue here on iOS when `<DocumentContentEditor>` calls
-                                      // `scrollTo()` when the keyboard opens scrolling to the bottom of the view.
-                                      // The navigation bar animation appeared a little glitchy because it was
-                                      // animating from a much higher position in the scroll view.
-                                      Math.max(
-                                          lastNavigationBarTopOffsetRef.current,
-                                          scrollHeight - clientHeight - navigationBarHeight,
-                                      )
-                                    : lastNavigationBarTopOffsetRef.current;
-
-                            lastNavigationBarTopOffsetRef.current = nextNavigationBarTopOffset;
-                            lastIsNavigationBarOpaqueRef.current = nextIsNavigationBarOpaque;
-                            lastIsNavigationBarTitleVisibleRef.current =
-                                nextIsNavigationBarTitleVisible;
-
-                            // We'll animate the navigation bar title's opacity with `motion` in our effect
-                            // after the state update but update these non-animatable properties
-                            // immediately.
-                            if (
-                                nextIsNavigationBarTitleVisible !== lastIsNavigationBarTitleVisible
-                            ) {
-                                navigationBarTitleElement.style.pointerEvents =
-                                    nextIsNavigationBarTitleVisible ? "auto" : "none";
-                                navigationBarTitleElement.classList.remove(
-                                    navigationBarTitleFadeOutAnimationClassName,
-                                );
-                            }
-
-                            setScrollDirectionState({
-                                scrollDirection,
-                                navigationBarTopOffset: Math.max(
-                                    0,
-                                    nextNavigationBarTopOffset -
-                                        (!isMobile ? desktopMarginTopRem * remPx : 0),
-                                ),
-                                animateNavigationBar: {
-                                    translateY:
-                                        nextNavigationBarTopOffset - lastNavigationBarTopOffset,
-                                    isOpaque: nextIsNavigationBarOpaque,
-                                    isTitleVisible: nextIsNavigationBarTitleVisible,
-                                    lastIsOpaque: lastIsNavigationBarOpaque,
-                                    lastIsTitleVisible: lastIsNavigationBarTitleVisible,
-                                },
-                            });
-                        }, navigationBarTransitionDebounceScrollTimeoutMs);
+                            navigationBarTitleElement.classList.remove(
+                                navigationBarTitleFadeOutAnimationClassName,
+                            );
+                        }
                     }
-                },
-                onPrepareSmoothScrollTo: (element: HTMLElement, nextScrollOffset: number) => {
-                    const scrollOffset = lastScrollOffsetRef.current;
-                    const scrollDirection = nextScrollOffset > scrollOffset ? "Down" : "Up";
+                }
 
-                    // If the `scrollTo()` is going to scroll in a different direction than what we
-                    // currently have for `scrollDirection`, then update our state so that our
-                    // sticky positioning CSS is ready for the scroll.
-                    if (scrollDirection !== lastScrollDirectionRef.current) {
-                        lastScrollDirectionRef.current = scrollDirection;
+                scrollDebounceTimeout?.clear();
+                scrollDebounceTimeout = null;
+
+                // We only need a timeout to run our reveal/hide animation if the navigation
+                // bar:
+                //
+                // - Isn't completely scrolled in or completely scrolled out; OR
+                // - Is completely scrolled to the bottom (native mobile app only)
+                if (
+                    navigationBarScrollOffset !== 0 &&
+                    (navigationBarScrollOffset !== navigationBarHeight ||
+                        (NativeMobileBridge && scrollOffset >= scrollHeight - clientHeight))
+                ) {
+                    scrollDebounceTimeout = createTimeout(() => {
+                        // Precaution: Make sure native runs its timeout at the same time as we run ours
+                        // so our animations are synced.
+                        NativeMobileBridge?.navigationBar.runScrollDebounceTimeout();
 
                         const remPx = getRemPxWithoutListening();
-                        const navigationBarHeight = navigationBarHeightRem * remPx;
 
-                        const lastNavigationBarTopOffset = lastNavigationBarTopOffsetRef.current;
+                        const lastIsNavigationBarOpaque = lastIsNavigationBarOpaqueRef.current;
+                        const lastIsNavigationBarTitleVisible =
+                            lastIsNavigationBarTitleVisibleRef.current;
 
-                        const navigationBarScrollOffset = clamp(
-                            0,
-                            scrollOffset - lastNavigationBarTopOffset,
-                            navigationBarHeight,
-                        );
+                        // Reveal the navigation bar if:
+                        //
+                        // - We pass the visible height threshold; OR
+                        // - We've completely scrolled to the bottom (native mobile app only)
+                        //
+                        // We always show the navigation bar at the bottom since we assume the user has
+                        // completed reading the page and they're ready to take action. The only scroll
+                        // action they could make is to scroll up which would reveal the tab bar. This
+                        // also means, in our native mobile app, we're not showing extra safe area at
+                        // the bottom of the page.
+                        let nextNavigationBarTopOffset: number;
+                        let nextIsNavigationBarOpaque: boolean;
+                        if (
+                            navigationBarHeight - navigationBarScrollOffset >=
+                                navigationBarVisibleHeightThresholdForRevealRem * remPx ||
+                            scrollOffset >= scrollHeight - clientHeight
+                        ) {
+                            nextNavigationBarTopOffset = scrollOffset;
+                            nextIsNavigationBarOpaque = true;
+                        } else {
+                            nextNavigationBarTopOffset = Math.max(
+                                0,
+                                scrollOffset - navigationBarHeight,
+                            );
+                            nextIsNavigationBarOpaque = false;
+                        }
 
-                        const navigationBarTopOffset = scrollOffset - navigationBarScrollOffset;
-                        lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
+                        const titleBoundaryOffset = getTitleBoundaryOffset(element);
 
-                        // Immediately update our sticky positioning CSS to avoid potential jankiness.
-                        flushSync(() => {
-                            setScrollDirectionState({
-                                scrollDirection,
-                                navigationBarTopOffset,
-                                animateNavigationBar: null,
-                            });
+                        const nextIsNavigationBarTitleVisible =
+                            withoutDisappearingTitle ||
+                            (nextIsNavigationBarOpaque &&
+                                (titleBoundaryOffset === null ||
+                                    scrollOffset >= titleBoundaryOffset - navigationBarHeight));
+
+                        const lastNavigationBarTopOffset =
+                            scrollOffset >= scrollHeight - clientHeight
+                                ? // If we're at the bottom of the screen, the last navigation bar top offset may
+                                  // be many pixels above us (where the last scroll direction change happened).
+                                  // This happens when you perfectly scroll to the end of the scroll view and
+                                  // don't overscroll (hard to do with a finger gesture on iOS).
+                                  //
+                                  // We saw an issue here on iOS when `<DocumentContentEditor>` calls
+                                  // `scrollTo()` when the keyboard opens scrolling to the bottom of the view.
+                                  // The navigation bar animation appeared a little glitchy because it was
+                                  // animating from a much higher position in the scroll view.
+                                  Math.max(
+                                      lastNavigationBarTopOffsetRef.current,
+                                      scrollHeight - clientHeight - navigationBarHeight,
+                                  )
+                                : lastNavigationBarTopOffsetRef.current;
+
+                        lastNavigationBarTopOffsetRef.current = nextNavigationBarTopOffset;
+                        lastIsNavigationBarOpaqueRef.current = nextIsNavigationBarOpaque;
+                        lastIsNavigationBarTitleVisibleRef.current =
+                            nextIsNavigationBarTitleVisible;
+
+                        // We'll animate the navigation bar background's opacity with `motion` in our
+                        // effect after the state update but update these non-animatable properties
+                        // immediately.
+                        if (nextIsNavigationBarOpaque !== lastIsNavigationBarOpaque) {
+                            navigationBarBackgroundElement!.style.pointerEvents =
+                                nextIsNavigationBarOpaque ? "auto" : "none";
+                            navigationBarBackgroundElement!.style.pointerEvents =
+                                nextIsNavigationBarOpaque ? "80" : "40";
+                            navigationBarBackgroundElement!.classList.remove(
+                                navigationBarBackgroundFadeOutAnimationClassName,
+                            );
+                        }
+
+                        // We'll animate the navigation bar title's opacity with `motion` in our effect
+                        // after the state update but update these non-animatable properties
+                        // immediately.
+                        if (nextIsNavigationBarTitleVisible !== lastIsNavigationBarTitleVisible) {
+                            navigationBarTitleElement!.style.pointerEvents =
+                                nextIsNavigationBarTitleVisible ? "auto" : "none";
+                            navigationBarTitleElement!.classList.remove(
+                                navigationBarTitleFadeOutAnimationClassName,
+                            );
+                        }
+
+                        setScrollDirectionState({
+                            scrollDirection,
+                            navigationBarTopOffset: Math.max(
+                                0,
+                                nextNavigationBarTopOffset -
+                                    (!isMobile ? desktopMarginTopRem * remPx : 0),
+                            ),
+                            animateNavigationBar: {
+                                translateY: nextNavigationBarTopOffset - lastNavigationBarTopOffset,
+                                isOpaque: nextIsNavigationBarOpaque,
+                                isTitleVisible: nextIsNavigationBarTitleVisible,
+                                lastIsOpaque: lastIsNavigationBarOpaque,
+                                lastIsTitleVisible: lastIsNavigationBarTitleVisible,
+                            },
                         });
-                    }
-                },
+                    }, navigationBarTransitionDebounceScrollTimeoutMs);
+                }
+            };
+
+            const onPrepareSmoothScrollTo = (element: HTMLElement, nextScrollOffset: number) => {
+                const scrollOffset = lastScrollOffsetRef.current;
+                const scrollDirection = nextScrollOffset > scrollOffset ? "Down" : "Up";
+
+                // If the `scrollTo()` is going to scroll in a different direction than what we
+                // currently have for `scrollDirection`, then update our state so that our
+                // sticky positioning CSS is ready for the scroll.
+                if (scrollDirection !== lastScrollDirectionRef.current) {
+                    lastScrollDirectionRef.current = scrollDirection;
+
+                    const remPx = getRemPxWithoutListening();
+                    const navigationBarHeight = navigationBarHeightRem * remPx;
+
+                    const lastNavigationBarTopOffset = lastNavigationBarTopOffsetRef.current;
+
+                    const navigationBarScrollOffset = clamp(
+                        0,
+                        scrollOffset - lastNavigationBarTopOffset,
+                        navigationBarHeight,
+                    );
+
+                    const navigationBarTopOffset = scrollOffset - navigationBarScrollOffset;
+                    lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
+
+                    // Immediately update our sticky positioning CSS to avoid potential jankiness.
+                    flushSync(() => {
+                        setScrollDirectionState({
+                            scrollDirection,
+                            navigationBarTopOffset,
+                            animateNavigationBar: null,
+                        });
+                    });
+                }
+            };
+
+            return {
+                initialize,
+                onResize,
+                onScroll,
+                onPrepareSmoothScrollTo,
             };
         },
         [
@@ -1608,6 +1737,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                 color="grey-50"
                                 fontStyle="truncate"
                                 userSelect={!isMobile ? "text" : undefined}
+                                textAlign={!isMobile ? undefined : "center"}
                             >
                                 {subtitle}
                             </Box>

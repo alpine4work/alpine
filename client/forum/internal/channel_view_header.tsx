@@ -48,7 +48,7 @@ export function ChannelViewHeader({
             {withMobileLayout &&
                 (channelHeader.isEditingDescription ||
                     !isContentEmpty(channelHeader.channel.description.doc)) && (
-                    <Box paddingX="1">
+                    <Box paddingX={{desktop: "3", mobile: "1"}}>
                         <h3
                             className={sprinkles({
                                 paddingX: "2",

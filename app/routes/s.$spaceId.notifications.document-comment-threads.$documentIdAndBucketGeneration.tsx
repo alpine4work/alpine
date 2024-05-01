@@ -1,4 +1,5 @@
 import {useMemo} from "react";
+import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {useShowToast} from "~/client/design/toast.js";
@@ -12,7 +13,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useRootNavigate} from "~/client/remix/use_navigate.js";
+import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {getInboxDocumentNewCommentThreadsEntryCommentThreads} from "~/server/notifications/data/notifications_table.js";
@@ -23,12 +24,14 @@ import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
+    getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
@@ -91,13 +94,16 @@ export async function loader({params, context}: LoaderArgs) {
 export const meta = () => [{title: `New document comment threads notification${metaTitlePostfix}`}];
 
 export default function DocumentNewCommentThreadsRoute({
-    withMobileLayout = false,
+    withMobileLayout: withMobileLayoutProp = false,
 }: {
     withMobileLayout?: boolean;
 }) {
     const isMobile = useIsMobile();
     const rootNavigate = useRootNavigate();
     const showToast = useShowToast();
+    const navigate = useNavigate();
+
+    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const {
         document: initialDocument,
@@ -118,18 +124,44 @@ export default function DocumentNewCommentThreadsRoute({
     // the document is likely an artifact you care about.
     useSearchAffinityViewInteraction(`Document:${initialDocument.id}`);
 
-    const content = editorState.getContent();
+    const documentContent = editorState.getContent();
+    const documentTitle = useMemo(
+        () => getDocumentContentTitle(documentContent.doc),
+        [documentContent],
+    );
+
+    const {isPressed: isTitlePressed, pressProps: titlePressProps} = usePress({
+        onPress: () => {
+            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+            void navigate(`/s/${initialDocument.spaceId}/documents/${initialDocument.id}`, {
+                // Don't let the route open in `<PeekStack>`.
+                stopPropagation: true,
+            });
+        },
+    });
 
     const navigationBar = useNavigationBar({
-        isDisabled: !isMobile,
+        isDisabled: !withMobileLayout,
         withMobileLayout,
-        title: "New comments",
+        title: (
+            <span
+                {...titlePressProps}
+                className={sprinkles({
+                    cursor: "pointer",
+                    opacity: isTitlePressed ? "60" : undefined,
+                })}
+            >
+                {documentTitle}
+            </span>
+        ),
+        subtitle: "New comments",
+        withoutDisappearingTitle: true,
     });
 
     return (
         <DocumentCommentThreadListView
             documentId={initialDocument.id}
-            content={content}
+            content={documentContent}
             isConnected={isConnected}
             procedures={procedures}
             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
@@ -144,7 +176,13 @@ export default function DocumentNewCommentThreadsRoute({
                 //
                 // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
                 rootNavigate(
-                    `/s/${initialDocument.spaceId}/documents/${initialDocument.id}?comments=${commentThreadId}`,
+                    `/s/${initialDocument.spaceId}/documents/${initialDocument.id}?${
+                        isMobile
+                            ? // On mobile, only scroll to where the comment lives in the document. Don't open
+                              // up the comment overlay.
+                              `scroll=comments-${commentThreadId}`
+                            : `comments=${commentThreadId}`
+                    }`,
                 ).catch(error => {
                     showToast({
                         type: "Error",
@@ -161,10 +199,9 @@ export default function DocumentNewCommentThreadsRoute({
                         ?.otherReferencedComments ?? [],
                 optimisticComments: [],
             }))}
-            withMobileLayout={withMobileLayout}
             navigationBar={navigationBar}
             header={useMemo(() => {
-                if (!isMobile) return undefined;
+                if (!withMobileLayout) return undefined;
 
                 return {
                     minHeight: spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
@@ -180,7 +217,7 @@ export default function DocumentNewCommentThreadsRoute({
                         </Box>
                     ),
                 };
-            }, [isMobile])}
+            }, [isMobile, withMobileLayout])}
         />
     );
 }

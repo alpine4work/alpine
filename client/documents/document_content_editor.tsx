@@ -53,7 +53,6 @@ import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
@@ -115,11 +114,17 @@ const documentContentEditorMobileSidebarInsetTop = "48";
 const {desktopDocumentPaddingX, documentContentClassName, mobileDocumentPaddingX} =
     documentContentStyles;
 
+export type DocumentContentEditorInitialScroll = {
+    readonly type: "CommentThread";
+    readonly commentThreadId: DocumentCommentThreadId;
+};
+
 export function DocumentContentEditor({
     withMobileLayout,
     initialDocument,
     initialCommentThreadResult,
     initialScrollToCommentIndex,
+    initialScroll,
     onContentChange,
     onContentLocalChange,
     onCommentThreadChange,
@@ -132,6 +137,7 @@ export function DocumentContentEditor({
         initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
     } | null;
     initialScrollToCommentIndex: number | null;
+    initialScroll: DocumentContentEditorInitialScroll | null;
     onContentChange?: (content: DocumentContent) => void;
     onContentLocalChange?: () => void;
     onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
@@ -145,6 +151,7 @@ export function DocumentContentEditor({
             initialDocument={initialDocument}
             initialCommentThreadResult={initialCommentThreadResult}
             initialScrollToCommentIndex={initialScrollToCommentIndex}
+            initialScroll={initialScroll}
             onContentChange={onContentChange}
             onContentLocalChange={onContentLocalChange}
             onCommentThreadChange={onCommentThreadChange}
@@ -197,6 +204,7 @@ function DocumentContentEditorStateful({
     initialDocument,
     initialCommentThreadResult,
     initialScrollToCommentIndex,
+    initialScroll,
     onContentChange,
     onContentLocalChange,
     onCommentThreadChange,
@@ -209,6 +217,7 @@ function DocumentContentEditorStateful({
         initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
     } | null;
     initialScrollToCommentIndex: number | null;
+    initialScroll: DocumentContentEditorInitialScroll | null;
     onContentChange?: (content: DocumentContent) => void;
     onContentLocalChange?: () => void;
     onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
@@ -1071,93 +1080,79 @@ function DocumentContentEditorStateful({
     }, [decorationByMarkTop]);
 
     /* ========================================================================== *\
-     *                       Initial render comment scroll                        *
-    \* ========================================================================== */
-
-    {
-        const hasInitializedRef = useRef(false);
-
-        // TODO(calebmer): Support server-side rendering for immediately jumping to a
-        // comment in the middle of a post. This will make transitions seamless when
-        // you click on a link to a comment.
-        useEffect(() => {
-            if (hasInitializedRef.current) return;
-            hasInitializedRef.current = true;
-
-            if (initialCommentThreadResult && initialScrollToCommentIndex !== null) {
-                commentThreadListViewRef.current?.jumpToCommentIndex(
-                    initialCommentThreadResult.commentThread.id,
-                    initialScrollToCommentIndex,
-                );
-            }
-        }, [initialCommentThreadResult, initialScrollToCommentIndex]);
-    }
-
-    /* ========================================================================== *\
      *                       Scroll to comment in document                        *
     \* ========================================================================== */
 
-    const scrollToEditorRect = useEvent((rect: DOMRect, {behavior}: {behavior: ScrollBehavior}) => {
-        const navigationBar = assertExists(navigationBarRef.current);
-        const editorContainerElement = assertExists(editorContainerRef.current);
-        const sidebarElement = sidebarState.isOpen ? assertExists(sidebarRef.current) : null;
+    const scrollToEditorRect = useEvent(
+        (
+            rect: DOMRect,
+            {behavior, prefer}: {behavior: ScrollBehavior; prefer?: "top" | "bottom"},
+        ) => {
+            const navigationBar = assertExists(navigationBarRef.current);
+            const editorContainerElement = assertExists(editorContainerRef.current);
 
-        const remPx = getRemPxWithoutListening();
+            const remPx = getRemPxWithoutListening();
 
-        const navigationBarMaxVisibleHeight = navigationBar.getMaxVisibleHeight();
-        const editorContainerRect = editorContainerElement.getBoundingClientRect();
+            const navigationBarMaxVisibleHeight = navigationBar.getMaxVisibleHeight();
+            const editorContainerRect = editorContainerElement.getBoundingClientRect();
 
-        // Can't use `sidebarElement.getBoundingClientRect()` since that may be
-        // influenced by our animation's CSS `transform`.
-        const sidebarHeight =
-            (sidebarElement?.offsetHeight ?? 0) -
-            (isMobile
-                ? convertRemLengthToPx(spacing[documentContentEditorMobileSidebarInsetTop], remPx)
-                : 0);
+            const visibleRect = {
+                top: editorContainerRect.top + navigationBarMaxVisibleHeight,
+                bottom:
+                    editorContainerRect.bottom -
+                    // When using mobile layout the sidebar takes up visible space.
+                    (withMobileLayout && sidebarState.isOpen
+                        ? editorContainerRect.height -
+                          convertRemLengthToPx(
+                              spacing[documentContentEditorMobileSidebarInsetTop],
+                              remPx,
+                          )
+                        : 0),
+            };
+            visibleRect.bottom = Math.max(visibleRect.bottom, visibleRect.top);
 
-        const visibleRect = {
-            top: editorContainerRect.top + navigationBarMaxVisibleHeight,
-            bottom:
-                editorContainerRect.bottom -
-                // When using mobile layout the sidebar takes up visible space.
-                (withMobileLayout ? sidebarHeight : 0),
-        };
-        visibleRect.bottom = Math.max(visibleRect.bottom, visibleRect.top);
+            const visibleHeight = visibleRect.bottom - visibleRect.top;
 
-        const visibleHeight = visibleRect.bottom - visibleRect.top;
+            const commentMarkTop = editorContainerElement.scrollTop + rect.top - visibleRect.top;
+            const commentMarkBottom =
+                editorContainerElement.scrollTop + rect.bottom - visibleRect.top;
 
-        const commentMarkTop = editorContainerElement.scrollTop + rect.top - visibleRect.top;
-        const commentMarkBottom = editorContainerElement.scrollTop + rect.bottom - visibleRect.top;
+            // Try scrolling the element 20% from the top of the screen...
+            const candidateScrollTop1 = clamp(
+                0,
+                commentMarkTop - visibleHeight / 5,
+                editorContainerElement.scrollHeight - visibleHeight,
+            );
 
-        // Try scrolling the element 20% from the top of the screen...
-        const candidateScrollTop1 = clamp(
-            0,
-            commentMarkTop - visibleHeight / 5,
-            editorContainerElement.scrollHeight - visibleHeight,
-        );
+            // Try scrolling the element 20% from the bottom of the screen...
+            const candidateScrollTop2 = clamp(
+                0,
+                commentMarkBottom + visibleHeight / 5 - visibleHeight,
+                editorContainerElement.scrollHeight - visibleHeight,
+            );
 
-        // Try scrolling the element 20% from the bottom of the screen...
-        const candidateScrollTop2 = clamp(
-            0,
-            commentMarkBottom + visibleHeight / 5 - visibleHeight,
-            editorContainerElement.scrollHeight - visibleHeight,
-        );
+            if (prefer === "top") {
+                editorContainerElement.scrollTo({top: candidateScrollTop1, behavior});
+            } else if (prefer === "bottom") {
+                editorContainerElement.scrollTo({top: candidateScrollTop2, behavior});
+            } else {
+                const candidateScrollTop1Distance = Math.abs(
+                    candidateScrollTop1 - editorContainerElement.scrollTop,
+                );
+                const candidateScrollTop2Distance = Math.abs(
+                    candidateScrollTop2 - editorContainerElement.scrollTop,
+                );
 
-        const candidateScrollTop1Distance = Math.abs(
-            candidateScrollTop1 - editorContainerElement.scrollTop,
-        );
-        const candidateScrollTop2Distance = Math.abs(
-            candidateScrollTop2 - editorContainerElement.scrollTop,
-        );
-
-        // Pick the scroll offset that moves our window the least. That way there are
-        // no big disorienting jumps.
-        if (candidateScrollTop2Distance < candidateScrollTop1Distance) {
-            editorContainerElement.scrollTo({top: candidateScrollTop2, behavior});
-        } else {
-            editorContainerElement.scrollTo({top: candidateScrollTop1, behavior});
-        }
-    });
+                // Pick the scroll offset that moves our window the least. That way there are
+                // no big disorienting jumps.
+                if (candidateScrollTop2Distance < candidateScrollTop1Distance) {
+                    editorContainerElement.scrollTo({top: candidateScrollTop2, behavior});
+                } else {
+                    editorContainerElement.scrollTo({top: candidateScrollTop1, behavior});
+                }
+            }
+        },
+    );
 
     const handleCommentThreadSnippetPress = useEvent((commentThreadId: DocumentCommentThreadId) => {
         const editorContainerElement = assertExists(editorContainerRef.current);
@@ -1269,6 +1264,45 @@ function DocumentContentEditorStateful({
                         : "smooth",
             });
         }, [isInitialAppRender, isMobile, scrollToEditorRect, sidebarState, withMobileLayout]);
+    }
+
+    /* ========================================================================== *\
+     *                           Initial render scroll                            *
+    \* ========================================================================== */
+
+    {
+        const hasInitializedRef = useRef(false);
+
+        useLayoutEffectWithoutServerSideWarning(() => {
+            if (hasInitializedRef.current) return;
+            hasInitializedRef.current = true;
+
+            const editorContainerElement = assertExists(editorContainerRef.current);
+
+            if (initialCommentThreadResult) {
+                if (initialScrollToCommentIndex !== null) {
+                    commentThreadListViewRef.current?.jumpToCommentIndex(
+                        initialCommentThreadResult.commentThread.id,
+                        initialScrollToCommentIndex,
+                    );
+                }
+            } else if (initialScroll) {
+                const firstCommentMarkElement = editorContainerElement.querySelector(
+                    `[data-comment="${initialScroll.commentThreadId}"]`,
+                );
+                if (firstCommentMarkElement) {
+                    scrollToEditorRect(firstCommentMarkElement.getBoundingClientRect(), {
+                        behavior: "instant",
+                        prefer: "top",
+                    });
+                }
+            }
+        }, [
+            initialCommentThreadResult,
+            initialScroll,
+            initialScrollToCommentIndex,
+            scrollToEditorRect,
+        ]);
     }
 
     /* ========================================================================== *\
@@ -1420,27 +1454,24 @@ function DocumentContentEditorStateful({
     const navigationBarRef = useRef<NavigationBarRef>(null);
     const titleBoundaryRef = useRef<HTMLElement | null>(null);
 
-    const queryTitleBoundaryRef = useLifecycleRef(
-        useCallback(
-            (element: HTMLElement) => {
-                // Don't query for the title element on initial render. We'll get the title
-                // element from a read-only `<ContentView>` instead of the element rendered by
-                // ProseMirror.
-                if (isInitialAppRender) return;
+    useLayoutEffectWithoutServerSideWarning(() => {
+        // Don't query for the title element on initial render. We'll get the title
+        // element from a read-only `<ContentView>` instead of the element rendered by
+        // ProseMirror.
+        if (isInitialAppRender) return;
 
-                const titleBoundaryElement = assertExists(
-                    element.querySelector(`.${contentSchemaStyles.titleClassName}`),
-                );
-                assert(titleBoundaryElement instanceof HTMLElement);
+        const editorContainerElement = assertExists(editorContainerRef.current);
 
-                titleBoundaryRef.current = titleBoundaryElement;
-                return () => {
-                    titleBoundaryRef.current = null;
-                };
-            },
-            [isInitialAppRender],
-        ),
-    );
+        const titleBoundaryElement = assertExists(
+            editorContainerElement.querySelector(`.${contentSchemaStyles.titleClassName}`),
+        );
+        assert(titleBoundaryElement instanceof HTMLElement);
+
+        titleBoundaryRef.current = titleBoundaryElement;
+        return () => {
+            titleBoundaryRef.current = null;
+        };
+    }, [isInitialAppRender]);
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         ref: navigationBarRef,
@@ -1490,7 +1521,6 @@ function DocumentContentEditorStateful({
                         editorContainerRef,
                         useScrollbar({insetTop: scrollbarInsetTop}),
                         scrollViewRef,
-                        queryTitleBoundaryRef,
                     )}
                     id={editorContainerId}
                     className={

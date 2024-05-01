@@ -66,7 +66,13 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             // initialPath: "/s/\(spaceId)/tasks/view",
             // initialPath: "/s/\(spaceId)/chat/new",
             // initialPath: "/s/\(spaceId)/posts/sjb6kfpyxyew5yytwhq4fpmcjc",
-            initialPath: "/s/\(spaceId)/posts/r4tahf9swd0zrn0p4c5e6s68v0",
+            // initialPath: "/s/\(spaceId)/posts/r4tahf9swd0zrn0p4c5e6s68v0",
+            // initialPath:
+            //     "/s/\(spaceId)/notifications/channel-posts/qk8jepk9epmb48b3fbaykw4vk0-8546",  // 10 posts
+            // initialPath:
+            //     "/s/\(spaceId)/notifications/channel-posts/qk8jepk9epmb48b3fbaykw4vk0-8088",  // 1 post
+            initialPath:
+                "/s/\(spaceId)/notifications/document-comment-threads/2v1kz5r5w3tdb7zv6xt98wm7qg-6178",  // 3 threads
             websiteDataStore: websiteDataStore
         )
 
@@ -222,7 +228,9 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
         lastScrollOffset = scrollOffset
         lastScrollHeight = scrollHeight
-        lastScrollDirection = restoredTabBarState?.lastScrollDirection ?? .down
+        lastScrollDirection =
+            restoredTabBarState?.lastScrollDirection
+            ?? (scrollOffset > navigationBarHeight ? .up : .down)
         lastNavigationBarTopOffset = scrollOffset - (restoredNavigationBarScrollOffset ?? 0)
 
         scrollDebounceTimeout?.invalidate()

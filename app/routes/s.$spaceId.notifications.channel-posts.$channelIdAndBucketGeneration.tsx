@@ -1,4 +1,5 @@
 import {useCallback, useMemo, useRef, useState} from "react";
+import {usePress} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
@@ -7,6 +8,7 @@ import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -27,6 +29,7 @@ import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getChannelWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitions.js";
 import {getInboxChannelPostsEntryPosts} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
@@ -95,6 +98,7 @@ export default function ChannelPostsRoute({
     const context = useAppContext();
     const isMobile = useIsMobile();
     const {space} = useSpaceContext();
+    const navigate = useNavigate();
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
 
@@ -147,13 +151,34 @@ export default function ChannelPostsRoute({
         }, [channelId, context]),
     });
 
+    const {isPressed: isTitlePressed, pressProps: titlePressProps} = usePress({
+        onPress: () => {
+            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+            void navigate(`/s/${channel.model.spaceId}/channels/${channel.model.id}`, {
+                // Don't let the route open in `<PeekStack>`.
+                stopPropagation: true,
+            });
+        },
+    });
+
     const navigationBarRef = useRef<NavigationBarRef>(null);
 
     const navigationBar = useNavigationBar({
-        isDisabled: !isMobile,
+        isDisabled: !withMobileLayout,
         ref: navigationBarRef,
         withMobileLayout,
-        title: "New posts",
+        title: (
+            <span
+                {...titlePressProps}
+                className={sprinkles({
+                    cursor: "pointer",
+                    opacity: isTitlePressed ? "60" : undefined,
+                })}
+            >
+                {channel.model.name}
+            </span>
+        ),
+        subtitle: `New post${posts.getPostCount() === 1 && !posts.hasMorePosts() ? "" : "s"}`,
         withoutDisappearingTitle: true,
     });
 
@@ -162,10 +187,10 @@ export default function ChannelPostsRoute({
             withMobileLayout={withMobileLayout}
             channelHeader={useMemo(
                 () =>
-                    isMobile
-                        ? {isOnlyNavigationBar: true, shouldNotShowChannelId: null}
+                    withMobileLayout
+                        ? {isOnlyNavigationBar: true, shouldNotShowChannelId: channel.model.id}
                         : undefined,
-                [isMobile],
+                [channel.model.id, withMobileLayout],
             )}
             posts={posts}
             onTogglePostComments={useCallback(

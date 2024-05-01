@@ -134,7 +134,13 @@ export default function DocumentCommentThreadRoute({
                 //
                 // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
                 rootNavigate(
-                    `/s/${initialDocument.spaceId}/documents/${initialDocument.id}?comments=${commentThreadId}`,
+                    `/s/${initialDocument.spaceId}/documents/${initialDocument.id}?${
+                        isMobile
+                            ? // On mobile, only scroll to where the comment lives in the document. Don't open
+                              // up the comment overlay.
+                              `scroll=comments-${commentThreadId}`
+                            : `comments=${commentThreadId}`
+                    }`,
                 ).catch(error => {
                     showToast({
                         type: "Error",
@@ -151,7 +157,6 @@ export default function DocumentCommentThreadRoute({
                     optimisticComments: [],
                 },
             ]}
-            withMobileLayout={withMobileLayout}
             navigationBar={navigationBar}
             header={useMemo(() => {
                 if (!isMobile) return undefined;
