@@ -19,6 +19,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {createDisplayTaskCollectionsStore} from "~/client/tasks/internal/create_display_task_collections_store.js";
 import {TaskCollectionChip} from "~/client/tasks/internal/task_collection_chip.js";
@@ -150,7 +151,8 @@ function TaskRowCollectionsCell(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
-    const {currentAccount} = useSpaceContext();
+    const {currentAccount, space} = useSpaceContext();
+    const navigate = useNavigate();
 
     const collections = task?.getCollections() ?? TaskCollectionSet.empty;
 
@@ -301,7 +303,8 @@ function TaskRowCollectionsCell(
             onPointerDown={event => {
                 if (event.target === event.currentTarget) {
                     event.preventDefault();
-                    shouldFocusTextInputNextRenderRef.current = true;
+                    shouldFocusTextInputNextRenderRef.current =
+                        displayCollections.length <= previewDisplayCollections.length;
                     assertExists(cellRef.current).focus();
                 }
             }}
@@ -332,15 +335,19 @@ function TaskRowCollectionsCell(
                                     // https://stackoverflow.com/a/66689926/1568890
                                     minWidth: previewDisplayCollections.length === 2 ? "20%" : 0,
                                 }}
-                                onPointerDown={event => {
-                                    event.preventDefault();
-                                    assertExists(cellRef.current).focus();
-                                }}
                             >
-                                <TaskCollectionChip collection={collection} />
+                                <TaskCollectionChip
+                                    collection={collection}
+                                    onPress={() => {
+                                        // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+                                        void navigate(
+                                            `/s/${space.id}/tasks/collections/${collection.id}`,
+                                        );
+                                    }}
+                                />
                             </div>
                         ))}
-                        {displayCollections.length > 2 && (
+                        {displayCollections.length > previewDisplayCollections.length && (
                             <div
                                 className={extraCollectionsClassName}
                                 style={{fontFeatureSettings: '"calt"'}}
