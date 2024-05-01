@@ -28,7 +28,11 @@ export function createContentEditorLinkMarkViewConstructor({
     onNavigate,
 }: {
     canPrimaryInputHover: () => boolean;
-    onPointerEnterAfterDelay: (options: {mark: Mark; range: {from: number; to: number}}) => void;
+    onPointerEnterAfterDelay: (options: {
+        mark: Mark;
+        range: {from: number; to: number};
+        wasPointerDown: boolean;
+    }) => void;
     onPointerEnter: (mark: Mark) => void;
     onPointerLeave: (mark: Mark) => void;
     onNavigate: (to: To) => Promise<void>;
@@ -162,6 +166,14 @@ export function createContentEditorLinkMarkViewConstructor({
 
             onPointerEnter(mark);
 
+            // We check `event.buttons` since it tells us if the pointer was down prior to
+            // entering the link. The `pointerdown` won't tell us if the user started
+            // pressing on one element then dragged over our link (which the user does when
+            // making a selection).
+            //
+            // https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/buttons
+            const isPointerDown = event.buttons !== 0;
+
             pointerEnterDelayTimeout = createTimeout(() => {
                 // If the node was removed from the DOM, don't proceed with the timeout. We
                 // don't get a destroy callback for the mark so we have to be defensive here.
@@ -173,6 +185,7 @@ export function createContentEditorLinkMarkViewConstructor({
                         from: $pos.posAtIndex(index),
                         to: $pos.posAtIndex(index + 1),
                     },
+                    wasPointerDown: isPointerDown,
                 });
             }, tooltipDelayMs);
         });

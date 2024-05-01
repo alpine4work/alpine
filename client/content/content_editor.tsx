@@ -774,9 +774,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                 link: createContentEditorLinkMarkViewConstructor({
                     canPrimaryInputHover: () => canPrimaryInputHoverRef.current,
 
-                    onPointerEnterAfterDelay: ({mark, range}) => {
+                    onPointerEnterAfterDelay: ({mark, range, wasPointerDown}) => {
                         // We don't want to open floaters on mobile.
                         if (isMobileRef.current) return;
+
+                        // Don't open the pointer link floater if the pointer was down when it entered
+                        // the link. Since the user is probably trying to drag to select some text.
+                        if (wasPointerDown) return;
 
                         const floaterState = getContentEditorFloaterState(view.state);
 

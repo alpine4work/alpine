@@ -35,6 +35,7 @@ import {Box} from "~/client/design/box.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
 import {Overlay, OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
 import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
@@ -43,6 +44,7 @@ import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
@@ -69,8 +71,6 @@ export function ContentEditorPointerToolbar({
 }) {
     const interactionModality = useInteractionModality();
 
-    const [hasPointerMovedWhileDown, setHasPointerMovedWhileDown] = useState(false);
-
     // If the pointer has moved while pressing down and the user has some text
     // selected, the user is probably trying to drag to change their selection. If
     // they are dragging then we don't want to show the toolbar since it won't have
@@ -80,19 +80,51 @@ export function ContentEditorPointerToolbar({
     // If we show the toolbar while dragging it jumps around awkwardly and blocks
     // pointer events from the mouse over content the user is potentially
     // dragging to.
+    const [hasPointerMovedWhileDown, setHasPointerMovedWhileDown] = useState(false);
+
+    const [isWaitingForTripleClickAfterDoubleClick, setIsWaitingForTripleClickAfterDoubleClick] =
+        useState(false);
+
     useEffect(() => {
         setHasPointerMovedWhileDown(false);
 
         let isPointerDown = false;
 
-        const handlePointerDown = () => {
+        let lastMouseDownTime1: number | null = null;
+        let lastMouseDownTime2: number | null = null;
+
+        const handlePointerDown = (event: PointerEvent) => {
             isPointerDown = true;
+
+            if (event.pointerType === "mouse") {
+                const mouseDownTime = Date.now();
+
+                if (
+                    lastMouseDownTime1 !== null &&
+                    mouseDownTime - lastMouseDownTime1 <= doubleClickDelayMs
+                ) {
+                    if (
+                        lastMouseDownTime2 === null ||
+                        lastMouseDownTime1 - lastMouseDownTime2 > doubleClickDelayMs
+                    ) {
+                        setIsWaitingForTripleClickAfterDoubleClick(true);
+                    } else {
+                        setIsWaitingForTripleClickAfterDoubleClick(false);
+                    }
+                }
+
+                lastMouseDownTime2 = lastMouseDownTime1;
+                lastMouseDownTime1 = mouseDownTime;
+            }
         };
 
         const handlePointerMove = () => {
             if (isPointerDown) {
                 setHasPointerMovedWhileDown(true);
             }
+
+            // If the pointer moves, triple click chances are cancelled.
+            setIsWaitingForTripleClickAfterDoubleClick(false);
         };
 
         const handlePointerUp = () => {
@@ -100,15 +132,32 @@ export function ContentEditorPointerToolbar({
             setHasPointerMovedWhileDown(false);
         };
 
+        const handlePointerCancel = () => {
+            isPointerDown = false;
+            setHasPointerMovedWhileDown(false);
+        };
+
         document.addEventListener("pointerdown", handlePointerDown, true);
         document.addEventListener("pointermove", handlePointerMove, true);
         document.addEventListener("pointerup", handlePointerUp, true);
+        document.addEventListener("pointercancel", handlePointerCancel, true);
         return () => {
             document.removeEventListener("pointerdown", handlePointerDown, true);
             document.removeEventListener("pointermove", handlePointerMove, true);
             document.removeEventListener("pointerup", handlePointerUp, true);
+            document.removeEventListener("pointercancel", handlePointerCancel, true);
         };
     }, []);
+
+    useEffect(() => {
+        if (!isWaitingForTripleClickAfterDoubleClick) return;
+
+        const timeout = createTimeout(() => {
+            setIsWaitingForTripleClickAfterDoubleClick(false);
+        }, doubleClickDelayMs);
+
+        return () => timeout.clear();
+    }, [isWaitingForTripleClickAfterDoubleClick]);
 
     const shouldShowIgnoringInteractionModality = useMemo(
         () =>
@@ -137,8 +186,19 @@ export function ContentEditorPointerToolbar({
             // `selection.from` is in the title is sufficient for detecting overlap.
             state.selection.$from.parent.type.name !== "title" &&
             // Don't show the toolbar if the user's pointer is dragging to select text.
-            !hasPointerMovedWhileDown,
-        [hasPointerMovedWhileDown, isFocused, state.doc, state.selection],
+            !hasPointerMovedWhileDown &&
+            // If the user has double clicked (to select a word) then we wait to see if
+            // they triple click (to select a paragraph) before showing the pointer
+            // toolbar. Otherwise it looks a little glitchy to see the toolbar appear then
+            // immediately jump to the beginning of the paragraph.
+            !isWaitingForTripleClickAfterDoubleClick,
+        [
+            hasPointerMovedWhileDown,
+            isFocused,
+            isWaitingForTripleClickAfterDoubleClick,
+            state.doc,
+            state.selection,
+        ],
     );
 
     const [

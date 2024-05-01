@@ -1344,16 +1344,17 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     const lastAnimatedScrollDirectionStateRef = useRef(scrollDirectionState);
 
     useLayoutEffectWithoutServerSideWarning(() => {
+        if (lastAnimatedScrollDirectionStateRef.current === scrollDirectionState) return;
+        lastAnimatedScrollDirectionStateRef.current = scrollDirectionState;
+
+        if (!scrollDirectionState.animateNavigationBar) return;
+
         const navigationBarElement = assertExists(navigationBarRef.current);
         const navigationBarBackgroundElement = assertExists(navigationBarBackgroundRef.current);
         const navigationBarContent = assertExists(navigationBarContentRef.current);
         const navigationBarContentElement = navigationBarContent.getElement();
         const navigationBarTitleElement = navigationBarContent.getTitleElement();
 
-        if (lastAnimatedScrollDirectionStateRef.current === scrollDirectionState) return;
-        lastAnimatedScrollDirectionStateRef.current = scrollDirectionState;
-
-        if (!scrollDirectionState.animateNavigationBar) return;
         const {
             translateY,
             isOpaque: isNavigationBarOpaque,
