@@ -34,13 +34,16 @@ import {
     taskRowViewMinHeight,
 } from "~/client/tasks/task_row_shared_styles.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
+import {TaskQueryCollectionsNormalizedFilter} from "~/shared/tasks/task_query_normalized_filters.js";
 
 export type TaskRowCollectionsCellRef = {
     focusCell(): void;
@@ -161,6 +164,37 @@ function TaskRowCollectionsCell(
         ),
     );
 
+    const queryFiltersRequiredCollectionIds = query.filters.collectionsFilter
+        ? taskQueryCollectionsNormalizedFilterRequiredIdsCache.getOrSetDefault(
+              query.filters.collectionsFilter,
+          )
+        : emptySet;
+
+    // We want to show collections that are not required by the query first, then
+    // if we still have room show collections required by the query.
+    const previewDisplayCollections = useMemo(() => {
+        const maxPreviewDisplayCollectionCount = 2;
+        const previewDisplayCollections: Array<TaskCollectionModel> = [];
+
+        for (const collection of displayCollections) {
+            if (queryFiltersRequiredCollectionIds.has(collection.id)) continue;
+
+            previewDisplayCollections.push(collection);
+            if (previewDisplayCollections.length >= maxPreviewDisplayCollectionCount)
+                return previewDisplayCollections;
+        }
+
+        for (const collection of displayCollections) {
+            if (!queryFiltersRequiredCollectionIds.has(collection.id)) continue;
+
+            previewDisplayCollections.push(collection);
+            if (previewDisplayCollections.length >= maxPreviewDisplayCollectionCount)
+                return previewDisplayCollections;
+        }
+
+        return previewDisplayCollections;
+    }, [displayCollections, queryFiltersRequiredCollectionIds]);
+
     const cellRef = useRef<HTMLDivElement>(null);
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
     const [isFocusWithin, setIsFocusWithin] = useState(false);
@@ -277,7 +311,7 @@ function TaskRowCollectionsCell(
                     )
                 ) : (
                     <>
-                        {displayCollections.slice(0, 2).map(collection => (
+                        {previewDisplayCollections.map(collection => (
                             <div
                                 key={collection.id}
                                 className={collectionChipContainerClassName}
@@ -285,7 +319,7 @@ function TaskRowCollectionsCell(
                                     // Don't allow item to grow beyond flexbox bounds. By default flexbox items
                                     // have `min-width: auto` which extends with content.
                                     // https://stackoverflow.com/a/66689926/1568890
-                                    minWidth: 0,
+                                    minWidth: previewDisplayCollections.length === 2 ? "20%" : 0,
                                 }}
                                 onPointerDown={event => {
                                     event.preventDefault();
@@ -320,3 +354,22 @@ function TaskRowCollectionsCell(
         </div>
     );
 }
+
+const taskQueryCollectionsNormalizedFilterRequiredIdsCache = new DefaultWeakMap(
+    (filters: TaskQueryCollectionsNormalizedFilter) => {
+        const collectionIds = new Set<TaskCollectionId>();
+
+        for (const filter of filters) {
+            if (filter.size !== 1) continue;
+
+            for (const [term, not] of filter) {
+                if (term === "IsEmpty") continue;
+                if (not) continue;
+
+                collectionIds.add(term);
+            }
+        }
+
+        return collectionIds;
+    },
+);
