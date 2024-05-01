@@ -54,6 +54,7 @@ export {TaskQueryViewCustomizationBarForwardRef as TaskQueryViewCustomizationBar
 
 function TaskQueryViewCustomizationBar(
     {
+        withMobileLayout,
         store,
         filters,
         filterReferences,
@@ -64,6 +65,7 @@ function TaskQueryViewCustomizationBar(
         defaultOrderSentence,
         initiallyFocus = null,
     }: {
+        withMobileLayout: boolean;
         store: TaskClientStore;
         filters: ReadonlyArray<TaskQueryFilter>;
         filterReferences: TaskQueryFilterReferences;
@@ -208,6 +210,7 @@ function TaskQueryViewCustomizationBar(
                 <OverlayTriggerButton
                     ref={sortsOverlayRef}
                     aria-haspopup={true}
+                    placement={withMobileLayout ? "bottom-end" : "bottom-start"}
                     overlay={
                         <Box
                             className={greyElevated2ClassName}

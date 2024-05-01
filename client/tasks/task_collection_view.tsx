@@ -877,6 +877,7 @@ export function TaskCollectionView({
                                     >
                                         <TaskQueryViewCustomizationBar
                                             ref={desktopCustomizationBarRef}
+                                            withMobileLayout={withMobileLayout}
                                             store={store}
                                             shouldCollapseWhenFiltersAreEmpty={true}
                                             defaultOrderSentence={defaultOrderSentence}

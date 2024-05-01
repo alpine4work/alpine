@@ -134,6 +134,7 @@ function TaskQueryViewDesktopHeader(
             >
                 <TaskQueryViewCustomizationBar
                     ref={customizationBarRef}
+                    withMobileLayout={false}
                     store={store}
                     shouldCollapseWhenFiltersAreEmpty={false}
                     defaultOrderSentence={defaultOrderSentence}
