@@ -692,47 +692,53 @@ function DocumentCommentThreadListView(
         getAnchorPosition: useEvent(oldVisibleRect => {
             const view = assertExists(viewRef.current);
 
-            const anchorMessageIndex = messageEditing.state.isEditing
-                ? ([
-                      decodeDocumentCommentRoomKey(messageEditing.state.messageRoomKey)[1],
-                      messageEditing.state.messageIndex,
-                  ] as const)
-                : isSingleCommentThreadWithPinnedCommentInput
-                ? iterableFirst(replyingToCommentIndexByCommentThreadId.entries()) ?? null
-                : null;
+            // Only anchor based on message we're replying to or editing on mobile. On
+            // desktop keep anchoring predictable (anchor to bottom of screen). On mobile
+            // the message we're replying to or editing can easily be sent offscreen when
+            // the keyboard opens. Which is why we need to keep it anchored.
+            if (isMobile) {
+                const anchorMessageIndex = messageEditing.state.isEditing
+                    ? ([
+                          decodeDocumentCommentRoomKey(messageEditing.state.messageRoomKey)[1],
+                          messageEditing.state.messageIndex,
+                      ] as const)
+                    : isSingleCommentThreadWithPinnedCommentInput
+                    ? iterableFirst(replyingToCommentIndexByCommentThreadId.entries()) ?? null
+                    : null;
 
-            if (anchorMessageIndex !== null) {
-                const node = tree.getNodeByKeyIfExists(anchorMessageIndex[0]);
-                if (node === null) return null;
+                if (anchorMessageIndex !== null) {
+                    const node = tree.getNodeByKeyIfExists(anchorMessageIndex[0]);
+                    if (node === null) return null;
 
-                const itemIndex = node.startItemIndex + 1 + anchorMessageIndex[1];
-                if (itemIndex >= tree.getItemCount()) return null;
+                    const itemIndex = node.startItemIndex + 1 + anchorMessageIndex[1];
+                    if (itemIndex >= tree.getItemCount()) return null;
 
-                const item = tree.getItem(itemIndex);
-                if (item.type !== "DocumentComment") return null;
+                    const item = tree.getItem(itemIndex);
+                    if (item.type !== "DocumentComment") return null;
 
-                const position = view.getPositionByKeyIfExists(
-                    getMessageListItemKey(item.commentItem, anchorMessageIndex[0]),
-                );
-                if (!position) return null;
+                    const position = view.getPositionByKeyIfExists(
+                        getMessageListItemKey(item.commentItem, anchorMessageIndex[0]),
+                    );
+                    if (!position) return null;
 
-                const anchorPositionTop =
-                    oldVisibleRect.top + (position.offset - view.getScrollOffset());
+                    const anchorPositionTop =
+                        oldVisibleRect.top + (position.offset - view.getScrollOffset());
 
-                // Only include visible bits of the message in the anchor. This way, we exclude
-                // safe area margin bottom on the last message in the anchor position.
-                const anchorPosition = {
-                    top: Math.max(oldVisibleRect.top, anchorPositionTop),
-                    bottom: Math.min(
-                        Math.max(oldVisibleRect.bottom, anchorPositionTop),
-                        anchorPositionTop + position.height,
-                    ),
-                };
+                    // Only include visible bits of the message in the anchor. This way, we exclude
+                    // safe area margin bottom on the last message in the anchor position.
+                    const anchorPosition = {
+                        top: Math.max(oldVisibleRect.top, anchorPositionTop),
+                        bottom: Math.min(
+                            Math.max(oldVisibleRect.bottom, anchorPositionTop),
+                            anchorPositionTop + position.height,
+                        ),
+                    };
 
-                return {
-                    top: anchorPositionTop,
-                    height: anchorPosition.bottom - anchorPosition.top,
-                };
+                    return {
+                        top: anchorPositionTop,
+                        height: anchorPosition.bottom - anchorPosition.top,
+                    };
+                }
             }
 
             return {top: oldVisibleRect.bottom, height: 0};

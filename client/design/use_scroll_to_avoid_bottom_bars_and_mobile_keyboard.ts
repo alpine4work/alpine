@@ -130,9 +130,6 @@ export function useGetCurrentCoveredHeight(): Memo<() => number> {
  * keyboard to avoid, we still register bottom bars which change in height and
  * we want the scrollable area to avoid.
  */
-// TODO(calebmer): On desktop, we should probably only consider bottom bars
-// within the current peek. Bottom bars outside the peek shouldn't effect the
-// peek and vice versa.
 export function useScrollToAvoidBottomBarsAndMobileKeyboard<
     ScrollableRef extends HTMLElement | {getElement: () => HTMLElement},
 >(

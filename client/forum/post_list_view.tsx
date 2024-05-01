@@ -708,53 +708,61 @@ function PostListView(
         getAnchorPosition: useEvent(oldVisibleRect => {
             const view = assertExists(viewRef.current);
 
-            const anchorMessageIndex = messageEditing.state.isEditing
-                ? ([
-                      messageEditing.state.messageRoomKey,
-                      messageEditing.state.messageIndex,
-                  ] as const)
-                : isSingleLayoutWithPinnedCommentInput
-                ? iterableFirst(replyingToPostCommentIndexByPostId.entries()) ?? null
-                : null;
+            // Only anchor based on message we're replying to or editing on mobile. On
+            // desktop keep anchoring predictable (anchor to bottom of screen). On mobile
+            // the message we're replying to or editing can easily be sent offscreen when
+            // the keyboard opens. Which is why we need to keep it anchored.
+            if (isMobile) {
+                const anchorMessageIndex = messageEditing.state.isEditing
+                    ? ([
+                          messageEditing.state.messageRoomKey,
+                          messageEditing.state.messageIndex,
+                      ] as const)
+                    : isSingleLayoutWithPinnedCommentInput
+                    ? iterableFirst(replyingToPostCommentIndexByPostId.entries()) ?? null
+                    : null;
 
-            if (anchorMessageIndex !== null) {
-                const itemIndex = posts
-                    .getPostByIdIfExists(anchorMessageIndex[0])
-                    ?.getPostCommentIndex(anchorMessageIndex[1]);
+                if (anchorMessageIndex !== null) {
+                    const itemIndex = posts
+                        .getPostByIdIfExists(anchorMessageIndex[0])
+                        ?.getPostCommentIndex(anchorMessageIndex[1]);
 
-                if (itemIndex === undefined) return null;
-                if (itemIndex >= posts.getItemCount()) return null;
+                    if (itemIndex === undefined) return null;
+                    if (itemIndex >= posts.getItemCount()) return null;
 
-                const item = posts.getItem(itemIndex);
-                if (
-                    item.type === "ChannelHeader" ||
-                    item.type === "PostContent" ||
-                    item.type === "PostCommentInput" ||
-                    item.type === "MoreUnloadedPosts"
-                ) {
-                    return null;
+                    const item = posts.getItem(itemIndex);
+                    if (
+                        item.type === "ChannelHeader" ||
+                        item.type === "PostContent" ||
+                        item.type === "PostCommentInput" ||
+                        item.type === "MoreUnloadedPosts"
+                    ) {
+                        return null;
+                    }
+
+                    const position = view.getPositionByKeyIfExists(
+                        getPostListPostCommentItemKey(item),
+                    );
+                    if (!position) return null;
+
+                    const anchorPositionTop =
+                        oldVisibleRect.top + (position.offset - view.getScrollOffset());
+
+                    // Only include visible bits of the message in the anchor. This way, we exclude
+                    // safe area margin bottom on the last message in the anchor position.
+                    const anchorPosition = {
+                        top: Math.max(oldVisibleRect.top, anchorPositionTop),
+                        bottom: Math.min(
+                            Math.max(oldVisibleRect.bottom, anchorPositionTop),
+                            anchorPositionTop + position.height,
+                        ),
+                    };
+
+                    return {
+                        top: anchorPositionTop,
+                        height: anchorPosition.bottom - anchorPosition.top,
+                    };
                 }
-
-                const position = view.getPositionByKeyIfExists(getPostListPostCommentItemKey(item));
-                if (!position) return null;
-
-                const anchorPositionTop =
-                    oldVisibleRect.top + (position.offset - view.getScrollOffset());
-
-                // Only include visible bits of the message in the anchor. This way, we exclude
-                // safe area margin bottom on the last message in the anchor position.
-                const anchorPosition = {
-                    top: Math.max(oldVisibleRect.top, anchorPositionTop),
-                    bottom: Math.min(
-                        Math.max(oldVisibleRect.bottom, anchorPositionTop),
-                        anchorPositionTop + position.height,
-                    ),
-                };
-
-                return {
-                    top: anchorPositionTop,
-                    height: anchorPosition.bottom - anchorPosition.top,
-                };
             }
 
             return {top: oldVisibleRect.bottom, height: 0};
