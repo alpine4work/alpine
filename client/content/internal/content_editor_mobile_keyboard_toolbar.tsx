@@ -22,7 +22,7 @@ import {
     ContentEditorMobileKeyboardSubstituteRef,
 } from "~/client/content/internal/content_editor_mobile_keyboard_substitute.js";
 import {ContentEditorMobileLinkModalState} from "~/client/content/internal/content_editor_mobile_link_modal.js";
-import {openMentionFloaterMetaKey} from "~/client/content/internal/content_editor_plugin_input_rules.js";
+import {openMentionFloaterMetaKey} from "~/client/content/internal/build_content_editor_plugin_input_rules.js";
 import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
 import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";

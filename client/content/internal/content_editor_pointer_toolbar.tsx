@@ -24,7 +24,7 @@ import {flushSync} from "react-dom";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {ContentEditorHighlightSelector} from "~/client/content/internal/content_editor_highlight_selector.js";
 import {ContentEditorLinkInput} from "~/client/content/internal/content_editor_link_input.js";
-import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_plugin_keymap.js";
+import {openCommentInputFloaterMetaKey} from "~/client/content/internal/build_content_editor_plugin_keymap.js";
 import {areAllNodesBlockType} from "~/client/content/internal/helpers/are_all_nodes_block_type.js";
 import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
 import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/create_toggle_block_type_command.js";

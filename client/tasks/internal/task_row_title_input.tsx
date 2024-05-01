@@ -1,6 +1,7 @@
 import classNames from "classnames";
 import {CaretLeft, Lock} from "phosphor-react";
-import {AllSelection, EditorState, Selection, TextSelection} from "prosemirror-state";
+import {keydownHandler} from "prosemirror-keymap";
+import {AllSelection, EditorState, Selection, TextSelection, Plugin} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
     CSSProperties,
@@ -18,7 +19,8 @@ import {flushSync} from "react-dom";
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {ySyncPlugin, ySyncPluginKey, yUndoPlugin, yXmlFragmentToProsemirror} from "y-prosemirror";
 import * as Y from "yjs";
-import {buildSharedContentInputRulesPlugin} from "~/client/content/get_shared_content_input_rules_plugin.js";
+import {buildSharedContentEditorKeymapPlugin} from "~/client/content/add_shared_content_editor_keymap_commands.js";
+import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/build_shared_content_editor_input_rules_plugin.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
@@ -616,6 +618,7 @@ function TaskRowTitleInput(
     // [2]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
     // [3]: https://www.npmjs.com/package/fastdom
     // [4]: https://react.dev/reference/react/useLayoutEffect#measuring-layout-before-the-browser-repaints-the-screen
+
     useInsertionEffect(
         (rootElement?: HTMLDivElement) => {
             // Wait for the client-side rerender before mounting our editor.
@@ -672,7 +675,8 @@ function TaskRowTitleInput(
                         doc: yXmlFragmentToProsemirror(TaskTitleProsemirrorSchema, yXmlFragment),
                         plugins: [
                             ySyncPlugin(yXmlFragment),
-                            buildSharedContentInputRulesPlugin(),
+                            buildSharedContentEditorInputRulesPlugin(),
+                            buildSharedContentEditorKeymapPlugin(),
                             // We install the Y.js undo plugin but we don't install the `undo`/`redo`
                             // commands from `y-prosemirror` in a keymap. Instead `useTaskTitleModelYDoc()`
                             // registers us with our global undo stack.

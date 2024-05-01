@@ -16,6 +16,7 @@ import {keydownHandler} from "prosemirror-keymap";
 import {Node} from "prosemirror-model";
 import {EditorState, Plugin, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
+import {addSharedContentEditorKeymapCommands} from "~/client/content/add_shared_content_editor_keymap_commands.js";
 import {contentEditorQuickUndoCommand} from "~/client/content/content_editor_state.js";
 import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
 import {
@@ -36,7 +37,7 @@ export const openKeyboardHighlightFloaterMetaKey = "openKeyboardHighlightFloater
 export const openKeyboardLinkFloaterMetaKey = "openKeyboardLinkFloater";
 export const openCommentInputFloaterMetaKey = "openCommentInputFloater";
 
-export function buildKeymapPlugin(
+export function buildContentEditorKeymapPlugin(
     schema: ContentProsemirrorSchema,
     {disableUndoKeyboardShortcuts}: {disableUndoKeyboardShortcuts: boolean},
 ) {
@@ -657,6 +658,7 @@ export function buildKeymapPlugin(
         keys.set("Ctrl-d", deleteCommand);
     }
 
+    addSharedContentEditorKeymapCommands(keys);
     const handleKeyDown = keydownHandler(Object.fromEntries(keys));
 
     return new Plugin({

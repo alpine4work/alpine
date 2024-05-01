@@ -8,15 +8,15 @@ import {
     initialContentEditorFloaterState,
 } from "~/client/content/internal/content_editor_floater.js";
 import {
-    buildInputRulesPlugin,
+    buildContentEditorInputRulesPlugin,
     openMentionFloaterMetaKey,
-} from "~/client/content/internal/content_editor_plugin_input_rules.js";
+} from "~/client/content/internal/build_content_editor_plugin_input_rules.js";
 import {
-    buildKeymapPlugin,
+    buildContentEditorKeymapPlugin,
     openCommentInputFloaterMetaKey,
     openKeyboardHighlightFloaterMetaKey,
     openKeyboardLinkFloaterMetaKey,
-} from "~/client/content/internal/content_editor_plugin_keymap.js";
+} from "~/client/content/internal/build_content_editor_plugin_keymap.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {
     ContentReferences,
@@ -56,8 +56,8 @@ function buildPlugins<Content extends ContentWithReferences>({
             // out-of-sync with our rendering component.
             depth: disableUndoKeyboardShortcuts ? Number.MAX_SAFE_INTEGER : undefined,
         }),
-        buildInputRulesPlugin(schema),
-        buildKeymapPlugin(schema, {disableUndoKeyboardShortcuts}),
+        buildContentEditorInputRulesPlugin(schema),
+        buildContentEditorKeymapPlugin(schema, {disableUndoKeyboardShortcuts}),
         contentEditorFloaterStatePlugin(),
         contentEditorReferencesPlugin(references, reduceReferences),
         contentEditorQuickUndoPlugin(),
