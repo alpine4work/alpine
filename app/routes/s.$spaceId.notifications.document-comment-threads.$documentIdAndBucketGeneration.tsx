@@ -1,12 +1,14 @@
 import {CaretLeft, CaretRight} from "phosphor-react";
-import {useMemo, useState} from "react";
+import {MutableRefObject, useMemo, useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {
     DocumentCommentThreadListView,
+    DocumentCommentThreadListViewRef,
     documentCommentThreadListViewMaxWidth,
 } from "~/client/documents/document_comment_thread_list_view.js";
 import {documentCommentThreadCountAgainstLimit} from "~/client/documents/document_shared_styles.js";
@@ -18,10 +20,11 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
+import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
 import {getInboxDocumentNewCommentThreadsEntryCommentThreads} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
@@ -31,13 +34,15 @@ import {
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
-import {isId} from "~/shared/id/id.js";
+import {generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {messageViewMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
+    key: Schema.string,
     document: DocumentModel.schema(),
     commentThreads: Schema.array(DocumentCommentThreadModel.schema()),
     initialCommentsByCommentThreadId: Schema.map(
@@ -89,7 +94,12 @@ export async function loader({params, context}: LoaderArgs) {
 
     return jsonWithSchema(
         LoaderSchema,
-        {document, commentThreads, initialCommentsByCommentThreadId},
+        {
+            key: generateId(),
+            document,
+            commentThreads,
+            initialCommentsByCommentThreadId,
+        },
         {propagateEventData},
     );
 }
@@ -97,14 +107,30 @@ export async function loader({params, context}: LoaderArgs) {
 export const meta = () => [{title: `New document comment threads notification${metaTitlePostfix}`}];
 
 export default function DocumentNewCommentThreadsRoute({
-    withMobileLayout: withMobileLayoutProp = false,
+    withMobileLayout = false,
 }: {
     withMobileLayout?: boolean;
 }) {
+    const {key} = useLoaderDataWithSchema(LoaderSchema);
+
+    return (
+        <DocumentNewCommentThreadsRouteInner
+            // Completely re-mount the route when we get new data from the server.
+            key={key}
+            withMobileLayout={withMobileLayout}
+        />
+    );
+}
+
+function DocumentNewCommentThreadsRouteInner({
+    withMobileLayout: withMobileLayoutProp,
+}: {
+    withMobileLayout: boolean;
+}) {
     const isMobile = useIsMobile();
+    const navigate = useNavigate();
     const rootNavigate = useRootNavigate();
     const showToast = useShowToast();
-    const navigate = useNavigate();
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
 
@@ -127,6 +153,8 @@ export default function DocumentNewCommentThreadsRoute({
     // the document is likely an artifact you care about.
     useSearchAffinityViewInteraction(`Document:${initialDocument.id}`);
 
+    const listViewRef = useRef<DocumentCommentThreadListViewRef>(null);
+
     const documentContent = editorState.getContent();
     const documentTitle = useMemo(
         () => getDocumentContentTitle(documentContent.doc),
@@ -145,30 +173,124 @@ export default function DocumentNewCommentThreadsRoute({
 
     const commentThreadCount = initialCommentThreads.length;
 
-    const initialCommentThreadsResult = useMemo(
-        () =>
-            initialCommentThreads.map(commentThread => ({
-                commentThread,
-                comments: initialCommentsByCommentThreadId.get(commentThread.id)?.comments ?? [],
-                otherReferencedComments:
-                    initialCommentsByCommentThreadId.get(commentThread.id)
-                        ?.otherReferencedComments ?? [],
-                optimisticComments: [],
-            })),
-        [initialCommentThreads, initialCommentsByCommentThreadId],
+    const [initialCommentThreadResults, setInitialCommentThreadResults] = useState<
+        ReadonlyArray<{
+            readonly commentThread: DocumentCommentThreadModel;
+            readonly comments: ReadonlyArray<DocumentCommentModel>;
+            readonly otherReferencedComments: ReadonlyArray<DocumentCommentModel>;
+            readonly optimisticComments: ReadonlyArray<never>;
+            readonly loadMoreCommentsRef: MutableRefObject<Promise<void> | null>;
+        }>
+    >(() =>
+        initialCommentThreads.map(commentThread => ({
+            commentThread,
+            comments: initialCommentsByCommentThreadId.get(commentThread.id)?.comments ?? [],
+            otherReferencedComments:
+                initialCommentsByCommentThreadId.get(commentThread.id)?.otherReferencedComments ??
+                [],
+            optimisticComments: [],
+            loadMoreCommentsRef: {current: null},
+        })),
     );
 
-    const [mobileCurrentCommentThreadIndexFromState, setMobileCurrentCommentThreadIndex] =
-        useState<number>(0);
+    const [mobileCommentThreadIndexFromState, setMobileCommentThreadIndex] = useState<number>(0);
 
-    const mobileCurrentCommentThreadIndex = isMobile
-        ? clamp(0, mobileCurrentCommentThreadIndexFromState, commentThreadCount - 1)
+    const mobileCommentThreadIndex = isMobile
+        ? clamp(0, mobileCommentThreadIndexFromState, commentThreadCount - 1)
         : 0;
-    if (mobileCurrentCommentThreadIndex !== mobileCurrentCommentThreadIndexFromState) {
-        setMobileCurrentCommentThreadIndex(mobileCurrentCommentThreadIndex);
+    if (mobileCommentThreadIndex !== mobileCommentThreadIndexFromState) {
+        setMobileCommentThreadIndex(mobileCommentThreadIndex);
     }
 
-    // NOCOMMIT: Load more comments when switching between comment threads
+    const switchMobileCommentThreadIndexAbortControllerRef = useRef<AbortController | null>(null);
+
+    // When we switch between comment threads on mobile we may not have loaded
+    // comments for the comment thread! Our server `loader()` loads comments as if
+    // the comment threads are in a list you scroll through. Which they are on
+    // desktop. But on mobile the user paginates through comment threads. We want
+    // to make sure when the user navigates to a thread it has data so we don't
+    // flash loading indicators at them.
+    //
+    // The server will typically load comments for the first 2-4 comment threads
+    // and after that mobile will need to fill in the blanks when the user switches
+    // comment threads.
+    const switchMobileCommentThreadIndex = async (commentThreadIndex: number) => {
+        if (!isMobile) return;
+
+        switchMobileCommentThreadIndexAbortControllerRef.current?.abort();
+        switchMobileCommentThreadIndexAbortControllerRef.current = null;
+
+        const abortController = new AbortController();
+        switchMobileCommentThreadIndexAbortControllerRef.current = abortController;
+
+        const listView = assertExists(listViewRef.current);
+
+        commentThreadIndex = clamp(0, commentThreadIndex, commentThreadCount - 1);
+
+        const initialCommentThreadResult = initialCommentThreadResults[commentThreadIndex]!;
+
+        const remPx = getRemPxWithoutListening();
+        const virtualizationWindowHeightPx = getVirtualizationWindowHeight(listView.getHeight());
+        const messageViewMinHeightPx = convertRemLengthToPx(messageViewMinHeight, remPx);
+
+        const loadCommentCount =
+            Math.max(20, Math.ceil(virtualizationWindowHeightPx / messageViewMinHeightPx)) -
+            Math.floor(documentCommentThreadCountAgainstLimit);
+
+        if (
+            initialCommentThreadResult.comments.length <
+                initialCommentThreadResult.commentThread.commentCount &&
+            initialCommentThreadResult.comments.length < loadCommentCount
+        ) {
+            // We don't want to load more comments for the same comment thread twice. So we
+            // have `loadMoreCommentsRef` to make sure there's only one promise per comment
+            // thread at a time.
+            initialCommentThreadResult.loadMoreCommentsRef.current ??= (async () => {
+                const {commentCount, lastCommentChangeTime, comments, otherReferencedComments} =
+                    await procedures.getCommentsFromStart({
+                        commentThreadId: initialCommentThreadResult.commentThread.id,
+                        limit: loadCommentCount - initialCommentThreadResult.comments.length,
+                        afterCommentIndex:
+                            initialCommentThreadResult.comments.length > 0
+                                ? initialCommentThreadResult.comments.length - 1
+                                : null,
+                        beforeCommentIndex: null,
+                    });
+
+                setInitialCommentThreadResults(initialCommentThreadResults =>
+                    initialCommentThreadResults.map(otherInitialCommentThreadResult => {
+                        // Find the result we want to update. It must be the exact same object we had
+                        // when we started loading data. If the object was removed or changed then we
+                        // don't update anything.
+                        if (otherInitialCommentThreadResult !== initialCommentThreadResult)
+                            return otherInitialCommentThreadResult;
+
+                        return {
+                            commentThread: initialCommentThreadResult.commentThread.clone({
+                                commentCount,
+                                lastCommentChangeTime,
+                            }),
+                            comments: [...initialCommentThreadResult.comments, ...comments],
+                            otherReferencedComments: [
+                                ...initialCommentThreadResult.otherReferencedComments,
+                                ...otherReferencedComments,
+                            ],
+                            optimisticComments: initialCommentThreadResult.optimisticComments,
+                            loadMoreCommentsRef: {current: null},
+                        };
+                    }),
+                );
+            })();
+
+            await initialCommentThreadResult.loadMoreCommentsRef.current;
+        }
+
+        // If our switch was aborted then don't update our comment thread index state.
+        if (abortController.signal.aborted) return;
+
+        setMobileCommentThreadIndex(commentThreadIndex);
+    };
+
     const navigationBar = useNavigationBar({
         isDisabled: !withMobileLayout,
         withMobileLayout,
@@ -177,23 +299,26 @@ export default function DocumentNewCommentThreadsRoute({
                 <IconButton
                     size="md"
                     description="Previous thread"
-                    isDisabled={mobileCurrentCommentThreadIndex === 0}
-                    onPress={() =>
-                        setMobileCurrentCommentThreadIndex(mobileCurrentCommentThreadIndex - 1)
-                    }
+                    isDisabled={mobileCommentThreadIndex === 0}
+                    pressErrorTitle="Can’t go to previous thread"
+                    onPress={() => switchMobileCommentThreadIndex(mobileCommentThreadIndex - 1)}
                 >
                     <CaretLeft />
                 </IconButton>
-                <Box minWidth="12" paddingX="1.5" textAlign="center">
-                    Thread {mobileCurrentCommentThreadIndex + 1} of {commentThreadCount}
+                <Box
+                    minWidth="12"
+                    paddingX="1.5"
+                    textAlign="center"
+                    style={{fontVariantNumeric: "tabular-nums"}}
+                >
+                    Thread {mobileCommentThreadIndex + 1} of {commentThreadCount}
                 </Box>
                 <IconButton
                     size="md"
                     description="Next thread"
-                    isDisabled={mobileCurrentCommentThreadIndex === commentThreadCount - 1}
-                    onPress={() =>
-                        setMobileCurrentCommentThreadIndex(mobileCurrentCommentThreadIndex + 1)
-                    }
+                    isDisabled={mobileCommentThreadIndex === commentThreadCount - 1}
+                    pressErrorTitle="Can’t go to next thread"
+                    onPress={() => switchMobileCommentThreadIndex(mobileCommentThreadIndex + 1)}
                 >
                     <CaretRight />
                 </IconButton>
@@ -215,10 +340,11 @@ export default function DocumentNewCommentThreadsRoute({
 
     return (
         <DocumentCommentThreadListView
+            ref={listViewRef}
             // When rendering for mobile, we render one comment thread at a time. Instead of
             // rendering them all in a list. Since our sticky comment input UI pattern
             // doesn't work particularly well on mobile.
-            key={isMobile ? `mobile-${mobileCurrentCommentThreadIndex}` : "desktop"}
+            key={isMobile ? `mobile-${mobileCommentThreadIndex}` : "desktop"}
             documentId={initialDocument.id}
             content={documentContent}
             isConnected={isConnected}
@@ -250,13 +376,13 @@ export default function DocumentNewCommentThreadsRoute({
                     });
                 });
             })}
-            initialCommentThreadsResult={useMemo(
+            initialCommentThreadResults={useMemo(
                 () =>
                     // Show one comment thread at a time on mobile.
                     isMobile
-                        ? [initialCommentThreadsResult[mobileCurrentCommentThreadIndex]!]
-                        : initialCommentThreadsResult,
-                [initialCommentThreadsResult, isMobile, mobileCurrentCommentThreadIndex],
+                        ? [initialCommentThreadResults[mobileCommentThreadIndex]!]
+                        : initialCommentThreadResults,
+                [initialCommentThreadResults, isMobile, mobileCommentThreadIndex],
             )}
             navigationBar={navigationBar}
             header={useMemo(() => {

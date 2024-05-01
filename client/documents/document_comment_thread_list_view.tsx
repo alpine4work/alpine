@@ -222,7 +222,7 @@ function DocumentCommentThreadListView(
         documentId,
         content,
         onCommentThreadSnippetPress,
-        initialCommentThreadsResult,
+        initialCommentThreadResults,
         isConnected,
         procedures,
         subscribeToCommentThreadEvents,
@@ -245,7 +245,7 @@ function DocumentCommentThreadListView(
          * The initial comment threads loaded to populate this view. We will use this
          * to construct a `DocumentCommentThreadTree` class.
          */
-        initialCommentThreadsResult: ReadonlyArray<{
+        initialCommentThreadResults: ReadonlyArray<{
             commentThread: DocumentCommentThreadModel;
             comments: ReadonlyArray<DocumentCommentModel>;
             otherReferencedComments: ReadonlyArray<DocumentCommentModel>;
@@ -334,7 +334,7 @@ function DocumentCommentThreadListView(
     const [tree, setTree] = useState(() => {
         let tree = createEmptyDocumentCommentThreadTree();
 
-        for (const initialCommentThreadResult of initialCommentThreadsResult) {
+        for (const initialCommentThreadResult of initialCommentThreadResults) {
             let comments = MessageList.new<DocumentCommentModel>({
                 messageCount: initialCommentThreadResult.commentThread.commentCount,
                 lastMessageChangeTime:

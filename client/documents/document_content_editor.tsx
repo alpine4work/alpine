@@ -2114,10 +2114,10 @@ function DocumentContentEditorSidebar({
                     </IconButton>
                     {withMobileLayout && (
                         <Box
-                            minWidth="12"
                             paddingX={isMobile ? "1.5" : "1"}
                             color="grey-70"
                             textAlign="center"
+                            style={{fontVariantNumeric: "tabular-nums"}}
                         >
                             {decoratedCommentThreadIndex !== null && (
                                 <>
@@ -2142,7 +2142,11 @@ function DocumentContentEditorSidebar({
                         {!withMobileLayout ? <CaretDown /> : <CaretRight />}
                     </IconButton>
                     {!withMobileLayout && decoratedCommentThreadIndex !== null && (
-                        <Box paddingX="1.5" color="grey-70">
+                        <Box
+                            paddingX="1.5"
+                            color="grey-70"
+                            style={{fontVariantNumeric: "tabular-nums"}}
+                        >
                             {decoratedCommentThreadIndex + 1} of {lastTotalDecoratedCommentThreads}
                         </Box>
                     )}
@@ -2232,7 +2236,7 @@ function DocumentContentEditorSidebar({
                                 documentId={documentId}
                                 content={content}
                                 onCommentThreadSnippetPress={onCommentThreadSnippetPress}
-                                initialCommentThreadsResult={[
+                                initialCommentThreadResults={[
                                     {
                                         commentThread: initialDataResult.value.commentThread,
                                         comments: initialDataResult.value.initialComments,

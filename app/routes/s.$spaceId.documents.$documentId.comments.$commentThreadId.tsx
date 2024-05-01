@@ -149,7 +149,7 @@ export default function DocumentCommentThreadRoute({
                     });
                 });
             })}
-            initialCommentThreadsResult={[
+            initialCommentThreadResults={[
                 {
                     commentThread,
                     comments: initialComments,
