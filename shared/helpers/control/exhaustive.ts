@@ -12,14 +12,14 @@ import {omitFromStackTrace} from "~/shared/helpers/control/omit_from_stack_trace
  *
  * ```ts
  * switch (object.type) {
- *   case 'red':
- *     return ...
- *   case 'green':
- *     return ...
- *   case 'blue':
- *     return ...
- *   default:
- *     throw exhaustive(object);
+ *     case "red":
+ *         return ...
+ *     case "green":
+ *         return ...
+ *     case "blue":
+ *         return ...
+ *     default:
+ *         throw exhaustive(object);
  * }
  * ```
  */
