@@ -449,9 +449,14 @@ function TaskCollectionsInput(
                             event.stopPropagation();
 
                             if (isAppleDevice ? event.metaKey : event.ctrlKey) {
-                                collectionRefs[0]!.current!.focus();
+                                const collectionChipElement = collectionRefs[0]!.current!
+                                    .firstElementChild! as HTMLElement;
+                                collectionChipElement.focus();
                             } else {
-                                collectionRefs[collectionRefs.length - 1]!.current!.focus();
+                                const collectionChipElement = collectionRefs[
+                                    collectionRefs.length - 1
+                                ]!.current!.firstElementChild! as HTMLElement;
+                                collectionChipElement.focus();
                             }
                         }
                         break;
@@ -568,7 +573,9 @@ function TaskCollectionsInput(
                     ]);
 
                     if (index + 1 < collectionRefs.length) {
-                        collectionRefs[index + 1]?.current?.focus();
+                        const collectionChipElement = collectionRefs[index + 1]?.current
+                            ?.firstElementChild as HTMLElement | undefined;
+                        collectionChipElement?.focus();
                     } else {
                         inputRef.current?.focus();
                     }
@@ -583,9 +590,13 @@ function TaskCollectionsInput(
                     if (index === 0) {
                         onArrowLeftLeaveKeyDown?.();
                     } else if (isAppleDevice ? event.metaKey : event.ctrlKey) {
-                        collectionRefs[0]?.current?.focus();
+                        const collectionChipElement = collectionRefs[0]?.current
+                            ?.firstElementChild as HTMLElement | undefined;
+                        collectionChipElement?.focus();
                     } else {
-                        collectionRefs[index - 1]?.current?.focus();
+                        const collectionChipElement = collectionRefs[index - 1]?.current
+                            ?.firstElementChild as HTMLElement | undefined;
+                        collectionChipElement?.focus();
                     }
                     break;
                 }
@@ -597,7 +608,9 @@ function TaskCollectionsInput(
                     if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         inputRef.current?.focus();
                     } else if (index + 1 < collectionRefs.length) {
-                        collectionRefs[index + 1]?.current?.focus();
+                        const collectionChipElement = collectionRefs[index + 1]?.current
+                            ?.firstElementChild as HTMLElement | undefined;
+                        collectionChipElement?.focus();
                     } else {
                         inputRef.current?.focus();
                     }
@@ -638,7 +651,7 @@ function TaskCollectionsInput(
         };
 
         return (
-            <FocusRing key={collection.id}>
+            <FocusRing key={collection.id} isVisibleWhenFocusWithin>
                 <Box
                     ref={collectionRefs[index]}
                     overflow="hidden"
@@ -650,13 +663,13 @@ function TaskCollectionsInput(
                     marginLeft="-0.5"
                     borderRadius={taskCollectionChipBorderRadius}
                     style={{maxWidth: taskCollectionChipContainerMaxWidth}}
-                    // The first selected account is focusable via tab and you can use arrow keys
-                    // to focus the others.
-                    tabIndex={isReadOnly ? undefined : index === 0 && isTabbable ? 0 : -1}
                     onKeyDown={handleKeyDown}
                 >
                     <TaskCollectionChip
                         collection={collection}
+                        // The first selected account is focusable via tab and you can use arrow keys
+                        // to focus the others.
+                        tabIndex={isReadOnly ? undefined : index === 0 && isTabbable ? 0 : -1}
                         onPress={() => {
                             // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
                             navigate(`/s/${space.id}/tasks/collections/${collection.id}`).catch(

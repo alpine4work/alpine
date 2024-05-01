@@ -60,11 +60,13 @@ function TaskCollectionChipBase(
     {
         color,
         name,
+        tabIndex,
         onPress,
         onRemove,
     }: {
         color: ThemeColor | null;
         name: ReactNode;
+        tabIndex?: number;
         onPress?: () => void;
         onRemove?: () => void;
     },
@@ -99,6 +101,7 @@ function TaskCollectionChipBase(
             {...(isDisabled ? omitObject(pressProps, ["onKeyDown", "onKeyUp"]) : pressProps)}
             ref={ref}
             className={chipClassName}
+            tabIndex={tabIndex}
             style={{
                 backgroundColor: isPressed ? colorSchemeVars["grey-10"] : colorSchemeVars["grey-5"],
                 paddingRight: onRemove ? spacing["0.5"] : spacing["1.5"],
