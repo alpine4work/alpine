@@ -132,9 +132,9 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
     portalRef: Ref<HTMLDivElement>;
 }) {
     const {isNativeMobile} = useClientInfo();
-    const portalElement = assertExists(
+    const rootPortalElement = assertExists(
         useOverlayRootPortalElement(),
-        "Can't server render `<TaskGridViewMobileKeyboardToolbar>`",
+        "Can't server render `<TaskGridViewMobileKeyboardToolbarContainer>`",
     );
 
     const toolbarRef = useRef<HTMLDivElement>(null);
@@ -145,6 +145,12 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
+        // If the `rootPortalElement` changes this effect needs to rerun since
+        // `portalRef` will be different.
+        //
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        rootPortalElement;
+
         const portalElement = assertExists(portalRef.current);
 
         // Check if while waiting to mount the portal element got child nodes.
@@ -178,7 +184,7 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
             isCancelled = true;
             observer.disconnect();
         };
-    }, []);
+    }, [rootPortalElement]);
 
     const [isCompletelyHiddenFromState, setIsCompletelyHidden] = useState(true);
     const isCompletelyHidden = isCompletelyHiddenFromState && !isVisible;
@@ -369,7 +375,7 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
                 )}
             </Box>
         </Box>,
-        portalElement,
+        rootPortalElement,
     );
 }
 

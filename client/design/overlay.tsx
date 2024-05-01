@@ -231,17 +231,22 @@ function Overlay(
 
     const defaultTargetElementId = useId();
 
-    const portalRef = isBlocking ? overlaySink.rootBlockingPortalRef : overlaySink.portalRef;
+    const getPortalElement = isBlocking
+        ? overlaySink.getRootBlockingPortalElement
+        : overlaySink.getPortalElement;
 
-    const [_portalElement, setPortalElement] = useState(portalRef.current);
+    const [_portalElement, setPortalElement] = useState(getPortalElement);
     let portalElement = _portalElement;
 
     // If we are making the overlay visible and we initially read the portal ref as
     // `null` but not the portal ref has a value, update our state without waiting
     // for an effect.
-    if (isVisible && portalElement === null && portalRef.current !== null) {
-        portalElement = portalRef.current;
-        setPortalElement(portalRef.current);
+    if (isVisible && portalElement === null) {
+        const currentPortalElement = getPortalElement();
+        if (currentPortalElement !== null) {
+            portalElement = currentPortalElement;
+            setPortalElement(currentPortalElement);
+        }
     }
 
     // If this component is rendered at the same time as our
@@ -253,8 +258,8 @@ function Overlay(
     // effect here to prevent flashes.
     useEffect(() => {
         if (!isVisible) return;
-        setPortalElement(portalRef.current);
-    }, [isVisible, portalRef]);
+        setPortalElement(getPortalElement);
+    }, [getPortalElement, isVisible]);
 
     const getCurrentCoveredHeight = useGetCurrentCoveredHeight();
 
@@ -542,13 +547,13 @@ function Overlay(
                 )}
             {isVisible &&
                 isBlocking &&
-                portalElement &&
+                portalElement?.parentElement &&
                 // When we have a blocking overlay add a cover to the document to prevent
                 // scrolling, hover effects, and any other interaction while the context menu
                 // is open. Renders at z-index 60 to be below the blocking overlay container.
                 createPortal(
                     <Box position="absolute" inset="0" zIndex="60" />,
-                    assertExists(portalElement.parentElement),
+                    portalElement.parentElement,
                 )}
             {useElementWithRef(children, useLifecycleRef(targetLifecycleRef))}
         </>
@@ -556,9 +561,9 @@ function Overlay(
 }
 
 type OverlaySinkContext = {
-    readonly rootPortalRef: RefObject<HTMLDivElement>;
-    readonly rootBlockingPortalRef: RefObject<HTMLDivElement>;
-    readonly portalRef: RefObject<HTMLDivElement>;
+    readonly getRootPortalElement: () => HTMLDivElement | null;
+    readonly getRootBlockingPortalElement: () => HTMLDivElement | null;
+    readonly getPortalElement: () => HTMLDivElement | null;
     readonly insetLeft: RemLength | number | null;
     readonly insetRight: RemLength | number | null;
 };
@@ -595,6 +600,10 @@ function renderOverlayPortal(ref: RefObject<HTMLDivElement>, zIndex: Sprinkles["
  * with `--safe-area-inset-bottom`.) We want root overlays with `bottom: 0` to
  * be able to render above the keyboard instead of the space under the
  * keyboard.
+ *
+ * If `isDisabled` switches from `true` to `false` then we will continue using
+ * the old portal elements for a single render then any existing root overlays
+ * will unmount and remount into the new portal element.
  */
 export function RootOverlayScopeContextProvider({
     isDisabled = false,
@@ -610,13 +619,18 @@ export function RootOverlayScopeContextProvider({
 
     const overlaySink = useMemo(
         (): OverlaySinkContext => ({
-            rootPortalRef: portalRef,
-            rootBlockingPortalRef: blockingPortalRef,
-            portalRef,
+            getRootPortalElement: () =>
+                portalRef.current ?? parentOverlaySink?.getRootPortalElement() ?? null,
+            getRootBlockingPortalElement: () =>
+                blockingPortalRef.current ??
+                parentOverlaySink?.getRootBlockingPortalElement() ??
+                null,
+            getPortalElement: () =>
+                portalRef.current ?? parentOverlaySink?.getPortalElement() ?? null,
             insetLeft: null,
             insetRight: null,
         }),
-        [],
+        [parentOverlaySink],
     );
 
     return (
@@ -669,17 +683,17 @@ export function OverlayScopeContextProvider({
 
     const overlaySink = useMemo(
         (): OverlaySinkContext => ({
-            rootPortalRef: parentOverlaySink.rootPortalRef,
-            rootBlockingPortalRef: parentOverlaySink.rootBlockingPortalRef,
-            portalRef,
+            getRootPortalElement: parentOverlaySink.getRootPortalElement,
+            getRootBlockingPortalElement: parentOverlaySink.getRootBlockingPortalElement,
+            getPortalElement: () => portalRef.current,
             insetLeft: insetLeft ?? null,
             insetRight: insetRight ?? null,
         }),
         [
             insetLeft,
             insetRight,
-            parentOverlaySink.rootBlockingPortalRef,
-            parentOverlaySink.rootPortalRef,
+            parentOverlaySink.getRootBlockingPortalElement,
+            parentOverlaySink.getRootPortalElement,
         ],
     );
 
@@ -698,9 +712,9 @@ function BlockingOverlayScopeContextProvider({children}: {children: ReactNode}) 
         <OverlaySinkContext.Provider
             value={useMemo(
                 () => ({
-                    rootPortalRef: parentOverlaySink.rootBlockingPortalRef,
-                    rootBlockingPortalRef: parentOverlaySink.rootBlockingPortalRef,
-                    portalRef: parentOverlaySink.rootBlockingPortalRef,
+                    getRootPortalElement: parentOverlaySink.getRootBlockingPortalElement,
+                    getRootBlockingPortalElement: parentOverlaySink.getRootBlockingPortalElement,
+                    getPortalElement: parentOverlaySink.getRootBlockingPortalElement,
                     insetLeft: null,
                     insetRight: null,
                 }),
@@ -714,7 +728,7 @@ function BlockingOverlayScopeContextProvider({children}: {children: ReactNode}) 
 
 // In Jest tests, create a portal element in the JSDOM `<body>`.
 const overlaySinkContextForTest = import.meta.jest
-    ? (() => {
+    ? ((): OverlaySinkContext => {
           const portalElement = document.createElement("div");
 
           portalElement.className = sprinkles({
@@ -752,9 +766,9 @@ const overlaySinkContextForTest = import.meta.jest
           const blockingPortalRef = {current: blockingPortalElement};
 
           return {
-              rootPortalRef: portalRef,
-              rootBlockingPortalRef: blockingPortalRef,
-              portalRef,
+              getRootPortalElement: () => portalRef.current,
+              getRootBlockingPortalElement: () => blockingPortalRef.current,
+              getPortalElement: () => portalRef.current,
               insetLeft: null,
               insetRight: null,
           };
@@ -772,11 +786,11 @@ export function useOverlayRootPortalElement() {
     const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
     assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
 
-    const [rootPortalElement, setRootPortalElement] = useState(overlaySink.rootPortalRef.current);
+    const [rootPortalElement, setRootPortalElement] = useState(overlaySink.getRootPortalElement);
 
     useEffect(() => {
-        setRootPortalElement(overlaySink.rootPortalRef.current);
-    }, [overlaySink.rootPortalRef]);
+        setRootPortalElement(overlaySink.getRootPortalElement);
+    }, [overlaySink.getRootPortalElement]);
 
     return rootPortalElement;
 }
@@ -791,12 +805,12 @@ export function useOverlayRootBlockingPortalElement() {
     assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
 
     const [rootBlockingPortalElement, setRootBlockingPortalElement] = useState(
-        overlaySink.rootBlockingPortalRef.current,
+        overlaySink.getRootBlockingPortalElement,
     );
 
     useEffect(() => {
-        setRootBlockingPortalElement(overlaySink.rootBlockingPortalRef.current);
-    }, [overlaySink.rootBlockingPortalRef]);
+        setRootBlockingPortalElement(overlaySink.getRootBlockingPortalElement);
+    }, [overlaySink.getRootBlockingPortalElement]);
 
     return rootBlockingPortalElement;
 }
@@ -815,11 +829,13 @@ export function useIsWaitingForOverlayPortalElement(isVisible: boolean): boolean
     const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
     assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
 
-    const [isWaiting, setIsWaiting] = useState(isVisible ? !overlaySink.portalRef.current : false);
+    const [isWaiting, setIsWaiting] = useState(() =>
+        isVisible ? !overlaySink.getPortalElement() : false,
+    );
 
     useEffect(() => {
-        setIsWaiting(isVisible ? !overlaySink.portalRef.current : false);
-    }, [isVisible, overlaySink.portalRef]);
+        setIsWaiting(isVisible ? !overlaySink.getPortalElement() : false);
+    }, [isVisible, overlaySink]);
 
     return isWaiting;
 }
