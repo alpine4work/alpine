@@ -37,6 +37,9 @@ if (isMobileKeyboardFrameChangeEnabled) {
     let blurTimeout: Timeout | null = null;
 
     subscribeToMobileKeyboardFrameChange(({oldKeyboardHeight, newKeyboardHeight}) => {
+        // If the same event is emit multiple times, ignore it.
+        if (newKeyboardHeight === currentMobileKeyboardHeight) return;
+
         currentMobileKeyboardHeight = newKeyboardHeight;
 
         blurTimeout?.clear();
