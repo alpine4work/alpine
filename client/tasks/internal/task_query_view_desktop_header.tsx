@@ -15,7 +15,7 @@ import {
     TaskQueryViewDesktopHeaderNameRef,
 } from "~/client/tasks/internal/task_query_view_desktop_header_name.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
-import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
+import {screenPaddingX} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     backgroundFontSizePercentage,
@@ -104,7 +104,7 @@ function TaskQueryViewDesktopHeader(
     }, [isMobile]);
 
     return (
-        <Box minHeight={navigationBarHeight} display="flex" paddingX={taskRowViewPaddingX}>
+        <Box minHeight={navigationBarHeight} display="flex" paddingX={screenPaddingX}>
             <Box
                 height={navigationBarHeight}
                 display="flex"
@@ -122,7 +122,7 @@ function TaskQueryViewDesktopHeader(
                 flexShrink="0"
                 alignSelf="stretch"
                 marginY="4"
-                marginX={taskRowViewPaddingX}
+                marginX={screenPaddingX}
                 borderLeft="grey-5"
             />
             <Box
@@ -149,7 +149,7 @@ function TaskQueryViewDesktopHeader(
                 flexShrink="0"
                 alignSelf="stretch"
                 marginY="4"
-                marginX={taskRowViewPaddingX}
+                marginX={screenPaddingX}
                 borderLeft="grey-5"
             />
             <Box

@@ -85,10 +85,15 @@ import {
     mobileTaskRowViewIndentationRem,
     taskRowViewFirstColumnExtraPaddingLeft,
     taskRowViewMinHeight,
-    taskRowViewPaddingX,
-    taskRowViewPaddingXRem,
 } from "~/client/tasks/task_row_shared_styles.js";
-import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {
+    RemLength,
+    Spacing,
+    parseRemLengthNumber,
+    screenPaddingX,
+    screenPaddingXRem,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -190,8 +195,8 @@ const borderCoverClassName = sprinkles({
     zIndex: "-10",
     top: "0",
     bottom: "0",
-    left: taskRowViewPaddingX,
-    right: taskRowViewPaddingX,
+    left: screenPaddingX,
+    right: screenPaddingX,
     pointerEvents: "none",
     backgroundColor: "grey-0",
 });
@@ -1237,13 +1242,13 @@ function TaskRowView(
               // we still want to render row numbers in the expand button space.
               (!isMobile || canPrimaryInputHover
                   ? taskRowViewDragHandleWidthRem + taskRowViewExpandButtonWidthRem
-                  : taskRowViewPaddingXRem.mobile +
+                  : screenPaddingXRem.mobile +
                     // Hardcoded `spacing["2.5"]`
                     0.625) +
               (isMobile
                   ? mobileTaskRowViewStatusButtonWidthRem
                   : desktopTaskRowViewStatusButtonWidthRem)
-            : taskRowViewPaddingXRem[isMobile ? "mobile" : "desktop"]
+            : screenPaddingXRem[isMobile ? "mobile" : "desktop"]
     }rem`;
 
     const borderCoverNode = (

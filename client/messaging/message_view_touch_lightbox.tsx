@@ -21,10 +21,14 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {MessageViewMenuCreatedTime} from "~/client/messaging/internal/message_view_menu_created_time.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
-import {messagingViewPaddingX} from "~/client/messaging/messaging_view.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {
+    addRemLengths,
+    parseRemLengthNumber,
+    screenPaddingX,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -268,11 +272,11 @@ export function MessageViewTouchLightbox<
                 className={pointerEventsNoneNotInheritedClassName}
                 style={{
                     height: scaledHeight,
-                    paddingLeft: getMessageBubbleMarginLeft(messagingViewPaddingX.mobile),
+                    paddingLeft: getMessageBubbleMarginLeft(screenPaddingX.mobile),
                     paddingRight: addRemLengths(
                         spacing["3"],
                         spacing[messageViewActionsWidth],
-                        spacing[messagingViewPaddingX.mobile],
+                        spacing[screenPaddingX.mobile],
                     ),
                 }}
             >
@@ -453,7 +457,7 @@ export function MessageViewTouchLightbox<
                             fontStyle="truncate"
                             paddingTop="1"
                             paddingBottom="1"
-                            paddingRight={messagingViewPaddingX.mobile}
+                            paddingRight={screenPaddingX.mobile}
                             color="grey-50"
                             display="flex"
                             alignItems="center"
@@ -461,7 +465,7 @@ export function MessageViewTouchLightbox<
                             pointerEvents="none"
                             style={{
                                 paddingLeft: addRemLengths(
-                                    getMessageBubbleMarginLeft(messagingViewPaddingX.mobile),
+                                    getMessageBubbleMarginLeft(screenPaddingX.mobile),
                                     parentMessage === null ? spacing["1.5"] : spacing["1"],
                                 ),
                             }}
@@ -485,7 +489,7 @@ export function MessageViewTouchLightbox<
                     )}
                     {parentMessageNode}
                     <Box
-                        paddingX={messagingViewPaddingX.mobile}
+                        paddingX={screenPaddingX.mobile}
                         display="flex"
                         className={pointerEventsNoneNotInheritedClassName}
                     >
@@ -568,7 +572,7 @@ export function MessageViewTouchLightbox<
                     </Box>
                 </Box>
                 <Box
-                    paddingX={messagingViewPaddingX.mobile}
+                    paddingX={screenPaddingX.mobile}
                     // Display flex so we don't get the same width as the message bubble.
                     display="flex"
                     paddingTop={defaultTooltipOffset}

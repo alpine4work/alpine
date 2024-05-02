@@ -28,7 +28,6 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
-import {messagingViewPaddingX} from "~/client/messaging/messaging_view.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -38,7 +37,12 @@ import {
 import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
-import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {
+    addRemLengths,
+    parseRemLengthNumber,
+    screenPaddingX,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -570,7 +574,7 @@ export function ChatAccountPicker({
                             alignItems: "center",
                             // Smaller on mobile since we render the navigation bar above.
                             height: !isMobile ? "12" : "10",
-                            paddingLeft: messagingViewPaddingX,
+                            paddingLeft: screenPaddingX,
                             paddingRight: {desktop: "3", mobile: "1.5"},
                             fontSize: {desktop: "100", mobile: "50"},
                             color: "grey-50",
@@ -672,7 +676,7 @@ export function ChatAccountPicker({
                         // Smaller on mobile since we render the navigation bar above.
                         height={!isMobile ? "12" : "10"}
                         paddingLeft={{desktop: "3", mobile: "1.5"}}
-                        paddingRight={{mobile: messagingViewPaddingX.mobile, desktop: "4"}}
+                        paddingRight={{mobile: screenPaddingX.mobile, desktop: "4"}}
                         display="flex"
                         alignItems="center"
                         gap="2"

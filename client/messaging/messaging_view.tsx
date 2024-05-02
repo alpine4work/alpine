@@ -64,11 +64,6 @@ import {
 import {ClientInfo} from "~/shared/remix/client_info.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
-export const messagingViewPaddingX: {mobile: Spacing; desktop: Spacing} = {
-    mobile: "3",
-    desktop: "5",
-};
-
 export const messagingViewMarginBottomCalcExpression =
     "var(--safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px)";
 
@@ -671,7 +666,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         roomDisplayedCreatedTime,
                         shouldAddMarginTop: index === 0,
                         shouldAddMarginBottom: index === state.getItemCount() - 1,
-                        marginX: messagingViewPaddingX[isMobile ? "mobile" : "desktop"],
                     });
                 }
             }
@@ -681,7 +675,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             getMessageUrl,
             handleJumpToMessage,
             highlightMessage,
-            isMobile,
             messageEditing,
             messageNoun,
             messageStartOfSentenceNoun,
@@ -759,7 +752,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                             );
                     }}
                     restoreStateRef={inputRestoreStateRef}
-                    marginX={messagingViewPaddingX[isMobile ? "mobile" : "desktop"]}
                 />
             </div>
         </>
@@ -794,7 +786,7 @@ export function renderMessageListItem<
     roomDisplayedCreatedTime,
     shouldAddMarginTop = index === 0,
     shouldAddMarginBottom = false,
-    marginX,
+    paddingX,
     render: customRender,
 }: {
     messageNoun?: string;
@@ -813,7 +805,7 @@ export function renderMessageListItem<
     roomDisplayedCreatedTime?: Date | undefined;
     shouldAddMarginTop?: boolean;
     shouldAddMarginBottom?: boolean | string;
-    marginX?: Spacing;
+    paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     render?: (node: ReactNode) => ReactElement;
 }): VirtualizedScrollViewItem {
     switch (item.type) {
@@ -859,7 +851,7 @@ export function renderMessageListItem<
                         disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
                         getMessageUrl={getMessageUrl}
                         roomDisplayedCreatedTime={roomDisplayedCreatedTime}
-                        marginX={marginX}
+                        paddingX={paddingX}
                     />
                 ) : (
                     <MessageShimmer
@@ -868,7 +860,7 @@ export function renderMessageListItem<
                         previousMessage={previousMessage}
                         nextMessage={nextMessage}
                         messages={messages}
-                        marginX={marginX}
+                        paddingX={paddingX}
                     />
                 );
             };
@@ -981,7 +973,7 @@ export function renderMessageListItem<
             const node = (
                 <MessagingTypingIndicators
                     typingStateByConnectionId={item.typingStateByConnectionId}
-                    marginX={marginX}
+                    paddingX={paddingX}
                     shouldAddMarginTop={shouldAddMarginTop}
                     shouldAddMarginBottom={shouldAddMarginBottom}
                 />

@@ -1,19 +1,25 @@
 import {compareAsc as compareDatesAsc} from "date-fns";
 import {Easing, timeline} from "motion";
-import {useEffect, useMemo, useRef} from "react";
+import {Memo, useEffect, useMemo, useRef} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
 import {messagingViewMarginBottom} from "~/client/messaging/messaging_view.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {easeInOutSin} from "~/shared/design/easing.js";
-import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {
+    Spacing,
+    addRemLengths,
+    parseRemLengthNumber,
+    screenPaddingX,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
-    defaultMessageViewMarginX,
     getMessageBubbleMarginLeft,
     messageViewBubbleBorderRadius,
     messageViewMarginY,
@@ -23,12 +29,12 @@ export const messagingTypingIndicatorsMinHeight = "3.875rem";
 
 export function MessagingTypingIndicators({
     typingStateByConnectionId,
-    marginX = defaultMessageViewMarginX,
+    paddingX = screenPaddingX,
     shouldAddMarginTop = false,
     shouldAddMarginBottom = false,
 }: {
     typingStateByConnectionId: ImmutableMap<WebSocketConnectionId, MessagingTypingState>;
-    marginX?: Spacing;
+    paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     shouldAddMarginTop?: boolean;
     shouldAddMarginBottom?: boolean | string;
 }) {
@@ -66,14 +72,22 @@ export function MessagingTypingIndicators({
                 <MessagingTypingIndicator
                     key={typingState.account.id}
                     account={typingState.account}
-                    marginX={marginX}
+                    paddingX={paddingX}
                 />
             ))}
         </Box>
     );
 }
 
-function MessagingTypingIndicator({account, marginX}: {account: AccountModel; marginX: Spacing}) {
+function MessagingTypingIndicator({
+    account,
+    paddingX,
+}: {
+    account: AccountModel;
+    paddingX: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
+}) {
+    const isMobile = useIsMobile();
+
     const dot1Ref = useRef<HTMLDivElement>(null);
     const dot2Ref = useRef<HTMLDivElement>(null);
     const dot3Ref = useRef<HTMLDivElement>(null);
@@ -113,18 +127,25 @@ function MessagingTypingIndicator({account, marginX}: {account: AccountModel; ma
                 fontStyle="truncate"
                 paddingTop="0.5"
                 paddingBottom="0.5"
-                paddingRight={marginX}
+                paddingRight={paddingX}
                 color="grey-50"
                 display="flex"
                 alignItems="center"
                 gap="0.5"
                 style={{
-                    paddingLeft: addRemLengths(getMessageBubbleMarginLeft(marginX), spacing["0.5"]),
+                    paddingLeft: addRemLengths(
+                        getMessageBubbleMarginLeft(
+                            typeof paddingX === "string"
+                                ? paddingX
+                                : paddingX[isMobile ? "mobile" : "desktop"],
+                        ),
+                        spacing["0.5"],
+                    ),
                 }}
             >
                 <AccountShortName account={account} />
             </Box>
-            <Box display="flex" paddingX={marginX} paddingBottom={messageViewMarginY}>
+            <Box display="flex" paddingX={paddingX} paddingBottom={messageViewMarginY}>
                 <Box flexShrink="0" paddingRight="2">
                     <Box width="7" height="full" display="flex" alignItems="flex-end">
                         <Box paddingY="0.5">

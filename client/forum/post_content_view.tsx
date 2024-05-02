@@ -38,6 +38,7 @@ import {
     addRemLengths,
     assertSpacing,
     parseRemLengthNumber,
+    screenPaddingX,
     spacing,
     subtractRemLengths,
 } from "~/shared/design/spacing.js";
@@ -65,11 +66,6 @@ import {
 } from "~/shared/styles/styles.js";
 
 export const postViewMaxWidth: Spacing = "160";
-
-export const postContentViewPaddingX: {mobile: Spacing; desktop: Spacing} = {
-    mobile: "3",
-    desktop: "5",
-};
 
 export const postContentViewFooterHeight = "8";
 const postContentViewFooterButtonHeight = "7";
@@ -99,10 +95,6 @@ const postContentViewOuterMarginBottomRem =
 
 export const postContentViewOuterMarginBottom: RemLength = `${postContentViewOuterMarginBottomRem}rem`;
 
-export const postContentViewContentPaddingX = mapObjectValues(postContentViewPaddingX, paddingX =>
-    assertSpacing(`${parseInt(paddingX, 10) - parseInt(contentSchemaStyles.blockPaddingX, 10)}`),
-);
-
 const postContentViewOuterOpenCommentSectionMarginBottomRem =
     postContentViewOuterMarginBottomRem - parseRemLengthNumber(spacing[messageInputPaddingY]);
 
@@ -111,7 +103,7 @@ const postContentViewOuterOpenCommentSectionMarginBottom: RemLength = `${postCon
 const postContentViewFooterButtonIconSize = "4";
 
 export const postCommentSectionGuidelineOffset = mapObjectValues(
-    postContentViewPaddingX,
+    screenPaddingX,
     (paddingX): RemLength =>
         `${
             parseRemLengthNumber(spacing[paddingX]) +
@@ -269,14 +261,10 @@ export function PostContentView({
         >
             {!hasNavigationBar || !isSingleLayoutWithPinnedCommentInput ? (
                 <>
-                    <Box position="relative" paddingX={postContentViewPaddingX}>
+                    <Box position="relative" paddingX={screenPaddingX}>
                         <PostContentViewHeader post={post} shouldShowChannel={shouldShowChannel} />
                     </Box>
-                    <Box
-                        position="absolute"
-                        top={postContentViewPaddingX}
-                        right={postContentViewPaddingX}
-                    >
+                    <Box position="absolute" top={screenPaddingX} right={screenPaddingX}>
                         {!isEditingPost ? (
                             <MenuButton
                                 actions={getPostMoreActions({
@@ -322,7 +310,7 @@ export function PostContentView({
                 </Box>
             )}
             <Box
-                paddingX={postContentViewContentPaddingX}
+                paddingX={contentSchemaStyles.screenPaddingXWithoutBlockPaddingX}
                 style={{
                     paddingTop: postContentViewInnerMarginYWithoutContentEditorPaddingY,
                     paddingBottom: postContentViewInnerMarginYWithoutContentEditorPaddingY,
@@ -392,7 +380,7 @@ function PostContentViewFooter({
                     ? `PostContentViewFooter:${post.id}`
                     : undefined
             }
-            paddingX={postContentViewPaddingX}
+            paddingX={screenPaddingX}
             height={postContentViewFooterHeight}
             display="flex"
             alignItems="center"

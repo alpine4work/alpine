@@ -54,7 +54,6 @@ import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/task_client_store.js";
-import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
 import {
     VirtualizedScrollView,
@@ -62,7 +61,7 @@ import {
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/spacing.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -679,11 +678,7 @@ export function TaskQueryView({
                                     onSortsChange={setSorts}
                                 />
                             ) : (
-                                <Box
-                                    paddingX={taskRowViewPaddingX}
-                                    paddingTop="1"
-                                    paddingBottom="6"
-                                >
+                                <Box paddingX={screenPaddingX} paddingTop="1" paddingBottom="6">
                                     <TaskQueryViewCustomizationBar
                                         ref={desktopCustomizationSectionRef}
                                         withMobileLayout={withMobileLayout}
@@ -797,7 +792,7 @@ export function TaskQueryView({
                                         position="absolute"
                                         left="0"
                                         right="0"
-                                        paddingX={taskRowViewPaddingX}
+                                        paddingX={screenPaddingX}
                                         paddingTop="7"
                                         paddingBottom="24"
                                         pointerEvents="auto"

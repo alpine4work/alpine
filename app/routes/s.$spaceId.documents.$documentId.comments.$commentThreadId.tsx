@@ -113,7 +113,8 @@ export default function DocumentCommentThreadRoute({
     const navigationBar = useNavigationBar({
         isDisabled: !isMobile,
         withMobileLayout,
-        title: "New comments",
+        title: "Comment thread",
+        withoutDisappearingTitle: true,
     });
 
     return (
@@ -158,6 +159,9 @@ export default function DocumentCommentThreadRoute({
                 },
             ]}
             navigationBar={navigationBar}
+            // Safe area inset is already accounted for on mobile thanks to the
+            // `navigationBar`.
+            withSafeAreaInsetTop={!isMobile}
             header={useMemo(() => {
                 if (!isMobile) return undefined;
 

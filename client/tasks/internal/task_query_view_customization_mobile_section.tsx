@@ -18,7 +18,7 @@ import {TaskQueryAddSortMenuButton} from "~/client/tasks/internal/task_query_add
 import {TaskQueryFilterEditor} from "~/client/tasks/internal/task_query_filter_editor.js";
 import {TaskQuerySortsEditor} from "~/client/tasks/internal/task_query_sorts_editor.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
-import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
+import {screenPaddingX} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
@@ -127,7 +127,7 @@ function TaskQueryViewCustomizationMobileSection(
 
     return (
         <Box
-            paddingX={taskRowViewPaddingX}
+            paddingX={screenPaddingX}
             display="flex"
             flexDirection="column"
             gap="4"

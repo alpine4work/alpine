@@ -50,7 +50,6 @@ import {
     postCommentSectionGuidelineOffset,
     postContentViewMinHeightWithClosedCommentSection,
     postContentViewMinHeightWithOpenCommentSection,
-    postContentViewPaddingX,
     postViewMaxWidth,
 } from "~/client/forum/post_content_view.js";
 import {
@@ -86,7 +85,13 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing, addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {
+    Spacing,
+    addRemLengths,
+    convertRemLengthToPx,
+    screenPaddingX,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
@@ -890,7 +895,7 @@ function PostListView(
                                                 left: "0",
                                                 right: "0",
                                                 top: "0",
-                                                paddingX: postContentViewPaddingX,
+                                                paddingX: screenPaddingX,
                                             })}
                                             style={{
                                                 height: 1,
@@ -916,7 +921,7 @@ function PostListView(
                                                 left: "0",
                                                 right: "0",
                                                 bottom: "0",
-                                                paddingX: postContentViewPaddingX,
+                                                paddingX: screenPaddingX,
                                             })}
                                             style={{
                                                 height: 1,
@@ -1030,9 +1035,7 @@ function PostListView(
                                                     : null
                                             }
                                             marginX={
-                                                postContentViewPaddingX[
-                                                    isMobile ? "mobile" : "desktop"
-                                                ]
+                                                screenPaddingX[isMobile ? "mobile" : "desktop"]
                                             }
                                             centeringMarginRight={
                                                 !isSingleLayoutWithPinnedCommentInput
@@ -1329,7 +1332,6 @@ function PostListView(
                             }}
                             shouldBeConnectedToChannelRealtime={shouldBeConnectedToChannelRealtime}
                             onPostRealtimeEventTransaction={onPostRealtimeEventTransaction}
-                            paddingX={postContentViewPaddingX[isMobile ? "mobile" : "desktop"]}
                         />
                     );
 
@@ -1436,7 +1438,7 @@ function PostListView(
                                                     left: "0",
                                                     right: "0",
                                                     bottom: "0",
-                                                    paddingX: postContentViewPaddingX,
+                                                    paddingX: screenPaddingX,
                                                 })}
                                                 style={{
                                                     height: 1,
@@ -1885,7 +1887,6 @@ function PostListView(
                                     shouldBeConnectedToChannelRealtime
                                 }
                                 onPostRealtimeEventTransaction={onPostRealtimeEventTransaction}
-                                paddingX={postContentViewPaddingX[isMobile ? "mobile" : "desktop"]}
                             />
                         );
                     })()}

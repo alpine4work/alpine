@@ -1,4 +1,4 @@
-import {Ref, RefObject, useCallback, useRef} from "react";
+import {Memo, Ref, RefObject, useCallback, useRef} from "react";
 import {flushSync} from "react-dom";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -37,7 +37,7 @@ export function DocumentCommentInput({
     isConnected,
     procedures,
     subscribeToCommentThreadEvents,
-    marginX,
+    paddingX,
     withMobileMaxHeight,
 }: {
     isStickyPositioned: boolean;
@@ -62,7 +62,7 @@ export function DocumentCommentInput({
     isConnected: boolean;
     procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
-    marginX: Spacing;
+    paddingX: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     withMobileMaxHeight: boolean;
 }) {
     const context = useAppContext();
@@ -218,7 +218,7 @@ export function DocumentCommentInput({
                             .logUncaughtException("Couldn't update typing indicator", error),
                     );
             }}
-            marginX={marginX}
+            paddingX={paddingX}
             withMobileMaxHeight={withMobileMaxHeight}
         />
     );

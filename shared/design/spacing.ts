@@ -1,3 +1,4 @@
+import {Memo} from "react";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
@@ -116,10 +117,19 @@ export function isRemLength(string: string): string is RemLength {
     return true;
 }
 
+const precomputedRemLengthNumberBySpacingRemLength = new Map<RemLength, number>(
+    Object.values(spacing).map(remLength => [remLength, parseFloat(remLength.slice(0, -3))]),
+);
+
 /**
  * Parses a length in rem units to the underlying rem value.
  */
 export function parseRemLengthNumber(remLength: RemLength): number {
+    // Optimization: We've precomputed the rem length number for all `spacing`
+    // values.
+    const precomputedRemLengthNumber = precomputedRemLengthNumberBySpacingRemLength.get(remLength);
+    if (precomputedRemLengthNumber !== undefined) return precomputedRemLengthNumber;
+
     assert(remLength.endsWith("rem"));
     const remLengthNumber = parseFloat(remLength.slice(0, -3));
     assert(!isNaN(remLengthNumber));
@@ -159,3 +169,26 @@ export function negateRemLength(remLength: RemLength): RemLength {
 export function convertRemLengthToPx(remLength: RemLength, remPx: number): number {
     return parseRemLengthNumber(remLength) * remPx;
 }
+
+/**
+ * Horizontal padding to use at the screen's edges. We use a different value on
+ * the mobile platform vs desktop. Desktop UI in a mobile layout (peeks) will
+ * still use desktop screen padding for consistency. There's less padding on
+ * mobile since there's less available screen space. On desktop, even in peeks,
+ * there's more screen space so adding padding improves legibility.
+ */
+export const screenPaddingX = {
+    mobile: "3",
+    desktop: "5",
+} as Memo<{
+    readonly mobile: Spacing;
+    readonly desktop: Spacing;
+}>;
+
+export const screenPaddingXRem: {
+    readonly mobile: number;
+    readonly desktop: number;
+} = {
+    mobile: parseRemLengthNumber(spacing[screenPaddingX.mobile]),
+    desktop: parseRemLengthNumber(spacing[screenPaddingX.desktop]),
+};

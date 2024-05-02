@@ -60,14 +60,13 @@ import {
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/task_client_store.js";
 import {createTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/task_query_view.js";
-import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -870,11 +869,7 @@ export function TaskCollectionView({
                                         onSortsChange={setSorts}
                                     />
                                 ) : (
-                                    <Box
-                                        paddingX={taskRowViewPaddingX}
-                                        paddingTop="1"
-                                        paddingBottom="6"
-                                    >
+                                    <Box paddingX={screenPaddingX} paddingTop="1" paddingBottom="6">
                                         <TaskQueryViewCustomizationBar
                                             ref={desktopCustomizationBarRef}
                                             withMobileLayout={withMobileLayout}

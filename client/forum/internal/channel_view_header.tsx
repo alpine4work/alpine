@@ -14,15 +14,12 @@ import {
     PostFauxInputCreateButton,
     postFauxInputCreateButtonHeight,
 } from "~/client/forum/internal/post_faux_input_create_button.js";
-import {
-    postContentViewOuterMarginY,
-    postContentViewPaddingX,
-} from "~/client/forum/post_content_view.js";
+import {postContentViewOuterMarginY} from "~/client/forum/post_content_view.js";
 import {PostListChannelHeader} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     MessageContent,
@@ -73,7 +70,7 @@ export function ChannelViewHeader({
             <Box
                 paddingTop={channelViewAsidePaddingY}
                 paddingBottom={postContentViewOuterMarginY}
-                paddingX={postContentViewPaddingX}
+                paddingX={screenPaddingX}
             >
                 <PostFauxInputCreateButton
                     withMobileLayout={withMobileLayout}

@@ -22,9 +22,7 @@ import {
     desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    postContentViewContentPaddingX,
     postContentViewInnerMarginY,
-    postContentViewPaddingX,
     postViewMaxWidth,
 } from "~/client/forum/post_content_view.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -33,7 +31,7 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {spacing, subtractRemLengths} from "~/shared/design/spacing.js";
+import {screenPaddingX, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
@@ -73,7 +71,7 @@ const StateSchema = Schema.object({
     }),
 });
 
-const postContentEditorBlockMaxWidth = mapObjectValues(postContentViewPaddingX, paddingX =>
+const postContentEditorBlockMaxWidth = mapObjectValues(screenPaddingX, paddingX =>
     subtractRemLengths(spacing[postViewMaxWidth], spacing[paddingX]),
 );
 
@@ -254,7 +252,7 @@ export function PostCreatorView({
                         width="full"
                         maxWidth={postViewMaxWidth}
                         marginX="center"
-                        paddingX={postContentViewPaddingX}
+                        paddingX={screenPaddingX}
                         paddingBottom={postContentViewInnerMarginY}
                         style={{
                             paddingTop: withMobileLayout
@@ -296,7 +294,9 @@ export function PostCreatorView({
                         })}
                         className={classNames(
                             forumStyles.fullScreenContentEditorClassName,
-                            sprinkles({paddingX: postContentViewContentPaddingX}),
+                            sprinkles({
+                                paddingX: contentSchemaStyles.screenPaddingXWithoutBlockPaddingX,
+                            }),
                         )}
                         onModEnter={() => {
                             // Programmatically press the button instead of calling `createPost()`

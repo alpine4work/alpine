@@ -111,8 +111,8 @@ import {
 export const documentContentEditorSidebarWidth = spacing["96"];
 const documentContentEditorMobileSidebarInsetTop = "48";
 
-const {desktopDocumentPaddingX, documentContentClassName, mobileDocumentPaddingX} =
-    documentContentStyles;
+const {screenPaddingXWithoutBlockPaddingX} = contentSchemaStyles;
+const {documentContentClassName} = documentContentStyles;
 
 export type DocumentContentEditorInitialScroll = {
     readonly type: "CommentThread";
@@ -237,7 +237,6 @@ function DocumentContentEditorStateful({
     const [containerResizeRef, containerSize] = useResizeObserver();
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
-    const paddingX = isMobile ? mobileDocumentPaddingX : desktopDocumentPaddingX;
 
     const {
         isConnected,
@@ -379,7 +378,11 @@ function DocumentContentEditorStateful({
                 contentSchemaStyles.defaultBlockMaxWidth,
                 remPx,
             );
-            const paddingXPx = convertRemLengthToPx(spacing[paddingX], remPx) * 2;
+            const paddingXPx =
+                convertRemLengthToPx(
+                    spacing[screenPaddingXWithoutBlockPaddingX[isMobile ? "mobile" : "desktop"]],
+                    remPx,
+                ) * 2;
             const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
             const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
 
@@ -438,7 +441,7 @@ function DocumentContentEditorStateful({
         });
 
         sidebarAnimationInRef.current = animation;
-    }, [isMobile, paddingX, sidebarState, withMobileLayout]);
+    }, [isMobile, sidebarState, withMobileLayout]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!(sidebarState.isOpen && sidebarState.animationState === "Closing")) {
@@ -517,7 +520,11 @@ function DocumentContentEditorStateful({
                 contentSchemaStyles.defaultBlockMaxWidth,
                 remPx,
             );
-            const paddingXPx = convertRemLengthToPx(spacing[paddingX], remPx) * 2;
+            const paddingXPx =
+                convertRemLengthToPx(
+                    spacing[screenPaddingXWithoutBlockPaddingX[isMobile ? "mobile" : "desktop"]],
+                    remPx,
+                ) * 2;
             const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
             const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
 
@@ -575,7 +582,7 @@ function DocumentContentEditorStateful({
         });
 
         sidebarAnimationOutRef.current = animation;
-    }, [isMobile, paddingX, sidebarState, withMobileLayout]);
+    }, [isMobile, sidebarState, withMobileLayout]);
 
     // When the sidebar opens on mobile:
     //
@@ -682,7 +689,7 @@ function DocumentContentEditorStateful({
         });
 
         sidebarMobileFullScreenAnimationInRef.current = animation;
-    }, [paddingX, sidebarState, withMobileLayout]);
+    }, [sidebarState, withMobileLayout]);
 
     useEffect(() => {
         if (
@@ -740,7 +747,7 @@ function DocumentContentEditorStateful({
         });
 
         sidebarMobileFullScreenAnimationOutRef.current = animation;
-    }, [paddingX, sidebarState, withMobileLayout]);
+    }, [sidebarState, withMobileLayout]);
 
     // Focus the comment input if it was requested in our state.
     useEffect(() => {
@@ -1487,9 +1494,9 @@ function DocumentContentEditorStateful({
         ],
         shareButton: {},
         desktopTitleMaxWidth: addRemLengths(
-            spacing[paddingX],
+            spacing[screenPaddingXWithoutBlockPaddingX[isMobile ? "mobile" : "desktop"]],
             contentSchemaStyles.defaultBlockMaxWidth,
-            spacing[paddingX],
+            spacing[screenPaddingXWithoutBlockPaddingX[isMobile ? "mobile" : "desktop"]],
         ),
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
@@ -2248,9 +2255,9 @@ function DocumentContentEditorSidebar({
                                 // comment input to have a smaller max height so it doesn't completely fill the
                                 // bottom sheet.
                                 withCommentInputMobileMaxHeight={withMobileLayout}
-                                // Slightly reduce the amount of margin on messages in a comment thread
-                                // because we have less space.
-                                paddingX="4"
+                                // Slightly reduce the amount of margin on messages in a desktop comment thread
+                                // because we have less space in the sidebar.
+                                paddingX={!withMobileLayout ? "4" : undefined}
                                 pinnedCommentInputRef={pinnedCommentInputRef}
                                 // We disable the tab bar while a comment thread is open to get more vertical
                                 // space. This changes how our component should handle safe area insets.

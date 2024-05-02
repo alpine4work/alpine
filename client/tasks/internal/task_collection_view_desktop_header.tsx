@@ -20,7 +20,7 @@ import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/task_client_store.js";
-import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
+import {screenPaddingX} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {
@@ -119,7 +119,7 @@ function TaskCollectionViewDesktopHeader(
     }, [isMobile]);
 
     return (
-        <Box minHeight={navigationBarHeight} display="flex" paddingX={taskRowViewPaddingX}>
+        <Box minHeight={navigationBarHeight} display="flex" paddingX={screenPaddingX}>
             <Box
                 height={navigationBarHeight}
                 display="flex"
@@ -143,7 +143,7 @@ function TaskCollectionViewDesktopHeader(
                 flexShrink="0"
                 alignSelf="stretch"
                 marginY="4"
-                marginX={taskRowViewPaddingX}
+                marginX={screenPaddingX}
                 borderLeft="grey-5"
             />
             <Box
@@ -169,7 +169,7 @@ function TaskCollectionViewDesktopHeader(
                 flexShrink="0"
                 alignSelf="stretch"
                 marginY="4"
-                marginX={taskRowViewPaddingX}
+                marginX={screenPaddingX}
                 borderLeft="grey-5"
             />
             <Box

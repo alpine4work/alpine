@@ -26,7 +26,12 @@ import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
-import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {
+    addRemLengths,
+    parseRemLengthNumber,
+    screenPaddingX,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
@@ -78,8 +83,6 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
             ? [currentAccount]
             : chat.accounts.filter(account => account.id !== currentAccount.id);
 
-    const paddingX: Spacing = isMobile ? "4" : "5";
-
     return (
         <Box
             data-testid="ChatViewTopBar"
@@ -113,7 +116,7 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
                 <Box
                     width="full"
                     maxWidth="160"
-                    paddingX={paddingX}
+                    paddingX={screenPaddingX}
                     display="flex"
                     flexDirection={!isMobile ? "row" : "column"}
                     alignItems="center"

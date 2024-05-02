@@ -34,6 +34,7 @@ import {
     Spacing,
     addRemLengths,
     parseRemLengthNumber,
+    screenPaddingX,
     spacing,
 } from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -46,7 +47,6 @@ import {
     OptimisticMessageModel,
 } from "~/shared/messaging/message_model.js";
 import {
-    defaultMessageViewMarginX,
     getMessageBubbleMarginLeft,
     messageViewActionsWidth,
     messageViewBubbleBorderRadius,
@@ -140,7 +140,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onDeleteMessage,
     getMessageUrl,
     roomDisplayedCreatedTime,
-    marginX = defaultMessageViewMarginX,
+    paddingX = screenPaddingX,
     centeringMarginRight,
 }: {
     messageNoun?: string;
@@ -158,7 +158,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onDeleteMessage: () => Promise<void>;
     getMessageUrl: (messageIndex: number) => URL;
     roomDisplayedCreatedTime?: Date;
-    marginX?: Spacing;
+    paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     centeringMarginRight?: Spacing;
 }) {
     const isMobile = useIsMobile();
@@ -852,11 +852,19 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 })}
                 style={{
                     height: scaledHeight,
-                    paddingLeft: getMessageBubbleMarginLeft(marginX),
+                    paddingLeft: getMessageBubbleMarginLeft(
+                        typeof paddingX === "string"
+                            ? paddingX
+                            : paddingX[isMobile ? "mobile" : "desktop"],
+                    ),
                     paddingRight: addRemLengths(
                         spacing["3"],
                         spacing[messageViewActionsWidth],
-                        spacing[marginX],
+                        spacing[
+                            typeof paddingX === "string"
+                                ? paddingX
+                                : paddingX[isMobile ? "mobile" : "desktop"]
+                        ],
                     ),
                     // Hide message while lightbox is open so its blur doesn't bleed into
                     // the background.
@@ -945,10 +953,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             </div>
         );
     }, [
-        marginX,
+        isMobile,
         messageStartOfSentenceNoun,
         messageTextForBigEmojiMessage,
         onJumpToMessage,
+        paddingX,
         parentMessage,
         touchLightboxState,
     ]);
@@ -1043,7 +1052,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     fontStyle: "truncate",
                                     paddingTop: parentMessage === null ? "0.5" : "1",
                                     paddingBottom: parentMessage === null ? "0.5" : "1",
-                                    paddingRight: marginX,
+                                    paddingRight: paddingX,
                                     color: "grey-50",
                                     display: "flex",
                                     alignItems: "center",
@@ -1051,7 +1060,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 })}
                                 style={{
                                     paddingLeft: addRemLengths(
-                                        getMessageBubbleMarginLeft(marginX),
+                                        getMessageBubbleMarginLeft(
+                                            typeof paddingX === "string"
+                                                ? paddingX
+                                                : paddingX[isMobile ? "mobile" : "desktop"],
+                                        ),
                                         parentMessage === null ? spacing["1.5"] : spacing["1"],
                                     ),
                                     // Hide message while lightbox is open so its blur doesn't bleed into
@@ -1080,8 +1093,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             </div>
                         ),
                     [
-                        marginX,
+                        isMobile,
                         message.author,
+                        paddingX,
                         parentMessage,
                         shouldMergeWithPreviousMessage,
                         touchLightboxState,
@@ -1092,7 +1106,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     ref={hoverRef}
                     className={sprinkles({
                         display: "flex",
-                        paddingX: marginX,
+                        paddingX,
                         paddingBottom: !shouldMergeWithNextMessage
                             ? messageViewMarginY
                             : messageViewMergedMarginY,

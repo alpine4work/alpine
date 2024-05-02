@@ -82,7 +82,7 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Context} from "~/shared/context/context.js";
-import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {Spacing, convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/spacing.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -936,8 +936,6 @@ function TaskDetailViewMain(
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
 
-    const paddingX: Spacing = isMobile ? "4" : "5";
-
     const isReadOnly = readOnlyReason !== null;
 
     const {store, taskId, taskEntryStore} = taskSubscription;
@@ -1084,7 +1082,7 @@ function TaskDetailViewMain(
                     <Spacer space={navigationBarHeight} />
                 )}
                 <ContextMenuActions actions={contextMenuActions}>
-                    <Box paddingBottom="10" paddingX={paddingX}>
+                    <Box paddingBottom="10" paddingX={screenPaddingX}>
                         <Box
                             height={navigationBarHeight}
                             display="flex"
@@ -1144,7 +1142,7 @@ function TaskDetailViewMain(
                     </Box>
                 </ContextMenuActions>
                 <Box
-                    paddingX={paddingX}
+                    paddingX={screenPaddingX}
                     display="grid"
                     gap="5"
                     style={{
@@ -1342,7 +1340,6 @@ function TaskDetailViewMain(
                     initialNotesVersion={initialNotesVersion}
                     initialNotesContent={initialNotesContent}
                     isReadOnly={isReadOnly}
-                    paddingX={paddingX}
                     pushUndoStackEntry={pushUndoStackEntry}
                     pushUndoStackEntryFromRedo={pushUndoStackEntryFromRedo}
                     pushRedoStackEntry={pushRedoStackEntry}
@@ -1356,7 +1353,7 @@ function TaskDetailViewMain(
                                     display: "inline-flex",
                                     alignItems: "center",
                                     gap: "3",
-                                    paddingX: paddingX,
+                                    paddingX: screenPaddingX,
                                     paddingBottom: "2",
                                     color: "grey-60",
                                 })}

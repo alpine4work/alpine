@@ -4,14 +4,13 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskAssigneeInput} from "~/client/tasks/internal/task_assignee_input.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
-import {RemLength} from "~/shared/design/spacing.js";
+import {RemLength, screenPaddingX} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {pointerEventsNoneNotInheritedClassName, tasksStyles} from "~/shared/styles/styles.js";
@@ -52,11 +51,8 @@ function TaskRowViewDenseFields(
     },
     ref: Ref<TaskRowViewDenseFieldsRef>,
 ) {
-    const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
     const {timeZone} = useClientInfo();
-
-    const paddingX = isMobile ? "4" : "5";
 
     const assigneeInputRef = useRef<HTMLDivElement>(null);
     const priorityInputRef = useRef<HTMLDivElement>(null);
@@ -229,7 +225,7 @@ function TaskRowViewDenseFields(
     const fieldMaxWidth = `${100 / fieldCount}%`;
 
     const node = (
-        <Box display="flex" alignItems="stretch" paddingRight={paddingX}>
+        <Box display="flex" alignItems="stretch" paddingRight={screenPaddingX}>
             <Box
                 flexShrink="0"
                 cursor={!isReadOnly ? "text" : undefined}

@@ -47,7 +47,13 @@ import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mo
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {
+    Spacing,
+    addRemLengths,
+    parseRemLengthNumber,
+    screenPaddingX,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getTruncatedMessageContentForReplyPreview} from "~/shared/messaging/get_truncated_message_content_for_reply_preview.js";
@@ -57,7 +63,6 @@ import {
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
-    defaultMessageViewMarginX,
     getMessageBubbleMarginLeft,
     messageInputAccountAvatarPaddingY,
     messageInputAccountAvatarSize,
@@ -108,7 +113,7 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     onShowTypingIndicator?: () => void;
     onHideTypingIndicator?: () => void;
     "data-testid"?: string;
-    marginX?: Spacing;
+    paddingX?: Spacing | {desktop: Spacing; mobile: Spacing};
     withMobileMaxHeight?: boolean;
     onFocus?: () => void;
     onBlur?: () => void;
@@ -151,7 +156,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onShowTypingIndicator,
         onHideTypingIndicator,
         "data-testid": dataTestId,
-        marginX = defaultMessageViewMarginX,
+        paddingX = screenPaddingX,
         withMobileMaxHeight,
         onFocus,
         onBlur,
@@ -499,7 +504,11 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             style={{
                                 paddingLeft: isMobile
                                     ? spacing["3"]
-                                    : getMessageBubbleMarginLeft(marginX),
+                                    : getMessageBubbleMarginLeft(
+                                          typeof paddingX === "string"
+                                              ? paddingX
+                                              : paddingX.desktop,
+                                      ),
                                 paddingRight: addRemLengths(
                                     spacing["2"],
                                     spacing["7"],
@@ -559,7 +568,11 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                     style={{
                                         paddingLeft: isMobile
                                             ? spacing["3"]
-                                            : getMessageBubbleMarginLeft(marginX),
+                                            : getMessageBubbleMarginLeft(
+                                                  typeof paddingX === "string"
+                                                      ? paddingX
+                                                      : paddingX.desktop,
+                                              ),
                                         paddingRight: addRemLengths(
                                             spacing["2"],
                                             spacing["7"],
@@ -671,12 +684,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 </Box>
                             );
                         })()}
-                    <Box
-                        overflow="hidden"
-                        display="flex"
-                        paddingX={isMobile ? "3" : marginX}
-                        gap="2"
-                    >
+                    <Box overflow="hidden" display="flex" paddingX={paddingX} gap="2">
                         {!isMobile && (
                             <Box display="flex" alignItems="flex-end">
                                 <Box

@@ -5,7 +5,6 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {printPrettySmallNumberSummary} from "~/client/design/pretty_number.js";
-import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {
     DocumentCommentThreadListView,

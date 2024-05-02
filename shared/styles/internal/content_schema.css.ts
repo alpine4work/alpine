@@ -6,8 +6,10 @@ import {invertedColorsWithShade} from "~/shared/design/inverted_colors.js";
 import {
     RemLength,
     addRemLengths,
+    assertSpacing,
     mobilePlatformMediaQuery,
     parseRemLengthNumber,
+    screenPaddingX,
     spacing,
 } from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -69,6 +71,10 @@ export const paragraphLineHeight = "1.375rem";
 const blockPaddingXSpacing = "2";
 export {blockPaddingXSpacing as blockPaddingX};
 const blockPaddingX = spacing[blockPaddingXSpacing];
+
+export const screenPaddingXWithoutBlockPaddingX = mapObjectValues(screenPaddingX, paddingX =>
+    assertSpacing(`${parseInt(paddingX, 10) - parseInt(blockPaddingXSpacing, 10)}`),
+);
 
 export const defaultParagraphMargin = spacing["2"];
 

@@ -10,22 +10,6 @@ import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 export const taskRowViewMinHeight: Spacing = "10";
 
-export const taskRowViewPaddingX: {
-    desktop: Spacing;
-    mobile: Spacing;
-} = {
-    desktop: "5",
-    mobile: "4",
-};
-
-export const taskRowViewPaddingXRem: {
-    desktop: number;
-    mobile: number;
-} = {
-    desktop: parseRemLengthNumber(spacing[taskRowViewPaddingX.desktop]),
-    mobile: parseRemLengthNumber(spacing[taskRowViewPaddingX.mobile]),
-};
-
 const taskRowViewColumnWidthRem = spacing["32"];
 const taskRowViewColumnMinViewportWidth = "10vw";
 

@@ -19,16 +19,19 @@ import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_h
 import {
     mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    postContentViewContentPaddingX,
     postContentViewInnerMarginY,
-    postContentViewPaddingX,
     postViewMaxWidth,
 } from "~/client/forum/post_content_view.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
+import {
+    convertRemLengthToPx,
+    screenPaddingX,
+    spacing,
+    subtractRemLengths,
+} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PostContent, PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
@@ -37,7 +40,7 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {updatePostContent} from "~/shared/rpc/forum_rpc_definitions.js";
 import {contentSchemaStyles, forumStyles, sprinkles} from "~/shared/styles/styles.js";
 
-const postContentEditorBlockMaxWidth = mapObjectValues(postContentViewPaddingX, paddingX =>
+const postContentEditorBlockMaxWidth = mapObjectValues(screenPaddingX, paddingX =>
     subtractRemLengths(spacing[postViewMaxWidth], spacing[paddingX]),
 );
 
@@ -203,7 +206,7 @@ export function PostMobileEditorView({
                         width="full"
                         maxWidth={postViewMaxWidth}
                         marginX="center"
-                        paddingX={postContentViewPaddingX}
+                        paddingX={screenPaddingX}
                         paddingBottom={postContentViewInnerMarginY}
                         style={{
                             paddingTop: isMobile
@@ -227,7 +230,9 @@ export function PostMobileEditorView({
                         })}
                         className={classNames(
                             forumStyles.fullScreenContentEditorClassName,
-                            sprinkles({paddingX: postContentViewContentPaddingX}),
+                            sprinkles({
+                                paddingX: contentSchemaStyles.screenPaddingXWithoutBlockPaddingX,
+                            }),
                         )}
                         onModEnter={() => {
                             // Programmatically press the button instead of calling `createPost()`

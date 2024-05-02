@@ -75,8 +75,10 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             //     "/s/\(spaceId)/notifications/document-comment-threads/2v1kz5r5w3tdb7zv6xt98wm7qg-6178",  // 3 threads
             // initialPath:
             //     "/s/\(spaceId)/notifications/document-comment-threads/qyzzez8e4814wwk2axaaagwp3w-8856",  // 11 threads
+            // initialPath:
+            //     "/s/\(spaceId)/notifications/document-comment-threads/2v1kz5r5w3tdb7zv6xt98wm7qg-8306",  // 1 thread
             initialPath:
-                "/s/\(spaceId)/notifications/document-comment-threads/2v1kz5r5w3tdb7zv6xt98wm7qg-8306",  // 1 thread
+                "/s/\(spaceId)/documents/2v1kz5r5w3tdb7zv6xt98wm7qg/comments/h2wjjg78958c16j5bm42cphwy4",
             websiteDataStore: websiteDataStore
         )
 

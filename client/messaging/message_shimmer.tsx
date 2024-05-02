@@ -1,13 +1,19 @@
 import classNames from "classnames";
-import {useRef} from "react";
+import {Memo, useRef} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageList} from "~/client/messaging/message_list.js";
-import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {
+    Spacing,
+    addRemLengths,
+    parseRemLengthNumber,
+    screenPaddingX,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {MessageModel, MessageModelBase} from "~/shared/messaging/message_model.js";
 import {
-    defaultMessageViewMarginX,
     getMessageBubbleMarginLeft,
     messageViewActionsWidth,
     messageViewBubbleBorderRadius,
@@ -89,15 +95,17 @@ export function MessageShimmer<Message extends MessageModel>({
     previousMessage,
     nextMessage,
     messages,
-    marginX = defaultMessageViewMarginX,
+    paddingX = screenPaddingX,
 }: {
     randomSeed: string;
     index: number;
     previousMessage: MessageModelBase | null;
     nextMessage: MessageModelBase | null;
     messages: MessageList<Message>;
-    marginX?: Spacing;
+    paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
 }) {
+    const isMobile = useIsMobile();
+
     const shimmerRef = useRef<HTMLDivElement>(null);
     const stableRandom = new StableRandom(`MessageShimmer:${randomSeed}`);
 
@@ -143,7 +151,11 @@ export function MessageShimmer<Message extends MessageModel>({
                     className={sprinkles({paddingY: "0.5"})}
                     style={{
                         paddingLeft: addRemLengths(
-                            getMessageBubbleMarginLeft(marginX),
+                            getMessageBubbleMarginLeft(
+                                typeof paddingX === "string"
+                                    ? paddingX
+                                    : paddingX[isMobile ? "mobile" : "desktop"],
+                            ),
                             spacing["1.5"],
                         ),
                     }}
@@ -166,7 +178,7 @@ export function MessageShimmer<Message extends MessageModel>({
             <div
                 className={sprinkles({
                     display: "flex",
-                    paddingX: marginX,
+                    paddingX,
                     paddingBottom: !shouldMergeWithNextMessage
                         ? messageViewMarginY
                         : messageViewMergedMarginY,

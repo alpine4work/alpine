@@ -17,13 +17,14 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {ErrorToast, useShowToast} from "~/client/design/toast.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/internal/task_detail_notes_content_editor_web_socket_client.js";
 import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
-import {Spacing, assertSpacing} from "~/shared/design/spacing.js";
+import {screenPaddingX} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
+import {contentSchemaStyles, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 
 export type TaskDetailNotesFieldRef = {
@@ -41,7 +42,6 @@ function TaskDetailNotesField(
         initialNotesVersion,
         initialNotesContent,
         isReadOnly,
-        paddingX,
         pushUndoStackEntry,
         pushUndoStackEntryFromRedo,
         pushRedoStackEntry,
@@ -50,7 +50,6 @@ function TaskDetailNotesField(
         initialNotesVersion: number;
         initialNotesContent: TaskNotesContentWithReferences;
         isReadOnly: boolean;
-        paddingX: Spacing;
         pushUndoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
         pushUndoStackEntryFromRedo: Memo<(entry: TaskUndoStackEntry) => void>;
         pushRedoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
@@ -58,6 +57,7 @@ function TaskDetailNotesField(
     ref: Ref<TaskDetailNotesFieldRef>,
 ) {
     const context = useAppContext();
+    const isMobile = useIsMobile();
     const showToast = useShowToast();
 
     const events = useEvents({
@@ -129,7 +129,7 @@ function TaskDetailNotesField(
                 id={labelId}
                 className={sprinkles({
                     display: "inline-block",
-                    paddingX,
+                    paddingX: screenPaddingX,
                     paddingBottom: "1",
                     color: "grey-60",
                 })}
@@ -140,7 +140,10 @@ function TaskDetailNotesField(
             >
                 Notes
             </span>
-            <FocusRing insetX={paddingX} isVisibleWhenFocusWithin>
+            <FocusRing
+                insetX={screenPaddingX[isMobile ? "mobile" : "desktop"]}
+                isVisibleWhenFocusWithin
+            >
                 {isReadOnly ? (
                     <Box className={tasksStyles.detailNotesContentEditorClassName}>
                         <ContentView
@@ -148,7 +151,7 @@ function TaskDetailNotesField(
                             content={state.editorState.getContent()}
                             placeholder="Add more details…"
                             className={sprinkles({
-                                paddingX: assertSpacing(`${parseInt(paddingX, 10) - 2}`),
+                                paddingX: contentSchemaStyles.screenPaddingXWithoutBlockPaddingX,
                             })}
                         />
                     </Box>
@@ -163,7 +166,8 @@ function TaskDetailNotesField(
                             className={classNames(
                                 tasksStyles.detailNotesContentEditorClassName,
                                 sprinkles({
-                                    paddingX: assertSpacing(`${parseInt(paddingX, 10) - 2}`),
+                                    paddingX:
+                                        contentSchemaStyles.screenPaddingXWithoutBlockPaddingX,
                                 }),
                             )}
                             onUndoStackEntryPushed={() => {

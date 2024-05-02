@@ -8,7 +8,6 @@ import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
-import {Spacing} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
@@ -41,7 +40,6 @@ export function PostCommentInput({
     onDeletePostComment,
     shouldBeConnectedToChannelRealtime,
     onPostRealtimeEventTransaction,
-    paddingX,
 }: {
     isStickyPositioned: boolean;
     post: PostModel;
@@ -63,7 +61,6 @@ export function PostCommentInput({
             eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
         }) => void
     >;
-    paddingX: Spacing;
 }) {
     const context = useAppContext();
 
@@ -241,7 +238,6 @@ export function PostCommentInput({
             }}
             messageEditing={postCommentEditing}
             replyingToMessage={replyingToPostComment}
-            marginX={paddingX}
             onClearReplyingToMessage={onClearReplyingToPostComment}
             onJumpToMessage={onJumpToPostComment}
             onDeleteMessage={onDeletePostComment}

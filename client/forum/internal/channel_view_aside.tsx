@@ -10,11 +10,11 @@ import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
-import {postContentViewPaddingX} from "~/client/forum/post_content_view.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {
     addRemLengths,
     parseRemLengthNumber,
+    screenPaddingX,
     spacing,
     subtractRemLengths,
 } from "~/shared/design/spacing.js";
@@ -65,7 +65,7 @@ export function ChannelViewAside({
             <Box
                 position="relative"
                 paddingY={channelViewAsidePaddingY}
-                paddingRight={postContentViewPaddingX}
+                paddingRight={screenPaddingX}
             >
                 <h3
                     className={sprinkles({

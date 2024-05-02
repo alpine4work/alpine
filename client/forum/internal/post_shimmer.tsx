@@ -5,9 +5,9 @@ import {
     postContentViewMinHeightWithClosedCommentSection,
     postContentViewOuterMarginBottom,
     postContentViewOuterMarginY,
-    postContentViewPaddingX,
 } from "~/client/forum/post_content_view.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {screenPaddingX} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {colorSchemeVars, fontSizes, pulseAnimationClassName} from "~/shared/styles/styles.js";
 
@@ -45,7 +45,7 @@ export function PostShimmer() {
                 left="0"
                 right="0"
                 bottom="0"
-                paddingX={postContentViewPaddingX}
+                paddingX={screenPaddingX}
                 style={{
                     height: 1,
                 }}
@@ -59,12 +59,7 @@ export function PostShimmer() {
                     }}
                 />
             </Box>
-            <Box
-                flexShrink="0"
-                paddingX={postContentViewPaddingX}
-                display="flex"
-                alignItems="center"
-            >
+            <Box flexShrink="0" paddingX={screenPaddingX} display="flex" alignItems="center">
                 <Box
                     className={pulseAnimationClassName}
                     flexShrink="0"
@@ -108,7 +103,7 @@ export function PostShimmer() {
             <Box flexGrow="1" />
             <Box
                 flexShrink="0"
-                marginX={postContentViewPaddingX}
+                marginX={screenPaddingX}
                 height={postContentViewFooterHeight}
                 display="flex"
                 alignItems="center"

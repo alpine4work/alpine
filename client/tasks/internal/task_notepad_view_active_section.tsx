@@ -24,8 +24,13 @@ import {
     TaskGridViewDraggableData,
     TaskGridViewDroppableData,
 } from "~/client/tasks/task_grid_view_dnd_context.js";
-import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
-import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {
+    Spacing,
+    addRemLengths,
+    parseRemLengthNumber,
+    screenPaddingX,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -216,7 +221,7 @@ function TaskNotepadViewActiveSection({
             }}
         >
             <Box
-                paddingX={taskRowViewPaddingX}
+                paddingX={screenPaddingX}
                 fontSize={taskNotepadViewActiveSectionTitleFontSize}
                 fontStyle="semi-bold"
             >
@@ -224,7 +229,7 @@ function TaskNotepadViewActiveSection({
             </Box>
             <Box
                 data-scrollbar="false"
-                paddingX={taskRowViewPaddingX}
+                paddingX={screenPaddingX}
                 paddingY={taskNotepadViewActiveSectionPaddingY}
                 overflowX="scroll"
                 overflowY="hidden"
@@ -298,7 +303,7 @@ function TaskNotepadViewActiveSection({
                     bottom="2"
                     left="0"
                     right="0"
-                    paddingX={taskRowViewPaddingX}
+                    paddingX={screenPaddingX}
                     display="flex"
                     gap={taskNotepadViewActiveSectionCardGap}
                 >
@@ -385,8 +390,8 @@ function TaskNotepadViewActiveSection({
                         zIndex="-10"
                         top="2"
                         bottom="2"
-                        left={taskRowViewPaddingX}
-                        right={taskRowViewPaddingX}
+                        left={screenPaddingX}
+                        right={screenPaddingX}
                         display="flex"
                         gap={taskNotepadViewActiveSectionCardGap}
                     >

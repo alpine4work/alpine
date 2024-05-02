@@ -1,5 +1,6 @@
 import {setInteractionModality, useInteractionModality} from "@react-aria/interactions";
 import {
+    Memo,
     MutableRefObject,
     ReactElement,
     Ref,
@@ -21,7 +22,7 @@ import {MessageList} from "~/client/messaging/message_list.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {Spacing} from "~/shared/design/spacing.js";
+import {Spacing, screenPaddingX} from "~/shared/design/spacing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
@@ -32,7 +33,6 @@ import {
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
-import {defaultMessageViewMarginX} from "~/shared/messaging/messaging_shared_styles.js";
 
 export type MessageInputProps<RoomKey extends string, Message extends MessageModel<RoomKey>> = {
     messageNoun?: string;
@@ -58,7 +58,7 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
         state: ContentEditorState<MessageContentWithReferences>;
         isFocused: boolean;
     } | null>;
-    marginX?: Spacing;
+    paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     withMobileMaxHeight?: boolean;
 };
 
@@ -89,7 +89,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         onHideTypingIndicator,
         "data-testid": dataTestId,
         restoreStateRef,
-        marginX = defaultMessageViewMarginX,
+        paddingX = screenPaddingX,
         withMobileMaxHeight,
     }: MessageInputProps<RoomKey, Message>,
     externalRef: Ref<MessageInputRef>,
@@ -286,7 +286,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 onHideTypingIndicator={onHideTypingIndicator}
                 isBottomBar={!isNotBottomBar}
                 data-testid={dataTestId}
-                marginX={marginX}
+                paddingX={paddingX}
                 withMobileMaxHeight={withMobileMaxHeight}
                 onFocus={() => {
                     if (restoreStateRef?.current) restoreStateRef.current.isFocused = true;
