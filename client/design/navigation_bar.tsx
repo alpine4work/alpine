@@ -1214,7 +1214,9 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                 0,
                                 scrollOffset - navigationBarHeight,
                             );
-                            nextIsNavigationBarOpaque = false;
+                            // The only time the navigation bar is not opaque is when it's flush with the
+                            // top of the view.
+                            nextIsNavigationBarOpaque = true;
                         }
 
                         const titleBoundaryOffset = getTitleBoundaryOffset(element);
