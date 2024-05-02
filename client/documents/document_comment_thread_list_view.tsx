@@ -418,6 +418,7 @@ function DocumentCommentThreadListView(
     // Always pin the comment input to the bottom of the list view of a single
     // comment thread.
     const isSingleCommentThreadWithPinnedCommentInput = tree.getNodeCount() === 1;
+    const hasNavigationBar = !!navigationBar?.navigationBar;
 
     const isLoadingRef = useRef(false);
     const [errorState, setErrorState] = useState<
@@ -787,12 +788,18 @@ function DocumentCommentThreadListView(
                     // All comment threads should be in the same document.
                     assert(item.commentThread.documentId === documentId);
 
+                    // If we have a navigation bar, then use less top padding since when the
+                    // navigation bar isn't opaque it visually adds a lot of padding to the top of
+                    // the screen already.
+                    //
+                    // The `paddingTop` of `2` also happens to align with the `<TaskStatusButton>`
+                    // placement on mobile.
+                    const paddingTop: Spacing = hasNavigationBar
+                        ? "3"
+                        : documentCommentThreadHeaderPaddingY;
+
                     const minHeight = addRemLengths(
-                        spacing[
-                            index !== 0
-                                ? documentCommentThreadListViewMarginY
-                                : documentCommentThreadHeaderPaddingY
-                        ],
+                        spacing[index !== 0 ? documentCommentThreadListViewMarginY : paddingTop],
                         !withoutCommentThreadPreview
                             ? documentCommentThreadHeaderMinHeightWithoutPaddingTop
                             : spacing[documentCommentThreadActionsHeight],
@@ -866,8 +873,7 @@ function DocumentCommentThreadListView(
                                         width: "full",
                                         maxWidth: documentCommentThreadListViewMaxWidth,
                                         paddingX: paddingX ?? screenPaddingX,
-                                        paddingTop:
-                                            index !== 0 ? "0" : documentCommentThreadHeaderPaddingY,
+                                        paddingTop: index !== 0 ? "0" : paddingTop,
                                         paddingBottom: documentCommentThreadHeaderPaddingY,
                                         overflow: "hidden",
                                     })}
@@ -1166,6 +1172,7 @@ function DocumentCommentThreadListView(
             header,
             tree,
             documentId,
+            hasNavigationBar,
             withoutCommentThreadPreview,
             isSingleCommentThreadWithPinnedCommentInput,
             withSafeAreaInsetTop,

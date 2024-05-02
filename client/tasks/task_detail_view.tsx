@@ -1083,23 +1083,27 @@ function TaskDetailViewMain(
                 )}
                 <ContextMenuActions actions={contextMenuActions}>
                     <Box paddingBottom="10" paddingX={screenPaddingX}>
-                        <Box
-                            height={navigationBarHeight}
-                            display="flex"
-                            alignItems="center"
-                            marginBottom="-1"
-                        >
-                            {isMobile && (
-                                <TaskDetailViewStatusButton
-                                    elementRef={statusButtonRef}
-                                    size="7"
-                                    taskSubscription={taskSubscription}
-                                    undoManager={undoManager}
-                                    affinityManager={affinityManager}
-                                    isReadOnly={isReadOnly}
-                                />
-                            )}
-                        </Box>
+                        {!isMobile ? (
+                            <Box height={navigationBarHeight} marginBottom="-1" />
+                        ) : (
+                            <Box
+                                // The `paddingTop` of `3` happens to align with the
+                                // `<DocumentCommentThreadHeader>`'s resolve button on mobile.
+                                paddingTop="3"
+                                paddingBottom="2"
+                            >
+                                {isMobile && (
+                                    <TaskDetailViewStatusButton
+                                        elementRef={statusButtonRef}
+                                        size="7"
+                                        taskSubscription={taskSubscription}
+                                        undoManager={undoManager}
+                                        affinityManager={affinityManager}
+                                        isReadOnly={isReadOnly}
+                                    />
+                                )}
+                            </Box>
+                        )}
                         <TaskDetailViewParentBreadcrumbs
                             task={task}
                             taskSubscription={taskSubscription}
