@@ -404,10 +404,6 @@ function PeekStackContextProvider(
         };
     }, [createPeekRouter, peekRoutes, navigation.location, navigation.state]);
 
-    // If we are expanding a peek then we want to exclude it from our stored peek
-    // stack so if the user navigates back it is not open.
-    const expandingIdRef = useRef<PeekId | null>(null);
-
     const lastLocationKeyRef = useRef<string | null>(null);
     useLayoutEffectWithoutServerSideWarning(() => {
         if (lastLocationKeyRef.current === location.key) return;
@@ -418,12 +414,7 @@ function PeekStackContextProvider(
         // location. So if the user navigates back to this location we can revive
         // the peek stack.
         if (lastLocationKey !== null) {
-            storePeekStack(
-                lastLocationKey,
-                expandingIdRef.current !== null
-                    ? state.stack.filter(entry => entry.id !== expandingIdRef.current)
-                    : state.stack,
-            );
+            storePeekStack(lastLocationKey, state.stack);
         }
 
         let result;
@@ -476,12 +467,7 @@ function PeekStackContextProvider(
             // aren't sending analytics this is a similar use case.
             // https://developer.mozilla.org/en-US/docs/Web/API/Navigator/sendBeacon#sending_analytics_at_the_end_of_a_session
             if (document.visibilityState === "hidden") {
-                storePeekStack(
-                    location.key,
-                    expandingIdRef.current !== null
-                        ? state.stack.filter(entry => entry.id !== expandingIdRef.current)
-                        : state.stack,
-                );
+                storePeekStack(location.key, state.stack);
             }
         };
 
@@ -619,7 +605,6 @@ function PeekStackContextProvider(
                             dispatch={dispatch}
                             peekRoutes={peekRoutes}
                             createPeekRouter={createPeekRouter}
-                            expandingIdRef={expandingIdRef}
                         />
                     </GlobalKeyDownManualContextProvider>
                 )}
@@ -659,7 +644,6 @@ const PeekStack = forwardRef(function PeekStack(
         dispatch,
         peekRoutes,
         createPeekRouter,
-        expandingIdRef,
     }: {
         state: PeekStackState;
         dispatch: (action: PeekStackAction) => void;
@@ -668,7 +652,6 @@ const PeekStack = forwardRef(function PeekStack(
             history: MemoryHistory;
             hydrationData?: HydrationState;
         }) => PeekRemixEmbedRouter;
-        expandingIdRef: MutableRefObject<PeekId | null>;
     },
     ref: Ref<PeekStackRef>,
 ) {
@@ -740,7 +723,6 @@ const PeekStack = forwardRef(function PeekStack(
                 peekRoutes={peekRoutes}
                 createPeekRouter={createPeekRouter}
                 deltaXPercentage={deltaXPercentage}
-                expandingIdRef={expandingIdRef}
             />
         </DndContext>
     );
@@ -753,7 +735,6 @@ function PeekStackDraggable({
     peekRoutes,
     createPeekRouter,
     deltaXPercentage,
-    expandingIdRef,
 }: {
     parentRef: Ref<PeekStackRef>;
     state: PeekStackState;
@@ -764,7 +745,6 @@ function PeekStackDraggable({
         hydrationData?: HydrationState;
     }) => PeekRemixEmbedRouter;
     deltaXPercentage: number;
-    expandingIdRef: MutableRefObject<PeekId | null>;
 }) {
     const {
         attributes: draggableAttributes,
@@ -894,7 +874,6 @@ function PeekStackDraggable({
                                 isKeyboardDragging={isKeyboardDragging}
                                 draggableAttributes={draggableAttributes}
                                 draggableListeners={draggableListeners}
-                                expandingIdRef={expandingIdRef}
                                 onClosePress={onClosePress}
                             />
                         ))
@@ -912,7 +891,6 @@ function PeekStackDraggable({
                             isKeyboardDragging={isKeyboardDragging}
                             draggableAttributes={draggableAttributes}
                             draggableListeners={draggableListeners}
-                            expandingIdRef={expandingIdRef}
                             onClosePress={onClosePress}
                         />
                     )),
@@ -943,7 +921,6 @@ function PeekStackOverlay({
     isKeyboardDragging,
     draggableAttributes,
     draggableListeners,
-    expandingIdRef,
     onClosePress,
 }: {
     state: PeekStackState;
@@ -959,7 +936,6 @@ function PeekStackOverlay({
     isKeyboardDragging: boolean;
     draggableAttributes: DraggableAttributes;
     draggableListeners: SyntheticListenerMap | undefined;
-    expandingIdRef: MutableRefObject<PeekId | null>;
     onClosePress: (event: PressEvent) => void;
 }) {
     const overlayRef = useRef<HTMLDivElement>(null);
@@ -1343,7 +1319,6 @@ function PeekStackOverlay({
                                         isKeyboardDragging={isKeyboardDragging}
                                         draggableAttributes={draggableAttributes}
                                         draggableListeners={draggableListeners}
-                                        expandingIdRef={expandingIdRef}
                                         onClosePress={onClosePress}
                                     />
                                 </OverlayScopeContextProvider>
@@ -1386,7 +1361,6 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
         isKeyboardDragging,
         draggableAttributes,
         draggableListeners,
-        expandingIdRef,
         onClosePress,
     }: {
         state: PeekStackState;
@@ -1402,7 +1376,6 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
         isKeyboardDragging: boolean;
         draggableAttributes: DraggableAttributes;
         draggableListeners: SyntheticListenerMap | undefined;
-        expandingIdRef: MutableRefObject<PeekId | null>;
         onClosePress: (event: PressEvent) => void;
     },
     ref: Ref<PeekStackOverlayContentRef>,
@@ -1604,32 +1577,27 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                             tooltipPlacement="top"
                             pressErrorTitle="Couldn’t expand"
                             onPress={async event => {
-                                expandingIdRef.current = entry.id;
-                                try {
-                                    const spacePath = convertPeekPathToSpacePath(
-                                        entry.history.location,
-                                    );
-                                    if (!spacePath)
-                                        throw new InternalError("Can only expand peek routes");
+                                const spacePath = convertPeekPathToSpacePath(
+                                    entry.history.location,
+                                );
+                                if (!spacePath)
+                                    throw new InternalError("Can only expand peek routes");
 
-                                    if (
-                                        isOpenLinkInSeparateTabPointerEvent(
-                                            event,
-                                            getClientInfoWithoutListening(),
-                                        )
-                                    ) {
-                                        window.open(
-                                            createPath(spacePath),
-                                            "_blank",
-                                            // Important security measure. See:
-                                            // https://mathiasbynens.github.io/rel-noopener
-                                            "noopener noreferrer",
-                                        );
-                                    } else {
-                                        await navigate(spacePath);
-                                    }
-                                } finally {
-                                    expandingIdRef.current = null;
+                                if (
+                                    isOpenLinkInSeparateTabPointerEvent(
+                                        event,
+                                        getClientInfoWithoutListening(),
+                                    )
+                                ) {
+                                    window.open(
+                                        createPath(spacePath),
+                                        "_blank",
+                                        // Important security measure. See:
+                                        // https://mathiasbynens.github.io/rel-noopener
+                                        "noopener noreferrer",
+                                    );
+                                } else {
+                                    await navigate(spacePath);
                                 }
                             }}
                         >
