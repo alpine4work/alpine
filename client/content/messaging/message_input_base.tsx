@@ -353,18 +353,24 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         }
     }, [isKeyboardToolbarVisible]);
 
+    const [isFocused, setIsFocused] = useState(false);
+
     const handleFocus = () => {
+        setIsFocused(true);
         onFocus?.();
     };
 
     const handleBlur = () => {
+        setIsFocused(false);
         hideTypingIndicator();
-
         onBlur?.();
     };
 
     useRegisterBottomBarFrame(inputContentRef, {
-        isDisabled: !isBottomBar,
+        // Register as a bottom bar when focused even in a `position: sticky` context.
+        // That's because we want typing in the input to scroll the messages above the
+        // input when the input is sticking to the bottom of the view.
+        isDisabled: !isBottomBar && !isFocused,
         withMobileKeyboardToolbar: true,
         isReplacingOtherBottomBar,
     });

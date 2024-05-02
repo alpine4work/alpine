@@ -30,7 +30,8 @@ type BottomBarFrameContext = {
             readonly visibleMobileKeyboard: number;
             readonly hiddenMobileKeyboard: number;
         };
-        wasBottomBarIntroduced: boolean;
+        wasBottomBarMounted: boolean;
+        wasBottomBarUnmounted: boolean;
     }> | null;
     bottomBarFrames: Set<{
         readonly height: number;
@@ -117,7 +118,8 @@ export function useSubscribeToBottomBarFrameChange(): Memo<
                 readonly visibleMobileKeyboard: number;
                 readonly hiddenMobileKeyboard: number;
             };
-            readonly wasBottomBarIntroduced: boolean;
+            readonly wasBottomBarMounted: boolean;
+            readonly wasBottomBarUnmounted: boolean;
         }) => void,
     ) => () => void
 > {
@@ -161,7 +163,7 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
         let isCancelled = false;
         let hasFinishedEffectSetup = false;
         let hasCalledHandleResizeDuringEffectSetup = false;
-        let isIntroduction = !isReplacingOtherBottomBar;
+        let isMounting = !isReplacingOtherBottomBar;
 
         // Emit change after a microtask so it doesn't run as part of React's
         // mounting phase which may have not finished setting up refs that may be used
@@ -176,7 +178,7 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
         });
 
         let currentHeight: number | null = null;
-        let unregister: (() => void) | null = null;
+        let unregister: ((options: {isUnmounting: boolean}) => void) | null = null;
 
         const handleResize = () => {
             if (!hasFinishedEffectSetup) {
@@ -191,14 +193,14 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
 
                 const oldUnregister = unregister;
                 unregister = registerBottomBarFrame(context, height, {
-                    isIntroduction,
+                    isMounting,
                     withMobileKeyboardToolbar,
                 });
-                isIntroduction = false;
+                isMounting = false;
 
                 // Make sure to unregister AFTER registering the new height. That way if the
                 // height didn't change there will be no update notifications.
-                oldUnregister?.();
+                oldUnregister?.({isUnmounting: false});
             }
         };
 
@@ -225,7 +227,7 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
             // remount doesn't change the height.
             scheduleMicrotask(() => {
                 scheduleMicrotask(() => {
-                    unregister?.();
+                    unregister?.({isUnmounting: true});
                 });
             });
         };
@@ -256,7 +258,7 @@ export function useRegisterBottomBarMobileKeyboardToolbarFrame({
         if (isDisabled) return;
 
         let isCancelled = false;
-        let unregister: (() => void) | null = null;
+        let unregister: ((options: {isUnmounting: boolean}) => void) | null = null;
 
         // Emit change after a microtask so it doesn't run as part of React's
         // unmounting phase. If React immediately remounts and we re-register with the
@@ -268,7 +270,7 @@ export function useRegisterBottomBarMobileKeyboardToolbarFrame({
             unregister = registerBottomBarFrame(context, 0, {
                 // Keyboard mobile toolbar frames don't resize. We only really
                 // unregister/re-register if `isDisabled` changes.
-                isIntroduction: true,
+                isMounting: true,
                 withMobileKeyboardToolbar: true,
             });
         });
@@ -286,7 +288,7 @@ export function useRegisterBottomBarMobileKeyboardToolbarFrame({
             // remount doesn't change the height.
             scheduleMicrotask(() => {
                 scheduleMicrotask(() => {
-                    unregister?.();
+                    unregister?.({isUnmounting: true});
                 });
             });
         };
@@ -301,13 +303,13 @@ function registerBottomBarFrame(
     context: BottomBarFrameContext,
     height: number,
     {
-        isIntroduction,
+        isMounting,
         withMobileKeyboardToolbar = false,
     }: {
-        isIntroduction: boolean;
+        isMounting: boolean;
         withMobileKeyboardToolbar: boolean;
     },
-): () => void {
+): (options: {isUnmounting: boolean}) => void {
     const bottomBarFrame = {height, withMobileKeyboardToolbar};
 
     (context.bottomBarFrames ??= new Set()).add(bottomBarFrame);
@@ -328,11 +330,12 @@ function registerBottomBarFrame(
         context.bottomBarFrameChangeEmitter?.emit({
             oldBottomBarHeight,
             newBottomBarHeight: context.currentBottomBarHeight,
-            wasBottomBarIntroduced: isIntroduction,
+            wasBottomBarMounted: isMounting,
+            wasBottomBarUnmounted: false,
         });
     }
 
-    return () => {
+    return ({isUnmounting}: {isUnmounting: boolean}) => {
         (context.bottomBarFrames ??= new Set()).delete(bottomBarFrame);
 
         const oldBottomBarHeight = (context.currentBottomBarHeight ??= {
@@ -351,7 +354,8 @@ function registerBottomBarFrame(
             context.bottomBarFrameChangeEmitter?.emit({
                 oldBottomBarHeight,
                 newBottomBarHeight: context.currentBottomBarHeight,
-                wasBottomBarIntroduced: isIntroduction,
+                wasBottomBarMounted: false,
+                wasBottomBarUnmounted: isUnmounting,
             });
         }
     };

@@ -218,20 +218,22 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             newMobileKeyboardHeight,
             oldBottomBarHeight,
             newBottomBarHeight,
-            wasBottomBarIntroduced,
+            wasBottomBarMounted,
+            wasBottomBarUnmounted,
         }: {
             isAnimated: boolean;
             oldMobileKeyboardHeight: number;
             newMobileKeyboardHeight: number;
             oldBottomBarHeight: {visibleMobileKeyboard: number; hiddenMobileKeyboard: number};
             newBottomBarHeight: {visibleMobileKeyboard: number; hiddenMobileKeyboard: number};
-            wasBottomBarIntroduced: boolean;
+            wasBottomBarMounted: boolean;
+            wasBottomBarUnmounted: boolean;
         }) => {
-            // Don't scroll for covered height changes that introduce a new bottom bar. If
+            // Don't scroll for covered height changes that mounts/unmounts a new bar. If
             // the bottom bar is net new then we'll go from 0 to the bottom bar's height
-            // when the component mounts. The user hasn't seen any content yet so it
-            // doesn't make sense to scroll them.
-            if (wasBottomBarIntroduced) return;
+            // when the component mounts (and vice versa on unmount). The user hasn't seen
+            // any content yet so it doesn't make sense to scroll them.
+            if (wasBottomBarMounted || wasBottomBarUnmounted) return;
 
             const remPx = getRemPxWithoutListening();
 
@@ -620,6 +622,30 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                     top: newScrollTop,
                     behavior: isAnimated ? "smooth" : "instant",
                 });
+
+                const maxScrollTop =
+                    scrollableElement.scrollHeight - scrollableElement.clientHeight;
+
+                // If we can't scroll to `newScrollTop` because there's not enough scroll
+                // height, then request an animation frame and try again. This happens on
+                // desktop when a `<PostCommentInput>` at the end of a fully scrolled
+                // `<PostListView>` resizes while you're typing in it (when there are multiple
+                // posts). When the `<PostCommentInput>` resizes, it emits a bottom bar size
+                // change event and re-renders `<VirtualizedScrollView>` with the new height.
+                // We need to wait for the scroll view to grow after that
+                // `<VirtualizedScrollView>` re-render to be able to scroll.
+                //
+                // [Video of the bug this fixes][1].
+                //
+                // [1]: https://gist.github.com/calebmer/6fb261ff2288c0c9734968a1256b01b2
+                if (!isAnimated && newScrollTop > maxScrollTop) {
+                    requestAnimationFrame(() => {
+                        scrollableElement.scrollTo({
+                            top: newScrollTop,
+                            behavior: "instant",
+                        });
+                    });
+                }
             } else {
                 const newCoveredHeight =
                     Math.max(
@@ -710,20 +736,27 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                     newMobileKeyboardHeight: newKeyboardHeight,
                     oldBottomBarHeight: currentBottomBarHeight,
                     newBottomBarHeight: currentBottomBarHeight,
-                    wasBottomBarIntroduced: false,
+                    wasBottomBarMounted: false,
+                    wasBottomBarUnmounted: false,
                 });
             },
         );
 
         const unsubscribe2 = subscribeToBottomBarFrameChange(
-            ({oldBottomBarHeight, newBottomBarHeight, wasBottomBarIntroduced}) => {
+            ({
+                oldBottomBarHeight,
+                newBottomBarHeight,
+                wasBottomBarMounted,
+                wasBottomBarUnmounted,
+            }) => {
                 scroll({
                     isAnimated: false,
                     oldMobileKeyboardHeight: currentMobileKeyboardHeight,
                     newMobileKeyboardHeight: currentMobileKeyboardHeight,
                     oldBottomBarHeight,
                     newBottomBarHeight,
-                    wasBottomBarIntroduced,
+                    wasBottomBarMounted,
+                    wasBottomBarUnmounted,
                 });
             },
         );
