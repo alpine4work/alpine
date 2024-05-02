@@ -336,14 +336,11 @@ function DocumentContentEditorStateful({
         let animation: AnimationControls;
 
         if (withMobileLayout) {
+            const editorContainerRect = editorContainerElement.getBoundingClientRect();
+
             const sidebarHeight =
-                (sidebarElement?.offsetHeight ?? 0) -
-                (isMobile
-                    ? convertRemLengthToPx(
-                          spacing[documentContentEditorMobileSidebarInsetTop],
-                          remPx,
-                      )
-                    : 0);
+                editorContainerRect.height -
+                convertRemLengthToPx(spacing[documentContentEditorMobileSidebarInsetTop], remPx);
 
             const mobileFakeCommentInputElement = mobileFakeCommentInputRef.current;
 
@@ -450,7 +447,7 @@ function DocumentContentEditorStateful({
             return;
         }
 
-        // Already animating in...
+        // Already animating out...
         if (sidebarAnimationOutRef.current) return;
 
         const editorContainerElement = assertExists(editorContainerRef.current);
@@ -461,14 +458,11 @@ function DocumentContentEditorStateful({
         let animation: AnimationControls;
 
         if (withMobileLayout) {
+            const editorContainerRect = editorContainerElement.getBoundingClientRect();
+
             const sidebarHeight =
-                (sidebarElement?.offsetHeight ?? 0) -
-                (isMobile
-                    ? convertRemLengthToPx(
-                          spacing[documentContentEditorMobileSidebarInsetTop],
-                          remPx,
-                      )
-                    : 0);
+                editorContainerRect.height -
+                convertRemLengthToPx(spacing[documentContentEditorMobileSidebarInsetTop], remPx);
 
             const scrollBottom =
                 editorContainerElement.scrollHeight -
@@ -599,13 +593,14 @@ function DocumentContentEditorStateful({
         const editor = assertExists(editorRef.current);
         editor.blur();
 
-        const sidebarElement = assertExists(sidebarRef.current);
-        const sidebarRect = sidebarElement.getBoundingClientRect();
+        const remPx = getRemPxWithoutListening();
+        const editorContainerRect = editorContainerElement.getBoundingClientRect();
 
-        editorContainerElement.style.setProperty(
-            "--safe-area-inset-bottom",
-            `${sidebarRect.height}px`,
-        );
+        const sidebarHeight =
+            editorContainerRect.height -
+            convertRemLengthToPx(spacing[documentContentEditorMobileSidebarInsetTop], remPx);
+
+        editorContainerElement.style.setProperty("--safe-area-inset-bottom", `${sidebarHeight}px`);
     }, [sidebarState.isOpen, withMobileLayout]);
 
     const sidebarMobileFullScreenAnimationInRef = useRef<AnimationControls | null>(null);
@@ -1096,18 +1091,19 @@ function DocumentContentEditorStateful({
             const navigationBarMaxVisibleHeight = navigationBar.getMaxVisibleHeight();
             const editorContainerRect = editorContainerElement.getBoundingClientRect();
 
+            // When using mobile layout the sidebar takes up visible space.
+            const sidebarHeight =
+                withMobileLayout && sidebarState.isOpen
+                    ? editorContainerRect.height -
+                      convertRemLengthToPx(
+                          spacing[documentContentEditorMobileSidebarInsetTop],
+                          remPx,
+                      )
+                    : 0;
+
             const visibleRect = {
                 top: editorContainerRect.top + navigationBarMaxVisibleHeight,
-                bottom:
-                    editorContainerRect.bottom -
-                    // When using mobile layout the sidebar takes up visible space.
-                    (withMobileLayout && sidebarState.isOpen
-                        ? editorContainerRect.height -
-                          convertRemLengthToPx(
-                              spacing[documentContentEditorMobileSidebarInsetTop],
-                              remPx,
-                          )
-                        : 0),
+                bottom: editorContainerRect.bottom - sidebarHeight,
             };
             visibleRect.bottom = Math.max(visibleRect.bottom, visibleRect.top);
 
@@ -1188,7 +1184,6 @@ function DocumentContentEditorStateful({
 
             const navigationBar = assertExists(navigationBarRef.current);
             const editorContainerElement = assertExists(editorContainerRef.current);
-            const sidebarElement = sidebarState.isOpen ? assertExists(sidebarRef.current) : null;
 
             const commentMarkElements = editorContainerElement.querySelectorAll(
                 `[data-comment="${commentThreadId}"]`,
@@ -1202,23 +1197,19 @@ function DocumentContentEditorStateful({
             const navigationBarVisibleHeight = navigationBar.getVisibleHeight();
             const editorContainerRect = editorContainerElement.getBoundingClientRect();
 
-            // Can't use `sidebarElement.getBoundingClientRect()` since that may be
-            // influenced by our animation's CSS `transform`.
+            // When using mobile layout the sidebar takes up visible space.
             const sidebarHeight =
-                (sidebarElement?.offsetHeight ?? 0) -
-                (isMobile
-                    ? convertRemLengthToPx(
+                withMobileLayout && sidebarState.isOpen
+                    ? editorContainerRect.height -
+                      convertRemLengthToPx(
                           spacing[documentContentEditorMobileSidebarInsetTop],
                           remPx,
                       )
-                    : 0);
+                    : 0;
 
             const visibleRect = {
                 top: editorContainerRect.top + navigationBarVisibleHeight,
-                bottom:
-                    editorContainerRect.bottom -
-                    // When using mobile layout the sidebar takes up visible space.
-                    (withMobileLayout ? sidebarHeight : 0),
+                bottom: editorContainerRect.bottom - sidebarHeight,
             };
             visibleRect.bottom = Math.max(visibleRect.bottom, visibleRect.top);
 
