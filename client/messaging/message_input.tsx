@@ -1,4 +1,4 @@
-import {setInteractionModality, useInteractionModality} from "@react-aria/interactions";
+import {setInteractionModality} from "@react-aria/interactions";
 import {
     Memo,
     MutableRefObject,
@@ -240,8 +240,6 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         tryCreatingMessage();
     };
 
-    const interactionModality = useInteractionModality();
-
     return (
         <>
             <MessageInputBase
@@ -312,7 +310,9 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                                 message.author.id === currentAccount.id &&
                                 message.payload.type === "Content"
                             ) {
-                                const previousInteractionModality = interactionModality;
+                                const maintainedInteractionModality = assertExists(
+                                    inputRef.current,
+                                ).getMaintainedInteractionModality();
 
                                 messageEditing.dispatch({
                                     type: "StartEditing",
@@ -323,7 +323,9 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                                         // Reset the interaction modality when returning focus to our editor. So if the
                                         // user pressed enter to save that doesn't give us a keyboard modality if the
                                         // user wasn't using keyboard navigation before.
-                                        setInteractionModality(previousInteractionModality);
+                                        if (maintainedInteractionModality !== null) {
+                                            setInteractionModality(maintainedInteractionModality);
+                                        }
 
                                         inputRef.current?.focus();
                                     },

@@ -1,3 +1,4 @@
+import {Modality} from "@react-aria/interactions";
 import {animate} from "motion";
 import {ArrowArcLeft, ArrowRight, ArrowUp, PencilSimple, X} from "phosphor-react";
 import {EditorView} from "prosemirror-view";
@@ -89,6 +90,7 @@ export type MessageInputRef = {
     isEmpty(): boolean;
     clear(): void;
     getBoundingClientRect(): DOMRect;
+    getMaintainedInteractionModality(): Modality | null;
 };
 
 export type MessageInputBaseProps<RoomKey extends string, Message extends MessageModel<RoomKey>> = {
@@ -200,6 +202,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             isEmpty: () => isContentEmpty(assertExists(editorRef.current).getState().getDoc()),
             clear,
             getBoundingClientRect: () => assertExists(inputRef.current).getBoundingClientRect(),
+            getMaintainedInteractionModality: () =>
+                assertExists(editorRef.current).getMaintainedInteractionModality(),
         }),
         [clear],
     );

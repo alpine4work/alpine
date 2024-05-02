@@ -204,6 +204,22 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
     openMobileKeyboardToolbarCommentInputIfPossible(): void;
 
     /**
+     * While focused, the content editor captures the current interaction modality
+     * and will maintain that interaction modality as focus moves around inside the
+     * content editor.
+     *
+     * For example, hitting cmd-k to open a link input will maintain the
+     * interaction modality from when the editor was focused instead of switching
+     * to a keyboard interaction modality.
+     *
+     * If you have would like to temporarily move focus (e.g. when `<MessageInput>`
+     * moves focus to a `<MessageViewEditor>` when you press the up arrow key)
+     * yourself while maintaining the content editor's interaction modality then
+     * you may call this function to get the maintained interaction modality.
+     */
+    getMaintainedInteractionModality(): Modality | null;
+
+    /**
      * Get the internal ProseMirror editor view object. Prefer the public methods
      * on this ref that provide a constrained, safe, interface. But this escape
      * hatch is available if necessary.
@@ -473,6 +489,9 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                     "Opening the content editor's mobile keyboard toolbar comment input on initial render is not implemented",
                 );
             },
+            getMaintainedInteractionModality: () => {
+                return null;
+            },
             _getInternalView: () => {
                 throw new UnimplementedError(
                     "Getting internal ProseMirror view on initial render is not implemented",
@@ -636,6 +655,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 ) {
                     setIsMobileCommentInputOpen(true);
                 }
+            },
+            getMaintainedInteractionModality: () => {
+                return maintainedInteractionModalityRef.current;
             },
             _getInternalView: () => {
                 return assertExists(viewRef.current);
@@ -1683,7 +1705,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     const unwrappedState = unwrap(state);
 
-    const maintainInteractionModalityRef = useRef<Modality | null>(null);
+    const maintainedInteractionModalityRef = useRef<Modality | null>(null);
 
     const [mobileLinkModalState, setMobileLinkModalState] =
         useState<ContentEditorMobileLinkModalState | null>(null);
@@ -1744,7 +1766,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 customContainerClassName,
             )}
             onFocus={onFocus}
-            onFocusCapture={event => {
+            onFocusCapture={() => {
                 // When the user hits cmd-k to open a link input in `<MessageView>`, types a
                 // link, then hits enter, we should not render a `<FocusRing>` if the
                 // `<ContentEditor>` didn't previously have a `<FocusRing>`. To do this we reset
@@ -1755,10 +1777,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // We intentionally don't check `event.target === viewRef.current.dom` because
                 // we also want to reset interaction modality when focusing children. Like the
                 // comment input in documents.
-                if (maintainInteractionModalityRef.current !== null) {
-                    setInteractionModality(maintainInteractionModalityRef.current);
+                if (maintainedInteractionModalityRef.current !== null) {
+                    setInteractionModality(maintainedInteractionModalityRef.current);
                 } else {
-                    maintainInteractionModalityRef.current = getInteractionModality();
+                    maintainedInteractionModalityRef.current = getInteractionModality();
                 }
             }}
             onBlur={event => {
@@ -1766,7 +1788,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     !(event.relatedTarget instanceof Element) ||
                     !isElementOwnedBy(event.currentTarget, event.relatedTarget)
                 ) {
-                    maintainInteractionModalityRef.current = null;
+                    maintainedInteractionModalityRef.current = null;
                 }
 
                 onBlur?.(event);
