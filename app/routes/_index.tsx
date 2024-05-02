@@ -158,12 +158,7 @@ export default function HomePage() {
             // Create a new z-index stacking context
             position="relative"
             zIndex="0"
-            style={{
-                paddingTop: "var(--safe-area-inset-top, 0px)",
-                paddingBottom: "var(--safe-area-inset-bottom, 0px)",
-                paddingLeft: "var(--safe-area-inset-left, 0px)",
-                paddingRight: "var(--safe-area-inset-right, 0px)",
-            }}
+            padding="safe-area-inset"
         >
             <DocumentBlobFactory
                 settings={useMemo(

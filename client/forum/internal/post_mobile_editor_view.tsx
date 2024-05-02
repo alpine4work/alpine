@@ -188,8 +188,8 @@ export function PostMobileEditorView({
                     minHeight="full"
                     display="flex"
                     flexDirection="column"
+                    paddingTop="safe-area-inset"
                     style={{
-                        paddingTop: "var(--safe-area-inset-top, 0px)",
                         ...assignInlineVars({
                             [contentSchemaStyles.blockMaxWidthVar]:
                                 postContentEditorBlockMaxWidth[isMobile ? "mobile" : "desktop"],

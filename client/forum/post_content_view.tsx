@@ -309,7 +309,7 @@ export function PostContentView({
                     </Box>
                 </>
             ) : (
-                <Box style={{paddingTop: "var(--safe-area-inset-top, 0px)"}}>
+                <Box paddingTop="safe-area-inset">
                     <Box
                         style={{
                             height: withMobileLayout

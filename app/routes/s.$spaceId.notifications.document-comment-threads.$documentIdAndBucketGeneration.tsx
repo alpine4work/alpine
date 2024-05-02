@@ -393,9 +393,9 @@ function DocumentNewCommentThreadsRouteInner({
                     node: (
                         <Box
                             position="relative"
-                            style={{paddingTop: "var(--safe-area-inset-top, 0px)"}}
                             width="full"
                             maxWidth={documentCommentThreadListViewMaxWidth}
+                            paddingTop="safe-area-inset"
                             marginX="center"
                         >
                             <Box height={navigationBarHeight} />

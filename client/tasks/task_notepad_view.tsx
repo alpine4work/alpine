@@ -359,10 +359,8 @@ export function TaskNotepadView({
                         display="flex"
                         alignItems="center"
                         justifyContent="space-between"
-                        style={{
-                            height: `calc(${height} + var(--safe-area-inset-top, 0px))`,
-                            paddingTop: "var(--safe-area-inset-top, 0px)",
-                        }}
+                        paddingTop="safe-area-inset"
+                        style={{height: `calc(${height} + var(--safe-area-inset-top, 0px))`}}
                     >
                         <Box fontSize="200" fontStyle="semi-bold">
                             Notepad
@@ -468,7 +466,7 @@ export function TaskNotepadView({
                     top="0"
                     zIndex="10"
                     width="full"
-                    style={{height: "var(--safe-area-inset-top, 0px)"}}
+                    height="safe-area-inset-top"
                     backgroundColor="grey-0"
                 />
             )}

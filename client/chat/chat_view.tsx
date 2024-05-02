@@ -85,11 +85,9 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
             data-testid="ChatViewTopBar"
             flexShrink="0"
             width="full"
+            paddingTop="safe-area-inset"
             display="flex"
             alignItems="center"
-            style={{
-                paddingTop: "var(--safe-area-inset-top, 0px)",
-            }}
         >
             <Box
                 height={navigationBarHeight}

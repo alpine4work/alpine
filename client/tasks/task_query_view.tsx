@@ -661,7 +661,7 @@ export function TaskQueryView({
                     key: "CustomizationBar",
                     minHeight: spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
                     node: (
-                        <Box style={{paddingTop: "var(--safe-area-inset-top, 0px)"}}>
+                        <Box paddingTop="safe-area-inset">
                             <Box height={navigationBarHeight} />
                             {readOnlyReason?.message && <Box height={readOnlyStickyBannerHeight} />}
                             {isMobile ? (

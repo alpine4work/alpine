@@ -159,13 +159,7 @@ export function ChannelViewEditNameAndDescriptionMobileModal({
             overflowX="hidden"
             overflowY="auto"
         >
-            <Box
-                position="relative"
-                style={{
-                    paddingTop: "var(--safe-area-inset-top, 0px)",
-                    paddingBottom: "var(--safe-area-inset-bottom, 0px)",
-                }}
-            >
+            <Box position="relative" paddingY="safe-area-inset">
                 {navigationBar}
                 <Box height={navigationBarHeight} />
                 <Box paddingX="3">

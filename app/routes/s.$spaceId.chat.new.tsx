@@ -204,8 +204,8 @@ export default function NewChatRoute({withMobileLayout = false}: {withMobileLayo
             <Box
                 ref={accountPickerContainerRef}
                 flexShrink="0"
+                paddingTop="safe-area-inset"
                 borderBottom="grey-10"
-                style={{paddingTop: "var(--safe-area-inset-top, 0px)"}}
             >
                 {isMobile && (
                     <NavigationBarContent

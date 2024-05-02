@@ -108,16 +108,7 @@ export function ErrorBoundary() {
     const withMobileLayout = usePeekContext()?.withMobileLayout ?? false;
 
     return (
-        <Box
-            display="flex"
-            justifyContent="center"
-            style={{
-                paddingTop: "var(--safe-area-inset-top, 0px)",
-                paddingBottom: "var(--safe-area-inset-bottom, 0px)",
-                paddingLeft: "var(--safe-area-inset-left, 0px)",
-                paddingRight: "var(--safe-area-inset-right, 0px)",
-            }}
-        >
+        <Box display="flex" justifyContent="center" padding="safe-area-inset">
             <Box
                 width="full"
                 maxWidth="128"

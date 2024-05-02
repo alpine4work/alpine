@@ -798,10 +798,10 @@ function PostListView(
                                         width: "full",
                                         overflow: "hidden",
                                         maxWidth: postViewMaxWidth,
+                                        paddingTop: "safe-area-inset",
                                     })}
                                     style={{
                                         flex: postViewFlex,
-                                        paddingTop: "var(--safe-area-inset-top, 0px)",
                                     }}
                                 >
                                     {hasNavigationBar && <Spacer space={navigationBarHeight} />}
@@ -846,15 +846,13 @@ function PostListView(
                                 className={sprinkles({
                                     display: "flex",
                                     justifyContent: "center",
-                                })}
-                                style={{
                                     paddingBottom:
                                         index ===
                                         posts.getItemCount() -
                                             (isSingleLayoutWithPinnedCommentInput ? 2 : 1)
-                                            ? "var(--safe-area-inset-bottom, 0px)"
+                                            ? "safe-area-inset"
                                             : undefined,
-                                }}
+                                })}
                             >
                                 <div
                                     className={sprinkles({
@@ -1370,15 +1368,15 @@ function PostListView(
                                                 position: "sticky",
                                                 bottom: 0,
                                             }),
-                                            paddingBottom:
-                                                index === posts.getItemCount() - 1
-                                                    ? "var(--safe-area-inset-bottom, 0px)"
-                                                    : undefined,
                                         }}
                                         className={sprinkles({
                                             width: "full",
                                             display: "flex",
                                             justifyContent: "center",
+                                            paddingBottom:
+                                                index === posts.getItemCount() - 1
+                                                    ? "safe-area-inset"
+                                                    : undefined,
                                         })}
                                     >
                                         <div
@@ -1484,10 +1482,8 @@ function PostListView(
                                 className={sprinkles({
                                     display: "flex",
                                     justifyContent: "center",
+                                    paddingBottom: "safe-area-inset",
                                 })}
-                                style={{
-                                    paddingBottom: "var(--safe-area-inset-bottom, 0px)",
-                                }}
                             >
                                 <div
                                     className={sprinkles({

@@ -217,8 +217,8 @@ export function PostCreatorView({
                     left="0"
                     right="0"
                     zIndex="10"
+                    height="safe-area-inset-top"
                     backgroundColor="grey-0"
-                    style={{height: "var(--safe-area-inset-top, 0px)"}}
                 />
             )}
             <Box
@@ -238,8 +238,8 @@ export function PostCreatorView({
                     minHeight="full"
                     display="flex"
                     flexDirection="column"
+                    paddingTop="safe-area-inset"
                     style={{
-                        paddingTop: "var(--safe-area-inset-top, 0px)",
                         ...assignInlineVars({
                             [contentSchemaStyles.blockMaxWidthVar]:
                                 postContentEditorBlockMaxWidth[isMobile ? "mobile" : "desktop"],
@@ -309,9 +309,7 @@ export function PostCreatorView({
                             width="full"
                             marginX="center"
                             maxWidth={postViewMaxWidth}
-                            style={{
-                                paddingBottom: "var(--safe-area-inset-bottom, 0px)",
-                            }}
+                            paddingBottom="safe-area-inset"
                         >
                             <Box height="12" paddingX="2.5" display="flex" alignItems="center">
                                 <Box flexGrow="1" />

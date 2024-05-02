@@ -82,7 +82,7 @@ export function TaskCollectionViewEditNameMobileModal({
 
     return (
         <Box width="full">
-            <Box style={{paddingTop: "var(--safe-area-inset-top, 0px)"}} />
+            <Box paddingTop="safe-area-inset" />
             <Box
                 height={navigationBarHeight}
                 paddingX="3"

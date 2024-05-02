@@ -126,7 +126,7 @@ if (process.env.NODE_ENV !== "development") {
                             color="green-80"
                             fontSize="50"
                             boxShadow="elevation-30"
-                            style={{paddingTop: "var(--safe-area-inset-top, 0px)"}}
+                            paddingTop="safe-area-inset"
                         >
                             <Box
                                 overflow="hidden"

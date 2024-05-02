@@ -480,16 +480,7 @@ function RootErrorRenderer({error: _error, title}: {error: unknown; title?: stri
     const error = useStableValue(ErrorSchema, _error);
 
     return (
-        <Box
-            display="flex"
-            justifyContent="center"
-            style={{
-                paddingTop: "var(--safe-area-inset-top, 0px)",
-                paddingBottom: "var(--safe-area-inset-bottom, 0px)",
-                paddingLeft: "var(--safe-area-inset-left, 0px)",
-                paddingRight: "var(--safe-area-inset-right, 0px)",
-            }}
-        >
+        <Box display="flex" justifyContent="center" padding="safe-area-inset">
             <main
                 className={sprinkles({
                     width: "full",

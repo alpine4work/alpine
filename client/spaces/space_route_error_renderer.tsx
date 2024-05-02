@@ -11,17 +11,7 @@ export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
     const error = useStableValue(ErrorSchema, _error);
 
     return (
-        <Box
-            width="full"
-            display="flex"
-            justifyContent="center"
-            style={{
-                paddingTop: "var(--safe-area-inset-top, 0px)",
-                paddingBottom: "var(--safe-area-inset-bottom, 0px)",
-                paddingLeft: "var(--safe-area-inset-left, 0px)",
-                paddingRight: "var(--safe-area-inset-right, 0px)",
-            }}
-        >
+        <Box width="full" display="flex" justifyContent="center" padding="safe-area-inset">
             <Box
                 className={sprinkles({
                     width: "full",
