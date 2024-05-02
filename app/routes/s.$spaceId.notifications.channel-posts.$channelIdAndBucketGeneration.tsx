@@ -1,15 +1,14 @@
 import {useCallback, useMemo, useRef, useState} from "react";
-import {usePress} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {printPrettySmallNumberSummary} from "~/client/design/pretty_number.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {postContentViewMinHeightWithClosedCommentSection} from "~/client/forum/post_content_view.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
+import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
@@ -29,13 +28,13 @@ import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getChannelWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitions.js";
 import {getInboxChannelPostsEntryPosts} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
     channel: createDynamoGeneralRealtimeItemSchema(ChannelModel.schema()),
     bucketGeneration: Schema.integer,
     postsResult: Schema.object({
+        totalPostCount: Schema.integer,
         hasMorePosts: Schema.boolean,
         posts: Schema.array(createDynamoGeneralRealtimeItemSchema(PostModel.schema())),
     }),
@@ -88,7 +87,21 @@ export async function loader({params, context}: LoaderArgs) {
     );
 }
 
-export const meta = () => [{title: `New posts notification${metaTitlePostfix}`}];
+export const meta = createMetaFunction(
+    LoaderSchema,
+    ({
+        data: {
+            channel,
+            postsResult: {totalPostCount},
+        },
+    }) => [
+        {
+            title: `${printPrettySmallNumberSummary(totalPostCount, "new post")} in ${
+                channel.model.name
+            }`,
+        },
+    ],
+);
 
 export default function ChannelPostsRoute({
     withMobileLayout: withMobileLayoutProp = false,
@@ -98,7 +111,6 @@ export default function ChannelPostsRoute({
     const context = useAppContext();
     const isMobile = useIsMobile();
     const {space} = useSpaceContext();
-    const navigate = useNavigate();
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
 
@@ -119,6 +131,8 @@ export default function ChannelPostsRoute({
         ChannelRealtimeProtocol,
         `/api/durable-objects/channels/${channelId}`,
     );
+
+    const totalPostCount = initialPostsResult.totalPostCount;
 
     const [posts, setPosts] = useState(() =>
         PostBasicList.new({
@@ -151,34 +165,13 @@ export default function ChannelPostsRoute({
         }, [channelId, context]),
     });
 
-    const {isPressed: isTitlePressed, pressProps: titlePressProps} = usePress({
-        onPress: () => {
-            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-            void navigate(`/s/${channel.model.spaceId}/channels/${channel.model.id}`, {
-                // Don't let the route open in `<PeekStack>`.
-                stopPropagation: true,
-            });
-        },
-    });
-
     const navigationBarRef = useRef<NavigationBarRef>(null);
 
     const navigationBar = useNavigationBar({
-        isDisabled: !withMobileLayout,
+        isDisabled: !isMobile,
         ref: navigationBarRef,
         withMobileLayout,
-        title: (
-            <span
-                {...titlePressProps}
-                className={sprinkles({
-                    cursor: "pointer",
-                    opacity: isTitlePressed ? "60" : undefined,
-                })}
-            >
-                {channel.model.name}
-            </span>
-        ),
-        subtitle: `New post${posts.getPostCount() === 1 && !posts.hasMorePosts() ? "" : "s"}`,
+        title: printPrettySmallNumberSummary(totalPostCount, "new post"),
         withoutDisappearingTitle: true,
     });
 
@@ -187,10 +180,10 @@ export default function ChannelPostsRoute({
             withMobileLayout={withMobileLayout}
             channelHeader={useMemo(
                 () =>
-                    withMobileLayout
-                        ? {isOnlyNavigationBar: true, shouldNotShowChannelId: channel.model.id}
+                    isMobile
+                        ? {isOnlyNavigationBar: true, shouldNotShowChannelId: null}
                         : undefined,
-                [channel.model.id, withMobileLayout],
+                [isMobile],
             )}
             posts={posts}
             onTogglePostComments={useCallback(
@@ -217,6 +210,9 @@ export default function ChannelPostsRoute({
                 setPosts(posts => posts.handleEventTransaction(eventTransaction));
             }, [])}
             navigationBar={{...navigationBar, navigationBarRef}}
+            // Safe area inset is already accounted for on mobile thanks to the
+            // `navigationBar`.
+            withSafeAreaInsetTop={!isMobile}
         />
     );
 }

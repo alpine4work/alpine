@@ -1061,7 +1061,7 @@ function TaskDetailViewMain(
 
     return (
         <>
-            <Box style={{height: "var(--safe-area-inset-top)"}} />
+            <Box height="safe-area-inset-top" />
             {readOnlyReason && (
                 <>
                     <Spacer space={taskDetailViewReadOnlyReasonStickyBannerHeight} />

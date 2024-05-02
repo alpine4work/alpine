@@ -1,10 +1,11 @@
 import {CaretLeft, CaretRight} from "phosphor-react";
 import {MutableRefObject, useMemo, useRef, useState} from "react";
-import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {printPrettySmallNumberSummary} from "~/client/design/pretty_number.js";
+import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {
     DocumentCommentThreadListView,
@@ -15,10 +16,10 @@ import {documentCommentThreadCountAgainstLimit} from "~/client/documents/documen
 import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
+import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
 import {getInboxDocumentNewCommentThreadsEntryCommentThreads} from "~/server/notifications/data/notifications_table.js";
@@ -29,7 +30,6 @@ import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
-    getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -38,7 +38,6 @@ import {generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {messageViewMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
@@ -104,7 +103,14 @@ export async function loader({params, context}: LoaderArgs) {
     );
 }
 
-export const meta = () => [{title: `New document comment threads notification${metaTitlePostfix}`}];
+export const meta = createMetaFunction(LoaderSchema, ({data: {document, commentThreads}}) => [
+    {
+        title: `${printPrettySmallNumberSummary(
+            commentThreads.length,
+            "new comment thread",
+        )} on ${document.getTitle()}`,
+    },
+]);
 
 export default function DocumentNewCommentThreadsRoute({
     withMobileLayout = false,
@@ -128,7 +134,6 @@ function DocumentNewCommentThreadsRouteInner({
     withMobileLayout: boolean;
 }) {
     const isMobile = useIsMobile();
-    const navigate = useNavigate();
     const rootNavigate = useRootNavigate();
     const showToast = useShowToast();
 
@@ -156,20 +161,6 @@ function DocumentNewCommentThreadsRouteInner({
     const listViewRef = useRef<DocumentCommentThreadListViewRef>(null);
 
     const documentContent = editorState.getContent();
-    const documentTitle = useMemo(
-        () => getDocumentContentTitle(documentContent.doc),
-        [documentContent],
-    );
-
-    const {isPressed: isTitlePressed, pressProps: titlePressProps} = usePress({
-        onPress: () => {
-            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-            void navigate(`/s/${initialDocument.spaceId}/documents/${initialDocument.id}`, {
-                // Don't let the route open in `<PeekStack>`.
-                stopPropagation: true,
-            });
-        },
-    });
 
     const commentThreadCount = initialCommentThreads.length;
 
@@ -292,49 +283,42 @@ function DocumentNewCommentThreadsRouteInner({
     };
 
     const navigationBar = useNavigationBar({
-        isDisabled: !withMobileLayout,
+        isDisabled: !isMobile,
         withMobileLayout,
-        title: isMobile ? (
-            <Box display="flex" justifyContent="center" alignItems="center" gap="1">
-                <IconButton
-                    size="md"
-                    description="Previous thread"
-                    isDisabled={mobileCommentThreadIndex === 0}
-                    pressErrorTitle="Can’t go to previous thread"
-                    onPress={() => switchMobileCommentThreadIndex(mobileCommentThreadIndex - 1)}
-                >
-                    <CaretLeft />
-                </IconButton>
-                <Box
-                    minWidth="12"
-                    paddingX="1.5"
-                    textAlign="center"
-                    style={{fontVariantNumeric: "tabular-nums"}}
-                >
-                    Thread {mobileCommentThreadIndex + 1} of {commentThreadCount}
+        title:
+            commentThreadCount === 1 ? (
+                "New comment thread"
+            ) : (
+                <Box display="flex" justifyContent="center" alignItems="center" gap="1.5">
+                    <IconButton
+                        size="md"
+                        description="Previous thread"
+                        isDisabled={mobileCommentThreadIndex === 0}
+                        pressErrorTitle="Can’t go to previous thread"
+                        onPress={() => switchMobileCommentThreadIndex(mobileCommentThreadIndex - 1)}
+                    >
+                        <CaretLeft />
+                    </IconButton>
+                    <Box style={{fontVariantNumeric: "tabular-nums"}}>
+                        {mobileCommentThreadIndex + 1} of {commentThreadCount} new{" "}
+                        {
+                            // We just call it "threads" and not "comment threads" here (we call this
+                            // entity "comment threads" everywhere else) since "comment threads" visually
+                            // looks too long.
+                            "threads"
+                        }
+                    </Box>
+                    <IconButton
+                        size="md"
+                        description="Next thread"
+                        isDisabled={mobileCommentThreadIndex === commentThreadCount - 1}
+                        pressErrorTitle="Can’t go to next thread"
+                        onPress={() => switchMobileCommentThreadIndex(mobileCommentThreadIndex + 1)}
+                    >
+                        <CaretRight />
+                    </IconButton>
                 </Box>
-                <IconButton
-                    size="md"
-                    description="Next thread"
-                    isDisabled={mobileCommentThreadIndex === commentThreadCount - 1}
-                    pressErrorTitle="Can’t go to next thread"
-                    onPress={() => switchMobileCommentThreadIndex(mobileCommentThreadIndex + 1)}
-                >
-                    <CaretRight />
-                </IconButton>
-            </Box>
-        ) : (
-            <span
-                {...titlePressProps}
-                className={sprinkles({
-                    cursor: "pointer",
-                    opacity: isTitlePressed ? "60" : undefined,
-                })}
-            >
-                {documentTitle}
-            </span>
-        ),
-        subtitle: !isMobile ? "New comments" : undefined,
+            ),
         withoutDisappearingTitle: true,
     });
 
@@ -385,8 +369,11 @@ function DocumentNewCommentThreadsRouteInner({
                 [initialCommentThreadResults, isMobile, mobileCommentThreadIndex],
             )}
             navigationBar={navigationBar}
+            // Safe area inset is already accounted for on mobile thanks to the
+            // `navigationBar`.
+            withSafeAreaInsetTop={!isMobile}
             header={useMemo(() => {
-                if (!withMobileLayout) return undefined;
+                if (!isMobile) return undefined;
 
                 return {
                     minHeight: spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
@@ -402,7 +389,7 @@ function DocumentNewCommentThreadsRouteInner({
                         </Box>
                     ),
                 };
-            }, [isMobile, withMobileLayout])}
+            }, [isMobile])}
         />
     );
 }

@@ -2408,6 +2408,7 @@ export async function getInboxChannelPostsEntryPosts(
         afterPostId: PostId | null;
     },
 ): Promise<{
+    totalPostCount: number;
     hasMorePosts: boolean;
     posts: Array<DynamoGeneralRealtimeItem<PostModel>>;
 }> {
@@ -2483,6 +2484,7 @@ export async function getInboxChannelPostsEntryPosts(
         );
 
         return {
+            totalPostCount: inboxEntryItem.postIds.size,
             hasMorePosts: inboxEntryItem.postIds.size > limit,
             posts,
         };
@@ -2516,6 +2518,7 @@ export async function getInboxChannelPostsEntryPosts(
         );
 
         return {
+            totalPostCount: inboxEntryItem.postIds.size,
             hasMorePosts: inboxEntryItem.postIds.size > limit + afterPostIndex + 1,
             posts,
         };

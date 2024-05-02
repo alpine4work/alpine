@@ -388,7 +388,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
      * A secondary title we render under the main title at a smaller size. Used to
      * add a bit of extra detail.
      */
-    subtitle?: string;
+    subtitle?: ReactNode;
 
     /**
      * Actions that are made available to the user in a menu button at the right of
@@ -671,7 +671,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     title: ReactNode;
     titleBoundaryRef: RefObject<TitleBoundaryElement> | undefined;
     withoutDisappearingTitle: boolean;
-    subtitle: string | undefined;
+    subtitle: ReactNode | undefined;
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
     shareButton: {} | undefined;
     stickyBanner: ReactNode;
@@ -1470,11 +1470,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             : {bottom: `-${navigationBarHeightRem}rem`}),
                     }}
                 >
-                    <Box
-                        position="relative"
-                        zIndex="0"
-                        style={{paddingTop: "var(--safe-area-inset-top)"}}
-                    >
+                    <Box position="relative" zIndex="0" paddingTop="safe-area-inset">
                         <Box
                             ref={navigationBarBackgroundRef}
                             position="absolute"
@@ -1554,7 +1550,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         title?: ReactNode;
         withDisappearingTitle?: boolean;
         withoutFocusedTextInputDoneButton?: boolean;
-        subtitle?: string;
+        subtitle?: ReactNode;
         menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
         shareButton?: {};
         replaceActions?: ReactNode;
@@ -1731,6 +1727,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                     ? `-${desktopTitleLeftSlop}`
                                     : undefined
                             }
+                            textAlign={subtitle && isMobile ? "center" : undefined}
                         >
                             {title}
                         </Box>

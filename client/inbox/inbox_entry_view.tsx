@@ -6,7 +6,7 @@ import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
-import {PrettyNumber} from "~/client/design/pretty_number.js";
+import {PrettyNumber, printPrettySmallNumberSummary} from "~/client/design/pretty_number.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -388,12 +388,9 @@ function InboxChannelPostsEntryView({entry}: {entry: InboxChannelPostsEntryModel
             loudNotificationCount={entry.loudNotificationCount}
         >
             <Box>
-                {entry.postCount === 1 ? (
-                    "New post"
-                ) : entry.postCount > 10 ? (
-                    "10+ new posts"
-                ) : (
-                    <PrettyNumber number={entry.postCount} label="new post" />
+                {useMemo(
+                    () => printPrettySmallNumberSummary(entry.postCount, "new post"),
+                    [entry.postCount],
                 )}{" "}
                 in {entry.channel.name} by{" "}
                 {!secondAccount ? (
@@ -521,12 +518,13 @@ function InboxDocumentNewCommentThreadsEntryView({
             loudNotificationCount={entry.loudNotificationCount}
         >
             <Box>
-                {entry.commentThreadCount === 1 ? (
-                    "New comment thread"
-                ) : entry.commentThreadCount > 10 ? (
-                    "10+ new comment threads"
-                ) : (
-                    <PrettyNumber number={entry.commentThreadCount} label="new comment thread" />
+                {useMemo(
+                    () =>
+                        printPrettySmallNumberSummary(
+                            entry.commentThreadCount,
+                            "new comment thread",
+                        ),
+                    [entry.commentThreadCount],
                 )}{" "}
                 on “{truncateDocumentTitle(entry.document.getTitle())}” by{" "}
                 {!secondAccount ? (

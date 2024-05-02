@@ -25,6 +25,7 @@ import {
     mobileNavigationBarHeightRem,
     navigationBarHeight,
 } from "~/client/design/navigation_bar.js";
+import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
@@ -168,6 +169,7 @@ function PostListView(
         aside,
         withMobileLayout: withMobileLayoutProp = false,
         navigationBar,
+        withSafeAreaInsetTop = false,
     }: {
         /**
          * If this post list is rendering a channel, you may provide this prop and we
@@ -273,6 +275,12 @@ function PostListView(
          * be properly configured.
          */
         navigationBar?: NavigationBarResult & {navigationBarRef: RefObject<NavigationBarRef>};
+
+        /**
+         * Should we make room for top safe area? False by default. If you set the
+         * `navigationBar` prop then it will mostly handle safe area for you.
+         */
+        withSafeAreaInsetTop?: boolean;
     },
     ref: Ref<PostListViewRef>,
 ) {
@@ -846,6 +854,10 @@ function PostListView(
                                 className={sprinkles({
                                     display: "flex",
                                     justifyContent: "center",
+                                    paddingTop:
+                                        withSafeAreaInsetTop && index === 0
+                                            ? "safe-area-inset"
+                                            : undefined,
                                     paddingBottom:
                                         index ===
                                         posts.getItemCount() -
@@ -1541,6 +1553,7 @@ function PostListView(
             withMobileLayout,
             hasAside,
             isSingleLayoutWithPinnedCommentInput,
+            withSafeAreaInsetTop,
             hasChannelHeader,
             postEditing,
             shouldNotShowChannelId,
@@ -1597,14 +1610,33 @@ function PostListView(
                     height: "full",
                     overflow: "hidden",
                     position: "relative",
+                    zIndex: "0",
                     display: "flex",
                     flexDirection: "column",
                 })}
             >
+                {withSafeAreaInsetTop && !navigationBar?.navigationBar && (
+                    // Only render a safe area cover if we don't have a navigation bar. Otherwise
+                    // the navigation bar acts as our safe area cover.
+                    <div
+                        className={sprinkles({
+                            position: "absolute",
+                            top: "0",
+                            left: "0",
+                            right: "0",
+                            zIndex: "10",
+                            height: "safe-area-inset-top",
+                            backgroundColor: "grey-0",
+                        })}
+                    />
+                )}
                 <VirtualizedScrollView
                     ref={viewRef}
                     elementRef={navigationBar?.scrollViewRef}
-                    scrollbarInsetTop={navigationBar?.scrollbarInsetTop}
+                    scrollbarInsetTop={
+                        navigationBar?.scrollbarInsetTop ??
+                        (withSafeAreaInsetTop ? safeAreaOnlyScrollbarInsetTop : undefined)
+                    }
                     bufferedItemHeight={postContentViewMinHeightWithClosedCommentSection}
                     itemCount={
                         // Don't render the post comment input (which should be the last item) if we are

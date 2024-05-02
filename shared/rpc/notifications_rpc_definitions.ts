@@ -85,6 +85,7 @@ export const getInboxChannelPostsEntryPosts = defineRpc({
         afterPostId: Schema.id<PostId>().nullable(),
     },
     output: {
+        totalPostCount: Schema.integer,
         hasMorePosts: Schema.boolean,
         posts: Schema.array(createDynamoGeneralRealtimeItemSchema(PostModel.schema())),
     },

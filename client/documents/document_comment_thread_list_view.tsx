@@ -13,7 +13,7 @@ import {
 } from "react";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {NavigationBarResult} from "~/client/design/navigation_bar.js";
-import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
+import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {
@@ -232,7 +232,7 @@ function DocumentCommentThreadListView(
         paddingX,
         header,
         navigationBar,
-        scrollbarInsetTop,
+        withSafeAreaInsetTop = false,
         pinnedCommentInputRef,
         isNativeMobileTabBarDisabled = false,
         backgroundSlopBottomIfPinnedCommentInput,
@@ -294,9 +294,10 @@ function DocumentCommentThreadListView(
         navigationBar?: NavigationBarResult;
 
         /**
-         * Inset the scrollbar by this much. Passed to the underlying scroll view.
+         * Should we make room for top safe area? False by default. If you set the
+         * `navigationBar` prop then it will mostly handle safe area for you.
          */
-        scrollbarInsetTop?: ScrollbarInsetDynamic;
+        withSafeAreaInsetTop?: boolean;
 
         /**
          * A ref to the pinned comment input if we have a pinned comment input.
@@ -763,6 +764,8 @@ function DocumentCommentThreadListView(
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
+            const actualIndex = index;
+
             if (header) {
                 if (index === 0) {
                     return {
@@ -811,6 +814,10 @@ function DocumentCommentThreadListView(
                                     display: "flex",
                                     flexDirection: "column",
                                     alignItems: "center",
+                                    paddingTop:
+                                        withSafeAreaInsetTop && actualIndex === 0
+                                            ? "safe-area-inset"
+                                            : undefined,
                                 })}
                             >
                                 {index !== 0 && (
@@ -1168,6 +1175,7 @@ function DocumentCommentThreadListView(
             documentId,
             withoutCommentThreadPreview,
             isSingleCommentThreadWithPinnedCommentInput,
+            withSafeAreaInsetTop,
             paddingX,
             unpersistedIsResolvedByCommentThreadId,
             contentSnippetByCommentThreadId,
@@ -1198,14 +1206,33 @@ function DocumentCommentThreadListView(
                     height: "full",
                     overflow: "hidden",
                     position: "relative",
+                    zIndex: "0",
                     display: "flex",
                     flexDirection: "column",
                 })}
             >
+                {withSafeAreaInsetTop && !navigationBar?.navigationBar && (
+                    // Only render a safe area cover if we don't have a navigation bar. Otherwise
+                    // the navigation bar acts as our safe area cover.
+                    <div
+                        className={sprinkles({
+                            position: "absolute",
+                            top: "0",
+                            left: "0",
+                            right: "0",
+                            zIndex: "10",
+                            height: "safe-area-inset-top",
+                            backgroundColor: "grey-0",
+                        })}
+                    />
+                )}
                 <VirtualizedScrollView
                     ref={viewRef}
                     elementRef={navigationBar?.scrollViewRef}
-                    scrollbarInsetTop={scrollbarInsetTop ?? navigationBar?.scrollbarInsetTop}
+                    scrollbarInsetTop={
+                        navigationBar?.scrollbarInsetTop ??
+                        (withSafeAreaInsetTop ? safeAreaOnlyScrollbarInsetTop : undefined)
+                    }
                     scrollbarInsetBottom={
                         isSingleCommentThreadWithPinnedCommentInput
                             ? backgroundSlopBottomIfPinnedCommentInput

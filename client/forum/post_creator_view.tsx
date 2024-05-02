@@ -210,7 +210,8 @@ export function PostCreatorView({
             flexDirection="column"
         >
             {!isMobile && (
-                // No cover on mobile since the navigation bar will act as a safe area cover.
+                // No safe area cover on mobile since the navigation bar will act as a safe
+                // area cover.
                 <Box
                     position="absolute"
                     top="0"
