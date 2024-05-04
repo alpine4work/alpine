@@ -187,7 +187,7 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
             const offset = match[1]!.length;
             return state.tr
                 .delete(start + offset, start + offset + 1)
-                .addMark(start + offset, end, markType.create());
+                .addMark(start + offset, end - offset, markType.create());
         });
     }
 
