@@ -1669,6 +1669,14 @@ function VirtualizedScrollView(
                                     );
                                 }
 
+                                const position =
+                                    state.getPositionByKeyIfExists(key) ??
+                                    (index < state.getItemCount()
+                                        ? state.getPositionByIndex(index)
+                                        : null);
+
+                                if (position === null) return null;
+
                                 // We use the virtualized scroll view state to get the position instead of DOM
                                 // nodes because while scrolling to an item it may not be rendered in the
                                 // virtualization window but we still need the position.
@@ -1676,8 +1684,7 @@ function VirtualizedScrollView(
                                 // By using the latest state we can also see updates that haven't been written
                                 // to the DOM yet which causes less churn in scroll anchor adjustments.
                                 return {
-                                    ...(state.getPositionByKeyIfExists(key) ??
-                                        state.getPositionByIndex(index)),
+                                    ...position,
                                     // If the item isn't rendered, we can't know adjacent elements.
                                     previousElementSibling: "ignore",
                                     nextElementSibling: "ignore",
