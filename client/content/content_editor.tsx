@@ -1883,7 +1883,8 @@ export function getEditorViewForTest(element: unknown): EditorView {
 }
 
 function handlePaste(view: EditorView, event: ClipboardEvent, slice: Slice): boolean {
-    if (handleLinkPaste(view, event)) return true;
+    if (handleLinkPasteWithSelection(view, event)) return true;
+    if (handleLinkPasteWithoutSelection(view, event)) return true;
 
     // If we're pasting into an empty paragraph at the top level, then paste the
     // entire slice content instead of the content determined by `Slice.maxOpen()`.
@@ -1904,7 +1905,7 @@ function handlePaste(view: EditorView, event: ClipboardEvent, slice: Slice): boo
  * If the user has selected some text and they paste a link then we want to
  * convert the selected text to a link instead of replacing the text.
  */
-function handleLinkPaste(view: EditorView, event: ClipboardEvent): boolean {
+function handleLinkPasteWithSelection(view: EditorView, event: ClipboardEvent): boolean {
     // 1. Only perform a link paste if we've selected some text.
     const {state} = view;
     if (state.selection.from === state.selection.to) {
@@ -1913,7 +1914,7 @@ function handleLinkPaste(view: EditorView, event: ClipboardEvent): boolean {
 
     // 2. Make sure the URL starts with an allowed protocol.
     const url = event.clipboardData?.getData("text/plain");
-    if (url && !startsWithSafeUrlProtocol(url)) {
+    if (url && (!startsWithSafeUrlProtocol(url) || /\s/.test(url))) {
         return false;
     }
 
@@ -1921,6 +1922,29 @@ function handleLinkPaste(view: EditorView, event: ClipboardEvent): boolean {
     // add a link mark to the selection.
     const range = trimSpacesFromProsemirrorRange(state.doc, state.selection);
     view.dispatch(state.tr.addMark(range.from, range.to, state.schema.mark("link", {url})));
+    return true;
+}
+
+function handleLinkPasteWithoutSelection(view: EditorView, event: ClipboardEvent): boolean {
+    const {state} = view;
+    const {from} = state.selection;
+
+    // 1. Check if current selection is empty
+    if (!state.selection.empty) {
+        return false;
+    }
+
+    // 2. Make sure the URL exists, starts with an allowed protocol and contains no whitespace.
+    const url = event.clipboardData?.getData("text/plain");
+    if (!url || !startsWithSafeUrlProtocol(url) || /\s/.test(url)) {
+        return false;
+    }
+
+    // 3. Insert URL text and apply link mark
+    const tr = state.tr;
+    tr.insertText(url, from);
+    tr.addMark(from, from + url.length, state.schema.mark("link", {url}));
+    view.dispatch(tr);
     return true;
 }
 
