@@ -40,6 +40,7 @@ import {spacing} from "~/shared/design/spacing.js";
 import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
@@ -71,6 +72,8 @@ const Box = null;
 const TaskRowCollectionsCellForwardRefMemo = memo(forwardRef(TaskRowCollectionsCell));
 export {TaskRowCollectionsCellForwardRefMemo as TaskRowCollectionsCell};
 
+const cellRowGap = "3";
+
 const cellClassName = sprinkles({
     flexShrink: "0",
     paddingLeft: taskRowViewColumnPaddingX,
@@ -82,7 +85,7 @@ const cellClassName = sprinkles({
     height: taskRowViewMinHeight,
     display: "flex",
     alignItems: "center",
-    rowGap: "3",
+    rowGap: cellRowGap,
     columnGap: "2.5",
 });
 
@@ -99,9 +102,13 @@ const collectionChipContainerClassName = sprinkles({
     cursor: "default",
 });
 
+const extraCollectionsWidth = "4";
+
 const extraCollectionsClassName = sprinkles({
     color: "grey-70",
     pointerEvents: "none",
+    width: extraCollectionsWidth,
+    flexShrink: "0",
 });
 
 function TaskRowCollectionsCell(
@@ -333,7 +340,19 @@ function TaskRowCollectionsCell(
                                     // Don't allow item to grow beyond flexbox bounds. By default flexbox items
                                     // have `min-width: auto` which extends with content.
                                     // https://stackoverflow.com/a/66689926/1568890
-                                    minWidth: previewDisplayCollections.length === 2 ? "20%" : 0,
+                                    minWidth: 0,
+                                    // We want short collection names like "Bugs" to be visible even if the
+                                    // other preview collection name is very long. Constrain collection chip width
+                                    // and set a relative shrink that shrinks longer collection names more than
+                                    // shorter collection names.
+                                    maxWidth: "100%",
+                                    flexShrink: clamp(
+                                        0,
+                                        (collection.getColor() !== null ? 2 : 0) +
+                                            Math.round(collection.getName().length) -
+                                            6,
+                                        16,
+                                    ),
                                 }}
                             >
                                 <TaskCollectionChip
