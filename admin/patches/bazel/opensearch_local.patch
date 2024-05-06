@@ -10,10 +10,31 @@ diff -bur a/config/opensearch.yml b/config/opensearch.yml
  #
  # ------------------------------------ Node ------------------------------------
  #
-@@ -132,3 +132,6 @@
+@@ -132,3 +132,27 @@
  # index searcher threadpool.
  #
  #opensearch.experimental.feature.concurrent_segment_search.enabled: false
 +
 +# NOTE(calebmer): We only run a single OpenSearch node locally.
 +discovery.type: single-node
++
++# NOTE(calebmer): By default, OpenSearch won't let you create new indexes if
++# more than 85% ([source][1]) of your disk space is used. You'll get an
++# `index_create_block_exception` error with the reason:
++# `blocked by: [FORBIDDEN/10/cluster create-index blocked (api)];`.
++#
++# In development we run a single OpenSearch node on the developer's machine
++# where resources are shared with many other processes and applications. It's
++# unreasonable for OpenSearch to require 15% free storage space on the machine,
++# especially if the machine's available storage space is low. So raise the
++# storage watermark at which OpenSearch will stop creating indexes for local
++# development.
++#
++# Consider removing these raised watermarks when developers use company
++# provided laptops where we have more control over developer machine resource
++# usage.
++#
++# [1]: https://github.com/opensearch-project/OpenSearch/blob/91067134e8e0a6dbfb05317afe4752194a8a69d2/server/src/main/java/org/opensearch/cluster/routing/allocation/DiskThresholdSettings.java#L63-L70
++cluster.routing.allocation.disk.watermark.low: 97%
++cluster.routing.allocation.disk.watermark.high: 98%
++cluster.routing.allocation.disk.watermark.flood_stage: 99%
