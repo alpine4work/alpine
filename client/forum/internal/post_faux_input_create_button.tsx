@@ -92,7 +92,7 @@ export function PostFauxInputCreateButton({
                     height="7"
                     minWidth="16"
                     backgroundColor="theme-40-const"
-                    color="grey-0"
+                    color="grey-0-const"
                     borderRadius="base"
                     display="flex"
                     justifyContent="center"

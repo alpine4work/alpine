@@ -836,16 +836,17 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 const navigationBarTopOffset = (lastNavigationBarTopOffsetRef.current =
                     scrollOffset);
 
-                const isNavigationBarOpaque = (lastIsNavigationBarOpaqueRef.current =
-                    scrollOffset > navigationBarHeight);
+                const isNavigationBarOpaque = scrollOffset > navigationBarHeight;
+                lastIsNavigationBarOpaqueRef.current = isNavigationBarOpaque;
 
                 const titleBoundaryOffset = getTitleBoundaryOffset(element);
 
-                const isNavigationBarTitleVisible = (lastIsNavigationBarTitleVisibleRef.current =
+                const isNavigationBarTitleVisible =
                     withoutDisappearingTitle ||
                     (isNavigationBarOpaque &&
                         (titleBoundaryOffset === null ||
-                            scrollOffset >= titleBoundaryOffset - navigationBarHeight)));
+                            scrollOffset >= titleBoundaryOffset - navigationBarHeight));
+                lastIsNavigationBarTitleVisibleRef.current = isNavigationBarTitleVisible;
 
                 if (
                     lastScrollDirection !== scrollDirection ||
@@ -986,6 +987,23 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     const navigationBarTopOffset = scrollOffset - lastNavigationBarScrollOffset;
                     lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
 
+                    const lastIsNavigationBarOpaque = lastIsNavigationBarOpaqueRef.current;
+                    const lastIsNavigationBarTitleVisible =
+                        lastIsNavigationBarTitleVisibleRef.current;
+
+                    const isNavigationBarOpaque = scrollOffset > 0;
+
+                    const titleBoundaryOffset = getTitleBoundaryOffset(element);
+
+                    const isNavigationBarTitleVisible =
+                        withoutDisappearingTitle ||
+                        (isNavigationBarOpaque &&
+                            (titleBoundaryOffset === null ||
+                                scrollOffset >= titleBoundaryOffset - navigationBarHeight));
+
+                    lastIsNavigationBarOpaqueRef.current = isNavigationBarOpaque;
+                    lastIsNavigationBarTitleVisibleRef.current = isNavigationBarTitleVisible;
+
                     // Immediately update our sticky positioning CSS to avoid potential jankiness.
                     flushSync(() => {
                         setScrollDirectionState({
@@ -998,6 +1016,33 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             animateNavigationBar: null,
                         });
                     });
+
+                    if (isNavigationBarOpaque !== lastIsNavigationBarOpaque) {
+                        navigationBarBackgroundElement.style.opacity = isNavigationBarOpaque
+                            ? "1"
+                            : "0";
+                        navigationBarBackgroundElement.style.pointerEvents = isNavigationBarOpaque
+                            ? "auto"
+                            : "none";
+                        navigationBarBackgroundElement.style.pointerEvents = isNavigationBarOpaque
+                            ? "80"
+                            : "40";
+                        navigationBarBackgroundElement.classList.remove(
+                            navigationBarBackgroundFadeOutAnimationClassName,
+                        );
+                    }
+
+                    if (isNavigationBarTitleVisible !== lastIsNavigationBarTitleVisible) {
+                        navigationBarTitleElement.style.opacity = isNavigationBarTitleVisible
+                            ? "1"
+                            : "0";
+                        navigationBarTitleElement.style.pointerEvents = isNavigationBarTitleVisible
+                            ? "auto"
+                            : "none";
+                        navigationBarTitleElement.classList.remove(
+                            navigationBarTitleFadeOutAnimationClassName,
+                        );
+                    }
                 }
 
                 const scrollDirection = scrollOffset > lastScrollOffset ? "Down" : "Up";
