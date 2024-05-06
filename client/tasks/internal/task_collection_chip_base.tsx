@@ -2,7 +2,6 @@ import {X} from "phosphor-react";
 import {ReactNode, Ref, forwardRef} from "react";
 import {usePress} from "react-aria";
 import {IconButton} from "~/client/design/icon_button.js";
-import {Spacer} from "~/client/design/spacer.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
@@ -25,6 +24,7 @@ const chipClassName = sprinkles({
     height: taskCollectionChipHeight,
     fontSize: "75",
     paddingY: taskCollectionChipPaddingY,
+    paddingRight: "1.5",
     borderRadius: taskCollectionChipBorderRadius,
     display: "inline-flex",
     alignItems: "center",
@@ -37,12 +37,13 @@ const chipClassName = sprinkles({
     overflow: "hidden",
 });
 
+const chipWithoutColorClassName = `${chipClassName} ${sprinkles({
+    paddingLeft: {desktop: "1.5", mobile: "2.5"},
+})}`;
+
 const colorDotContainerClassName = sprinkles({
-    flexShrink: "0",
-    width: "5",
-    marginLeft: {mobile: "1"},
-    display: "flex",
-    justifyContent: "center",
+    paddingLeft: {desktop: "1.5", mobile: "2.5"},
+    paddingRight: {desktop: "1", mobile: "1.5"},
 });
 
 const colorDotClassNameByColor = new DefaultMap((color: Sprinkles["color"]) =>
@@ -56,16 +57,22 @@ const colorDotClassNameByColor = new DefaultMap((color: Sprinkles["color"]) =>
 
 const nameClassName = sprinkles({fontStyle: "truncate"});
 
+const removeButtonContainerClassName = sprinkles({
+    marginRight: "-1",
+});
+
 function TaskCollectionChipBase(
     {
         color,
         name,
+        nameMaxWidth,
         tabIndex,
         onPress,
         onRemove,
     }: {
         color: ThemeColor | null;
         name: ReactNode;
+        nameMaxWidth?: Spacing;
         tabIndex?: number;
         onPress?: () => void;
         onRemove?: () => void;
@@ -100,16 +107,13 @@ function TaskCollectionChipBase(
             // `<input>` we don't want to prevent enter/space keypresses.
             {...(isDisabled ? omitObject(pressProps, ["onKeyDown", "onKeyUp"]) : pressProps)}
             ref={ref}
-            className={chipClassName}
+            className={color !== null ? chipClassName : chipWithoutColorClassName}
             tabIndex={tabIndex}
             style={{
                 backgroundColor: isPressed ? colorSchemeVars["grey-10"] : colorSchemeVars["grey-5"],
-                paddingRight: onRemove ? spacing["0.5"] : spacing["1.5"],
             }}
         >
-            {color === null ? (
-                <Spacer space={{desktop: "1.5", mobile: "2.5"}} />
-            ) : (
+            {color !== null && (
                 <div className={colorDotContainerClassName}>
                     <div
                         className={colorDotClassNameByColor.getOrSetDefault(
@@ -118,9 +122,14 @@ function TaskCollectionChipBase(
                     />
                 </div>
             )}
-            <div className={nameClassName}>{name}</div>
+            <div
+                className={nameClassName}
+                style={nameMaxWidth ? {maxWidth: spacing[nameMaxWidth]} : undefined}
+            >
+                {name}
+            </div>
             {onRemove && (
-                <div style={{paddingLeft: spacing["0.5"]}}>
+                <div className={removeButtonContainerClassName}>
                     <IconButton
                         size={isMobile ? "md" : "xs"}
                         variant="quiet-above-grey-5-background"

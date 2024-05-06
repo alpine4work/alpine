@@ -13,13 +13,13 @@ export const taskRowViewMinHeight: Spacing = "10";
 const taskRowViewColumnWidthRem = spacing["32"];
 const taskRowViewColumnMinViewportWidth = "10vw";
 
-const taskRowViewCollectionsColumnWidthRem = spacing["48"];
+export const maxTaskRowViewCollectionsColumnWidth = "48";
 const taskRowViewCollectionsColumnMinViewportWidth = "15vw";
 
 // Minimum width is in viewport units instead of percentages so it's consistent
 // regardless of the container element we use this width in.
 export const taskRowViewColumnWidth = `min(${taskRowViewColumnWidthRem}, ${taskRowViewColumnMinViewportWidth})`;
-export const taskRowViewCollectionsColumnWidth = `min(${taskRowViewCollectionsColumnWidthRem}, ${taskRowViewCollectionsColumnMinViewportWidth})`;
+export const taskRowViewCollectionsColumnWidth = `min(${spacing[maxTaskRowViewCollectionsColumnWidth]}, ${taskRowViewCollectionsColumnMinViewportWidth})`;
 export const taskRowViewColumnPaddingX = "1.5" satisfies Spacing;
 
 export const taskRowViewFirstColumnExtraPaddingLeft = spacing["6"];
@@ -40,7 +40,7 @@ const taskRowViewCollectionsColumnCellOverlayExtraWidth = subtractRemLengths(
 );
 
 export const taskRowViewCollectionsColumnCellOverlayWidth = `min(${addRemLengths(
-    taskRowViewCollectionsColumnWidthRem,
+    spacing[maxTaskRowViewCollectionsColumnWidth],
     taskRowViewCollectionsColumnCellOverlayExtraWidth,
 )}, ${taskRowViewCollectionsColumnMinViewportWidth} + ${taskRowViewCollectionsColumnCellOverlayExtraWidth})`;
 

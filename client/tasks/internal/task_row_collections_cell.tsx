@@ -31,6 +31,7 @@ import {
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
 import {
+    maxTaskRowViewCollectionsColumnWidth,
     taskRowViewCollectionsColumnWidth,
     taskRowViewColumnPaddingX,
     taskRowViewLastColumnPaddingRight,
@@ -40,7 +41,6 @@ import {spacing} from "~/shared/design/spacing.js";
 import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
@@ -345,18 +345,29 @@ function TaskRowCollectionsCell(
                                     // other preview collection name is very long. Constrain collection chip width
                                     // and set a relative shrink that shrinks longer collection names more than
                                     // shorter collection names.
-                                    maxWidth: "100%",
-                                    flexShrink: clamp(
+                                    //
+                                    // Also shrink collection chips required by the query more than collection
+                                    // chips which aren't required.
+                                    flexShrink: Math.max(
                                         0,
-                                        (collection.getColor() !== null ? 2 : 0) +
-                                            Math.round(collection.getName().length) -
-                                            6,
-                                        16,
+                                        Math.min(
+                                            (collection.getColor() !== null ? 2 : 0) +
+                                                Math.round(collection.getName().length) -
+                                                8,
+                                            16,
+                                        ) -
+                                            (queryFiltersRequiredCollectionIds.has(collection.id)
+                                                ? 0
+                                                : 7),
                                     ),
                                 }}
                             >
                                 <TaskCollectionChip
                                     collection={collection}
+                                    // We need to set a max width for the name or else really really long names will
+                                    // cause flex items with a ridiculously large `flex-basis` (given `flex-basis`
+                                    // is the default, `auto`).
+                                    nameMaxWidth={maxTaskRowViewCollectionsColumnWidth}
                                     onPress={() => {
                                         // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
                                         void navigate(

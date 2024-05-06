@@ -1,5 +1,5 @@
 import {TaskCollectionChipBase} from "~/client/tasks/internal/task_collection_chip_base.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 
 /**
@@ -12,11 +12,13 @@ export const taskCollectionChipContainerMaxWidth = `max(calc(50% - ${spacing["2.
 
 export function TaskCollectionChip({
     collection,
+    nameMaxWidth,
     tabIndex,
     onPress,
     onRemove,
 }: {
     collection: TaskCollectionModel | null;
+    nameMaxWidth?: Spacing;
     tabIndex?: number;
     onPress?: () => void;
     onRemove?: () => void;
@@ -25,6 +27,7 @@ export function TaskCollectionChip({
         <TaskCollectionChipBase
             color={collection?.getColor() ?? null}
             name={collection?.getName() ?? ""}
+            nameMaxWidth={nameMaxWidth}
             tabIndex={tabIndex}
             onPress={onPress}
             onRemove={onRemove}
