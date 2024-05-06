@@ -17,10 +17,7 @@ export function formatMessageViewTimestampDividerDate(
     // Normalize times to the start of the day in the provided time zone. A time 23
     // hours ago should generally be marked as "Yesterday" not "Today" unless the
     // time was at 1am.
-    currentTime = currentDate.toDate(timeZone);
-    time = date.toDate(timeZone);
-
-    const dayDifference = differenceInDays(currentTime, time);
+    const dayDifference = differenceInDays(currentDate.toDate(timeZone), date.toDate(timeZone));
     if (dayDifference < 7) {
         const formatter =
             dayDifference >= 2
@@ -53,7 +50,7 @@ export function formatMessageViewTimestampDividerDate(
         }
     }
 
-    const isCurrentYear = currentTime.getFullYear() === time.getFullYear();
+    const isCurrentYear = currentDate.year === date.year;
 
     const formatter = !isCurrentYear
         ? (formatter3 ??= new Intl.DateTimeFormat(locale, {
