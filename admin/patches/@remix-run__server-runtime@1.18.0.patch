@@ -288,10 +288,10 @@ index 61139f0a8c53f48815b8abc49f90a16a619566e1..da479ab3d1e2a51af58b99c424f4bf4a
        serialized[key] = val;
      }
 diff --git a/dist/esm/index.js b/dist/esm/index.js
-index 9736dad1f331c52d2a23f7bb3c71c014ada02c60..c78f0a01c92ffda770fa79c9d5c05d1b3f7f69ac 100644
+index 9736dad1f331c52d2a23f7bb3c71c014ada02c60..7c5b9c3688638cc7b4f112ef5f4ce874fde34a11 100644
 --- a/dist/esm/index.js
 +++ b/dist/esm/index.js
-@@ -18,3 +18,9 @@ export { createMemorySessionStorageFactory } from './sessions/memoryStorage.js';
+@@ -18,3 +18,10 @@ export { createMemorySessionStorageFactory } from './sessions/memoryStorage.js';
  export { createMemoryUploadHandler as unstable_createMemoryUploadHandler } from './upload/memoryUploadHandler.js';
  export { MaxPartSizeExceededError } from './upload/errors.js';
  export { broadcastDevReady, logDevReady } from './dev.js';
@@ -301,6 +301,7 @@ index 9736dad1f331c52d2a23f7bb3c71c014ada02c60..c78f0a01c92ffda770fa79c9d5c05d1b
 +// for correct usage of this dependency's internals.
 +export { matchServerRoutes } from './routeMatching.js';
 +export { callRouteLoaderRR } from './data.js';
++export { serializeErrors } from './errors.js';
 diff --git a/dist/esm/routes.js b/dist/esm/routes.js
 index 2181536a3789c42cad59c61f1aedf185fae51814..71e39645ed772869ef0fa6cec0633f99918883b1 100644
 --- a/dist/esm/routes.js
@@ -406,10 +407,10 @@ index 6a99b0202e01950a2911f879517411bdbc783df2..a57215b017df02d9329ea3279f3a33b7
            loaderData: context.loaderData,
            actionData: context.actionData,
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index 1b5bd46c94c3c521d50451561da232cc92005a6b..aa69625e76ac331e7a9e1986d35f10747e1cc206 100644
+index 1b5bd46c94c3c521d50451561da232cc92005a6b..6daa0e0c01d31c4b0888d4c53a74973521485e59 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -10,3 +10,10 @@ export { MaxPartSizeExceededError } from "./upload/errors";
+@@ -10,3 +10,11 @@ export { MaxPartSizeExceededError } from "./upload/errors";
  export { broadcastDevReady, logDevReady } from "./dev";
  export type { CreateCookieFunction, CreateCookieSessionStorageFunction, CreateMemorySessionStorageFunction, CreateRequestHandlerFunction, CreateSessionFunction, CreateSessionStorageFunction, IsCookieFunction, IsSessionFunction, JsonFunction, RedirectFunction, } from "./interface";
  export type { ActionArgs, ActionFunction, AppData, AppLoadContext, Cookie, CookieOptions, CookieParseOptions, CookieSerializeOptions, CookieSignatureOptions, DataFunctionArgs, EntryContext, ErrorBoundaryComponent, FlashSessionData, HandleDataRequestFunction, HandleDocumentRequestFunction, HeadersArgs, HeadersFunction, HtmlLinkDescriptor, HtmlMetaDescriptor, LinkDescriptor, LinksFunction, LoaderArgs, LoaderFunction, MemoryUploadHandlerFilterArgs, MemoryUploadHandlerOptions, MetaDescriptor, MetaFunction, HandleErrorFunction, PageLinkDescriptor, RequestHandler, RouteComponent, RouteHandle, SerializeFrom, ServerBuild, ServerEntryModule, V2_ServerRuntimeMetaArgs, V2_ServerRuntimeMetaDescriptor, V2_ServerRuntimeMetaFunction, Session, SessionData, SessionIdStorageStrategy, SessionStorage, SignFunction, TypedDeferredData, TypedResponse, UnsignFunction, UploadHandler, UploadHandlerPart, } from "./reexport";
@@ -420,21 +421,30 @@ index 1b5bd46c94c3c521d50451561da232cc92005a6b..aa69625e76ac331e7a9e1986d35f1074
 +export { matchServerRoutes } from "./routeMatching";
 +export { callRouteLoaderRR } from "./data";
 +export type { ServerRoute } from "./routes";
++export { serializeErrors } from "./errors";
 diff --git a/dist/index.js b/dist/index.js
-index 19561c1294861509c0c27632a8c6568b32ca1441..74434db6298b05ccc0ffdc0461f5fd40c621ae72 100644
+index 19561c1294861509c0c27632a8c6568b32ca1441..aea8024a0a982082da0e19d3dbe069eecd3b9bcc 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -22,6 +22,8 @@ var memoryStorage = require('./sessions/memoryStorage.js');
+@@ -20,8 +20,11 @@ var sessions = require('./sessions.js');
+ var cookieStorage = require('./sessions/cookieStorage.js');
+ var memoryStorage = require('./sessions/memoryStorage.js');
  var memoryUploadHandler = require('./upload/memoryUploadHandler.js');
- var errors = require('./upload/errors.js');
+-var errors = require('./upload/errors.js');
++var uploadErrors = require('./upload/errors.js');
  var dev = require('./dev.js');
 +var routeMatching = require('./routeMatching.js');
 +var data = require('./data.js');
++var errors = require('./errors.js');
  
  
  
-@@ -42,3 +44,9 @@ exports.unstable_createMemoryUploadHandler = memoryUploadHandler.createMemoryUpl
- exports.MaxPartSizeExceededError = errors.MaxPartSizeExceededError;
+@@ -39,6 +42,13 @@ exports.isSession = sessions.isSession;
+ exports.createCookieSessionStorageFactory = cookieStorage.createCookieSessionStorageFactory;
+ exports.createMemorySessionStorageFactory = memoryStorage.createMemorySessionStorageFactory;
+ exports.unstable_createMemoryUploadHandler = memoryUploadHandler.createMemoryUploadHandler;
+-exports.MaxPartSizeExceededError = errors.MaxPartSizeExceededError;
++exports.MaxPartSizeExceededError = uploadErrors.MaxPartSizeExceededError;
  exports.broadcastDevReady = dev.broadcastDevReady;
  exports.logDevReady = dev.logDevReady;
 +
@@ -443,6 +453,7 @@ index 19561c1294861509c0c27632a8c6568b32ca1441..74434db6298b05ccc0ffdc0461f5fd40
 +// for correct usage of this dependency's internals.
 +exports.matchServerRoutes = routeMatching.matchServerRoutes;
 +exports.callRouteLoaderRR = data.callRouteLoaderRR;
++exports.serializeErrors = errors.serializeErrors;
 diff --git a/dist/routes.js b/dist/routes.js
 index 02d692fcaaff6bc40dd69713fa512ae67ce11b20..be607c825b52c5601d06e08b66c7bb470a6761f1 100644
 --- a/dist/routes.js

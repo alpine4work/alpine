@@ -6,6 +6,8 @@ import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_r
 import {postContentViewMinHeightWithClosedCommentSection} from "~/client/forum/post_content_view.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
+import {PostView} from "~/client/forum/post_view.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -20,11 +22,13 @@ import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_gene
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {ChannelRealtimeProtocol} from "~/shared/forum/channel_realtime_protocol.js";
-import {PostModel} from "~/shared/forum/post_model.js";
+import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isId} from "~/shared/id/id.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getChannelWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitions.js";
 import {getInboxChannelPostsEntryPosts} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -37,6 +41,13 @@ const LoaderSchema = Schema.object({
         totalPostCount: Schema.integer,
         hasMorePosts: Schema.boolean,
         posts: Schema.array(createDynamoGeneralRealtimeItemSchema(PostModel.schema())),
+        initialCommentsByPostId: Schema.map(
+            Schema.id<PostId>(),
+            Schema.object({
+                comments: Schema.array(PostCommentModel.schema()),
+                otherReferencedComments: Schema.array(PostCommentModel.schema()),
+            }),
+        ),
     }),
 });
 
@@ -70,6 +81,7 @@ export async function loader({params, context}: LoaderArgs) {
                 context.loader.getClientInfo(),
                 postContentViewMinHeightWithClosedCommentSection,
             ),
+            commentLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
             afterPostId: null,
         }),
     ]);
@@ -103,11 +115,43 @@ export const meta = createMetaFunction(
     ],
 );
 
-export default function ChannelPostsRoute({
-    withMobileLayout: withMobileLayoutProp = false,
+export default function ChannelPostsRouteWrapper({
+    withMobileLayout = false,
 }: {
     withMobileLayout?: boolean;
 }) {
+    const {channel, postsResult} = useLoaderDataWithSchema(LoaderSchema);
+
+    // While you're viewing new posts in a channel, this accrues affinity points to
+    // the channel. Since you're taking time to pay attention to what's new in a
+    // channel.
+    useSearchAffinityViewInteraction(`Channel:${channel.model.id}`);
+
+    if (postsResult.posts.length === 1 && !postsResult.hasMorePosts) {
+        const post = postsResult.posts[0]!;
+
+        return (
+            <PostView
+                // Remount when navigating to a different post.
+                key={post.model.id}
+                initialPost={post}
+                initialPostComments={
+                    postsResult.initialCommentsByPostId.get(post.model.id)?.comments ?? emptyArray
+                }
+                initialOtherReferencedPostComments={
+                    postsResult.initialCommentsByPostId.get(post.model.id)
+                        ?.otherReferencedComments ?? emptyArray
+                }
+                initialScrollToPostCommentIndex={null}
+                withMobileLayout={withMobileLayout}
+            />
+        );
+    } else {
+        return <ChannelPostsRoute withMobileLayout={withMobileLayout} />;
+    }
+}
+
+function ChannelPostsRoute({withMobileLayout: withMobileLayoutProp}: {withMobileLayout: boolean}) {
     const context = useAppContext();
     const isMobile = useIsMobile();
     const {space} = useSpaceContext();
@@ -120,12 +164,11 @@ export default function ChannelPostsRoute({
         postsResult: initialPostsResult,
     } = useLoaderDataWithSchema(LoaderSchema);
 
-    const channelId = initialChannel.model.id;
+    // Shouldn't have loaded initial comments since all the posts should have
+    // collapsed comments.
+    assert(initialPostsResult.initialCommentsByPostId.size === 0);
 
-    // While you're viewing new posts in a channel, this accrues affinity points to
-    // the channel. Since you're taking time to pay attention to what's new in a
-    // channel.
-    useSearchAffinityViewInteraction(`Channel:${channelId}`);
+    const channelId = initialChannel.model.id;
 
     const {isConnected, subscribeToEvents} = useWebSocket(
         ChannelRealtimeProtocol,
@@ -200,8 +243,13 @@ export default function ChannelPostsRoute({
                     channelId: channel.model.id,
                     bucketGeneration,
                     limit,
+                    commentLimit: 0,
                     afterPostId: posts.getLastPostIdIfExists(),
                 });
+
+                // Shouldn't have loaded initial comments since all the posts should have
+                // collapsed comments.
+                assert(postsResult.initialCommentsByPostId.size === 0);
 
                 setPosts(posts => posts.loadMorePosts(postsResult));
             }}

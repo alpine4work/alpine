@@ -1,3 +1,4 @@
+import {deserializeErrors} from "@remix-run/react";
 import {HydrationState, MemoryHistory, createMemoryHistory, resolvePath} from "@remix-run/router";
 import {Key, Memo, useEffect} from "react";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
@@ -143,7 +144,10 @@ export function usePeekSwitcherState<Extra>({
                     routerPromise: PromiseImmediate.resolve(
                         createPeekRouter({
                             history,
-                            hydrationData: peekData.hydrationData,
+                            hydrationData: {
+                                ...peekData.hydrationData,
+                                errors: deserializeErrors(peekData.hydrationData.errors ?? null),
+                            },
                         }),
                     ),
                 },

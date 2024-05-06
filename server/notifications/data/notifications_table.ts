@@ -21,6 +21,7 @@ import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_
 import {
     getChannelPreview,
     getPost,
+    getPostAndInitialComments,
     getPostAuthorAndChannelPreview,
     getPostNotificationSubscribers,
 } from "~/server/forum/data/forum_table.js";
@@ -54,7 +55,7 @@ import {
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
-import {PostModel} from "~/shared/forum/post_model.js";
+import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -2399,18 +2400,27 @@ export async function getInboxChannelPostsEntryPosts(
         channelId,
         bucketGeneration,
         limit,
+        commentLimit,
         afterPostId,
     }: {
         spaceId: SpaceId;
         channelId: ChannelId;
         bucketGeneration: number;
         limit: number;
+        commentLimit: number;
         afterPostId: PostId | null;
     },
 ): Promise<{
     totalPostCount: number;
     hasMorePosts: boolean;
     posts: Array<DynamoGeneralRealtimeItem<PostModel>>;
+    initialCommentsByPostId: Map<
+        PostId,
+        {
+            comments: ReadonlyArray<PostCommentModel>;
+            otherReferencedComments: ReadonlyArray<PostCommentModel>;
+        }
+    >;
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
@@ -2476,6 +2486,34 @@ export async function getInboxChannelPostsEntryPosts(
             },
         );
 
+        // If there's only one post then we're going to render the new post post with
+        // expanded comments instead of requiring the user to expand the comments on
+        // the only post which is lame.
+        if (inboxEntryItem.postIds.size === 1 && commentLimit > 0) {
+            const postId = Array.from(inboxEntryItem.postIds)[0]!;
+
+            const {post, initialComments, initialOtherReferencedComments} =
+                await getPostAndInitialComments(await context.actor.authenticate(), {
+                    postId,
+                    commentLimit,
+                });
+
+            return {
+                totalPostCount: 1,
+                hasMorePosts: false,
+                posts: [post],
+                initialCommentsByPostId: new Map([
+                    [
+                        post.model.id,
+                        {
+                            comments: initialComments,
+                            otherReferencedComments: initialOtherReferencedComments,
+                        },
+                    ],
+                ]),
+            };
+        }
+
         const posts = await runAllPromises(
             mapIterable(
                 sliceIterable(inboxEntryItem.postIds, 0, limit),
@@ -2487,6 +2525,7 @@ export async function getInboxChannelPostsEntryPosts(
             totalPostCount: inboxEntryItem.postIds.size,
             hasMorePosts: inboxEntryItem.postIds.size > limit,
             posts,
+            initialCommentsByPostId: new Map(),
         };
     } else {
         // If we have an `afterPostId` we don't need to observe the inbox because new
@@ -2521,6 +2560,7 @@ export async function getInboxChannelPostsEntryPosts(
             totalPostCount: inboxEntryItem.postIds.size,
             hasMorePosts: inboxEntryItem.postIds.size > limit + afterPostIndex + 1,
             posts,
+            initialCommentsByPostId: new Map(),
         };
     }
 }

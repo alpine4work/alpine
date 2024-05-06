@@ -4,7 +4,7 @@ import {
     createDynamoGeneralRealtimeItemSchema,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {PostModel} from "~/shared/forum/post_model.js";
+import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     InboxEntryKeySchema,
@@ -82,11 +82,19 @@ export const getInboxChannelPostsEntryPosts = defineRpc({
         channelId: Schema.id<ChannelId>(),
         bucketGeneration: Schema.integer,
         limit: Schema.integer,
+        commentLimit: Schema.integer,
         afterPostId: Schema.id<PostId>().nullable(),
     },
     output: {
         totalPostCount: Schema.integer,
         hasMorePosts: Schema.boolean,
         posts: Schema.array(createDynamoGeneralRealtimeItemSchema(PostModel.schema())),
+        initialCommentsByPostId: Schema.map(
+            Schema.id<PostId>(),
+            Schema.object({
+                comments: Schema.array(PostCommentModel.schema()),
+                otherReferencedComments: Schema.array(PostCommentModel.schema()),
+            }),
+        ),
     },
 });

@@ -1,5 +1,10 @@
 import {Path, createPath} from "@remix-run/router";
-import {ServerRoute, callRouteLoaderRR, matchServerRoutes} from "@remix-run/server-runtime";
+import {
+    ServerRoute,
+    callRouteLoaderRR,
+    matchServerRoutes,
+    serializeErrors,
+} from "@remix-run/server-runtime";
 import {LoaderContext} from "~/server/remix/loader_context.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -67,7 +72,7 @@ export async function loadInitialPeekDataForServer(
     return {
         spacePath,
         peekPath,
-        hydrationData: {loaderData, errors},
+        hydrationData: {loaderData, errors: serializeErrors(errors, process.env.NODE_ENV as any)},
         loadExtraRouteIds,
     };
 }
