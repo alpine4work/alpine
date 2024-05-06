@@ -1,5 +1,5 @@
 import {keydownHandler} from "prosemirror-keymap";
-import {EditorState, TextSelection, Transaction, Plugin} from "prosemirror-state";
+import {EditorState, Plugin, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 

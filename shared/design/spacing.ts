@@ -177,7 +177,10 @@ export function convertRemLengthToPx(remLength: RemLength, remPx: number): numbe
  * mobile since there's less available screen space. On desktop, even in peeks,
  * there's more screen space so adding padding improves legibility.
  */
-export const screenPaddingX = {
+export const screenPaddingX: Memo<{
+    readonly mobile: Spacing;
+    readonly desktop: Spacing;
+}> = {
     mobile: "3",
     desktop: "5",
 } as Memo<{

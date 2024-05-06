@@ -120,9 +120,9 @@ function getItems(list: PostListInterface) {
         } = assertExists(item);
 
         if (remainingItem.type === "PostContent") {
-            expect(list.getPostById((remainingItem.post as any).id).postContentItemIndex).toEqual(
-                index,
-            );
+            expect(
+                list.getPostByIdIfExists((remainingItem.post as any).id)?.postContentItemIndex,
+            ).toEqual(index);
         }
 
         return remainingItem;

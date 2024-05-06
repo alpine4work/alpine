@@ -1034,9 +1034,6 @@ function PostListView(
                                                     ? highlightPostComment.shouldHighlightRef
                                                     : null
                                             }
-                                            marginX={
-                                                screenPaddingX[isMobile ? "mobile" : "desktop"]
-                                            }
                                             centeringMarginRight={
                                                 !isSingleLayoutWithPinnedCommentInput
                                                     ? postCommentSectionGuidelineSpace

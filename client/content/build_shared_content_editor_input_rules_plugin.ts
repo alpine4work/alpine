@@ -1,6 +1,6 @@
 import {InputRule, inputRules, smartQuotes} from "prosemirror-inputrules";
 
-function buildSharedContentInputRules(rules: Array<InputRule>) {
+export function addSharedContentEditorInputRules(rules: Array<InputRule>) {
     // "smart quotes"
     rules.push(...smartQuotes);
 
@@ -29,7 +29,7 @@ function buildSharedContentInputRules(rules: Array<InputRule>) {
 
 export function buildSharedContentEditorInputRulesPlugin() {
     const rules: Array<InputRule> = [];
-    buildSharedContentInputRules(rules);
+    addSharedContentEditorInputRules(rules);
 
     return inputRules({rules});
 }

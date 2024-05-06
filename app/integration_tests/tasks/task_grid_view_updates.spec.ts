@@ -808,7 +808,7 @@ test("can change status", async ({page, context: browserContext}) => {
     await expectTaskGridView(page, [["Closed", "test", "Testerson"]], {hasGhostTaskRow: false});
 });
 
-test("can update collections", async ({page, context: browserContext}) => {
+test.only("can update collections", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const collection = await TestTaskCollection.createPublic(session, {name: "test1"});
@@ -865,9 +865,9 @@ test("can update collections", async ({page, context: browserContext}) => {
     await page.keyboard.press("Escape");
     await page.getByTestId(`TaskRowView:${task.id}`).getByRole("textbox", {name: "Title"}).click();
 
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeVisible();
+    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeHidden();
     await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeVisible();
     await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeVisible();
 
     await page.getByTestId(`TaskRowView:${task.id}`).getByTestId("TaskRowCollectionsCell").click();

@@ -5,7 +5,6 @@ import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
-import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 

@@ -112,7 +112,7 @@ test("can create tasks in notepad", async ({page, context: browserContext, viewp
             [
                 [true, "This is a subtask, cool"],
                 [true, "This is subtask 2"],
-                [true, "This won't be a subtask"],
+                [true, "This won’t be a subtask"],
             ],
         ],
     ]);
@@ -128,7 +128,7 @@ test("can create tasks in notepad", async ({page, context: browserContext, viewp
                 [true, "This is subtask 2"],
             ],
         ],
-        [true, "This won't be a subtask"],
+        [true, "This won’t be a subtask"],
     ]);
 
     await page
@@ -146,7 +146,7 @@ test("can create tasks in notepad", async ({page, context: browserContext, viewp
                 [true, "This is subtask 2"],
             ],
         ],
-        [true, "This won't be a subtask"],
+        [true, "This won’t be a subtask"],
         [true, ""],
     ]);
 
@@ -161,7 +161,7 @@ test("can create tasks in notepad", async ({page, context: browserContext, viewp
                 [true, "This is subtask 2"],
             ],
         ],
-        [true, "This won't be a subtask"],
+        [true, "This won’t be a subtask"],
         [true, ""],
         [true, "Yet another task"],
     ]);
@@ -179,7 +179,7 @@ test("can create tasks in notepad", async ({page, context: browserContext, viewp
                 [true, "This is subtask 2"],
             ],
         ],
-        [true, "This won't be a subtask"],
+        [true, "This won’t be a subtask"],
         [true, ""],
         [true, ""],
         [true, "Yet another task"],
@@ -196,7 +196,7 @@ test("can create tasks in notepad", async ({page, context: browserContext, viewp
                 [true, "This is subtask 2"],
             ],
         ],
-        [true, "This won't be a subtask"],
+        [true, "This won’t be a subtask"],
         [true, ""],
         [true, "Some task above wow"],
         [true, "Yet another task"],

@@ -4,6 +4,7 @@ import {createTestSession} from "~/server/dynamo/test_helpers/create_test_sessio
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {createChannel, createPost} from "~/server/forum/data/forum_table.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 const modifier = process.platform === "darwin" ? "Meta" : "Control";
 
@@ -83,7 +84,14 @@ test("can create multiline formatted posts", async ({page, context: browserConte
     await expect(page.getByRole("heading", {name: "Test heading"})).toBeVisible();
 });
 
-test("can edit a post in a channel", async ({page, context: browserContext}) => {
+test("can edit a post in a channel", async ({
+    page,
+    context: browserContext,
+    isMobile,
+    viewport,
+}) => {
+    assert(viewport);
+
     const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
@@ -108,6 +116,12 @@ test("can edit a post in a channel", async ({page, context: browserContext}) => 
 
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 1");
 
+    // On mobile, the selection starts at the beginning of the input not the end.
+    // Move selection to the end.
+    if (isMobile) {
+        await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+    }
+
     // Can update with the save button.
     await page.getByLabel("Post", {exact: true}).press("Backspace");
     await page.getByLabel("Post", {exact: true}).type("2");
@@ -123,6 +137,14 @@ test("can edit a post in a channel", async ({page, context: browserContext}) => 
         .click();
     await page.getByRole("menuitem", {name: "Edit"}).click();
 
+    await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 2");
+
+    // On mobile, the selection starts at the beginning of the input not the end.
+    // Move selection to the end.
+    if (isMobile) {
+        await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+    }
+
     // Can update with Cmd-Enter keyboard shortcut.
     await page.getByLabel("Post", {exact: true}).press("Backspace");
     await page.getByLabel("Post", {exact: true}).type("3");
@@ -133,7 +155,9 @@ test("can edit a post in a channel", async ({page, context: browserContext}) => 
     await expect(page.getByText("Test post content 3")).toBeVisible();
 });
 
-test("can edit a standalone post", async ({page, context: browserContext, isMobile}) => {
+test("can edit a standalone post", async ({page, context: browserContext, isMobile, viewport}) => {
+    assert(viewport);
+
     const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
@@ -155,6 +179,12 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
 
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 1");
 
+    // On mobile, the selection starts at the beginning of the input not the end.
+    // Move selection to the end.
+    if (isMobile) {
+        await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+    }
+
     // Can update with the save button.
     await page.getByLabel("Post", {exact: true}).press("Backspace");
     await page.getByLabel("Post", {exact: true}).type("2");
@@ -175,6 +205,14 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
     await page.getByRole("button", {name: "More"}).click();
     await page.getByRole("menuitem", {name: "Edit"}).click();
 
+    await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 2");
+
+    // On mobile, the selection starts at the beginning of the input not the end.
+    // Move selection to the end.
+    if (isMobile) {
+        await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+    }
+
     // Can update with Cmd-Enter keyboard shortcut.
     await page.getByLabel("Post", {exact: true}).press("Backspace");
     await page.getByLabel("Post", {exact: true}).type("3");
@@ -185,7 +223,14 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
     await expect(page.getByText("Test post content 3")).toBeVisible();
 });
 
-test("asks for confirmation to save edited post", async ({page, context: browserContext}) => {
+test("asks for confirmation to save edited post", async ({
+    page,
+    context: browserContext,
+    isMobile,
+    viewport,
+}) => {
+    assert(viewport);
+
     const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
@@ -210,14 +255,26 @@ test("asks for confirmation to save edited post", async ({page, context: browser
 
     await page.getByRole("menuitem", {name: "Edit"}).click();
 
+    await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 1");
+
+    // On mobile, the selection starts at the beginning of the input not the end.
+    // Move selection to the end.
+    if (isMobile) {
+        await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+    }
+
     await page.getByLabel("Post", {exact: true}).press("Backspace");
     await page.getByLabel("Post", {exact: true}).type("2");
 
-    await expect(page.getByRole("alertdialog", {name: "Save post"})).toBeHidden();
-    await page.getByText("Test Channel").click();
-    await expect(page.getByRole("alertdialog", {name: "Save post"})).toBeVisible();
+    if (!isMobile) {
+        await expect(page.getByRole("alertdialog", {name: "Save post"})).toBeHidden();
+        await page.getByText("Test Channel").click();
+        await expect(page.getByRole("alertdialog", {name: "Save post"})).toBeVisible();
 
-    await page.getByRole("button", {name: "Discard changes"}).click();
+        await page.getByRole("button", {name: "Discard changes"}).click();
+    } else {
+        await page.getByRole("button", {name: "Cancel"}).click();
+    }
 
     await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
     await expect(page.getByText("Test post content 2")).toBeHidden();

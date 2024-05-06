@@ -543,6 +543,8 @@ export function ContentView({
                 ref={ref}
                 className={classNames(
                     docClassName,
+                    // NOCOMMIT: I'm not sure if we should use message content styles for channel
+                    // descriptions?
                     isMessageContentSchema(content.doc.type.schema)
                         ? messageDocClassName
                         : undefined,

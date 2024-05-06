@@ -16,7 +16,11 @@ function getAvatarInPileByInitials(page: Page, initials: string) {
     return page.getByTestId(/PostContentViewFooter/).getByText(initials);
 }
 
-test("can open and close post comments in channel", async ({page, context: browserContext}) => {
+test("can open and close post comments in channel", async ({
+    page,
+    context: browserContext,
+    isMobile,
+}) => {
     const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
@@ -60,7 +64,11 @@ test("can open and close post comments in channel", async ({page, context: brows
     await expect(page.getByText("Test post comment content 2")).toBeVisible();
     await expect(page.getByText("Test post comment content 3")).toBeVisible();
 
-    await page.getByRole("button", {name: "3 comments"}).click();
+    if (!isMobile) {
+        await page.getByRole("button", {name: "3 comments"}).click();
+    } else {
+        await page.getByRole("button", {name: "Go back"}).click();
+    }
 
     await expect(page.getByText("Test post content 1")).toBeVisible();
     await expect(page.getByText("Test post comment content 1")).toBeHidden();
@@ -135,8 +143,8 @@ test("can comment on a post", async ({page, context: browserContext, isMobile}) 
     await expect(page.getByRole("textbox", {name: "New comment"})).toBeVisible();
 
     await expect(getAvatarInPileByInitials(page, "SR")).toBeHidden();
-    await expect(page.getByRole("button", {name: "0 comments"})).toBeVisible();
-    await expect(page.getByRole("button", {name: "1 comment"})).toBeHidden();
+    await expect(page.getByText("0 comments")).toBeVisible();
+    await expect(page.getByText("1 comment")).toBeHidden();
     await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
     await page.getByRole("textbox", {name: "New comment"}).type("Test post comment content 1");
     await expect(page.getByRole("textbox", {name: "New comment"})).toHaveText(
@@ -149,16 +157,16 @@ test("can comment on a post", async ({page, context: browserContext, isMobile}) 
         await page.getByRole("button", {name: "Send comment"}).click();
     }
     await expect(getAvatarInPileByInitials(page, "SR")).toBeVisible();
-    await expect(page.getByRole("button", {name: "0 comments"})).toBeHidden();
-    await expect(page.getByRole("button", {name: "1 comment"})).toBeVisible();
+    await expect(page.getByText("0 comments")).toBeHidden();
+    await expect(page.getByText("1 comment")).toBeVisible();
     await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
 
     await expect(page.getByRole("textbox", {name: "New comment"})).toHaveText("");
     await expect(page.getByText("Test post comment content 1")).toBeVisible();
 
     await expect(getAvatarInPileByInitials(page, "SR")).toBeVisible();
-    await expect(page.getByRole("button", {name: "1 comment"})).toBeVisible();
-    await expect(page.getByRole("button", {name: "2 comments"})).toBeHidden();
+    await expect(page.getByText("1 comment")).toBeVisible();
+    await expect(page.getByText("2 comments")).toBeHidden();
     await page.getByRole("textbox", {name: "New comment"}).type("Test post comment content 2");
     await expect(page.getByRole("textbox", {name: "New comment"})).toHaveText(
         "Test post comment content 2",
@@ -169,8 +177,8 @@ test("can comment on a post", async ({page, context: browserContext, isMobile}) 
         await page.getByRole("button", {name: "Send comment"}).click();
     }
     await expect(getAvatarInPileByInitials(page, "SR")).toBeVisible();
-    await expect(page.getByRole("button", {name: "1 comment"})).toBeHidden();
-    await expect(page.getByRole("button", {name: "2 comments"})).toBeVisible();
+    await expect(page.getByText("1 comment")).toBeHidden();
+    await expect(page.getByText("2 comments")).toBeVisible();
 
     await expect(page.getByRole("textbox", {name: "New comment"})).toHaveText("");
     await expect(page.getByText("Test post comment content 2")).toBeVisible();
@@ -324,8 +332,8 @@ test("can see new comments when opening post comments", async ({
 
     await page1.getByRole("button", {name: "0 comments"}).click();
 
-    await expect(page1.getByRole("button", {name: "0 comments"})).toBeVisible();
-    await expect(page1.getByRole("button", {name: "1 comment"})).toBeHidden();
+    await expect(page1.getByText("0 comments")).toBeVisible();
+    await expect(page1.getByText("1 comment")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "LR")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "SR")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "KR")).toBeHidden();
@@ -349,9 +357,9 @@ test("can see new comments when opening post comments", async ({
         await page2.getByRole("button", {name: "Send comment"}).click();
     }
 
-    await expect(page1.getByRole("button", {name: "0 comments"})).toBeHidden();
-    await expect(page1.getByRole("button", {name: "1 comment"})).toBeVisible();
-    await expect(page1.getByRole("button", {name: "2 comments"})).toBeHidden();
+    await expect(page1.getByText("0 comments")).toBeHidden();
+    await expect(page1.getByText("1 comment")).toBeVisible();
+    await expect(page1.getByText("2 comments")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "LR")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "KR")).toBeHidden();
@@ -360,11 +368,15 @@ test("can see new comments when opening post comments", async ({
     await expect(page1.getByText("Test post comment content 3")).toBeHidden();
     await expect(page1.getByText("Test post comment content 4")).toBeHidden();
 
-    await page1.getByRole("button", {name: "1 comment"}).click();
+    if (!isMobile) {
+        await page1.getByRole("button", {name: "1 comment"}).click();
+    } else {
+        await page1.getByRole("button", {name: "Go back"}).click();
+    }
 
-    await expect(page1.getByRole("button", {name: "0 comments"})).toBeHidden();
-    await expect(page1.getByRole("button", {name: "1 comment"})).toBeVisible();
-    await expect(page1.getByRole("button", {name: "2 comments"})).toBeHidden();
+    await expect(page1.getByText("0 comments")).toBeHidden();
+    await expect(page1.getByText("1 comment")).toBeVisible();
+    await expect(page1.getByText("2 comments")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "LR")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "KR")).toBeHidden();
@@ -388,9 +400,9 @@ test("can see new comments when opening post comments", async ({
         await page3.getByRole("button", {name: "Send comment"}).click();
     }
 
-    await expect(page1.getByRole("button", {name: "0 comments"})).toBeHidden();
-    await expect(page1.getByRole("button", {name: "1 comment"})).toBeVisible();
-    await expect(page1.getByRole("button", {name: "2 comments"})).toBeHidden();
+    await expect(page1.getByText("0 comments")).toBeHidden();
+    await expect(page1.getByText("1 comment")).toBeVisible();
+    await expect(page1.getByText("2 comments")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "LR")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "KR")).toBeHidden();
@@ -409,9 +421,9 @@ test("can see new comments when opening post comments", async ({
         await page2.getByRole("button", {name: "Send comment"}).click();
     }
 
-    await expect(page1.getByRole("button", {name: "0 comments"})).toBeHidden();
-    await expect(page1.getByRole("button", {name: "1 comment"})).toBeVisible();
-    await expect(page1.getByRole("button", {name: "2 comments"})).toBeHidden();
+    await expect(page1.getByText("0 comments")).toBeHidden();
+    await expect(page1.getByText("1 comment")).toBeVisible();
+    await expect(page1.getByText("2 comments")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "LR")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "KR")).toBeHidden();
@@ -422,9 +434,9 @@ test("can see new comments when opening post comments", async ({
 
     await page1.getByRole("button", {name: "1 comment"}).click();
 
-    await expect(page1.getByRole("button", {name: "2 comments"})).toBeHidden();
-    await expect(page1.getByRole("button", {name: "3 comments"})).toBeVisible();
-    await expect(page1.getByRole("button", {name: "4 comments"})).toBeHidden();
+    await expect(page1.getByText("2 comments")).toBeHidden();
+    await expect(page1.getByText("3 comments")).toBeVisible();
+    await expect(page1.getByText("4 comments")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "LR")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "KR")).toBeVisible();
@@ -444,9 +456,9 @@ test("can see new comments when opening post comments", async ({
         await page1.getByRole("button", {name: "Send comment"}).click();
     }
 
-    await expect(page1.getByRole("button", {name: "3 comments"})).toBeHidden();
-    await expect(page1.getByRole("button", {name: "4 comments"})).toBeVisible();
-    await expect(page1.getByRole("button", {name: "5 comments"})).toBeHidden();
+    await expect(page1.getByText("3 comments")).toBeHidden();
+    await expect(page1.getByText("4 comments")).toBeVisible();
+    await expect(page1.getByText("5 comments")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "LR")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "KR")).toBeVisible();

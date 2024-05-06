@@ -1,7 +1,6 @@
 import classNames from "classnames";
 import {CaretLeft, Lock} from "phosphor-react";
-import {keydownHandler} from "prosemirror-keymap";
-import {AllSelection, EditorState, Selection, TextSelection, Plugin} from "prosemirror-state";
+import {AllSelection, EditorState, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
     CSSProperties,

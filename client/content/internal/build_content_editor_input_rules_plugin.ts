@@ -6,7 +6,7 @@ import {
 } from "prosemirror-inputrules";
 import {MarkType, NodeType} from "prosemirror-model";
 import {findWrapping} from "prosemirror-transform";
-import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/build_shared_content_editor_input_rules_plugin.js";
+import {addSharedContentEditorInputRules} from "~/client/content/build_shared_content_editor_input_rules_plugin.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -16,7 +16,7 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
     const rules: Array<InputRule> = [];
 
     // get "smart quotes" and emoji shared input rules
-    buildSharedContentEditorInputRulesPlugin();
+    addSharedContentEditorInputRules(rules);
 
     // `@` opens a mention search/selector interface
     rules.push(

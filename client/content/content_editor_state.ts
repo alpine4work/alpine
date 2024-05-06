@@ -4,19 +4,19 @@ import {Node} from "prosemirror-model";
 import {Command, EditorState, Plugin, PluginKey, Selection, Transaction} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {
-    ContentEditorFloaterState,
-    initialContentEditorFloaterState,
-} from "~/client/content/internal/content_editor_floater.js";
-import {
     buildContentEditorInputRulesPlugin,
     openMentionFloaterMetaKey,
-} from "~/client/content/internal/build_content_editor_plugin_input_rules.js";
+} from "~/client/content/internal/build_content_editor_input_rules_plugin.js";
 import {
     buildContentEditorKeymapPlugin,
     openCommentInputFloaterMetaKey,
     openKeyboardHighlightFloaterMetaKey,
     openKeyboardLinkFloaterMetaKey,
-} from "~/client/content/internal/build_content_editor_plugin_keymap.js";
+} from "~/client/content/internal/build_content_editor_keymap_plugin.js";
+import {
+    ContentEditorFloaterState,
+    initialContentEditorFloaterState,
+} from "~/client/content/internal/content_editor_floater.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {
     ContentReferences,

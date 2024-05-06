@@ -612,7 +612,7 @@ export function RootOverlayScopeContextProvider({
     isDisabled?: boolean;
     children?: ReactNode;
 }) {
-    const parentOverlaySink = useContext(OverlaySinkContext);
+    const parentOverlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
 
     const portalRef = useRef<HTMLDivElement>(null);
     const blockingPortalRef = useRef<HTMLDivElement>(null);
@@ -676,7 +676,7 @@ export function OverlayScopeContextProvider({
     insetLeft?: RemLength | number;
     insetRight?: RemLength | number;
 }) {
-    const parentOverlaySink = useContext(OverlaySinkContext);
+    const parentOverlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
     assert(parentOverlaySink, "Expected a parent `<RootOverlayScopeContextProvider>` component");
 
     const portalRef = useRef<HTMLDivElement>(null);
@@ -706,7 +706,9 @@ export function OverlayScopeContextProvider({
 }
 
 function BlockingOverlayScopeContextProvider({children}: {children: ReactNode}) {
-    const parentOverlaySink = assertExists(useContext(OverlaySinkContext));
+    const parentOverlaySink = assertExists(
+        useContext(OverlaySinkContext) ?? overlaySinkContextForTest,
+    );
 
     return (
         <OverlaySinkContext.Provider

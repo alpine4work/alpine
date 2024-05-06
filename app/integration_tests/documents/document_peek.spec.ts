@@ -590,7 +590,7 @@ test("remembers peek state across page reloads", async ({context: browserContext
     await expect(page.getByText("Test document content 1")).toBeVisible();
 });
 
-test("expand remembers peeks on the previous page except for the expanded peek", async ({
+test("expand remembers peeks on the previous page including the expanded peek", async ({
     context: browserContext,
     page,
 }) => {
@@ -679,6 +679,13 @@ test("expand remembers peeks on the previous page except for the expanded peek",
     await expect(page.getByText("Test document content 1")).toBeHidden();
 
     await page.goBack();
+
+    await expect(page.getByText("Test document content 4")).toBeVisible();
+    await expect(page.getByText("Test document content 3")).toBeHidden();
+    await expect(page.getByText("Test document content 2")).toBeHidden();
+    await expect(page.getByText("Test document content 1")).toBeVisible();
+
+    await page.getByRole("button", {name: "Close"}).click();
 
     await expect(page.getByText("Test document content 4")).toBeHidden();
     await expect(page.getByText("Test document content 3")).toBeVisible();
