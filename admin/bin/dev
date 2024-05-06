@@ -8,4 +8,4 @@ cd $workspace_path
 # (`dev check`) for those files. If you pass a file path then instead of
 # looking at git modified files we'll test/check just that path.
 
-bazel run --ui_event_filters=-info //admin/dev
+./admin/bin/bazel run --ui_event_filters=-info //admin/dev
