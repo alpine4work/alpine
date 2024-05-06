@@ -348,13 +348,26 @@ function TaskRowCollectionsCell(
                                     //
                                     // Also shrink collection chips required by the query more than collection
                                     // chips which aren't required.
+                                    //
+                                    // These constants were picked so that if you have two very long task
+                                    // collection names (with colors) and the second is a required task collection,
+                                    // then we'll show at least two characters from the shrunk required task
+                                    // collection. e.g. In one test two collections named
+                                    // "Test Very Very Very Very Very Very Long" truncated like this (remember the
+                                    // second needs to be a required collection):
+                                    //
+                                    // ```
+                                    // ┌──────────────────────┐ ┌─────────┐
+                                    // │ • Test Very Very ... │ │ • Te... │
+                                    // └──────────────────────┘ └─────────┘
+                                    // ```
                                     flexShrink: Math.max(
                                         0,
                                         Math.min(
-                                            (collection.getColor() !== null ? 2 : 0) +
+                                            (collection.getColor() !== null ? 1 : 0) +
                                                 Math.round(collection.getName().length) -
-                                                8,
-                                            16,
+                                                7,
+                                            15,
                                         ) -
                                             (queryFiltersRequiredCollectionIds.has(collection.id)
                                                 ? 0
