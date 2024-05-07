@@ -67,6 +67,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let more: String
     }
 
+    enum Tab {
+        case home
+        case search
+        case create
+        case inbox
+        case more
+    }
+
     // Called `webDelegate` so we don't override `UINavigationController`'s
     // `delegate` property.
     weak var webDelegate: WebNavigationControllerDelegate?
@@ -2354,6 +2362,22 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         topViewController!.dismiss(animated: false)
     }
+
+    /// Change the tab currently being displayed in our web navigation controller.
+    func switchTab(_ tab: WebNavigationController.Tab) {
+        let tabString =
+            switch tab {
+            case .home: "Home"
+            case .search: "Search"
+            case .create: "Create"
+            case .inbox: "Inbox"
+            case .more: "More"
+            }
+
+        webView.evaluateJavaScript(
+            #"window.__NativeMobileBridge.navigation._callSwitchTabListeners(\#(jsonString(tabString)))"#
+        )
+    }
 }
 
 @objc class WebNavigationEntry: NSObject {
@@ -2887,6 +2911,7 @@ private func createWebBridgeSource(initialPathByTab: WebNavigationController.Ini
     return """
         {
             const navigationExternalPopListeners = new Set();
+            const navigationSwitchTabListeners = new Set();
             const keyboardFrameChangeListeners = new Set();
             const addCommentEditMenuListeners = new Set();
 
@@ -3013,6 +3038,23 @@ private func createWebBridgeSource(initialPathByTab: WebNavigationController.Ini
                         for (const callback of callbacks) {
                             try {
                                 callback();
+                            } catch (error) {
+                                setTimeout(() => {
+                                    throw error;
+                                }, 0);
+                            }
+                        }
+                    },
+                    subscribeToSwitchTab: listener => {
+                        navigationSwitchTabListeners.add(listener);
+                        return () => {
+                            navigationSwitchTabListeners.delete(listener);
+                        };
+                    },
+                    _callSwitchTabListeners: tab => {
+                        for (const listener of navigationSwitchTabListeners) {
+                            try {
+                                listener(tab);
                             } catch (error) {
                                 setTimeout(() => {
                                     throw error;

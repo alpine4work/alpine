@@ -255,7 +255,7 @@ test("can switch tabs", () => {
     history.switchTab("Inbox");
 
     expect(createPath(window.location)).toEqual("/inbox");
-    expect(history.action).toEqual(Action.Push);
+    expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/inbox");
     expect(history.entryKey).toEqual("Inbox-0");
     expect(history.getInertRouterStates()).toEqual([
@@ -333,7 +333,7 @@ test("can switch tabs", () => {
     history.switchTab("Search");
 
     expect(createPath(window.location)).toEqual("/search");
-    expect(history.action).toEqual(Action.Push);
+    expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/search");
     expect(history.entryKey).toEqual("Search-0");
     expect(history.getInertRouterStates()).toEqual([
@@ -400,7 +400,7 @@ test("can switch tabs", () => {
     history.switchTab("Home");
 
     expect(createPath(window.location)).toEqual("/page3");
-    expect(history.action).toEqual(Action.Push);
+    expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page3");
     expect(history.entryKey).toEqual("Home-3");
     expect(history.getInertRouterStates()).toEqual([
@@ -416,7 +416,7 @@ test("can switch tabs", () => {
     history.switchTab("Inbox");
 
     expect(createPath(window.location)).toEqual("/page7");
-    expect(history.action).toEqual(Action.Push);
+    expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page7");
     expect(history.entryKey).toEqual("Inbox-4");
     expect(history.getInertRouterStates()).toEqual([
@@ -432,7 +432,7 @@ test("can switch tabs", () => {
     history.switchTab("Create");
 
     expect(createPath(window.location)).toEqual("/create");
-    expect(history.action).toEqual(Action.Push);
+    expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/create");
     expect(history.entryKey).toEqual("Create-0");
     expect(history.getInertRouterStates()).toEqual([
@@ -448,7 +448,7 @@ test("can switch tabs", () => {
     history.switchTab("Home");
 
     expect(createPath(window.location)).toEqual("/page3");
-    expect(history.action).toEqual(Action.Push);
+    expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page3");
     expect(history.entryKey).toEqual("Home-3");
     expect(history.getInertRouterStates()).toEqual([
@@ -868,7 +868,7 @@ test("can pop across switched tabs", () => {
     history.switchTab("Inbox");
 
     expect(createPath(window.location)).toEqual("/inbox");
-    expect(history.action).toEqual(Action.Push);
+    expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/inbox");
     expect(history.entryKey).toEqual("Inbox-0");
     expect(history.getInertRouterStates()).toEqual([
@@ -957,7 +957,7 @@ test("can pop across switched tabs", () => {
     history.switchTab("Home");
 
     expect(createPath(window.location)).toEqual("/page2");
-    expect(history.action).toEqual(Action.Push);
+    expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page2");
     expect(history.entryKey).toEqual("Home-2");
     expect(history.getInertRouterStates()).toEqual([
@@ -986,7 +986,7 @@ test("can pop across switched tabs", () => {
     history.switchTab("Create");
 
     expect(createPath(window.location)).toEqual("/create");
-    expect(history.action).toEqual(Action.Push);
+    expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/create");
     expect(history.entryKey).toEqual("Create-0");
     expect(history.getInertRouterStates()).toEqual([
@@ -1005,7 +1005,7 @@ test("can pop across switched tabs", () => {
     expectNavigationRequestExternalPopCount(1);
 
     expect(createPath(window.location)).toEqual("/create");
-    expect(history.action).toEqual(Action.Push);
+    expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/create");
     expect(history.entryKey).toEqual("Create-0");
     expect(history.getInertRouterStates()).toEqual([
@@ -1020,7 +1020,7 @@ test("can pop across switched tabs", () => {
     history.switchTab("Inbox");
 
     expect(createPath(window.location)).toEqual("/page5");
-    expect(history.action).toEqual(Action.Push);
+    expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page5");
     expect(history.entryKey).toEqual("Inbox-3");
     expect(history.getInertRouterStates()).toEqual([
@@ -1113,7 +1113,7 @@ test("can pop across switched tabs", () => {
     history.switchTab("Home");
 
     expect(createPath(window.location)).toEqual("/page1");
-    expect(history.action).toEqual(Action.Push);
+    expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page1");
     expect(history.entryKey).toEqual("Home-1");
     expect(history.getInertRouterStates()).toEqual([
@@ -1237,7 +1237,7 @@ test("can pop with expected path", () => {
     history.switchTab("More");
 
     expect(createPath(window.location)).toEqual("/more");
-    expect(history.action).toEqual(Action.Push);
+    expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/more");
     expect(history.entryKey).toEqual("More-0");
     expect(history.getInertRouterStates()).toEqual([

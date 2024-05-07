@@ -13,6 +13,7 @@ import {inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view.js";
 import {InboxView} from "~/client/inbox/inbox_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
 import {getInboxEntries} from "~/server/notifications/data/notifications_table.js";
@@ -151,7 +152,19 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     return nextUrl.toString() !== currentUrl.toString();
 };
 
-export default function InboxRoute() {
+export default function InboxRouteWrapper() {
+    const isMobile = useIsMobile();
+
+    if (isMobile) {
+        // NOCOMMIT: Implement. Maybe mobile inbox should be a different route so we
+        // don't load selected peek data?
+        return <Box>Inbox!</Box>;
+    }
+
+    return <InboxRoute />;
+}
+
+function InboxRoute() {
     const remixContext = useContext(RemixContext);
     assert(remixContext, "Expected Remix context");
     const isInitialAppRender = useIsInitialAppRender();

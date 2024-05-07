@@ -320,6 +320,13 @@ export const NativeMobileBridge: {
          * Does not work for external pop navigations.
          */
         scheduleAfterAnimation(action: () => void): void;
+
+        /**
+         * When the user taps a tab in the native mobile app wrapper we'll call any
+         * subscribed listeners which should actually update our internal navigation
+         * state.
+         */
+        subscribeToSwitchTab(listener: (tab: NativeMobileTab) => void): () => void;
     };
 
     /**

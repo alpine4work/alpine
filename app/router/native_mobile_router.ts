@@ -89,7 +89,11 @@ export function createNativeMobileRouter(
 
     history.initializeRouter(routerBase);
 
-    let unsubscribeFromBridge: (() => void) | undefined;
+    let unsubscribeFromBridge1: (() => void) | undefined;
+    let unsubscribeFromBridge2: (() => void) | undefined;
+
+    let stateEntryKey = history.entryKey;
+    let stateInertRouterStates = history.getInertRouterStates();
 
     const router: NativeMobileRouter = {
         get basename() {
@@ -105,8 +109,22 @@ export function createNativeMobileRouter(
                     enumerable: false,
                 });
 
-                state.entryKey = history.entryKey;
-                state.inertRouterStates = history.getInertRouterStates();
+                // Only update `inertRouterStates` once the router is done loading.
+                //
+                // History may start a tab switch or pop navigation that requires us to load a
+                // new page. When this happens the router state will enter a loading state. We
+                // don't want to set the `inertRouterStates` for the new location while it's
+                // loading. Otherwise we end up rendering the same route twice!
+                if (
+                    state.navigation.state !== "loading" ||
+                    state.navigation.location.key !== history.location.key
+                ) {
+                    stateEntryKey = history.entryKey;
+                    stateInertRouterStates = history.getInertRouterStates();
+                }
+
+                state.entryKey = stateEntryKey;
+                state.inertRouterStates = stateInertRouterStates;
             }
 
             return state as NativeMobileRouterState;
@@ -123,8 +141,22 @@ export function createNativeMobileRouter(
                         enumerable: false,
                     });
 
-                    state.entryKey = history.entryKey;
-                    state.inertRouterStates = history.getInertRouterStates();
+                    // Only update `inertRouterStates` once the router is done loading.
+                    //
+                    // History may start a tab switch or pop navigation that requires us to load a
+                    // new page. When this happens the router state will enter a loading state. We
+                    // don't want to set the `inertRouterStates` for the new location while it's
+                    // loading. Otherwise we end up rendering the same route twice!
+                    if (
+                        state.navigation.state !== "loading" ||
+                        state.navigation.location.key !== history.location.key
+                    ) {
+                        stateEntryKey = history.entryKey;
+                        stateInertRouterStates = history.getInertRouterStates();
+                    }
+
+                    state.entryKey = stateEntryKey;
+                    state.inertRouterStates = stateInertRouterStates;
                 }
 
                 return fn(state as NativeMobileRouterState);
@@ -171,18 +203,23 @@ export function createNativeMobileRouter(
         initialize: () => {
             // When native initiates a pop navigation, we need to execute the pop
             // navigation on the web side.
-            unsubscribeFromBridge = NativeMobileBridge!.navigation.subscribeToExternalPop(
+            unsubscribeFromBridge1 = NativeMobileBridge!.navigation.subscribeToExternalPop(
                 (delta, url) => {
                     history.goFromExternal(-delta, url);
                 },
             );
+
+            unsubscribeFromBridge2 = NativeMobileBridge!.navigation.subscribeToSwitchTab(tab => {
+                history.switchTab(tab);
+            });
 
             return routerBase.initialize();
         },
 
         dispose: () => {
             routerBase.dispose();
-            unsubscribeFromBridge?.();
+            unsubscribeFromBridge1?.();
+            unsubscribeFromBridge2?.();
         },
     };
 
@@ -756,7 +793,13 @@ export class NativeMobileMemoryHistory implements History {
             this._inertRouterStateTabOrder.push(oldTab);
             this._truncateInertRouterStateTabOrder();
 
-            this._action = Action.Push;
+            // We use a pop action when switching tabs since, like the pop action, this
+            // function is responsible for updating the URL. Also, in many cases we're
+            // returning to a route when switching tabs so thematically pop makes sense.
+            //
+            // https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/router/router.ts#L1047-L1049
+            this._action = Action.Pop;
+
             this._currentEntryLocation = createLocation(
                 this._currentEntryLocation.pathname,
                 NativeMobileBridge!.navigation.initialPathByTab[tab],
@@ -810,8 +853,17 @@ export class NativeMobileMemoryHistory implements History {
             }
             this._truncateInertRouterStateTabOrder();
 
-            this._action = Action.Push;
-            this._currentEntryLocation = restoreEntry.location;
+            // We use a pop action when switching tabs since, like the pop action, this
+            // function is responsible for updating the URL. Also, in many cases we're
+            // returning to a route when switching tabs so thematically pop makes sense.
+            //
+            // https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/router/router.ts#L1047-L1049
+            this._action = Action.Pop;
+
+            this._currentEntryLocation = {
+                ...restoreEntry.location,
+                state: restoreEntry.location.state,
+            };
 
             // Make sure browser URL reflects history object. We don't respect changes to
             // browser history.

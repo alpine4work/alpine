@@ -341,7 +341,6 @@ export default function SpaceLayoutRoute() {
     const isInert = isBehindMobileFullScreenModal;
 
     const nodes = [];
-    let nodeKey = 1;
 
     const outletContainerContainerStyle = {
         // `height` is not a typo here. Even though all our containers (e.g. `html` and
@@ -372,7 +371,8 @@ export default function SpaceLayoutRoute() {
     if (!nativeMobileRouterState) {
         nodes.push(
             <div
-                key={nodeKey++}
+                // We need a key since we're in an array but the key doesn't matter.
+                key="0"
                 className={outletContainerContainerClassName}
                 style={outletContainerContainerStyle}
             >
@@ -442,7 +442,10 @@ export default function SpaceLayoutRoute() {
         // To learn more about inert route rendering, there's a comment in `root.tsx`
         // on top of a similar loop over `nativeMobileRouterState.inertRouterStates`
         // you can read.
-        for (const inertRouterState of nativeMobileRouterState.inertRouterStates) {
+        for (const {
+            entryKey,
+            routerState: inertRouterState,
+        } of nativeMobileRouterState.inertRouterStates) {
             if (
                 !inertRouterState.matches.some(
                     match =>
@@ -455,13 +458,7 @@ export default function SpaceLayoutRoute() {
 
             nodes.push(
                 <NativeMobileOutlet
-                    // Previous rendered routes need to preserve their keys if a new route is
-                    // pushed. So the first route in our stack has a key of 1, the second 2, and so
-                    // on. Newly pushed routes get new keys.
-                    //
-                    // We can't use `location.key` because if the URL is replaced then
-                    // `location.key` changes but we don't want to fully remount our routes.
-                    key={nodeKey++}
+                    key={entryKey}
                     parentRouteIds={spaceNativeMobileOutletParentRouteIds}
                     tracer={context.tracer.getRoot()}
                     inertRouterState={inertRouterState}
@@ -478,7 +475,7 @@ export default function SpaceLayoutRoute() {
             // then nothing will be rendered in the inert route? That's probably fine.
             error !== undefined ? (
                 <div
-                    key={nodeKey++}
+                    key={nativeMobileRouterState.entryKey}
                     className={outletContainerClassName}
                     style={outletContainerStyle}
                 >
@@ -486,7 +483,7 @@ export default function SpaceLayoutRoute() {
                 </div>
             ) : (
                 <NativeMobileOutlet
-                    key={nodeKey++}
+                    key={nativeMobileRouterState.entryKey}
                     parentRouteIds={spaceNativeMobileOutletParentRouteIds}
                     tracer={context.tracer.getRoot()}
                     isInert={isInert}

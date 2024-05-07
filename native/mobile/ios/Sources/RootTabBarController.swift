@@ -90,26 +90,34 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         )
 
         let homeTabController = RootTabController(
+            tab: .home,
             title: "Home",
             image: UIImage(named: "HouseIcon")!
         )
 
         let searchTabController = RootTabController(
+            tab: .search,
             title: "Search",
             image: UIImage(named: "MagnifyingGlassIcon")!
         )
 
         let createTabController = RootTabController(
+            tab: .create,
             title: "Create",
             image: UIImage(named: "PlusIcon")!
         )
 
         let inboxTabController = RootTabController(
+            tab: .inbox,
             title: "Inbox",
             image: UIImage(named: "BellIcon")!
         )
 
-        let moreTabController = RootTabController(title: "More", image: UIImage(named: "ListIcon")!)
+        let moreTabController = RootTabController(
+            tab: .more,
+            title: "More",
+            image: UIImage(named: "ListIcon")!
+        )
 
         super.init(nibName: nil, bundle: nil)
 
@@ -165,12 +173,20 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         _ tabBarController: UITabBarController,
         didSelect viewController: UIViewController
     ) {
+        let tabViewController = viewController as! RootTabController
+
         // We only have one underlying web view for each tab. So whenever the user
         // switches the tab, move our web view to the new tab.
+        //
+        // We need to both move the `UIView` in the view hierarchy and move the
+        // `UIViewController` in the view controller hierarchy.
         webNavigationController.view.removeFromSuperview()
         webNavigationController.removeFromParent()
-        viewController.addChild(webNavigationController)
-        viewController.view.addSubview(webNavigationController.view)
+        tabViewController.addChild(webNavigationController)
+        tabViewController.view.addSubview(webNavigationController.view)
+
+        // NOCOMMIT: We need to change the web navigation controller history
+        webNavigationController.switchTab(tabViewController.tab)
     }
 
     func webNavigationController(
@@ -727,9 +743,11 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 }
 
 class RootTabController: UIViewController {
+    let tab: WebNavigationController.Tab
     let image: UIImage
 
-    init(title: String, image: UIImage) {
+    init(tab: WebNavigationController.Tab, title: String, image: UIImage) {
+        self.tab = tab
         self.image = image
 
         super.init(nibName: nil, bundle: nil)
