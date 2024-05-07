@@ -378,7 +378,6 @@ function TaskNotepadViewActiveSection({
                                               widthStyle: cardWidthStyle,
                                               withMarginRight: index === length - 1,
                                           })}
-                                    shouldDebug={true}
                                 />
                             ),
                         )}
