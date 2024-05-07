@@ -36,7 +36,6 @@ import {
     RemLength,
     Spacing,
     addRemLengths,
-    assertSpacing,
     parseRemLengthNumber,
     screenPaddingX,
     spacing,
