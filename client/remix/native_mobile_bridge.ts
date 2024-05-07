@@ -1,6 +1,11 @@
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 /**
+ * Each of the tabs in our mobile app's tab bar.
+ */
+export type NativeMobileTab = "Home" | "Search" | "Create" | "Inbox" | "More";
+
+/**
  * When we are running in a native mobile app, the global `NativeMobileBridge`
  * is injected. This object allows you to communicate with the native app shell
  * whether we're on iOS or Android.
@@ -119,6 +124,12 @@ export const NativeMobileBridge: {
      * [5]: https://developer.apple.com/documentation/uikit/uitabbarcontroller
      */
     readonly navigation: {
+        /**
+         * The initial path to use when navigating to a given tab. Used by
+         * `NativeMobileRouter`'s `switchTab()` implementation.
+         */
+        readonly initialPathByTab: Readonly<Record<NativeMobileTab, string>>;
+
         /**
          * The way a push navigation in our native mobile app works is:
          *

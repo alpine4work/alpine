@@ -6,9 +6,21 @@ import WebKit
 // NOCOMMIT: Safe area inset should include top bar?
 class RootAnonymousController: WebNavigationController, SceneDelegateRootController {
     init() {
+        let initialPath = "/sign-in"
+
         super
             .init(
-                initialPath: "/sign-in",
+                initialPath: initialPath,
+                // There is no tab navigation in an anonymous view. The user shouldn't be able
+                // to switch tabs but in case they do always go back to the initial sign in
+                // path.
+                initialPathByTab: WebNavigationController.InitialPathByTab(
+                    home: initialPath,
+                    search: initialPath,
+                    create: initialPath,
+                    inbox: initialPath,
+                    more: initialPath
+                ),
                 // Don't persist data while signing in. Each time sign-in launches you get new
                 // cookies, `localStorage`, etc.
                 websiteDataStore: WKWebsiteDataStore.nonPersistent()

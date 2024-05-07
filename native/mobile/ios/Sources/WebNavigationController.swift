@@ -56,7 +56,16 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     )
 
     private let initialPath: String
+    private let initialPathByTab: InitialPathByTab
     private let webConfiguration: WKWebViewConfiguration
+
+    struct InitialPathByTab {
+        let home: String
+        let search: String
+        let create: String
+        let inbox: String
+        let more: String
+    }
 
     // Called `webDelegate` so we don't override `UINavigationController`'s
     // `delegate` property.
@@ -361,8 +370,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var preparingNavigationEntry: WebNavigationEntry?
     private var hasAddedMainScrollViewWhilePreparingNavigation = false
 
-    init(initialPath: String, websiteDataStore: WKWebsiteDataStore) {
+    init(
+        initialPath: String,
+        initialPathByTab: InitialPathByTab,
+        websiteDataStore: WKWebsiteDataStore
+    ) {
         self.initialPath = initialPath
+        self.initialPathByTab = initialPathByTab
 
         webConfiguration = WKWebViewConfiguration()
         webConfiguration.processPool = sharedWebProcessPool
@@ -380,7 +394,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         webConfiguration.userContentController.addUserScript(
             WKUserScript(
-                source: webBridgeSource,
+                source: createWebBridgeSource(initialPathByTab: initialPathByTab),
                 injectionTime: .atDocumentStart,
                 forMainFrameOnly: true
             )
@@ -2052,11 +2066,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     private func callNavigationExternalPopListeners(delta: Int, url: URL) {
-        let jsonEncoder = JSONEncoder()
-        let jsonString = String(data: try! jsonEncoder.encode(url.absoluteString), encoding: .utf8)!
-
         webView.evaluateJavaScript(
-            #"window.__NativeMobileBridge.navigation._callExternalPopListeners(\#(delta), \#(jsonString))"#
+            #"window.__NativeMobileBridge.navigation._callExternalPopListeners(\#(delta), \#(jsonString(url.absoluteString)))"#
         )
     }
 
@@ -2865,278 +2876,294 @@ private struct WebBridgeModalPresentDialogOptions: Codable {
     let shouldHideCancelButton: Bool?
 }
 
-private let webBridgeSource = """
-    {
-        const navigationExternalPopListeners = new Set();
-        const keyboardFrameChangeListeners = new Set();
-        const addCommentEditMenuListeners = new Set();
+private func jsonString(_ string: String) -> String {
+    let jsonEncoder = JSONEncoder()
+    return String(data: try! jsonEncoder.encode(string), encoding: .utf8)!
+}
 
-        let scheduledAfterNavigationAnimationCallbacks = [];
-        let scheduledAfterKeyboardAnimationCallbacks = [];
+private func createWebBridgeSource(initialPathByTab: WebNavigationController.InitialPathByTab)
+    -> String
+{
+    return """
+        {
+            const navigationExternalPopListeners = new Set();
+            const keyboardFrameChangeListeners = new Set();
+            const addCommentEditMenuListeners = new Set();
 
-        let disableTabBarCount = 0;
-        let isKeyboardSubstituteOpen = false;
+            let scheduledAfterNavigationAnimationCallbacks = [];
+            let scheduledAfterKeyboardAnimationCallbacks = [];
 
-        let nextCallbackId = 0;
-        const callbackById = new Map();
+            let disableTabBarCount = 0;
+            let isKeyboardSubstituteOpen = false;
 
-        const registerCallback = callback => {
-            if (!callback) return callback;
+            let nextCallbackId = 0;
+            const callbackById = new Map();
 
-            const callbackId = nextCallbackId++;
-            callbackById.set(callbackId, callback);
+            const registerCallback = callback => {
+                if (!callback) return callback;
 
-            return callbackId;
-        };
+                const callbackId = nextCallbackId++;
+                callbackById.set(callbackId, callback);
 
-        const unregisterCallback = callbackId => {
-            callbackById.delete(callbackId);
-        };
+                return callbackId;
+            };
 
-        const NativeMobileBridge = {
-            _callCallbackById: callbackId => {
-                const callback = callbackById.get(callbackId);
-                if (!callback) return;
+            const unregisterCallback = callbackId => {
+                callbackById.delete(callbackId);
+            };
 
-                const result = callback();
-                if (result instanceof Promise) {
-                    result.catch(error => {
-                        setTimeout(() => {
-                            throw error;
-                        }, 0);
-                    });
-                }
-            },
-            health: {
-                ready: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("health.ready");
-                },
-                ping: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("health.ping");
-                },
-            },
-            colors: {
-                setThemeColors: options => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`colors.setThemeColors:${options["theme-30"]},${options["theme-40"]},${options["theme-50"]},${options["theme-60"]}`);
-                },
-            },
-            navigation: {
-                preparePush: () => {
-                    prompt("%%%navigation.preparePush");
-                },
-                push: url => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.push:${url}`);
-                },
-                subscribeToExternalPop: listener => {
-                    navigationExternalPopListeners.add(listener);
-                    return () => {
-                        navigationExternalPopListeners.delete(listener);
-                    };
-                },
-                _callExternalPopListeners: (delta, urlString) => {
-                    const url = new URL(urlString);
+            const NativeMobileBridge = {
+                _callCallbackById: callbackId => {
+                    const callback = callbackById.get(callbackId);
+                    if (!callback) return;
 
-                    for (const listener of navigationExternalPopListeners) {
-                        try {
-                            listener(delta, url);
-                        } catch (error) {
+                    const result = callback();
+                    if (result instanceof Promise) {
+                        result.catch(error => {
                             setTimeout(() => {
                                 throw error;
                             }, 0);
-                        }
+                        });
                     }
                 },
-                finishExternalPop: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.finishExternalPop");
+                health: {
+                    ready: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("health.ready");
+                    },
+                    ping: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("health.ping");
+                    },
                 },
-                preparePop: url => {
-                    prompt(`%%%navigation.preparePop:${url}`);
+                colors: {
+                    setThemeColors: options => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`colors.setThemeColors:${options["theme-30"]},${options["theme-40"]},${options["theme-50"]},${options["theme-60"]}`);
+                    },
                 },
-                pop: url => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.pop:${url}`);
-                },
-                requestExternalPop: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.requestExternalPop");
-                },
-                replace: url => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replace:${url}`);
-                },
-                preparePresentModal: () => {
-                    prompt("%%%navigation.preparePresentModal");
-                },
-                presentModal: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.presentModal");
-                },
-                prepareDismissModal: () => {
-                    prompt("%%%navigation.prepareDismissModal");
-                },
-                dismissModal: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.dismissModal");
-                },
-                scheduleAfterAnimation: action => {
-                    if (scheduledAfterNavigationAnimationCallbacks.length === 0) {
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.scheduleAfterAnimation");
-                    }
-
-                    scheduledAfterNavigationAnimationCallbacks.push(action);
-                },
-                _callScheduledAfterAnimationCallbacks: () => {
-                    const callbacks = scheduledAfterNavigationAnimationCallbacks;
-                    scheduledAfterNavigationAnimationCallbacks = [];
-
-                    for (const callback of callbacks) {
-                        try {
-                            callback();
-                        } catch (error) {
-                            setTimeout(() => {
-                                throw error;
-                            }, 0);
-                        }
-                    }
-                },
-            },
-            navigationBar: {
-                runScrollDebounceTimeout: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigationBar.runScrollDebounceTimeout");
-                },
-            },
-            tabBar: {
-                height: \(UITabBarController().tabBar.frame.height),
-                _scrollOffset: 0,
-                getDeferredScrollOffset: () => {
-                    return NativeMobileBridge.tabBar._scrollOffset;
-                },
-                isDisabled: () => {
-                    return disableTabBarCount > 0;
-                },
-                disable: ({isAnimated = false} = {}) => {
-                    disableTabBarCount += 1;
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.disable:${isAnimated}`);
-                },
-                enable: ({isAnimated = false} = {}) => {
-                    disableTabBarCount -= 1;
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.enable:${isAnimated}`);
-                },
-            },
-            keyboard: {
-                subscribeToFrameChange: listener => {
-                    keyboardFrameChangeListeners.add(listener);
-                    return () => {
-                        keyboardFrameChangeListeners.delete(listener);
-                    };
-                },
-                _callFrameChangeListeners: (oldKeyboardHeight, newKeyboardHeight, shouldScroll, isAnimated) => {
-                    for (const listener of keyboardFrameChangeListeners) {
-                        try {
-                            listener({oldKeyboardHeight, newKeyboardHeight, shouldScroll, isAnimated});
-                        } catch (error) {
-                            setTimeout(() => {
-                                throw error;
-                            }, 0);
-                        }
-                    }
-                },
-                isSubstituteOpen: () => {
-                    return isKeyboardSubstituteOpen;
-                },
-                prepareForSubstitute: () => {
-                    if (!isKeyboardSubstituteOpen) {
-                        disableTabBarCount += 1;
-                    }
-                    isKeyboardSubstituteOpen = true;
-
-                    return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.prepareForSubstitute");
-                },
-                cleanupAfterSubstitute: () => {
-                    if (isKeyboardSubstituteOpen) {
-                        disableTabBarCount -= 1;
-                    }
-                    isKeyboardSubstituteOpen = false;
-
-                    return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.cleanupAfterSubstitute");
-                },
-                scheduleAfterAnimation: action => {
-                    if (scheduledAfterKeyboardAnimationCallbacks.length === 0) {
-                        const channel = new MessageChannel();
-                        channel.port1.onmessage = () => {
-                            window.webkit.messageHandlers.NativeMobileBridge.postMessage("keyboard.scheduleAfterAnimation");
+                navigation: {
+                    initialPathByTab: {
+                        Home: \(jsonString(initialPathByTab.home)),
+                        Search: \(jsonString(initialPathByTab.search)),
+                        Create: \(jsonString(initialPathByTab.create)),
+                        Inbox: \(jsonString(initialPathByTab.inbox)),
+                        More: \(jsonString(initialPathByTab.more)),
+                    },
+                    preparePush: () => {
+                        prompt("%%%navigation.preparePush");
+                    },
+                    push: url => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.push:${url}`);
+                    },
+                    subscribeToExternalPop: listener => {
+                        navigationExternalPopListeners.add(listener);
+                        return () => {
+                            navigationExternalPopListeners.delete(listener);
                         };
-                        channel.port2.postMessage(undefined);
-                    }
+                    },
+                    _callExternalPopListeners: (delta, urlString) => {
+                        const url = new URL(urlString);
 
-                    scheduledAfterKeyboardAnimationCallbacks.push(action);
-                },
-                _callScheduledAfterAnimationCallbacks: () => {
-                    const callbacks = scheduledAfterKeyboardAnimationCallbacks;
-                    scheduledAfterKeyboardAnimationCallbacks = [];
-
-                    for (const callback of callbacks) {
-                        try {
-                            callback();
-                        } catch (error) {
-                            setTimeout(() => {
-                                throw error;
-                            }, 0);
+                        for (const listener of navigationExternalPopListeners) {
+                            try {
+                                listener(delta, url);
+                            } catch (error) {
+                                setTimeout(() => {
+                                    throw error;
+                                }, 0);
+                            }
                         }
-                    }
-                },
-            },
-            scrollbar: {
-                updateAllInsets: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("scrollbar.updateAllInsets");
-                },
-            },
-            modal: {
-                presentDialog: options => {
-                    const actualOptions = {
-                        title: options.title,
-                        description: options.description,
-                        primaryButtonLabel: options.primaryButtonLabel,
-                        isPrimaryButtonDisabled: options.isPrimaryButtonDisabled,
-                        onPrimaryButtonPressCallbackId: registerCallback(() => {
-                            unregisterCallback(actualOptions.onPrimaryButtonPressCallbackId);
-                            unregisterCallback(actualOptions.onCancelButtonPressCallbackId);
-                            if (options.onPrimaryButtonPress) return options.onPrimaryButtonPress();
-                        }),
-                        cancelButtonLabel: options.cancelButtonLabel,
-                        onCancelButtonPressCallbackId: registerCallback(() => {
-                            unregisterCallback(actualOptions.onPrimaryButtonPressCallbackId);
-                            unregisterCallback(actualOptions.onCancelButtonPressCallbackId);
-                            if (options.onCancelButtonPress) return options.onCancelButtonPress();
-                        }),
-                        shouldHideCancelButton: options.shouldHideCancelButton,
-                    };
-
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`modal.presentDialog:${JSON.stringify(actualOptions)}`);
-                },
-            },
-            editMenu: {
-                enableAddCommentAction: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("editMenu.enableAddCommentAction");
-                },
-                disableAddCommentAction: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("editMenu.disableAddCommentAction");
-                },
-                subscribeToAddCommentAction: listener => {
-                    addCommentEditMenuListeners.add(listener);
-                    return () => {
-                        addCommentEditMenuListeners.delete(listener);
-                    };
-                },
-                _callAddCommentActionListeners: () => {
-                    for (const listener of addCommentEditMenuListeners) {
-                        try {
-                            listener();
-                        } catch (error) {
-                            setTimeout(() => {
-                                throw error;
-                            }, 0);
+                    },
+                    finishExternalPop: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.finishExternalPop");
+                    },
+                    preparePop: url => {
+                        prompt(`%%%navigation.preparePop:${url}`);
+                    },
+                    pop: url => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.pop:${url}`);
+                    },
+                    requestExternalPop: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.requestExternalPop");
+                    },
+                    replace: url => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replace:${url}`);
+                    },
+                    preparePresentModal: () => {
+                        prompt("%%%navigation.preparePresentModal");
+                    },
+                    presentModal: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.presentModal");
+                    },
+                    prepareDismissModal: () => {
+                        prompt("%%%navigation.prepareDismissModal");
+                    },
+                    dismissModal: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.dismissModal");
+                    },
+                    scheduleAfterAnimation: action => {
+                        if (scheduledAfterNavigationAnimationCallbacks.length === 0) {
+                            window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.scheduleAfterAnimation");
                         }
-                    }
-                },
-            },
-        };
 
-        window.__NativeMobileBridge = NativeMobileBridge;
-    }
-    """
+                        scheduledAfterNavigationAnimationCallbacks.push(action);
+                    },
+                    _callScheduledAfterAnimationCallbacks: () => {
+                        const callbacks = scheduledAfterNavigationAnimationCallbacks;
+                        scheduledAfterNavigationAnimationCallbacks = [];
+
+                        for (const callback of callbacks) {
+                            try {
+                                callback();
+                            } catch (error) {
+                                setTimeout(() => {
+                                    throw error;
+                                }, 0);
+                            }
+                        }
+                    },
+                },
+                navigationBar: {
+                    runScrollDebounceTimeout: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigationBar.runScrollDebounceTimeout");
+                    },
+                },
+                tabBar: {
+                    height: \(UITabBarController().tabBar.frame.height),
+                    _scrollOffset: 0,
+                    getDeferredScrollOffset: () => {
+                        return NativeMobileBridge.tabBar._scrollOffset;
+                    },
+                    isDisabled: () => {
+                        return disableTabBarCount > 0;
+                    },
+                    disable: ({isAnimated = false} = {}) => {
+                        disableTabBarCount += 1;
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.disable:${isAnimated}`);
+                    },
+                    enable: ({isAnimated = false} = {}) => {
+                        disableTabBarCount -= 1;
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.enable:${isAnimated}`);
+                    },
+                },
+                keyboard: {
+                    subscribeToFrameChange: listener => {
+                        keyboardFrameChangeListeners.add(listener);
+                        return () => {
+                            keyboardFrameChangeListeners.delete(listener);
+                        };
+                    },
+                    _callFrameChangeListeners: (oldKeyboardHeight, newKeyboardHeight, shouldScroll, isAnimated) => {
+                        for (const listener of keyboardFrameChangeListeners) {
+                            try {
+                                listener({oldKeyboardHeight, newKeyboardHeight, shouldScroll, isAnimated});
+                            } catch (error) {
+                                setTimeout(() => {
+                                    throw error;
+                                }, 0);
+                            }
+                        }
+                    },
+                    isSubstituteOpen: () => {
+                        return isKeyboardSubstituteOpen;
+                    },
+                    prepareForSubstitute: () => {
+                        if (!isKeyboardSubstituteOpen) {
+                            disableTabBarCount += 1;
+                        }
+                        isKeyboardSubstituteOpen = true;
+
+                        return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.prepareForSubstitute");
+                    },
+                    cleanupAfterSubstitute: () => {
+                        if (isKeyboardSubstituteOpen) {
+                            disableTabBarCount -= 1;
+                        }
+                        isKeyboardSubstituteOpen = false;
+
+                        return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.cleanupAfterSubstitute");
+                    },
+                    scheduleAfterAnimation: action => {
+                        if (scheduledAfterKeyboardAnimationCallbacks.length === 0) {
+                            const channel = new MessageChannel();
+                            channel.port1.onmessage = () => {
+                                window.webkit.messageHandlers.NativeMobileBridge.postMessage("keyboard.scheduleAfterAnimation");
+                            };
+                            channel.port2.postMessage(undefined);
+                        }
+
+                        scheduledAfterKeyboardAnimationCallbacks.push(action);
+                    },
+                    _callScheduledAfterAnimationCallbacks: () => {
+                        const callbacks = scheduledAfterKeyboardAnimationCallbacks;
+                        scheduledAfterKeyboardAnimationCallbacks = [];
+
+                        for (const callback of callbacks) {
+                            try {
+                                callback();
+                            } catch (error) {
+                                setTimeout(() => {
+                                    throw error;
+                                }, 0);
+                            }
+                        }
+                    },
+                },
+                scrollbar: {
+                    updateAllInsets: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("scrollbar.updateAllInsets");
+                    },
+                },
+                modal: {
+                    presentDialog: options => {
+                        const actualOptions = {
+                            title: options.title,
+                            description: options.description,
+                            primaryButtonLabel: options.primaryButtonLabel,
+                            isPrimaryButtonDisabled: options.isPrimaryButtonDisabled,
+                            onPrimaryButtonPressCallbackId: registerCallback(() => {
+                                unregisterCallback(actualOptions.onPrimaryButtonPressCallbackId);
+                                unregisterCallback(actualOptions.onCancelButtonPressCallbackId);
+                                if (options.onPrimaryButtonPress) return options.onPrimaryButtonPress();
+                            }),
+                            cancelButtonLabel: options.cancelButtonLabel,
+                            onCancelButtonPressCallbackId: registerCallback(() => {
+                                unregisterCallback(actualOptions.onPrimaryButtonPressCallbackId);
+                                unregisterCallback(actualOptions.onCancelButtonPressCallbackId);
+                                if (options.onCancelButtonPress) return options.onCancelButtonPress();
+                            }),
+                            shouldHideCancelButton: options.shouldHideCancelButton,
+                        };
+
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`modal.presentDialog:${JSON.stringify(actualOptions)}`);
+                    },
+                },
+                editMenu: {
+                    enableAddCommentAction: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("editMenu.enableAddCommentAction");
+                    },
+                    disableAddCommentAction: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("editMenu.disableAddCommentAction");
+                    },
+                    subscribeToAddCommentAction: listener => {
+                        addCommentEditMenuListeners.add(listener);
+                        return () => {
+                            addCommentEditMenuListeners.delete(listener);
+                        };
+                    },
+                    _callAddCommentActionListeners: () => {
+                        for (const listener of addCommentEditMenuListeners) {
+                            try {
+                                listener();
+                            } catch (error) {
+                                setTimeout(() => {
+                                    throw error;
+                                }, 0);
+                            }
+                        }
+                    },
+                },
+            };
+
+            window.__NativeMobileBridge = NativeMobileBridge;
+        }
+        """
+}

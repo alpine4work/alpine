@@ -16,8 +16,9 @@ import {FutureConfig, UNSAFE_mapRouteProperties as mapRouteProperties} from "rea
 import {RouteObject} from "react-router-dom";
 import {createStaticRouter} from "react-router-dom/server.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
-import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {NativeMobileBridge, NativeMobileTab} from "~/client/remix/native_mobile_bridge.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
 /**
@@ -34,7 +35,11 @@ const isNativeMobileRouterStateSymbol = Symbol("isNativeMobileRouterState");
 
 export type NativeMobileRouterState = RouterState & {
     readonly [isNativeMobileRouterStateSymbol]: true;
-    readonly inertRouterStates: ReadonlyArray<RouterState>;
+    readonly entryKey: string;
+    readonly inertRouterStates: ReadonlyArray<{
+        readonly entryKey: string;
+        readonly routerState: RouterState;
+    }>;
 };
 
 /**
@@ -100,7 +105,8 @@ export function createNativeMobileRouter(
                     enumerable: false,
                 });
 
-                state.inertRouterStates = history.getPastRouterStates();
+                state.entryKey = history.entryKey;
+                state.inertRouterStates = history.getInertRouterStates();
             }
 
             return state as NativeMobileRouterState;
@@ -117,7 +123,8 @@ export function createNativeMobileRouter(
                         enumerable: false,
                     });
 
-                    state.inertRouterStates = history.getPastRouterStates();
+                    state.entryKey = history.entryKey;
+                    state.inertRouterStates = history.getInertRouterStates();
                 }
 
                 return fn(state as NativeMobileRouterState);
@@ -207,6 +214,16 @@ export function createNativeMobileStaticRouter(
                 });
 
                 state.inertRouterStates = [];
+
+                // When hydrating, React only needs identical HTML output. It's ok if JSX
+                // `key`s are different on the client and on the server as long as they're not
+                // included in the DOM.
+                //
+                // Typically the initial entry key used on the client will be `Home-0`.
+                // However, if our initial tab is not `Home` then it'll be something else.
+                // Instead of trying to communicate the correct tab to the server we always use
+                // the string `Static`.
+                state.entryKey = "Static";
             }
 
             return state as NativeMobileRouterState;
@@ -224,6 +241,16 @@ export function createNativeMobileStaticRouter(
                     });
 
                     state.inertRouterStates = [];
+
+                    // When hydrating, React only needs identical HTML output. It's ok if JSX
+                    // `key`s are different on the client and on the server as long as they're not
+                    // included in the DOM.
+                    //
+                    // Typically the initial entry key used on the client will be `Home-0`.
+                    // However, if our initial tab is not `Home` then it'll be something else.
+                    // Instead of trying to communicate the correct tab to the server we always use
+                    // the string `Static`.
+                    state.entryKey = "Static";
                 }
 
                 return fn(state as NativeMobileRouterState);
@@ -255,6 +282,13 @@ export function createNativeMobileStaticRouter(
 }
 
 /**
+ * Maximum number of inert routes we'll keep rendered at a time. The total
+ * number of routes we want to render is 8 so the number of inert routes we'll
+ * keep is one less than that, 7.
+ */
+const maxNativeMobileMemoryHistoryInertRouterStateCount = 7;
+
+/**
  * Custom in-memory history for our native mobile apps. Differs from
  * [`@remix-run/router`'s `createMemoryHistory()`][1] in that we remember old
  * router states such that calls like `go(-1)` can restore the state without
@@ -262,18 +296,53 @@ export function createNativeMobileStaticRouter(
  *
  * [1]: https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/router/history.ts#L227
  */
-class NativeMobileMemoryHistory implements History {
+export class NativeMobileMemoryHistory implements History {
     private _router: Router | undefined;
 
     private _action = Action.Pop;
+    private _currentTab: NativeMobileTab;
     private _currentEntryLocation: Location;
-    private _pastEntries: Array<{location: Location; routerState: RouterState}>;
+
+    /**
+     * History stack by tab. Each tab has its own history stack, much like a
+     * browser tab.
+     *
+     * In our native mobile app we keep rendering previous routes (up to a limit)
+     * so that if the user returns to the route we can immediately render it
+     * without needing to make a network request. Routes we're preserving have a
+     * non-null `inertRouterState`. If the user has navigated past our limit then
+     * we start setting old history entries `inertRouterState` to null to free
+     * resources.
+     *
+     * `inertRouterStateTabOrder` maintains the order in which the user has
+     * navigated across tabs. When we need to drop an old inert route we drop the
+     * last route the user navigated to in this array. Each time a tab appears in
+     * `inertRouterStateTabOrder` there will be 1 non-null `inertRouterState` in
+     * this map for the same tab at the end of the tab's entries array. For
+     * example, if the `Home` tab appears in `inertRouterStateTabOrder` 5 times
+     * then the last 5 `Home` entries in this map will have a non-null
+     * `inertRouterState` and if the `Inbox` tab appears in
+     * `inertRouterStateTabOrder` 2 times then the last 2 `Inbox` entries in this
+     * map will have a non-null `inertRouterState`.
+     *
+     * The `getInertRouterStates()` function has some assertions to make sure these
+     * two properties are consistent with one another. Its implementation may help
+     * you understand the relationship between these two properties.
+     */
+    private _pastEntriesByTab: Record<
+        NativeMobileTab,
+        Array<{location: Location; inertRouterState: RouterState | null}>
+    >;
+
+    private _inertRouterStateTabOrder: Array<NativeMobileTab> = [];
 
     private _listener:
         | ((update: {action: Action; location: Location; delta: number | null}) => void)
         | null = null;
 
     constructor() {
+        this._currentTab = "Home";
+
         // Use initial browser history:
         // https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/router/history.ts#L365-L371
         this._currentEntryLocation = createLocation(
@@ -291,7 +360,13 @@ class NativeMobileMemoryHistory implements History {
             history.state?.usr,
         );
 
-        this._pastEntries = [];
+        this._pastEntriesByTab = {
+            Home: [],
+            Search: [],
+            Create: [],
+            Inbox: [],
+            More: [],
+        };
     }
 
     public initializeRouter(router: Router) {
@@ -307,8 +382,57 @@ class NativeMobileMemoryHistory implements History {
         return this._currentEntryLocation;
     }
 
-    public getPastRouterStates() {
-        return this._pastEntries.map(({routerState}) => routerState);
+    public get entryKey(): string {
+        return `${this._currentTab}-${this._pastEntriesByTab[this._currentTab].length}`;
+    }
+
+    public getInertRouterStates(): Array<{entryKey: string; routerState: RouterState}> {
+        const inertRouterStates: Array<{entryKey: string; routerState: RouterState}> = [];
+
+        const countByTab: Record<NativeMobileTab, number> = {
+            Home: 0,
+            Search: 0,
+            Create: 0,
+            Inbox: 0,
+            More: 0,
+        };
+
+        for (
+            let inertRouterStateTabIndex = this._inertRouterStateTabOrder.length - 1;
+            inertRouterStateTabIndex >= 0;
+            inertRouterStateTabIndex--
+        ) {
+            const tab = this._inertRouterStateTabOrder[inertRouterStateTabIndex]!;
+            const pastEntries = this._pastEntriesByTab[tab];
+            const count = countByTab[tab];
+            countByTab[tab] += 1;
+            const pastEntryIndex = pastEntries.length - 1 - count;
+
+            inertRouterStates.push({
+                entryKey: `${tab}-${pastEntryIndex}`,
+                routerState: assertExists(pastEntries[pastEntryIndex]!.inertRouterState),
+            });
+        }
+
+        inertRouterStates.reverse();
+
+        // Assert that:
+        //
+        // 1. We don't have more inert routes than our maximum
+        // 2. All past entries that aren't inert routes have a `null` router state
+        if (process.env.NODE_ENV !== "production") {
+            assert(inertRouterStates.length <= maxNativeMobileMemoryHistoryInertRouterStateCount);
+
+            for (const [tab, count] of Object.entries(countByTab)) {
+                const pastEntries = this._pastEntriesByTab[tab as NativeMobileTab];
+
+                for (let i = 0; i < pastEntries.length - count; i++) {
+                    assert(pastEntries[i]!.inertRouterState === null);
+                }
+            }
+        }
+
+        return inertRouterStates;
     }
 
     public createHref(to: To): string {
@@ -332,17 +456,26 @@ class NativeMobileMemoryHistory implements History {
         };
     }
 
+    /**
+     * Updates our internal state after a push navigation. The `router` calls
+     * this function when the `router` has finished updating its internal state
+     * and now needs to update the browser's history.
+     *
+     * This function must be called by `router`. It does not report a URL change to
+     * `router` so `router` must initiate the push state transition then call this
+     * function to update the browser.
+     */
     public push(to: To, state?: any) {
-        this._action = Action.Push;
-
-        const nextEntryLocation = createLocation(this._currentEntryLocation.pathname, to, state);
-
-        this._pastEntries.push({
+        this._pastEntriesByTab[this._currentTab].push({
             location: this._currentEntryLocation,
-            routerState: this._router!.state,
+            inertRouterState: this._router!.state,
         });
 
-        this._currentEntryLocation = nextEntryLocation;
+        this._inertRouterStateTabOrder.push(this._currentTab);
+        this._truncateInertRouterStateTabOrder();
+
+        this._action = Action.Push;
+        this._currentEntryLocation = createLocation(this._currentEntryLocation.pathname, to, state);
 
         // Make sure browser URL reflects history object. We don't respect changes to
         // browser history.
@@ -353,12 +486,14 @@ class NativeMobileMemoryHistory implements History {
         );
     }
 
+    /**
+     * Updates our internal state after a replace navigation. The `router` calls
+     * this function when the `router` has finished updating its internal state and
+     * now needs to update the browser's history.
+     */
     public replace(to: To, state?: any) {
         this._action = Action.Replace;
-
-        const nextEntryLocation = createLocation(this._currentEntryLocation.pathname, to, state);
-
-        this._currentEntryLocation = nextEntryLocation;
+        this._currentEntryLocation = createLocation(this._currentEntryLocation.pathname, to, state);
 
         // Make sure browser URL reflects history object. We don't respect changes to
         // browser history.
@@ -383,6 +518,21 @@ class NativeMobileMemoryHistory implements History {
         this._go(delta, url);
     }
 
+    /**
+     * Initiates a navigation backwards through the history stack. We don't support
+     * "forward" navigations in our native mobile app (unlike mobile web). Only
+     * back navigations.
+     *
+     * This function notifies `router` that the URL changed then `router` will
+     * update its internal state. `router` does not keep track of the app's browser
+     * history so can't know what the previous URL is until history tells it. This
+     * is unlike how `push()` works since `router` calls `push()` _after_ `router`
+     * has updated its own internal state.
+     *
+     * If we're navigating back to an inert route then we'll tell `router` to
+     * replace its state with an inert router state instead of making a network
+     * request.
+     */
     private _go(delta: number, urlFromExternal: URL | null) {
         // We don't support "forward" navigations in our native mobile app. If you go
         // back, it destroys the state for the route you were looking at.
@@ -391,18 +541,20 @@ class NativeMobileMemoryHistory implements History {
         // onto the navigation stack.
         if (delta >= 0) return;
 
-        if (-delta > this._pastEntries.length) {
+        let pastEntries = this._pastEntriesByTab[this._currentTab];
+
+        if (-delta > pastEntries.length) {
             // If this is not a navigation from native, clamp `delta`.
             if (urlFromExternal === null) {
                 // If web code doesn't know about any past entries we can't perform a pop.
                 // Request native code to perform a pop since it may know about previous
                 // navigation entries if our web view reloaded.
-                if (this._pastEntries.length === 0) {
+                if (pastEntries.length === 0) {
                     NativeMobileBridge!.navigation.requestExternalPop();
                     return;
                 }
 
-                delta = -this._pastEntries.length;
+                delta = -pastEntries.length;
             }
             // If native is asking us to go back further than the entries we have in
             // memory, reset our history. We'll need to reload the URL from scratch.
@@ -411,8 +563,12 @@ class NativeMobileMemoryHistory implements History {
             // will remember the navigation stack but web code won't. So navigating back
             // will take longer.
             else {
+                this._pastEntriesByTab[this._currentTab] = pastEntries = [];
+                this._inertRouterStateTabOrder = this._inertRouterStateTabOrder.filter(
+                    tab => tab !== this._currentTab,
+                );
+
                 this._action = Action.Pop;
-                this._pastEntries = [];
                 this._currentEntryLocation = createLocation(this._currentEntryLocation.pathname, {
                     pathname: urlFromExternal.pathname,
                     search: urlFromExternal.search,
@@ -439,12 +595,19 @@ class NativeMobileMemoryHistory implements History {
 
         this._action = Action.Pop;
 
-        let routerState: RouterState | undefined;
-        for (let i = 0; i < delta * -1; i++) {
-            const pastEntry = this._pastEntries.pop()!;
+        let inertRouterState: RouterState | null = null;
+        for (let i = 0; i < -delta; i++) {
+            const pastEntry = pastEntries.pop()!;
 
             this._currentEntryLocation = pastEntry.location;
-            routerState = pastEntry.routerState;
+            inertRouterState = pastEntry.inertRouterState;
+
+            const inertRouterStateTabIndex = this._inertRouterStateTabOrder.lastIndexOf(
+                this._currentTab,
+            );
+            if (inertRouterStateTabIndex !== -1) {
+                this._inertRouterStateTabOrder.splice(inertRouterStateTabIndex, 1);
+            }
         }
 
         // If our location is NOT from an external pop, `isNotFromExternal` should be
@@ -476,8 +639,12 @@ class NativeMobileMemoryHistory implements History {
             urlFromExternal !== null &&
             this.createHref(this._currentEntryLocation) !== this.createHref(urlFromExternal)
         ) {
+            this._pastEntriesByTab[this._currentTab] = pastEntries = [];
+            this._inertRouterStateTabOrder = this._inertRouterStateTabOrder.filter(
+                tab => tab !== this._currentTab,
+            );
+
             this._action = Action.Pop;
-            this._pastEntries = [];
             this._currentEntryLocation = createLocation(this._currentEntryLocation.pathname, {
                 pathname: urlFromExternal.pathname,
                 search: urlFromExternal.search,
@@ -501,37 +668,50 @@ class NativeMobileMemoryHistory implements History {
             return;
         }
 
-        // Make sure browser URL reflects history object. We don't respect changes to
-        // browser history.
+        // Make sure browser URL reflects history object with a replace. This means the
+        // browser won't have the right history stack but that's ok. The native mobile
+        // router manages history state.
         window.history.replaceState(
             {key: this._currentEntryLocation.key, usr: this._currentEntryLocation.state},
             "",
             this.createHref(this._currentEntryLocation),
         );
 
-        // Instead of calling `_listener` which [`createMemoryHistory()` does][1],
-        // directly initiate a navigation in our router. This is a special kind of
-        // navigation, though, that restores a previous router state without triggering
-        // asynchronous navigations.
-        //
-        // [1]: https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/router/history.ts#L319-L321
-        void this._router!.unstable_unsafelyRestoreNavigation({
-            historyAction: Action.Pop,
-            // Use `this._currentEntryLocation` instead of `routerState.location` since we
-            // may modify the state of `this._currentEntryLocation`. They should be the
-            // same.
-            location: this._currentEntryLocation,
-            matches: routerState!.matches,
-            // Leave scroll position alone. We'll have kept the route mounted so it should
-            // have the right scroll position still stored in its DOM.
-            restoreScrollPosition: false,
-            preventScrollReset: true,
-            // Reuse previous loader data and such.
-            loaderData: routerState!.loaderData,
-            actionData: routerState!.actionData,
-            errors: routerState!.errors,
-            fetchers: routerState!.fetchers,
-        });
+        // If the entry we're navigating back to was inert we should be able to
+        // unsafely restore the route. Otherwise we need to fully mount the route
+        // from scratch.
+        if (inertRouterState === null) {
+            // Make sure `@remix-run/router` kicks off a new navigation.
+            this._listener?.({
+                action: this._action,
+                location: this._currentEntryLocation,
+                delta: null,
+            });
+        } else {
+            // Instead of calling `_listener` which [`createMemoryHistory()` does][1],
+            // directly initiate a navigation in our router. This is a special kind of
+            // navigation, though, that restores a previous router state without triggering
+            // asynchronous navigations.
+            //
+            // [1]: https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/router/history.ts#L319-L321
+            void this._router!.unstable_unsafelyRestoreNavigation({
+                historyAction: Action.Pop,
+                // Use `this._currentEntryLocation` instead of `routerState.location` since we
+                // may modify the state of `this._currentEntryLocation`. They should be the
+                // same.
+                location: this._currentEntryLocation,
+                matches: inertRouterState.matches,
+                // Leave scroll position alone. We'll have kept the route mounted so it should
+                // have the right scroll position still stored in its DOM.
+                restoreScrollPosition: false,
+                preventScrollReset: true,
+                // Reuse previous loader data and such.
+                loaderData: inertRouterState.loaderData,
+                actionData: inertRouterState.actionData,
+                errors: inertRouterState.errors,
+                fetchers: inertRouterState.fetchers,
+            });
+        }
     }
 
     public listen(
@@ -543,6 +723,166 @@ class NativeMobileMemoryHistory implements History {
             assert(this._listener === listener);
             this._listener = null;
         };
+    }
+
+    /**
+     * Switch from one tab to another. If we haven't navigated to the tab
+     * before we push a new history entry based on the initial paths provided
+     * when constructing this object. If we have navigated to the tab before then
+     * we'll go to the last URL from that tab.
+     *
+     * This function notifies `router` that the URL changed then `router` will
+     * update its internal state. `router` does not keep track of the app's browser
+     * history so can't know what the previous URL for a tab is until history tells
+     * it. This is unlike how `push()` works since `router` calls `push()` _after_
+     * `router` has updated its own internal state.
+     *
+     * If we're navigating back to an inert route then we'll tell `router` to
+     * replace its state with an inert router state instead of making a network
+     * request.
+     */
+    public switchTab(tab: NativeMobileTab) {
+        if (tab === this._currentTab) return;
+
+        const oldTab = this._currentTab;
+        this._currentTab = tab;
+
+        if (this._pastEntriesByTab[this._currentTab].length === 0) {
+            this._pastEntriesByTab[oldTab].push({
+                location: this._currentEntryLocation,
+                inertRouterState: this._router!.state,
+            });
+
+            this._inertRouterStateTabOrder.push(oldTab);
+            this._truncateInertRouterStateTabOrder();
+
+            this._action = Action.Push;
+            this._currentEntryLocation = createLocation(
+                this._currentEntryLocation.pathname,
+                NativeMobileBridge!.navigation.initialPathByTab[tab],
+            );
+
+            // Make sure browser URL reflects history object. We don't respect changes to
+            // browser history.
+            window.history.replaceState(
+                {key: this._currentEntryLocation.key, usr: this._currentEntryLocation.state},
+                "",
+                this.createHref(this._currentEntryLocation),
+            );
+
+            // Make sure `@remix-run/router` kicks off a new navigation.
+            this._listener?.({
+                action: this._action,
+                location: this._currentEntryLocation,
+                delta: null,
+            });
+        } else {
+            this._pastEntriesByTab[oldTab].push({
+                location: this._currentEntryLocation,
+                inertRouterState: this._router!.state,
+            });
+
+            const restoreEntry = this._pastEntriesByTab[this._currentTab].pop()!;
+
+            // Move the inert router states of the tab we're switching to into the front of
+            // the inert router state tab order. So we lose these tabs last as the user
+            // pushes new routes.
+            {
+                const oldInertRouterStateTabOrder = this._inertRouterStateTabOrder;
+                this._inertRouterStateTabOrder = [];
+                let inertRouterStateTabCount = 0;
+
+                for (const inertRouterStateTab of oldInertRouterStateTabOrder) {
+                    if (inertRouterStateTab === this._currentTab) {
+                        inertRouterStateTabCount += 1;
+                    } else {
+                        this._inertRouterStateTabOrder.push(inertRouterStateTab);
+                    }
+                }
+
+                this._inertRouterStateTabOrder.push(oldTab);
+
+                // Minus one since the latest inert router state is removed from the tab order
+                // array as it becomes the active router state.
+                for (let i = 0; i < inertRouterStateTabCount - 1; i++) {
+                    this._inertRouterStateTabOrder.push(this._currentTab);
+                }
+            }
+            this._truncateInertRouterStateTabOrder();
+
+            this._action = Action.Push;
+            this._currentEntryLocation = restoreEntry.location;
+
+            // Make sure browser URL reflects history object. We don't respect changes to
+            // browser history.
+            window.history.replaceState(
+                {key: this._currentEntryLocation.key, usr: this._currentEntryLocation.state},
+                "",
+                this.createHref(this._currentEntryLocation),
+            );
+
+            // If the entry we're navigating back to was inert we should be able to
+            // unsafely restore the route. Otherwise we need to fully mount the route
+            // from scratch.
+            if (restoreEntry.inertRouterState === null) {
+                // Make sure `@remix-run/router` kicks off a new navigation.
+                this._listener?.({
+                    action: this._action,
+                    location: this._currentEntryLocation,
+                    delta: null,
+                });
+            } else {
+                const {inertRouterState} = restoreEntry;
+
+                // Instead of calling `_listener` which [`createMemoryHistory()` does][1],
+                // directly initiate a navigation in our router. This is a special kind of
+                // navigation, though, that restores a previous router state without triggering
+                // asynchronous navigations.
+                //
+                // [1]: https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/router/history.ts#L319-L321
+                void this._router!.unstable_unsafelyRestoreNavigation({
+                    historyAction: Action.Pop,
+                    // Use `this._currentEntryLocation` instead of `routerState.location` since we
+                    // may modify the state of `this._currentEntryLocation`. They should be the
+                    // same.
+                    location: this._currentEntryLocation,
+                    matches: inertRouterState.matches,
+                    // Leave scroll position alone. We'll have kept the route mounted so it should
+                    // have the right scroll position still stored in its DOM.
+                    restoreScrollPosition: false,
+                    preventScrollReset: true,
+                    // Reuse previous loader data and such.
+                    loaderData: inertRouterState.loaderData,
+                    actionData: inertRouterState.actionData,
+                    errors: inertRouterState.errors,
+                    fetchers: inertRouterState.fetchers,
+                });
+            }
+        }
+    }
+
+    /**
+     * Truncate `inertRouterStateTabOrder` to fit our maximum number of inert
+     * router states.
+     */
+    private _truncateInertRouterStateTabOrder() {
+        const oldInertRouterStateTabOrder = this._inertRouterStateTabOrder.slice(
+            0,
+            -maxNativeMobileMemoryHistoryInertRouterStateCount,
+        );
+        this._inertRouterStateTabOrder = this._inertRouterStateTabOrder.slice(
+            -maxNativeMobileMemoryHistoryInertRouterStateCount,
+        );
+
+        // `null` out the router states of any entries that were removed from
+        // `inertRouterStateTabOrder` so the objects can be garbage collected.
+        for (const oldInertRouterStateTab of oldInertRouterStateTabOrder) {
+            this._pastEntriesByTab[oldInertRouterStateTab][
+                this._pastEntriesByTab[oldInertRouterStateTab].findLastIndex(
+                    ({inertRouterState}) => inertRouterState === null,
+                ) + 1
+            ]!.inertRouterState = null;
+        }
     }
 }
 

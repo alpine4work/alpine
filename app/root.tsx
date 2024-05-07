@@ -221,7 +221,6 @@ export default function Root() {
         : null;
 
     const nodes: Array<ReactNode> = [];
-    let nodeKey = 1;
 
     const onUpdateMetaTitle = useCallback((title: string) => {
         document.title = title;
@@ -236,7 +235,11 @@ export default function Root() {
             // Render a `<div>` around children even when we're not rendering in the
             // context of our native mobile app so that layout is consistent across native
             // mobile and everything else.
-            <div key={nodeKey++} style={outletContainerStyle}>
+            <div
+                // We need a key since we're in an array but the key doesn't matter.
+                key="0"
+                style={outletContainerStyle}
+            >
                 <UpdateMetaTitleContextProvider onUpdateMetaTitle={onUpdateMetaTitle}>
                     {error !== undefined ? (
                         <RootErrorRenderer
@@ -260,12 +263,12 @@ export default function Root() {
             match => match.route.id === "routes/s.$spaceId",
         );
 
-        const getPrimaryNode = () =>
+        const getPrimaryNode = (entryKey: string) =>
             // NOTE(calebmer): There may be a cleaner way to handle errors. Since error
             // handling only happens for the primary route, if an inert route has an error
             // then nothing will be rendered in the inert route? That's probably fine.
             error !== undefined ? (
-                <div key={nodeKey++} style={outletContainerStyle}>
+                <div key={entryKey} style={outletContainerStyle}>
                     <RootErrorRenderer
                         error={error}
                         title={
@@ -277,7 +280,7 @@ export default function Root() {
                 </div>
             ) : (
                 <NativeMobileOutlet
-                    key={nodeKey++}
+                    key={entryKey}
                     parentRouteIds={rootNativeMobileOutletParentRouteIds}
                     tracer={context.tracer.getRoot()}
                     inertRouterState={null}
@@ -311,9 +314,10 @@ export default function Root() {
         // Not all our inert routes are rendered here in `root.tsx`. Space inert routes
         // are rendered in `s.$spaceId.tsx`. That way we can share space-level context
         // across inert routes. Like the task realtime client.
-        //
-        // NOCOMMIT: Limit number of inert router states to 7 or so
-        for (const inertRouterState of nativeMobileRouterState.inertRouterStates) {
+        for (const {
+            entryKey,
+            routerState: inertRouterState,
+        } of nativeMobileRouterState.inertRouterStates) {
             // Inert space routes that share the same `SpaceId` should be rendered under
             // one `/s/:spaceId` route so they share the same space context components.
             // So render the first `/s/:spaceId` route we see then trust that component to
@@ -330,24 +334,23 @@ export default function Root() {
             }
 
             // If our primary route is rendered in the same space as this inert route then
-            // render the primary route in this position with the current `nodeKey` to
+            // render the primary route in this position with the current `entryKey` to
             // preserve the inert route's key path.
+            //
+            // TODO(calebmer): I haven't tested rendering an inert route from a different
+            // space (nothing in the product does this I think?). It probably breaks
+            // spectacularly. Or if it doesn't break it's inefficient since the component
+            // will remount and we'll make multiple WebSocket connections per space.
             if (
                 primarySpaceRouteMatch &&
                 inertSpaceRouteMatch &&
                 primarySpaceRouteMatch.params.spaceId === inertSpaceRouteMatch.params.spaceId
             ) {
-                nodes.push(getPrimaryNode());
+                nodes.push(getPrimaryNode(`Space-${primarySpaceRouteMatch.params.spaceId!}`));
             } else {
                 nodes.push(
                     <NativeMobileOutlet
-                        // Previous rendered routes need to preserve their keys if a new route is
-                        // pushed. So the first route in our stack has a key of 1, the second 2, and so
-                        // on. Newly pushed routes get new keys.
-                        //
-                        // We can't use `location.key` because if the URL is replaced then
-                        // `location.key` changes but we don't want to fully remount our routes.
-                        key={nodeKey++}
+                        key={entryKey}
                         parentRouteIds={rootNativeMobileOutletParentRouteIds}
                         tracer={context.tracer.getRoot()}
                         inertRouterState={inertRouterState}
@@ -362,7 +365,13 @@ export default function Root() {
             !primarySpaceRouteMatch ||
             !renderedSpaceIds.has(primarySpaceRouteMatch.params.spaceId)
         ) {
-            nodes.push(getPrimaryNode());
+            nodes.push(
+                getPrimaryNode(
+                    primarySpaceRouteMatch
+                        ? `Space-${primarySpaceRouteMatch.params.spaceId!}`
+                        : nativeMobileRouterState.entryKey,
+                ),
+            );
         }
     }
 

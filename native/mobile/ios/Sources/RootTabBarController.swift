@@ -79,6 +79,13 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             //     "/s/\(spaceId)/notifications/document-comment-threads/2v1kz5r5w3tdb7zv6xt98wm7qg-8306",  // 1 thread
             initialPath:
                 "/s/\(spaceId)/documents/2v1kz5r5w3tdb7zv6xt98wm7qg/comments/h2wjjg78958c16j5bm42cphwy4",
+            initialPathByTab: WebNavigationController.InitialPathByTab(
+                home: "/s/\(spaceId)",
+                search: "/s/\(spaceId)/search",
+                create: "/s/\(spaceId)/create",
+                inbox: "/s/\(spaceId)/inbox",
+                more: "/s/\(spaceId)/more"
+            ),
             websiteDataStore: websiteDataStore
         )
 
