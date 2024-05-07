@@ -69,7 +69,7 @@ def ts_project(
         # type checking since it's out of the critical dev path.
         # https://github.com/aspect-build/rules_ts/issues/361
         supports_workers = 0,
-        tags = ["typescript"] + tags,
+        tags = ["typescript", "dev-check"] + tags,
         **kwargs
     )
 
@@ -159,7 +159,7 @@ def ts_project(
                                       # Will include a snapshot file if it exists.
                                       native.glob(["{}.snap".format(test_src_js[:len(test_src_js) - 3])])),
                 size = extra_kwargs.pop("size", default = "small"),
-                tags = ["jest"] + extra_tags,
+                tags = ["jest", "dev-test"] + extra_tags,
                 **extra_kwargs
             )
 
@@ -217,7 +217,7 @@ def ts_lint_and_format_test(
             "//:.prettierignore",
         ]),
         size = "small",
-        tags = ["prettier"],
+        tags = ["prettier", "dev-check"],
     )
 
     _ts_typings(
@@ -257,7 +257,7 @@ def ts_lint_and_format_test(
             ":{}_deps_typings".format(name),
         ]),
         size = "small",
-        tags = ["eslint"],
+        tags = ["eslint", "dev-check"],
     )
 
 def ts_typecheck_test(
