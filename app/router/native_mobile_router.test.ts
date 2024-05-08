@@ -4,7 +4,7 @@
 // eslint-disable-next-line import/no-duplicates
 import "~/client/remix/register_native_mobile_bridge_for_test.js";
 
-import {Action, Location} from "@remix-run/router";
+import {Action, Location, To} from "@remix-run/router";
 import {createPath} from "react-router";
 import {NativeMobileMemoryHistory} from "~/app/router/native_mobile_router.js";
 // eslint-disable-next-line import/no-duplicates
@@ -43,10 +43,15 @@ function createHistory() {
     const router: {
         state: string;
         unstable_unsafelyRestoreNavigation: (options: {location: Location}) => void;
+        navigate: (to: To, options?: {state?: any}) => Promise<void>;
     } = {
         state: createPath(window.location),
         unstable_unsafelyRestoreNavigation: ({location}: {location: Location}) => {
             router.state = createPath(location);
+        },
+        navigate: async (to, options) => {
+            history.push(to, options?.state);
+            router.state = typeof to === "string" ? to : createPath(to);
         },
     };
 
@@ -59,23 +64,23 @@ function createHistory() {
     return {history, router};
 }
 
-test("history starts at `window.location`", () => {
+test("history starts at `window.location`", async () => {
     const {history} = createHistory();
 
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/home");
-    expect(history.entryKey).toEqual("Home-0");
+    expect(history.getEntryKey()).toEqual("Home-0");
     expect(history.getInertRouterStates()).toEqual([]);
 });
 
-test("can push", () => {
+test("can push", async () => {
     const {history, router} = createHistory();
 
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/home");
-    expect(history.entryKey).toEqual("Home-0");
+    expect(history.getEntryKey()).toEqual("Home-0");
     expect(history.getInertRouterStates()).toEqual([]);
 
     history.push("/page1");
@@ -84,7 +89,7 @@ test("can push", () => {
     expect(createPath(window.location)).toEqual("/page1");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page1");
-    expect(history.entryKey).toEqual("Home-1");
+    expect(history.getEntryKey()).toEqual("Home-1");
     expect(history.getInertRouterStates()).toEqual([{entryKey: "Home-0", routerState: "/home"}]);
 
     history.push("/page2");
@@ -93,7 +98,7 @@ test("can push", () => {
     expect(createPath(window.location)).toEqual("/page2");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page2");
-    expect(history.entryKey).toEqual("Home-2");
+    expect(history.getEntryKey()).toEqual("Home-2");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -105,7 +110,7 @@ test("can push", () => {
     expect(createPath(window.location)).toEqual("/page3");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page3");
-    expect(history.entryKey).toEqual("Home-3");
+    expect(history.getEntryKey()).toEqual("Home-3");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -118,7 +123,7 @@ test("can push", () => {
     expect(createPath(window.location)).toEqual("/page4");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page4");
-    expect(history.entryKey).toEqual("Home-4");
+    expect(history.getEntryKey()).toEqual("Home-4");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -132,7 +137,7 @@ test("can push", () => {
     expect(createPath(window.location)).toEqual("/page5");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page5");
-    expect(history.entryKey).toEqual("Home-5");
+    expect(history.getEntryKey()).toEqual("Home-5");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -147,7 +152,7 @@ test("can push", () => {
     expect(createPath(window.location)).toEqual("/page6");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page6");
-    expect(history.entryKey).toEqual("Home-6");
+    expect(history.getEntryKey()).toEqual("Home-6");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -163,7 +168,7 @@ test("can push", () => {
     expect(createPath(window.location)).toEqual("/page7");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page7");
-    expect(history.entryKey).toEqual("Home-7");
+    expect(history.getEntryKey()).toEqual("Home-7");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -180,7 +185,7 @@ test("can push", () => {
     expect(createPath(window.location)).toEqual("/page8");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page8");
-    expect(history.entryKey).toEqual("Home-8");
+    expect(history.getEntryKey()).toEqual("Home-8");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-1", routerState: "/page1"},
         {entryKey: "Home-2", routerState: "/page2"},
@@ -197,7 +202,7 @@ test("can push", () => {
     expect(createPath(window.location)).toEqual("/page9");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page9");
-    expect(history.entryKey).toEqual("Home-9");
+    expect(history.getEntryKey()).toEqual("Home-9");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-2", routerState: "/page2"},
         {entryKey: "Home-3", routerState: "/page3"},
@@ -209,13 +214,13 @@ test("can push", () => {
     ]);
 });
 
-test("can switch tabs", () => {
+test("can switch tabs", async () => {
     const {history, router} = createHistory();
 
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/home");
-    expect(history.entryKey).toEqual("Home-0");
+    expect(history.getEntryKey()).toEqual("Home-0");
     expect(history.getInertRouterStates()).toEqual([]);
 
     history.push("/page1");
@@ -224,7 +229,7 @@ test("can switch tabs", () => {
     expect(createPath(window.location)).toEqual("/page1");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page1");
-    expect(history.entryKey).toEqual("Home-1");
+    expect(history.getEntryKey()).toEqual("Home-1");
     expect(history.getInertRouterStates()).toEqual([{entryKey: "Home-0", routerState: "/home"}]);
 
     history.push("/page2");
@@ -233,7 +238,7 @@ test("can switch tabs", () => {
     expect(createPath(window.location)).toEqual("/page2");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page2");
-    expect(history.entryKey).toEqual("Home-2");
+    expect(history.getEntryKey()).toEqual("Home-2");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -245,19 +250,19 @@ test("can switch tabs", () => {
     expect(createPath(window.location)).toEqual("/page3");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page3");
-    expect(history.entryKey).toEqual("Home-3");
+    expect(history.getEntryKey()).toEqual("Home-3");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
         {entryKey: "Home-2", routerState: "/page2"},
     ]);
 
-    history.switchTab("Inbox");
+    await history.switchTabFromExternal("Inbox", new URL("/inbox", window.location.href));
 
     expect(createPath(window.location)).toEqual("/inbox");
-    expect(history.action).toEqual(Action.Pop);
+    expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/inbox");
-    expect(history.entryKey).toEqual("Inbox-0");
+    expect(history.getEntryKey()).toEqual("Inbox-0");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -271,7 +276,7 @@ test("can switch tabs", () => {
     expect(createPath(window.location)).toEqual("/page4");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page4");
-    expect(history.entryKey).toEqual("Inbox-1");
+    expect(history.getEntryKey()).toEqual("Inbox-1");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -286,7 +291,7 @@ test("can switch tabs", () => {
     expect(createPath(window.location)).toEqual("/page5");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page5");
-    expect(history.entryKey).toEqual("Inbox-2");
+    expect(history.getEntryKey()).toEqual("Inbox-2");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -302,7 +307,7 @@ test("can switch tabs", () => {
     expect(createPath(window.location)).toEqual("/page6");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page6");
-    expect(history.entryKey).toEqual("Inbox-3");
+    expect(history.getEntryKey()).toEqual("Inbox-3");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -319,7 +324,7 @@ test("can switch tabs", () => {
     expect(createPath(window.location)).toEqual("/page7");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page7");
-    expect(history.entryKey).toEqual("Inbox-4");
+    expect(history.getEntryKey()).toEqual("Inbox-4");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-1", routerState: "/page1"},
         {entryKey: "Home-2", routerState: "/page2"},
@@ -330,12 +335,12 @@ test("can switch tabs", () => {
         {entryKey: "Inbox-3", routerState: "/page6"},
     ]);
 
-    history.switchTab("Search");
+    await history.switchTabFromExternal("Search", new URL("/search", window.location.href));
 
     expect(createPath(window.location)).toEqual("/search");
-    expect(history.action).toEqual(Action.Pop);
+    expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/search");
-    expect(history.entryKey).toEqual("Search-0");
+    expect(history.getEntryKey()).toEqual("Search-0");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-2", routerState: "/page2"},
         {entryKey: "Home-3", routerState: "/page3"},
@@ -352,7 +357,7 @@ test("can switch tabs", () => {
     expect(createPath(window.location)).toEqual("/page8");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page8");
-    expect(history.entryKey).toEqual("Search-1");
+    expect(history.getEntryKey()).toEqual("Search-1");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-3", routerState: "/page3"},
         {entryKey: "Inbox-0", routerState: "/inbox"},
@@ -369,7 +374,7 @@ test("can switch tabs", () => {
     expect(createPath(window.location)).toEqual("/page9");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page9");
-    expect(history.entryKey).toEqual("Search-2");
+    expect(history.getEntryKey()).toEqual("Search-2");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Inbox-0", routerState: "/inbox"},
         {entryKey: "Inbox-1", routerState: "/page4"},
@@ -386,7 +391,7 @@ test("can switch tabs", () => {
     expect(createPath(window.location)).toEqual("/page10");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page10");
-    expect(history.entryKey).toEqual("Search-3");
+    expect(history.getEntryKey()).toEqual("Search-3");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Inbox-1", routerState: "/page4"},
         {entryKey: "Inbox-2", routerState: "/page5"},
@@ -397,12 +402,12 @@ test("can switch tabs", () => {
         {entryKey: "Search-2", routerState: "/page9"},
     ]);
 
-    history.switchTab("Home");
+    await history.switchTabFromExternal("Home", new URL("/page3", window.location.href));
 
     expect(createPath(window.location)).toEqual("/page3");
-    expect(history.action).toEqual(Action.Pop);
+    expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page3");
-    expect(history.entryKey).toEqual("Home-3");
+    expect(history.getEntryKey()).toEqual("Home-3");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Inbox-2", routerState: "/page5"},
         {entryKey: "Inbox-3", routerState: "/page6"},
@@ -413,12 +418,12 @@ test("can switch tabs", () => {
         {entryKey: "Search-3", routerState: "/page10"},
     ]);
 
-    history.switchTab("Inbox");
+    await history.switchTabFromExternal("Inbox", new URL("/page7", window.location.href));
 
     expect(createPath(window.location)).toEqual("/page7");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page7");
-    expect(history.entryKey).toEqual("Inbox-4");
+    expect(history.getEntryKey()).toEqual("Inbox-4");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Search-0", routerState: "/search"},
         {entryKey: "Search-1", routerState: "/page8"},
@@ -429,12 +434,12 @@ test("can switch tabs", () => {
         {entryKey: "Inbox-3", routerState: "/page6"},
     ]);
 
-    history.switchTab("Create");
+    await history.switchTabFromExternal("Create", new URL("/create", window.location.href));
 
     expect(createPath(window.location)).toEqual("/create");
-    expect(history.action).toEqual(Action.Pop);
+    expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/create");
-    expect(history.entryKey).toEqual("Create-0");
+    expect(history.getEntryKey()).toEqual("Create-0");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Search-1", routerState: "/page8"},
         {entryKey: "Search-2", routerState: "/page9"},
@@ -445,12 +450,12 @@ test("can switch tabs", () => {
         {entryKey: "Inbox-4", routerState: "/page7"},
     ]);
 
-    history.switchTab("Home");
+    await history.switchTabFromExternal("Home", new URL("/page3", window.location.href));
 
     expect(createPath(window.location)).toEqual("/page3");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page3");
-    expect(history.entryKey).toEqual("Home-3");
+    expect(history.getEntryKey()).toEqual("Home-3");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Search-1", routerState: "/page8"},
         {entryKey: "Search-2", routerState: "/page9"},
@@ -462,13 +467,13 @@ test("can switch tabs", () => {
     ]);
 });
 
-test("can pop", () => {
+test("can switch tabs with expected path", async () => {
     const {history, router} = createHistory();
 
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/home");
-    expect(history.entryKey).toEqual("Home-0");
+    expect(history.getEntryKey()).toEqual("Home-0");
     expect(history.getInertRouterStates()).toEqual([]);
 
     history.push("/page1");
@@ -477,7 +482,7 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page1");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page1");
-    expect(history.entryKey).toEqual("Home-1");
+    expect(history.getEntryKey()).toEqual("Home-1");
     expect(history.getInertRouterStates()).toEqual([{entryKey: "Home-0", routerState: "/home"}]);
 
     history.push("/page2");
@@ -486,7 +491,7 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page2");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page2");
-    expect(history.entryKey).toEqual("Home-2");
+    expect(history.getEntryKey()).toEqual("Home-2");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -498,7 +503,157 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page3");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page3");
-    expect(history.entryKey).toEqual("Home-3");
+    expect(history.getEntryKey()).toEqual("Home-3");
+    expect(history.getInertRouterStates()).toEqual([
+        {entryKey: "Home-0", routerState: "/home"},
+        {entryKey: "Home-1", routerState: "/page1"},
+        {entryKey: "Home-2", routerState: "/page2"},
+    ]);
+
+    await history.switchTabFromExternal("Inbox", new URL("/inbox", window.location.href));
+
+    expect(createPath(window.location)).toEqual("/inbox");
+    expect(history.action).toEqual(Action.Push);
+    expect(createPath(history.location)).toEqual("/inbox");
+    expect(history.getEntryKey()).toEqual("Inbox-0");
+    expect(history.getInertRouterStates()).toEqual([
+        {entryKey: "Home-0", routerState: "/home"},
+        {entryKey: "Home-1", routerState: "/page1"},
+        {entryKey: "Home-2", routerState: "/page2"},
+        {entryKey: "Home-3", routerState: "/page3"},
+    ]);
+
+    history.push("/page4");
+    router.state = "/page4";
+
+    expect(createPath(window.location)).toEqual("/page4");
+    expect(history.action).toEqual(Action.Push);
+    expect(createPath(history.location)).toEqual("/page4");
+    expect(history.getEntryKey()).toEqual("Inbox-1");
+    expect(history.getInertRouterStates()).toEqual([
+        {entryKey: "Home-0", routerState: "/home"},
+        {entryKey: "Home-1", routerState: "/page1"},
+        {entryKey: "Home-2", routerState: "/page2"},
+        {entryKey: "Home-3", routerState: "/page3"},
+        {entryKey: "Inbox-0", routerState: "/inbox"},
+    ]);
+
+    history.push("/page5");
+    router.state = "/page5";
+
+    expect(createPath(window.location)).toEqual("/page5");
+    expect(history.action).toEqual(Action.Push);
+    expect(createPath(history.location)).toEqual("/page5");
+    expect(history.getEntryKey()).toEqual("Inbox-2");
+    expect(history.getInertRouterStates()).toEqual([
+        {entryKey: "Home-0", routerState: "/home"},
+        {entryKey: "Home-1", routerState: "/page1"},
+        {entryKey: "Home-2", routerState: "/page2"},
+        {entryKey: "Home-3", routerState: "/page3"},
+        {entryKey: "Inbox-0", routerState: "/inbox"},
+        {entryKey: "Inbox-1", routerState: "/page4"},
+    ]);
+
+    history.push("/page6");
+    router.state = "/page6";
+
+    expect(createPath(window.location)).toEqual("/page6");
+    expect(history.action).toEqual(Action.Push);
+    expect(createPath(history.location)).toEqual("/page6");
+    expect(history.getEntryKey()).toEqual("Inbox-3");
+    expect(history.getInertRouterStates()).toEqual([
+        {entryKey: "Home-0", routerState: "/home"},
+        {entryKey: "Home-1", routerState: "/page1"},
+        {entryKey: "Home-2", routerState: "/page2"},
+        {entryKey: "Home-3", routerState: "/page3"},
+        {entryKey: "Inbox-0", routerState: "/inbox"},
+        {entryKey: "Inbox-1", routerState: "/page4"},
+        {entryKey: "Inbox-2", routerState: "/page5"},
+    ]);
+
+    history.push("/page7");
+    router.state = "/page7";
+
+    expect(createPath(window.location)).toEqual("/page7");
+    expect(history.action).toEqual(Action.Push);
+    expect(createPath(history.location)).toEqual("/page7");
+    expect(history.getEntryKey()).toEqual("Inbox-4");
+    expect(history.getInertRouterStates()).toEqual([
+        {entryKey: "Home-1", routerState: "/page1"},
+        {entryKey: "Home-2", routerState: "/page2"},
+        {entryKey: "Home-3", routerState: "/page3"},
+        {entryKey: "Inbox-0", routerState: "/inbox"},
+        {entryKey: "Inbox-1", routerState: "/page4"},
+        {entryKey: "Inbox-2", routerState: "/page5"},
+        {entryKey: "Inbox-3", routerState: "/page6"},
+    ]);
+
+    await history.switchTabFromExternal("Home", new URL("/page3", window.location.href));
+
+    expect(createPath(window.location)).toEqual("/page3");
+    expect(history.action).toEqual(Action.Pop);
+    expect(createPath(history.location)).toEqual("/page3");
+    expect(history.getEntryKey()).toEqual("Home-3");
+    expect(history.getInertRouterStates()).toEqual([
+        {entryKey: "Inbox-0", routerState: "/inbox"},
+        {entryKey: "Inbox-1", routerState: "/page4"},
+        {entryKey: "Inbox-2", routerState: "/page5"},
+        {entryKey: "Inbox-3", routerState: "/page6"},
+        {entryKey: "Inbox-4", routerState: "/page7"},
+        {entryKey: "Home-1", routerState: "/page1"},
+        {entryKey: "Home-2", routerState: "/page2"},
+    ]);
+
+    await history.switchTabFromExternal("Inbox", new URL("/page6", window.location.href));
+
+    expect(createPath(window.location)).toEqual("/page6");
+    expect(history.action).toEqual(Action.Pop);
+    expect(createPath(history.location)).toEqual("/page6");
+    expect(history.getEntryKey()).toEqual("Inbox-0");
+    expect(history.getInertRouterStates()).toEqual([
+        {entryKey: "Home-1", routerState: "/page1"},
+        {entryKey: "Home-2", routerState: "/page2"},
+        {entryKey: "Home-3", routerState: "/page3"},
+    ]);
+});
+
+test("can pop", async () => {
+    const {history, router} = createHistory();
+
+    expect(createPath(window.location)).toEqual("/home");
+    expect(history.action).toEqual(Action.Pop);
+    expect(createPath(history.location)).toEqual("/home");
+    expect(history.getEntryKey()).toEqual("Home-0");
+    expect(history.getInertRouterStates()).toEqual([]);
+
+    history.push("/page1");
+    router.state = "/page1";
+
+    expect(createPath(window.location)).toEqual("/page1");
+    expect(history.action).toEqual(Action.Push);
+    expect(createPath(history.location)).toEqual("/page1");
+    expect(history.getEntryKey()).toEqual("Home-1");
+    expect(history.getInertRouterStates()).toEqual([{entryKey: "Home-0", routerState: "/home"}]);
+
+    history.push("/page2");
+    router.state = "/page2";
+
+    expect(createPath(window.location)).toEqual("/page2");
+    expect(history.action).toEqual(Action.Push);
+    expect(createPath(history.location)).toEqual("/page2");
+    expect(history.getEntryKey()).toEqual("Home-2");
+    expect(history.getInertRouterStates()).toEqual([
+        {entryKey: "Home-0", routerState: "/home"},
+        {entryKey: "Home-1", routerState: "/page1"},
+    ]);
+
+    history.push("/page3");
+    router.state = "/page3";
+
+    expect(createPath(window.location)).toEqual("/page3");
+    expect(history.action).toEqual(Action.Push);
+    expect(createPath(history.location)).toEqual("/page3");
+    expect(history.getEntryKey()).toEqual("Home-3");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -510,7 +665,7 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page2");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page2");
-    expect(history.entryKey).toEqual("Home-2");
+    expect(history.getEntryKey()).toEqual("Home-2");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -521,7 +676,7 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page1");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page1");
-    expect(history.entryKey).toEqual("Home-1");
+    expect(history.getEntryKey()).toEqual("Home-1");
     expect(history.getInertRouterStates()).toEqual([{entryKey: "Home-0", routerState: "/home"}]);
 
     // noop
@@ -530,7 +685,7 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page1");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page1");
-    expect(history.entryKey).toEqual("Home-1");
+    expect(history.getEntryKey()).toEqual("Home-1");
     expect(history.getInertRouterStates()).toEqual([{entryKey: "Home-0", routerState: "/home"}]);
 
     // noop
@@ -539,7 +694,7 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page1");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page1");
-    expect(history.entryKey).toEqual("Home-1");
+    expect(history.getEntryKey()).toEqual("Home-1");
     expect(history.getInertRouterStates()).toEqual([{entryKey: "Home-0", routerState: "/home"}]);
 
     history.push("/page4");
@@ -563,7 +718,7 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page9");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page9");
-    expect(history.entryKey).toEqual("Home-7");
+    expect(history.getEntryKey()).toEqual("Home-7");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -580,7 +735,7 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page10");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page10");
-    expect(history.entryKey).toEqual("Home-8");
+    expect(history.getEntryKey()).toEqual("Home-8");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-1", routerState: "/page1"},
         {entryKey: "Home-2", routerState: "/page4"},
@@ -597,7 +752,7 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page11");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page11");
-    expect(history.entryKey).toEqual("Home-9");
+    expect(history.getEntryKey()).toEqual("Home-9");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-2", routerState: "/page4"},
         {entryKey: "Home-3", routerState: "/page5"},
@@ -613,7 +768,7 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page10");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page10");
-    expect(history.entryKey).toEqual("Home-8");
+    expect(history.getEntryKey()).toEqual("Home-8");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-2", routerState: "/page4"},
         {entryKey: "Home-3", routerState: "/page5"},
@@ -628,7 +783,7 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page8");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page8");
-    expect(history.entryKey).toEqual("Home-6");
+    expect(history.getEntryKey()).toEqual("Home-6");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-2", routerState: "/page4"},
         {entryKey: "Home-3", routerState: "/page5"},
@@ -642,7 +797,7 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page12");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page12");
-    expect(history.entryKey).toEqual("Home-7");
+    expect(history.getEntryKey()).toEqual("Home-7");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-2", routerState: "/page4"},
         {entryKey: "Home-3", routerState: "/page5"},
@@ -657,7 +812,7 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page13");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page13");
-    expect(history.entryKey).toEqual("Home-8");
+    expect(history.getEntryKey()).toEqual("Home-8");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-2", routerState: "/page4"},
         {entryKey: "Home-3", routerState: "/page5"},
@@ -672,7 +827,7 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page6");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page6");
-    expect(history.entryKey).toEqual("Home-4");
+    expect(history.getEntryKey()).toEqual("Home-4");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-2", routerState: "/page4"},
         {entryKey: "Home-3", routerState: "/page5"},
@@ -683,7 +838,7 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page5");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page5");
-    expect(history.entryKey).toEqual("Home-3");
+    expect(history.getEntryKey()).toEqual("Home-3");
     expect(history.getInertRouterStates()).toEqual([{entryKey: "Home-2", routerState: "/page4"}]);
 
     history.go(-1);
@@ -691,7 +846,7 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page4");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page4");
-    expect(history.entryKey).toEqual("Home-2");
+    expect(history.getEntryKey()).toEqual("Home-2");
     expect(history.getInertRouterStates()).toEqual([]);
 
     history.go(-1);
@@ -699,7 +854,7 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/page1");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page1");
-    expect(history.entryKey).toEqual("Home-1");
+    expect(history.getEntryKey()).toEqual("Home-1");
     expect(history.getInertRouterStates()).toEqual([]);
 
     history.go(-1);
@@ -707,17 +862,17 @@ test("can pop", () => {
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/home");
-    expect(history.entryKey).toEqual("Home-0");
+    expect(history.getEntryKey()).toEqual("Home-0");
     expect(history.getInertRouterStates()).toEqual([]);
 });
 
-test("can pop even when there are no past entries", () => {
+test("can pop even when there are no past entries", async () => {
     const {history, router} = createHistory();
 
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/home");
-    expect(history.entryKey).toEqual("Home-0");
+    expect(history.getEntryKey()).toEqual("Home-0");
     expect(history.getInertRouterStates()).toEqual([]);
 
     expectNavigationRequestExternalPopCount(0);
@@ -729,7 +884,7 @@ test("can pop even when there are no past entries", () => {
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/home");
-    expect(history.entryKey).toEqual("Home-0");
+    expect(history.getEntryKey()).toEqual("Home-0");
     expect(history.getInertRouterStates()).toEqual([]);
 
     history.push("/page1");
@@ -738,7 +893,7 @@ test("can pop even when there are no past entries", () => {
     expect(createPath(window.location)).toEqual("/page1");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page1");
-    expect(history.entryKey).toEqual("Home-1");
+    expect(history.getEntryKey()).toEqual("Home-1");
     expect(history.getInertRouterStates()).toEqual([{entryKey: "Home-0", routerState: "/home"}]);
 
     history.push("/page2");
@@ -747,7 +902,7 @@ test("can pop even when there are no past entries", () => {
     expect(createPath(window.location)).toEqual("/page2");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page2");
-    expect(history.entryKey).toEqual("Home-2");
+    expect(history.getEntryKey()).toEqual("Home-2");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -762,7 +917,7 @@ test("can pop even when there are no past entries", () => {
     expect(createPath(window.location)).toEqual("/page1");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page1");
-    expect(history.entryKey).toEqual("Home-1");
+    expect(history.getEntryKey()).toEqual("Home-1");
     expect(history.getInertRouterStates()).toEqual([{entryKey: "Home-0", routerState: "/home"}]);
 
     expectNavigationRequestExternalPopCount(0);
@@ -774,7 +929,7 @@ test("can pop even when there are no past entries", () => {
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/home");
-    expect(history.entryKey).toEqual("Home-0");
+    expect(history.getEntryKey()).toEqual("Home-0");
     expect(history.getInertRouterStates()).toEqual([]);
 
     expectNavigationRequestExternalPopCount(0);
@@ -786,7 +941,7 @@ test("can pop even when there are no past entries", () => {
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/home");
-    expect(history.entryKey).toEqual("Home-0");
+    expect(history.getEntryKey()).toEqual("Home-0");
     expect(history.getInertRouterStates()).toEqual([]);
 
     history.push("/page3");
@@ -795,7 +950,7 @@ test("can pop even when there are no past entries", () => {
     expect(createPath(window.location)).toEqual("/page3");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page3");
-    expect(history.entryKey).toEqual("Home-1");
+    expect(history.getEntryKey()).toEqual("Home-1");
     expect(history.getInertRouterStates()).toEqual([{entryKey: "Home-0", routerState: "/home"}]);
 
     history.push("/page4");
@@ -804,7 +959,7 @@ test("can pop even when there are no past entries", () => {
     expect(createPath(window.location)).toEqual("/page4");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page4");
-    expect(history.entryKey).toEqual("Home-2");
+    expect(history.getEntryKey()).toEqual("Home-2");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page3"},
@@ -819,7 +974,7 @@ test("can pop even when there are no past entries", () => {
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/home");
-    expect(history.entryKey).toEqual("Home-0");
+    expect(history.getEntryKey()).toEqual("Home-0");
     expect(history.getInertRouterStates()).toEqual([]);
 
     expectNavigationRequestExternalPopCount(0);
@@ -831,17 +986,17 @@ test("can pop even when there are no past entries", () => {
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/home");
-    expect(history.entryKey).toEqual("Home-0");
+    expect(history.getEntryKey()).toEqual("Home-0");
     expect(history.getInertRouterStates()).toEqual([]);
 });
 
-test("can pop across switched tabs", () => {
+test("can pop across switched tabs", async () => {
     const {history, router} = createHistory();
 
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/home");
-    expect(history.entryKey).toEqual("Home-0");
+    expect(history.getEntryKey()).toEqual("Home-0");
     expect(history.getInertRouterStates()).toEqual([]);
 
     history.push("/page1");
@@ -850,7 +1005,7 @@ test("can pop across switched tabs", () => {
     expect(createPath(window.location)).toEqual("/page1");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page1");
-    expect(history.entryKey).toEqual("Home-1");
+    expect(history.getEntryKey()).toEqual("Home-1");
     expect(history.getInertRouterStates()).toEqual([{entryKey: "Home-0", routerState: "/home"}]);
 
     history.push("/page2");
@@ -859,18 +1014,18 @@ test("can pop across switched tabs", () => {
     expect(createPath(window.location)).toEqual("/page2");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page2");
-    expect(history.entryKey).toEqual("Home-2");
+    expect(history.getEntryKey()).toEqual("Home-2");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
     ]);
 
-    history.switchTab("Inbox");
+    await history.switchTabFromExternal("Inbox", new URL("/inbox", window.location.href));
 
     expect(createPath(window.location)).toEqual("/inbox");
-    expect(history.action).toEqual(Action.Pop);
+    expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/inbox");
-    expect(history.entryKey).toEqual("Inbox-0");
+    expect(history.getEntryKey()).toEqual("Inbox-0");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -883,7 +1038,7 @@ test("can pop across switched tabs", () => {
     expect(createPath(window.location)).toEqual("/page3");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page3");
-    expect(history.entryKey).toEqual("Inbox-1");
+    expect(history.getEntryKey()).toEqual("Inbox-1");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -897,7 +1052,7 @@ test("can pop across switched tabs", () => {
     expect(createPath(window.location)).toEqual("/page4");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page4");
-    expect(history.entryKey).toEqual("Inbox-2");
+    expect(history.getEntryKey()).toEqual("Inbox-2");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -912,7 +1067,7 @@ test("can pop across switched tabs", () => {
     expect(createPath(window.location)).toEqual("/page5");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page5");
-    expect(history.entryKey).toEqual("Inbox-3");
+    expect(history.getEntryKey()).toEqual("Inbox-3");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -928,7 +1083,7 @@ test("can pop across switched tabs", () => {
     expect(createPath(window.location)).toEqual("/page6");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page6");
-    expect(history.entryKey).toEqual("Inbox-4");
+    expect(history.getEntryKey()).toEqual("Inbox-4");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -944,7 +1099,7 @@ test("can pop across switched tabs", () => {
     expect(createPath(window.location)).toEqual("/page5");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page5");
-    expect(history.entryKey).toEqual("Inbox-3");
+    expect(history.getEntryKey()).toEqual("Inbox-3");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -954,12 +1109,12 @@ test("can pop across switched tabs", () => {
         {entryKey: "Inbox-2", routerState: "/page4"},
     ]);
 
-    history.switchTab("Home");
+    await history.switchTabFromExternal("Home", new URL("/page2", window.location.href));
 
     expect(createPath(window.location)).toEqual("/page2");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page2");
-    expect(history.entryKey).toEqual("Home-2");
+    expect(history.getEntryKey()).toEqual("Home-2");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Inbox-0", routerState: "/inbox"},
         {entryKey: "Inbox-1", routerState: "/page3"},
@@ -974,7 +1129,7 @@ test("can pop across switched tabs", () => {
     expect(createPath(window.location)).toEqual("/page1");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page1");
-    expect(history.entryKey).toEqual("Home-1");
+    expect(history.getEntryKey()).toEqual("Home-1");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Inbox-0", routerState: "/inbox"},
         {entryKey: "Inbox-1", routerState: "/page3"},
@@ -983,12 +1138,12 @@ test("can pop across switched tabs", () => {
         {entryKey: "Home-0", routerState: "/home"},
     ]);
 
-    history.switchTab("Create");
+    await history.switchTabFromExternal("Create", new URL("/create", window.location.href));
 
     expect(createPath(window.location)).toEqual("/create");
-    expect(history.action).toEqual(Action.Pop);
+    expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/create");
-    expect(history.entryKey).toEqual("Create-0");
+    expect(history.getEntryKey()).toEqual("Create-0");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Inbox-0", routerState: "/inbox"},
         {entryKey: "Inbox-1", routerState: "/page3"},
@@ -1005,9 +1160,9 @@ test("can pop across switched tabs", () => {
     expectNavigationRequestExternalPopCount(1);
 
     expect(createPath(window.location)).toEqual("/create");
-    expect(history.action).toEqual(Action.Pop);
+    expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/create");
-    expect(history.entryKey).toEqual("Create-0");
+    expect(history.getEntryKey()).toEqual("Create-0");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Inbox-0", routerState: "/inbox"},
         {entryKey: "Inbox-1", routerState: "/page3"},
@@ -1017,12 +1172,12 @@ test("can pop across switched tabs", () => {
         {entryKey: "Home-1", routerState: "/page1"},
     ]);
 
-    history.switchTab("Inbox");
+    await history.switchTabFromExternal("Inbox", new URL("/page5", window.location.href));
 
     expect(createPath(window.location)).toEqual("/page5");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page5");
-    expect(history.entryKey).toEqual("Inbox-3");
+    expect(history.getEntryKey()).toEqual("Inbox-3");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -1037,7 +1192,7 @@ test("can pop across switched tabs", () => {
     expect(createPath(window.location)).toEqual("/page3");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page3");
-    expect(history.entryKey).toEqual("Inbox-1");
+    expect(history.getEntryKey()).toEqual("Inbox-1");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -1051,7 +1206,7 @@ test("can pop across switched tabs", () => {
     expect(createPath(window.location)).toEqual("/page7");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page7");
-    expect(history.entryKey).toEqual("Inbox-2");
+    expect(history.getEntryKey()).toEqual("Inbox-2");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -1066,7 +1221,7 @@ test("can pop across switched tabs", () => {
     expect(createPath(window.location)).toEqual("/page8");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page8");
-    expect(history.entryKey).toEqual("Inbox-3");
+    expect(history.getEntryKey()).toEqual("Inbox-3");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -1082,7 +1237,7 @@ test("can pop across switched tabs", () => {
     expect(createPath(window.location)).toEqual("/page9");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page9");
-    expect(history.entryKey).toEqual("Inbox-4");
+    expect(history.getEntryKey()).toEqual("Inbox-4");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/home"},
         {entryKey: "Home-1", routerState: "/page1"},
@@ -1099,7 +1254,7 @@ test("can pop across switched tabs", () => {
     expect(createPath(window.location)).toEqual("/page10");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page10");
-    expect(history.entryKey).toEqual("Inbox-5");
+    expect(history.getEntryKey()).toEqual("Inbox-5");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-1", routerState: "/page1"},
         {entryKey: "Create-0", routerState: "/create"},
@@ -1110,12 +1265,12 @@ test("can pop across switched tabs", () => {
         {entryKey: "Inbox-4", routerState: "/page9"},
     ]);
 
-    history.switchTab("Home");
+    await history.switchTabFromExternal("Home", new URL("/page1", window.location.href));
 
     expect(createPath(window.location)).toEqual("/page1");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page1");
-    expect(history.entryKey).toEqual("Home-1");
+    expect(history.getEntryKey()).toEqual("Home-1");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Create-0", routerState: "/create"},
         {entryKey: "Inbox-0", routerState: "/inbox"},
@@ -1131,7 +1286,7 @@ test("can pop across switched tabs", () => {
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/home");
-    expect(history.entryKey).toEqual("Home-0");
+    expect(history.getEntryKey()).toEqual("Home-0");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Create-0", routerState: "/create"},
         {entryKey: "Inbox-0", routerState: "/inbox"},
@@ -1143,13 +1298,13 @@ test("can pop across switched tabs", () => {
     ]);
 });
 
-test("can pop with expected path", () => {
+test("can pop with expected path", async () => {
     const {history, router} = createHistory();
 
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/home");
-    expect(history.entryKey).toEqual("Home-0");
+    expect(history.getEntryKey()).toEqual("Home-0");
     expect(history.getInertRouterStates()).toEqual([]);
 
     history.goFromExternal(-1, new URL("/page1", window.location.href));
@@ -1157,7 +1312,7 @@ test("can pop with expected path", () => {
     expect(createPath(window.location)).toEqual("/page1");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page1");
-    expect(history.entryKey).toEqual("Home-0");
+    expect(history.getEntryKey()).toEqual("Home-0");
     expect(history.getInertRouterStates()).toEqual([]);
 
     history.push("/page2");
@@ -1166,7 +1321,7 @@ test("can pop with expected path", () => {
     expect(createPath(window.location)).toEqual("/page2");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page2");
-    expect(history.entryKey).toEqual("Home-1");
+    expect(history.getEntryKey()).toEqual("Home-1");
     expect(history.getInertRouterStates()).toEqual([{entryKey: "Home-0", routerState: "/page1"}]);
 
     history.push("/page3");
@@ -1175,7 +1330,7 @@ test("can pop with expected path", () => {
     expect(createPath(window.location)).toEqual("/page3");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page3");
-    expect(history.entryKey).toEqual("Home-2");
+    expect(history.getEntryKey()).toEqual("Home-2");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/page1"},
         {entryKey: "Home-1", routerState: "/page2"},
@@ -1187,7 +1342,7 @@ test("can pop with expected path", () => {
     expect(createPath(window.location)).toEqual("/page4");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page4");
-    expect(history.entryKey).toEqual("Home-3");
+    expect(history.getEntryKey()).toEqual("Home-3");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/page1"},
         {entryKey: "Home-1", routerState: "/page2"},
@@ -1199,7 +1354,7 @@ test("can pop with expected path", () => {
     expect(createPath(window.location)).toEqual("/page3");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page3");
-    expect(history.entryKey).toEqual("Home-2");
+    expect(history.getEntryKey()).toEqual("Home-2");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/page1"},
         {entryKey: "Home-1", routerState: "/page2"},
@@ -1210,7 +1365,7 @@ test("can pop with expected path", () => {
     expect(createPath(window.location)).toEqual("/page5");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page5");
-    expect(history.entryKey).toEqual("Home-0");
+    expect(history.getEntryKey()).toEqual("Home-0");
     expect(history.getInertRouterStates()).toEqual([]);
 
     history.push("/page6");
@@ -1219,7 +1374,7 @@ test("can pop with expected path", () => {
     expect(createPath(window.location)).toEqual("/page6");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page6");
-    expect(history.entryKey).toEqual("Home-1");
+    expect(history.getEntryKey()).toEqual("Home-1");
     expect(history.getInertRouterStates()).toEqual([{entryKey: "Home-0", routerState: "/page5"}]);
 
     history.push("/page7");
@@ -1228,18 +1383,18 @@ test("can pop with expected path", () => {
     expect(createPath(window.location)).toEqual("/page7");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page7");
-    expect(history.entryKey).toEqual("Home-2");
+    expect(history.getEntryKey()).toEqual("Home-2");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/page5"},
         {entryKey: "Home-1", routerState: "/page6"},
     ]);
 
-    history.switchTab("More");
+    await history.switchTabFromExternal("More", new URL("/more", window.location.href));
 
     expect(createPath(window.location)).toEqual("/more");
-    expect(history.action).toEqual(Action.Pop);
+    expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/more");
-    expect(history.entryKey).toEqual("More-0");
+    expect(history.getEntryKey()).toEqual("More-0");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/page5"},
         {entryKey: "Home-1", routerState: "/page6"},
@@ -1252,7 +1407,7 @@ test("can pop with expected path", () => {
     expect(createPath(window.location)).toEqual("/page8");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page8");
-    expect(history.entryKey).toEqual("More-1");
+    expect(history.getEntryKey()).toEqual("More-1");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/page5"},
         {entryKey: "Home-1", routerState: "/page6"},
@@ -1265,7 +1420,7 @@ test("can pop with expected path", () => {
     expect(createPath(window.location)).toEqual("/page9");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page9");
-    expect(history.entryKey).toEqual("More-0");
+    expect(history.getEntryKey()).toEqual("More-0");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/page5"},
         {entryKey: "Home-1", routerState: "/page6"},
@@ -1278,7 +1433,7 @@ test("can pop with expected path", () => {
     expect(createPath(window.location)).toEqual("/page10");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page10");
-    expect(history.entryKey).toEqual("More-1");
+    expect(history.getEntryKey()).toEqual("More-1");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/page5"},
         {entryKey: "Home-1", routerState: "/page6"},
@@ -1292,7 +1447,7 @@ test("can pop with expected path", () => {
     expect(createPath(window.location)).toEqual("/page11");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page11");
-    expect(history.entryKey).toEqual("More-2");
+    expect(history.getEntryKey()).toEqual("More-2");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/page5"},
         {entryKey: "Home-1", routerState: "/page6"},
@@ -1307,7 +1462,7 @@ test("can pop with expected path", () => {
     expect(createPath(window.location)).toEqual("/page12");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page12");
-    expect(history.entryKey).toEqual("More-3");
+    expect(history.getEntryKey()).toEqual("More-3");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/page5"},
         {entryKey: "Home-1", routerState: "/page6"},
@@ -1323,7 +1478,7 @@ test("can pop with expected path", () => {
     expect(createPath(window.location)).toEqual("/page13");
     expect(history.action).toEqual(Action.Push);
     expect(createPath(history.location)).toEqual("/page13");
-    expect(history.entryKey).toEqual("More-4");
+    expect(history.getEntryKey()).toEqual("More-4");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/page5"},
         {entryKey: "Home-1", routerState: "/page6"},
@@ -1339,7 +1494,7 @@ test("can pop with expected path", () => {
     expect(createPath(window.location)).toEqual("/page12");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page12");
-    expect(history.entryKey).toEqual("More-3");
+    expect(history.getEntryKey()).toEqual("More-3");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/page5"},
         {entryKey: "Home-1", routerState: "/page6"},
@@ -1354,10 +1509,115 @@ test("can pop with expected path", () => {
     expect(createPath(window.location)).toEqual("/page14");
     expect(history.action).toEqual(Action.Pop);
     expect(createPath(history.location)).toEqual("/page14");
-    expect(history.entryKey).toEqual("More-0");
+    expect(history.getEntryKey()).toEqual("More-0");
     expect(history.getInertRouterStates()).toEqual([
         {entryKey: "Home-0", routerState: "/page5"},
         {entryKey: "Home-1", routerState: "/page6"},
         {entryKey: "Home-2", routerState: "/page7"},
+    ]);
+});
+
+test("can push with a different tab", async () => {
+    const {history, router} = createHistory();
+
+    expect(createPath(window.location)).toEqual("/home");
+    expect(history.action).toEqual(Action.Pop);
+    expect(createPath(history.location)).toEqual("/home");
+    expect(history.getEntryKey()).toEqual("Home-0");
+    expect(history.getInertRouterStates()).toEqual([]);
+
+    history.push("/page1");
+    router.state = "/page1";
+
+    expect(createPath(window.location)).toEqual("/page1");
+    expect(history.action).toEqual(Action.Push);
+    expect(createPath(history.location)).toEqual("/page1");
+    expect(history.getEntryKey()).toEqual("Home-1");
+    expect(history.getInertRouterStates()).toEqual([{entryKey: "Home-0", routerState: "/home"}]);
+
+    history.push("/page2");
+    router.state = "/page2";
+
+    expect(createPath(window.location)).toEqual("/page2");
+    expect(history.action).toEqual(Action.Push);
+    expect(createPath(history.location)).toEqual("/page2");
+    expect(history.getEntryKey()).toEqual("Home-2");
+    expect(history.getInertRouterStates()).toEqual([
+        {entryKey: "Home-0", routerState: "/home"},
+        {entryKey: "Home-1", routerState: "/page1"},
+    ]);
+
+    history.push("/page3", {tab: "Inbox", isTabSwitch: true});
+    router.state = "/page3";
+
+    expect(createPath(window.location)).toEqual("/page3");
+    expect(history.action).toEqual(Action.Push);
+    expect(createPath(history.location)).toEqual("/page3");
+    expect(history.getEntryKey()).toEqual("Inbox-0");
+    expect(history.getInertRouterStates()).toEqual([
+        {entryKey: "Home-0", routerState: "/home"},
+        {entryKey: "Home-1", routerState: "/page1"},
+        {entryKey: "Home-2", routerState: "/page2"},
+    ]);
+
+    history.push("/page4");
+    router.state = "/page4";
+
+    expect(createPath(window.location)).toEqual("/page4");
+    expect(history.action).toEqual(Action.Push);
+    expect(createPath(history.location)).toEqual("/page4");
+    expect(history.getEntryKey()).toEqual("Inbox-1");
+    expect(history.getInertRouterStates()).toEqual([
+        {entryKey: "Home-0", routerState: "/home"},
+        {entryKey: "Home-1", routerState: "/page1"},
+        {entryKey: "Home-2", routerState: "/page2"},
+        {entryKey: "Inbox-0", routerState: "/page3"},
+    ]);
+
+    await history.switchTabFromExternal("Create", new URL("/create", window.location.href));
+
+    expect(createPath(window.location)).toEqual("/create");
+    expect(history.action).toEqual(Action.Push);
+    expect(createPath(history.location)).toEqual("/create");
+    expect(history.getEntryKey()).toEqual("Create-0");
+    expect(history.getInertRouterStates()).toEqual([
+        {entryKey: "Home-0", routerState: "/home"},
+        {entryKey: "Home-1", routerState: "/page1"},
+        {entryKey: "Home-2", routerState: "/page2"},
+        {entryKey: "Inbox-0", routerState: "/page3"},
+        {entryKey: "Inbox-1", routerState: "/page4"},
+    ]);
+
+    history.push("/page5", {tab: "Inbox", isTabSwitch: true});
+    router.state = "/page5";
+
+    expect(createPath(window.location)).toEqual("/page5");
+    expect(history.action).toEqual(Action.Push);
+    expect(createPath(history.location)).toEqual("/page5");
+    expect(history.getEntryKey()).toEqual("Inbox-2");
+    expect(history.getInertRouterStates()).toEqual([
+        {entryKey: "Home-0", routerState: "/home"},
+        {entryKey: "Home-1", routerState: "/page1"},
+        {entryKey: "Home-2", routerState: "/page2"},
+        {entryKey: "Create-0", routerState: "/create"},
+        {entryKey: "Inbox-0", routerState: "/page3"},
+        {entryKey: "Inbox-1", routerState: "/page4"},
+    ]);
+
+    history.push("/page6");
+    router.state = "/page6";
+
+    expect(createPath(window.location)).toEqual("/page6");
+    expect(history.action).toEqual(Action.Push);
+    expect(createPath(history.location)).toEqual("/page6");
+    expect(history.getEntryKey()).toEqual("Inbox-3");
+    expect(history.getInertRouterStates()).toEqual([
+        {entryKey: "Home-0", routerState: "/home"},
+        {entryKey: "Home-1", routerState: "/page1"},
+        {entryKey: "Home-2", routerState: "/page2"},
+        {entryKey: "Create-0", routerState: "/create"},
+        {entryKey: "Inbox-0", routerState: "/page3"},
+        {entryKey: "Inbox-1", routerState: "/page4"},
+        {entryKey: "Inbox-2", routerState: "/page5"},
     ]);
 });

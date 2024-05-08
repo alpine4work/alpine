@@ -8,6 +8,7 @@ import {ServerRoute} from "@remix-run/server-runtime";
 import {useContext} from "react";
 import {resolvePath} from "react-router";
 import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view.js";
 import {InboxView} from "~/client/inbox/inbox_view.js";
@@ -15,6 +16,8 @@ import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
+import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
 import {getInboxEntries} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -154,11 +157,33 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 
 export default function InboxRouteWrapper() {
     const isMobile = useIsMobile();
+    const navigate = useNavigate();
 
     if (isMobile) {
         // NOCOMMIT: Implement. Maybe mobile inbox should be a different route so we
         // don't load selected peek data?
-        return <Box>Inbox!</Box>;
+        return (
+            <SpaceRouteScrollView
+                withMobileLayout={isMobile}
+                title="Inbox"
+                withoutDisappearingTitle={true}
+                // This is a route for a root tab in our mobile app so don't show the back
+                // button. It wouldn't work.
+                withoutMobileBackButton={true}
+            >
+                <Box>Inbox!</Box>
+                <Button
+                    pressErrorTitle="Couldn’t navigate"
+                    onPress={() =>
+                        navigate(
+                            `/s/ywcffewdn377x442nkxd5x41r0/documents/5tjtf4b57haftkb1mmmrmfnqyw`,
+                        )
+                    }
+                >
+                    Link Maze
+                </Button>
+            </SpaceRouteScrollView>
+        );
     }
 
     return <InboxRoute />;

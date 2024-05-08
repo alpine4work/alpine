@@ -5,6 +5,19 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
  */
 export type NativeMobileTab = "Home" | "Search" | "Create" | "Inbox" | "More";
 
+export function isNativeMobileTab(tab: unknown): tab is NativeMobileTab {
+    switch (tab) {
+        case "Home":
+        case "Search":
+        case "Create":
+        case "Inbox":
+        case "More":
+            return true;
+        default:
+            return false;
+    }
+}
+
 /**
  * When we are running in a native mobile app, the global `NativeMobileBridge`
  * is injected. This object allows you to communicate with the native app shell
@@ -124,12 +137,6 @@ export const NativeMobileBridge: {
      * [5]: https://developer.apple.com/documentation/uikit/uitabbarcontroller
      */
     readonly navigation: {
-        /**
-         * The initial path to use when navigating to a given tab. Used by
-         * `NativeMobileRouter`'s `switchTab()` implementation.
-         */
-        readonly initialPathByTab: Readonly<Record<NativeMobileTab, string>>;
-
         /**
          * The way a push navigation in our native mobile app works is:
          *
@@ -313,6 +320,62 @@ export const NativeMobileBridge: {
         dismissModal(): void;
 
         /**
+         * Works similar to `preparePush()` and `push()` except no animation occurs
+         * when switching tabs but we do need to swap the active navigation stack to
+         * the new tab's navigation stack.
+         */
+        prepareSwitchTab(tab: NativeMobileTab): void;
+
+        /**
+         * Works similar to `preparePush()` and `push()` except no animation occurs
+         * when switching tabs but we do need to swap the active navigation stack to
+         * the new tab's navigation stack.
+         */
+        switchTab(tab: NativeMobileTab, url: URL): void;
+
+        /**
+         * When the user taps on a tab in the native mobile app we call all subscribed
+         * listeners to this function with the tab the user tapped on and the URL the
+         * native navigation stack thinks should be rendered in the tab. From there,
+         * web should start rendering the new tab and perform a navigation with
+         * `prepareSwitchTab()`/`switchTab()` when it's done.
+         *
+         * This flow is different from `subscribeToExternalPop()` since in that flow
+         * you only need to call one function, `finishExternalPop()`. For
+         * `subscribeToExternalPop()` the app is frozen until the pop finishes.
+         * However, with `subscribeToExternalSwitchTab()` while the native tab bar UI
+         * will have updated the app stays responsive while the navigation happens.
+         *
+         * Some cases to consider:
+         *
+         * - Switching to a tab for the first time: This function will be called with
+         *   the initial URL as determined by the native app. This may also happen if
+         *   the web view reloaded but the native app didn't restart. So web has lost
+         *   its navigation stack so native will tell it what the URL should be.
+         *
+         * - Switching back to a tab...
+         *
+         *   - ...when the last route in the tab is still rendered by web: We continue
+         *     rendering the last ~7 routes in the web app as inert so if the user
+         *     switches back to them we can immediately show the route without a
+         *     network request.
+         *
+         *   - ...when the last route in the tab was unmounted by web: If the route is
+         *     outside of the ~7 route window then we'll need to send a network request
+         *     to fully load the route from scratch.
+         *
+         *   - ...when native code and web code disagree about what the last route in
+         *     the tab was: Both native code and web code maintain a navigation stack
+         *     for each tab. If native code sends a URL that's different than what web
+         *     has, web will accept native's URL and reset its navigation stack for the
+         *     tab. This is likely the sign of a bug! Ideally we want native code and
+         *     web code to have the same navigation stacks.
+         */
+        subscribeToExternalSwitchTab(
+            listener: (tab: NativeMobileTab, url: URL) => void,
+        ): () => void;
+
+        /**
          * Schedule a callback to run after a push animation completes. The push
          * animation starts when `preparePush()` (or another prepare function) is
          * called and ends when native code calls the animation completion handler.
@@ -320,13 +383,6 @@ export const NativeMobileBridge: {
          * Does not work for external pop navigations.
          */
         scheduleAfterAnimation(action: () => void): void;
-
-        /**
-         * When the user taps a tab in the native mobile app wrapper we'll call any
-         * subscribed listeners which should actually update our internal navigation
-         * state.
-         */
-        subscribeToSwitchTab(listener: (tab: NativeMobileTab) => void): () => void;
     };
 
     /**

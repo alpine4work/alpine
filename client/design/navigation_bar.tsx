@@ -250,97 +250,7 @@ export type NavigationBarRef = {
     getMaxVisibleHeight(): number;
 };
 
-export type NavigationBarResult = {
-    /**
-     * (Required) Attach this ref to the scroll view the navigation bar renders
-     * on top of.
-     */
-    scrollViewRef: RefCallback<HTMLElement>;
-
-    /**
-     * (Required) This element should be rendered inside a `position: relative`
-     * container of all content in the scroll view. It can't be rendered as a
-     * direct child of the scroll view.
-     *
-     * For example, this works:
-     *
-     * ```
-     * <div ref={scrollViewRef} style={{overflowY: "auto"}}>
-     *     <div style={{position: "relative"}}>
-     *         {navigationBar}
-     *         {/* Other children... *\/}
-     *     </div>
-     * </div>
-     * ```
-     *
-     * This does not work!
-     *
-     * ```
-     * <div ref={scrollViewRef} style={{overflowY: "auto", position: "relative"}}>
-     *     {navigationBar}
-     *     {/* Other children... *\/}
-     * </div>
-     * ```
-     *
-     * `navigationBar` needs to be 100% height of scrollable content. Not 100%
-     * height of the scrollable window.
-     *
-     * If you're attaching a navigation bar to a `<VirtualizedScrollView>` then
-     * `navigationBar` may be put in the `extraChildren` prop.
-     */
-    navigationBar: ReactElement | null;
-
-    /**
-     * (Required) The `insetTop` value to pass to `useScrollbar()`. Otherwise the
-     * custom scrollbar may sometimes overlap the header which looks weird. You are
-     * expected to pass this to `useScrollbar()`.
-     */
-    scrollbarInsetTop?: ScrollbarInsetDynamic;
-};
-
-/**
- * Most content in our product comes with a navigation bar. The navigation bar
- * is a sticky bar at the top of the view which disappears when the user
- * scrolls down and reappears as the user scrolls up. This bar contains
- * navigation controls (like a back button on mobile) and context about the
- * current content (like a document title). It disappears when the user scrolls
- * down so they can focus on the content, if they need its controls they can
- * simply scroll up and it's there for them.
- *
- * When at the top of the scroll view, the navigation bar is displayed but it's
- * flush with other content. So it appears as if there's no sticky bar at all.
- * It's sticky nature is only revealed if the user scrolls down and back up
- * again.
- *
- * The UX idea here is that content is king. We don't want to permanently
- * allocate space for navigation which may distract from the user's main task
- * of reading or editing.
- *
- * Our native mobile apps implement tab bar UI which uses the same logic as our
- * web code navigation bar. As the user scrolls down, the tab bar disappears.
- */
-export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
-    ref,
-    isDisabled = false,
-    withMobileLayout,
-    title = null,
-    titleBoundaryRef,
-    withoutDisappearingTitle = false,
-    subtitle,
-    menuActions = emptyArray,
-    shareButton,
-    stickyBanner,
-    replaceActions,
-    desktopControls = null,
-    desktopMaxWidth,
-    desktopTitleMaxWidth,
-    desktopTitleFontSize = "200",
-    desktopTitleFontWeight = "semi-bold",
-    desktopTitleLeftSlop,
-    desktopMarginTop,
-    mobileTitleJustifyContents = "center",
-    onMobileCancel,
-}: {
+export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDivElement> = {
     /**
      * A ref for interacting with the navigation bar when mounted.
      */
@@ -483,6 +393,12 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     mobileTitleJustifyContents?: "center" | "flex-start";
 
     /**
+     * Don't render a back button on mobile. Only set this to true for top level
+     * mobile tab routes.
+     */
+    withoutMobileBackButton?: boolean;
+
+    /**
      * By default, the navigation bar on mobile has a back button which calls
      * `navigate(-1)`. If you'd like to provide custom back navigation behavior
      * then you may pass this prop which will switch the back button to a "Cancel"
@@ -492,7 +408,100 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
      * close the modal instead of calling `navigate(-1)`.
      */
     onMobileCancel?: () => void;
-}): NavigationBarResult {
+};
+
+export type NavigationBarResult = {
+    /**
+     * (Required) Attach this ref to the scroll view the navigation bar renders
+     * on top of.
+     */
+    scrollViewRef: RefCallback<HTMLElement>;
+
+    /**
+     * (Required) This element should be rendered inside a `position: relative`
+     * container of all content in the scroll view. It can't be rendered as a
+     * direct child of the scroll view.
+     *
+     * For example, this works:
+     *
+     * ```
+     * <div ref={scrollViewRef} style={{overflowY: "auto"}}>
+     *     <div style={{position: "relative"}}>
+     *         {navigationBar}
+     *         {/* Other children... *\/}
+     *     </div>
+     * </div>
+     * ```
+     *
+     * This does not work!
+     *
+     * ```
+     * <div ref={scrollViewRef} style={{overflowY: "auto", position: "relative"}}>
+     *     {navigationBar}
+     *     {/* Other children... *\/}
+     * </div>
+     * ```
+     *
+     * `navigationBar` needs to be 100% height of scrollable content. Not 100%
+     * height of the scrollable window.
+     *
+     * If you're attaching a navigation bar to a `<VirtualizedScrollView>` then
+     * `navigationBar` may be put in the `extraChildren` prop.
+     */
+    navigationBar: ReactElement | null;
+
+    /**
+     * (Required) The `insetTop` value to pass to `useScrollbar()`. Otherwise the
+     * custom scrollbar may sometimes overlap the header which looks weird. You are
+     * expected to pass this to `useScrollbar()`.
+     */
+    scrollbarInsetTop?: ScrollbarInsetDynamic;
+};
+
+/**
+ * Most content in our product comes with a navigation bar. The navigation bar
+ * is a sticky bar at the top of the view which disappears when the user
+ * scrolls down and reappears as the user scrolls up. This bar contains
+ * navigation controls (like a back button on mobile) and context about the
+ * current content (like a document title). It disappears when the user scrolls
+ * down so they can focus on the content, if they need its controls they can
+ * simply scroll up and it's there for them.
+ *
+ * When at the top of the scroll view, the navigation bar is displayed but it's
+ * flush with other content. So it appears as if there's no sticky bar at all.
+ * It's sticky nature is only revealed if the user scrolls down and back up
+ * again.
+ *
+ * The UX idea here is that content is king. We don't want to permanently
+ * allocate space for navigation which may distract from the user's main task
+ * of reading or editing.
+ *
+ * Our native mobile apps implement tab bar UI which uses the same logic as our
+ * web code navigation bar. As the user scrolls down, the tab bar disappears.
+ */
+export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
+    ref,
+    isDisabled = false,
+    withMobileLayout,
+    title = null,
+    titleBoundaryRef,
+    withoutDisappearingTitle = false,
+    subtitle,
+    menuActions = emptyArray,
+    shareButton,
+    stickyBanner,
+    replaceActions,
+    desktopControls = null,
+    desktopMaxWidth,
+    desktopTitleMaxWidth,
+    desktopTitleFontSize = "200",
+    desktopTitleFontWeight = "semi-bold",
+    desktopTitleLeftSlop,
+    desktopMarginTop,
+    mobileTitleJustifyContents = "center",
+    withoutMobileBackButton = false,
+    onMobileCancel,
+}: NavigationBarProps<TitleBoundaryElement>): NavigationBarResult {
     const isMobile = useIsMobile();
 
     const navigationBarRef = useRef<{
@@ -601,6 +610,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             desktopTitleLeftSlop={desktopTitleLeftSlop}
             desktopMarginTopRem={desktopMarginTopRem}
             mobileTitleJustifyContents={mobileTitleJustifyContents}
+            withoutMobileBackButton={withoutMobileBackButton}
             onMobileCancel={onMobileCancel}
         />
     ) : null;
@@ -657,6 +667,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleLeftSlop,
     desktopMarginTopRem,
     mobileTitleJustifyContents,
+    withoutMobileBackButton,
     onMobileCancel,
 }: {
     isMobile: boolean;
@@ -684,6 +695,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleLeftSlop: Spacing | undefined;
     desktopMarginTopRem: number;
     mobileTitleJustifyContents: "center" | "flex-start";
+    withoutMobileBackButton: boolean;
     onMobileCancel: (() => void) | undefined;
 }) {
     const {isAppleDevice, isNativeMobile} = useClientInfo();
@@ -1556,6 +1568,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             desktopTitleFontWeight={desktopTitleFontWeight}
                             desktopTitleLeftSlop={desktopTitleLeftSlop}
                             mobileTitleJustifyContents={mobileTitleJustifyContents}
+                            withoutMobileBackButton={withoutMobileBackButton}
                             onMobileCancel={onMobileCancel}
                         />
                         {stickyBanner}
@@ -1589,6 +1602,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         desktopTitleFontWeight = "semi-bold",
         desktopTitleLeftSlop,
         mobileTitleJustifyContents = "center",
+        withoutMobileBackButton = false,
         onMobileCancel,
     }: {
         withMobileLayout: boolean;
@@ -1606,6 +1620,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         desktopTitleFontWeight?: "semi-bold" | "bold";
         desktopTitleLeftSlop?: Spacing;
         mobileTitleJustifyContents?: "center" | "flex-start";
+        withoutMobileBackButton?: boolean;
         onMobileCancel?: () => void;
     },
     ref: Ref<NavigationBarContentRef>,
@@ -1687,15 +1702,17 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                 </Button>
                             </Box>
                         ) : (
-                            <IconButton
-                                size="base"
-                                description="Go back"
-                                withoutTooltip={true}
-                                pressErrorTitle="Couldn’t go back"
-                                onPress={() => navigate(-1)}
-                            >
-                                <ArrowLeft />
-                            </IconButton>
+                            !withoutMobileBackButton && (
+                                <IconButton
+                                    size="base"
+                                    description="Go back"
+                                    withoutTooltip={true}
+                                    pressErrorTitle="Couldn’t go back"
+                                    onPress={() => navigate(-1)}
+                                >
+                                    <ArrowLeft />
+                                </IconButton>
+                            )
                         )}
                     </Box>
                 ) : (

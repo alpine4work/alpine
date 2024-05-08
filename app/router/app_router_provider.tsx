@@ -18,6 +18,7 @@ import {
     RouterProviderProps,
     UNSAFE_useRoutesImpl as useRoutesImpl,
 } from "react-router";
+import {getLocationNativeMobileTab} from "~/app/router/native_mobile_router.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
@@ -130,15 +131,25 @@ export function AppRouterProvider({
         lastLocationKeyForInsertionEffectRef.current = state.location.key;
 
         if (state.historyAction === "PUSH") {
-            // TODO(calebmer): I'd like to add some performance instrumentation to find out
-            // how much time we spend synchronously blocked. Ideally add it as a property
-            // to a navigation span since the duration may be too small to justify its
-            // own span.
-            NativeMobileBridge?.navigation.preparePush();
+            if (state.location.state?.isTabSwitch) {
+                NativeMobileBridge?.navigation.prepareSwitchTab(
+                    getLocationNativeMobileTab(state.location),
+                );
+            } else {
+                // TODO(calebmer): I'd like to add some performance instrumentation to find out
+                // how much time we spend synchronously blocked. Ideally add it as a property
+                // to a navigation span since the duration may be too small to justify its
+                // own span.
+                NativeMobileBridge?.navigation.preparePush();
+            }
         } else if (state.historyAction === "POP") {
-            const url = new URL(router.createHref(state.location), window.location.href);
+            if (state.location.state?.isTabSwitch) {
+                NativeMobileBridge?.navigation.prepareSwitchTab(
+                    getLocationNativeMobileTab(state.location),
+                );
+            } else if (state.location.state?.isNotFromExternal) {
+                const url = new URL(router.createHref(state.location), window.location.href);
 
-            if (state.location.state?.isNotFromExternal) {
                 NativeMobileBridge?.navigation.preparePop(url);
             }
         }
@@ -167,9 +178,21 @@ export function AppRouterProvider({
                 const url = new URL(router.createHref(state.location), window.location.href);
 
                 if (state.historyAction === "PUSH") {
-                    NativeMobileBridge.navigation.push(url);
+                    if (state.location.state?.isTabSwitch) {
+                        NativeMobileBridge?.navigation.switchTab(
+                            getLocationNativeMobileTab(state.location),
+                            url,
+                        );
+                    } else {
+                        NativeMobileBridge.navigation.push(url);
+                    }
                 } else if (state.historyAction === "POP") {
-                    if (state.location.state?.isNotFromExternal) {
+                    if (state.location.state?.isTabSwitch) {
+                        NativeMobileBridge?.navigation.switchTab(
+                            getLocationNativeMobileTab(state.location),
+                            url,
+                        );
+                    } else if (state.location.state?.isNotFromExternal) {
                         NativeMobileBridge.navigation.pop(url);
                     } else {
                         NativeMobileBridge.navigation.finishExternalPop();

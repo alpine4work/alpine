@@ -808,7 +808,7 @@ test("can change status", async ({page, context: browserContext}) => {
     await expectTaskGridView(page, [["Closed", "test", "Testerson"]], {hasGhostTaskRow: false});
 });
 
-test.only("can update collections", async ({page, context: browserContext}) => {
+test("can update collections", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const collection = await TestTaskCollection.createPublic(session, {name: "test1"});

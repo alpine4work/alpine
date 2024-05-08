@@ -24,13 +24,6 @@ export const NativeMobileBridgeForTest: typeof NativeMobileBridge & {
         setThemeColors: () => {},
     },
     navigation: {
-        initialPathByTab: {
-            Home: "/home",
-            Search: "/search",
-            Create: "/create",
-            Inbox: "/inbox",
-            More: "/more",
-        },
         preparePush: () => {},
         push: () => {},
         subscribeToExternalPop: () => {
@@ -50,6 +43,11 @@ export const NativeMobileBridgeForTest: typeof NativeMobileBridge & {
         presentModal: () => {},
         prepareDismissModal: () => {},
         dismissModal: () => {},
+        prepareSwitchTab: () => {},
+        switchTab: () => {},
+        subscribeToExternalSwitchTab: () => {
+            return () => {};
+        },
         scheduleAfterAnimation: action => {
             scheduleMacrotask(action);
         },

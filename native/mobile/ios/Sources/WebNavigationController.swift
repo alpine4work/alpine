@@ -65,7 +65,19 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let create: String
         let inbox: String
         let more: String
+
+        func get(_ tab: Tab) -> String {
+            switch tab {
+            case .home: home
+            case .search: search
+            case .create: create
+            case .inbox: inbox
+            case .more: more
+            }
+        }
     }
+
+    private var currentTab = Tab.home
 
     enum Tab {
         case home
@@ -73,7 +85,33 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         case create
         case inbox
         case more
+
+        static func fromString(_ string: Substring) -> Tab? {
+            switch string {
+            case "Home": .home
+            case "Search": .search
+            case "Create": .create
+            case "Inbox": .inbox
+            case "More": .more
+            default: nil
+            }
+        }
+
+        func jsonString() -> String {
+            let string =
+                switch self {
+                case .home: "Home"
+                case .search: "Search"
+                case .create: "Create"
+                case .inbox: "Inbox"
+                case .more: "More"
+                }
+
+            return Cyberworlds.jsonString(string)
+        }
     }
+
+    private var viewControllersByInactiveTab = [Tab: [UIViewController]]()
 
     // Called `webDelegate` so we don't override `UINavigationController`'s
     // `delegate` property.
@@ -402,7 +440,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         webConfiguration.userContentController.addUserScript(
             WKUserScript(
-                source: createWebBridgeSource(initialPathByTab: initialPathByTab),
+                source: webBridgeSource,
                 injectionTime: .atDocumentStart,
                 forMainFrameOnly: true
             )
@@ -869,6 +907,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             // the app will appear frozen.
             (modalPresentedViewController ?? topViewController! as! WebNavigationEntryController)
                 .replaceWebViewWithSnapshotView()
+
             return nil
         } else if prompt == "%%%navigation.prepareDismissModal" {
             preparingNavigationEntry = (topViewController as! WebNavigationEntryController).entry
@@ -879,6 +918,23 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             // Beware! If `NativeMobileBridge.navigation.dismissModal()` is not promptly
             // called the app will appear frozen.
             modalPresentedViewController?.replaceWebViewWithSnapshotView()
+
+            return nil
+        } else if prompt.starts(with: "%%%navigation.prepareSwitchTab:") {
+            let tabString = prompt.suffix(from: prompt.index(prompt.startIndex, offsetBy: 31))
+            let tab = Tab.fromString(tabString)!
+
+            preparingNavigationEntry =
+                (viewControllersByInactiveTab[tab]?.last as? WebNavigationEntryController)?.entry
+                ?? WebNavigationEntry()
+            hasAddedMainScrollViewWhilePreparingNavigation = false
+
+            cleanupModalPresentedViewController()
+
+            // Beware! If `NativeMobileBridge.navigation.switchTab()` is not promptly called the
+            // app will appear frozen.
+            (topViewController! as! WebNavigationEntryController).replaceWebViewWithSnapshotView()
+
             return nil
         } else {
             // Unrecognized prompt command. Do nothing.
@@ -910,6 +966,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 from: messageBody.index(messageBody.startIndex, offsetBy: 16)
             )
             let url = URL(string: String(urlString))!
+
+            logger.info("Push navigation to: \(url.absoluteString)")
 
             let viewController = WebNavigationEntryController(
                 entry: preparingNavigationEntry ?? WebNavigationEntry(),
@@ -951,6 +1009,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         } else if messageBody == "navigation.finishExternalPop" {
             cleanupModalPresentedViewController()
 
+            logger.info("Finishing external pop navigation")
+
             (topViewController! as! WebNavigationEntryController).moveWebViewInto(webView)
 
             webDelegate?.webNavigationController?(
@@ -968,6 +1028,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 from: messageBody.index(messageBody.startIndex, offsetBy: 15)
             )
             let url = URL(string: String(urlString))!
+
+            logger.info("Pop navigation to: \(url.absoluteString)")
 
             let viewController = viewControllers.last(where: { (viewController) in
                 (viewController as! WebNavigationEntryController).url.absoluteString
@@ -1035,6 +1097,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             )
             let url = URL(string: String(urlString))!
 
+            logger.info("Replace navigation to: \(url.absoluteString)")
+
             // If the modal view controller is open it represents the same navigation stack
             // entry as the top view controller. When the modal is dismissed the top view
             // controller will be reinstated as the main view controller for the navigation
@@ -1044,6 +1108,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             }
             (topViewController! as! WebNavigationEntryController).url = url
         } else if messageBody == "navigation.presentModal" {
+            logger.info("Present modal navigation")
+
             let viewController = WebNavigationEntryController(
                 entry: preparingNavigationEntry ?? WebNavigationEntry(),
                 url: (topViewController! as! WebNavigationEntryController).url,
@@ -1073,6 +1139,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     }
                 }
         } else if messageBody == "navigation.dismissModal" {
+            logger.info("Dismiss modal navigation")
+
             ((previousModalPresentedViewController ?? topViewController)
                 as! WebNavigationEntryController)
                 .moveWebViewInto(webView)
@@ -1097,6 +1165,53 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                         )
                     }
                 }
+        } else if messageBody.starts(with: "navigation.switchTab:") {
+            cleanupModalPresentedViewController()
+
+            let optionsString = messageBody.suffix(
+                from: messageBody.index(messageBody.startIndex, offsetBy: 21)
+            )
+            let optionStrings = optionsString.split(separator: ",", maxSplits: 2)
+
+            let tab = Tab.fromString(optionStrings[0])!
+
+            let urlString = optionStrings[1]
+            let url = URL(string: String(urlString))!
+
+            logger.info(
+                "Switch tab (`\(String(describing: tab))`) navigation to: \(url.absoluteString)"
+            )
+
+            viewControllersByInactiveTab[currentTab] = viewControllers
+            currentTab = tab
+
+            viewControllers = viewControllersByInactiveTab[tab] ?? []
+            viewControllersByInactiveTab.removeValue(forKey: tab)
+
+            var viewController: WebNavigationEntryController
+            if let topViewController = self.topViewController {
+                viewController = topViewController as! WebNavigationEntryController
+                viewController.url = url
+                viewController.moveWebViewInto(webView)
+            } else {
+                viewController = WebNavigationEntryController(
+                    entry: preparingNavigationEntry ?? WebNavigationEntry(),
+                    url: url,
+                    webNavigationController: self,
+                    webView: webView,
+                    healthState: webViewHealthState
+                )
+                viewControllers.append(viewController)
+            }
+
+            webDelegate?.webNavigationController?(
+                self,
+                didNavigate: viewController.entry,
+                hasMainScrollView: hasAddedMainScrollViewWhilePreparingNavigation
+            )
+
+            preparingNavigationEntry = nil
+            hasAddedMainScrollViewWhilePreparingNavigation = false
         } else if messageBody == "navigation.scheduleAfterAnimation" {
             if !isNavigationAnimating {
                 isAfterNavigationAnimationCallbackScheduled = false
@@ -2365,17 +2480,26 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     /// Change the tab currently being displayed in our web navigation controller.
     func switchTab(_ tab: WebNavigationController.Tab) {
-        let tabString =
-            switch tab {
-            case .home: "Home"
-            case .search: "Search"
-            case .create: "Create"
-            case .inbox: "Inbox"
-            case .more: "More"
-            }
+        let url =
+            (viewControllersByInactiveTab[tab]?.last as? WebNavigationEntryController)?.url ?? URL(
+                string: initialPathByTab.get(tab),
+                relativeTo: WebNavigationController.baseUrl
+            )!
 
         webView.evaluateJavaScript(
-            #"window.__NativeMobileBridge.navigation._callSwitchTabListeners(\#(jsonString(tabString)))"#
+            "window.__NativeMobileBridge.navigation._callExternalSwitchTabListeners(\(tab.jsonString()), \(jsonString(url.absoluteString)))"
+        )
+    }
+
+    /// Currently unused. Useful why developing to see what native thinks the
+    /// navigation stack is and compare that to what web thinks the navigation
+    /// stack is.
+    private func printDebugNavigationStack() {
+        print(
+            """
+            - viewControllers\(viewControllers.map({ "\n    - \(($0 as! WebNavigationEntryController).url.absoluteString)" }).joined())
+            - viewControllersByInactiveTab\(viewControllersByInactiveTab.map({ "\n    - \($0.key)\($0.value.map({ "\n        - \(($0 as! WebNavigationEntryController).url.absoluteString)" }).joined()))" }).joined())
+            """
         )
     }
 }
@@ -2905,307 +3029,304 @@ private func jsonString(_ string: String) -> String {
     return String(data: try! jsonEncoder.encode(string), encoding: .utf8)!
 }
 
-private func createWebBridgeSource(initialPathByTab: WebNavigationController.InitialPathByTab)
-    -> String
-{
-    return """
-        {
-            const navigationExternalPopListeners = new Set();
-            const navigationSwitchTabListeners = new Set();
-            const keyboardFrameChangeListeners = new Set();
-            const addCommentEditMenuListeners = new Set();
+private let webBridgeSource = """
+    {
+        const navigationExternalPopListeners = new Set();
+        const navigationExternalSwitchTabListeners = new Set();
+        const keyboardFrameChangeListeners = new Set();
+        const addCommentEditMenuListeners = new Set();
 
-            let scheduledAfterNavigationAnimationCallbacks = [];
-            let scheduledAfterKeyboardAnimationCallbacks = [];
+        let scheduledAfterNavigationAnimationCallbacks = [];
+        let scheduledAfterKeyboardAnimationCallbacks = [];
 
-            let disableTabBarCount = 0;
-            let isKeyboardSubstituteOpen = false;
+        let disableTabBarCount = 0;
+        let isKeyboardSubstituteOpen = false;
 
-            let nextCallbackId = 0;
-            const callbackById = new Map();
+        let nextCallbackId = 0;
+        const callbackById = new Map();
 
-            const registerCallback = callback => {
-                if (!callback) return callback;
+        const registerCallback = callback => {
+            if (!callback) return callback;
 
-                const callbackId = nextCallbackId++;
-                callbackById.set(callbackId, callback);
+            const callbackId = nextCallbackId++;
+            callbackById.set(callbackId, callback);
 
-                return callbackId;
-            };
+            return callbackId;
+        };
 
-            const unregisterCallback = callbackId => {
-                callbackById.delete(callbackId);
-            };
+        const unregisterCallback = callbackId => {
+            callbackById.delete(callbackId);
+        };
 
-            const NativeMobileBridge = {
-                _callCallbackById: callbackId => {
-                    const callback = callbackById.get(callbackId);
-                    if (!callback) return;
+        const NativeMobileBridge = {
+            _callCallbackById: callbackId => {
+                const callback = callbackById.get(callbackId);
+                if (!callback) return;
 
-                    const result = callback();
-                    if (result instanceof Promise) {
-                        result.catch(error => {
+                const result = callback();
+                if (result instanceof Promise) {
+                    result.catch(error => {
+                        setTimeout(() => {
+                            throw error;
+                        }, 0);
+                    });
+                }
+            },
+            health: {
+                ready: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("health.ready");
+                },
+                ping: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("health.ping");
+                },
+            },
+            colors: {
+                setThemeColors: options => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`colors.setThemeColors:${options["theme-30"]},${options["theme-40"]},${options["theme-50"]},${options["theme-60"]}`);
+                },
+            },
+            navigation: {
+                preparePush: () => {
+                    prompt("%%%navigation.preparePush");
+                },
+                push: url => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.push:${url}`);
+                },
+                subscribeToExternalPop: listener => {
+                    navigationExternalPopListeners.add(listener);
+                    return () => {
+                        navigationExternalPopListeners.delete(listener);
+                    };
+                },
+                _callExternalPopListeners: (delta, urlString) => {
+                    const url = new URL(urlString);
+
+                    for (const listener of navigationExternalPopListeners) {
+                        try {
+                            listener(delta, url);
+                        } catch (error) {
                             setTimeout(() => {
                                 throw error;
                             }, 0);
-                        });
+                        }
                     }
                 },
-                health: {
-                    ready: () => {
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("health.ready");
-                    },
-                    ping: () => {
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("health.ping");
-                    },
+                finishExternalPop: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.finishExternalPop");
                 },
-                colors: {
-                    setThemeColors: options => {
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`colors.setThemeColors:${options["theme-30"]},${options["theme-40"]},${options["theme-50"]},${options["theme-60"]}`);
-                    },
+                preparePop: url => {
+                    prompt(`%%%navigation.preparePop:${url}`);
                 },
-                navigation: {
-                    initialPathByTab: {
-                        Home: \(jsonString(initialPathByTab.home)),
-                        Search: \(jsonString(initialPathByTab.search)),
-                        Create: \(jsonString(initialPathByTab.create)),
-                        Inbox: \(jsonString(initialPathByTab.inbox)),
-                        More: \(jsonString(initialPathByTab.more)),
-                    },
-                    preparePush: () => {
-                        prompt("%%%navigation.preparePush");
-                    },
-                    push: url => {
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.push:${url}`);
-                    },
-                    subscribeToExternalPop: listener => {
-                        navigationExternalPopListeners.add(listener);
-                        return () => {
-                            navigationExternalPopListeners.delete(listener);
-                        };
-                    },
-                    _callExternalPopListeners: (delta, urlString) => {
-                        const url = new URL(urlString);
+                pop: url => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.pop:${url}`);
+                },
+                requestExternalPop: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.requestExternalPop");
+                },
+                replace: url => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replace:${url}`);
+                },
+                preparePresentModal: () => {
+                    prompt("%%%navigation.preparePresentModal");
+                },
+                presentModal: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.presentModal");
+                },
+                prepareDismissModal: () => {
+                    prompt("%%%navigation.prepareDismissModal");
+                },
+                dismissModal: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.dismissModal");
+                },
+                prepareSwitchTab: tab => {
+                    prompt(`%%%navigation.prepareSwitchTab:${tab}`);
+                },
+                switchTab: (tab, url) => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.switchTab:${tab},${url}`);
+                },
+                subscribeToExternalSwitchTab: listener => {
+                    navigationExternalSwitchTabListeners.add(listener);
+                    return () => {
+                        navigationExternalSwitchTabListeners.delete(listener);
+                    };
+                },
+                _callExternalSwitchTabListeners: async (tab, urlString) => {
+                    const url = new URL(urlString);
 
-                        for (const listener of navigationExternalPopListeners) {
-                            try {
-                                listener(delta, url);
-                            } catch (error) {
-                                setTimeout(() => {
-                                    throw error;
-                                }, 0);
-                            }
+                    for (const listener of navigationExternalSwitchTabListeners) {
+                        try {
+                            listener(tab, url);
+                        } catch (error) {
+                            setTimeout(() => {
+                                throw error;
+                            }, 0);
                         }
-                    },
-                    finishExternalPop: () => {
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.finishExternalPop");
-                    },
-                    preparePop: url => {
-                        prompt(`%%%navigation.preparePop:${url}`);
-                    },
-                    pop: url => {
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.pop:${url}`);
-                    },
-                    requestExternalPop: () => {
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.requestExternalPop");
-                    },
-                    replace: url => {
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replace:${url}`);
-                    },
-                    preparePresentModal: () => {
-                        prompt("%%%navigation.preparePresentModal");
-                    },
-                    presentModal: () => {
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.presentModal");
-                    },
-                    prepareDismissModal: () => {
-                        prompt("%%%navigation.prepareDismissModal");
-                    },
-                    dismissModal: () => {
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.dismissModal");
-                    },
-                    scheduleAfterAnimation: action => {
-                        if (scheduledAfterNavigationAnimationCallbacks.length === 0) {
-                            window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.scheduleAfterAnimation");
-                        }
-
-                        scheduledAfterNavigationAnimationCallbacks.push(action);
-                    },
-                    _callScheduledAfterAnimationCallbacks: () => {
-                        const callbacks = scheduledAfterNavigationAnimationCallbacks;
-                        scheduledAfterNavigationAnimationCallbacks = [];
-
-                        for (const callback of callbacks) {
-                            try {
-                                callback();
-                            } catch (error) {
-                                setTimeout(() => {
-                                    throw error;
-                                }, 0);
-                            }
-                        }
-                    },
-                    subscribeToSwitchTab: listener => {
-                        navigationSwitchTabListeners.add(listener);
-                        return () => {
-                            navigationSwitchTabListeners.delete(listener);
-                        };
-                    },
-                    _callSwitchTabListeners: tab => {
-                        for (const listener of navigationSwitchTabListeners) {
-                            try {
-                                listener(tab);
-                            } catch (error) {
-                                setTimeout(() => {
-                                    throw error;
-                                }, 0);
-                            }
-                        }
-                    },
+                    }
                 },
-                navigationBar: {
-                    runScrollDebounceTimeout: () => {
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigationBar.runScrollDebounceTimeout");
-                    },
+                scheduleAfterAnimation: action => {
+                    if (scheduledAfterNavigationAnimationCallbacks.length === 0) {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.scheduleAfterAnimation");
+                    }
+
+                    scheduledAfterNavigationAnimationCallbacks.push(action);
                 },
-                tabBar: {
-                    height: \(UITabBarController().tabBar.frame.height),
-                    _scrollOffset: 0,
-                    getDeferredScrollOffset: () => {
-                        return NativeMobileBridge.tabBar._scrollOffset;
-                    },
-                    isDisabled: () => {
-                        return disableTabBarCount > 0;
-                    },
-                    disable: ({isAnimated = false} = {}) => {
+                _callScheduledAfterAnimationCallbacks: () => {
+                    const callbacks = scheduledAfterNavigationAnimationCallbacks;
+                    scheduledAfterNavigationAnimationCallbacks = [];
+
+                    for (const callback of callbacks) {
+                        try {
+                            callback();
+                        } catch (error) {
+                            setTimeout(() => {
+                                throw error;
+                            }, 0);
+                        }
+                    }
+                },
+            },
+            navigationBar: {
+                runScrollDebounceTimeout: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigationBar.runScrollDebounceTimeout");
+                },
+            },
+            tabBar: {
+                height: \(UITabBarController().tabBar.frame.height),
+                _scrollOffset: 0,
+                getDeferredScrollOffset: () => {
+                    return NativeMobileBridge.tabBar._scrollOffset;
+                },
+                isDisabled: () => {
+                    return disableTabBarCount > 0;
+                },
+                disable: ({isAnimated = false} = {}) => {
+                    disableTabBarCount += 1;
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.disable:${isAnimated}`);
+                },
+                enable: ({isAnimated = false} = {}) => {
+                    disableTabBarCount -= 1;
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.enable:${isAnimated}`);
+                },
+            },
+            keyboard: {
+                subscribeToFrameChange: listener => {
+                    keyboardFrameChangeListeners.add(listener);
+                    return () => {
+                        keyboardFrameChangeListeners.delete(listener);
+                    };
+                },
+                _callFrameChangeListeners: (oldKeyboardHeight, newKeyboardHeight, shouldScroll, isAnimated) => {
+                    for (const listener of keyboardFrameChangeListeners) {
+                        try {
+                            listener({oldKeyboardHeight, newKeyboardHeight, shouldScroll, isAnimated});
+                        } catch (error) {
+                            setTimeout(() => {
+                                throw error;
+                            }, 0);
+                        }
+                    }
+                },
+                isSubstituteOpen: () => {
+                    return isKeyboardSubstituteOpen;
+                },
+                prepareForSubstitute: () => {
+                    if (!isKeyboardSubstituteOpen) {
                         disableTabBarCount += 1;
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.disable:${isAnimated}`);
-                    },
-                    enable: ({isAnimated = false} = {}) => {
+                    }
+                    isKeyboardSubstituteOpen = true;
+
+                    return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.prepareForSubstitute");
+                },
+                cleanupAfterSubstitute: () => {
+                    if (isKeyboardSubstituteOpen) {
                         disableTabBarCount -= 1;
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.enable:${isAnimated}`);
-                    },
+                    }
+                    isKeyboardSubstituteOpen = false;
+
+                    return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.cleanupAfterSubstitute");
                 },
-                keyboard: {
-                    subscribeToFrameChange: listener => {
-                        keyboardFrameChangeListeners.add(listener);
-                        return () => {
-                            keyboardFrameChangeListeners.delete(listener);
+                scheduleAfterAnimation: action => {
+                    if (scheduledAfterKeyboardAnimationCallbacks.length === 0) {
+                        const channel = new MessageChannel();
+                        channel.port1.onmessage = () => {
+                            window.webkit.messageHandlers.NativeMobileBridge.postMessage("keyboard.scheduleAfterAnimation");
                         };
-                    },
-                    _callFrameChangeListeners: (oldKeyboardHeight, newKeyboardHeight, shouldScroll, isAnimated) => {
-                        for (const listener of keyboardFrameChangeListeners) {
-                            try {
-                                listener({oldKeyboardHeight, newKeyboardHeight, shouldScroll, isAnimated});
-                            } catch (error) {
-                                setTimeout(() => {
-                                    throw error;
-                                }, 0);
-                            }
-                        }
-                    },
-                    isSubstituteOpen: () => {
-                        return isKeyboardSubstituteOpen;
-                    },
-                    prepareForSubstitute: () => {
-                        if (!isKeyboardSubstituteOpen) {
-                            disableTabBarCount += 1;
-                        }
-                        isKeyboardSubstituteOpen = true;
+                        channel.port2.postMessage(undefined);
+                    }
 
-                        return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.prepareForSubstitute");
-                    },
-                    cleanupAfterSubstitute: () => {
-                        if (isKeyboardSubstituteOpen) {
-                            disableTabBarCount -= 1;
-                        }
-                        isKeyboardSubstituteOpen = false;
-
-                        return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.cleanupAfterSubstitute");
-                    },
-                    scheduleAfterAnimation: action => {
-                        if (scheduledAfterKeyboardAnimationCallbacks.length === 0) {
-                            const channel = new MessageChannel();
-                            channel.port1.onmessage = () => {
-                                window.webkit.messageHandlers.NativeMobileBridge.postMessage("keyboard.scheduleAfterAnimation");
-                            };
-                            channel.port2.postMessage(undefined);
-                        }
-
-                        scheduledAfterKeyboardAnimationCallbacks.push(action);
-                    },
-                    _callScheduledAfterAnimationCallbacks: () => {
-                        const callbacks = scheduledAfterKeyboardAnimationCallbacks;
-                        scheduledAfterKeyboardAnimationCallbacks = [];
-
-                        for (const callback of callbacks) {
-                            try {
-                                callback();
-                            } catch (error) {
-                                setTimeout(() => {
-                                    throw error;
-                                }, 0);
-                            }
-                        }
-                    },
+                    scheduledAfterKeyboardAnimationCallbacks.push(action);
                 },
-                scrollbar: {
-                    updateAllInsets: () => {
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("scrollbar.updateAllInsets");
-                    },
-                },
-                modal: {
-                    presentDialog: options => {
-                        const actualOptions = {
-                            title: options.title,
-                            description: options.description,
-                            primaryButtonLabel: options.primaryButtonLabel,
-                            isPrimaryButtonDisabled: options.isPrimaryButtonDisabled,
-                            onPrimaryButtonPressCallbackId: registerCallback(() => {
-                                unregisterCallback(actualOptions.onPrimaryButtonPressCallbackId);
-                                unregisterCallback(actualOptions.onCancelButtonPressCallbackId);
-                                if (options.onPrimaryButtonPress) return options.onPrimaryButtonPress();
-                            }),
-                            cancelButtonLabel: options.cancelButtonLabel,
-                            onCancelButtonPressCallbackId: registerCallback(() => {
-                                unregisterCallback(actualOptions.onPrimaryButtonPressCallbackId);
-                                unregisterCallback(actualOptions.onCancelButtonPressCallbackId);
-                                if (options.onCancelButtonPress) return options.onCancelButtonPress();
-                            }),
-                            shouldHideCancelButton: options.shouldHideCancelButton,
-                        };
+                _callScheduledAfterAnimationCallbacks: () => {
+                    const callbacks = scheduledAfterKeyboardAnimationCallbacks;
+                    scheduledAfterKeyboardAnimationCallbacks = [];
 
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`modal.presentDialog:${JSON.stringify(actualOptions)}`);
-                    },
-                },
-                editMenu: {
-                    enableAddCommentAction: () => {
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("editMenu.enableAddCommentAction");
-                    },
-                    disableAddCommentAction: () => {
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("editMenu.disableAddCommentAction");
-                    },
-                    subscribeToAddCommentAction: listener => {
-                        addCommentEditMenuListeners.add(listener);
-                        return () => {
-                            addCommentEditMenuListeners.delete(listener);
-                        };
-                    },
-                    _callAddCommentActionListeners: () => {
-                        for (const listener of addCommentEditMenuListeners) {
-                            try {
-                                listener();
-                            } catch (error) {
-                                setTimeout(() => {
-                                    throw error;
-                                }, 0);
-                            }
+                    for (const callback of callbacks) {
+                        try {
+                            callback();
+                        } catch (error) {
+                            setTimeout(() => {
+                                throw error;
+                            }, 0);
                         }
-                    },
+                    }
                 },
-            };
+            },
+            scrollbar: {
+                updateAllInsets: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("scrollbar.updateAllInsets");
+                },
+            },
+            modal: {
+                presentDialog: options => {
+                    const actualOptions = {
+                        title: options.title,
+                        description: options.description,
+                        primaryButtonLabel: options.primaryButtonLabel,
+                        isPrimaryButtonDisabled: options.isPrimaryButtonDisabled,
+                        onPrimaryButtonPressCallbackId: registerCallback(() => {
+                            unregisterCallback(actualOptions.onPrimaryButtonPressCallbackId);
+                            unregisterCallback(actualOptions.onCancelButtonPressCallbackId);
+                            if (options.onPrimaryButtonPress) return options.onPrimaryButtonPress();
+                        }),
+                        cancelButtonLabel: options.cancelButtonLabel,
+                        onCancelButtonPressCallbackId: registerCallback(() => {
+                            unregisterCallback(actualOptions.onPrimaryButtonPressCallbackId);
+                            unregisterCallback(actualOptions.onCancelButtonPressCallbackId);
+                            if (options.onCancelButtonPress) return options.onCancelButtonPress();
+                        }),
+                        shouldHideCancelButton: options.shouldHideCancelButton,
+                    };
 
-            window.__NativeMobileBridge = NativeMobileBridge;
-        }
-        """
-}
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`modal.presentDialog:${JSON.stringify(actualOptions)}`);
+                },
+            },
+            editMenu: {
+                enableAddCommentAction: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("editMenu.enableAddCommentAction");
+                },
+                disableAddCommentAction: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("editMenu.disableAddCommentAction");
+                },
+                subscribeToAddCommentAction: listener => {
+                    addCommentEditMenuListeners.add(listener);
+                    return () => {
+                        addCommentEditMenuListeners.delete(listener);
+                    };
+                },
+                _callAddCommentActionListeners: () => {
+                    for (const listener of addCommentEditMenuListeners) {
+                        try {
+                            listener();
+                        } catch (error) {
+                            setTimeout(() => {
+                                throw error;
+                            }, 0);
+                        }
+                    }
+                },
+            },
+        };
+
+        window.__NativeMobileBridge = NativeMobileBridge;
+    }
+    """
