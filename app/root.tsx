@@ -19,7 +19,6 @@ import {notFoundErrorDisplayMessage} from "~/app/helpers/not_found_error_display
 import {AppLiveReload} from "~/app/router/app_live_reload.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
-import {AccountClientStoreContextProvider} from "~/client/accounts/account_client_store_context_provider.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
@@ -32,6 +31,7 @@ import {
     ColorSchemeManager,
     getColorSchemeWithoutListeningIfBrowser,
 } from "~/client/helpers/color_scheme.js";
+import {useGlobalContextProvider} from "~/client/helpers/global_context.js";
 import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down_event.js";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
@@ -41,7 +41,6 @@ import {CurrentTimeContextProvider} from "~/client/remix/use_current_time_rounde
 import {IsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
 import {WaitForNavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
-import {SwrCacheContextProvider} from "~/client/rpc/use_swr.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {spacing} from "~/shared/design/spacing.js";
@@ -399,7 +398,7 @@ export default function Root() {
         nodes.sort((node1, node2) => defaultCompareStrings(String(node1.key), String(node2.key)));
     }
 
-    const wrappedChildren = (
+    const wrappedChildren = useGlobalContextProvider(
         <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
             <AppContextProvider value={context}>
                 <AppInitialRenderContextProvider>
@@ -411,31 +410,27 @@ export default function Root() {
                     >
                         <CurrentTimeContextProvider initialTime={initialTime}>
                             <IsMobileContextProvider>
-                                <SwrCacheContextProvider>
-                                    <WaitForNavigationContextProvider>
-                                        <GlobalKeyDownRootContextProvider>
-                                            <AccountClientStoreContextProvider>
-                                                <BottomBarFrameContextProvider>
-                                                    <RootOverlayScopeContextProvider>
-                                                        <MobileFullScreenModalContextProvider>
-                                                            <TooltipCoordinationContextProvider>
-                                                                <ToastContextProvider>
-                                                                    {nodes}
-                                                                </ToastContextProvider>
-                                                            </TooltipCoordinationContextProvider>
-                                                        </MobileFullScreenModalContextProvider>
-                                                    </RootOverlayScopeContextProvider>
-                                                </BottomBarFrameContextProvider>
-                                            </AccountClientStoreContextProvider>
-                                        </GlobalKeyDownRootContextProvider>
-                                    </WaitForNavigationContextProvider>
-                                </SwrCacheContextProvider>
+                                <WaitForNavigationContextProvider>
+                                    <GlobalKeyDownRootContextProvider>
+                                        <BottomBarFrameContextProvider>
+                                            <RootOverlayScopeContextProvider>
+                                                <MobileFullScreenModalContextProvider>
+                                                    <TooltipCoordinationContextProvider>
+                                                        <ToastContextProvider>
+                                                            {nodes}
+                                                        </ToastContextProvider>
+                                                    </TooltipCoordinationContextProvider>
+                                                </MobileFullScreenModalContextProvider>
+                                            </RootOverlayScopeContextProvider>
+                                        </BottomBarFrameContextProvider>
+                                    </GlobalKeyDownRootContextProvider>
+                                </WaitForNavigationContextProvider>
                             </IsMobileContextProvider>
                         </CurrentTimeContextProvider>
                     </ClientInfoContextProvider>
                 </AppInitialRenderContextProvider>
             </AppContextProvider>
-        </IconContext.Provider>
+        </IconContext.Provider>,
     );
 
     return (

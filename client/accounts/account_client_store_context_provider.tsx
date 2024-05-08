@@ -1,16 +1,20 @@
-import {ReactNode, createContext, useContext, useEffect, useState} from "react";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
-import {useAppContext} from "~/client/context/app_context.js";
-import {useDevConsoleTool} from "~/client/dev/dev_console.js";
+import {createGlobalContext, useGlobalContext} from "~/client/helpers/global_context.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
-import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {updateSessionActorAccountName} from "~/shared/rpc/accounts_rpc_definitions.js";
 
-const AccountClientStoreContext = createContext<AccountClientStore | null>(null);
+let accountClientStoreForClient: AccountClientStore | null = null;
 
-let accountClientStoreForClient: {isMounted: boolean; store: AccountClientStore} | null = null;
+const AccountClientStoreContext = createGlobalContext(() => {
+    // On the server, there is no global access to the task realtime client.
+    if (typeof window === "undefined") {
+        return new AccountClientStore();
+    } else {
+        accountClientStoreForClient ??= new AccountClientStore();
+        return accountClientStoreForClient;
+    }
+});
 
 /**
  * On the client you have global access the account client store. Not just
@@ -25,61 +29,8 @@ let accountClientStoreForClient: {isMounted: boolean; store: AccountClientStore}
 export function getAccountClientStoreForClient(): AccountClientStore {
     assert(typeof window !== "undefined");
 
-    if (accountClientStoreForClient === null) {
-        accountClientStoreForClient = {isMounted: false, store: new AccountClientStore()};
-    }
-
-    return accountClientStoreForClient.store;
-}
-
-/**
- * Initializes the account client store and provides access through React
- * context for server-side rendering.
- */
-export function AccountClientStoreContextProvider({children}: {children?: ReactNode}) {
-    const context = useAppContext();
-
-    const [store] = useState(() => {
-        // On the server, there is no global access to the task realtime client.
-        if (typeof window === "undefined") {
-            return new AccountClientStore();
-        } else {
-            // Reuse the existing store. Otherwise we need to create a new store.
-            if (accountClientStoreForClient) return accountClientStoreForClient.store;
-
-            const store = new AccountClientStore();
-            accountClientStoreForClient = {isMounted: false, store};
-            return store;
-        }
-    });
-
-    // Only one `<AccountClientStoreContextProvider>` should be mounted at a time
-    // on the client. Error if another component is mounted.
-    useEffect(() => {
-        assert(accountClientStoreForClient);
-
-        assert(!accountClientStoreForClient.isMounted);
-        accountClientStoreForClient.isMounted = true;
-
-        return () => {
-            assert(accountClientStoreForClient);
-            accountClientStoreForClient.isMounted = false;
-        };
-    }, []);
-
-    useDevConsoleTool("accounts", () => ({
-        store,
-        updateOurName: async (name: string) => {
-            const {account} = await updateSessionActorAccountName(context, {name});
-            store.getAndImmediatelyUpdateStore(account);
-        },
-    }));
-
-    return (
-        <AccountClientStoreContext.Provider value={store}>
-            {children}
-        </AccountClientStoreContext.Provider>
-    );
+    accountClientStoreForClient ??= new AccountClientStore();
+    return accountClientStoreForClient;
 }
 
 /**
@@ -90,21 +41,7 @@ export function AccountClientStoreContextProvider({children}: {children?: ReactN
  * If we're in a web browser we have one global store instance.
  */
 export function useAccountClientStore(): AccountClientStore {
-    const store = useContext(AccountClientStoreContext);
-
-    if (store === null) {
-        // In tests, don't require a parent context component. Initialize the global
-        // store and return that.
-        if (import.meta.jest) {
-            return getAccountClientStoreForClient();
-        }
-
-        throw new InternalError(
-            "Expected component to be rendered inside a `<AccountClientStoreContextProvider>`",
-        );
-    }
-
-    return store;
+    return useGlobalContext(AccountClientStoreContext);
 }
 
 /**

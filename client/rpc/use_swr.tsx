@@ -1,5 +1,6 @@
-import {ReactNode, createContext, useContext, useEffect, useRef, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
+import {createGlobalContext, useGlobalContext} from "~/client/helpers/global_context.js";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {undefinedStore} from "~/client/helpers/store/const_store.js";
 import {createPromiseStore} from "~/client/helpers/store/promise_store.js";
@@ -421,18 +422,7 @@ function createSwrCacheEntryHistoryStack(
     return Object.assign(store, {lastKey, push});
 }
 
-const SwrCacheContext = createContext<SwrCache | null>(
-    // In Jest unit tests, use one global cache object. It's dangerous to use a
-    // global cache object on the server since we can't share caches between
-    // requests.
-    import.meta.jest ? new SwrCache() : null,
-);
-
-export function SwrCacheContextProvider({children}: {children?: ReactNode}) {
-    const [cache] = useState(() => new SwrCache());
-
-    return <SwrCacheContext.Provider value={cache}>{children}</SwrCacheContext.Provider>;
-}
+const SwrCacheContext = createGlobalContext(() => new SwrCache());
 
 /**
  * A complete re-implementation of the [SWR library][1]. The SWR library has a
@@ -489,8 +479,7 @@ export function useSwr(
         dedupingInterval?: number;
     } = {},
 ): SwrCacheEntryResult {
-    const cache = useContext(SwrCacheContext);
-    if (!cache) throw new InternalError("Expected to be child of `<SwrCacheContextProvider>`");
+    const cache = useGlobalContext(SwrCacheContext);
 
     const entryStackStore = key !== null ? cache.getEntryStack(key) : undefinedStore;
     const entryStack = useStore(entryStackStore) ?? null;
@@ -577,8 +566,7 @@ export function useIdlyPreloadSwr(
         dedupingInterval?: number;
     } = {},
 ) {
-    const cache = useContext(SwrCacheContext);
-    if (!cache) throw new InternalError("Expected to be child of `<SwrCacheContextProvider>`");
+    const cache = useGlobalContext(SwrCacheContext);
 
     const retainedKeyRef = useRef<string | null>(null);
     useEffect(() => {

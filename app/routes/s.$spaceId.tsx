@@ -10,6 +10,7 @@ import {
 } from "react-router";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {ContextMenuManager} from "~/client/design/context_menu.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
@@ -56,6 +57,7 @@ import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {
     getAccountByEmailAddressAsAdmin,
     getAccountByIdAsAdmin,
+    updateSessionActorAccountName,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
 import {
     createAlphaSpaceAsAdmin,
@@ -189,6 +191,16 @@ export default function SpaceLayoutRoute() {
     useEffect(() => {
         attachDevConsoleForAccountInProduction(currentAccount);
     }, [currentAccount]);
+
+    const accountsStore = useAccountClientStore();
+
+    useDevConsoleTool("accounts", () => ({
+        store: accountsStore,
+        updateOurName: async (name: string) => {
+            const {account} = await updateSessionActorAccountName(context, {name});
+            accountsStore.getAndImmediatelyUpdateStore(account);
+        },
+    }));
 
     useDevConsoleTool("admin", () => ({
         getAccountById: async (accountId: AccountId) => {
