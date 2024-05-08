@@ -21,9 +21,25 @@ if (typeof window !== "undefined") {
     let nextScrollElementDebugId = 1;
     const debugIdByScrollElement = new WeakMap<Element, number>();
 
-    function getScrollElementDebugId(element: Element) {
+    function getScrollElementDebugId(element: Element): number | null {
         let debugId = debugIdByScrollElement.get(element);
         if (debugId !== undefined) return debugId;
+
+        const {overflowX, overflowY} = getComputedStyle(element);
+
+        // If `element.scrollTop = 0` was set on a non-scrollable element (which
+        // happens for ProseMirror `<EditorView>`s) we don't want our debugger to log
+        // the scroll.
+        if (
+            element.scrollTop === 0 &&
+            element.scrollLeft === 0 &&
+            overflowX !== "auto" &&
+            overflowX !== "scroll" &&
+            overflowY !== "auto" &&
+            overflowY !== "scroll"
+        ) {
+            return null;
+        }
 
         debugId = nextScrollElementDebugId++;
         debugIdByScrollElement.set(element, debugId);
@@ -52,7 +68,8 @@ if (typeof window !== "undefined") {
         ...originalScrollTopPropertyDescriptor,
         set: function (this: Element) {
             const debugId = getScrollElementDebugId(this);
-            console.log(`[ScrollEventDebugger#${debugId}] set scrollTop`, ...arguments);
+            if (debugId !== null)
+                console.log(`[ScrollEventDebugger#${debugId}] set scrollTop`, ...arguments);
             originalScrollTopPropertyDescriptor.set!.apply(this, arguments as any);
         },
     });
@@ -61,7 +78,8 @@ if (typeof window !== "undefined") {
         ...originalScrollLeftPropertyDescriptor,
         set: function (this: Element) {
             const debugId = getScrollElementDebugId(this);
-            console.log(`[ScrollEventDebugger#${debugId}] set scrollLeft`, ...arguments);
+            if (debugId !== null)
+                console.log(`[ScrollEventDebugger#${debugId}] set scrollLeft`, ...arguments);
             originalScrollLeftPropertyDescriptor.set!.apply(this, arguments as any);
         },
     });
@@ -71,7 +89,8 @@ if (typeof window !== "undefined") {
 
     Element.prototype.scrollTo = function () {
         const debugId = getScrollElementDebugId(this);
-        console.log(`[ScrollEventDebugger#${debugId}] scrollTo()`, ...arguments);
+        if (debugId !== null)
+            console.log(`[ScrollEventDebugger#${debugId}] scrollTo()`, ...arguments);
         return originalScrollTo.apply(this, arguments as any);
     };
 }
