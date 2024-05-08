@@ -43,6 +43,9 @@ export function AppRouterProvider({
     useEffect(() => {
         if (!NativeMobileBridge) return;
 
+        // Immediately send an initial ping instead of waiting for 500ms.
+        NativeMobileBridge.health.ping();
+
         const interval = createInterval(() => {
             NativeMobileBridge!.health.ping();
         }, 500);

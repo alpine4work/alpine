@@ -2494,13 +2494,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     /// Currently unused. Useful why developing to see what native thinks the
     /// navigation stack is and compare that to what web thinks the navigation
     /// stack is.
-    private func printDebugNavigationStack() {
-        print(
-            """
+    private func buildDebugNavigationStack() -> String {
+        return """
             - viewControllers\(viewControllers.map({ "\n    - \(($0 as! WebNavigationEntryController).url.absoluteString)" }).joined())
             - viewControllersByInactiveTab\(viewControllersByInactiveTab.map({ "\n    - \($0.key)\($0.value.map({ "\n        - \(($0 as! WebNavigationEntryController).url.absoluteString)" }).joined()))" }).joined())
             """
-        )
     }
 }
 
