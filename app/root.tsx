@@ -8,7 +8,7 @@ import {
 } from "@remix-run/react";
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {IconContext} from "phosphor-react";
-import {ReactNode, useCallback, useContext, useEffect, useMemo} from "react";
+import {ReactElement, useCallback, useContext, useEffect, useMemo} from "react";
 import {
     UNSAFE_DataRouterContext as DataRouterContext,
     UNSAFE_DataRouterStateContext as DataRouterStateContext,
@@ -50,6 +50,7 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {getRealmId} from "~/shared/id/realm_id.js";
 import {BrowserId} from "~/shared/id/types/id_types.js";
@@ -220,7 +221,7 @@ export default function Root() {
         ? dataRouterStateContext
         : null;
 
-    const nodes: Array<ReactNode> = [];
+    const nodes: Array<ReactElement> = [];
 
     const onUpdateMetaTitle = useCallback((title: string) => {
         document.title = title;
@@ -375,9 +376,27 @@ export default function Root() {
         }
     }
 
-    // Put the latest item in the history stack first in the DOM.
+    // Maintain a consistent ordering of history stack items in the DOM. If history
+    // stack items move during a navigation then their scroll positions and other
+    // DOM state will be reset!
+    //
+    // History stack items often change order when switching tabs. For instance if
+    // you switch to the inbox tab then all previous inbox history stack entries
+    // will be moved to the end of `inertRouterStates`. If we keep entries in
+    // `inertRouterStates` order then React will happily call
+    // `Element.appendChild()` (or `Element.insertBefore()`) to move the history
+    // stack entry in the DOM which resets the route's `scrollTop` state so if the
+    // user navigates back their scroll position is lost. `scrollTop` also updates
+    // without sending a scroll event which means `useNavigationBar()`'s state
+    // won't update which will look broken.
+    //
+    // [Example of a problem not sorting causes][1]. Notice how the second time we
+    // navigate to the document it's been scrolled to the top. That's because the
+    // inert route DOM nodes are being reordered.
+    //
+    // [1]: https://gist.github.com/calebmer/9fdbc9ffb08c700c6737866f18fe340a
     if (nodes.length > 1) {
-        nodes.reverse();
+        nodes.sort((node1, node2) => defaultCompareStrings(String(node1.key), String(node2.key)));
     }
 
     const wrappedChildren = (

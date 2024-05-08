@@ -446,7 +446,14 @@ export class NativeMobileMemoryHistory implements History {
 
     public getEntryKey(): string {
         const tab = getLocationNativeMobileTab(this._currentEntryLocation);
-        return `${tab}-${this._pastEntriesByTab[tab].length}`;
+
+        // As a convenience we print numbers as `001`, `002`, `003`, etc. That way
+        // they're lexicographically orderable. When we render inert routes we sort
+        // them lexicographically by key. Numbers over 4 digits aren't
+        // lexicographically orderable but that's ok. It's not required for these keys
+        // to be orderable it's merely a quality of life thing for developers so they
+        // can more easily find routes in the DOM.
+        return `${tab}-${this._pastEntriesByTab[tab].length.toString().padStart(3, "0")}`;
     }
 
     public getInertRouterStates(): Array<{entryKey: string; routerState: RouterState}> {
@@ -472,7 +479,7 @@ export class NativeMobileMemoryHistory implements History {
             const pastEntryIndex = pastEntries.length - 1 - count;
 
             inertRouterStates.push({
-                entryKey: `${tab}-${pastEntryIndex}`,
+                entryKey: `${tab}-${pastEntryIndex.toString().padStart(3, "0")}`,
                 routerState: assertExists(pastEntries[pastEntryIndex]!.inertRouterState),
             });
         }
