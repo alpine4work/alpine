@@ -19,9 +19,8 @@ B" (e.g. `fooForBar`) tells you that A should only be used in context B. "C with
 "internal E" (e.g. `internalFoo`) tells you that a name is an implementation detail of E and should
 be used to implement E.
 
-Avoid acronyms unless they are common outside of our codebase (e.g. HTML). Acronyms are confusing
-and intimidating for folks without context on what the acronym stands for. Generally avoid acronyms
-in written communication as well.
+Avoid acronyms and abbreviations unless they are common across the software engineering industry
+(e.g. HTML or Int). Acronyms and abbreviations are confusing for folks without context on what they stand for. Generally avoid acronyms and abbreviations in written communication as well.
 
 **Why?** Variable names are visible not just at the point where you declare the variable but also
 everywhere you use the variable. Meaning you put in a variable name can not be missed by future
