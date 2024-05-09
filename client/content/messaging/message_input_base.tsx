@@ -55,6 +55,7 @@ import {
     screenPaddingX,
     spacing,
 } from "~/shared/design/spacing.js";
+import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getTruncatedMessageContentForReplyPreview} from "~/shared/messaging/get_truncated_message_content_for_reply_preview.js";
@@ -868,22 +869,48 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                     if (document.activeElement) {
                                         const temporaryInputElement =
                                             document.createElement("input");
+                                        temporaryInputElement.type = "text";
                                         temporaryInputElement.style.width = "0";
                                         temporaryInputElement.style.height = "0";
                                         temporaryInputElement.style.margin = "0";
                                         temporaryInputElement.style.padding = "0";
                                         temporaryInputElement.style.border = "0";
                                         temporaryInputElement.style.opacity = "0";
-                                        temporaryInputElement.style.position = "absolute";
+                                        temporaryInputElement.style.position = "fixed";
                                         temporaryInputElement.style.top = "0px";
-                                        temporaryInputElement.style.left = "0px";
+
+                                        // This is a hack. We want `react-aria`'s `<FocusScope contain>` to let us move
+                                        // focus to this temporary input element. If `react-aria` sees this attribute
+                                        // it allows moving focus to the element. This is designed for elements like
+                                        // toasts but we abuse it here.
+                                        //
+                                        // https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/focus/src/FocusScope.tsx#L405-L408
+                                        temporaryInputElement.setAttribute(
+                                            "data-react-aria-top-layer",
+                                            "",
+                                        );
+
                                         inputContainerElement.appendChild(temporaryInputElement);
                                         temporaryInputElement.addEventListener("blur", () => {
-                                            inputContainerElement.removeChild(
+                                            temporaryInputElement.parentElement?.removeChild(
                                                 temporaryInputElement,
                                             );
                                         });
                                         temporaryInputElement.focus();
+
+                                        // NOTE(calebmer): I'm not sure why we need this to get focus to stick on
+                                        // `temporaryInputElement`, but we do. Probably something to do with
+                                        // `<FocusScope>`? If we don't have this then a focus event is never dispatched
+                                        // to `temporaryInputElement`.
+                                        scheduleMacrotask(() => {
+                                            if (
+                                                inputContainerElement.contains(
+                                                    temporaryInputElement,
+                                                )
+                                            ) {
+                                                temporaryInputElement.focus();
+                                            }
+                                        });
                                     }
 
                                     onCloseWithAnimation({withoutFocus: true});

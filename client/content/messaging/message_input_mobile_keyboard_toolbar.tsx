@@ -189,6 +189,7 @@ export function MessageInputMobileKeyboardToolbar({
                         // opening the link input the mobile keyboard stays open. The link modal will
                         // focus its link input after it mounts.
                         const temporaryInputElement = document.createElement("input");
+                        temporaryInputElement.type = "text";
                         temporaryInputElement.style.width = "0";
                         temporaryInputElement.style.height = "0";
                         temporaryInputElement.style.margin = "0";
@@ -199,7 +200,7 @@ export function MessageInputMobileKeyboardToolbar({
                         temporaryInputElement.style.top = "0px";
                         inputContainerElement.appendChild(temporaryInputElement);
                         temporaryInputElement.addEventListener("blur", () => {
-                            inputContainerElement.removeChild(temporaryInputElement);
+                            temporaryInputElement.parentElement?.removeChild(temporaryInputElement);
                         });
                         temporaryInputElement.focus();
                     }

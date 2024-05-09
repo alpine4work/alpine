@@ -14,7 +14,7 @@ if (typeof window !== "undefined") {
     let nextFocusableElementDebugId = 1;
     const debugIdByFocusableElement = new WeakMap<HTMLElement, number>();
 
-    function getScrollElementDebugId(element: HTMLElement) {
+    function getFocusElementDebugId(element: HTMLElement) {
         let debugId = debugIdByFocusableElement.get(element);
         if (debugId !== undefined) return debugId;
 
@@ -30,7 +30,7 @@ if (typeof window !== "undefined") {
         "focusin",
         event => {
             if (event.target instanceof HTMLElement) {
-                const debugId = getScrollElementDebugId(event.target);
+                const debugId = getFocusElementDebugId(event.target);
 
                 console.log(`[FocusEventDebugger#${debugId}] focus event`);
             }
@@ -42,7 +42,7 @@ if (typeof window !== "undefined") {
         "focusout",
         event => {
             if (event.target instanceof HTMLElement) {
-                const debugId = getScrollElementDebugId(event.target);
+                const debugId = getFocusElementDebugId(event.target);
 
                 console.log(`[FocusEventDebugger#${debugId}] blur event`);
             }
@@ -54,7 +54,7 @@ if (typeof window !== "undefined") {
     const originalFocus = HTMLElement.prototype.focus;
 
     HTMLElement.prototype.focus = function () {
-        const debugId = getScrollElementDebugId(this);
+        const debugId = getFocusElementDebugId(this);
         console.log(`[FocusEventDebugger#${debugId}] focus()`, ...arguments);
         return originalFocus.apply(this, arguments as any);
     };
@@ -63,7 +63,7 @@ if (typeof window !== "undefined") {
     const originalBlur = HTMLElement.prototype.blur;
 
     HTMLElement.prototype.blur = function () {
-        const debugId = getScrollElementDebugId(this);
+        const debugId = getFocusElementDebugId(this);
         console.log(`[FocusEventDebugger#${debugId}] blur()`, ...arguments);
         return originalBlur.apply(this, arguments as any);
     };

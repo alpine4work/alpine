@@ -33,29 +33,32 @@ export function useIsTextInputFocused({isDisabled = false}: {isDisabled?: boolea
     const isInitialAppRender = useIsInitialAppRender();
     const rootBlockingPortalElement = useOverlayRootBlockingPortalElement();
 
-    const getIsTextInputFocused = useCallback(() => {
-        return (
-            document.activeElement instanceof Element &&
-            isTextInputElement(document.activeElement) &&
-            // Don't show "Done" button if the focused text input is in the blocking
-            // overlay container. Since any press outside the blocking overlay will unfocus
-            // the element (by closing the overlay). Furthermore, if we showed the done
-            // button it wouldn't be visible.
-            //
-            // We added this for the assignee task filter on mobile (and the collection
-            // task filter). It has a search input in a blocking overlay. We don't want to
-            // show the "Done" button while the search input is focused.
-            //
-            // TODO(calebmer): Maybe we should abstract this so this logic only applies to
-            // the "Done" button. Through like a `shouldIgnore` function or something.
-            !rootBlockingPortalElement?.contains(document.activeElement)
-        );
-    }, [rootBlockingPortalElement]);
+    const getIsTextInputFocused = useCallback(
+        (focusedElement: Element | null) => {
+            return (
+                focusedElement instanceof Element &&
+                isTextInputElement(focusedElement) &&
+                // Don't show "Done" button if the focused text input is in the blocking
+                // overlay container. Since any press outside the blocking overlay will unfocus
+                // the element (by closing the overlay). Furthermore, if we showed the done
+                // button it wouldn't be visible.
+                //
+                // We added this for the assignee task filter on mobile (and the collection
+                // task filter). It has a search input in a blocking overlay. We don't want to
+                // show the "Done" button while the search input is focused.
+                //
+                // TODO(calebmer): Maybe we should abstract this so this logic only applies to
+                // the "Done" button. Through like a `shouldIgnore` function or something.
+                !rootBlockingPortalElement?.contains(document.activeElement)
+            );
+        },
+        [rootBlockingPortalElement],
+    );
 
     const [isTextInputFocusedFromState, setIsTextInputFocused] = useState(
         // If the component remounts after initial render, check the current active
         // element.
-        () => !isInitialAppRender && !isDisabled && getIsTextInputFocused(),
+        () => !isInitialAppRender && !isDisabled && getIsTextInputFocused(document.activeElement),
     );
     let isTextInputFocused = isTextInputFocusedFromState;
 
@@ -69,11 +72,16 @@ export function useIsTextInputFocused({isDisabled = false}: {isDisabled?: boolea
     useEffect(() => {
         if (isDisabled) return;
 
-        const handleFocusChange = () => {
-            const newIsTextInputFocused = getIsTextInputFocused();
+        const handleFocusChange = (event?: FocusEvent) => {
+            const focusedElement =
+                !event || event.type === "focusin"
+                    ? document.activeElement
+                    : (event.relatedTarget as Element);
+
+            const newIsTextInputFocused = getIsTextInputFocused(focusedElement);
 
             setIsTextInputFocused(newIsTextInputFocused);
-            focusedTextInputRef.current = newIsTextInputFocused ? document.activeElement : null;
+            focusedTextInputRef.current = newIsTextInputFocused ? focusedElement : null;
         };
 
         // Initialize our state.

@@ -273,6 +273,9 @@ function Button(
             isDisabled: isDisabled || isPending,
             type: shouldSubmitForm ? "submit" : undefined,
             onPress: handlePress,
+            // @ts-expect-error: This prop exists but is undocumented
+            // https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/button/src/useButton.ts#L57-L58
+            preventFocusOnPress: !isFocusable,
             onKeyDown: event => {
                 // `react-spectrum` prevents propagation by default. If
                 // `event.preventDefault()` wasn't called, we want the event to propagate. That
