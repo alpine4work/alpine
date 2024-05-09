@@ -360,32 +360,21 @@ export default function SpaceLayoutRoute() {
 
     const nodes = [];
 
-    const outletContainerContainerStyle = {
-        // `height` is not a typo here. Even though all our containers (e.g. `html` and
-        // `body`) use `minHeight`. For space content, we use nested scroll views when
-        // we need to scroll instead of body scrolling. See how body scrolling is
-        // disabled with `body {overflow: hidden}` in the `links()` function above.
-        //
-        // 100svh is the default so our content isn't occluded by browser navigation
-        // elements on mobile devices. (Like the URL bar.)
-        height: resizedWindowHeightForMobileWebKit
+    // `height` is not a typo here. Even though all our containers (e.g. `html` and
+    // `body`) use `minHeight`. For space content, we use nested scroll views when
+    // we need to scroll instead of body scrolling. See how body scrolling is
+    // disabled with `body {overflow: hidden}` in the `links()` function above.
+    //
+    // 100svh is the default so our content isn't occluded by browser navigation
+    // elements on mobile devices. (Like the URL bar.)
+    const outletContainerHeight =
+        resizedWindowHeightForMobileWebKit !== null
             ? isMobile && !clientInfo.isNativeMobile
                 ? `min(${resizedWindowHeightForMobileWebKit}px, 100svh - ${spacing[spaceLayoutWebMobileTabBarHeight]})`
                 : `min(${resizedWindowHeightForMobileWebKit}px, 100svh)`
             : isMobile && !clientInfo.isNativeMobile
             ? `calc(100svh - ${spacing[spaceLayoutWebMobileTabBarHeight]})`
-            : "100svh",
-    };
-
-    const outletContainerStyle = {
-        height: outletContainerContainerStyle.height,
-    };
-
-    if (resizedWindowHeightForMobileWebKit !== null) {
-        (outletContainerStyle as any)[
-            "--space-outlet-height"
-        ] = `${resizedWindowHeightForMobileWebKit}px`;
-    }
+            : "100svh";
 
     if (!nativeMobileRouterState) {
         nodes.push(
@@ -393,7 +382,12 @@ export default function SpaceLayoutRoute() {
                 // We need a key since we're in an array but the key doesn't matter.
                 key="0"
                 className={outletContainerContainerClassName}
-                style={outletContainerContainerStyle}
+                style={{
+                    height: outletContainerHeight,
+                    // @ts-expect-error: TypeScript doesn't understand CSS variables but
+                    // they're fine.
+                    "--space-outlet-height": outletContainerHeight,
+                }}
             >
                 <RootOverlayScopeContextProvider
                     // Only create a root overlay scope here if we'll be shrinking our outlet height
@@ -403,7 +397,7 @@ export default function SpaceLayoutRoute() {
                     <div
                         className={outletContainerClassName}
                         style={{
-                            ...outletContainerStyle,
+                            height: outletContainerHeight,
                             // While inert, remove the document from the content flow and make
                             // it invisible. `bottom: 0` is so that a tall inert route doesn't grow
                             // our `<body>`'s height.
@@ -454,6 +448,8 @@ export default function SpaceLayoutRoute() {
             </div>,
         );
     } else {
+        const outletContainerStyle = {height: outletContainerHeight};
+
         // In our native mobile app, render all inert routes for this `SpaceId`. We
         // render them here instead of `root.tsx` so we can share space context like
         // the task realtime client.
