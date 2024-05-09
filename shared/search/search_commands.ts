@@ -88,15 +88,21 @@ const searchCommandById: {
     },
     TaskQueryFilteredToAssigneeIsCurrentAccount: {
         title: "Tasks assigned to me",
-        otherHitTexts: ["assigned tasks", "my tasks", "task views"],
+        otherHitTexts: ["assigned tasks", "my tasks", "task views", "assigned to me"],
     },
     TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive: {
         title: "Active tasks assigned to me",
-        otherHitTexts: ["assigned tasks", "active tasks", "my active tasks", "task views"],
+        otherHitTexts: [
+            "assigned tasks",
+            "active tasks",
+            "my active tasks",
+            "task views",
+            "assigned to me",
+        ],
     },
     TaskQueryFilteredToAssignerIsCurrentAccount: {
         title: "Tasks I’ve assigned to others",
-        otherHitTexts: ["assigned tasks", "task views"],
+        otherHitTexts: ["assigned tasks", "task views", "assigned to others"],
     },
 };
 
