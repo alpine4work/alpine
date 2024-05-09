@@ -1626,6 +1626,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     ref: Ref<NavigationBarContentRef>,
 ) {
     const isMobile = useIsMobile();
+    const {isNativeMobile} = useClientInfo();
     const navigate = useNavigate();
     const showToast = useShowToast();
 
@@ -1633,7 +1634,10 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     const titleRef = useRef<HTMLDivElement>(null);
 
     const {isTextInputFocused, reconcileFocusedTextInput} = useIsTextInputFocused({
-        isDisabled: !isMobile || withoutFocusedTextInputDoneButton,
+        // Don't show done button on web mobile, only native mobile. Web mobile (e.g.
+        // Safari) renders an accessory view with the input that comes with a done
+        // button.
+        isDisabled: !isMobile || !isNativeMobile || withoutFocusedTextInputDoneButton,
     });
 
     useImperativeHandle(

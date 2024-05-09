@@ -185,7 +185,6 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         tabViewController.addChild(webNavigationController)
         tabViewController.view.addSubview(webNavigationController.view)
 
-        // NOCOMMIT: We need to change the web navigation controller history
         webNavigationController.switchTab(tabViewController.tab)
     }
 

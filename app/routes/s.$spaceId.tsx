@@ -38,6 +38,10 @@ import {RootNavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {SearchModal} from "~/client/search/search_modal.js";
 import {SpaceLayoutSideBar} from "~/client/spaces/layout/space_layout_side_bar.js";
+import {
+    SpaceLayoutWebMobileTabBar,
+    spaceLayoutWebMobileTabBarHeight,
+} from "~/client/spaces/layout/space_layout_web_mobile_tab_bar.js";
 import {SpaceContextProvider} from "~/client/spaces/space_context.js";
 import {SpaceRouteErrorRenderer} from "~/client/spaces/space_route_error_renderer.js";
 import {TaskRealtimeClientContextProvider} from "~/client/tasks/task_realtime_client_context_provider.js";
@@ -46,6 +50,7 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getSpace} from "~/server/spaces/spaces_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
+import {spacing} from "~/shared/design/spacing.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -70,7 +75,7 @@ import {
     standardSearchOptions,
 } from "~/shared/search/search_options.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
-import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export const LoaderSchema = Schema.object({
@@ -363,12 +368,13 @@ export default function SpaceLayoutRoute() {
         //
         // 100svh is the default so our content isn't occluded by browser navigation
         // elements on mobile devices. (Like the URL bar.)
-        height: resizedWindowHeightForMobileWebKit ?? "100svh",
-        // This border is visible on mobile WebKit when the keyboard opens/closes
-        // leaving empty white space on the page while it animates. We use `box-shadow`
-        // instead of border so it renders outside the bounds of the outlet. Usually
-        // offscreen (with the exception of mobile WebKit keyboarding).
-        boxShadow: `0 0 0 1px ${colorSchemeVars["grey-5"]}`,
+        height: resizedWindowHeightForMobileWebKit
+            ? isMobile && !clientInfo.isNativeMobile
+                ? `min(${resizedWindowHeightForMobileWebKit}px, 100svh - ${spacing[spaceLayoutWebMobileTabBarHeight]})`
+                : `min(${resizedWindowHeightForMobileWebKit}px, 100svh)`
+            : isMobile && !clientInfo.isNativeMobile
+            ? `calc(100svh - ${spacing[spaceLayoutWebMobileTabBarHeight]})`
+            : "100svh",
     };
 
     const outletContainerStyle = {
@@ -601,6 +607,7 @@ export default function SpaceLayoutRoute() {
                                 />
                             </SearchModalErrorBoundary>
                         )}
+                        {isMobile && !clientInfo.isNativeMobile && <SpaceLayoutWebMobileTabBar />}
                     </TaskRealtimeClientContextProvider>
                 </SpaceContextProvider>
             </RootNavigationContextProvider>

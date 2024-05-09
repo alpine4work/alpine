@@ -1,5 +1,6 @@
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 
 const safeStringTag = Symbol("safe");
 
@@ -74,6 +75,46 @@ export function safeNumber(number: number): SafeString {
  */
 export function safeAlphanumericString(string: string): SafeString {
     assert(/^[a-z0-9]+$/.test(string));
+    return {_tag: safeStringTag, string};
+}
+
+/**
+ * Safely embed an identifier string (only ascii letters, numbers, and `_`) in
+ * a `SafeString`.
+ *
+ * Be careful how you use this utility as you're potentially allowing user
+ * input in a `SafeString`! Make sure you use this somewhere that supports an
+ * identifier string and the string can't do anything bad.
+ */
+export function safeIdentifierString(string: string): SafeString {
+    assert(isIdentifier(string));
+    return {_tag: safeStringTag, string};
+}
+
+/**
+ * Joins many `SafeString`s together. Behaves the same as `String.join()`. All
+ * inputs must be safe strings so we can be sure the returned type is also a
+ * safe string.
+ */
+export function safeJoin(
+    safeStrings: ReadonlyArray<SafeString>,
+    safeJoinString: SafeString,
+): SafeString {
+    assert(isSafeString(safeJoinString));
+
+    let string = "";
+
+    for (let i = 0; i < safeStrings.length; i++) {
+        const safeString = safeStrings[i]!;
+        assert(isSafeString(safeString));
+
+        if (i !== 0) {
+            string += safeJoinString.string;
+        }
+
+        string += safeString.string;
+    }
+
     return {_tag: safeStringTag, string};
 }
 
