@@ -249,8 +249,18 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             // `lastScrollableRect` has the dimensions of our scrollable element before the
             // scrollable element resized.
             const {top: oldScrollableTop, bottom: oldOriginalScrollableBottom} = lastScrollableRect;
-            const {top: newScrollableTop, bottom: newOriginalScrollableBottom} =
-                currentScrollableRect;
+
+            // In mobile WebKit, when the keyboard opens the document scrolls (even though
+            // `overflow: hidden` is set on the document). We reset the scroll back to 0 to
+            // keep everything consistent in `useMobileWebKitKeyboardSupport()` but that
+            // may not have happened at this point. So adjust by the document scroll
+            // position to get the correct scrollable element top.
+            const newScrollableTop =
+                currentScrollableRect.top +
+                (isMobileWebKit ? document.documentElement.scrollTop : 0);
+            const newOriginalScrollableBottom =
+                currentScrollableRect.bottom +
+                (isMobileWebKit ? document.documentElement.scrollTop : 0);
 
             const scrollableInsetBottomPx =
                 typeof scrollableInsetBottom === "string"
@@ -506,7 +516,16 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             // particularly principled.
             if (
                 oldMobileKeyboardHeight !== newMobileKeyboardHeight &&
-                anchorPositionBottom > newVisibleRect.bottom
+                anchorPositionBottom > newVisibleRect.bottom &&
+                // NOTE(calebmer): We don't want to apply this adjustment when anchoring
+                // `{top: oldVisibleRect.bottom, height: 0}` (since `anchorPositionBottom`
+                // will always be greater than `newVisibleRect.bottom`!). So only apply this
+                // adjustment when there's some visible area to scroll to.
+                //
+                // Again, this whole condition isn't particularly principled. We should review
+                // cases where this condition is helpful and maybe require explicit opt-in with
+                // a flag.
+                anchorPosition.height > 0
             ) {
                 scrollDelta = Math.max(
                     scrollDelta,
@@ -674,7 +693,8 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
 
                 if (
                     oldMobileKeyboardHeight !== newMobileKeyboardHeight &&
-                    anchorPositionBottom > newVisibleRect.bottom
+                    anchorPositionBottom > newVisibleRect.bottom &&
+                    anchorPosition.height > 0
                 ) {
                     scrollDelta = Math.max(
                         scrollDelta,

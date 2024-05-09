@@ -1,7 +1,20 @@
-import {Memo, ReactNode, RefObject, createContext, useCallback, useContext, useState} from "react";
+import {
+    Memo,
+    ReactNode,
+    RefObject,
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useState,
+} from "react";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
-import {mobileBottomBarKeyboardToolbarHeightRem} from "~/client/design/mobile_bottom_bar.js";
+import {
+    mobileBottomBarKeyboardToolbarHeight,
+    mobileBottomBarKeyboardToolbarHeightRem,
+} from "~/client/design/mobile_bottom_bar.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
+import {subscribeToMobileKeyboardFrameChange} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
 import {throwIfRendering} from "~/client/helpers/lifecycle/throw_if_rendering.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {
@@ -10,7 +23,9 @@ import {
     removeResizeListenerForElement,
     removeSuppressResizeLoopErrorNotificationForElement,
 } from "~/client/helpers/use_resize_observer.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
+import {spacing} from "~/shared/design/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -239,6 +254,8 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
         isReplacingOtherBottomBar,
         withMobileKeyboardToolbar,
     ]);
+
+    useWebMobileKeyboardToolbarSafeAreaInsetBottom(isDisabled || !withMobileKeyboardToolbar);
 }
 
 /**
@@ -293,6 +310,38 @@ export function useRegisterBottomBarMobileKeyboardToolbarFrame({
             });
         };
     }, [context, isDisabled, isInert]);
+
+    useWebMobileKeyboardToolbarSafeAreaInsetBottom(isDisabled);
+}
+
+let webMobileKeyboardToolbarSafeAreaInsetBottomCount = 0;
+
+function useWebMobileKeyboardToolbarSafeAreaInsetBottom(isDisabled: boolean) {
+    useEffect(() => {
+        if (isDisabled) return;
+        if (NativeMobileBridge) return;
+
+        return subscribeToMobileKeyboardFrameChange(({oldKeyboardHeight, newKeyboardHeight}) => {
+            if (!(oldKeyboardHeight > 0) && newKeyboardHeight > 0) {
+                if (webMobileKeyboardToolbarSafeAreaInsetBottomCount === 0) {
+                    document.documentElement.style.setProperty(
+                        "--safe-area-inset-bottom",
+                        spacing[mobileBottomBarKeyboardToolbarHeight],
+                    );
+                }
+
+                webMobileKeyboardToolbarSafeAreaInsetBottomCount += 1;
+            }
+
+            if (oldKeyboardHeight > 0 && !(newKeyboardHeight > 0)) {
+                webMobileKeyboardToolbarSafeAreaInsetBottomCount -= 1;
+
+                if (webMobileKeyboardToolbarSafeAreaInsetBottomCount === 0) {
+                    document.documentElement.style.removeProperty("--safe-area-inset-bottom");
+                }
+            }
+        });
+    }, [isDisabled]);
 }
 
 /**
