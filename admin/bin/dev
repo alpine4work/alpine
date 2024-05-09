@@ -3,24 +3,57 @@
 workspace_path=$(cd $(dirname $0)/../.. && pwd)
 cd $workspace_path
 
+# Adapted from: https://stackoverflow.com/a/56431189/1568890
+has_arg() {
+    local term="$1"
+    shift
+    for arg; do
+        if [[ $arg == "$term" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+if has_arg "--help" "$@"; then
+    echo "Command: dev
+
+Usage:
+    dev                 Starts developer environment
+    dev check           Run source code checks for changed files
+    dev check --all     Run all source code checks
+    dev test            Run unit tests for changed files
+    dev test --all      Run all unit tests
+    dev --help          Print this message"
+    exit 0
+fi
+
 case "$1" in
     check)
-        files="$(git diff --name-only main | grep -E '\.tsx?$' | xargs | sed "s/ / union /g")"
-
-        if [ -z "$files" ]; then
-            echo "No changed files"
+        if has_arg "--all" "${@:2}"; then
+            ./admin/bin/bazel test //... --test_tag_filters=dev-check
         else
-            bazel query --noshow_progress "tests(rdeps(attr(tags, '\bdev-check\b', tests(//...)), $files))" | xargs bazel test
+            files="$(git diff --name-only main | grep -E '\.tsx?$' | xargs | sed "s/ / union /g")"
+
+            if [ -z "$files" ]; then
+                echo "No changed files"
+            else
+                ./admin/bin/bazel query --noshow_progress "tests(rdeps(attr(tags, '\bdev-check\b', tests(//...)), $files))" | xargs bazel test
+            fi
         fi
         ;;
 
     test)
-        files="$(git diff --name-only main | grep -E '\.tsx?$' | xargs | sed "s/ / union /g")"
-
-        if [ -z "$files" ]; then
-            echo "No changed files"
+        if has_arg "--all" "${@:2}"; then
+            ./admin/bin/bazel test //... --test_tag_filters=dev-test
         else
-            bazel query --noshow_progress "tests(rdeps(attr(tags, '\bdev-test\b', tests(//...)), $files))" | xargs bazel test
+            files="$(git diff --name-only main | grep -E '\.tsx?$' | xargs | sed "s/ / union /g")"
+
+            if [ -z "$files" ]; then
+                echo "No changed files"
+            else
+                ./admin/bin/bazel query --noshow_progress "tests(rdeps(attr(tags, '\bdev-test\b', tests(//...)), $files))" | xargs bazel test
+            fi
         fi
         ;;
 
@@ -28,4 +61,3 @@ case "$1" in
         ./admin/bin/bazel run --ui_event_filters=-info //admin/dev
         ;;
 esac
-

@@ -12,7 +12,7 @@ if [[ $PWD/ = $workspace_path/* ]]; then
     fi
 
     node_workspace="node_$(uname -s | tr '[:upper:]' '[:lower:]')_$arch_name"
-    bazel build --ui_event_filters=-info @pnpm//:pnpm
+    "$workspace_path/admin/bin/bazel" build --ui_event_filters=-info @pnpm//:pnpm
     $workspace_path/bazel-cyberworlds/external/$node_workspace/bin/node $workspace_path/bazel-cyberworlds/external/pnpm/package/dist/pnpm.cjs $@
 else
     workspace_bin_path=$workspace_path/admin/bin
