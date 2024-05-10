@@ -1,5 +1,5 @@
-import {ChatCircle, ChatCircleDots, Check, DotsThree, IconContext, Smiley, X} from "phosphor-react";
-import {CSSProperties, useContext, useEffect, useMemo, useRef, useState} from "react";
+import {ChatCircle, ChatCircleDots, Check, DotsThree, Smiley, X} from "phosphor-react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentView} from "~/client/content/content_view.js";
@@ -25,6 +25,7 @@ import {PostEditing} from "~/client/forum/internal/post_editing.js";
 import {PostCommentsState} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {CaretUpWithCustomizableStrokeWidthIcon} from "~/client/icons/caret_up_with_customizable_stroke_width_icon.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
@@ -421,7 +422,7 @@ function PostContentViewFooter({
                                         justifyContent="center"
                                         alignItems="center"
                                     >
-                                        <CaretUpWithCustomizableStrokeWidth
+                                        <CaretUpWithCustomizableStrokeWidthIcon
                                             size={spacing["2"]}
                                             strokeWidthScale={4 / 2}
                                             style={{
@@ -621,53 +622,6 @@ function PostCommentsAccountAvatarPile({
                 return authors;
             }}
         />
-    );
-}
-
-// The `<CaretUp>` Phosphor icon but allows us to customize the stroke width.
-function CaretUpWithCustomizableStrokeWidth({
-    color,
-    size,
-    style,
-    strokeWidthScale = 1,
-}: {
-    color?: string;
-    size?: string | number;
-    style?: CSSProperties;
-    strokeWidthScale?: number;
-}) {
-    const {
-        color: contextColor,
-        size: contextSize,
-        weight,
-        mirrored,
-        ...context
-    } = useContext(IconContext);
-
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill={color ?? contextColor}
-            viewBox="0 0 256 256"
-            {...context}
-            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
-            // set to rem units so use `style` instead.
-            style={{
-                width: size ?? contextSize,
-                height: size ?? contextSize,
-                ...context.style,
-                ...style,
-            }}
-        >
-            <polyline
-                points="48 160 128 80 208 160"
-                fill="none"
-                stroke={color ?? contextColor}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={16 * strokeWidthScale}
-            />
-        </svg>
     );
 }
 

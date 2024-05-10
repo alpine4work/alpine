@@ -29,7 +29,7 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskCollectionEntryAccess} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
-import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
+import {PencilSimpleSlashIcon} from "~/client/icons/pencil_simple_slash_icon.js";
 import {
     TaskCollectionViewDesktopHeader,
     TaskCollectionViewDesktopHeaderRef,
@@ -268,7 +268,7 @@ export function TaskCollectionView({
                             // collection or changing the assignee, we should hint to them that they're
                             // allowed to undo and give them an undo button.
                             return {
-                                icon: <PencilSimpleSlash />,
+                                icon: <PencilSimpleSlashIcon />,
                                 message:
                                     "You’ve lost access to this collection. You can’t make changes",
                             };
@@ -280,7 +280,7 @@ export function TaskCollectionView({
                             // collection or changing the assignee, we should hint to them that they're
                             // allowed to undo and give them an undo button.
                             return {
-                                icon: <PencilSimpleSlash />,
+                                icon: <PencilSimpleSlashIcon />,
                                 message: "You’re aren’t allowed to make changes to this collection",
                             };
                         }

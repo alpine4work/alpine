@@ -24,7 +24,7 @@ import {
     TaskAccess,
     getTaskCollectionEntryAccess,
 } from "~/client/tasks/internal/create_task_entry_access_store.js";
-import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
+import {PencilSimpleSlashIcon} from "~/client/icons/pencil_simple_slash_icon.js";
 import {
     TaskGridViewVirtualizedListViewRef,
     useTaskGridViewVirtualizedList,
@@ -166,7 +166,7 @@ export function createTaskQueryViewReadOnlyReasonStore({
                 // collection or changing the assignee, we should hint to them that they're
                 // allowed to undo and give them an undo button.
                 return {
-                    icon: <PencilSimpleSlash />,
+                    icon: <PencilSimpleSlashIcon />,
                     message: "You’ve lost access to a filtered collection. You can’t make changes",
                 };
             }
@@ -177,7 +177,7 @@ export function createTaskQueryViewReadOnlyReasonStore({
                 // collection or changing the assignee, we should hint to them that they're
                 // allowed to undo and give them an undo button.
                 return {
-                    icon: <PencilSimpleSlash />,
+                    icon: <PencilSimpleSlashIcon />,
                     message: "You’re aren’t allowed to make changes to a filtered collection",
                 };
             }

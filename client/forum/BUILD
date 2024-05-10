@@ -15,6 +15,7 @@ ts_project(
         "//client/content",
         "//client/context",
         "//client/design",
+        "//client/icons",
         "//client/messaging",
         "//client/spaces",
         "//client/web_socket",

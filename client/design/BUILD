@@ -24,6 +24,7 @@ ts_project(
         "//client/context",
         "//client/dev",
         "//client/helpers",
+        "//client/icons",
         "//client/remix",
         "//shared/design",
         "//shared/error",

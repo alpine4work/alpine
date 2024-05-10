@@ -1,9 +1,9 @@
 import {IconContext} from "phosphor-react";
 import {CSSProperties, useContext} from "react";
 
-// TODO(calebmer, #phosphor-v2): The updated `<Buildings>` icon is in Phosphor
+// TODO(calebmer, #phosphor-v2): The `<PencilSimpleSlash>` icon is in Phosphor
 // v2. Upgrading to v2 looks difficult so for now, inlining the SVG.
-export function Buildings({
+export function PencilSimpleSlashIcon({
     color,
     size,
     style,
@@ -35,15 +35,7 @@ export function Buildings({
                 ...style,
             }}
         >
-            <path fill="none" d="M0 0h256v256H0z" />
-            <path
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={16}
-                d="M136 216V32a8 8 0 0 0-12.44-6.65l-80 53.33A8 8 0 0 0 40 85.35V216M136 88h72a8 8 0 0 1 8 8v120M16 216h224M104 112v16M72 112v16M72 168v16M104 168v16"
-            />
+            <path d="M53.92 34.62a8 8 0 1 0-11.84 10.76l48.2 53L36.68 152A15.89 15.89 0 0 0 32 163.31V208a16 16 0 0 0 16 16h44.69a15.86 15.86 0 0 0 11.31-4.69l50.4-50.39 47.69 52.46a8 8 0 1 0 11.84-10.76ZM92.69 208H48v-44.69l53.06-53 42.56 46.81ZM227.32 73.37l-44.69-44.68a16 16 0 0 0-22.63 0l-41.67 41.67a8 8 0 0 0 11.32 11.31l6.35-6.36L180.69 120l-9 9A8 8 0 0 0 183 140.34L227.32 96a16 16 0 0 0 0-22.63ZM192 108.69 147.32 64l24-24L216 84.69Z" />
         </svg>
     );
 }

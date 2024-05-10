@@ -1,8 +1,8 @@
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {Buildings} from "~/client/design/helpers/buildings.js";
 import {MenuAction} from "~/client/design/menu_button.js";
 import {Toast, useShowToast} from "~/client/design/toast.js";
+import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -11,7 +11,7 @@ import {elevation} from "~/shared/styles/styles.js";
 export function createShareMenuItem({showToast}: {showToast: (toast: Toast) => void}): MenuAction {
     return {
         label: "Share",
-        icon: <Buildings />,
+        icon: <BuildingsIcon />,
         iconPlacement: "end",
         onPress: () => {
             showToast({
@@ -97,7 +97,7 @@ export function ShareButton() {
                             boxShadow: `${elevation["elevation-10"].light}`,
                         }}
                     >
-                        <Buildings size={spacing["4"]} />
+                        <BuildingsIcon size={spacing["4"]} />
                     </Box>
                 </Box>
             </Box>

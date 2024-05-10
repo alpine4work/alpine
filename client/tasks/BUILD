@@ -34,6 +34,7 @@ ts_project(
         "//client/content",
         "//client/context",
         "//client/design",
+        "//client/icons",
         "//client/peek",
         "//client/spaces",
         "//client/tracer",
