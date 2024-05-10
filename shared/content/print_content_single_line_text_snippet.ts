@@ -179,8 +179,11 @@ export function printContentSingleLineTextSnippetWithHighlighting(
             case "text": {
                 let isFirstLine = true;
 
-                // `paragraph` text doesn't contain newlines (instead if has `break`s) but
-                // `codeBlock` text will contain newlines.
+                // `paragraph` text shouldn't contain newlines (instead if should have
+                // `break`s) but it is possible to sneak them in with
+                // `state.tr.insertText("\n")`. If `whitespace: "pre"` is set on the
+                // ProseMirror node type then newlines will be allowed. For example ProseMirror
+                // recommends building code blocks with `whitespace: "pre"`.
                 for (const lineText of node.text!.split(newLineRegExp)) {
                     if (!isFirstLine) breakPunctuation = "";
                     isFirstLine = false;
