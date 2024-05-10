@@ -23,7 +23,6 @@ import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchResult, SearchResultId, SearchResultMedia} from "~/shared/search/search_result.js";
-import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {
     backgroundColorVar,
     colorSchemeVars,
@@ -31,6 +30,7 @@ import {
     greyElevated2ClassName,
     sprinkles,
 } from "~/shared/styles/styles.js";
+import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 
 /**
  * Minimum height of the body text snippet in a search result. We show at least
@@ -292,7 +292,7 @@ export function SearchResultView({
                                             <span
                                                 key={index}
                                                 className={sprinkles({
-                                                    color: "grey-text",
+                                                    color: "grey-100",
                                                     fontStyle: "semi-bold",
                                                 })}
                                             >
@@ -574,7 +574,7 @@ function SearchResultViewExplainDebugWidget({
                     fontSize: "50",
                     fontStyle: "code",
                     backgroundColor: "green-10",
-                    color: "green-80",
+                    color: "green-90",
                     paddingX: "1",
                     paddingY: "0.5",
                     borderRadius: "base",

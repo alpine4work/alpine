@@ -221,7 +221,7 @@ function ContentEditorCommentInput({
                 overflow="hidden"
                 width="96"
                 display="flex"
-                color="grey-text"
+                color="grey-100"
                 backgroundColor="grey-0"
                 borderRadius={messageViewBubbleBorderRadius}
                 boxShadow="elevation-20"

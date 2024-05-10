@@ -85,7 +85,7 @@ const previewBeforeDueDateClassName = sprinkles({
     paddingX: taskRowViewColumnPaddingX,
     gap: "1",
     userSelect: "text",
-    color: "grey-text",
+    color: "grey-100",
 });
 
 const previewIconClassName = sprinkles({

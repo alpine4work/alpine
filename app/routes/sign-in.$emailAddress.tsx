@@ -246,7 +246,7 @@ export default function SignInEmailCodePage() {
                         <span
                             className={sprinkles({
                                 fontStyle: "bold",
-                                color: "grey-text",
+                                color: "grey-100",
                             })}
                         >
                             {emailAddress}

@@ -351,7 +351,7 @@ function IconButton(
                       : isHoveredOrTriggeredOverlayOpen
                       ? "grey-5"
                       : undefined,
-                  color: isPressed ? "grey-text" : "grey-70",
+                  color: isPressed ? "grey-100" : "grey-70",
               }
             : {
                   backgroundColor: undefined,
@@ -364,7 +364,7 @@ function IconButton(
                       : isHoveredOrTriggeredOverlayOpen
                       ? "grey-10"
                       : undefined,
-                  color: isPressed ? "grey-text" : "grey-70",
+                  color: isPressed ? "grey-100" : "grey-70",
               }
             : {
                   backgroundColor: undefined,
@@ -386,7 +386,7 @@ function IconButton(
         outline: !isDisabled
             ? {
                   backgroundColor: isPressed ? "grey-10" : undefined,
-                  color: "grey-text",
+                  color: "grey-100",
               }
             : {
                   backgroundColor: undefined,
@@ -554,7 +554,7 @@ function IconButton(
                                     position: "absolute",
                                     zIndex: "50",
                                     inset: "0",
-                                    backgroundColor: "grey-dark",
+                                    backgroundColor: "grey-100-const",
                                     pointerEvents: "none",
                                     borderRadius,
                                 })}

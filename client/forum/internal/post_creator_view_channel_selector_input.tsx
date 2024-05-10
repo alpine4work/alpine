@@ -607,7 +607,7 @@ function PostCreatorViewChannelSelectorListBoxOption({
                     width: "full",
                     padding: "2",
                     borderRadius: "base",
-                    color: "grey-text",
+                    color: "grey-100",
                     backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                 })}
             >
@@ -666,9 +666,7 @@ function PostCreatorViewChannelSelectorListBoxOptionItem({
                 <Box flexShrink="0" display="flex">
                     <Check
                         size={spacing["3"]}
-                        color={
-                            isPressed ? colorSchemeVars["grey-text"] : colorSchemeVars["grey-70"]
-                        }
+                        color={isPressed ? colorSchemeVars["grey-100"] : colorSchemeVars["grey-70"]}
                     />
                 </Box>
             )}

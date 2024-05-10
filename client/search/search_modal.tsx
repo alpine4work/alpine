@@ -181,7 +181,7 @@ export function SearchModal({
                     fontSize="50"
                     fontStyle="code"
                     backgroundColor="green-10"
-                    color="green-80"
+                    color="green-90"
                     paddingX="1"
                     paddingY="0.5"
                     borderRadius="base"

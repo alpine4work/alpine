@@ -488,7 +488,7 @@ function ContentEditorPointerToolbarOverlay({
                         display="flex"
                         paddingLeft="1"
                         paddingRight="0.5"
-                        color="grey-text"
+                        color="grey-100"
                         backgroundColor="grey-0"
                         borderRadius="md"
                         boxShadow="elevation-20"
@@ -894,7 +894,7 @@ function ContentEditorPointerToolbarButton({
                     <Box
                         padding="1"
                         borderRadius="base"
-                        color={isPressed || isActive ? "grey-text" : "grey-70"}
+                        color={isPressed || isActive ? "grey-100" : "grey-70"}
                         backgroundColor={
                             isPressedAndActive
                                 ? "grey-20"

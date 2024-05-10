@@ -998,9 +998,9 @@ function ContentEditor<Content extends ContentWithReferences>(
             // the selection highlight and caret color is controlled by the `caret-color`
             // CSS property. On desktop the caret color defaults to the current text color.
             // On iOS the caret color defaults to `WKWebView`'s `tintColor` property. On
-            // desktop, we want the caret color to be `grey-text` even while in a link so
+            // desktop, we want the caret color to be `grey-100` even while in a link so
             // the cursor color doesn't change as the user moves it across different
-            // styles. So we set `caret-color` to `grey-text` in `content_schema.css.ts`.
+            // styles. So we set `caret-color` to `grey-100` in `content_schema.css.ts`.
             // However on iOS we want the caret/selection color to be `WKWebView`'s
             // `tintColor`. The problem is:
             //

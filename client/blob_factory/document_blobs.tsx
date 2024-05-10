@@ -159,7 +159,7 @@ function DocumentBlobFactoryCanvas({
         null,
     );
 
-    const backgroundColor = colorScheme === "light" ? "grey-0" : "grey-dark";
+    const backgroundColor = colorScheme === "light" ? "grey-0" : "grey-100";
 
     const baseThemeColorName = settings.baseThemeColor;
     const baseThemeColor = getInterpolatedThemeColor(

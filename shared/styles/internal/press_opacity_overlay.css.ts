@@ -4,7 +4,7 @@ import {invertedColorsWithShade} from "~/shared/design/inverted_colors.js";
 import {darkColorSchemeSelector} from "~/shared/styles/internal/color_scheme.css.js";
 import {extrapolateHighlightColor} from "~/shared/styles/internal/helpers/extrapolate_highlight_color.js";
 
-const opacity = 0.1;
+const opacity = 0.2;
 
 /**
  * Class if you want your item's background color to go from `grey-0` to

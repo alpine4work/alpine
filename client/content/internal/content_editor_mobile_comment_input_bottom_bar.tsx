@@ -104,7 +104,7 @@ export function ContentEditorMobileCommentInputBottomBar({
                 // Render above everything on the page.
                 zIndex="70"
                 inset="0"
-                backgroundColor="grey-dark"
+                backgroundColor="grey-100-const"
                 opacity={isInitialRender ? "0" : {light: "10", dark: "40"}}
                 // Render a cover over the document so the user knows they can't interact and
                 // should focus on their comment. If they tap on the cover the comment input

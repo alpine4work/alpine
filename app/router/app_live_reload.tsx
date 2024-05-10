@@ -123,7 +123,7 @@ if (process.env.NODE_ENV !== "development") {
                             zIndex="80"
                             overflow="hidden"
                             backgroundColor="green-10"
-                            color="green-80"
+                            color="green-90"
                             fontSize="50"
                             boxShadow="elevation-30"
                             paddingTop="safe-area-inset"

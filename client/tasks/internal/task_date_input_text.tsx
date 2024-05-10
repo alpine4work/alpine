@@ -58,7 +58,7 @@ export function TaskDateInputText({
     shouldIncludeCalendarIcon: boolean;
     display: "inline" | "block";
     paddingX: "0" | "1" | "1.5";
-    color: "grey-text" | "grey-60";
+    color: "grey-100" | "grey-60";
     focusRingOffset: "0" | undefined;
     // By default the focus ring is around the full area of the input but if you
     // want it just around the text (excluding margins) you may set this to true.

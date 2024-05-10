@@ -94,7 +94,7 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
             display="flex"
             paddingX="1"
             className={greyElevated2ClassName}
-            color="grey-text"
+            color="grey-100"
             backgroundColor="grey-0"
             borderRadius="md"
             boxShadow="elevation-20"
@@ -294,7 +294,7 @@ function ContentEditorHighlightSelectorButton({
                                 width="4"
                                 height="4"
                                 borderRadius="sm"
-                                color="grey-text"
+                                color="grey-100"
                                 backgroundColor={
                                     highlightColor
                                         ? colorByHighlightColor[highlightColor]

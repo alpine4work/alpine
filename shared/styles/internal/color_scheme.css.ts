@@ -153,7 +153,6 @@ globalStyle(darkColorSchemeSelector, {
 
 function createTheme(color: ThemeColor) {
     return {
-        "theme-5": baseColorSchemeVars[`${color}-5`],
         "theme-10": baseColorSchemeVars[`${color}-10`],
         "theme-20": baseColorSchemeVars[`${color}-20`],
         "theme-30": baseColorSchemeVars[`${color}-30`],
@@ -167,7 +166,6 @@ function createTheme(color: ThemeColor) {
         "theme-70-opacity-60": translucentColorSchemeVars[`${color}-70-opacity-60`],
         "theme-selection": selectionColorSchemeVars[`${color}-selection`],
         "theme-selection-inverted": invertedSelectionColorSchemeVars[`${color}-selection-inverted`],
-        "theme-5-const": constantColors[`${color}-5-const`],
         "theme-10-const": constantColors[`${color}-10-const`],
         "theme-20-const": constantColors[`${color}-20-const`],
         "theme-30-const": constantColors[`${color}-30-const`],
@@ -192,18 +190,6 @@ const themeColorSchemeVars: {[K in keyof ReturnType<typeof createTheme>]: CssVar
  */
 const specialGreyColorVars: {
     /**
-     * The color of text. `grey-dark` in light mode and `grey-0` in dark mode.
-     */
-    "grey-text": CssVarFunction;
-
-    /**
-     * The background color behind any panels which gives the product a sense of
-     * depth. In light mode, this is a darker shade of grey than our white panels.
-     * In dark mode, this is a darker shade of grey than our `grey-90` panels.
-     */
-    "grey-wash": CssVarFunction;
-
-    /**
      * `grey-5` in light mode and `grey-10` in dark mode (the inverted `grey-10`).
      */
     "grey-5-dark-10": CssVarFunction;
@@ -223,8 +209,6 @@ const specialGreyColorVars: {
      */
     "grey-0-opacity-60": CssVarFunction;
 } = createGlobalTheme(":root", {
-    "grey-text": colors["grey-dark"],
-    "grey-wash": colors["grey-5"],
     "grey-5-dark-10": colors["grey-5"],
     "grey-0-opacity-20": `${colors["grey-0"]}33`,
     "grey-0-opacity-40": `${colors["grey-0"]}66`,
@@ -233,8 +217,6 @@ const specialGreyColorVars: {
 
 globalStyle(darkColorSchemeSelector, {
     vars: assignVars(specialGreyColorVars, {
-        "grey-text": colors["grey-0"],
-        "grey-wash": colors["grey-dark"],
         "grey-5-dark-10": invertedColorsWithShade["grey-10"],
         "grey-0-opacity-20": `${colors["grey-90"]}33`,
         "grey-0-opacity-40": `${colors["grey-90"]}66`,
@@ -244,8 +226,8 @@ globalStyle(darkColorSchemeSelector, {
 
 export const colorSchemeVars = {
     // Spread `colors` first. `baseColorSchemeVars` will override most of our
-    // colors but any non-shade colors (e.g. `grey-dark`) will be included as a
-    // constant here.
+    // colors but any non-shade colors (e.g. `grey-70-elevated-1`) will be included
+    // as a constant here.
     ...colors,
     ...baseColorSchemeVars,
     ...selectionColorSchemeVars,
@@ -264,18 +246,14 @@ export const colorSchemeVars = {
  * for peeks since peeks contain arbitrary content we need to implement
  * these lighter backgrounds at the color system level.
  */
-export const greyElevated1ClassName = style({
-    vars: {
-        [specialGreyColorVars["grey-wash"]]: colors["grey-5-elevated-1-wash"],
-    },
-});
+export const greyElevated1ClassName = style({});
 
 globalStyle(`${darkColorSchemeSelector} ${greyElevated1ClassName}`, {
     vars: {
-        [colorSchemeVars["grey-0"]]: colors["grey-90-elevated-1"],
-        [colorSchemeVars["grey-5"]]: colors["grey-80-elevated-1"],
-        [colorSchemeVars["grey-10"]]: colors["grey-70-elevated-1"],
-        [specialGreyColorVars["grey-wash"]]: colors["grey-dark-elevated-1-wash"],
+        [colorSchemeVars["grey-0"]]: colors["grey-100-elevated-1"],
+        [colorSchemeVars["grey-5"]]: colors["grey-90-elevated-1"],
+        [colorSchemeVars["grey-10"]]: colors["grey-80-elevated-1"],
+        [colorSchemeVars["grey-20"]]: colors["grey-70-elevated-1"],
     },
 });
 
@@ -287,17 +265,15 @@ globalStyle(`${darkColorSchemeSelector} ${greyElevated1ClassName}`, {
  * for hovering overlays.
  */
 export const greyElevated2ClassName = style({
-    vars: {
-        [specialGreyColorVars["grey-wash"]]: colors["grey-5-elevated-1-wash"],
-    },
+    vars: {},
 });
 
 globalStyle(`${darkColorSchemeSelector} ${greyElevated2ClassName}`, {
     vars: {
-        [colorSchemeVars["grey-0"]]: colors["grey-90-elevated-2"],
-        [colorSchemeVars["grey-5"]]: colors["grey-80-elevated-2"],
-        [colorSchemeVars["grey-10"]]: colors["grey-70-elevated-2"],
-        [colorSchemeVars["grey-20"]]: colors["grey-60-elevated-2"],
-        [specialGreyColorVars["grey-wash"]]: colors["grey-dark-elevated-1-wash"],
+        [colorSchemeVars["grey-0"]]: colors["grey-100-elevated-2"],
+        [colorSchemeVars["grey-5"]]: colors["grey-90-elevated-2"],
+        [colorSchemeVars["grey-10"]]: colors["grey-80-elevated-2"],
+        [colorSchemeVars["grey-20"]]: colors["grey-70-elevated-2"],
+        [colorSchemeVars["grey-30"]]: colors["grey-60-elevated-2"],
     },
 });

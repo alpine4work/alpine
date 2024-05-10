@@ -153,7 +153,7 @@ export default function HomePage() {
             display="flex"
             justifyContent="center"
             id={id}
-            backgroundColor={{light: "grey-0", dark: "grey-dark"}}
+            backgroundColor="grey-100"
             minHeight="full"
             // Create a new z-index stacking context
             position="relative"

@@ -133,9 +133,9 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             .font: UIFont(name: "Inter-Regular", size: 11)!,
         ]
 
-        itemAppearance.selected.iconColor = UIColor(named: "grey-text")!
+        itemAppearance.selected.iconColor = UIColor(named: "grey-100")!
         itemAppearance.selected.titleTextAttributes = [
-            .foregroundColor: UIColor(named: "grey-text")!
+            .foregroundColor: UIColor(named: "grey-100")!
         ]
 
         appearance.backgroundColor = UIColor(named: "grey-0")!

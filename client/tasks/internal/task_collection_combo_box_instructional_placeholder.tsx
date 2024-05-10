@@ -11,7 +11,7 @@ export function TaskCollectionComboBoxInstructionalPlaceholder({
         <Box display="flex" flexDirection="column" padding="3" gap="3">
             <Box display="flex" alignItems="center" gap="2">
                 <Box>
-                    <Box fontStyle="semi-bold" fontSize="75" color="grey-text" paddingBottom="1">
+                    <Box fontStyle="semi-bold" fontSize="75" color="grey-100" paddingBottom="1">
                         My collections
                     </Box>
                     <Box fontSize="50" color="grey-50">

@@ -58,7 +58,7 @@ export function PostContentViewHeaderBase({
             />
             <Box paddingLeft={{mobile: "2", desktop: "3"}} overflow="hidden">
                 <Box fontSize="75" fontStyle="truncate" color="grey-70">
-                    <span className={sprinkles({color: "grey-text", fontStyle: "semi-bold"})}>
+                    <span className={sprinkles({color: "grey-100", fontStyle: "semi-bold"})}>
                         {useAccountModel(author).name}
                     </span>
                     {channel && <PostContentViewHeaderChannelBase channel={channel} />}
@@ -114,7 +114,7 @@ function PostContentViewHeaderChannelBase({channel}: {channel: ChannelPreviewMod
             <a
                 {...pressProps}
                 className={sprinkles({
-                    color: "grey-text",
+                    color: "grey-100",
                     fontStyle: "semi-bold",
                     // This design has a weak link affordance so use a pointer cursor to make it
                     // clear this text is clickable.

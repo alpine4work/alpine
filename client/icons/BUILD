@@ -9,5 +9,6 @@ ts_project(
         "//:node_modules/react",
         "//shared/design",
         "//shared/helpers",
+        "//shared/styles",
     ],
 )

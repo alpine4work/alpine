@@ -123,7 +123,7 @@ function TaskAssigneeInputListBoxOption({
                     width: "full",
                     padding: "1.5",
                     borderRadius: "base",
-                    color: "grey-text",
+                    color: "grey-100",
                     backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                 })}
             >
@@ -164,7 +164,7 @@ export function TaskAssigneeInputListBoxOptionItem({
                                 size={spacing["3"]}
                                 color={
                                     isPressed
-                                        ? colorSchemeVars["grey-text"]
+                                        ? colorSchemeVars["grey-100"]
                                         : colorSchemeVars["grey-70"]
                                 }
                             />
@@ -186,7 +186,7 @@ export function TaskAssigneeInputListBoxOptionItem({
                                 size={spacing["3"]}
                                 color={
                                     isPressed
-                                        ? colorSchemeVars["grey-text"]
+                                        ? colorSchemeVars["grey-100"]
                                         : colorSchemeVars["grey-70"]
                                 }
                             />

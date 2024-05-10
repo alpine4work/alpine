@@ -433,7 +433,7 @@ function TaskCollectionComboBoxListBoxOption({
                     width: "full",
                     padding: "1.5",
                     borderRadius: "base",
-                    color: "grey-text",
+                    color: "grey-100",
                     backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                 })}
             >

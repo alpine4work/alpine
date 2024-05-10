@@ -50,7 +50,7 @@ export function ShareButton() {
             </Button>
             <Box
                 width="12"
-                backgroundColor={{light: "theme-30", dark: "theme-50"}}
+                backgroundColor={{light: "theme-30-const", dark: "theme-40-const"}}
                 borderRadius="full"
                 overflow="hidden"
                 style={{

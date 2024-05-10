@@ -52,7 +52,7 @@ export function TaskDateInput({
     display = "inline",
     height = "4",
     paddingX = "0",
-    color = "grey-text",
+    color = "grey-100",
     overlayOffset = defaultTooltipOffset,
     focusRingOffset,
     focusRingAroundText = false,
@@ -71,7 +71,7 @@ export function TaskDateInput({
     display?: "inline" | "block";
     height?: "full" | "4";
     paddingX?: "0" | "1" | "1.5";
-    color?: "grey-text" | "grey-60";
+    color?: "grey-100" | "grey-60";
     overlayOffset?: Spacing | `-${Spacing}` | RemLength;
     focusRingOffset?: "0";
     focusRingAroundText?: boolean;

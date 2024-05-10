@@ -37,7 +37,7 @@ export function extrapolateHighlightColor(
             color.g <= 255 &&
             0 <= color.b &&
             color.b <= 255,
-        `Can not extrapolate outside RGB color space, got color: rgb(${color.r}, ${color.g}, ${color.b})`,
+        `Can not extrapolate outside RGB color space, got color: rgb(${color.r}, ${color.g}, ${color.b}). From background color: ${backgroundColor}; highlight color: ${highlightColor}; and opacity: ${opacity}`,
     );
 
     return printRawColor(color);

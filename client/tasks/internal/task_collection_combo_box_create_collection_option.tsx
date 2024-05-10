@@ -65,7 +65,7 @@ export function TaskCollectionComboBoxCreateCollectionOption<T>({
                 width="full"
                 padding="1.5"
                 borderRadius="base"
-                color={isQuiet ? "grey-text" : "grey-0"}
+                color={isQuiet ? "grey-100" : "grey-0"}
                 backgroundColor={
                     isQuiet
                         ? isPressed
@@ -96,7 +96,7 @@ export function TaskCollectionComboBoxCreateCollectionOption<T>({
                         className={sprinkles({
                             position: "absolute",
                             inset: "0",
-                            backgroundColor: "grey-dark",
+                            backgroundColor: "grey-100-const",
                             pointerEvents: "none",
                         })}
                         style={{opacity: buttonStyles.buttonPressedOverlayOpacity}}

@@ -146,7 +146,7 @@ const containerClassName = sprinkles({
     zIndex: "0",
     overflow: "hidden",
     minHeight: taskRowTitleInputSingleLineHeight,
-    color: "grey-text",
+    color: "grey-100",
 });
 
 const placeholderClassName = sprinkles({

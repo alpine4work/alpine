@@ -72,7 +72,7 @@ export default function VirtualizedScrollViewDesignPlaygroundPage() {
                                     display="flex"
                                     alignItems="center"
                                     paddingX="4"
-                                    backgroundColor={index % 2 ? "grey-0" : "grey-wash"}
+                                    backgroundColor={index % 2 ? "grey-0" : "grey-5"}
                                     style={{
                                         height: stableRandom.randomInteger("test", index, 30, 100),
                                     }}

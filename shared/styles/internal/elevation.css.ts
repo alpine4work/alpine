@@ -20,7 +20,7 @@ import {
 export const elevation = {
     "elevation-5": createElevation({
         lightBorderColor: "rgb(0 0 0 / 0.05)",
-        darkBorderColor: "grey-80",
+        darkBorderColor: "grey-90",
         shadows: [
             {
                 shadow: "0px 1px 2px 0px",
@@ -31,7 +31,7 @@ export const elevation = {
     }),
     "elevation-5-with-grey-10-border": createElevation({
         lightBorderColor: "grey-10",
-        darkBorderColor: "grey-70",
+        darkBorderColor: "grey-80",
         shadows: [
             {
                 shadow: "0px 1px 2px 0px",
@@ -42,7 +42,7 @@ export const elevation = {
     }),
     "elevation-10": createElevation({
         lightBorderColor: "rgb(0 0 0 / 0.05)",
-        darkBorderColor: "grey-80",
+        darkBorderColor: "grey-90",
         shadows: [
             {
                 shadow: "0px 1px 3px 0px",
@@ -58,7 +58,7 @@ export const elevation = {
     }),
     "elevation-20": createElevation({
         lightBorderColor: "rgb(0 0 0 / 0.09)",
-        darkBorderColor: "grey-70",
+        darkBorderColor: "grey-80",
         shadows: [
             {
                 shadow: "0px 4px 8px -2px",
@@ -74,7 +74,7 @@ export const elevation = {
     }),
     "elevation-20-with-grey-10-border": createElevation({
         lightBorderColor: "grey-10",
-        darkBorderColor: "grey-70",
+        darkBorderColor: "grey-80",
         shadows: [
             {
                 shadow: "0px 4px 8px -2px",
@@ -90,7 +90,7 @@ export const elevation = {
     }),
     "elevation-30": createElevation({
         lightBorderColor: "rgb(0 0 0 / 0.09)",
-        darkBorderColor: "grey-70",
+        darkBorderColor: "grey-80",
         shadows: [
             {
                 shadow: "0px 12px 16px -4px",
@@ -106,7 +106,7 @@ export const elevation = {
     }),
     "elevation-30-with-grey-10-border": createElevation({
         lightBorderColor: "grey-10",
-        darkBorderColor: "grey-70",
+        darkBorderColor: "grey-80",
         shadows: [
             {
                 shadow: "0px 12px 16px -4px",
@@ -122,7 +122,7 @@ export const elevation = {
     }),
     "elevation-40": createElevation({
         lightBorderColor: "rgb(0 0 0 / 0.09)",
-        darkBorderColor: "grey-70",
+        darkBorderColor: "grey-80",
         shadows: [
             {
                 shadow: "0px 20px 24px -4px",
@@ -138,7 +138,7 @@ export const elevation = {
     }),
     "elevation-40-from-bottom": createElevation({
         lightBorderColor: "rgb(0 0 0 / 0.09)",
-        darkBorderColor: "grey-70",
+        darkBorderColor: "grey-80",
         shadows: [
             {
                 shadow: "0px 5px 24px -4px",
@@ -154,7 +154,7 @@ export const elevation = {
     }),
     "elevation-50": createElevation({
         lightBorderColor: "rgb(0 0 0 / 0.09)",
-        darkBorderColor: "grey-70",
+        darkBorderColor: "grey-80",
         shadows: [
             {
                 shadow: "0px 24px 48px -12px",
@@ -165,7 +165,7 @@ export const elevation = {
     }),
     "elevation-60": createElevation({
         lightBorderColor: "rgb(0 0 0 / 0.09)",
-        darkBorderColor: "grey-70",
+        darkBorderColor: "grey-80",
         shadows: [
             {
                 shadow: "0px 32px 64px -12px",
@@ -182,7 +182,7 @@ function createElevation({
     shadows,
 }: {
     lightBorderColor: `rgb(${string})` | "grey-10";
-    darkBorderColor: "grey-70" | "grey-80";
+    darkBorderColor: "grey-70" | "grey-80" | "grey-90";
     shadows: Array<{shadow: string; lightColor: string; darkColor: string}>;
 }) {
     const lightBoxShadows: Array<string> = [];

@@ -226,7 +226,11 @@ function TaskCollectionViewDesktopHeaderColorSelectorButton({
                     weight="bold"
                     color={
                         colorSchemeVars[
-                            color === null ? ("grey-50" as const) : (`${color}-80` as const)
+                            color === null
+                                ? ("grey-50" as const)
+                                : color === "blue"
+                                ? ("indigo-80" as const)
+                                : (`${color}-80` as const)
                         ]
                     }
                 />

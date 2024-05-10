@@ -18,7 +18,7 @@ import {backgroundColorVar} from "~/shared/styles/internal/sprinkles.css.js";
 globalStyle(":root", {
     backgroundColor: colorSchemeVars["grey-0"],
     vars: {[backgroundColorVar]: colorSchemeVars["grey-0"]},
-    color: colorSchemeVars["grey-text"],
+    color: colorSchemeVars["grey-100"],
     ...fontStyles.normal,
 
     // Change the size of 1rem based on whether we're on desktop or mobile.

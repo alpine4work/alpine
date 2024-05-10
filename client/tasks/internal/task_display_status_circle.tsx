@@ -34,7 +34,8 @@ const computeCircleClassName = (displayStatus: TaskDisplayStatus, isPressed: boo
             displayStatus === "OpenInactive" || displayStatus === "OpenActive"
                 ? "grey-40"
                 : undefined,
-        backgroundColor: displayStatus === "Closed" ? "theme-50" : isPressed ? "grey-10" : "grey-0",
+        backgroundColor:
+            displayStatus === "Closed" ? "theme-40-const" : isPressed ? "grey-10" : "grey-0",
     });
 
 const unpressedCircleClassNameByDisplayStatus = new DefaultMap((displayStatus: TaskDisplayStatus) =>
@@ -49,7 +50,7 @@ const closedPressedOverlayClassName = sprinkles({
     position: "absolute",
     zIndex: "10",
     inset: "0",
-    backgroundColor: "grey-dark",
+    backgroundColor: "grey-100-const",
     pointerEvents: "none",
 });
 
@@ -74,7 +75,7 @@ const activePressedOverlayClassName = sprinkles({
     top: "0",
     right: "0",
     borderRadius: "full",
-    backgroundColor: "grey-dark",
+    backgroundColor: "grey-100-const",
     pointerEvents: "none",
 });
 

@@ -83,7 +83,7 @@ function TaskPriorityInput(
         isReadOnly,
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
-        color = "grey-text",
+        color = "grey-100",
         isTabbable = true,
         onArrowLeftLeaveKeyDown,
         onArrowRightLeaveKeyDown,
@@ -94,7 +94,7 @@ function TaskPriorityInput(
         isReadOnly?: boolean;
         "aria-label"?: string;
         "aria-labelledby"?: string;
-        color?: "grey-text" | "grey-60";
+        color?: "grey-100" | "grey-60";
         isTabbable?: boolean;
         onArrowLeftLeaveKeyDown?: () => void;
         onArrowRightLeaveKeyDown?: () => void;

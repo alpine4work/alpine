@@ -8,7 +8,7 @@ export const selectedClassNameByTab = createObjectFromKeys(webMobileTabs, tab =>
     const className = style({});
 
     globalStyle(`${className} [data-tab=${tab}]`, {
-        color: colorSchemeVars["grey-text"],
+        color: colorSchemeVars["grey-100"],
     });
 
     return className;

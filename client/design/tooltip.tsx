@@ -892,7 +892,7 @@ function Tooltip(
                             paddingX="1.5"
                             paddingY="1"
                             fontSize="50"
-                            color="grey-text"
+                            color="grey-100"
                             backgroundColor="grey-0"
                             borderRadius="sm"
                             boxShadow="elevation-20"

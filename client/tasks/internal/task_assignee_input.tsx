@@ -92,7 +92,7 @@ function TaskAssigneeInput(
         isReadOnly,
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
-        color = "grey-text",
+        color = "grey-100",
         avatarSize = "5",
         shouldDisplayShortName,
         isTabbable = true,
@@ -104,7 +104,7 @@ function TaskAssigneeInput(
         isReadOnly?: boolean;
         "aria-label"?: string;
         "aria-labelledby"?: string;
-        color?: "grey-text" | "grey-60";
+        color?: "grey-100" | "grey-60";
         avatarSize?: "5" | "4";
         shouldDisplayShortName?: boolean;
         isTabbable?: boolean;

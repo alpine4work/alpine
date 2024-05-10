@@ -119,7 +119,7 @@ function TaskPriorityInputListBoxOption({
                     width: "full",
                     padding: "1.5",
                     borderRadius: "base",
-                    color: "grey-text",
+                    color: "grey-100",
                     backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                 })}
             >
@@ -160,9 +160,7 @@ export function TaskPriorityInputListBoxOptionItem({
                 <Box flexShrink="0" marginLeft="2">
                     <Check
                         size={spacing["3"]}
-                        color={
-                            isPressed ? colorSchemeVars["grey-text"] : colorSchemeVars["grey-70"]
-                        }
+                        color={isPressed ? colorSchemeVars["grey-100"] : colorSchemeVars["grey-70"]}
                     />
                 </Box>
             )}

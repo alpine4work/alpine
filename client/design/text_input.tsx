@@ -114,7 +114,7 @@ export {TextInputForwardRef as TextInput};
 export const textInputClassName = sprinkles({
     border: "grey-20",
     backgroundColor: "grey-0",
-    color: "grey-text",
+    color: "grey-100",
     borderRadius: "base",
 });
 
@@ -206,7 +206,7 @@ function TextInput(
                         fontStyle,
                         flex: layout === "inline" ? "auto" : undefined,
                         backgroundColor: isReadOnly ? "grey-5" : "grey-0",
-                        color: isReadOnly ? "grey-70" : "grey-text",
+                        color: isReadOnly ? "grey-70" : "grey-100",
                     })}
                     style={{
                         // Allow contextual alternate glyphs in regular text content.

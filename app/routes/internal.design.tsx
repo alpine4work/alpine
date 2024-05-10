@@ -24,7 +24,7 @@ export default function DesignPlaygroundRoute() {
                     justifyContent="center"
                     gap="12"
                     borderRadius="base"
-                    backgroundColor="grey-wash"
+                    backgroundColor="grey-5"
                 >
                     <Box
                         backgroundColor="grey-0"

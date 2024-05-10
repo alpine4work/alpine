@@ -355,7 +355,7 @@ function Button(
                       : isHoveredOrTriggeredOverlayOpen
                       ? "grey-5"
                       : undefined,
-                  color: "grey-text",
+                  color: "grey-100",
               }
             : {
                   backgroundColor: undefined,
@@ -368,7 +368,7 @@ function Button(
                       : isHoveredOrTriggeredOverlayOpen
                       ? "grey-5"
                       : undefined,
-                  color: isPressed ? "grey-text" : "grey-60",
+                  color: isPressed ? "grey-100" : "grey-60",
               }
             : {
                   backgroundColor: undefined,
@@ -381,7 +381,7 @@ function Button(
                       : isHoveredOrTriggeredOverlayOpen
                       ? "grey-5"
                       : undefined,
-                  color: isPressed ? "grey-text" : "grey-50",
+                  color: isPressed ? "grey-100" : "grey-50",
               }
             : {
                   backgroundColor: undefined,
@@ -390,7 +390,7 @@ function Button(
         "quiet-on": !isDisabled
             ? {
                   backgroundColor: isPressed ? "grey-10" : "grey-5",
-                  color: "grey-text",
+                  color: "grey-100",
               }
             : {
                   backgroundColor: undefined,
@@ -403,7 +403,7 @@ function Button(
                       : isHoveredOrTriggeredOverlayOpen
                       ? "grey-5"
                       : undefined,
-                  color: isPressed ? "grey-text" : "grey-50",
+                  color: isPressed ? "grey-100" : "grey-50",
               }
             : {
                   backgroundColor: undefined,
@@ -416,7 +416,7 @@ function Button(
                       : isHoveredOrTriggeredOverlayOpen
                       ? {light: "grey-5", dark: "grey-10"}
                       : undefined,
-                  color: "grey-text",
+                  color: "grey-100",
               }
             : {
                   backgroundColor: undefined,
@@ -450,7 +450,7 @@ function Button(
         outline: !isDisabled
             ? {
                   backgroundColor: isPressed ? "grey-10" : undefined,
-                  color: "grey-text",
+                  color: "grey-100",
               }
             : {
                   backgroundColor: undefined,
@@ -561,7 +561,7 @@ function Button(
                         className={sprinkles({
                             position: "absolute",
                             inset: "0",
-                            backgroundColor: "grey-dark",
+                            backgroundColor: "grey-100-const",
                             pointerEvents: "none",
                         })}
                         style={{opacity: buttonStyles.buttonPressedOverlayOpacity}}

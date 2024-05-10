@@ -555,7 +555,7 @@ function ContentEditorMobileKeyboardToolbarButton({
                 <Box
                     width="full"
                     height="full"
-                    color={isDisabled ? "grey-30" : isPressed || isActive ? "grey-text" : "grey-70"}
+                    color={isDisabled ? "grey-30" : isPressed || isActive ? "grey-100" : "grey-70"}
                     backgroundColor={
                         isDisabled
                             ? undefined

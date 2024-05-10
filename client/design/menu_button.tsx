@@ -911,7 +911,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                     color: isVisuallyDisabled
                         ? colorSchemeVars["grey-40"]
                         : isPressed
-                        ? colorSchemeVars["grey-text"]
+                        ? colorSchemeVars["grey-100"]
                         : colorSchemeVars["grey-70"],
                     size: spacing[iconSize],
                     weight: "regular",
@@ -946,7 +946,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                 borderRadius="base"
                 // NOTE(calebmer): We don't have a red destructive menu item style because it
                 // seems silly to call attention to the destructive action with color.
-                color={isVisuallyDisabled ? "grey-40" : "grey-text"}
+                color={isVisuallyDisabled ? "grey-40" : "grey-100"}
                 backgroundColor={
                     isPressed && !isVisuallyDisabled ? "grey-10" : isHovered ? "grey-5" : undefined
                 }
@@ -986,9 +986,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                         <Check
                             size={spacing["3"]}
                             color={
-                                isPressed
-                                    ? colorSchemeVars["grey-text"]
-                                    : colorSchemeVars["grey-70"]
+                                isPressed ? colorSchemeVars["grey-100"] : colorSchemeVars["grey-70"]
                             }
                         />
                     </Box>

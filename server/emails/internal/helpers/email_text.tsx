@@ -6,7 +6,7 @@ import {fontSizes, fontSizesByPlatform, fontStyles} from "~/shared/styles/styles
 
 export function EmailText({
     children,
-    color = "grey-dark",
+    color = "grey-100",
     fontSize = "200",
     fontStyle: style = "normal",
     letterSpacingOverride,

@@ -76,7 +76,7 @@ export function ErrorDisplayMessageRenderer({
 
     return (
         <Box
-            color="grey-text"
+            color="grey-100"
             fontStyle="normal"
             fontSize={fontSize}
             style={{lineHeight: 1.5}}

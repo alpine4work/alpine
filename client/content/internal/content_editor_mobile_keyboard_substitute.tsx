@@ -611,7 +611,7 @@ function ContentEditorMobileKeyboardSubstituteButton({
                 alignItems="center"
                 gap="2.5"
                 borderRadius="md"
-                color={isPressed || isActive ? "grey-text" : "grey-70"}
+                color={isPressed || isActive ? "grey-100" : "grey-70"}
                 backgroundColor={
                     isPressedAndActive
                         ? "grey-20"
@@ -625,7 +625,7 @@ function ContentEditorMobileKeyboardSubstituteButton({
                 <IconContext.Provider value={{color: "currentColor", size: spacing["4"]}}>
                     {icon}
                 </IconContext.Provider>
-                <Box color="grey-text" {...labelProps}>
+                <Box color="grey-100" {...labelProps}>
                     {label}
                 </Box>
             </Box>
@@ -663,7 +663,7 @@ function ContentEditorMobileKeyboardSubstituteHighlightSelector({
                     <ArrowLeft />
                 </IconButton>
                 <Palette color={colorSchemeVars["grey-70"]} size={spacing["4"]} />
-                <Box color="grey-text" fontSize="100">
+                <Box color="grey-100" fontSize="100">
                     Highlight
                 </Box>
             </Box>
@@ -750,13 +750,18 @@ function ContentEditorMobileKeyboardSubstituteHighlightSelectorButton({
                 display="flex"
                 justifyContent="center"
                 alignItems="center"
-                color="grey-text"
+                color="grey-100"
                 fontSize="300"
             >
                 A
             </Box>
             {isActive && (
-                <Box color={`${highlightColor}-60`} position="absolute" top="0.5" right="1">
+                <Box
+                    color={`${highlightColor === "blue" ? "indigo" : highlightColor}-60`}
+                    position="absolute"
+                    top="0.5"
+                    right="1"
+                >
                     <Check weight="bold" size={spacing["4"]} />
                 </Box>
             )}
@@ -764,7 +769,7 @@ function ContentEditorMobileKeyboardSubstituteHighlightSelectorButton({
                 <Box
                     position="absolute"
                     inset="0"
-                    backgroundColor="grey-dark"
+                    backgroundColor="grey-100-const"
                     pointerEvents="none"
                     style={{opacity: buttonStyles.buttonPressedOverlayOpacity}}
                 />

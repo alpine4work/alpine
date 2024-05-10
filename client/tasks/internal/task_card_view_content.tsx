@@ -245,7 +245,7 @@ function TaskCardViewContent(
                 </Box>
                 <Box
                     flexGrow="1"
-                    color="grey-text"
+                    color="grey-100"
                     style={{
                         overflow: "hidden",
                         ...contentSchemaStyles.paragraphFontSize,

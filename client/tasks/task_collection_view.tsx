@@ -22,6 +22,7 @@ import {ConstStore, falseStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {PencilSimpleSlashIcon} from "~/client/icons/pencil_simple_slash_icon.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -29,7 +30,6 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskCollectionEntryAccess} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
-import {PencilSimpleSlashIcon} from "~/client/icons/pencil_simple_slash_icon.js";
 import {
     TaskCollectionViewDesktopHeader,
     TaskCollectionViewDesktopHeaderRef,
@@ -73,8 +73,8 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {invertSelectionColorsClassName, tasksStyles} from "~/shared/styles/styles.js";
+import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";

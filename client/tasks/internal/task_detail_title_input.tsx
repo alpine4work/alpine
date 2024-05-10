@@ -262,7 +262,7 @@ function TaskDetailTitleInput(
                         sprinkles({
                             position: "relative",
                             zIndex: "0",
-                            color: "grey-text",
+                            color: "grey-100",
                         }),
                         titleNodeForInitialAppRender &&
                             titleNodeForInitialAppRender.childCount === 0 &&

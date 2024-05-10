@@ -100,8 +100,8 @@ globalStyle(":root", {
 
 export const docClassName = style({
     minHeight: "100%",
-    color: colorSchemeVars["grey-text"],
-    caretColor: colorSchemeVars["grey-text"],
+    color: colorSchemeVars["grey-100"],
+    caretColor: colorSchemeVars["grey-100"],
     // Create a new z-index stacking context.
     position: "relative",
     zIndex: 0,
@@ -485,7 +485,7 @@ export const checkListItemCheckboxPressedClassName = style({
             content: '""',
             position: "absolute",
             inset: 0,
-            backgroundColor: colorSchemeVars["grey-dark"],
+            backgroundColor: colorSchemeVars["grey-100-const"],
             opacity: buttonPressedOverlayOpacity,
         },
     },
@@ -683,7 +683,7 @@ export const commentClassName = style({
     },
 });
 
-const highlightOpacity = 2 / 3;
+const highlightOpacity = 0.8;
 
 // We want the highlight color to equal a color in our color scheme. We also
 // want the color to be somewhat transparent so if we're highlighting an element/
@@ -832,9 +832,9 @@ function blendColors(color1: string, color2: string): string {
 }
 
 export const linkClassName = style({
-    color: colorSchemeVars["theme-60"],
+    color: colorSchemeVars["theme-60-const"],
     // Don't change the caret color when your selector is in a link.
-    caretColor: colorSchemeVars["grey-text"],
+    caretColor: colorSchemeVars["grey-100"],
     textDecorationLine: "underline",
     textDecorationThickness: 1,
     // Remove gaps in links underline in iOS 8+ and Safari 8+.
@@ -846,6 +846,9 @@ export const linkClassName = style({
     // randomly generated in the string.
     fontFeatureSettings: '"calt" off',
     selectors: {
+        [`${darkColorSchemeSelector} &`]: {
+            color: colorSchemeVars["theme-30-const"],
+        },
         // Inert links use a `<span>` element.
         "a&": {
             // Links use a pointer cursor. See:
