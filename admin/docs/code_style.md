@@ -8,6 +8,19 @@ follow any conventions here for consistency.
 These conventions influence most code we write. They apply across languages and describe how to
 think about code. Recommendations in other sections cover more specific situations.
 
+### Resolving code style disputes
+
+If when reviewing code the change author and change reviewer disagree about a particular code style
+decision, then code style preferences win in the following order:
+
+1. Preferences from this style guide
+2. Preferences used in the current file and surrounding files
+3. Preferences of the change author
+
+If the change reviewer has a preference that's not in this style guide or not in the surrounding
+files, they may try to convince the change author to use the reviewer's preference. But ultimately
+the change author gets to make the decision.
+
 ### Prefer long, descriptive names
 
 When naming a variable, type, function, class, or any other declaration prefer longer descriptive
@@ -20,7 +33,8 @@ B" (e.g. `fooForBar`) tells you that A should only be used in context B. "C with
 be used to implement E.
 
 Avoid acronyms and abbreviations unless they are common across the software engineering industry
-(e.g. HTML or Int). Acronyms and abbreviations are confusing for folks without context on what they stand for. Generally avoid acronyms and abbreviations in written communication as well.
+(e.g. HTML or Int). Acronyms and abbreviations are confusing for folks without context on what they
+stand for. Generally avoid acronyms and abbreviations in written communication as well.
 
 **Why?** Variable names are visible not just at the point where you declare the variable but also
 everywhere you use the variable. Meaning you put in a variable name can not be missed by future
