@@ -93,3 +93,19 @@ When in a navigation bar, consistently use vertical three dots. Everywhere else,
 choice based on the container you're in. Another example is posts which use horizontal three dots
 when in a feed to visually balance out the post header and create some symmetry with the reaction
 button below.
+
+## Use sentence case for all product copy
+
+Use sentence case (“Add due date”) instead of title case (“Add Due Date”) for product copy. For
+example: titles, menu items, button labels, and tooltips.
+
+Consistent casing helps the product feel more polished. Sentence casing makes intuitive sense in
+menu items and tooltips where text can be a couple words long, so for consistency we use that style
+everywhere including button labels which are often two words or less.
+
+From
+[Adobe’s grammar style guide](https://spectrum.adobe.com/page/grammar-and-mechanics/#Sentence-case):
+
+> Writing in sentence case has been proven to be easier for users to read and comprehend, it sounds
+> more friendly and less formal, and it helps better identify proper nouns and branded terms that
+> need to be capitalized.
