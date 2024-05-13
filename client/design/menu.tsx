@@ -47,7 +47,7 @@ import {
  */
 export type MenuAction = MenuStandardAction | MenuCustomAction | MenuChildrenAction;
 
-type MenuStandardAction = {
+export type MenuStandardAction = {
     /**
      * What label do we present to the user for this action?
      *
@@ -119,7 +119,7 @@ type MenuStandardAction = {
     readonly hasChildren?: undefined;
 };
 
-type MenuCustomAction = {
+export type MenuCustomAction = {
     /**
      * If the standard action props are not enough for you then you can provide
      * your own, custom, React renderer for menu actions.
@@ -169,7 +169,7 @@ type MenuCustomAction = {
     }) => ReactNode;
 };
 
-type MenuChildrenAction = {
+export type MenuChildrenAction = {
     /**
      * Is this a submenu? Submenus allow you to put more menu actions behind a
      * dropdown. When the user hovers over the item they'll see more actions to the

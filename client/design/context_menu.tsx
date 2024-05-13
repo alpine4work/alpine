@@ -8,13 +8,14 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
 import {createPortal} from "react-dom";
 import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
 import {Box} from "~/client/design/box.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
-import {MenuAction, MenuItem, menuSizeConstants} from "~/client/design/menu.js";
+import {MenuAction, MenuChildrenAction, MenuItem, menuSizeConstants} from "~/client/design/menu.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
@@ -366,6 +367,8 @@ const ContextMenu = forwardRef(function ContextMenu(
     },
     ref: Ref<HTMLDivElement>,
 ) {
+    const [openedAction, setOpenedAction] = useState<MenuChildrenAction | null>(null);
+
     const flattenedActions = useMemo(() => {
         const flattenedActions: Array<{type: "Action"; action: MenuAction} | {type: "Divider"}> =
             [];
@@ -382,6 +385,24 @@ const ContextMenu = forwardRef(function ContextMenu(
 
         return flattenedActions;
     }, [nestedActions]);
+
+    const lastFocusedMenuItemIndexRef = useRef<number | null>(focusedMenuItemIndex);
+
+    // If a direct descendant was focused then close any open submenu we may have.
+    // This will happen if you open a submenu with the keyboard then hover over a
+    // different menu item.
+    useEffect(() => {
+        if (lastFocusedMenuItemIndexRef.current === focusedMenuItemIndex) return;
+        lastFocusedMenuItemIndexRef.current = focusedMenuItemIndex;
+
+        const focusedAction =
+            focusedMenuItemIndex !== null ? flattenedActions[focusedMenuItemIndex] : undefined;
+        setOpenedAction(openedAction =>
+            focusedAction?.type === "Action" && focusedAction.action === openedAction
+                ? openedAction
+                : null,
+        );
+    }, [flattenedActions, focusedMenuItemIndex]);
 
     assert(flattenedActions.length > 0);
 
@@ -630,6 +651,13 @@ const ContextMenu = forwardRef(function ContextMenu(
                                 onCloseWithoutAnimation={onCloseWithoutAnimation}
                                 isNotFocusable={true}
                                 isFocusRingVisible={focusedMenuItemIndex === index}
+                                openedAction={openedAction}
+                                onActionOpen={setOpenedAction}
+                                onActionClose={action =>
+                                    setOpenedAction(openedAction =>
+                                        openedAction === action ? null : openedAction,
+                                    )
+                                }
                             />
                         );
                     }
