@@ -566,6 +566,31 @@ export function buildContentEditorKeymapPlugin(
                 return true;
             },
 
+            // When the user hits tab inside of a code block line, we insert 2 spaces
+            // of indentation to the current selection.
+            (state, dispatch) => {
+                const {$from} = state.selection;
+                const node = $from.node();
+                const parentNode = $from.node($from.depth - 1);
+                const isSelectionInsideCodeBlock =
+                    node.type.name === "codeBlockLine" && parentNode.type.name === "codeBlock";
+
+                if (!isSelectionInsideCodeBlock) return false;
+
+                const spaces = "  ";
+
+                if (dispatch) {
+                    const transaction = state.tr.insertText(spaces, $from.pos);
+                    const selection = TextSelection.create(
+                        transaction.doc,
+                        $from.pos + spaces.length,
+                    );
+                    transaction.setSelection(selection);
+                    dispatch(transaction);
+                }
+                return true;
+            },
+
             // Don't move focus if we don't apply a shortcut.
             //
             // TODO(calebmer): Kinda clearly this is pretty bad for accessibility.
