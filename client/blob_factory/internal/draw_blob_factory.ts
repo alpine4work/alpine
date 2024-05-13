@@ -211,9 +211,13 @@ export class BlobFactoryBlob {
 
 export function getInterpolatedThemeColor(n: number, theme: ThemeColor): Color {
     if (n < 5) {
-        return Color(colors[`${theme}-5`]);
+        // TODO(calebmer): We used to have a `theme-5` color. When coming back to blobs
+        // update this!
+        return Color(colors[`${theme}-10`]);
     } else if (n < 10) {
-        return interpolateColors(colors[`${theme}-5`], colors[`${theme}-10`], invLerp(5, 10, n));
+        // TODO(calebmer): We used to have a `theme-5` color. When coming back to blobs
+        // update this!
+        return interpolateColors(colors[`${theme}-10`], colors[`${theme}-10`], invLerp(5, 10, n));
     } else if (n < 20) {
         return interpolateColors(colors[`${theme}-10`], colors[`${theme}-20`], invLerp(10, 20, n));
     } else if (n < 30) {

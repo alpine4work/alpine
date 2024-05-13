@@ -23,6 +23,7 @@ import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchResult, SearchResultId, SearchResultMedia} from "~/shared/search/search_result.js";
+import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {
     backgroundColorVar,
     colorSchemeVars,
@@ -30,7 +31,6 @@ import {
     greyElevated2ClassName,
     sprinkles,
 } from "~/shared/styles/styles.js";
-import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 
 /**
  * Minimum height of the body text snippet in a search result. We show at least

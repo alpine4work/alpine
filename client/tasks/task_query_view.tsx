@@ -15,6 +15,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {PencilSimpleSlashIcon} from "~/client/icons/pencil_simple_slash_icon.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
@@ -24,7 +25,6 @@ import {
     TaskAccess,
     getTaskCollectionEntryAccess,
 } from "~/client/tasks/internal/create_task_entry_access_store.js";
-import {PencilSimpleSlashIcon} from "~/client/icons/pencil_simple_slash_icon.js";
 import {
     TaskGridViewVirtualizedListViewRef,
     useTaskGridViewVirtualizedList,
