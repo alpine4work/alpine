@@ -13,7 +13,7 @@ import {redo, undo} from "prosemirror-history";
 import {undoInputRule} from "prosemirror-inputrules";
 import {keydownHandler} from "prosemirror-keymap";
 import {Node} from "prosemirror-model";
-import {EditorState, Plugin, TextSelection, Transaction, Selection} from "prosemirror-state";
+import {EditorState, Plugin, Selection, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {addSharedContentEditorKeymapCommands} from "~/client/content/add_shared_content_editor_keymap_commands.js";
 import {contentEditorQuickUndoCommand} from "~/client/content/content_editor_state.js";

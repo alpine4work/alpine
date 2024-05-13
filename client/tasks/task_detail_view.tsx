@@ -23,7 +23,7 @@ import {Button} from "~/client/design/button.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
-import {MenuAction} from "~/client/design/menu_button.js";
+import {MenuAction} from "~/client/design/menu.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {Tooltip} from "~/client/design/tooltip.js";
