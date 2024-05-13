@@ -8,10 +8,10 @@ import {spacing} from "~/shared/design/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
-const ChatBrandBigIconMemo = memo(ChatBrandBigIcon);
-export {ChatBrandBigIconMemo as ChatBrandBigIcon};
+const TaskViewBrandIconMemo = memo(TaskViewBrandIcon);
+export {TaskViewBrandIconMemo as TaskViewBrandIcon};
 
-function ChatBrandBigIcon() {
+function TaskViewBrandIcon() {
     const {color: contextColor} = useContext(IconContext);
 
     const color =
@@ -20,7 +20,7 @@ function ChatBrandBigIcon() {
             : colorSchemeVars["grey-80"];
 
     const splashColorClassName = sprinkles({
-        fill: mapObjectValues(brandIconSplashColorShade, shade => `red-${shade}` as const),
+        fill: mapObjectValues(brandIconSplashColorShade, shade => `green-${shade}` as const),
         opacity: brandIconSplashColorOpacity,
     });
 
@@ -30,24 +30,28 @@ function ChatBrandBigIcon() {
             fill="none"
             // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
             // set to rem units so use `style` instead.
-            style={{width: spacing["12"], height: spacing["12"]}}
+            style={{width: spacing["5"], height: spacing["5"]}}
         >
             <path
                 className={splashColorClassName}
+                d="M6.75 6.02084H18.4167V18.1042C18.4167 19.0246 17.6705 19.7708 16.75 19.7708H8.41667C7.49621 19.7708 6.75 19.0246 6.75 18.1042V6.02084Z"
+            />
+            <path
+                fill={color}
                 fillRule="evenodd"
-                d="M24.377 37.494a11.944 11.944 0 0 1-6.595-1.729l-4.003 1.201a1 1 0 0 1-1.245-1.245l1.2-4.003A11.944 11.944 0 0 1 12 25.5c0-6.627 5.373-12 12-12 5.594 0 10.293 3.827 11.623 9.006.126-.004.251-.006.377-.006 6.627 0 12 5.373 12 12 0 2.276-.634 4.405-1.735 6.218l1.201 4.003a1 1 0 0 1-1.245 1.245l-4.003-1.2A11.944 11.944 0 0 1 36 46.5c-5.594 0-10.293-3.827-11.623-9.006Z"
+                d="M8.457 8.375h10.085a1.086 1.086 0 0 1 .99.641 1.076 1.076 0 0 1-.19 1.166l-.007.008-3.835 4.059v3.084a1.078 1.078 0 0 1-.485.9l-1.833 1.212a1.086 1.086 0 0 1-1.683-.898v-4.298l-3.84-4.066a1.078 1.078 0 0 1 .797-1.808h.001Zm.394 1.25 3.728 3.946c.11.116.17.27.17.43v4.231l1.5-.991V14c0-.16.062-.314.171-.43l3.729-3.946H8.85Zm3.641 8.777Z"
                 clipRule="evenodd"
             />
             <path
                 fill={color}
                 fillRule="evenodd"
-                d="M18.938 6.664A12.875 12.875 0 0 0 6.64 25.58a.625.625 0 0 1 .048.472L5.154 31.25a.877.877 0 0 0 .623 1.095.875.875 0 0 0 .463-.008l5.205-1.53a.625.625 0 0 1 .471.048 12.875 12.875 0 1 0 7.021-24.191ZM9.575 8.16a14.125 14.125 0 1 1 1.98 23.916l-4.962 1.459a2.124 2.124 0 0 1-2.638-2.638l1.464-4.957A14.125 14.125 0 0 1 9.575 8.16Z"
+                d="M3.125 3.125c0-.345.28-.625.625-.625h12.5c.345 0 .625.28.625.625V6.25a.625.625 0 1 1-1.25 0v-2.5H4.375v11.875a1.25 1.25 0 0 0 1.25 1.25H9.25a.625.625 0 1 1 0 1.25H5.625a2.5 2.5 0 0 1-2.5-2.5v-12.5Z"
                 clipRule="evenodd"
             />
             <path
                 fill={color}
                 fillRule="evenodd"
-                d="M30.111 14.987a.625.625 0 0 1 .658-.59A14.124 14.124 0 0 1 42.574 34.94l1.459 4.963a2.126 2.126 0 0 1-2.638 2.638l-4.958-1.465a14.134 14.134 0 0 1-19.769-7.89.625.625 0 0 1 1.18-.415 12.885 12.885 0 0 0 18.229 7.083.625.625 0 0 1 .472-.048l5.198 1.535a.875.875 0 0 0 1.086-1.086l-1.53-5.205a.625.625 0 0 1 .049-.471 12.873 12.873 0 0 0-10.65-18.935.625.625 0 0 1-.59-.658Z"
+                d="M6.25 1.25c.345 0 .625.28.625.625v2.5a.625.625 0 1 1-1.25 0v-2.5c0-.345.28-.625.625-.625ZM10 1.25c.345 0 .625.28.625.625v2.5a.625.625 0 1 1-1.25 0v-2.5c0-.345.28-.625.625-.625ZM13.75 1.25c.345 0 .625.28.625.625v2.5a.625.625 0 1 1-1.25 0v-2.5c0-.345.28-.625.625-.625Z"
                 clipRule="evenodd"
             />
         </svg>

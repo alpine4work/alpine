@@ -1,21 +1,29 @@
-import {memo} from "react";
+import {IconContext} from "phosphor-react";
+import {memo, useContext} from "react";
 import {
-    brandIconColorOpacity,
-    brandIconColorShade,
-} from "~/client/icons/brand/internal/brand_icon_color.js";
+    brandIconSplashColorOpacity,
+    brandIconSplashColorShade,
+} from "~/client/icons/brand/internal/brand_icon_splash_color.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
-const TasksBrandBigIconMemo = memo(TasksBrandBigIcon);
-export {TasksBrandBigIconMemo as TasksBrandBigIcon};
+const TaskBrandBigIconMemo = memo(TaskBrandBigIcon);
+export {TaskBrandBigIconMemo as TaskBrandBigIcon};
 
-const colorClassName = sprinkles({
-    fill: mapObjectValues(brandIconColorShade, shade => `green-${shade}` as const),
-    opacity: brandIconColorOpacity,
-});
+function TaskBrandBigIcon() {
+    const {color: contextColor} = useContext(IconContext);
 
-function TasksBrandBigIcon() {
+    const color =
+        contextColor === colorSchemeVars["grey-90"] || contextColor === colorSchemeVars["grey-100"]
+            ? contextColor
+            : colorSchemeVars["grey-80"];
+
+    const splashColorClassName = sprinkles({
+        fill: mapObjectValues(brandIconSplashColorShade, shade => `green-${shade}` as const),
+        opacity: brandIconSplashColorOpacity,
+    });
+
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -25,23 +33,23 @@ function TasksBrandBigIcon() {
             style={{width: spacing["12"], height: spacing["12"]}}
         >
             <path
-                className={colorClassName}
+                className={splashColorClassName}
                 d="M15 13.25h28v29a4 4 0 0 1-4 4H19a4 4 0 0 1-4-4v-29Z"
             />
             <path
-                fill={colorSchemeVars["grey-80"]}
+                fill={color}
                 fillRule="evenodd"
                 d="M17.375 24c0-.345.28-.625.625-.625h12a.625.625 0 1 1 0 1.25H18a.625.625 0 0 1-.625-.625ZM17.375 30c0-.345.28-.625.625-.625h6a.625.625 0 1 1 0 1.25h-6a.625.625 0 0 1-.625-.625Z"
                 clipRule="evenodd"
             />
             <path
-                fill={colorSchemeVars["grey-80"]}
+                fill={color}
                 fillRule="evenodd"
                 d="M8.375 7.5c0-.345.28-.625.625-.625h30c.345 0 .625.28.625.625v23a.625.625 0 1 1-1.25 0V8.125H9.625V37.5a3.875 3.875 0 0 0 3.875 3.875h14a.625.625 0 1 1 0 1.25h-14A5.125 5.125 0 0 1 8.375 37.5v-30Z"
                 clipRule="evenodd"
             />
             <path
-                fill={colorSchemeVars["grey-80"]}
+                fill={color}
                 fillRule="evenodd"
                 d="M15 3.875c.345 0 .625.28.625.625v6a.625.625 0 1 1-1.25 0v-6c0-.345.28-.625.625-.625ZM24 3.875c.345 0 .625.28.625.625v6a.625.625 0 1 1-1.25 0v-6c0-.345.28-.625.625-.625ZM33 3.875c.345 0 .625.28.625.625v6a.625.625 0 1 1-1.25 0v-6c0-.345.28-.625.625-.625ZM45.942 31.558a.625.625 0 0 1 0 .884l-10.5 10.5a.625.625 0 0 1-.884 0l-4.5-4.5a.625.625 0 1 1 .884-.884L35 41.616l10.058-10.058a.625.625 0 0 1 .884 0Z"
                 clipRule="evenodd"

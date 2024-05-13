@@ -1,17 +1,20 @@
-import {Plus, SpinnerGap} from "phosphor-react";
+import {IconContext, Plus, SpinnerGap} from "phosphor-react";
 import {ReactNode} from "react";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {ChannelBrandIcon} from "~/client/icons/brand/channel_brand_icon.js";
 import {ChatBrandBigIcon} from "~/client/icons/brand/chat_brand_big_icon.js";
-import {DocumentsBrandBigIcon} from "~/client/icons/brand/documents_brand_big_icon.js";
+import {DocumentBrandBigIcon} from "~/client/icons/brand/document_brand_big_icon.js";
 import {PostBrandBigIcon} from "~/client/icons/brand/post_brand_big_icon.js";
-import {TasksBrandBigIcon} from "~/client/icons/brand/tasks_brand_big_icon.js";
+import {TaskBrandBigIcon} from "~/client/icons/brand/task_brand_big_icon.js";
+import {TaskCollectionBrandIcon} from "~/client/icons/brand/task_collection_brand_icon.js";
+import {TaskViewBrandIcon} from "~/client/icons/brand/task_view_brand_icon.js";
 import {usePeekStackContext} from "~/client/peek/peek_stack.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {generateId} from "~/shared/id/id.js";
-import {spinAnimationClassName} from "~/shared/styles/styles.js";
+import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
 // NOTE(calebmer): The icons used here for create actions are the same icons
 // used in `<SearchResultView/>`'s `getSearchResultTypeDisplay()`. If you
@@ -23,6 +26,7 @@ export function SpaceLayoutSideBarCreateButton() {
     return (
         <MenuButton
             placement="left-start"
+            size="brand-icons"
             actions={[
                 [
                     {
@@ -75,7 +79,7 @@ export function SpaceLayoutSideBarCreateButton() {
                         },
                         render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
                             <SpaceLayoutSideBarCreateButtonItem
-                                icon={<DocumentsBrandBigIcon />}
+                                icon={<DocumentBrandBigIcon />}
                                 label="Document"
                                 description="Write what’s on your mind"
                                 isHovered={isHovered}
@@ -92,7 +96,7 @@ export function SpaceLayoutSideBarCreateButton() {
                         },
                         render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
                             <SpaceLayoutSideBarCreateButtonItem
-                                icon={<TasksBrandBigIcon />}
+                                icon={<TaskBrandBigIcon />}
                                 label="Task"
                                 description="Keep track of work to do later"
                                 isHovered={isHovered}
@@ -109,88 +113,42 @@ export function SpaceLayoutSideBarCreateButton() {
                         actions: [
                             {
                                 label: "Channel",
-                                onPress: () => {
-                                    // NOCOMMIT: Implement!
+                                icon: <ChannelBrandIcon />,
+                                pressErrorTitle: "Couldn’t create channel",
+                                onPress: async () => {
+                                    const channelId = generateId();
+
+                                    await peekStackContext.push(
+                                        `/s/${space.id}/channels/${channelId}?create`,
+                                    );
                                 },
                             },
                             {
                                 label: "Task collection",
-                                onPress: () => {
-                                    // NOCOMMIT: Implement!
+                                icon: <TaskCollectionBrandIcon />,
+                                pressErrorTitle: "Couldn’t create task collection",
+                                onPress: async () => {
+                                    const collectionId = generateId();
+
+                                    await peekStackContext.push(
+                                        `/s/${space.id}/tasks/collections/${collectionId}?create`,
+                                        {focus: true},
+                                    );
                                 },
                             },
                             {
                                 label: "Task view",
-                                onPress: () => {
-                                    // NOCOMMIT: Implement!
+                                icon: <TaskViewBrandIcon />,
+                                pressErrorTitle: "Couldn’t create task view",
+                                onPress: async () => {
+                                    await peekStackContext.push(`/s/${space.id}/tasks/view`, {
+                                        focus: true,
+                                    });
                                 },
                             },
                         ],
                     },
                 ],
-                // NOCOMMIT:
-                //
-                // [
-                //     {
-                //         withCustomLayout: true,
-                //         pressErrorTitle: "Couldn’t create channel",
-                //         onPress: async () => {
-                //             const channelId = generateId();
-
-                //             await peekStackContext.push(
-                //                 `/s/${space.id}/channels/${channelId}?create`,
-                //             );
-                //         },
-                //         render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
-                //             <SpaceLayoutSideBarCreateButtonItem
-                //                 icon={<Hash />}
-                //                 label="Channel"
-                //                 description="Make a place for posts about some topic"
-                //                 isHovered={isHovered}
-                //                 isPressed={isPressed}
-                //                 shouldShowPendingSpinner={shouldShowPendingSpinner}
-                //             />
-                //         ),
-                //     },
-                //     {
-                //         withCustomLayout: true,
-                //         pressErrorTitle: "Couldn’t create task collection",
-                //         onPress: async () => {
-                //             const collectionId = generateId();
-                //             await peekStackContext.push(
-                //                 `/s/${space.id}/tasks/collections/${collectionId}?create`,
-                //                 {focus: true},
-                //             );
-                //         },
-                //         render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
-                //             <SpaceLayoutSideBarCreateButtonItem
-                //                 icon={<Table />}
-                //                 label="Task collection"
-                //                 description="Organize a project’s tasks"
-                //                 isHovered={isHovered}
-                //                 isPressed={isPressed}
-                //                 shouldShowPendingSpinner={shouldShowPendingSpinner}
-                //             />
-                //         ),
-                //     },
-                //     {
-                //         withCustomLayout: true,
-                //         pressErrorTitle: "Couldn’t create task collection",
-                //         onPress: async () => {
-                //             await peekStackContext.push(`/s/${space.id}/tasks/view`, {focus: true});
-                //         },
-                //         render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
-                //             <SpaceLayoutSideBarCreateButtonItem
-                //                 icon={<Funnel />}
-                //                 label="Task view"
-                //                 description="Filter and sort all your tasks"
-                //                 isHovered={isHovered}
-                //                 isPressed={isPressed}
-                //                 shouldShowPendingSpinner={shouldShowPendingSpinner}
-                //             />
-                //         ),
-                //     },
-                // ],
             ]}
         >
             <IconButton size="lg" description="Create" tooltipPlacement="right">
@@ -218,15 +176,21 @@ function SpaceLayoutSideBarCreateButtonItem({
     return (
         <Box
             position="relative"
-            paddingX="3"
-            paddingY="3"
+            paddingX="2.5"
+            paddingY="2.5"
             display="flex"
             alignItems="center"
-            gap="4"
+            gap="3"
             aria-label={label}
         >
-            <Box flexShrink="0" color={isPressed ? "grey-90" : "grey-70"}>
-                {icon}
+            <Box flexShrink="0">
+                <IconContext.Provider
+                    value={{
+                        color: isPressed ? colorSchemeVars["grey-90"] : colorSchemeVars["grey-80"],
+                    }}
+                >
+                    {icon}
+                </IconContext.Provider>
             </Box>
             <Box flexGrow="1">
                 <Box fontStyle="semi-bold" fontSize="100" paddingBottom="0.5">

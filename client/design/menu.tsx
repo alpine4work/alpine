@@ -195,7 +195,7 @@ type MenuChildrenAction = {
     readonly actions: MenuActions;
 };
 
-export type MenuSize = "base" | "lg" | "xl";
+export type MenuSize = "base" | "lg" | "xl" | "brand-icons";
 export type MenuMaxHeight = "48" | "64" | "96";
 
 export const menuSizeConstants: {
@@ -204,6 +204,7 @@ export const menuSizeConstants: {
             width: Spacing;
             iconSize: "3" | "4";
             itemPaddingY: Spacing;
+            height?: Spacing;
         };
     };
 } = {
@@ -241,6 +242,20 @@ export const menuSizeConstants: {
             width: "64",
             iconSize: "4",
             itemPaddingY: "1.5",
+        },
+    },
+    "brand-icons": {
+        desktop: {
+            width: "48",
+            iconSize: "4",
+            itemPaddingY: "1.5",
+            height: "8",
+        },
+        mobile: {
+            width: "48",
+            iconSize: "4",
+            itemPaddingY: "1.5",
+            height: "8",
         },
     },
 };
@@ -411,7 +426,12 @@ export const Menu = forwardRef(function Menu(
         // This will happen if you open a submenu with the keyboard then hover over a
         // different menu item.
         if (event.type === "focus" && event.currentTarget.contains(event.target)) {
-            setOpenedAction(null);
+            const focusedAction = activeIndex !== null ? flattenedActions[activeIndex] : undefined;
+            setOpenedAction(openedAction =>
+                focusedAction?.type === "Action" && focusedAction.action === openedAction
+                    ? openedAction
+                    : null,
+            );
         }
     }
 
@@ -805,7 +825,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
     const isMobile = useIsMobile();
     const showToast = useShowToast();
 
-    const {width, iconSize, itemPaddingY} =
+    const {width, iconSize, itemPaddingY, height} =
         menuSizeConstants[size][isMobile ? "mobile" : "desktop"];
 
     const [pendingState, setPendingState] = useState<
@@ -919,7 +939,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
     }, [pendingState]);
 
     const icon = action.icon && (
-        <Box flexShrink="0" width={iconSize} height={iconSize}>
+        <Box flexShrink="0" minWidth={iconSize} minHeight={iconSize}>
             <IconContext.Provider
                 value={{
                     color: isVisuallyDisabled
@@ -955,6 +975,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                       }
                     : {})}
                 minWidth={width}
+                height={height}
                 paddingX="2"
                 paddingY={itemPaddingY}
                 borderRadius="base"
@@ -1199,7 +1220,7 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
     const overlayMenuRef = useRef<HTMLDivElement>(null);
     const hoverTriangleContainerRef = useRef<HTMLDivElement>(null);
 
-    const {width, iconSize, itemPaddingY} =
+    const {width, iconSize, itemPaddingY, height} =
         menuSizeConstants[size][isMobile ? "mobile" : "desktop"];
 
     const [isHovered, setIsHovered] = useState(false);
@@ -1321,7 +1342,7 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
 
         // Make sure `shouldDebug` isn't set outside of dev mode.
         if (shouldDebug) {
-            assert(process.env.NODE_ENV !== "development");
+            assert(process.env.NODE_ENV === "development");
         }
 
         const element = assertExists(itemRef.current);
@@ -1507,6 +1528,7 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
                           }
                         : {})}
                     minWidth={width}
+                    height={height}
                     paddingX="2"
                     paddingY={itemPaddingY}
                     borderRadius="base"
