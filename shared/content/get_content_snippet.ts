@@ -412,6 +412,7 @@ const isLineBreakingByNodeType: {
     paragraph: true,
     quoteBlock: true,
     codeBlock: true,
+    codeBlockLine: true,
     unorderedListItem: true,
     orderedListItem: true,
     checkListItem: true,
@@ -442,7 +443,8 @@ const dontCutLeadingChildrenByNodeType: {
     quoteBlock: false,
     // TODO(calebmer): Reconsider when we actually implement code blocks. Should
     // probably cut along newlines.
-    codeBlock: true,
+    codeBlock: false,
+    codeBlockLine: true,
     // In multi-paragraph list items don't cut preceding paragraphs or else the
     // bullet will move to an unexpected place.
     unorderedListItem: true,

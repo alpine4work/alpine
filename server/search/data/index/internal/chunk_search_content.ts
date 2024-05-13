@@ -14,11 +14,13 @@ import {
     ContentMarkTypeName,
     ContentTextblockNodeTypeName,
 } from "~/shared/content/content_type_names.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {AccountId, ContentMentionAccountId} from "~/shared/id/types/id_types.js";
@@ -53,7 +55,18 @@ export const newLineRegExp = /((?:\r?\n|\r)+)/g;
  *
  * [1]: https://github.com/spencermountain/compromise/blob/cb5068d01e4a2002e5baabd2e332e0f077a5997f/src/1-one/tokenize/methods/01-sentences/01-simple-split.js#L5
  */
-export const newLineRegExpWithoutRepetition = /((?:\r?\n|\r))/g;
+export const newLineRegExpWithoutRepetition = /(\r?\n|\r)/g;
+
+/**
+ * Match different new-line formats. [Same newline regex that's in
+ * `compromise`][1].
+ *
+ * Same as `newLineRegExp` but only one line break instead of multiple and
+ * doesn't capture the newlines in a capture group.
+ *
+ * [1]: https://github.com/spencermountain/compromise/blob/cb5068d01e4a2002e5baabd2e332e0f077a5997f/src/1-one/tokenize/methods/01-sentences/01-simple-split.js#L5
+ */
+export const newLineRegExpWithoutRepetitionOrCapture = /(?:\r?\n|\r)/g;
 
 /**
  * Take arbitrary content and divide it into chunks of the ideal length for our
@@ -848,7 +861,6 @@ async function chunkSearchContentBySentenceForBlockNode(
 
     switch (typeName) {
         case "paragraph":
-        case "codeBlock":
         case "heading":
         case "title": {
             const sentenceChunks = await chunkSearchContentBySentenceForTextblockNode(
@@ -971,6 +983,22 @@ async function chunkSearchContentBySentenceForBlockNode(
                 lineMarginBottom: 1,
             };
         }
+        case "codeBlock": {
+            const codeBlockLines = await runAllPromises(
+                createArrayWithLength(node.childCount, async i => {
+                    const childNode = node.child(i);
+                    return chunkSearchContentBySentenceForTextblockNode(childNode, options);
+                }),
+            );
+
+            return {
+                sentenceChunks: Array.from(
+                    concatIterables(["```\n"], flatIterable(codeBlockLines), ["```"]),
+                ),
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            };
+        }
         case "divider": {
             return {sentenceChunks: ["---"], lineMarginTop: 2, lineMarginBottom: 2};
         }
@@ -1036,24 +1064,6 @@ async function chunkSearchContentBySentenceForTextblockNode(
 
             return chunkSearchContentBySentenceForText(text);
         }
-        // TODO(calebmer): Code blocks are in this weird kind of working kind of not
-        // working state. Is this right? Who knows. Needs a test.
-        case "codeBlock": {
-            const text = await printSearchTextForInlineFragment(node.content, {
-                ...options,
-                isHeading: false,
-            });
-
-            const textChunks = chunkSearchContentBySentenceForText(text);
-            if (textChunks.length === 0) {
-                return ["```\n```"];
-            }
-
-            textChunks[0] = "```\n" + textChunks[0]!;
-            textChunks[textChunks.length - 1] = textChunks[textChunks.length - 1]! + "\n```";
-
-            return textChunks;
-        }
         case "title":
         case "heading": {
             const text = await printSearchTextForInlineFragment(node.content, {
@@ -1083,6 +1093,14 @@ async function chunkSearchContentBySentenceForTextblockNode(
                     })
                     .join("");
             });
+        }
+        case "codeBlockLine": {
+            const text = await printSearchTextForInlineFragment(node.content, {
+                ...options,
+                isHeading: false,
+            });
+
+            return [`${text}\n`];
         }
         default:
             throw exhaustive(typeName);

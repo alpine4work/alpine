@@ -3,7 +3,10 @@ import {fromMarkdown} from "mdast-util-from-markdown";
 import {gfmStrikethroughFromMarkdown} from "mdast-util-gfm-strikethrough";
 import {gfmStrikethrough} from "micromark-extension-gfm-strikethrough";
 import {Fragment, Node} from "prosemirror-model";
-import {newLineRegExp} from "~/server/search/data/index/internal/chunk_search_content.js";
+import {
+    newLineRegExp,
+    newLineRegExpWithoutRepetitionOrCapture,
+} from "~/server/search/data/index/internal/chunk_search_content.js";
 import {HighlightColor} from "~/shared/design/highlight_color.js";
 import {
     DocumentContent,
@@ -193,7 +196,14 @@ export function parseSearchContent(
                 return [
                     schema.nodes.codeBlock.create(
                         {},
-                        inputNode.value.length > 0 ? [schema.text(inputNode.value)] : [],
+                        inputNode.value
+                            .split(newLineRegExpWithoutRepetitionOrCapture)
+                            .map(text =>
+                                schema.nodes.codeBlockLine.create(
+                                    {},
+                                    text.length > 0 ? [schema.text(text)] : [],
+                                ),
+                            ),
                     ),
                 ];
             }
