@@ -2478,13 +2478,29 @@ test("discovers code block structure", async () => {
                     ),
                 ]),
                 schema.node("codeBlock", {}, [
-                    schema.text("let a = 1;\nlet b = 1;\nlet c = a + b;\nconsole.log(c);"),
+                    schema.node("codeBlockLine", [], [schema.text("let a = 1;")]),
+                    schema.node("codeBlockLine", [], [schema.text("let b = 1;")]),
+                    schema.node("codeBlockLine", [], [schema.text("let c = a + b;")]),
+                    schema.node("codeBlockLine", [], []),
+                    schema.node("codeBlockLine", [], [schema.text("console.log(c);")]),
                 ]),
                 schema.node("codeBlock", {}, [
-                    schema.text("// Code that ends with a newline\nreturn;\n"),
+                    schema.node(
+                        "codeBlockLine",
+                        [],
+                        [schema.text("// Code that ends with a newline")],
+                    ),
+                    schema.node("codeBlockLine", [], [schema.text("return;")]),
+                    schema.node("codeBlockLine", [], []),
                 ]),
                 schema.node("codeBlock", {}, [
-                    schema.text("\n// Code that starts with a newline\nreturn;"),
+                    schema.node("codeBlockLine", [], []),
+                    schema.node(
+                        "codeBlockLine",
+                        [],
+                        [schema.text("// Code that starts with a newline")],
+                    ),
+                    schema.node("codeBlockLine", [], [schema.text("return;")]),
                 ]),
             ]),
             {tokenizer, getAccountIfExists},
@@ -2497,6 +2513,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque facilisis 
 let a = 1;
 let b = 1;
 let c = a + b;
+
 console.log(c);
 \`\`\`
 
@@ -2512,8 +2529,8 @@ return;
 return;
 \`\`\``,
         isGroup: true,
-        tokenCount: 256,
         context: {sectionHeading: null},
+        tokenCount: 256,
         childChunks: [
             {
                 isGroup: false,
@@ -2556,13 +2573,13 @@ return;
                 tokenCount: 30,
                 context: {sectionHeading: null},
                 sentenceChunks: [
-                    {text: "```\nlet a = 1;", tokenCount: 8},
+                    {text: "```\n", tokenCount: 3},
+                    {text: "let a = 1;\n", tokenCount: 5},
+                    {text: "let b = 1;\n", tokenCount: 5},
+                    {text: "let c = a + b;\n", tokenCount: 7},
                     {text: "\n", tokenCount: 0},
-                    {text: "let b = 1;", tokenCount: 5},
-                    {text: "\n", tokenCount: 0},
-                    {text: "let c = a + b;", tokenCount: 7},
-                    {text: "\n", tokenCount: 0},
-                    {text: "console.log(c);\n```", tokenCount: 10},
+                    {text: "console.log(c);\n", tokenCount: 7},
+                    {text: "```", tokenCount: 3},
                 ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
@@ -2572,10 +2589,11 @@ return;
                 tokenCount: 17,
                 context: {sectionHeading: null},
                 sentenceChunks: [
-                    {text: "```\n// Code that ends with a newline", tokenCount: 12},
+                    {text: "```\n", tokenCount: 3},
+                    {text: "// Code that ends with a newline\n", tokenCount: 9},
+                    {text: "return;\n", tokenCount: 2},
                     {text: "\n", tokenCount: 0},
-                    {text: "return;", tokenCount: 2},
-                    {text: "\n\n```", tokenCount: 3},
+                    {text: "```", tokenCount: 3},
                 ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
@@ -2585,10 +2603,11 @@ return;
                 tokenCount: 17,
                 context: {sectionHeading: null},
                 sentenceChunks: [
-                    {text: "```\n\n", tokenCount: 3},
-                    {text: "// Code that starts with a newline", tokenCount: 9},
+                    {text: "```\n", tokenCount: 3},
                     {text: "\n", tokenCount: 0},
-                    {text: "return;\n```", tokenCount: 5},
+                    {text: "// Code that starts with a newline\n", tokenCount: 9},
+                    {text: "return;\n", tokenCount: 2},
+                    {text: "```", tokenCount: 3},
                 ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,

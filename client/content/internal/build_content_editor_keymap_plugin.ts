@@ -4,7 +4,6 @@ import {
     joinBackward,
     joinForward,
     liftEmptyBlock,
-    newlineInCode,
     selectAll,
     selectNodeBackward,
     selectNodeForward,
@@ -14,7 +13,7 @@ import {redo, undo} from "prosemirror-history";
 import {undoInputRule} from "prosemirror-inputrules";
 import {keydownHandler} from "prosemirror-keymap";
 import {Node} from "prosemirror-model";
-import {EditorState, Plugin, TextSelection, Transaction} from "prosemirror-state";
+import {EditorState, Plugin, TextSelection, Transaction, Selection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {addSharedContentEditorKeymapCommands} from "~/client/content/add_shared_content_editor_keymap_commands.js";
 import {contentEditorQuickUndoCommand} from "~/client/content/content_editor_state.js";
@@ -59,16 +58,46 @@ export function buildContentEditorKeymapPlugin(
     }
 
     const enterCommand: Command = chainCommands(
-        // When in code enter creates a new line instead of creating a
-        // paragraph block.
-        newlineInCode,
-
         // If "Enter" is pressed in an empty paragraph textblock which is wrapped
         // in another block then remove the wrapping.
         //
         // For example, if "Enter" is pressed in an empty quote we will convert
         // it to a paragraph.
-        liftEmptyBlock,
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
+            const node = $from.node();
+            const parentNode = $from.node($from.depth - 1);
+
+            // If we are inside a `codeBlock` and `codeBlockLine` we DO NOT WANT
+            // the`liftEmptyBlock` behavior to break the `codeBlock`, instead we
+            // want to use `splitBlock`. `LiftEmptyBlock` behavior splits the
+            // `codeBlock` into two separate codeBlocks.
+            //
+            // For example(behavior we do not want): if the cursor is at `|`:
+            //
+            // ```
+            //  1
+            //  2
+            //  3 |
+            // ```
+            //
+            // Then you press enter:
+            // ```
+            // 1
+            // 2
+            //
+            // 1 |
+            // ```
+            if (
+                node.type.name === "codeBlockLine" &&
+                parentNode.type.name === "codeBlock" &&
+                $from.node() === $to.node()
+            ) {
+                return false;
+            }
+
+            return liftEmptyBlock(state, dispatch);
+        },
 
         // If "Enter" is pressed in an empty non-paragraph textblock (like a
         // header) then we want to convert that textblock back to a paragraph.
@@ -92,7 +121,16 @@ export function buildContentEditorKeymapPlugin(
             if (
                 node.isTextblock === false ||
                 node.content.size > 0 ||
-                node.type.name === "paragraph"
+                node.type.name === "paragraph" ||
+                // Don't replace a node that can't be replaced with a paragraph. For example,
+                // `codeBlockLine` in `codeBlock` can't be replaced with a paragraph.
+                !$from
+                    .node($from.depth - 1)
+                    .canReplaceWith(
+                        $from.index($from.depth - 1),
+                        $from.index($from.depth - 1) + 1,
+                        schema.nodes.paragraph,
+                    )
             ) {
                 return false;
             }
@@ -122,7 +160,6 @@ export function buildContentEditorKeymapPlugin(
         // ```
         (state, dispatch) => {
             const {$from, $to} = state.selection;
-
             // 1. Only create a new list item if "from" is in a list item.
             const listItemNode = $from.node(-1);
             if (!listItemNode || !listItemNode.type.groups.includes("listItem")) {
@@ -203,7 +240,14 @@ export function buildContentEditorKeymapPlugin(
                 node.isTextblock &&
                 node.type.name !== "paragraph" &&
                 $from.pos === $to.pos &&
-                $from.parentOffset === 0;
+                $from.parentOffset === 0 &&
+                $from
+                    .node($from.depth - 1)
+                    .canReplaceWith(
+                        $from.index($from.depth - 1),
+                        $from.index($from.depth - 1) + 1,
+                        schema.nodes.paragraph,
+                    );
 
             if (!isSelectionAtFirstOffsetOfTextblock) return false;
 
@@ -572,6 +616,39 @@ export function buildContentEditorKeymapPlugin(
             },
         ),
     );
+
+    keys.set("ArrowDown", (state, dispatch) => {
+        const {selection, schema} = state;
+        const {$from} = selection;
+        const isSelectionAtEndOfDoc = selection.eq(Selection.atEnd(state.doc));
+
+        // 1. Check if the selection is the last object in the entire doc
+        if (!isSelectionAtEndOfDoc) {
+            return false;
+        }
+
+        const parentNode = $from.node($from.depth - 1);
+        const currentNode = $from.node();
+        // 2. Check if the selection is a codeBlockLine and within codeBlock
+        if (currentNode.type.name === "codeBlockLine" && parentNode.type.name === "codeBlock") {
+            const paragraphNode = schema.nodes.paragraph;
+            if (!paragraphNode) {
+                return false;
+            }
+
+            if (dispatch) {
+                const insertPosition = state.doc.content.size;
+                const transaction = state.tr;
+                transaction.insert(insertPosition, paragraphNode.create());
+                transaction.setSelection(TextSelection.create(transaction.doc, insertPosition + 1));
+                dispatch(transaction);
+            }
+
+            return true;
+        }
+
+        return false;
+    });
 
     keys.set("Mod-a", selectAll);
 

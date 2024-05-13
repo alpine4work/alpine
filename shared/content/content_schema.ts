@@ -34,6 +34,8 @@ const {
     paragraphClassName,
     quoteBlockClassName,
     strikeClassName,
+    codeBlockClassName,
+    codeBlockLineClassName,
 } = contentSchemaStyles;
 
 /**
@@ -132,13 +134,22 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         // example, "newline" on a line with indentation should preserve that
         // indentation. Another example, typing balanced characters (`(`, `{`, `[`)
         // should add the other side.
+
+        // NOTE(maximchen): we remove `code: true` from codeBlock and codeBlock
+        // line because, `code: true` defaults white-space property to `pre`
+        // which preserves new lines. However, we don't want to keep
+        // new lines, only keep spaces.
+        codeBlockLine: {
+            content: "text*",
+            defining: true,
+            toDOM: () => ["span", {class: codeBlockLineClassName}, 0],
+            parseDOM: [{tag: "span"}],
+        },
         codeBlock: {
             group: "block",
-            content: "text*",
-            marks: "",
+            content: "codeBlockLine+",
             defining: true,
-            code: true,
-            toDOM: () => ["pre", ["code", 0]],
+            toDOM: () => ["pre", {class: codeBlockClassName}, ["code", 0]],
             parseDOM: [{tag: "pre"}],
         },
 

@@ -5,10 +5,12 @@ import {
     wrappingInputRule,
 } from "prosemirror-inputrules";
 import {MarkType, NodeType} from "prosemirror-model";
+import {TextSelection} from "prosemirror-state";
 import {findWrapping} from "prosemirror-transform";
 import {addSharedContentEditorInputRules} from "~/client/content/build_shared_content_editor_input_rules_plugin.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export const openMentionFloaterMetaKey = "openMentionFloater";
 
@@ -82,7 +84,33 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
     }
 
     // ``` creates a code block
-    rules.push(textblockTypeInputRule(/^```$/, schema.nodes.codeBlock));
+    rules.push(codeBlockInputRule(/^```$/, schema.nodes.codeBlock));
+
+    function codeBlockInputRule(regExp: RegExp, nodeType: NodeType) {
+        return new InputRule(regExp, (state, _match, start, end) => {
+            const {tr: transaction, schema} = state;
+            const $start = state.doc.resolve(start);
+
+            if (
+                !$start.node(-1).canReplaceWith($start.index(-1), $start.indexAfter(-1), nodeType)
+            ) {
+                return null;
+            }
+
+            if (!schema.nodes.codeBlock || !schema.nodes.codeBlockLine) {
+                return null;
+            }
+
+            const codeBlockNode = assertExists(schema.nodes.codeBlock.createAndFill());
+
+            transaction.replaceRangeWith(start, end, codeBlockNode);
+
+            const newBlockStartPos = start + 1;
+            transaction.setSelection(TextSelection.create(transaction.doc, newBlockStartPos));
+
+            return transaction;
+        });
+    }
 
     // `---` creates a divider
     if (schema.nodes.divider) {

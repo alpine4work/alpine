@@ -343,6 +343,38 @@ export const quoteBlockClassName = style({
     },
 });
 
+const codeBlockIndentation = spacing["4"];
+const codeNumberWidth = spacing["6"];
+const codeBlockMargin = spacing["4"];
+const codeTextIndentation = spacing["10"];
+
+export const codeBlockClassName = style({
+    ...blockStyles,
+    position: "relative",
+    marginTop: `${codeBlockMargin}`,
+    marginBottom: `${codeBlockMargin}`,
+    padding: codeBlockIndentation,
+    backgroundColor: colorSchemeVars["grey-5"],
+    counterReset: "code-block-line-number",
+});
+
+export const codeBlockLineClassName = style({
+    display: "block",
+    paddingLeft: codeTextIndentation,
+    position: "relative",
+    counterIncrement: "code-block-line-number",
+
+    selectors: {
+        "&::before": {
+            content: "counter(code-block-line-number)",
+            position: "absolute",
+            left: "0",
+            textAlign: "right",
+            width: `${codeNumberWidth}`,
+        },
+    },
+});
+
 // NOTE(calebmer): Ordered lists and bullet lists use the same style for all
 // levels of indentation. For example, we don't switch to letters or roman
 // numerals for ordered lists.

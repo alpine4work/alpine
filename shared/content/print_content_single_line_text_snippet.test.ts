@@ -75,13 +75,33 @@ test("code block collapses onto the same line", () => {
     const doc = schema.node("doc", {}, [
         schema.node("paragraph", {}, [schema.text("This is a code block")]),
         schema.node("codeBlock", {}, [
-            schema.text("let a = 1;\nlet b = 1;\nlet c = a + b;\nconsole.log(c);"),
+            schema.node("codeBlockLine", {}, [
+                schema.text("let a = 1;\nlet b = 1;\nlet c = a + b;\nconsole.log(c);"),
+            ]),
         ]),
         schema.node("paragraph", {}, [schema.text("This paragraph follows the code block.")]),
     ]);
 
     expect(printContentSingleLineTextSnippet({doc, references: emptyContentReferences})).toEqual(
         "This is a code block. let a = 1; let b = 1; let c = a + b; console.log(c); This paragraph follows the code block.",
+    );
+});
+
+test("code block collapses multiple lines of text onto the same line", () => {
+    const doc = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [schema.text("This paragraph precedes.")]),
+        schema.node("codeBlock", {}, [
+            schema.node("codeBlockLine", {}, [schema.text("codeBlockLine1")]),
+            schema.node("codeBlockLine", {}, [schema.text("codeBlockLine2")]),
+            schema.node("codeBlockLine", {}, [schema.text("codeBlockLine3")]),
+        ]),
+        schema.node("paragraph", {}, [
+            schema.node("break"),
+            schema.text("This paragraph follows."),
+        ]),
+    ]);
+    expect(printContentSingleLineTextSnippet({doc, references: emptyContentReferences})).toEqual(
+        "This paragraph precedes. codeBlockLine1 codeBlockLine2 codeBlockLine3 This paragraph follows.",
     );
 });
 

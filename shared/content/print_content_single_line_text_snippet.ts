@@ -153,10 +153,11 @@ export function printContentSingleLineTextSnippetWithHighlighting(
             }
             case "codeBlock": {
                 for (const childNode of node.content.content) {
-                    printInlineNode(childNode);
+                    for (const grandChildNode of childNode.content.content) {
+                        printInlineNode(grandChildNode);
+                    }
+                    breakPunctuation = "";
                 }
-
-                breakPunctuation = "";
                 break;
             }
             case "divider": {

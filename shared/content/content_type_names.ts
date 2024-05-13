@@ -18,6 +18,7 @@ export const contentNodeTypeNames = {
     paragraph: true,
     quoteBlock: true,
     codeBlock: true,
+    codeBlockLine: true,
     unorderedListItem: true,
     orderedListItem: true,
     checkListItem: true,
@@ -56,7 +57,7 @@ export type ContentTextblockNodeTypeName = keyof typeof contentTextblockNodeType
 
 export const contentTextblockNodeTypeNames = {
     paragraph: true,
-    codeBlock: true,
+    codeBlockLine: true,
     heading: true,
     title: true,
 };
