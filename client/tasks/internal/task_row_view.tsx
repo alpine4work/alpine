@@ -23,7 +23,7 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {MenuAction} from "~/client/design/menu_button.js";
+import {MenuAction} from "~/client/design/menu.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";

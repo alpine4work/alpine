@@ -1,7 +1,7 @@
 import {useDndContext} from "@dnd-kit/core";
 import {Memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
-import {MenuAction} from "~/client/design/menu_button.js";
+import {MenuAction} from "~/client/design/menu.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";

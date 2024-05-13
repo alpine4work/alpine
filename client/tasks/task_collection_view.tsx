@@ -12,7 +12,7 @@ import {
 } from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {MenuAction} from "~/client/design/menu_button.js";
+import {MenuAction} from "~/client/design/menu.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";

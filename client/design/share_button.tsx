@@ -1,6 +1,6 @@
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {MenuAction} from "~/client/design/menu_button.js";
+import {MenuAction} from "~/client/design/menu.js";
 import {Toast, useShowToast} from "~/client/design/toast.js";
 import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
 import {spacing} from "~/shared/design/spacing.js";

@@ -4,7 +4,7 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
-import {MenuAction} from "~/client/design/menu_button.js";
+import {MenuAction} from "~/client/design/menu.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";

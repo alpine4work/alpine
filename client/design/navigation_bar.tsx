@@ -19,7 +19,8 @@ import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
+import {MenuAction} from "~/client/design/menu.js";
+import {MenuButton} from "~/client/design/menu_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {

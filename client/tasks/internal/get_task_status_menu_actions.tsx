@@ -1,5 +1,5 @@
 import {AppContext} from "~/client/context/app_context.js";
-import {MenuAction} from "~/client/design/menu_button.js";
+import {MenuAction} from "~/client/design/menu.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {
     TaskClientStore,

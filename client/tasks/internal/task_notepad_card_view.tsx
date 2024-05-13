@@ -14,7 +14,7 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {MenuAction} from "~/client/design/menu_button.js";
+import {MenuAction} from "~/client/design/menu.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/store/use_store.js";

@@ -13,7 +13,7 @@ import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
 import {Box} from "~/client/design/box.js";
-import {Menu, MenuAction} from "~/client/design/menu_button.js";
+import {Menu, MenuAction} from "~/client/design/menu.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";

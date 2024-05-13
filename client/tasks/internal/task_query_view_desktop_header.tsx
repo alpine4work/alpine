@@ -2,7 +2,8 @@ import {DotsThreeVertical} from "phosphor-react";
 import {Ref, forwardRef, useImperativeHandle, useMemo, useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
+import {MenuAction} from "~/client/design/menu.js";
+import {MenuButton} from "~/client/design/menu_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
