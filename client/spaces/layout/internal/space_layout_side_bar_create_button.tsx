@@ -132,7 +132,6 @@ export function SpaceLayoutSideBarCreateButton() {
 
                                     await peekStackContext.push(
                                         `/s/${space.id}/tasks/collections/${collectionId}?create`,
-                                        {focus: true},
                                     );
                                 },
                             },
@@ -141,9 +140,7 @@ export function SpaceLayoutSideBarCreateButton() {
                                 icon: <TaskViewBrandIcon />,
                                 pressErrorTitle: "Couldn’t create task view",
                                 onPress: async () => {
-                                    await peekStackContext.push(`/s/${space.id}/tasks/view`, {
-                                        focus: true,
-                                    });
+                                    await peekStackContext.push(`/s/${space.id}/tasks/view`);
                                 },
                             },
                         ],
@@ -176,8 +173,7 @@ function SpaceLayoutSideBarCreateButtonItem({
     return (
         <Box
             position="relative"
-            paddingX="2.5"
-            paddingY="2.5"
+            padding="2.5"
             display="flex"
             alignItems="center"
             gap="3"
@@ -193,14 +189,14 @@ function SpaceLayoutSideBarCreateButtonItem({
                 </IconContext.Provider>
             </Box>
             <Box flexGrow="1">
-                <Box fontStyle="semi-bold" fontSize="100" paddingBottom="0.5">
+                <Box fontStyle="semi-bold" fontSize="100">
                     {label}
                 </Box>
                 <Box fontSize="75" color="grey-60">
                     {description}
                 </Box>
             </Box>
-            <Box flexShrink="0" width="4">
+            <Box flexShrink="0" width="4" color="grey-70">
                 {shouldShowPendingSpinner && (
                     <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
                 )}

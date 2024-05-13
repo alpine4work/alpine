@@ -101,7 +101,7 @@ export function PostView({
         // `<PostListView>` needs this prop to specifically be set to null so we can
         // replace it when in a post editing state.
         replaceActions: null,
-        mobileTitleJustifyContents: "flex-start",
+        titleJustifyContents: "flex-start",
         menuActions: getPostMoreActions({
             currentAccount,
             post: postResult.post,

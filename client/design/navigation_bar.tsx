@@ -334,6 +334,13 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
     replaceActions?: ReactNode;
 
     /**
+     * How do we justify title contents? Defaults to `center` on mobile and
+     * `flex-start` on desktop. Override if you want the same behavior on both
+     * platforms.
+     */
+    titleJustifyContents?: "center" | "flex-start";
+
+    /**
      * Only rendered on desktop (not mobile).
      *
      * Controls at the far left of the navigation bar that renders at the top of
@@ -386,12 +393,6 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
      * area inset but the navigation bar doesn't cover this area when scrolled.
      */
     desktopMarginTop?: Spacing | RemLength;
-
-    /**
-     * How do we justify title contents on mobile? Defaults to `center`. To match
-     * desktop behavior use `flex-start`.
-     */
-    mobileTitleJustifyContents?: "center" | "flex-start";
 
     /**
      * Don't render a back button on mobile. Only set this to true for top level
@@ -492,6 +493,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     shareButton,
     stickyBanner,
     replaceActions,
+    titleJustifyContents,
     desktopControls = null,
     desktopMaxWidth,
     desktopTitleMaxWidth,
@@ -499,7 +501,6 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontWeight = "semi-bold",
     desktopTitleLeftSlop,
     desktopMarginTop,
-    mobileTitleJustifyContents = "center",
     withoutMobileBackButton = false,
     onMobileCancel,
 }: NavigationBarProps<TitleBoundaryElement>): NavigationBarResult {
@@ -603,6 +604,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             shareButton={shareButton}
             stickyBanner={stickyBanner}
             replaceActions={replaceActions}
+            titleJustifyContents={titleJustifyContents}
             desktopControls={desktopControls}
             desktopMaxWidth={desktopMaxWidth}
             desktopTitleMaxWidth={desktopTitleMaxWidth}
@@ -610,7 +612,6 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             desktopTitleFontWeight={desktopTitleFontWeight}
             desktopTitleLeftSlop={desktopTitleLeftSlop}
             desktopMarginTopRem={desktopMarginTopRem}
-            mobileTitleJustifyContents={mobileTitleJustifyContents}
             withoutMobileBackButton={withoutMobileBackButton}
             onMobileCancel={onMobileCancel}
         />
@@ -660,6 +661,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     shareButton,
     stickyBanner,
     replaceActions,
+    titleJustifyContents,
     desktopControls,
     desktopMaxWidth,
     desktopTitleMaxWidth,
@@ -667,7 +669,6 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontWeight,
     desktopTitleLeftSlop,
     desktopMarginTopRem,
-    mobileTitleJustifyContents,
     withoutMobileBackButton,
     onMobileCancel,
 }: {
@@ -688,6 +689,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     shareButton: {} | undefined;
     stickyBanner: ReactNode;
     replaceActions: ReactNode;
+    titleJustifyContents: "center" | "flex-start" | undefined;
     desktopControls: ReactNode;
     desktopMaxWidth: Spacing | RemLength | undefined;
     desktopTitleMaxWidth: Spacing | RemLength | undefined;
@@ -695,7 +697,6 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontWeight: "semi-bold" | "bold";
     desktopTitleLeftSlop: Spacing | undefined;
     desktopMarginTopRem: number;
-    mobileTitleJustifyContents: "center" | "flex-start";
     withoutMobileBackButton: boolean;
     onMobileCancel: (() => void) | undefined;
 }) {
@@ -1562,13 +1563,13 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             menuActions={menuActions}
                             shareButton={shareButton}
                             replaceActions={replaceActions}
+                            titleJustifyContents={titleJustifyContents}
                             desktopControls={desktopControls}
                             desktopMaxWidth={desktopMaxWidth}
                             desktopTitleMaxWidth={desktopTitleMaxWidth}
                             desktopTitleFontSize={desktopTitleFontSize}
                             desktopTitleFontWeight={desktopTitleFontWeight}
                             desktopTitleLeftSlop={desktopTitleLeftSlop}
-                            mobileTitleJustifyContents={mobileTitleJustifyContents}
                             withoutMobileBackButton={withoutMobileBackButton}
                             onMobileCancel={onMobileCancel}
                         />
@@ -1596,13 +1597,13 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         menuActions = emptyArray,
         shareButton,
         replaceActions,
+        titleJustifyContents,
         desktopControls,
         desktopMaxWidth: desktopMaxWidthProp,
         desktopTitleMaxWidth: desktopTitleMaxWidthProp,
         desktopTitleFontSize = "200",
         desktopTitleFontWeight = "semi-bold",
         desktopTitleLeftSlop,
-        mobileTitleJustifyContents = "center",
         withoutMobileBackButton = false,
         onMobileCancel,
     }: {
@@ -1614,13 +1615,13 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
         shareButton?: {};
         replaceActions?: ReactNode;
+        titleJustifyContents?: "center" | "flex-start";
         desktopControls?: ReactNode;
         desktopMaxWidth?: Spacing | RemLength;
         desktopTitleMaxWidth?: Spacing | RemLength;
         desktopTitleFontSize?: FontSize;
         desktopTitleFontWeight?: "semi-bold" | "bold";
         desktopTitleLeftSlop?: Spacing;
-        mobileTitleJustifyContents?: "center" | "flex-start";
         withoutMobileBackButton?: boolean;
         onMobileCancel?: () => void;
     },
@@ -1680,64 +1681,66 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
             }}
         >
             <OverlayScopeContextProvider>
-                {isMobile ? (
-                    <Box
-                        flexShrink="0"
-                        height={navigationBarHeight}
-                        paddingLeft={mobileNavigationBarGap}
-                        display="flex"
-                        justifyContent="flex-start"
-                        alignItems="center"
-                        style={{flexBasis: spacing[navigationBarActionsFlexBasis]}}
-                        // Gives children `pointer-events: initial` so the user can interact with them.
-                        className={pointerEventsNoneNotInheritedClassName}
-                    >
-                        {onMobileCancel ? (
-                            <Box
-                                display="flex"
-                                justifyContent="flex-start"
-                                style={{width: mobileNavigationBarActionsWidthFittingFlexBasis}}
-                            >
-                                <Button
-                                    fontSize="100"
-                                    pressErrorTitle="Couldn’t cancel"
-                                    onPress={onMobileCancel}
-                                >
-                                    Cancel
-                                </Button>
-                            </Box>
-                        ) : (
-                            !withoutMobileBackButton && (
-                                <IconButton
-                                    size="base"
-                                    description="Go back"
-                                    withoutTooltip={true}
-                                    pressErrorTitle="Couldn’t go back"
-                                    onPress={() => navigate(-1)}
-                                >
-                                    <ArrowLeft />
-                                </IconButton>
-                            )
-                        )}
-                    </Box>
-                ) : (
-                    desktopTitleMaxWidth !== undefined && (
-                        <Box
-                            flexGrow="0"
-                            flexShrink="0"
-                            style={{
-                                width: `max(0px, (100% - ${desktopTitleMaxWidth}) / 2)`,
-                            }}
-                        />
-                    )
-                )}
+                {isMobile
+                    ? (onMobileCancel || !withoutMobileBackButton) && (
+                          <Box
+                              flexShrink="0"
+                              height={navigationBarHeight}
+                              paddingLeft={mobileNavigationBarGap}
+                              display="flex"
+                              justifyContent="flex-start"
+                              alignItems="center"
+                              style={{flexBasis: spacing[navigationBarActionsFlexBasis]}}
+                              // Gives children `pointer-events: initial` so the user can interact with them.
+                              className={pointerEventsNoneNotInheritedClassName}
+                          >
+                              {onMobileCancel ? (
+                                  <Box
+                                      display="flex"
+                                      justifyContent="flex-start"
+                                      style={{
+                                          width: mobileNavigationBarActionsWidthFittingFlexBasis,
+                                      }}
+                                  >
+                                      <Button
+                                          fontSize="100"
+                                          pressErrorTitle="Couldn’t cancel"
+                                          onPress={onMobileCancel}
+                                      >
+                                          Cancel
+                                      </Button>
+                                  </Box>
+                              ) : (
+                                  !withoutMobileBackButton && (
+                                      <IconButton
+                                          size="base"
+                                          description="Go back"
+                                          withoutTooltip={true}
+                                          pressErrorTitle="Couldn’t go back"
+                                          onPress={() => navigate(-1)}
+                                      >
+                                          <ArrowLeft />
+                                      </IconButton>
+                                  )
+                              )}
+                          </Box>
+                      )
+                    : desktopTitleMaxWidth !== undefined && (
+                          <Box
+                              flexGrow="0"
+                              flexShrink="0"
+                              style={{
+                                  width: `max(0px, (100% - ${desktopTitleMaxWidth}) / 2)`,
+                              }}
+                          />
+                      )}
                 <Box
                     flexGrow="1"
                     flexShrink="1"
                     height={navigationBarHeight}
                     paddingLeft={desktopTitleMaxWidth === undefined && !isMobile ? "5" : undefined}
                     display="flex"
-                    justifyContent={isMobile ? mobileTitleJustifyContents : "flex-start"}
+                    justifyContent={titleJustifyContents ?? (isMobile ? "center" : "flex-start")}
                     alignItems="center"
                     gap="3"
                     style={{
@@ -1811,80 +1814,86 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                         )}
                     </Box>
                 </Box>
-                <Box
-                    flexGrow={!isMobile ? "1" : undefined}
-                    flexShrink="0"
-                    height={navigationBarHeight}
-                    paddingRight={isMobile ? mobileNavigationBarGap : "5"}
-                    display="flex"
-                    justifyContent="flex-end"
-                    alignItems="center"
-                    gap={isMobile ? "0.5" : "2"}
-                    // Gives children `pointer-events: initial` so the user can interact with them.
-                    className={pointerEventsNoneNotInheritedClassName}
-                    style={{flexBasis: spacing[navigationBarActionsFlexBasis]}}
-                >
-                    {replaceActions ? (
-                        replaceActions
-                    ) : (
-                        <>
-                            {shareButton && !withMobileLayout && (
-                                <Box paddingRight="3">
-                                    <ShareButton />
-                                </Box>
-                            )}
-                            {isTextInputFocused ? (
-                                // If a text input is focused then we hide menu actions and replace it with a
-                                // "Done" button. This helps the user see how to end their editing session.
-                                // Opening menu actions would cause the text input to unfocus anyway.
-                                <Button
-                                    fontSize="100"
-                                    // Don't remove focus from the current text input element
-                                    // on press start. Remove focus on press finish.
-                                    isFocusable={false}
-                                    onPress={() => {
-                                        if (document.activeElement instanceof HTMLElement) {
-                                            document.activeElement.blur();
-                                        }
-                                    }}
-                                >
-                                    <Box display="inline" fontStyle="semi-bold" color="grey-70">
-                                        Done
+                {(replaceActions ||
+                    shareButton ||
+                    menuActions.length > 0 ||
+                    (isMobile && (onMobileCancel || !withoutMobileBackButton))) && (
+                    <Box
+                        flexGrow={!isMobile ? "1" : undefined}
+                        flexShrink="0"
+                        height={navigationBarHeight}
+                        paddingRight={isMobile ? mobileNavigationBarGap : "5"}
+                        display="flex"
+                        justifyContent="flex-end"
+                        alignItems="center"
+                        gap={isMobile ? "0.5" : "2"}
+                        // Gives children `pointer-events: initial` so the user can interact with them.
+                        className={pointerEventsNoneNotInheritedClassName}
+                        style={{flexBasis: spacing[navigationBarActionsFlexBasis]}}
+                    >
+                        {replaceActions ? (
+                            replaceActions
+                        ) : (
+                            <>
+                                {shareButton && !withMobileLayout && (
+                                    <Box paddingRight="3">
+                                        <ShareButton />
                                     </Box>
-                                </Button>
-                            ) : (
-                                (menuActions.length > 0 || (shareButton && withMobileLayout)) && (
-                                    <MenuButton
-                                        placement="bottom-end"
-                                        actions={
-                                            shareButton && withMobileLayout
-                                                ? [
-                                                      [createShareMenuItem({showToast})],
-                                                      ...menuActions,
-                                                  ]
-                                                : menuActions
-                                        }
+                                )}
+                                {isTextInputFocused ? (
+                                    // If a text input is focused then we hide menu actions and replace it with a
+                                    // "Done" button. This helps the user see how to end their editing session.
+                                    // Opening menu actions would cause the text input to unfocus anyway.
+                                    <Button
+                                        fontSize="100"
+                                        // Don't remove focus from the current text input element
+                                        // on press start. Remove focus on press finish.
+                                        isFocusable={false}
+                                        onPress={() => {
+                                            if (document.activeElement instanceof HTMLElement) {
+                                                document.activeElement.blur();
+                                            }
+                                        }}
                                     >
-                                        <IconButton
-                                            size={isMobile ? "base" : "md"}
-                                            description="More"
-                                            withoutTooltip={true}
+                                        <Box display="inline" fontStyle="semi-bold" color="grey-70">
+                                            Done
+                                        </Box>
+                                    </Button>
+                                ) : (
+                                    (menuActions.length > 0 ||
+                                        (shareButton && withMobileLayout)) && (
+                                        <MenuButton
+                                            placement="bottom-end"
+                                            actions={
+                                                shareButton && withMobileLayout
+                                                    ? [
+                                                          [createShareMenuItem({showToast})],
+                                                          ...menuActions,
+                                                      ]
+                                                    : menuActions
+                                            }
                                         >
-                                            <DotsThreeVertical
-                                            // Vertical dots create better visual balance on mobile because:
-                                            //
-                                            // 1. On mobile we have a back button on the left and we want this button to
-                                            //    look aligned with that
-                                            // 2. The title might be truncated with ellipsis which looks like horizontal
-                                            //    dots
-                                            />
-                                        </IconButton>
-                                    </MenuButton>
-                                )
-                            )}
-                        </>
-                    )}
-                </Box>
+                                            <IconButton
+                                                size={isMobile ? "base" : "md"}
+                                                description="More"
+                                                withoutTooltip={true}
+                                            >
+                                                <DotsThreeVertical
+                                                // Vertical dots create better visual balance on mobile because:
+                                                //
+                                                // 1. On mobile we have a back button on the left and we want this button to
+                                                //    look aligned with that
+                                                // 2. The title might be truncated with ellipsis which looks like horizontal
+                                                //    dots
+                                                />
+                                            </IconButton>
+                                        </MenuButton>
+                                    )
+                                )}
+                            </>
+                        )}
+                    </Box>
+                )}
             </OverlayScopeContextProvider>
         </Box>
     );
