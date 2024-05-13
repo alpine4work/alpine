@@ -102,6 +102,32 @@ export function SpaceLayoutSideBarCreateButton() {
                         ),
                     },
                 ],
+                [
+                    {
+                        hasChildren: true,
+                        label: "More",
+                        actions: [
+                            {
+                                label: "Channel",
+                                onPress: () => {
+                                    // NOCOMMIT: Implement!
+                                },
+                            },
+                            {
+                                label: "Task collection",
+                                onPress: () => {
+                                    // NOCOMMIT: Implement!
+                                },
+                            },
+                            {
+                                label: "Task view",
+                                onPress: () => {
+                                    // NOCOMMIT: Implement!
+                                },
+                            },
+                        ],
+                    },
+                ],
                 // NOCOMMIT:
                 //
                 // [

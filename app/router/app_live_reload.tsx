@@ -122,7 +122,7 @@ if (process.env.NODE_ENV !== "development") {
                             right="0"
                             zIndex="80"
                             overflow="hidden"
-                            backgroundColor="green-10"
+                            backgroundColor={{light: "green-10", dark: "green-20"}}
                             color="green-90"
                             fontSize="50"
                             boxShadow="elevation-30"

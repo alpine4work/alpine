@@ -1,7 +1,9 @@
 import {setInteractionModality} from "@react-aria/interactions";
 import classNames from "classnames";
-import {Check, IconContext, SpinnerGap} from "phosphor-react";
+import {CaretRight, Check, IconContext, SpinnerGap} from "phosphor-react";
 import {
+    KeyboardEvent as KeyboardSyntheticEvent,
+    PointerEvent as PointerSyntheticEvent,
     ReactElement,
     ReactNode,
     Ref,
@@ -16,7 +18,9 @@ import {
 import {mergeProps, useHover, usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {OverlayPlacement} from "~/client/design/overlay.js";
+import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
+import {OverlayPlacement, OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {
     OverlayTriggerButton,
     OverlayTriggerButtonChildrenProps,
@@ -27,11 +31,14 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip.js";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -47,7 +54,7 @@ import {
 /**
  * A single action in a menu.
  */
-export type MenuAction = MenuStandardAction | MenuCustomAction;
+export type MenuAction = MenuStandardAction | MenuCustomAction | MenuChildrenAction;
 
 type MenuStandardAction = {
     /**
@@ -118,6 +125,7 @@ type MenuStandardAction = {
     readonly pressErrorTitle?: string;
 
     readonly withCustomLayout?: undefined;
+    readonly hasChildren?: undefined;
 };
 
 type MenuCustomAction = {
@@ -135,6 +143,7 @@ type MenuCustomAction = {
      * and can be keyboard navigated.
      */
     readonly withCustomLayout: true;
+    readonly hasChildren?: undefined;
 
     /**
      * Called when this action is activated either by mouse or by keyboard.
@@ -167,6 +176,24 @@ type MenuCustomAction = {
         isHovered: boolean;
         shouldShowPendingSpinner: boolean;
     }) => ReactNode;
+};
+
+type MenuChildrenAction = {
+    readonly hasChildren: true;
+    readonly withCustomLayout?: undefined;
+
+    /**
+     * What label do we present to the user for this action?
+     *
+     * Every action must have a unique label because we also use this string,
+     * internally, as the key for our actions.
+     */
+    readonly label: string;
+
+    /**
+     * The child actions of this menu which will be displayed in a submenu.
+     */
+    readonly actions: MenuActions;
 };
 
 export type MenuSize = "base" | "lg" | "xl";
@@ -230,7 +257,7 @@ export {MenuButtonForwardRef as MenuButton};
  *
  * Implements the [WAI-ARIA menu button pattern][1].
  *
- * [1]: https://www.w3.org/TR/wai-aria-practices-1.2/#menubutton
+ * [1]: https://www.w3.org/WAI/ARIA/apg/patterns/menubar/button
  */
 function MenuButton(
     {
@@ -347,7 +374,7 @@ function MenuButton(
  *
  * Implements the [WAI-ARIA menu pattern][1].
  *
- * [1]: https://www.w3.org/TR/wai-aria-practices-1.2/#menu
+ * [1]: https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
  */
 export const Menu = forwardRef(function Menu(
     {
@@ -359,6 +386,7 @@ export const Menu = forwardRef(function Menu(
         onCloseWithoutAnimation,
         shouldNotCloseAfterActionPress,
         extraBottom,
+        onArrowLeftKeyDown,
     }: {
         size?: MenuSize;
         actions: MenuActions | (() => MenuActions);
@@ -368,12 +396,15 @@ export const Menu = forwardRef(function Menu(
         onCloseWithoutAnimation: () => void;
         shouldNotCloseAfterActionPress?: boolean;
         extraBottom?: ReactNode;
+        onArrowLeftKeyDown?: (event: KeyboardSyntheticEvent) => void;
     },
     ref: Ref<HTMLDivElement>,
 ) {
     const isMobile = useIsMobile();
 
     const {width} = menuSizeConstants[size][isMobile ? "mobile" : "desktop"];
+
+    const [openedAction, setOpenedAction] = useState<MenuChildrenAction | null>(null);
 
     const flattenedActions = useMemo(() => {
         const flattenedActions: Array<{type: "Action"; action: MenuAction} | {type: "Divider"}> =
@@ -448,6 +479,13 @@ export const Menu = forwardRef(function Menu(
         } else {
             menuElement.removeAttribute("aria-activedescendant");
         }
+
+        // If a direct descendant was focused then close any open submenu we may have.
+        // This will happen if you open a submenu with the keyboard then hover over a
+        // different menu item.
+        if (event.type === "focus" && event.currentTarget.contains(event.target)) {
+            setOpenedAction(null);
+        }
     }
 
     const hasInitiallyRenderedRef = useRef(false);
@@ -469,207 +507,231 @@ export const Menu = forwardRef(function Menu(
             if (
                 action.type === "Action" &&
                 !action.action.withCustomLayout &&
+                !action.action.hasChildren &&
                 action.action.isSelected
             ) {
                 assertExists(menuItemRefs[index]?.current).scrollIntoView({
                     behavior: "instant",
                     block: "center",
                 });
+                break;
             }
         }
     }, [flattenedActions, menuItemRefs]);
 
     return (
-        <div
-            ref={useMergedRefs(ref, menuRef, useScrollbar())}
-            role="menu"
-            // The menu container has `tabindex` set to -1 or 0 and
-            // `aria-activedescendant` set to the ID of the focused item.
-            //
-            // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
-            tabIndex={-1}
-            className={classNames(
-                greyElevated2ClassName,
-                sprinkles({
-                    position: "relative",
-                    minWidth: width,
-                    maxHeight: maxHeight,
-                    overflowX: "hidden",
-                    overflowY: "auto",
-                    borderRadius: "md",
-                    padding: "1",
-                    backgroundColor: "grey-0",
-                    // On mobile, increase the distance of a menu from the underlying content.
-                    // Increased contrast is useful.
-                    boxShadow: isMobile ? "elevation-30" : "elevation-20",
-                }),
-            )}
-            onFocus={setAriaActiveDescendant}
-            onBlur={setAriaActiveDescendant}
-            onKeyDown={event => {
-                switch (event.key) {
-                    // When focus is in a menu, moves focus to the next item, optionally
-                    // wrapping from the last to the first.
-                    //
-                    // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
-                    case "ArrowDown": {
-                        event.preventDefault(); // Don’t scroll
-                        event.stopPropagation();
-
-                        setInteractionModality("keyboard");
-
-                        const currentIndex = getFocusedActionIndexIfExists();
-                        if (currentIndex !== null) {
-                            for (
-                                let index = currentIndex + 1;
-                                index < menuItemRefs.length;
-                                index++
-                            ) {
-                                const menuItemRef = menuItemRefs[index]!;
-                                if (menuItemRef) {
-                                    menuItemRef.current?.focus();
-                                    return;
-                                }
-                            }
-                        }
-
-                        // If we did not find a menu item after `currentIndex` then loop back around to
-                        // the first menu item.
-                        for (let index = 0; index < menuItemRefs.length; index++) {
-                            const menuItemRef = menuItemRefs[index]!;
-                            if (menuItemRef) {
-                                menuItemRef.current?.focus();
-                                return;
-                            }
-                        }
-                        return;
-                    }
-                    // When focus is in a menu, moves focus to the previous item,
-                    // optionally wrapping from the first to the last.
-                    //
-                    // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
-                    case "ArrowUp": {
-                        event.preventDefault(); // Don’t scroll
-                        event.stopPropagation();
-
-                        setInteractionModality("keyboard");
-
-                        const currentIndex = getFocusedActionIndexIfExists();
-                        if (currentIndex !== null) {
-                            for (let index = currentIndex - 1; index >= 0; index--) {
-                                const menuItemRef = menuItemRefs[index]!;
-                                if (menuItemRef) {
-                                    menuItemRef.current?.focus();
-                                    return;
-                                }
-                            }
-                        }
-
-                        // If we did not find a menu item before `currentIndex` then loop back around to
-                        // the first menu item.
-                        for (let index = menuItemRefs.length - 1; index >= 0; index--) {
-                            const menuItemRef = menuItemRefs[index]!;
-                            if (menuItemRef) {
-                                menuItemRef.current?.focus();
-                                return;
-                            }
-                        }
-                        return;
-                    }
-                    // Moves focus to the first item in the current menu. Technically, the spec
-                    // says only implement if arrow key wrapping is not supported but it's easy
-                    // to support so why not.
-                    //
-                    // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
-                    case "Home": {
-                        event.preventDefault(); // Don't scroll
-                        event.stopPropagation();
-
-                        for (let index = 0; index < menuItemRefs.length; index++) {
-                            const menuItemRef = menuItemRefs[index]!;
-                            if (menuItemRef) {
-                                menuItemRef.current?.focus();
-                                return;
-                            }
-                        }
-                        return;
-                    }
-                    // Moves focus to the last item in the current menu. Technically, the spec
-                    // says only implement if arrow key wrapping is not supported but it's easy
-                    // to support so why not.
-                    //
-                    // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
-                    case "End": {
-                        event.preventDefault(); // Don't scroll
-                        event.stopPropagation();
-
-                        for (let index = menuItemRefs.length - 1; index >= 0; index--) {
-                            const menuItemRef = menuItemRefs[index]!;
-                            if (menuItemRef) {
-                                menuItemRef.current?.focus();
-                                return;
-                            }
-                        }
-                        return;
-                    }
-                    default: {
-                        // Move focus to the next menu item in the current menu whose label
-                        // begins with that printable character.
+        <OverlayScopeContextProvider
+        // We render an overlay scope since submenus (and tooltips) should animate out
+        // with their parent menu.
+        >
+            <div
+                ref={useMergedRefs(ref, menuRef, useScrollbar())}
+                role="menu"
+                // The menu container has `tabindex` set to -1 or 0 and
+                // `aria-activedescendant` set to the ID of the focused item.
+                //
+                // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                tabIndex={-1}
+                className={classNames(
+                    greyElevated2ClassName,
+                    sprinkles({
+                        position: "relative",
+                        minWidth: width,
+                        maxHeight: maxHeight,
+                        overflowX: "hidden",
+                        overflowY: "auto",
+                        borderRadius: "md",
+                        padding: "1",
+                        backgroundColor: "grey-0",
+                        // On mobile, increase the distance of a menu from the underlying content.
+                        // Increased contrast is useful.
+                        boxShadow: isMobile ? "elevation-30" : "elevation-20",
+                    }),
+                )}
+                onFocus={setAriaActiveDescendant}
+                onBlur={setAriaActiveDescendant}
+                onKeyDown={event => {
+                    switch (event.key) {
+                        // When focus is in a menu, moves focus to the next item, optionally
+                        // wrapping from the last to the first.
                         //
-                        // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
-                        if (
-                            /^[0-9a-zA-Z]$/.test(event.key) &&
-                            // Keyboard shortcuts like Cmd-C shouldn't search.
-                            (event.shiftKey || !isModifiedKeyboardEvent(event))
-                        ) {
-                            event.preventDefault();
+                        // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                        case "ArrowDown": {
+                            event.preventDefault(); // Don’t scroll
                             event.stopPropagation();
-                            const nextSearchText = searchText + event.key;
-                            const nextIndex = flattenedActions.findIndex(
-                                action =>
-                                    action.type === "Action" &&
-                                    !action.action.withCustomLayout &&
-                                    action.action.label
-                                        .slice(0, nextSearchText.length)
-                                        .toLowerCase() === nextSearchText.toLowerCase(),
-                            );
-                            if (nextIndex !== -1) menuItemRefs[nextIndex]?.current?.focus();
-                            setSearchText(nextSearchText);
+
+                            setInteractionModality("keyboard");
+
+                            const currentIndex = getFocusedActionIndexIfExists();
+                            if (currentIndex !== null) {
+                                for (
+                                    let index = currentIndex + 1;
+                                    index < menuItemRefs.length;
+                                    index++
+                                ) {
+                                    const menuItemRef = menuItemRefs[index]!;
+                                    if (menuItemRef) {
+                                        menuItemRef.current?.focus();
+                                        return;
+                                    }
+                                }
+                            }
+
+                            // If we did not find a menu item after `currentIndex` then loop back around to
+                            // the first menu item.
+                            for (let index = 0; index < menuItemRefs.length; index++) {
+                                const menuItemRef = menuItemRefs[index]!;
+                                if (menuItemRef) {
+                                    menuItemRef.current?.focus();
+                                    return;
+                                }
+                            }
                             return;
                         }
+                        // When focus is in a menu, moves focus to the previous item,
+                        // optionally wrapping from the first to the last.
+                        //
+                        // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                        case "ArrowUp": {
+                            event.preventDefault(); // Don’t scroll
+                            event.stopPropagation();
+
+                            setInteractionModality("keyboard");
+
+                            const currentIndex = getFocusedActionIndexIfExists();
+                            if (currentIndex !== null) {
+                                for (let index = currentIndex - 1; index >= 0; index--) {
+                                    const menuItemRef = menuItemRefs[index]!;
+                                    if (menuItemRef) {
+                                        menuItemRef.current?.focus();
+                                        return;
+                                    }
+                                }
+                            }
+
+                            // If we did not find a menu item before `currentIndex` then loop back around to
+                            // the first menu item.
+                            for (let index = menuItemRefs.length - 1; index >= 0; index--) {
+                                const menuItemRef = menuItemRefs[index]!;
+                                if (menuItemRef) {
+                                    menuItemRef.current?.focus();
+                                    return;
+                                }
+                            }
+                            return;
+                        }
+                        case "ArrowLeft": {
+                            // `<MenuChildrenItem>` needs to implement `ArrowLeft` to close the submenu.
+                            onArrowLeftKeyDown?.(event);
+                            return;
+                        }
+                        case "ArrowRight": {
+                            // Do nothing. We implement `ArrowRight` handling in `<MenuChildrenItem>` for
+                            // items with submenus.
+                            return;
+                        }
+                        // Moves focus to the first item in the current menu. Technically, the spec
+                        // says only implement if arrow key wrapping is not supported but it's easy
+                        // to support so why not.
+                        //
+                        // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                        case "Home": {
+                            event.preventDefault(); // Don't scroll
+                            event.stopPropagation();
+
+                            for (let index = 0; index < menuItemRefs.length; index++) {
+                                const menuItemRef = menuItemRefs[index]!;
+                                if (menuItemRef) {
+                                    menuItemRef.current?.focus();
+                                    return;
+                                }
+                            }
+                            return;
+                        }
+                        // Moves focus to the last item in the current menu. Technically, the spec
+                        // says only implement if arrow key wrapping is not supported but it's easy
+                        // to support so why not.
+                        //
+                        // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                        case "End": {
+                            event.preventDefault(); // Don't scroll
+                            event.stopPropagation();
+
+                            for (let index = menuItemRefs.length - 1; index >= 0; index--) {
+                                const menuItemRef = menuItemRefs[index]!;
+                                if (menuItemRef) {
+                                    menuItemRef.current?.focus();
+                                    return;
+                                }
+                            }
+                            return;
+                        }
+                        default: {
+                            // Move focus to the next menu item in the current menu whose label
+                            // begins with that printable character.
+                            //
+                            // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                            if (
+                                /^[0-9a-zA-Z]$/.test(event.key) &&
+                                // Keyboard shortcuts like Cmd-C shouldn't search.
+                                (event.shiftKey || !isModifiedKeyboardEvent(event))
+                            ) {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                const nextSearchText = searchText + event.key;
+                                const nextIndex = flattenedActions.findIndex(
+                                    action =>
+                                        action.type === "Action" &&
+                                        !action.action.withCustomLayout &&
+                                        action.action.label
+                                            .slice(0, nextSearchText.length)
+                                            .toLowerCase() === nextSearchText.toLowerCase(),
+                                );
+                                if (nextIndex !== -1) menuItemRefs[nextIndex]?.current?.focus();
+                                setSearchText(nextSearchText);
+                                return;
+                            }
+                        }
                     }
-                }
-            }}
-        >
-            {flattenedActions.map((action, index) => {
-                switch (action.type) {
-                    case "Divider": {
-                        return (
-                            <Box key={index} paddingX="1" paddingY="1">
-                                <Box width="full" borderBottom="grey-5" />
-                            </Box>
-                        );
+                }}
+            >
+                {flattenedActions.map((action, index) => {
+                    switch (action.type) {
+                        case "Divider": {
+                            return (
+                                <Box key={index} paddingX="1" paddingY="1">
+                                    <Box width="full" borderBottom="grey-5" />
+                                </Box>
+                            );
+                        }
+                        case "Action": {
+                            return (
+                                <MenuItem
+                                    key={index}
+                                    ref={menuItemRefs[index]}
+                                    size={size}
+                                    action={action.action}
+                                    parentPlacement={placement}
+                                    onCloseWithAnimation={onCloseWithAnimation}
+                                    onCloseWithoutAnimation={onCloseWithoutAnimation}
+                                    shouldNotCloseAfterPress={shouldNotCloseAfterActionPress}
+                                    openedAction={openedAction}
+                                    onActionOpen={setOpenedAction}
+                                    onActionClose={action =>
+                                        setOpenedAction(openedAction =>
+                                            openedAction === action ? null : openedAction,
+                                        )
+                                    }
+                                />
+                            );
+                        }
+                        default:
+                            throw exhaustive(action);
                     }
-                    case "Action": {
-                        return (
-                            <MenuItem
-                                key={index}
-                                ref={menuItemRefs[index]}
-                                size={size}
-                                action={action.action}
-                                parentPlacement={placement}
-                                onCloseWithAnimation={onCloseWithAnimation}
-                                onCloseWithoutAnimation={onCloseWithoutAnimation}
-                                shouldNotCloseAfterPress={shouldNotCloseAfterActionPress}
-                            />
-                        );
-                    }
-                    default:
-                        throw exhaustive(action);
-                }
-            })}
-            {extraBottom}
-        </div>
+                })}
+                {extraBottom}
+            </div>
+        </OverlayScopeContextProvider>
     );
 });
 
@@ -686,6 +748,9 @@ export const MenuItem = forwardRef(function MenuItem(
         isNotFocusable = false,
         isFocusRingVisible = false,
         shouldNotCloseAfterPress = false,
+        openedAction,
+        onActionOpen,
+        onActionClose,
     }: {
         size?: MenuSize;
         action: MenuAction;
@@ -695,6 +760,9 @@ export const MenuItem = forwardRef(function MenuItem(
         isNotFocusable?: boolean;
         isFocusRingVisible?: boolean;
         shouldNotCloseAfterPress?: boolean;
+        openedAction: MenuChildrenAction | null;
+        onActionOpen: (action: MenuChildrenAction) => void;
+        onActionClose: (action: MenuChildrenAction) => void;
     },
     ref: Ref<HTMLDivElement>,
 ) {
@@ -711,6 +779,25 @@ export const MenuItem = forwardRef(function MenuItem(
                 isNotFocusable={isNotFocusable}
                 isFocusRingVisible={isFocusRingVisible}
                 shouldNotCloseAfterPress={shouldNotCloseAfterPress}
+            />
+        );
+    }
+
+    if (action.hasChildren) {
+        return (
+            <MenuChildrenItem
+                ref={ref}
+                size={size}
+                menuItemId={id}
+                action={action}
+                onCloseWithAnimation={onCloseWithAnimation}
+                onCloseWithoutAnimation={onCloseWithoutAnimation}
+                isNotFocusable={isNotFocusable}
+                isFocusRingVisible={isFocusRingVisible}
+                shouldNotCloseAfterPress={shouldNotCloseAfterPress}
+                isOpened={openedAction === action}
+                onOpen={() => onActionOpen(action)}
+                onClose={() => onActionClose(action)}
             />
         );
     }
@@ -936,7 +1023,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                           // Each item in the menu has `tabindex` set to -1. (Even disabled items
                           // are focusable.)
                           //
-                          // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
+                          // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                           tabIndex: -1,
                       }
                     : {})}
@@ -952,7 +1039,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                 }
                 // When a menu item is disabled, `aria-disabled` is set to true.
                 //
-                // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
+                // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                 aria-disabled={isDisabled ? true : undefined}
                 display="flex"
                 alignItems="center"
@@ -1127,7 +1214,7 @@ function MenuCustomItem({
                           // Each item in the menu has `tabindex` set to -1. (Even disabled items
                           // are focusable.)
                           //
-                          // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
+                          // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                           tabIndex: -1,
                       }
                     : {})}
@@ -1135,7 +1222,7 @@ function MenuCustomItem({
                 backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
                 // When a menu item is disabled, `aria-disabled` is set to true.
                 //
-                // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
+                // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                 aria-disabled={pendingState.isPending ? true : undefined}
             >
                 {action.render({
@@ -1147,3 +1234,386 @@ function MenuCustomItem({
         </FocusRing>
     );
 }
+
+const MenuChildrenItem = forwardRef(function MenuStandardItem(
+    {
+        size,
+        menuItemId,
+        action,
+        onCloseWithAnimation,
+        onCloseWithoutAnimation,
+        skipTooltipHoverDelay,
+        isNotFocusable,
+        isFocusRingVisible,
+        shouldNotCloseAfterPress,
+        isOpened,
+        onOpen,
+        onClose,
+    }: {
+        size: MenuSize;
+        menuItemId: string;
+        action: MenuChildrenAction;
+        onCloseWithAnimation: () => void;
+        onCloseWithoutAnimation: () => void;
+        skipTooltipHoverDelay?: () => void;
+        isNotFocusable: boolean;
+        isFocusRingVisible: boolean;
+        shouldNotCloseAfterPress: boolean;
+        isOpened: boolean;
+        onOpen: () => void;
+        onClose: () => void;
+    },
+    ref: Ref<HTMLDivElement>,
+) {
+    const isMobile = useIsMobile();
+
+    const itemRef = useRef<HTMLDivElement>(null);
+    const overlayRef = useRef<HTMLDivElement>(null);
+    const overlayMenuRef = useRef<HTMLDivElement>(null);
+    const hoverTriangleContainerRef = useRef<HTMLDivElement>(null);
+
+    const {width, iconSize, itemPaddingY} =
+        menuSizeConstants[size][isMobile ? "mobile" : "desktop"];
+
+    const [isHovered, setIsHovered] = useState(false);
+
+    const [shouldInitiallyFocus, setShouldInitiallyFocus] = useState(false);
+    if (!isOpened && shouldInitiallyFocus) setShouldInitiallyFocus(false);
+
+    const hasInitiallyFocusedRef = useRef(false);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!isOpened || !shouldInitiallyFocus) {
+            hasInitiallyFocusedRef.current = false;
+            return;
+        }
+
+        const overlayMenuElement = assertExists(overlayMenuRef.current);
+
+        if (hasInitiallyFocusedRef.current) return;
+        hasInitiallyFocusedRef.current = true;
+
+        getNextFocusableElementIfExists(null, {
+            withinElement: overlayMenuElement,
+        })?.focus({preventScroll: true});
+    }, [isOpened, shouldInitiallyFocus]);
+
+    const [hoverTriangleState, setHoverTriangleState] = useState<{
+        readonly initialX: number;
+        readonly initialY: number;
+    } | null>(null);
+    if (!isOpened && hoverTriangleState) setHoverTriangleState(null);
+
+    const {isPressed, pressProps} = usePress({
+        onPress: event => {
+            // For `Enter` and `Space` keyboard events: When focus is on a `menuitem` that
+            // has a submenu, opens the submenu and places focus on its first item.
+            //
+            // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+            if (event.pointerType === "keyboard") {
+                if (!isOpened) {
+                    setShouldInitiallyFocus(true);
+                    onOpen();
+                } else {
+                    const overlayMenuElement = assertExists(overlayMenuRef.current);
+
+                    getNextFocusableElementIfExists(null, {
+                        withinElement: overlayMenuElement,
+                    })?.focus({preventScroll: true});
+                }
+            }
+        },
+    });
+
+    const [isHoverTrianglePressed, setIsHoverTrianglePressed] = useState(false);
+    if (isHoverTrianglePressed && (!isOpened || !hoverTriangleState))
+        setIsHoverTrianglePressed(false);
+
+    const onCloseEvent = useEvent(onClose);
+
+    // If we opened the submenu because the mouse hovered over the menu item then
+    // if the mouse moves over anything else we want to close the submenu.
+    //
+    // `hoverTriangleState` only exists if we opened the submenu when the mouse
+    // hovered over it. If the submenu opened after keyboard interaction then
+    // `hoverTriangleState` will not be set.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!isOpened || !hoverTriangleState) return;
+
+        const element = assertExists(itemRef.current);
+
+        const handlePointerMove = (event: PointerEvent) => {
+            if (!(event.target instanceof Element)) {
+                onCloseEvent();
+                return;
+            }
+
+            if (!isElementOwnedBy(element, event.target)) {
+                onCloseEvent();
+                return;
+            }
+
+            if (element.contains(event.target)) {
+                // If the user moves their cursor outside of the hover triangle but still in
+                // the menu item, update the hover triangle.
+                setHoverTriangleState({
+                    initialX: event.clientX,
+                    initialY: event.clientY,
+                });
+            }
+        };
+
+        document.addEventListener("pointermove", handlePointerMove);
+        return () => {
+            document.removeEventListener("pointermove", handlePointerMove);
+        };
+    }, [hoverTriangleState, isOpened, onCloseEvent]);
+
+    // Submenu dropdowns, if not implemented properly, can be quite user hostile.
+    // Since when the user hovers over a menu item and tries to move their cursor
+    // to the last item in the submenu they may leave the hit area of the original
+    // menu item which closes the submenu. This requires a user to perfectly move
+    // their mouse horizontally into the submenu then down. This is slow since it
+    // requires precision from the user.
+    //
+    // A more user friendly approach to dropdowns is to render a triangle from
+    // where the user's mouse starts to the top and bottom of the submenu. If the
+    // mouse moves within that area we can keep the submenu open.
+    //
+    // The Smashing Magazine article “[User-Friendly Mega-Dropdowns: When Hover
+    // Menus Fail][1]” describes the issue visually and lists a couple solutions.
+    // We implement the same triangle approach invented by Amazon detailed in
+    // “[Breaking down Amazon’s mega dropdown][2].”
+    //
+    // [1]: https://www.smashingmagazine.com/2021/05/frustrating-design-patterns-mega-dropdown-hover-menus/
+    // [2]: https://bjk5.com/post/44698559168/breaking-down-amazons-mega-dropdown
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!isOpened || !hoverTriangleState) return;
+
+        const shouldDebug = false;
+
+        // Make sure `shouldDebug` isn't set outside of dev mode.
+        if (shouldDebug) {
+            assert(process.env.NODE_ENV !== "development");
+        }
+
+        const element = assertExists(itemRef.current);
+        const overlayElement = assertExists(overlayRef.current);
+        const hoverTriangleContainerElement = assertExists(hoverTriangleContainerRef.current);
+
+        const elementRect = element.getBoundingClientRect();
+
+        const xmlns = "http://www.w3.org/2000/svg";
+
+        const hoverTriangleElement = document.createElementNS(xmlns, "svg");
+        hoverTriangleElement.setAttribute(
+            "viewbox",
+            `0 0 ${element.clientWidth} ${overlayElement.clientHeight}`,
+        );
+        hoverTriangleElement.setAttribute(
+            "style",
+            `position: absolute; top: 0; left: -${element.clientWidth}px`,
+        );
+
+        const hoverTriangleSlopPx = 5;
+
+        const hoverTrianglePolygonElement = document.createElementNS(xmlns, "polygon");
+        hoverTrianglePolygonElement.setAttribute(
+            "style",
+            `pointer-events: auto; ${
+                shouldDebug
+                    ? `fill: ${colorSchemeVars["red-40-const"]}; opacity: 0.4`
+                    : "fill: transparent"
+            }`,
+        );
+        hoverTrianglePolygonElement.setAttribute(
+            "points",
+            [
+                `${hoverTriangleState.initialX - elementRect.left - hoverTriangleSlopPx} ${
+                    hoverTriangleState.initialY - elementRect.top + hoverTriangleSlopPx
+                }`,
+                `${hoverTriangleState.initialX - elementRect.left - hoverTriangleSlopPx} ${
+                    hoverTriangleState.initialY - elementRect.top - hoverTriangleSlopPx
+                }`,
+                `${element.clientWidth} 0`,
+                `${element.clientWidth} ${overlayElement.clientHeight}`,
+            ].join(", "),
+        );
+
+        hoverTriangleElement.addEventListener("pointerdown", event => {
+            const elementRect = element.getBoundingClientRect();
+
+            if (
+                elementRect.left <= event.clientX &&
+                event.clientX <= elementRect.right &&
+                elementRect.top <= event.clientY &&
+                event.clientY <= elementRect.bottom
+            ) {
+                setIsHoverTrianglePressed(true);
+            } else {
+                onCloseEvent();
+            }
+        });
+
+        hoverTriangleElement.addEventListener("pointerup", () => {
+            setIsHoverTrianglePressed(false);
+        });
+
+        hoverTriangleElement.addEventListener("pointerleave", () => {
+            setIsHoverTrianglePressed(false);
+        });
+
+        hoverTriangleElement.addEventListener("pointercancel", () => {
+            setIsHoverTrianglePressed(false);
+        });
+
+        hoverTriangleElement.appendChild(hoverTrianglePolygonElement);
+        hoverTriangleContainerElement.appendChild(hoverTriangleElement);
+
+        return () => {
+            hoverTriangleContainerElement.removeChild(hoverTriangleElement);
+        };
+    }, [hoverTriangleState, isOpened, onCloseEvent]);
+
+    return (
+        <OverlayAnimated
+            isVisible={isOpened}
+            disableAnimationIn={true}
+            placement="right-start"
+            offset="-1"
+            offsetAlong="-1"
+            fallbackPlacements={emptyArray}
+            overlay={
+                <Box ref={overlayRef}>
+                    {hoverTriangleState && (
+                        <Box
+                            ref={hoverTriangleContainerRef}
+                            position="absolute"
+                            top="0"
+                            left="0"
+                            pointerEvents="none"
+                        />
+                    )}
+                    <Menu
+                        ref={overlayMenuRef}
+                        size={size}
+                        actions={action.actions}
+                        placement="right-start"
+                        onCloseWithAnimation={onCloseWithAnimation}
+                        onCloseWithoutAnimation={onCloseWithoutAnimation}
+                        shouldNotCloseAfterActionPress={shouldNotCloseAfterPress}
+                        onArrowLeftKeyDown={event => {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            const itemElement = assertExists(itemRef.current);
+
+                            onClose();
+                            itemElement.focus({preventScroll: true});
+                        }}
+                    />
+                </Box>
+            }
+        >
+            <FocusRing isVisible={isFocusRingVisible} offset="0">
+                <Box
+                    {...mergeProps(pressProps, {
+                        onPointerEnter: (event: PointerSyntheticEvent<HTMLDivElement>) => {
+                            if (
+                                event.pointerType === "touch" ||
+                                isHovered ||
+                                !event.currentTarget.contains(event.target as Element)
+                            ) {
+                                return;
+                            }
+
+                            setIsHovered(true);
+                            setHoverTriangleState({
+                                initialX: event.clientX,
+                                initialY: event.clientY,
+                            });
+                            event.currentTarget.focus({preventScroll: true});
+                            onOpen();
+                        },
+                        onPointerLeave: (event: PointerSyntheticEvent<HTMLDivElement>) => {
+                            if (event.pointerType === "touch" || !isHovered) {
+                                return;
+                            }
+
+                            setIsHovered(false);
+                            event.currentTarget.blur();
+                        },
+                        onKeyDown: (event: KeyboardSyntheticEvent) => {
+                            // When focus is in a `menu` and on a `menuitem` that has a submenu, opens the
+                            // submenu and places focus on its first item.
+                            //
+                            // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                            if (event.key === "ArrowRight") {
+                                event.preventDefault();
+                                event.stopPropagation();
+
+                                setInteractionModality("keyboard");
+
+                                if (!isOpened) {
+                                    setShouldInitiallyFocus(true);
+                                    onOpen();
+                                } else {
+                                    const overlayMenuElement = assertExists(overlayMenuRef.current);
+
+                                    getNextFocusableElementIfExists(null, {
+                                        withinElement: overlayMenuElement,
+                                    })?.focus({preventScroll: true});
+                                }
+                            }
+                        },
+                    })}
+                    ref={useMergedRefs(itemRef, ref)}
+                    id={menuItemId}
+                    {...(!isNotFocusable
+                        ? {
+                              role: "menuitem",
+                              // Each item in the menu has `tabindex` set to -1. (Even disabled items
+                              // are focusable.)
+                              //
+                              // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                              tabIndex: -1,
+                          }
+                        : {})}
+                    minWidth={width}
+                    paddingX="2"
+                    paddingY={itemPaddingY}
+                    borderRadius="base"
+                    color="grey-100"
+                    backgroundColor={
+                        isPressed || isHoverTrianglePressed
+                            ? "grey-10"
+                            : isHovered || isOpened
+                            ? "grey-5"
+                            : undefined
+                    }
+                    display="flex"
+                    alignItems="center"
+                    gap="2"
+                >
+                    <Box flexGrow="1" fontStyle="truncate">
+                        {action.label}
+                    </Box>
+                    <Box flexShrink="0" width={iconSize} height={iconSize}>
+                        <IconContext.Provider
+                            value={{
+                                color:
+                                    isPressed || isHoverTrianglePressed
+                                        ? colorSchemeVars["grey-100"]
+                                        : colorSchemeVars["grey-70"],
+                                size: spacing[iconSize],
+                                weight: "regular",
+                            }}
+                        >
+                            <CaretRight />
+                        </IconContext.Provider>
+                    </Box>
+                </Box>
+            </FocusRing>
+        </OverlayAnimated>
+    );
+});

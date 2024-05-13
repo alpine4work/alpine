@@ -716,7 +716,8 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
 
                     // If focus is within the overlay then dispatch the keyboard event from the
                     // focused element. Otherwise dispatch it from the overlay root.
-                    (document.activeElement && overlayElement.contains(document.activeElement)
+                    (document.activeElement &&
+                    isElementOwnedBy(overlayElement, document.activeElement)
                         ? document.activeElement
                         : overlayElement
                     ).dispatchEvent(newEvent);
