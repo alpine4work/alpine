@@ -282,6 +282,12 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
                             borderBottom: "grey-10",
                         })}
                         placeholder={inputLabel}
+                        // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`
+                        // disables these capabilities because the user has combobox suggestions.
+                        // However, fixing typos at the OS level when typos are common (like on iOS)
+                        // is really useful.
+                        autoCorrect={undefined}
+                        spellCheck={undefined}
                         onKeyDown={event => {
                             // Don't handle a tab keypress with `react-aria`. Instead let our
                             // `<OverlayTriggerButton>` handle it.

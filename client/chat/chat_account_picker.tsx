@@ -635,6 +635,12 @@ export function ChatAccountPicker({
                             // so set it to a small value as not to matter.
                             // https://stackoverflow.com/questions/29470676/why-doesnt-the-input-element-respect-min-width
                             size={1}
+                            // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`
+                            // disables these capabilities because the user has combobox suggestions.
+                            // However, fixing typos at the OS level when typos are common (like on iOS)
+                            // is really useful.
+                            autoCorrect={undefined}
+                            spellCheck={undefined}
                             onKeyDown={event => {
                                 if (
                                     event.key === "Enter" &&

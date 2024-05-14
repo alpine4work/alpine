@@ -592,6 +592,12 @@ function TaskAssigneeInput(
                                         ? "none"
                                         : undefined,
                             }}
+                            // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`
+                            // disables these capabilities because the user has combobox suggestions.
+                            // However, fixing typos at the OS level when typos are common (like on iOS)
+                            // is really useful.
+                            autoCorrect={undefined}
+                            spellCheck={undefined}
                             onKeyDown={event => {
                                 if (
                                     event.key === "Enter" &&

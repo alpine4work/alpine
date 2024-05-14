@@ -961,6 +961,12 @@ function TaskCollectionsInput(
                                     // Use `aria-placeholder` since the placeholder text is rendered by another DOM
                                     // element with an icon.
                                     aria-placeholder={inputPlaceholder}
+                                    // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`
+                                    // disables these capabilities because the user has combobox suggestions.
+                                    // However, fixing typos at the OS level when typos are common (like on iOS)
+                                    // is really useful.
+                                    autoCorrect={undefined}
+                                    spellCheck={undefined}
                                     onKeyDown={event => {
                                         if (
                                             event.key === "Enter" &&
