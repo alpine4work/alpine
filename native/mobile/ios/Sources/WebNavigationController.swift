@@ -41,7 +41,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     #if PRODUCTION_RUN_ENVIRONMENT
         static let baseUrl = URL(string: "https://cyberworlds.dev")!
     #else
-        static let baseUrl = URL(string: "http://localhost:3000")!
+        // NOTE(calebmer): This variable is from a Swift file generated at build time
+        // by the rule `//native/mobile/ios:build_config`.
+        static let baseUrl = URL(string: webBaseUrl)!
     #endif
 
     static private var baseUrlAbsoluteStringWithTrailingSlash = baseUrl.absoluteString + "/"
@@ -137,7 +139,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 != (newValue.isLoading || newValue.isHealthy) && !newValue.isHealthy
             {
                 logger.error(
-                    "Web view is unhealthy after not receiving a ping for \(newValue.lastPingTime?.distance(to: DispatchTime.now()).toSeconds() ?? Double.nan)s"
+                    "Web view is unhealthy after not receiving a ping for \(newValue.lastPingTime?.distance(to: DispatchTime.now()).toSeconds() ?? Double.nan, privacy: .public)s"
                 )
             }
 
@@ -308,7 +310,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
             if oldDisableTabBar != newDisableTabBar {
                 logger.info(
-                    "Hide tab bar count updated: \(self.disableTabBarCount) (\(self.disableTabBarCount > 0 ? "hiding" : "showing"))"
+                    "Hide tab bar count updated: \(self.disableTabBarCount, privacy: .public) (\(self.disableTabBarCount > 0 ? "hiding" : "showing", privacy: .public))"
                 )
             }
 
@@ -421,6 +423,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         initialPathByTab: InitialPathByTab,
         websiteDataStore: WKWebsiteDataStore
     ) {
+        let url = URL(string: initialPath, relativeTo: WebNavigationController.baseUrl)!
+
+        logger.info("Initializing at: \(url.absoluteString, privacy: .public)")
+
         self.initialPath = initialPath
         self.initialPathByTab = initialPathByTab
 
@@ -531,7 +537,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             object: nil
         )
 
-        let url = URL(string: initialPath, relativeTo: WebNavigationController.baseUrl)!
         let request = URLRequest(url: url)
         webView.load(request)
 
@@ -728,9 +733,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     /// Calling `webView.reload()` when the JavaScript thread is blocked doesn't
     /// seem to work.
     fileprivate func forceReloadWebView() {
-        logger.info("Force reloading")
-
         let url = webView.url
+
+        logger.info("Force reloading to: \(url?.absoluteString ?? "nil", privacy: .public)")
 
         webInputAccessoryObserverView?.removeFromSuperview()
         webInputAccessoryObserverView = nil
@@ -793,7 +798,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-        logger.info("Started navigation to: \(webView.url?.absoluteString ?? "nil")")
+        logger.info(
+            "Started navigation to: \(webView.url?.absoluteString ?? "nil", privacy: .public)"
+        )
 
         cleanupModalPresentedViewController()
 
@@ -804,7 +811,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
-        logger.info("Committed navigation to: \(webView.url?.absoluteString ?? "nil")")
+        logger.info(
+            "Committed navigation to: \(webView.url?.absoluteString ?? "nil", privacy: .public)"
+        )
 
         if webViewHealthState.provisionalNavigation === navigation {
             // Reset health state now that we have a new navigation.
@@ -967,7 +976,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             )
             let url = URL(string: String(urlString))!
 
-            logger.info("Push navigation to: \(url.absoluteString)")
+            logger.info("Push navigation to: \(url.absoluteString, privacy: .public)")
 
             let viewController = WebNavigationEntryController(
                 entry: preparingNavigationEntry ?? WebNavigationEntry(),
@@ -1029,7 +1038,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             )
             let url = URL(string: String(urlString))!
 
-            logger.info("Pop navigation to: \(url.absoluteString)")
+            logger.info("Pop navigation to: \(url.absoluteString, privacy: .public)")
 
             let viewController = viewControllers.last(where: { (viewController) in
                 (viewController as! WebNavigationEntryController).url.absoluteString
@@ -1097,7 +1106,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             )
             let url = URL(string: String(urlString))!
 
-            logger.info("Replace navigation to: \(url.absoluteString)")
+            logger.info("Replace navigation to: \(url.absoluteString, privacy: .public)")
 
             // If the modal view controller is open it represents the same navigation stack
             // entry as the top view controller. When the modal is dismissed the top view
@@ -1179,7 +1188,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             let url = URL(string: String(urlString))!
 
             logger.info(
-                "Switch tab (`\(String(describing: tab))`) navigation to: \(url.absoluteString)"
+                "Switch tab (`\(String(describing: tab), privacy: .public)`) navigation to: \(url.absoluteString, privacy: .public)"
             )
 
             viewControllersByInactiveTab[currentTab] = viewControllers

@@ -7,6 +7,7 @@ load(
     "top_level_target",
     "xcodeproj",
 )
+load("//native/mobile/ios:build_config.bzl", "build_config")
 
 sources = glob(["Sources/**/*.swift"])
 
@@ -105,9 +106,38 @@ config_setting(
     values = {"compilation_mode": "opt"},
 )
 
+string_flag(
+    name = "base_url",
+    build_setting_default = "default",
+)
+
+build_config(
+    name = "build_config",
+    default_base_url = select({
+        ":development_run_environment": "http://localhost:3000",
+        ":test_run_environment": "http://localhost:3000",
+        ":production_run_environment": "http://cyberworlds.dev",
+    }),
+)
+
+filegroup(
+    name = "build_config_swift_files",
+    srcs = [":build_config"],
+    output_group = "swift_files",
+)
+
+filegroup(
+    name = "build_config_plist_files",
+    srcs = [":build_config"],
+    output_group = "plist_files",
+)
+
 swift_library(
     name = "lib",
-    srcs = [":sources"],
+    srcs = [
+        ":build_config_swift_files",
+        ":sources",
+    ],
     # Fail to build if there are warnings.
     copts = ["-warnings-as-errors"],
     data = [":resources"],
@@ -123,21 +153,42 @@ swift_library(
     module_name = "Cyberworlds",
 )
 
+string_flag(
+    name = "provisioning_profile",
+    build_setting_default = "default",
+)
+
+config_setting(
+    name = "provisioning_profile_local",
+    flag_values = {
+        ":provisioning_profile": "local",
+    },
+)
+
 ios_application(
     name = "app",
-    bundle_id = "dev.cyberworlds.app",
+    bundle_id = "inc.alpine.mobile.app",
+    bundle_name = "Alpine",
     entitlements = select({
-        ":development_run_environment": "Resources/EntitlementsDevelopment.entitlements",
-        ":production_run_environment": "Resources/EntitlementsProduction.entitlements",
-        ":test_run_environment": "Resources/EntitlementsDevelopment.entitlements",
+        ":provisioning_profile_local": "Resources/Entitlements.entitlements",
+        "//conditions:default": "Resources/EntitlementsWithoutProvisioningProfile.entitlements",
     }),
     families = [
         "iphone",
         "ipad",
     ],
-    infoplists = ["Resources/Info.plist"],
+    infoplists = [":build_config_plist_files"],
     launch_storyboard = "Resources/Launch.storyboard",
     minimum_os_version = "16.0",
+    # To build with the local provisioning profile:
+    #
+    # ```
+    # bazel build //native/mobile/ios:app --//native/mobile/ios:provisioning_profile=local
+    # ```
+    provisioning_profile = select({
+        ":provisioning_profile_local": "Resources/LocalProvisioningProfile.mobileprovision",
+        "//conditions:default": None,
+    }),
     visibility = ["//visibility:public"],
     deps = [":lib"],
 )

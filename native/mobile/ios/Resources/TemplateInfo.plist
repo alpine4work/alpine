@@ -51,9 +51,7 @@
     </array>
     <key>WKAppBoundDomains</key>
     <array>
-        <string>localhost</string>
-        <string>cyberworlds.dev</string>
-        <string>alpine.inc</string>
+        <string>{{APP_BOUND_DOMAIN}}</string>
     </array>
 </dict>
 </plist>
