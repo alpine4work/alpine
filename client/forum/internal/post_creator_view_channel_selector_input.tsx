@@ -334,7 +334,10 @@ function PostCreatorViewChannelSelectorInput(
             }
 
             // Keep focus in the input if we're using a keyboard interaction modality.
-            if (getInteractionModality() !== "pointer") {
+            //
+            // And if an item is selected. If the user hits "Enter" to clear the selection
+            // we always want to blur the input.
+            if (item !== null && getInteractionModality() !== "pointer") {
                 setInputState(inputState => {
                     if (inputState.type !== "Typing") return inputState;
                     return {
@@ -390,9 +393,11 @@ function PostCreatorViewChannelSelectorInput(
             disableAnimationIn={true}
             disableAnimationOut={inputState.disableAnimationOut}
             placement="bottom-start"
+            sameWidth={width === "full"}
             overlay={
                 <Box ref={popoverRef} position="relative">
                     <PostCreatorViewChannelSelectorListBox
+                        width={width}
                         comboBoxState={comboBoxState}
                         listBoxRef={listBoxRef}
                         listBoxProps={listBoxProps}
@@ -449,6 +454,10 @@ function PostCreatorViewChannelSelectorInput(
                                 // So intercept this case and don't call into `@react-aria/combobox`.
                                 //
                                 // [1]: https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/combobox/src/useComboBox.ts#L132
+
+                                // Clear the selection when the user presses enter when nothing is focused.
+                                // This way the user has a way to empty the channel selector input.
+                                comboBoxProps.onSelectionChange?.(null as any);
                             } else {
                                 inputProps.onKeyDown?.(event);
                             }
@@ -510,12 +519,14 @@ function PostCreatorViewChannelSelectorInput(
 }
 
 function PostCreatorViewChannelSelectorListBox({
+    width,
     comboBoxState,
     listBoxRef,
     listBoxProps: _listBoxProps,
     selectedKey,
     areItemsLoading,
 }: {
+    width: "48" | "full";
     comboBoxState: ComboBoxState<PostCreatorViewChannelSelectorItem>;
     listBoxRef: RefObject<HTMLUListElement>;
     listBoxProps: AriaListBoxOptions<PostCreatorViewChannelSelectorItem>;
@@ -538,7 +549,7 @@ function PostCreatorViewChannelSelectorListBox({
                     padding: "1",
                     backgroundColor: "grey-0",
                     boxShadow: "elevation-20",
-                    width: "64",
+                    width: width === "full" ? "full" : "64",
                     overflowX: "hidden",
                     overflowY: "auto",
                 }),
