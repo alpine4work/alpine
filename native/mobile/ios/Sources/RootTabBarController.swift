@@ -415,9 +415,12 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         // paints to the screen, but web code doesn't have a good way to listen for
         // scroll view content resize. (Whereas in iOS native code we can use KVO to
         // listen to `contentSize` on `UIScrollView`.)
-        if scrollOffset > lastScrollOffset
-            && scrollOffset - lastScrollOffset == scrollHeight - lastScrollHeight
+        if scrollHeight > lastScrollHeight && scrollOffset > lastScrollOffset
+            && scrollOffset - lastScrollOffset <= scrollHeight - lastScrollHeight
         {
+            // Also perform the scroll direction change here.
+            self.lastScrollDirection = .down
+
             let lastNavigationBarScrollOffset = max(
                 0,
                 min(lastScrollOffset - self.lastNavigationBarTopOffset, navigationBarHeight)

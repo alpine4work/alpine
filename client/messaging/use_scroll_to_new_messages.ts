@@ -1,6 +1,7 @@
 import {Key, Memo, RefObject, useRef} from "react";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {flushNavigationBarScrollEvent} from "~/client/design/navigation_bar.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
@@ -132,6 +133,7 @@ export function useScrollToNewMessages<Message extends MessageModel>({
                     convertRemLengthToPx(messageViewMinHeight, getRemPxWithoutListening()) * 4
             ) {
                 view.setScrollOffset(newScrollOffset);
+                flushNavigationBarScrollEvent(view.getElement());
             }
         };
 

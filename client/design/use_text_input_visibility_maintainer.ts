@@ -1,6 +1,9 @@
 import {useEffect} from "react";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
-import {getNavigationBarHeightRemWithoutListening} from "~/client/design/navigation_bar.js";
+import {
+    flushNavigationBarScrollEvent,
+    getNavigationBarHeightRemWithoutListening,
+} from "~/client/design/navigation_bar.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
@@ -163,9 +166,11 @@ export function useTextInputVisibilityMaintainer() {
                     // `requestAnimationFrame()` appears to work.
                     if (!isMobileWebKit) {
                         scrollableElement.scrollTop = scrollTop;
+                        flushNavigationBarScrollEvent(scrollableElement);
                     } else {
                         requestAnimationFrame(() => {
                             scrollableElement!.scrollTop = scrollTop;
+                            flushNavigationBarScrollEvent(scrollableElement!);
                         });
                     }
                 }
@@ -183,9 +188,11 @@ export function useTextInputVisibilityMaintainer() {
                     // `requestAnimationFrame()` appears to work.
                     if (!isMobileWebKit) {
                         scrollableElement.scrollTop = scrollTop;
+                        flushNavigationBarScrollEvent(scrollableElement);
                     } else {
                         requestAnimationFrame(() => {
                             scrollableElement!.scrollTop = scrollTop;
+                            flushNavigationBarScrollEvent(scrollableElement!);
                         });
                     }
                 }

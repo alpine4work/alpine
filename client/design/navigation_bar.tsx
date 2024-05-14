@@ -55,6 +55,7 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {
     FontSize,
@@ -115,6 +116,37 @@ export const mobileNavigationBarActionsWidthFittingFlexBasis = subtractRemLength
     spacing[navigationBarActionsFlexBasis],
     spacing[mobileNavigationBarGap],
 );
+
+const flushNavigationBarScrollEventEmitter = new EventEmitter<HTMLElement>();
+
+/**
+ * If we change `element.scrollTop` then by default the navigation bar will be
+ * updated after a `scroll` event. However, this happens asynchronously after
+ * `element.scrollTop` is changed since we go from the JavaScript main thread
+ * to the async scroll thread and back (at least in browsers like WebKit). This
+ * means if an `element.scrollTop` change results in the navigation bar
+ * updating its styles the user may see flashes as `scroll` events are
+ * processed asynchronously!
+ *
+ * If you call this function after an `element.scrollTop` change then the
+ * navigation bar will update synchronously so the user doesn't see janky
+ * flashes of the navigation bar in an incorrect style.
+ *
+ * One place that needs to call this function is
+ * `useTextInputVisibilityMaintainer()`. When a new paragraph or line of
+ * text is added we scroll to make sure the text is still visible. Navigation
+ * bar detects when the content height and scroll offset change at the same
+ * time (detecting new inserted content) and maintains the position of the
+ * navigation bar. In mobile WebKit if you quickly add new lines to a post (or
+ * document or anything really) then the navigation bar jankiness is clearly
+ * visible as the `scroll` event is processed asynchronously. [Video of the
+ * bug][1].
+ *
+ * [1]: https://gist.github.com/calebmer/0d1b4fd7dda8f1283f0c877ec92504dc
+ */
+export function flushNavigationBarScrollEvent(scrollableElement: HTMLElement) {
+    flushNavigationBarScrollEventEmitter.emit(scrollableElement);
+}
 
 const onNavigationBarPrepareSmoothScrollToSymbol = Symbol("onNavigationBarPrepareSmoothScrollTo");
 
@@ -526,6 +558,12 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
                     assertExists(navigationBarRef.current).onScroll(element);
                 };
 
+                const handleScrollFromEmitter = (targetElement: HTMLElement) => {
+                    if (targetElement === element) {
+                        assertExists(navigationBarRef.current).onScroll(element);
+                    }
+                };
+
                 const handlePrepareSmoothScrollTo = (scrollTop: number) => {
                     assertExists(navigationBarRef.current).onPrepareSmoothScrollTo(
                         element,
@@ -560,12 +598,16 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
 
                         addResizeListenerForElement(element, handleResize);
                         element.addEventListener("scroll", handleScroll);
+                        flushNavigationBarScrollEventEmitter.addListener(handleScrollFromEmitter);
                         (element as any)[onNavigationBarPrepareSmoothScrollToSymbol] =
                             handlePrepareSmoothScrollTo;
 
                         cleanup = () => {
-                            element.removeEventListener("scroll", handleScroll);
                             removeResizeListenerForElement(element, handleResize);
+                            element.removeEventListener("scroll", handleScroll);
+                            flushNavigationBarScrollEventEmitter.removeListener(
+                                handleScrollFromEmitter,
+                            );
                             (element as any)[onNavigationBarPrepareSmoothScrollToSymbol] =
                                 undefined;
                         };
@@ -989,9 +1031,14 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 // scroll view content resize. (Whereas in iOS native code we can use KVO to
                 // listen to `contentSize` on `UIScrollView`.)
                 if (
+                    scrollHeight > lastScrollHeight &&
                     scrollOffset > lastScrollOffset &&
-                    scrollOffset - lastScrollOffset == scrollHeight - lastScrollHeight
+                    scrollOffset - lastScrollOffset <= scrollHeight - lastScrollHeight
                 ) {
+                    // Also perform the scroll direction change here.
+                    const scrollDirection = "Down";
+                    lastScrollDirectionRef.current = scrollDirection;
+
                     const lastNavigationBarScrollOffset = clamp(
                         0,
                         lastScrollOffset - lastNavigationBarTopOffsetRef.current,
@@ -1021,7 +1068,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     // Immediately update our sticky positioning CSS to avoid potential jankiness.
                     flushSync(() => {
                         setScrollDirectionState({
-                            scrollDirection: lastScrollDirectionRef.current,
+                            scrollDirection,
                             navigationBarTopOffset: Math.max(
                                 0,
                                 navigationBarTopOffset -

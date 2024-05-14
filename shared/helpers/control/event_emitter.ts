@@ -31,7 +31,29 @@ export class EventEmitter<Event = void> {
     }
 
     /**
-     * Subscribe to all events emit on this event emitter.
+     * Subscribe a listener to events emit by this event emitter.
+     *
+     * Same style API as the DOM's `EventTarget.removeEventListener()`.
+     */
+    public addListener(listener: (event: Event) => void) {
+        this._listeners.add(listener);
+    }
+
+    /**
+     * Unsubscribe from events emit by this event emitter.
+     *
+     * Same style API as the DOM's `EventTarget.addEventListener()`.
+     */
+    public removeListener(listener: (event: Event) => void) {
+        this._listeners.delete(listener);
+    }
+
+    /**
+     * Subscribe to all events emit on this event emitter. Returns a function to
+     * unsubscribe from events.
+     *
+     * Useful for React's `useEffect()` hook which also expects the unsubscribe
+     * function to be returned.
      */
     public subscribe(listener: (event: Event) => void): () => void {
         this._listeners.add(listener);
@@ -47,19 +69,24 @@ export class EventEmitter<Event = void> {
     public async *[Symbol.asyncIterator](): AsyncIterableIterator<Event> {
         let promiseResolver = createPromiseResolver<Event>();
 
-        const unsubscribe = this.subscribe(event => {
+        const listener = (event: Event) => {
             const lastPromiseResolver = promiseResolver;
             promiseResolver = createPromiseResolver();
             lastPromiseResolver.resolve(event);
-        });
+        };
+
+        this._listeners.add(listener);
 
         try {
+            // TODO(calebmer): Doesn't this implementation need an event queue in case the
+            // consumer doesn't immediately call `next()` after a value is yielded? I think
+            // this is broken.
             while (true) {
                 const event = await promiseResolver.promise;
                 yield event;
             }
         } finally {
-            unsubscribe();
+            this._listeners.delete(listener);
         }
     }
 }
