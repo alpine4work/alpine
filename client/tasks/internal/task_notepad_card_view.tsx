@@ -29,6 +29,7 @@ import {
     taskCardViewMaxWidth,
     taskCardViewMinHeight,
 } from "~/client/tasks/internal/task_card_view_content.js";
+import {TaskCloseConfirmationModalDialog} from "~/client/tasks/internal/task_close_confirmation_modal_dialog.js";
 import {
     taskNotepadViewActiveSectionCardGap,
     taskNotepadViewActiveSectionCardTranslateDurationMs,
@@ -255,6 +256,12 @@ function TaskNotepadCardView({
         activeDraggableData?.type === "Card" &&
         compareTaskPosition(activeDraggableData.assigneeActivePosition, assigneeActivePosition) > 0;
 
+    // Checks if a user has confirmed a task can be completed
+    const [taskCloseConfirmationState, setTaskCloseConfirmationState] = useState<{
+        taskId: TaskId;
+        onConfirm: () => void;
+    } | null>(null);
+
     const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
     if (task) {
         contextMenuActions.push([
@@ -281,6 +288,9 @@ function TaskNotepadCardView({
                 undoManager: null,
                 affinityManager,
                 task,
+                onCloseConfirmationDialogueOpen: ({onConfirm}) => {
+                    setTaskCloseConfirmationState({taskId: task.id, onConfirm});
+                },
             }),
         );
 
@@ -380,68 +390,78 @@ function TaskNotepadCardView({
     }, [isDraggableAfterLongTouch, onManuallyActivateTouchSensor]);
 
     return (
-        <ContextMenuActions actions={contextMenuActions}>
-            <FocusRing offset="border">
-                <Box
-                    {...mergeProps(draggableListeners ?? {}, draggableAttributes, {
-                        onPointerDown: (event: PointerSyntheticEvent) => {
-                            // Only count left clicks.
-                            if (event.button !== 0) return;
+        <>
+            <ContextMenuActions actions={contextMenuActions}>
+                <FocusRing offset="border">
+                    <Box
+                        {...mergeProps(draggableListeners ?? {}, draggableAttributes, {
+                            onPointerDown: (event: PointerSyntheticEvent) => {
+                                // Only count left clicks.
+                                if (event.button !== 0) return;
 
-                            setIsPressed(true);
-                        },
-                        onPointerUp: (event: PointerSyntheticEvent) => {
-                            // Only count left clicks.
-                            if (event.button !== 0) return;
+                                setIsPressed(true);
+                            },
+                            onPointerUp: (event: PointerSyntheticEvent) => {
+                                // Only count left clicks.
+                                if (event.button !== 0) return;
 
-                            setIsPressed(false);
-                            if (isPressed) onPress();
-                        },
-                        onPointerLeave: () => setIsPressed(false),
-                        onPointerCancel: () => setIsPressed(false),
-                    })}
-                    ref={useMergedRefs<HTMLDivElement>(cardRef, setDraggableNodeRef)}
-                    tabIndex={0}
-                    flexShrink="0"
-                    alignSelf="stretch"
-                    maxWidth={taskCardViewMaxWidth}
-                    position="relative"
-                    overflow="hidden"
-                    backgroundColor="grey-0"
-                    boxShadow="elevation-5-with-grey-10-border"
-                    borderRadius="lg"
-                    opacity={isDragging ? "0" : undefined}
-                    pointerEvents={isDragging ? "none" : undefined}
-                    style={{
-                        width: widthStyle,
-                        minHeight: taskCardViewMinHeight,
-                        transform: shouldPushRight
-                            ? `translateX(100%) translateX(${spacing[taskNotepadViewActiveSectionCardGap]})`
-                            : shouldPushLeft
-                            ? `translateX(-100%) translateX(-${spacing[taskNotepadViewActiveSectionCardGap]})`
-                            : undefined,
-                        transition: dndContextActive
-                            ? `transform ${taskNotepadViewActiveSectionCardTranslateDurationMs}ms ease`
-                            : undefined,
-                    }}
-                >
-                    {isPressed && (
-                        <Box
-                            position="absolute"
-                            zIndex="10"
-                            pointerEvents="none"
-                            className={pressOpacityOverlayClassName}
-                            style={{
-                                inset: 3,
-                                // Nested border radius calculated with:
-                                // https://www.30secondsofcode.org/css/s/nested-border-radius/
-                                borderRadius: `calc(${borderRadius.lg} - 3px)`,
-                            }}
-                        />
-                    )}
-                    {content}
-                </Box>
-            </FocusRing>
-        </ContextMenuActions>
+                                setIsPressed(false);
+                                if (isPressed) onPress();
+                            },
+                            onPointerLeave: () => setIsPressed(false),
+                            onPointerCancel: () => setIsPressed(false),
+                        })}
+                        ref={useMergedRefs<HTMLDivElement>(cardRef, setDraggableNodeRef)}
+                        tabIndex={0}
+                        flexShrink="0"
+                        alignSelf="stretch"
+                        maxWidth={taskCardViewMaxWidth}
+                        position="relative"
+                        overflow="hidden"
+                        backgroundColor="grey-0"
+                        boxShadow="elevation-5-with-grey-10-border"
+                        borderRadius="lg"
+                        opacity={isDragging ? "0" : undefined}
+                        pointerEvents={isDragging ? "none" : undefined}
+                        style={{
+                            width: widthStyle,
+                            minHeight: taskCardViewMinHeight,
+                            transform: shouldPushRight
+                                ? `translateX(100%) translateX(${spacing[taskNotepadViewActiveSectionCardGap]})`
+                                : shouldPushLeft
+                                ? `translateX(-100%) translateX(-${spacing[taskNotepadViewActiveSectionCardGap]})`
+                                : undefined,
+                            transition: dndContextActive
+                                ? `transform ${taskNotepadViewActiveSectionCardTranslateDurationMs}ms ease`
+                                : undefined,
+                        }}
+                    >
+                        {isPressed && (
+                            <Box
+                                position="absolute"
+                                zIndex="10"
+                                pointerEvents="none"
+                                className={pressOpacityOverlayClassName}
+                                style={{
+                                    inset: 3,
+                                    // Nested border radius calculated with:
+                                    // https://www.30secondsofcode.org/css/s/nested-border-radius/
+                                    borderRadius: `calc(${borderRadius.lg} - 3px)`,
+                                }}
+                            />
+                        )}
+                        {content}
+                    </Box>
+                </FocusRing>
+            </ContextMenuActions>
+            {taskCloseConfirmationState && (
+                <TaskCloseConfirmationModalDialog
+                    store={query.store}
+                    taskId={taskCloseConfirmationState.taskId}
+                    onClose={() => setTaskCloseConfirmationState(null)}
+                    onConfirm={taskCloseConfirmationState.onConfirm}
+                />
+            )}
+        </>
     );
 }

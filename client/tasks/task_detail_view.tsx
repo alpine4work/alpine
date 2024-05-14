@@ -50,6 +50,7 @@ import {
     TaskAssigneeInputRef,
 } from "~/client/tasks/internal/task_assignee_input.js";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_tasks_progress_wheel.js";
+import {TaskCloseConfirmationModalDialog} from "~/client/tasks/internal/task_close_confirmation_modal_dialog.js";
 import {
     TaskCollectionsInput,
     TaskCollectionsInputRef,
@@ -575,6 +576,12 @@ export function TaskDetailView({
         onAfterDelete?: () => void;
     } | null>(null);
 
+    // Checks if a user has confirmed a task can be completed
+    const [taskCloseConfirmationState, setTaskCloseConfirmationState] = useState<{
+        taskId: TaskId;
+        onConfirm: () => void;
+    } | null>(null);
+
     const undoManager: TaskClientStoreUndoManager = useMemo(
         () => ({
             pushUndoStackEntry: ({undoActions, removedFromQueries, leaseId, release}) => {
@@ -618,6 +625,12 @@ export function TaskDetailView({
                     displayStatus,
                     getAssigneeSnapshot: () =>
                         taskEntryStore.getSnapshot().task?.getAssignee() ?? null,
+                    getOpenChildCountSnapshot: () =>
+                        taskEntryStore.getSnapshot().task?.getOpenChildTaskCount() ?? 0,
+
+                    onCloseConfirmationDialogueOpen: ({onConfirm}) => {
+                        setTaskCloseConfirmationState({taskId, onConfirm});
+                    },
                 }),
             );
 
@@ -836,6 +849,14 @@ export function TaskDetailView({
                     taskId={taskDeleteConfirmationState.taskId}
                     onClose={() => setTaskDeleteConfirmationState(null)}
                     onAfterDelete={taskDeleteConfirmationState.onAfterDelete}
+                />
+            )}
+            {taskCloseConfirmationState && (
+                <TaskCloseConfirmationModalDialog
+                    store={store}
+                    taskId={taskCloseConfirmationState.taskId}
+                    onClose={() => setTaskCloseConfirmationState(null)}
+                    onConfirm={taskCloseConfirmationState.onConfirm}
                 />
             )}
         </>
@@ -1612,16 +1633,35 @@ function TaskDetailViewStatusButton({
     const taskEntry = useStore(taskSubscription.taskEntryStore);
     const {task} = taskEntry;
 
+    // Checks if a user has confirmed a task can be completed
+    const [taskCloseConfirmationState, setTaskCloseConfirmationState] = useState<{
+        taskId: TaskId;
+        onConfirm: () => void;
+    } | null>(null);
+
     let node = task ? (
-        <TaskStatusButton
-            ref={elementRef}
-            size={size}
-            store={store}
-            undoManager={undoManager}
-            affinityManager={affinityManager}
-            task={task}
-            isDisabled={isReadOnly}
-        />
+        <>
+            <TaskStatusButton
+                ref={elementRef}
+                size={size}
+                store={store}
+                undoManager={undoManager}
+                affinityManager={affinityManager}
+                task={task}
+                isDisabled={isReadOnly}
+                onCloseConfirmationDialogueOpen={({onConfirm}) => {
+                    setTaskCloseConfirmationState({taskId: task.id, onConfirm});
+                }}
+            />
+            {taskCloseConfirmationState && (
+                <TaskCloseConfirmationModalDialog
+                    store={store}
+                    taskId={taskCloseConfirmationState.taskId}
+                    onClose={() => setTaskCloseConfirmationState(null)}
+                    onConfirm={taskCloseConfirmationState.onConfirm}
+                />
+            )}
+        </>
     ) : (
         <Box
             ref={elementRef as Ref<HTMLDivElement>}
