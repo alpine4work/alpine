@@ -1,11 +1,12 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
-import {useEffect, useRef} from "react";
+import {useCallback, useEffect, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {
     mobileNavigationBarActionsWidthFittingFlexBasis,
     navigationBarHeight,
@@ -13,6 +14,7 @@ import {
 } from "~/client/design/navigation_bar.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {safeAreaOnlyScrollbarInsetTop, useScrollbar} from "~/client/design/scrollbar.js";
+import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {PostContentViewHeaderBase} from "~/client/forum/internal/post_content_view_header.js";
 import {
     PostCreatorViewChannelSelectorInput,
@@ -25,13 +27,19 @@ import {
     postContentViewInnerMarginY,
     postViewMaxWidth,
 } from "~/client/forum/post_content_view.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useSessionStorage} from "~/client/helpers/use_local_storage.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {screenPaddingX, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
+import {
+    convertRemLengthToPx,
+    screenPaddingX,
+    spacing,
+    subtractRemLengths,
+} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
@@ -92,13 +100,15 @@ export function PostCreatorView({
     shouldReturnBack: boolean;
     initiallyFocus: "ContentEditor" | "ChannelSelector" | null;
 }) {
+    const isInitialAppRender = useIsInitialAppRender();
     const context = useAppContext();
     const isMobile = useIsMobile();
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContext();
 
+    const editorContainerRef = useRef<HTMLDivElement>(null);
     const channelSelectorRef = useRef<PostCreatorViewChannelSelectorInputRef>(null);
-    const contentEditorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
+    const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
     const createButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
@@ -130,7 +140,7 @@ export function PostCreatorView({
                     break;
                 }
                 case "ContentEditor": {
-                    assertExists(contentEditorRef.current).focus();
+                    assertExists(editorRef.current).focus();
                     break;
                 }
                 case "ChannelSelector": {
@@ -197,6 +207,33 @@ export function PostCreatorView({
         ),
     });
 
+    useScrollToAvoidBottomBarsAndMobileKeyboard(editorContainerRef, {
+        // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on
+        //   initial render.
+        // - Disable on `sidebarState.isOpen` since the comment view should be
+        //   scrolling not the document.
+        isDisabled: isInitialAppRender,
+        getAnchorPosition: useCallback(() => {
+            const editor = assertExists(editorRef.current);
+            const editorState = editor.getState();
+
+            const coords = editor.coordsAtPos(editorState.getSelection().from);
+
+            const paragraphLineHeight = convertRemLengthToPx(
+                contentSchemaStyles.paragraphLineHeight,
+                getRemPxWithoutListening(),
+            );
+
+            // Add a paragraph line height in either direction as slop. We consider the
+            // selection offscreen if there's less than a line of space between it and the
+            // keyboard.
+            return {
+                top: coords.top - paragraphLineHeight,
+                height: coords.bottom - coords.top + paragraphLineHeight * 2,
+            };
+        }, []),
+    });
+
     return (
         <Box
             position="relative"
@@ -222,6 +259,7 @@ export function PostCreatorView({
             )}
             <Box
                 ref={useMergedRefs<HTMLDivElement>(
+                    editorContainerRef,
                     scrollViewRef,
                     useScrollbar({insetTop: scrollbarInsetTop ?? safeAreaOnlyScrollbarInsetTop}),
                 )}
@@ -276,7 +314,7 @@ export function PostCreatorView({
                         />
                     </Box>
                     <ContentEditor
-                        ref={contentEditorRef}
+                        ref={editorRef}
                         aria-label="New post"
                         state={state}
                         onChange={(state, transaction) => {
