@@ -77,6 +77,7 @@ function TaskStatusButton(
         onKeyDown,
         onKeyDownCapture,
         shouldShowClosedStatusWhenPressed,
+        onCloseConfirmationDialogueOpen,
     }: {
         store: TaskClientStore;
         undoManager: TaskClientStoreUndoManager;
@@ -89,6 +90,7 @@ function TaskStatusButton(
         onKeyDown?: (event: KeyboardEvent) => void;
         onKeyDownCapture?: (event: KeyboardEvent) => void;
         shouldShowClosedStatusWhenPressed?: boolean;
+        onCloseConfirmationDialogueOpen: (options: {onConfirm: () => void}) => void;
     },
     ref: Ref<HTMLElement>,
 ) {
@@ -140,28 +142,39 @@ function TaskStatusButton(
                         {undoManager, affinityManager},
                     );
                 } else {
-                    store.commitTaskActionTransaction(
-                        context,
-                        [
-                            {
-                                type: "UpdateTask",
-                                time,
-                                taskId: task.id,
-                                taskAction: {
-                                    type: "UpdateStatus",
-                                    status: {
-                                        type: "Closed",
-                                        closerId: currentAccount.id,
-                                        closedTime: new TaskFilterableTime({
-                                            absoluteTime: time,
-                                            setterTimeZone: timeZone,
-                                        }),
+                    const runCommitTaskActionTransaction = () => {
+                        store.commitTaskActionTransaction(
+                            context,
+                            [
+                                {
+                                    type: "UpdateTask",
+                                    time,
+                                    taskId: task.id,
+                                    taskAction: {
+                                        type: "UpdateStatus",
+                                        status: {
+                                            type: "Closed",
+                                            closerId: currentAccount.id,
+                                            closedTime: new TaskFilterableTime({
+                                                absoluteTime: time,
+                                                setterTimeZone: timeZone,
+                                            }),
+                                        },
                                     },
                                 },
-                            },
-                        ],
-                        {undoManager, affinityManager},
-                    );
+                            ],
+                            {undoManager, affinityManager},
+                        );
+                    };
+                    // Checks if there are any open subtasks
+                    // if there are then open warning dialogue
+                    if (task.getOpenChildTaskCount() !== 0) {
+                        onCloseConfirmationDialogueOpen({
+                            onConfirm: runCommitTaskActionTransaction,
+                        });
+                    } else {
+                        runCommitTaskActionTransaction();
+                    }
                 }
             },
             onKeyDown,

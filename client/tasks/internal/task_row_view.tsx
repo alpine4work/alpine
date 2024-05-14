@@ -39,6 +39,7 @@ import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
+import {TaskCloseConfirmationModalDialog} from "~/client/tasks/internal/task_close_confirmation_modal_dialog.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewMobileKeyboardToolbar} from "~/client/tasks/internal/task_grid_view_mobile_keyboard_toolbar.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
@@ -1039,6 +1040,12 @@ function TaskRowView(
 
     const [isExpandButtonFocused, setIsExpandButtonFocused] = useState(false);
 
+    // Checks if a user has confirmed a task can be completed
+    const [taskCloseConfirmationState, setTaskCloseConfirmationState] = useState<{
+        taskId: TaskId;
+        onConfirm: () => void;
+    } | null>(null);
+
     const contextMenuActions = (() => {
         const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
 
@@ -1069,6 +1076,9 @@ function TaskRowView(
                         undoManager,
                         affinityManager,
                         task,
+                        onCloseConfirmationDialogueOpen: ({onConfirm}) => {
+                            setTaskCloseConfirmationState({taskId: task.id, onConfirm});
+                        },
                     }),
                 );
             }
@@ -1439,36 +1449,42 @@ function TaskRowView(
                         }
                     >
                         {hasTask ? (
-                            <TaskStatusButton
-                                ref={statusButtonRef}
-                                store={query.store}
-                                undoManager={undoManager}
-                                affinityManager={affinityManager}
-                                size={isMobile ? "5" : "4"}
-                                task={task}
-                                // Disable the ability to tab to this button. Since there are so many tasks and
-                                // the `Tab` keyboard shortcut indents a task, we don't rely on `Tab` for focus
-                                // navigation.
-                                isFocusable={true}
-                                isTabbable={false}
-                                isDisabled={capabilities.isReadOnly}
-                                onKeyDown={event => handleCellKeyDown("StatusButton", event)}
-                                onKeyDownCapture={event =>
-                                    handleCellKeyDownCapture("StatusButton", event)
-                                }
-                                // Small UX detail that makes (I feel) a big difference. When you press the
-                                // status button to close a task, after releasing the task immediately animates
-                                // out if the query's filters don't allow closed tasks. This may confuse a user.
-                                // Why did the task do that? Where'd it go?
-                                //
-                                // If the user is in a query where closed tasks are filtered out we show the
-                                // closed check when the user presses down on the status button. This way we
-                                // briefly show them what the new state of their task will be. And give them
-                                // the satisfaction of seeing a closed task.
-                                shouldShowClosedStatusWhenPressed={
-                                    !query.filters.displayStatusFilter.ifClosed
-                                }
-                            />
+                                <TaskStatusButton
+                                    ref={statusButtonRef}
+                                    store={query.store}
+                                    undoManager={undoManager}
+                                    affinityManager={affinityManager}
+                                    size={isMobile ? "5" : "4"}
+                                    task={task}
+                                    // Disable the ability to tab to this button. Since there are so many tasks and
+                                    // the `Tab` keyboard shortcut indents a task, we don't rely on `Tab` for focus
+                                    // navigation.
+                                    isFocusable={true}
+                                    isTabbable={false}
+                                    isDisabled={capabilities.isReadOnly}
+                                    onKeyDown={event => handleCellKeyDown("StatusButton", event)}
+                                    onKeyDownCapture={event =>
+                                        handleCellKeyDownCapture("StatusButton", event)
+                                    }
+                                    // Small UX detail that makes (I feel) a big difference. When you press the
+                                    // status button to close a task, after releasing the task immediately animates
+                                    // out if the query's filters don't allow closed tasks. This may confuse a user.
+                                    // Why did the task do that? Where'd it go?
+                                    //
+                                    // If the user is in a query where closed tasks are filtered out we show the
+                                    // closed check when the user presses down on the status button. This way we
+                                    // briefly show them what the new state of their task will be. And give them
+                                    // the satisfaction of seeing a closed task.
+                                    shouldShowClosedStatusWhenPressed={
+                                        !query.filters.displayStatusFilter.ifClosed
+                                    }
+                                    onCloseConfirmationDialogueOpen={({onConfirm}) => {
+                                        setTaskCloseConfirmationState({
+                                            taskId: task.id,
+                                            onConfirm,
+                                        });
+                                    }}
+                                />
                         ) : (
                             <div
                                 className={
@@ -1725,6 +1741,14 @@ function TaskRowView(
                         if (!capabilities.hasDenseFields) return;
                         assertExists(denseFieldsRef.current).focusDueDateInput();
                     }}
+                />
+            )}
+            {taskCloseConfirmationState && (
+                <TaskCloseConfirmationModalDialog
+                    store={query.store}
+                    taskId={taskCloseConfirmationState.taskId}
+                    onClose={() => setTaskCloseConfirmationState(null)}
+                    onConfirm={taskCloseConfirmationState.onConfirm}
                 />
             )}
         </>

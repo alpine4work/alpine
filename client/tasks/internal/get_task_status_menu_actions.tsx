@@ -24,6 +24,7 @@ export function getTaskStatusMenuActions({
     undoManager,
     affinityManager,
     task,
+    onCloseConfirmationDialogueOpen,
 }: {
     context: AppContext;
     timeZone: TimeZone;
@@ -32,6 +33,7 @@ export function getTaskStatusMenuActions({
     undoManager: TaskClientStoreUndoManager | null;
     affinityManager: TaskClientStoreSearchAffinityManager;
     task: TaskModel;
+    onCloseConfirmationDialogueOpen: (options: {onConfirm: () => void}) => void;
 }): ReadonlyArray<MenuAction> {
     return getTaskStatusMenuActionsWithoutFullTask({
         context,
@@ -43,6 +45,8 @@ export function getTaskStatusMenuActions({
         taskId: task.id,
         displayStatus: task.getDisplayStatus(),
         getAssigneeSnapshot: () => task.getAssignee(),
+        getOpenChildCountSnapshot: () => task.getOpenChildTaskCount(),
+        onCloseConfirmationDialogueOpen,
     });
 }
 
@@ -56,6 +60,8 @@ export function getTaskStatusMenuActionsWithoutFullTask({
     taskId,
     displayStatus,
     getAssigneeSnapshot,
+    getOpenChildCountSnapshot,
+    onCloseConfirmationDialogueOpen,
 }: {
     context: AppContext;
     timeZone: TimeZone;
@@ -66,6 +72,8 @@ export function getTaskStatusMenuActionsWithoutFullTask({
     taskId: TaskId;
     displayStatus: TaskDisplayStatus;
     getAssigneeSnapshot: () => TaskAssigneeWithSortableAccount | null;
+    getOpenChildCountSnapshot: () => number;
+    onCloseConfirmationDialogueOpen: (options: {onConfirm: () => void}) => void;
 }): ReadonlyArray<MenuAction> {
     switch (displayStatus) {
         case "OpenInactive": {
@@ -135,28 +143,40 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                     onPress: () => {
                         const time = store.clock.now();
 
-                        store.commitTaskActionTransaction(
-                            context,
-                            [
-                                {
-                                    type: "UpdateTask",
-                                    time,
-                                    taskId,
-                                    taskAction: {
-                                        type: "UpdateStatus",
-                                        status: {
-                                            type: "Closed",
-                                            closerId: currentAccount.id,
-                                            closedTime: new TaskFilterableTime({
-                                                absoluteTime: time,
-                                                setterTimeZone: timeZone,
-                                            }),
+                        const runCommitTaskActionTransaction = () => {
+                            store.commitTaskActionTransaction(
+                                context,
+                                [
+                                    {
+                                        type: "UpdateTask",
+                                        time,
+                                        taskId,
+                                        taskAction: {
+                                            type: "UpdateStatus",
+                                            status: {
+                                                type: "Closed",
+                                                closerId: currentAccount.id,
+                                                closedTime: new TaskFilterableTime({
+                                                    absoluteTime: time,
+                                                    setterTimeZone: timeZone,
+                                                }),
+                                            },
                                         },
                                     },
-                                },
-                            ],
-                            {undoManager, affinityManager},
-                        );
+                                ],
+                                {undoManager, affinityManager},
+                            );
+                        };
+                        // Checks if there are any open subtasks
+                        if (getOpenChildCountSnapshot() !== 0) {
+                            // If there are open subtasks, then open warning dialogue
+                            onCloseConfirmationDialogueOpen({
+                                onConfirm: runCommitTaskActionTransaction,
+                            });
+                        } else {
+                            // If there are no open subtasks, then just close the task
+                            runCommitTaskActionTransaction();
+                        }
                     },
                 },
             ];
@@ -198,28 +218,40 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                     onPress: () => {
                         const time = store.clock.now();
 
-                        store.commitTaskActionTransaction(
-                            context,
-                            [
-                                {
-                                    type: "UpdateTask",
-                                    time,
-                                    taskId,
-                                    taskAction: {
-                                        type: "UpdateStatus",
-                                        status: {
-                                            type: "Closed",
-                                            closerId: currentAccount.id,
-                                            closedTime: new TaskFilterableTime({
-                                                absoluteTime: time,
-                                                setterTimeZone: timeZone,
-                                            }),
+                        const runCommitTaskActionTransaction = () => {
+                            store.commitTaskActionTransaction(
+                                context,
+                                [
+                                    {
+                                        type: "UpdateTask",
+                                        time,
+                                        taskId,
+                                        taskAction: {
+                                            type: "UpdateStatus",
+                                            status: {
+                                                type: "Closed",
+                                                closerId: currentAccount.id,
+                                                closedTime: new TaskFilterableTime({
+                                                    absoluteTime: time,
+                                                    setterTimeZone: timeZone,
+                                                }),
+                                            },
                                         },
                                     },
-                                },
-                            ],
-                            {undoManager, affinityManager},
-                        );
+                                ],
+                                {undoManager, affinityManager},
+                            );
+                        };
+                        // Checks if there are any open subtasks
+                        if (getOpenChildCountSnapshot() !== 0) {
+                            // If there are open subtasks, then open warning dialogue
+                            onCloseConfirmationDialogueOpen({
+                                onConfirm: runCommitTaskActionTransaction,
+                            });
+                        } else {
+                            // If there are no open subtasks, then just close the task
+                            runCommitTaskActionTransaction();
+                        }
                     },
                 },
             ];
