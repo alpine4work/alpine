@@ -1855,7 +1855,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                             }
                                         }}
                                     >
-                                        <Box display="inline" fontStyle="semi-bold" color="grey-70">
+                                        <Box display="inline" fontStyle="semi-bold">
                                             Done
                                         </Box>
                                     </Button>

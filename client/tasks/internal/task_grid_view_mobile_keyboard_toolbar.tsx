@@ -459,12 +459,12 @@ function TaskGridViewMobileKeyboardToolbarContent({
                 dividerLeft
                 label="Open"
                 isActive={false}
-                flexGrow={1.2}
+                flexGrow={1.1}
                 isDisabled={!onOpenPress}
                 pressErrorTitle="Couldn’t open task"
                 onPress={onOpenPress ?? noop}
             >
-                <Box fontSize="100" fontStyle="semi-bold">
+                <Box fontSize="100" fontStyle="semi-bold" color="grey-100">
                     Open
                 </Box>
             </TaskGridViewMobileKeyboardToolbarButton>
