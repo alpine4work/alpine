@@ -38,12 +38,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     WKScriptMessageHandler, WKScriptMessageHandlerWithReply, WKHTTPCookieStoreObserver,
     UIViewTreeObserverDelegate, UIScrollViewDelegate, WebInputAccessoryObserverViewDelegate
 {
-    #if PRODUCTION_RUN_ENVIRONMENT
-        static let baseUrl = URL(string: "https://cyberworlds.dev")!
-    #else
+    #if DEVELOPMENT_RUN_ENVIRONMENT || TEST_RUN_ENVIRONMENT
         // NOTE(calebmer): This variable is from a Swift file generated at build time
         // by the rule `//native/mobile/ios:build_config`.
         static let baseUrl = URL(string: webBaseUrl)!
+    #else
+        static let baseUrl = URL(string: "https://cyberworlds.dev")!
     #endif
 
     static private var baseUrlAbsoluteStringWithTrailingSlash = baseUrl.absoluteString + "/"
@@ -291,6 +291,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     }
                 }) ? bottomBarKeyboardToolbarHeight : 0)
     }
+
+    private var temporarilyPreservedKeyboardOffset: Double?
+    private var temporarilyPreservedKeyboardOffsetReconcileTimer: Timer?
 
     private var keyboardWillHideCallCount: UInt = 0
     private var keyboardWillHideAnimationTimer: Timer?
@@ -1800,7 +1803,37 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     ) {
         let lastKeyboardOffsetWithoutToolbar = self.keyboardOffsetWithoutToolbar
         guard lastKeyboardOffsetWithoutToolbar != keyboardOffsetWithoutToolbar else { return }
+        let temporarilyPreservedKeyboardOffset =
+            keyboardOffsetWithoutToolbar == 0 ? keyboardOffset : nil
         self.keyboardOffsetWithoutToolbar = keyboardOffsetWithoutToolbar
+
+        self.temporarilyPreservedKeyboardOffsetReconcileTimer?.invalidate()
+        self.temporarilyPreservedKeyboardOffsetReconcileTimer = nil
+
+        // We want to keep the safe area for the keyboard for a short period of time
+        // while we animate to the right scroll position. So we maintain the
+        // `temporarilyPreservedKeyboardOffset` variable when the keyboard closes to
+        // accomplish this.
+        //
+        // An example of something that breaks without this: If you drag down on the
+        // keyboard to dismiss then release the keyboard will finish closing before the
+        // scroll animation finishes causing the screen to jump which looks glitchy.
+        if let temporarilyPreservedKeyboardOffset = temporarilyPreservedKeyboardOffset {
+            self.temporarilyPreservedKeyboardOffset = temporarilyPreservedKeyboardOffset
+
+            let reconcileTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) {
+                (_) in
+                self.temporarilyPreservedKeyboardOffset = nil
+                self.temporarilyPreservedKeyboardOffsetReconcileTimer = nil
+            }
+
+            // Add some tolerance to reduce timer energy impact.
+            reconcileTimer.tolerance = 0.05
+
+            self.temporarilyPreservedKeyboardOffsetReconcileTimer = reconcileTimer
+        } else {
+            self.temporarilyPreservedKeyboardOffset = nil
+        }
 
         // We don't need to do any `UIView.animate()` business since it seems like
         // this function is called in the context of an animation.
@@ -1829,7 +1862,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         let keyboardSafeAreaInsetBottom =
             switch keyboardWebSubstituteState {
-            case .closed: keyboardOffset
+            case .closed:
+                withoutPreserving
+                    ? keyboardOffset : temporarilyPreservedKeyboardOffset ?? keyboardOffset
             // Maintain the old keyboard offset while the keyboard substitute is open so
             // layout doesn't shift around.
             case .opening(let oldKeyboardOffset, _):

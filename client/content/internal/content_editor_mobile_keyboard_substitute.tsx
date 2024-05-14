@@ -65,7 +65,12 @@ import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/pro
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
-import {buttonStyles, colorSchemeVars, contentSchemaStyles} from "~/shared/styles/styles.js";
+import {
+    buttonStyles,
+    colorSchemeVars,
+    contentSchemaStyles,
+    greyElevated2ClassName,
+} from "~/shared/styles/styles.js";
 
 export type ContentEditorMobileKeyboardSubstituteRef = {
     closeWithAnimation(): void;
@@ -213,6 +218,7 @@ function ContentEditorMobileKeyboardSubstitute(
     return createPortal(
         <Box
             ref={substituteRef}
+            className={greyElevated2ClassName}
             position="absolute"
             // Render above everything on the page including toolbar.
             zIndex="70"
