@@ -1,6 +1,15 @@
 import {getInteractionModality, usePress} from "@react-aria/interactions";
 import _Fuse from "fuse.js";
-import {Ref, forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState} from "react";
+import {
+    MutableRefObject,
+    Ref,
+    forwardRef,
+    useCallback,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {useComboBox} from "react-aria";
 import {ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -29,13 +38,15 @@ type TaskPriorityInputState =
     | {
           readonly type: "Selection";
           readonly disableAnimationOut: boolean;
+          readonly shouldBlurRef: MutableRefObject<boolean>;
       }
     | {
           readonly type: "Typing";
           readonly initialPriority: TaskPriority | null;
           readonly value: string;
           readonly hasChanged: boolean;
-          readonly shouldSelect: boolean;
+          readonly disableAnimationOut: boolean;
+          readonly shouldSelectRef: MutableRefObject<boolean>;
       };
 
 export type TaskPriorityInputRef = {
@@ -107,6 +118,7 @@ function TaskPriorityInput(
     const [inputState, setInputState] = useState<TaskPriorityInputState>({
         type: "Selection",
         disableAnimationOut: false,
+        shouldBlurRef: {current: false},
     });
 
     const inputRef = useRef<HTMLInputElement>(null);
@@ -114,9 +126,14 @@ function TaskPriorityInput(
     const listBoxRef = useRef<HTMLUListElement>(null);
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (inputState.type === "Typing" && inputState.shouldSelect) {
+        if (inputState.type === "Selection" && inputState.shouldBlurRef.current) {
+            inputState.shouldBlurRef.current = false;
+            assertExists(inputRef.current).blur();
+        }
+
+        if (inputState.type === "Typing" && inputState.shouldSelectRef.current) {
+            inputState.shouldSelectRef.current = false;
             assertExists(inputRef.current).select();
-            setInputState({...inputState, shouldSelect: false});
         }
     }, [inputState]);
 
@@ -155,7 +172,8 @@ function TaskPriorityInput(
                     initialPriority: inputState.initialPriority,
                     value: inputValue,
                     hasChanged: true,
-                    shouldSelect: false,
+                    disableAnimationOut: false,
+                    shouldSelectRef: {current: false},
                 };
             });
 
@@ -192,7 +210,8 @@ function TaskPriorityInput(
                     initialPriority: priority,
                     value: !isMobile ? inputValue : "",
                     hasChanged: false,
-                    shouldSelect: false,
+                    disableAnimationOut: false,
+                    shouldSelectRef: {current: false},
                 };
             });
         },
@@ -201,7 +220,11 @@ function TaskPriorityInput(
             // When unfocused, switch back to a selection state discarding any typed value.
             setInputState(inputState => {
                 if (inputState.type === "Selection") return inputState;
-                return {type: "Selection", disableAnimationOut: false};
+                return {
+                    type: "Selection",
+                    disableAnimationOut: false,
+                    shouldBlurRef: {current: false},
+                };
             });
         },
 
@@ -271,7 +294,8 @@ function TaskPriorityInput(
                         initialPriority: key === "Null" ? null : key,
                         value: key === "Null" ? "" : getTaskPriorityName(key),
                         hasChanged: false,
-                        shouldSelect: true,
+                        disableAnimationOut: true,
+                        shouldSelectRef: {current: true},
                     };
                 });
 
@@ -289,10 +313,12 @@ function TaskPriorityInput(
             } else {
                 setInputState(inputState => {
                     if (inputState.type === "Selection") return inputState;
-                    return {type: "Selection", disableAnimationOut: true};
+                    return {
+                        type: "Selection",
+                        disableAnimationOut: true,
+                        shouldBlurRef: {current: true},
+                    };
                 });
-
-                assertExists(inputRef.current).blur();
             }
         },
     };
@@ -309,7 +335,8 @@ function TaskPriorityInput(
             initialPriority: priority,
             value: priority ? getTaskPriorityName(priority) : "",
             hasChanged: false,
-            shouldSelect: true,
+            disableAnimationOut: true,
+            shouldSelectRef: {current: true},
         });
 
         comboBoxState.close();
@@ -384,11 +411,7 @@ function TaskPriorityInput(
                 offset={defaultTooltipOffset}
                 offsetAlong="-2.5"
                 disableAnimationIn={true}
-                disableAnimationOut={
-                    inputState.type === "Selection"
-                        ? inputState.disableAnimationOut
-                        : inputState.shouldSelect
-                }
+                disableAnimationOut={inputState.disableAnimationOut}
                 // Prefer rendering the overlay above the input on mobile since the keyboard
                 // will open below the input causing an overlay rendered below to jump up.
                 placement={isMobile ? "top-start" : "bottom-start"}

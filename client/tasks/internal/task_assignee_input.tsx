@@ -1,6 +1,15 @@
 import {getInteractionModality, usePress} from "@react-aria/interactions";
 import _Fuse from "fuse.js";
-import {Ref, forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState} from "react";
+import {
+    MutableRefObject,
+    Ref,
+    forwardRef,
+    useCallback,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {useComboBox} from "react-aria";
 import {ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
@@ -53,13 +62,15 @@ type TaskAssigneeInputState =
     | {
           readonly type: "Selection";
           readonly disableAnimationOut: boolean;
+          readonly shouldBlurRef: MutableRefObject<boolean>;
       }
     | {
           readonly type: "Typing";
           readonly initialAssigneeAccountId: AccountId | null;
           readonly value: string;
           readonly hasChanged: boolean;
-          readonly shouldSelect: boolean;
+          readonly disableAnimationOut: boolean;
+          readonly shouldSelectRef: MutableRefObject<boolean>;
       };
 
 export type TaskAssigneeInputRef = {
@@ -125,12 +136,18 @@ function TaskAssigneeInput(
     const [inputState, setInputState] = useState<TaskAssigneeInputState>({
         type: "Selection",
         disableAnimationOut: false,
+        shouldBlurRef: {current: false},
     });
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (inputState.type === "Typing" && inputState.shouldSelect) {
+        if (inputState.type === "Selection" && inputState.shouldBlurRef.current) {
+            inputState.shouldBlurRef.current = false;
+            assertExists(inputRef.current).blur();
+        }
+
+        if (inputState.type === "Typing" && inputState.shouldSelectRef.current) {
+            inputState.shouldSelectRef.current = false;
             assertExists(inputRef.current).select();
-            setInputState({...inputState, shouldSelect: false});
         }
     }, [inputState]);
 
@@ -233,7 +250,8 @@ function TaskAssigneeInput(
                     initialAssigneeAccountId: inputState.initialAssigneeAccountId,
                     value: inputValue,
                     hasChanged: true,
-                    shouldSelect: false,
+                    disableAnimationOut: false,
+                    shouldSelectRef: {current: false},
                 };
             });
 
@@ -274,7 +292,8 @@ function TaskAssigneeInput(
                     initialAssigneeAccountId: assigneeAccountData?.id ?? null,
                     value: !isMobile ? inputValue : "",
                     hasChanged: false,
-                    shouldSelect: false,
+                    disableAnimationOut: false,
+                    shouldSelectRef: {current: false},
                 };
             });
         },
@@ -283,7 +302,11 @@ function TaskAssigneeInput(
             // When unfocused, switch back to a selection state discarding any typed value.
             setInputState(inputState => {
                 if (inputState.type === "Selection") return inputState;
-                return {type: "Selection", disableAnimationOut: false};
+                return {
+                    type: "Selection",
+                    disableAnimationOut: false,
+                    shouldBlurRef: {current: false},
+                };
             });
         },
 
@@ -381,7 +404,8 @@ function TaskAssigneeInput(
                                 : null,
                         ),
                         hasChanged: false,
-                        shouldSelect: true,
+                        disableAnimationOut: true,
+                        shouldSelectRef: {current: true},
                     };
                 });
 
@@ -399,10 +423,12 @@ function TaskAssigneeInput(
             } else {
                 setInputState(inputState => {
                     if (inputState.type === "Selection") return inputState;
-                    return {type: "Selection", disableAnimationOut: true};
+                    return {
+                        type: "Selection",
+                        disableAnimationOut: true,
+                        shouldBlurRef: {current: true},
+                    };
                 });
-
-                assertExists(inputRef.current).blur();
             }
         },
     };
@@ -422,7 +448,8 @@ function TaskAssigneeInput(
             initialAssigneeAccountId: assigneeAccountData?.id ?? null,
             value: getSelectionInputValue(assigneeAccountData),
             hasChanged: false,
-            shouldSelect: true,
+            disableAnimationOut: true,
+            shouldSelectRef: {current: true},
         });
 
         comboBoxState.close();
@@ -504,11 +531,7 @@ function TaskAssigneeInput(
                 offset={defaultTooltipOffset}
                 offsetAlong={avatarSize === "5" ? "-2.5" : "-3"}
                 disableAnimationIn={true}
-                disableAnimationOut={
-                    inputState.type === "Selection"
-                        ? inputState.disableAnimationOut
-                        : inputState.shouldSelect
-                }
+                disableAnimationOut={inputState.disableAnimationOut}
                 // Prefer rendering the overlay above the input on mobile since the keyboard
                 // will open below the input causing an overlay rendered below to jump up.
                 placement={isMobile ? "top-start" : "bottom-start"}

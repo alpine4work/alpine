@@ -3,6 +3,7 @@ import {Node} from "@react-types/shared";
 import classNames from "classnames";
 import {CaretDown, Check, MagnifyingGlass, SpinnerGap} from "phosphor-react";
 import {
+    MutableRefObject,
     Ref,
     RefObject,
     cloneElement,
@@ -61,12 +62,14 @@ type PostCreatorViewChannelSelectorInputState =
     | {
           readonly type: "Selection";
           readonly disableAnimationOut: boolean;
+          readonly shouldBlurRef: MutableRefObject<boolean>;
       }
     | {
           readonly type: "Typing";
           readonly value: string;
           readonly hasChanged: boolean;
-          readonly shouldSelect: boolean;
+          readonly disableAnimationOut: boolean;
+          readonly shouldSelectRef: MutableRefObject<boolean>;
       };
 
 type PostCreatorViewChannelSelectorItem = {
@@ -118,12 +121,18 @@ function PostCreatorViewChannelSelectorInput(
     const [inputState, setInputState] = useState<PostCreatorViewChannelSelectorInputState>({
         type: "Selection",
         disableAnimationOut: false,
+        shouldBlurRef: {current: false},
     });
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (inputState.type === "Typing" && inputState.shouldSelect) {
+        if (inputState.type === "Selection" && inputState.shouldBlurRef.current) {
+            inputState.shouldBlurRef.current = false;
+            assertExists(inputRef.current).blur();
+        }
+
+        if (inputState.type === "Typing" && inputState.shouldSelectRef.current) {
+            inputState.shouldSelectRef.current = false;
             assertExists(inputRef.current).select();
-            setInputState({...inputState, shouldSelect: false});
         }
     }, [inputState]);
 
@@ -230,7 +239,8 @@ function PostCreatorViewChannelSelectorInput(
                     type: "Typing",
                     value: inputValue,
                     hasChanged: true,
-                    shouldSelect: false,
+                    disableAnimationOut: false,
+                    shouldSelectRef: {current: false},
                 };
             });
 
@@ -276,7 +286,8 @@ function PostCreatorViewChannelSelectorInput(
                     type: "Typing",
                     value: !isMobile ? inputValue : "",
                     hasChanged: false,
-                    shouldSelect: false,
+                    disableAnimationOut: false,
+                    shouldSelectRef: {current: false},
                 };
             });
         },
@@ -285,7 +296,11 @@ function PostCreatorViewChannelSelectorInput(
             // When unfocused, switch back to a selection state discarding any typed value.
             setInputState(inputState => {
                 if (inputState.type === "Selection") return inputState;
-                return {type: "Selection", disableAnimationOut: false};
+                return {
+                    type: "Selection",
+                    disableAnimationOut: false,
+                    shouldBlurRef: {current: false},
+                };
             });
         },
 
@@ -326,7 +341,8 @@ function PostCreatorViewChannelSelectorInput(
                         type: "Typing",
                         value: item ? item.channel.name : "",
                         hasChanged: false,
-                        shouldSelect: true,
+                        disableAnimationOut: true,
+                        shouldSelectRef: {current: true},
                     };
                 });
 
@@ -344,10 +360,12 @@ function PostCreatorViewChannelSelectorInput(
             } else {
                 setInputState(inputState => {
                     if (inputState.type === "Selection") return inputState;
-                    return {type: "Selection", disableAnimationOut: true};
+                    return {
+                        type: "Selection",
+                        disableAnimationOut: true,
+                        shouldBlurRef: {current: true},
+                    };
                 });
-
-                assertExists(inputRef.current).blur();
             }
         },
     };
@@ -370,11 +388,7 @@ function PostCreatorViewChannelSelectorInput(
             isVisible={comboBoxState.isOpen}
             offset={defaultTooltipOffset}
             disableAnimationIn={true}
-            disableAnimationOut={
-                inputState.type === "Selection"
-                    ? inputState.disableAnimationOut
-                    : inputState.shouldSelect
-            }
+            disableAnimationOut={inputState.disableAnimationOut}
             placement="bottom-start"
             overlay={
                 <Box ref={popoverRef} position="relative">
