@@ -73,10 +73,15 @@ export const NativeMobileBridge: {
          * `tintColor`. Which is in turn used as the caret and selection color.
          */
         setThemeColors(options: {
+            "theme-10": string;
+            "theme-20": string;
             "theme-30": string;
             "theme-40": string;
             "theme-50": string;
             "theme-60": string;
+            "theme-70": string;
+            "theme-80": string;
+            "theme-90": string;
         }): void;
     };
 

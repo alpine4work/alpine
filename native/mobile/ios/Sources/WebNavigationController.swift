@@ -297,10 +297,15 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     private var lastApplicationDidBecomeActiveNotificationTime: DispatchTime?
 
+    private var theme10Color = UIColor(named: "indigo-10")!
+    private var theme20Color = UIColor(named: "indigo-20")!
     private var theme30Color = UIColor(named: "indigo-30")!
     private var theme40Color = UIColor(named: "indigo-40")!
     private var theme50Color = UIColor(named: "indigo-50")!
     private var theme60Color = UIColor(named: "indigo-60")!
+    private var theme70Color = UIColor(named: "indigo-70")!
+    private var theme80Color = UIColor(named: "indigo-80")!
+    private var theme90Color = UIColor(named: "indigo-90")!
 
     private var isDisableTabBarChangeAnimated: Bool?
     private var disableTabBarCount = 0 {
@@ -676,7 +681,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     private func initThemeTintColor() -> UIColor {
         return UIColor { [self] (traits) in
-            traits.userInterfaceStyle == .dark ? theme60Color : theme40Color
+            traits.userInterfaceStyle == .dark ? theme70Color : theme40Color
         }
     }
 
@@ -1268,10 +1273,15 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 return UIColor(red: red, green: green, blue: blue, alpha: 1.0)
             })
 
-            theme30Color = (colors.count >= 1 ? colors[0] : nil) ?? UIColor(named: "indigo-30")!
-            theme40Color = (colors.count >= 2 ? colors[1] : nil) ?? UIColor(named: "indigo-40")!
-            theme50Color = (colors.count >= 3 ? colors[2] : nil) ?? UIColor(named: "indigo-50")!
-            theme60Color = (colors.count >= 4 ? colors[2] : nil) ?? UIColor(named: "indigo-60")!
+            theme10Color = (colors.count >= 1 ? colors[0] : nil) ?? UIColor(named: "indigo-10")!
+            theme20Color = (colors.count >= 2 ? colors[1] : nil) ?? UIColor(named: "indigo-20")!
+            theme30Color = (colors.count >= 3 ? colors[2] : nil) ?? UIColor(named: "indigo-30")!
+            theme40Color = (colors.count >= 4 ? colors[3] : nil) ?? UIColor(named: "indigo-40")!
+            theme50Color = (colors.count >= 5 ? colors[4] : nil) ?? UIColor(named: "indigo-50")!
+            theme60Color = (colors.count >= 6 ? colors[5] : nil) ?? UIColor(named: "indigo-60")!
+            theme70Color = (colors.count >= 7 ? colors[6] : nil) ?? UIColor(named: "indigo-70")!
+            theme80Color = (colors.count >= 8 ? colors[7] : nil) ?? UIColor(named: "indigo-80")!
+            theme90Color = (colors.count >= 9 ? colors[8] : nil) ?? UIColor(named: "indigo-90")!
 
             // Use the space theme color as the tint color. The tint color will be used as
             // the selection and caret color among other things.
@@ -3089,7 +3099,7 @@ private let webBridgeSource = """
             },
             colors: {
                 setThemeColors: options => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`colors.setThemeColors:${options["theme-30"]},${options["theme-40"]},${options["theme-50"]},${options["theme-60"]}`);
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`colors.setThemeColors:${options["theme-10"]},${options["theme-20"]},${options["theme-30"]},${options["theme-40"]},${options["theme-50"]},${options["theme-60"]},${options["theme-70"]},${options["theme-80"]},${options["theme-90"]}`);
                 },
             },
             navigation: {
