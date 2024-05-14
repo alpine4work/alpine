@@ -215,6 +215,11 @@ export function PostCreatorView({
         isDisabled: isInitialAppRender,
         getAnchorPosition: useCallback(() => {
             const editor = assertExists(editorRef.current);
+
+            // Don't anchor if the editor is not focused. The channel selector input might
+            // be focused!
+            if (!editor.isFocused()) return null;
+
             const editorState = editor.getState();
 
             const coords = editor.coordsAtPos(editorState.getSelection().from);
