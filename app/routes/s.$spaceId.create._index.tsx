@@ -153,7 +153,8 @@ function CreateRouteButton({
     return (
         <Box
             {...mergeProps(pressProps, hoverProps)}
-            padding="2.5"
+            paddingX="1.5"
+            paddingY="2.5"
             display="flex"
             alignItems="center"
             gap="3"
@@ -223,10 +224,11 @@ function CreateRouteMoreButton({onPress}: {onPress: () => Promise<void>}) {
     return (
         <Box
             {...mergeProps(pressProps, hoverProps)}
-            padding="2.5"
+            height="9"
+            paddingX="2.5"
             display="flex"
             alignItems="center"
-            gap="3"
+            gap="2.5"
             borderRadius="base"
             backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
         >
