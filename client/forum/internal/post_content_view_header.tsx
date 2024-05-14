@@ -37,6 +37,7 @@ export function PostContentViewHeaderBase({
     author,
     createdTime,
     shouldCreatedTimeExcludeTime,
+    extraAfterCreatedTime,
     channel,
     channelSelector,
     withNavigationBarLayout,
@@ -44,6 +45,7 @@ export function PostContentViewHeaderBase({
     author: AccountModel;
     createdTime: Date;
     shouldCreatedTimeExcludeTime?: boolean;
+    extraAfterCreatedTime?: string;
     channel?: ChannelPreviewModel;
     channelSelector?: ReactNode;
     withNavigationBarLayout?: boolean;
@@ -69,6 +71,7 @@ export function PostContentViewHeaderBase({
                         date={createdTime}
                         shouldExcludeTime={shouldCreatedTimeExcludeTime}
                     />
+                    {extraAfterCreatedTime}
                 </Box>
             </Box>
             {channelSelector && (

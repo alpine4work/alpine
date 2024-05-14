@@ -90,9 +90,11 @@ function PostCreatorViewChannelSelectorInput(
     {
         channel,
         onChannelChange,
+        width = "48",
     }: {
         channel: ChannelPreviewModel | null;
         onChannelChange: (channel: ChannelPreviewModel | null) => void;
+        width?: "48" | "full";
     },
     ref: Ref<PostCreatorViewChannelSelectorInputRef>,
 ) {
@@ -392,7 +394,7 @@ function PostCreatorViewChannelSelectorInput(
                 }
             }}
         >
-            <Box position="relative" height="7" width="48">
+            <Box position="relative" height="7" width={width}>
                 <FocusRing offset="border">
                     <input
                         {...inputProps}

@@ -304,14 +304,27 @@ export function PostCreatorView({
                             author={currentAccount}
                             createdTime={displayCreatedTime}
                             shouldCreatedTimeExcludeTime
+                            extraAfterCreatedTime={isMobile ? `, in:` : undefined}
                             channelSelector={
+                                !isMobile && (
+                                    <PostCreatorViewChannelSelectorInput
+                                        ref={channelSelectorRef}
+                                        channel={channel}
+                                        onChannelChange={onChannelChange}
+                                    />
+                                )
+                            }
+                        />
+                        {isMobile && (
+                            <Box paddingTop="1" paddingLeft="10">
                                 <PostCreatorViewChannelSelectorInput
                                     ref={channelSelectorRef}
                                     channel={channel}
                                     onChannelChange={onChannelChange}
+                                    width="full"
                                 />
-                            }
-                        />
+                            </Box>
+                        )}
                     </Box>
                     <ContentEditor
                         ref={editorRef}
