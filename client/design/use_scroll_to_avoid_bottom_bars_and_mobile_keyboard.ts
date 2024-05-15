@@ -207,6 +207,33 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
 
         addResizeListenerForElement(scrollableElement, handleResize);
 
+        let previousScrollTop1 = scrollableElement.scrollTop;
+        let previousScrollTop2 = scrollableElement.scrollTop;
+
+        let previousScrollTime1: number | null = null;
+        let previousScrollTime2: number | null = null;
+
+        const handleScroll = () => {
+            previousScrollTime2 = previousScrollTime1;
+            previousScrollTime1 = Date.now();
+
+            previousScrollTop2 = previousScrollTop1;
+            previousScrollTop1 = scrollableElement.scrollTop;
+        };
+
+        // We consider the user to be continuously scrolling if there are at least two
+        // scroll events which happened in quick succession.
+        const isContinuouslyScrolling = () => {
+            if (previousScrollTime1 === null || previousScrollTime2 === null) return false;
+
+            return (
+                Date.now() - previousScrollTime1 <= 32 &&
+                previousScrollTime1 - previousScrollTime2 <= 32
+            );
+        };
+
+        scrollableElement.addEventListener("scroll", handleScroll);
+
         let recoverableScrollDelta: {
             time: number;
             scrollDeltaDifference: number;
@@ -337,6 +364,21 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             // view. Then tap "Done". This should scroll back up so the safe area added for
             // the keyboard doesn't remain visible.
             const fallbackScroll = () => {
+                // If we've already scrolled to the top (or overscrolled above the top) then
+                // we don't need a fallback scroll which would only scroll us up.
+                if (scrollableElement.scrollTop <= 0) return;
+
+                // If the user is continuously scrolling up then assume the user will keep
+                // scrolling up. On iOS a momentum scroll animation may be running. We don't
+                // want to interrupt the continuous scroll with our fall back scroll which also
+                // scrolls us up.
+                //
+                // This happens on iOS when the user scrolls up to dismiss the keyboard. The
+                // keyboard may dismissed before the momentum scroll finishes taking the user
+                // to the top of the screen. Interrupting the momentum scroll ends up looking
+                // janky.
+                if (isContinuouslyScrolling() && previousScrollTop1 < previousScrollTop2) return;
+
                 if (originalNewVisibleRect.bottom <= oldVisibleRect.bottom) return;
 
                 // Since our fallback scroll is used to scroll up at the end of our scroll
@@ -371,7 +413,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 const newScrollBottom = scrollBottom - visibleRectBottomDelta;
                 if (newScrollBottom >= 0) return;
 
-                const newScrollTop = scrollableElement.scrollTop + newScrollBottom;
+                const newScrollTop = Math.max(0, scrollableElement.scrollTop + newScrollBottom);
 
                 // Prepare navigation bar scroll direction state for a smooth scroll animation
                 // run by the native platform. For example, on mobile WebKit scroll events may
@@ -783,6 +825,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
 
         return () => {
             removeResizeListenerForElement(scrollableElement, handleResize);
+            scrollableElement.removeEventListener("scroll", handleScroll);
             unsubscribe1();
             unsubscribe2();
         };
