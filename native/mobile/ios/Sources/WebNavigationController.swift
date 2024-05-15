@@ -3023,6 +3023,13 @@ private protocol WebInputAccessoryObserverViewDelegate: AnyObject {
 private class WebInputAccessoryObserverView: UIView {
     weak var delegate: WebInputAccessoryObserverViewDelegate?
 
+    // The iOS keyboard is translucent. This is weird when we have a keyboard
+    // toolbar that's fully opaque but as the user scrolls over some content they
+    // can see it under the keyboard. We add a solid color underlay layer below the
+    // keyboard so you don't see the content behind the keyboard. Our solution is
+    // adapted from: https://stackoverflow.com/a/24041385/1568890
+    private var keyboardUnderlay: CALayer
+
     // In order for the input accessory view to stay on top of the keyboard when
     // the height changes we need this bit of code. Adapted from:
     // https://stackoverflow.com/a/33988855/1568890
@@ -3042,10 +3049,15 @@ private class WebInputAccessoryObserverView: UIView {
                     break
                 }
             }
+
+            refreshKeyboardUnderlay()
         }
     }
 
     override init(frame: CGRect) {
+        keyboardUnderlay = CALayer()
+        keyboardUnderlay.backgroundColor = UIColor(named: "grey-0")!.cgColor
+
         super.init(frame: frame)
         isUserInteractionEnabled = false
     }
@@ -3054,9 +3066,30 @@ private class WebInputAccessoryObserverView: UIView {
 
     deinit { superview?.removeObserver(self, forKeyPath: "center") }
 
+    override func layoutSubviews() {
+        super.layoutSubviews()
+
+        var keyboardUnderlayFrame = keyboardUnderlay.frame
+        keyboardUnderlayFrame.origin.y = convert(frame.origin, to: superview).y + frame.size.height
+        keyboardUnderlayFrame.size.width = bounds.size.width
+        keyboardUnderlayFrame.origin.x = 0
+        keyboardUnderlayFrame.size.height = 500
+        keyboardUnderlay.frame = keyboardUnderlayFrame
+
+        refreshKeyboardUnderlay()
+    }
+
     override func willMove(toSuperview newSuperview: UIView?) {
+        super.willMove(toSuperview: newSuperview)
+
         superview?.removeObserver(self, forKeyPath: "center")
         newSuperview?.addObserver(self, forKeyPath: "center", options: .init(), context: nil)
+
+        if let newSuperview = newSuperview {
+            newSuperview.layer.insertSublayer(keyboardUnderlay, at: 1)
+        } else {
+            keyboardUnderlay.removeFromSuperlayer()
+        }
     }
 
     override func observeValue(
@@ -3087,6 +3120,13 @@ private class WebInputAccessoryObserverView: UIView {
         keyboardOffset = round(keyboardOffset * 4) / 4
 
         return keyboardOffset
+    }
+
+    private func refreshKeyboardUnderlay() {
+        if let keyboardUnderlaySuperlayer = keyboardUnderlay.superlayer {
+            keyboardUnderlay.removeFromSuperlayer()
+            keyboardUnderlaySuperlayer.insertSublayer(keyboardUnderlay, at: 1)
+        }
     }
 }
 
