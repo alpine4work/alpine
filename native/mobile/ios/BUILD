@@ -179,7 +179,7 @@ ios_application(
     ],
     infoplists = [":build_config_plist_files"],
     launch_storyboard = "Resources/Launch.storyboard",
-    minimum_os_version = "16.0",
+    minimum_os_version = "17.0",
     # To build with the local provisioning profile:
     #
     # ```
