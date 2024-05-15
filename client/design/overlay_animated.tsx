@@ -1,15 +1,19 @@
-import {Ref, forwardRef, useEffect, useRef, useState} from "react";
+import {AnimationControls, animate} from "motion";
+import {Ref, forwardRef, useRef, useState} from "react";
 import {Overlay, OverlayProps, OverlayRef} from "~/client/design/overlay.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {parseCubicBezier} from "~/shared/design/easing.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
-    overlayAnimateFadeOutClassName,
     overlayFadeInAnimationDurationMs,
+    overlayFadeInOutTimingFunction,
     overlayFadeOutAnimationDurationMs,
 } from "~/shared/styles/styles.js";
 
@@ -100,23 +104,98 @@ function OverlayAnimated(
 
     if (state !== _state) setState(state);
 
+    const overlayContainerRef = useRef<HTMLDivElement>(null);
     const overlayRef = useRef<HTMLElement>(null);
 
     // We need this intermediate `<div>` because our animation uses CSS `translate`
+    // but `<Overlay>` also sets CSS `translate` to position the overlay. So
+    // `<Overlay>` will translate this intermediate `<div>` and we'll animate the
+    // child.
     const overlay = (
-        <div className={overlayAnimateContainerClassName}>
+        <div ref={overlayContainerRef} className={overlayAnimateContainerClassName}>
             {useElementWithRef(originalOverlay, overlayRef)}
         </div>
     );
 
-    useEffect(() => {
+    const isActuallyVisible = state.isVisible || state.isAnimating;
+
+    useLayoutEffectWithoutServerSideWarning(() => {
         if (!state.isAnimating) return;
+        if (!state.isVisible) return;
 
         const overlayElement = assertExists(overlayRef.current);
 
+        overlayElement.classList.add(overlayAnimateFadeInClassName);
+
+        const timeout = createTimeout(() => {
+            setState(prevState => ({...prevState, isAnimating: false}));
+        }, overlayFadeInAnimationDurationMs);
+
+        return () => {
+            overlayElement.classList.remove(overlayAnimateFadeInClassName);
+            timeout.clear();
+        };
+    }, [isActuallyVisible, state.isAnimating, state.isVisible]);
+
+    // NOTE(calebmer): Implement fade out animation with the `motion` package. I've
+    // observed CSS class based animations randomly stop working on mobile WebKit
+    // after ~3min of app use. Implementing the animation with `motion` fixes the
+    // issue. I have no idea why it fixes the issue, but it does.
+    //
+    // Adding `allowWebkitAcceleration: true` breaks the animation again.
+    // Interestingly translation will work but the opacity change won't work.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!state.isAnimating) return;
+        if (state.isVisible) return;
+
+        const overlayContainerElement = assertExists(overlayContainerRef.current);
+        const overlayElement = assertExists(overlayRef.current);
+
+        const popperPlacement = overlayContainerElement.dataset.popperPlacement;
+
+        let animationKeyframes: {
+            opacity: [number, number];
+            x?: [string, string];
+            y?: [string, string];
+        };
+
+        if (popperPlacement?.startsWith("top")) {
+            animationKeyframes = {
+                opacity: [1, 0],
+                y: ["0rem", `-${spacing["1"]}`],
+            };
+        } else if (popperPlacement?.startsWith("bottom")) {
+            animationKeyframes = {
+                opacity: [1, 0],
+                y: ["0rem", spacing["1"]],
+            };
+        } else if (popperPlacement?.startsWith("left")) {
+            animationKeyframes = {
+                opacity: [1, 0],
+                x: ["0rem", `-${spacing["1"]}`],
+            };
+        } else if (popperPlacement?.startsWith("right")) {
+            animationKeyframes = {
+                opacity: [1, 0],
+                x: ["0rem", spacing["1"]],
+            };
+        } else {
+            // eslint-disable-next-line no-console
+            console.warn(
+                quote`Unexpected \`data-popper-placement\` attribute: ${popperPlacement ?? null}`,
+            );
+
+            const timeout = createTimeout(() => {
+                setState(prevState => ({...prevState, isAnimating: false}));
+            }, overlayFadeOutAnimationDurationMs);
+
+            return () => {
+                timeout.clear();
+            };
+        }
+
         let isCancelled = false;
-        let timeout: Timeout | null = null;
-        let animateClassName: string | null = null;
+        let animation: AnimationControls | undefined;
 
         // NOTE(calebmer): Without this `requestAnimationFrame()` the animation is
         // [quite choppy on iOS Safari][1]. I have no idea why adding this helps.
@@ -126,28 +205,22 @@ function OverlayAnimated(
         requestAnimationFrame(() => {
             if (isCancelled) return;
 
-            animateClassName = state.isVisible
-                ? overlayAnimateFadeInClassName
-                : overlayAnimateFadeOutClassName;
+            animation = animate(overlayElement, animationKeyframes, {
+                duration: overlayFadeOutAnimationDurationMs / 1000,
+                easing: parseCubicBezier(overlayFadeInOutTimingFunction),
+            });
 
-            overlayElement.classList.add(animateClassName);
-
-            timeout = createTimeout(
-                () => setState(prevState => ({...prevState, isAnimating: false})),
-                state.isVisible
-                    ? overlayFadeInAnimationDurationMs
-                    : overlayFadeOutAnimationDurationMs,
-            );
+            animation.finished.finally(() => {
+                if (isCancelled) return;
+                setState(prevState => ({...prevState, isAnimating: false}));
+            });
         });
 
         return () => {
             isCancelled = true;
-            timeout?.clear();
-            if (animateClassName) overlayElement.classList.remove(animateClassName);
+            animation?.finish();
         };
     }, [state.isAnimating, state.isVisible]);
-
-    const isActuallyVisible = state.isVisible || state.isAnimating;
 
     const wasActuallyVisibleRef = useRef(isActuallyVisible);
     useLayoutEffectWithoutServerSideWarning(() => {

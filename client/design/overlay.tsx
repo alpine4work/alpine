@@ -460,15 +460,6 @@ function Overlay(
                     "data-ownedby": originalTargetElementId
                         ? originalTargetElementId
                         : defaultTargetElementId,
-
-                    // It's important the overlay is focusable for `<FocusScope contain>`. That way
-                    // when you click into the overlay, focus goes to this element instead of
-                    // `document.body`. If `<FocusScope contain>` sees focus on `document.body` then
-                    // it will move focus right back to the element that was blurred which is not
-                    // what the user wants.
-                    //
-                    // If `tabindex` is already set we don't want to override it.
-                    tabindex: overlayElement.getAttribute("tabindex") ?? "-1",
                 },
             );
 

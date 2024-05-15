@@ -16,7 +16,7 @@ import {mergeProps, useHover, usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
-import {OverlayPlacement, OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {OverlayPlacement} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
@@ -467,218 +467,213 @@ export const Menu = forwardRef(function Menu(
     }, [flattenedActions, menuItemRefs]);
 
     return (
-        <OverlayScopeContextProvider
-        // We render an overlay scope since submenus (and tooltips) should animate out
-        // with their parent menu.
-        >
-            <div
-                ref={useMergedRefs(ref, menuRef, useScrollbar())}
-                role="menu"
-                // The menu container has `tabindex` set to -1 or 0 and
-                // `aria-activedescendant` set to the ID of the focused item.
-                //
-                // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
-                tabIndex={-1}
-                className={classNames(
-                    greyElevated2ClassName,
-                    sprinkles({
-                        position: "relative",
-                        minWidth: width,
-                        maxHeight: maxHeight,
-                        overflowX: "hidden",
-                        overflowY: "auto",
-                        borderRadius: "md",
-                        padding: "1",
-                        backgroundColor: "grey-0",
-                        // On mobile, increase the distance of a menu from the underlying content.
-                        // Increased contrast is useful.
-                        boxShadow: isMobile ? "elevation-30" : "elevation-20",
-                    }),
-                )}
-                onFocus={setAriaActiveDescendant}
-                onBlur={setAriaActiveDescendant}
-                onKeyDown={event => {
-                    switch (event.key) {
-                        // When focus is in a menu, moves focus to the next item, optionally
-                        // wrapping from the last to the first.
-                        //
-                        // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
-                        case "ArrowDown": {
-                            event.preventDefault(); // Don’t scroll
-                            event.stopPropagation();
+        <div
+            ref={useMergedRefs(ref, menuRef, useScrollbar())}
+            role="menu"
+            // The menu container has `tabindex` set to -1 or 0 and
+            // `aria-activedescendant` set to the ID of the focused item.
+            //
+            // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+            tabIndex={-1}
+            className={classNames(
+                greyElevated2ClassName,
+                sprinkles({
+                    position: "relative",
+                    minWidth: width,
+                    maxHeight: maxHeight,
+                    overflowX: "hidden",
+                    overflowY: "auto",
+                    borderRadius: "md",
+                    padding: "1",
+                    backgroundColor: "grey-0",
+                    // On mobile, increase the distance of a menu from the underlying content.
+                    // Increased contrast is useful.
+                    boxShadow: isMobile ? "elevation-30" : "elevation-20",
+                }),
+            )}
+            onFocus={setAriaActiveDescendant}
+            onBlur={setAriaActiveDescendant}
+            onKeyDown={event => {
+                switch (event.key) {
+                    // When focus is in a menu, moves focus to the next item, optionally
+                    // wrapping from the last to the first.
+                    //
+                    // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                    case "ArrowDown": {
+                        event.preventDefault(); // Don’t scroll
+                        event.stopPropagation();
 
-                            setInteractionModality("keyboard");
+                        setInteractionModality("keyboard");
 
-                            const currentIndex = getFocusedActionIndexIfExists();
-                            if (currentIndex !== null) {
-                                for (
-                                    let index = currentIndex + 1;
-                                    index < menuItemRefs.length;
-                                    index++
-                                ) {
-                                    const menuItemRef = menuItemRefs[index]!;
-                                    if (menuItemRef) {
-                                        menuItemRef.current?.focus();
-                                        return;
-                                    }
-                                }
-                            }
-
-                            // If we did not find a menu item after `currentIndex` then loop back around to
-                            // the first menu item.
-                            for (let index = 0; index < menuItemRefs.length; index++) {
-                                const menuItemRef = menuItemRefs[index]!;
-                                if (menuItemRef) {
-                                    menuItemRef.current?.focus();
-                                    return;
-                                }
-                            }
-                            return;
-                        }
-                        // When focus is in a menu, moves focus to the previous item,
-                        // optionally wrapping from the first to the last.
-                        //
-                        // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
-                        case "ArrowUp": {
-                            event.preventDefault(); // Don’t scroll
-                            event.stopPropagation();
-
-                            setInteractionModality("keyboard");
-
-                            const currentIndex = getFocusedActionIndexIfExists();
-                            if (currentIndex !== null) {
-                                for (let index = currentIndex - 1; index >= 0; index--) {
-                                    const menuItemRef = menuItemRefs[index]!;
-                                    if (menuItemRef) {
-                                        menuItemRef.current?.focus();
-                                        return;
-                                    }
-                                }
-                            }
-
-                            // If we did not find a menu item before `currentIndex` then loop back around to
-                            // the first menu item.
-                            for (let index = menuItemRefs.length - 1; index >= 0; index--) {
-                                const menuItemRef = menuItemRefs[index]!;
-                                if (menuItemRef) {
-                                    menuItemRef.current?.focus();
-                                    return;
-                                }
-                            }
-                            return;
-                        }
-                        case "ArrowLeft": {
-                            // `<MenuChildrenItem>` needs to implement `ArrowLeft` to close the submenu.
-                            onArrowLeftKeyDown?.(event);
-                            return;
-                        }
-                        case "ArrowRight": {
-                            // Do nothing. We implement `ArrowRight` handling in `<MenuChildrenItem>` for
-                            // items with submenus.
-                            return;
-                        }
-                        // Moves focus to the first item in the current menu. Technically, the spec
-                        // says only implement if arrow key wrapping is not supported but it's easy
-                        // to support so why not.
-                        //
-                        // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
-                        case "Home": {
-                            event.preventDefault(); // Don't scroll
-                            event.stopPropagation();
-
-                            for (let index = 0; index < menuItemRefs.length; index++) {
-                                const menuItemRef = menuItemRefs[index]!;
-                                if (menuItemRef) {
-                                    menuItemRef.current?.focus();
-                                    return;
-                                }
-                            }
-                            return;
-                        }
-                        // Moves focus to the last item in the current menu. Technically, the spec
-                        // says only implement if arrow key wrapping is not supported but it's easy
-                        // to support so why not.
-                        //
-                        // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
-                        case "End": {
-                            event.preventDefault(); // Don't scroll
-                            event.stopPropagation();
-
-                            for (let index = menuItemRefs.length - 1; index >= 0; index--) {
-                                const menuItemRef = menuItemRefs[index]!;
-                                if (menuItemRef) {
-                                    menuItemRef.current?.focus();
-                                    return;
-                                }
-                            }
-                            return;
-                        }
-                        default: {
-                            // Move focus to the next menu item in the current menu whose label
-                            // begins with that printable character.
-                            //
-                            // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
-                            if (
-                                /^[0-9a-zA-Z]$/.test(event.key) &&
-                                // Keyboard shortcuts like Cmd-C shouldn't search.
-                                (event.shiftKey || !isModifiedKeyboardEvent(event))
+                        const currentIndex = getFocusedActionIndexIfExists();
+                        if (currentIndex !== null) {
+                            for (
+                                let index = currentIndex + 1;
+                                index < menuItemRefs.length;
+                                index++
                             ) {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                const nextSearchText = searchText + event.key;
-                                const nextIndex = flattenedActions.findIndex(
-                                    action =>
-                                        action.type === "Action" &&
-                                        !action.action.withCustomLayout &&
-                                        action.action.label
-                                            .slice(0, nextSearchText.length)
-                                            .toLowerCase() === nextSearchText.toLowerCase(),
-                                );
-                                if (nextIndex !== -1) menuItemRefs[nextIndex]?.current?.focus();
-                                setSearchText(nextSearchText);
+                                const menuItemRef = menuItemRefs[index]!;
+                                if (menuItemRef) {
+                                    menuItemRef.current?.focus();
+                                    return;
+                                }
+                            }
+                        }
+
+                        // If we did not find a menu item after `currentIndex` then loop back around to
+                        // the first menu item.
+                        for (let index = 0; index < menuItemRefs.length; index++) {
+                            const menuItemRef = menuItemRefs[index]!;
+                            if (menuItemRef) {
+                                menuItemRef.current?.focus();
                                 return;
                             }
                         }
+                        return;
                     }
-                }}
-            >
-                {flattenedActions.map((action, index) => {
-                    switch (action.type) {
-                        case "Divider": {
-                            return (
-                                <Box key={index} paddingX="1" paddingY="1">
-                                    <Box width="full" borderBottom="grey-5" />
-                                </Box>
-                            );
+                    // When focus is in a menu, moves focus to the previous item,
+                    // optionally wrapping from the first to the last.
+                    //
+                    // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                    case "ArrowUp": {
+                        event.preventDefault(); // Don’t scroll
+                        event.stopPropagation();
+
+                        setInteractionModality("keyboard");
+
+                        const currentIndex = getFocusedActionIndexIfExists();
+                        if (currentIndex !== null) {
+                            for (let index = currentIndex - 1; index >= 0; index--) {
+                                const menuItemRef = menuItemRefs[index]!;
+                                if (menuItemRef) {
+                                    menuItemRef.current?.focus();
+                                    return;
+                                }
+                            }
                         }
-                        case "Action": {
-                            return (
-                                <MenuItem
-                                    key={index}
-                                    ref={menuItemRefs[index]}
-                                    size={size}
-                                    action={action.action}
-                                    parentPlacement={placement}
-                                    onCloseWithAnimation={onCloseWithAnimation}
-                                    onCloseWithoutAnimation={onCloseWithoutAnimation}
-                                    shouldNotCloseAfterPress={shouldNotCloseAfterActionPress}
-                                    openedAction={openedAction}
-                                    onActionOpen={setOpenedAction}
-                                    onActionClose={action =>
-                                        setOpenedAction(openedAction =>
-                                            openedAction === action ? null : openedAction,
-                                        )
-                                    }
-                                />
-                            );
+
+                        // If we did not find a menu item before `currentIndex` then loop back around to
+                        // the first menu item.
+                        for (let index = menuItemRefs.length - 1; index >= 0; index--) {
+                            const menuItemRef = menuItemRefs[index]!;
+                            if (menuItemRef) {
+                                menuItemRef.current?.focus();
+                                return;
+                            }
                         }
-                        default:
-                            throw exhaustive(action);
+                        return;
                     }
-                })}
-                {extraBottom}
-            </div>
-        </OverlayScopeContextProvider>
+                    case "ArrowLeft": {
+                        // `<MenuChildrenItem>` needs to implement `ArrowLeft` to close the submenu.
+                        onArrowLeftKeyDown?.(event);
+                        return;
+                    }
+                    case "ArrowRight": {
+                        // Do nothing. We implement `ArrowRight` handling in `<MenuChildrenItem>` for
+                        // items with submenus.
+                        return;
+                    }
+                    // Moves focus to the first item in the current menu. Technically, the spec
+                    // says only implement if arrow key wrapping is not supported but it's easy
+                    // to support so why not.
+                    //
+                    // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                    case "Home": {
+                        event.preventDefault(); // Don't scroll
+                        event.stopPropagation();
+
+                        for (let index = 0; index < menuItemRefs.length; index++) {
+                            const menuItemRef = menuItemRefs[index]!;
+                            if (menuItemRef) {
+                                menuItemRef.current?.focus();
+                                return;
+                            }
+                        }
+                        return;
+                    }
+                    // Moves focus to the last item in the current menu. Technically, the spec
+                    // says only implement if arrow key wrapping is not supported but it's easy
+                    // to support so why not.
+                    //
+                    // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                    case "End": {
+                        event.preventDefault(); // Don't scroll
+                        event.stopPropagation();
+
+                        for (let index = menuItemRefs.length - 1; index >= 0; index--) {
+                            const menuItemRef = menuItemRefs[index]!;
+                            if (menuItemRef) {
+                                menuItemRef.current?.focus();
+                                return;
+                            }
+                        }
+                        return;
+                    }
+                    default: {
+                        // Move focus to the next menu item in the current menu whose label
+                        // begins with that printable character.
+                        //
+                        // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                        if (
+                            /^[0-9a-zA-Z]$/.test(event.key) &&
+                            // Keyboard shortcuts like Cmd-C shouldn't search.
+                            (event.shiftKey || !isModifiedKeyboardEvent(event))
+                        ) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            const nextSearchText = searchText + event.key;
+                            const nextIndex = flattenedActions.findIndex(
+                                action =>
+                                    action.type === "Action" &&
+                                    !action.action.withCustomLayout &&
+                                    action.action.label
+                                        .slice(0, nextSearchText.length)
+                                        .toLowerCase() === nextSearchText.toLowerCase(),
+                            );
+                            if (nextIndex !== -1) menuItemRefs[nextIndex]?.current?.focus();
+                            setSearchText(nextSearchText);
+                            return;
+                        }
+                    }
+                }
+            }}
+        >
+            {flattenedActions.map((action, index) => {
+                switch (action.type) {
+                    case "Divider": {
+                        return (
+                            <Box key={index} paddingX="1" paddingY="1">
+                                <Box width="full" borderBottom="grey-5" />
+                            </Box>
+                        );
+                    }
+                    case "Action": {
+                        return (
+                            <MenuItem
+                                key={index}
+                                ref={menuItemRefs[index]}
+                                size={size}
+                                action={action.action}
+                                parentPlacement={placement}
+                                onCloseWithAnimation={onCloseWithAnimation}
+                                onCloseWithoutAnimation={onCloseWithoutAnimation}
+                                shouldNotCloseAfterPress={shouldNotCloseAfterActionPress}
+                                openedAction={openedAction}
+                                onActionOpen={setOpenedAction}
+                                onActionClose={action =>
+                                    setOpenedAction(openedAction =>
+                                        openedAction === action ? null : openedAction,
+                                    )
+                                }
+                            />
+                        );
+                    }
+                    default:
+                        throw exhaustive(action);
+                }
+            })}
+            {extraBottom}
+        </div>
     );
 });
 

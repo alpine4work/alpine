@@ -87,7 +87,14 @@ if (process.env.NODE_ENV !== "development") {
                 animate(
                     messageElement,
                     {opacity: [0, 1], y: [`-${spacing["10"]}`, 0]},
-                    {duration: 0.2, easing: "ease-out"},
+                    {
+                        duration: 0.2,
+                        easing: "ease-out",
+                        // Make sure we use hardware acceleration for this animation in WebKit. By
+                        // default `motion` turns it off.
+                        // https://motion.dev/guides/performance#webkits-exceptions
+                        allowWebkitAcceleration: true,
+                    },
                 ).finished.finally(() => {
                     setMessageState(previousMessageState => {
                         if (previousMessageState !== messageState) return previousMessageState;
@@ -100,7 +107,14 @@ if (process.env.NODE_ENV !== "development") {
                 animate(
                     messageElement,
                     {opacity: [1, 0], y: [0, `-${spacing["10"]}`]},
-                    {duration: 0.2, easing: "ease-in"},
+                    {
+                        duration: 0.2,
+                        easing: "ease-in",
+                        // Make sure we use hardware acceleration for this animation in WebKit. By
+                        // default `motion` turns it off.
+                        // https://motion.dev/guides/performance#webkits-exceptions
+                        allowWebkitAcceleration: true,
+                    },
                 ).finished.finally(() => {
                     setMessageState(previousMessageState => {
                         if (previousMessageState !== messageState) return previousMessageState;

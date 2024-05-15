@@ -35,11 +35,9 @@ import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Spacing} from "~/shared/design/spacing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {overlayFadeOutAnimationDurationMs} from "~/shared/styles/styles.js";
 
 export type OverlayTriggerButtonRef = {
     open(): void;
@@ -48,18 +46,18 @@ export type OverlayTriggerButtonRef = {
 export type OverlayTriggerButtonState =
     | {
           readonly isExpanded: false;
-          readonly isFadingOut: boolean;
+          readonly disableAnimationOut: boolean;
           readonly initiallyFocus?: undefined;
       }
     | {
           readonly isExpanded: true;
           readonly initiallyFocus?: "FirstFocusableElement" | "LastFocusableElement";
-          readonly isFadingOut?: undefined;
+          readonly disableAnimationOut?: undefined;
       };
 
 const initialOverlayTriggerButtonState: OverlayTriggerButtonState = {
     isExpanded: false,
-    isFadingOut: false,
+    disableAnimationOut: false,
 };
 
 export type OverlayTriggerButtonChildrenProps = {
@@ -182,23 +180,6 @@ function OverlayTriggerButton(
         onStateChange(state);
     }, [onStateChange, state]);
 
-    // Make sure to unset `state.isFadingOut` once the fade-out duration has
-    // finished. That way we actually unmount the overlay in the DOM.
-    useEffect(() => {
-        if (state.isExpanded || !state.isFadingOut) return;
-
-        const timeout = createTimeout(() => {
-            setState(oldState => {
-                if (oldState.isExpanded) return oldState;
-                return {...oldState, isFadingOut: false};
-            });
-        }, overlayFadeOutAnimationDurationMs);
-
-        return () => {
-            timeout.clear();
-        };
-    }, [state.isExpanded, state.isFadingOut]);
-
     useImperativeHandle(
         ref,
         () => ({
@@ -270,6 +251,11 @@ function OverlayTriggerButton(
                 // If we expand an overlay by clicking then other overlays that go away on
                 // outside press should not animate out.
                 if (!state.isExpanded) {
+                    // TODO(calebmer, 2024-05-15): I think this
+                    // `recentOverlayTransitionCoordination` business predates making
+                    // `<OverlayTriggerButton>` overlays blocking? And it's unnecessary now so could
+                    // be deleted. Since you can't click to open a different overlay while another
+                    // overlay is open (since a blocking cover is over the DOM).
                     if (
                         recentOverlayTransitionCoordination?.type === "OutsidePress" &&
                         Date.now() - recentOverlayTransitionCoordination.time <
@@ -292,7 +278,7 @@ function OverlayTriggerButton(
                             isExpanded: false,
                             // Don't animate the menu out when the user took a direct action to close
                             // the menu.
-                            isFadingOut: false,
+                            disableAnimationOut: true,
                         };
                     }
                 });
@@ -429,10 +415,9 @@ function OverlayTriggerButton(
             isExpanded: false,
             // If we expanded an overlay trigger with a pointer click recently, we don't
             // want to fade out our overlay.
-            isFadingOut: !(
+            disableAnimationOut:
                 recentOverlayTransitionCoordination?.type === "PointerExpand" &&
-                Date.now() - recentOverlayTransitionCoordination.time < perceivedAsInstantLimitMs
-            ),
+                Date.now() - recentOverlayTransitionCoordination.time < perceivedAsInstantLimitMs,
         });
 
         // In case the outside press event happens first, allow a pointer expand to
@@ -442,8 +427,8 @@ function OverlayTriggerButton(
             type: "OutsidePress",
             cancelFadeOut: () => {
                 setState(state => {
-                    if (state.isExpanded || !state.isFadingOut) return state;
-                    return {isExpanded: false, isFadingOut: false};
+                    if (state.isExpanded || state.disableAnimationOut) return state;
+                    return {isExpanded: false, disableAnimationOut: true};
                 });
             },
         };
@@ -462,12 +447,12 @@ function OverlayTriggerButton(
 
     const onClose = ({
         returnFocusTo,
-        withoutAnimation,
+        withoutAnimation = false,
     }: {
         returnFocusTo?: "TriggerElement" | "NextElement" | "PreviousElement";
         withoutAnimation?: boolean;
     } = {}) => {
-        setState({isExpanded: false, isFadingOut: !withoutAnimation});
+        setState({isExpanded: false, disableAnimationOut: withoutAnimation});
 
         // If we unmounted before calling `onClose` (due to some async race condition)
         // don't focus anything.
@@ -513,7 +498,7 @@ function OverlayTriggerButton(
             offset={offset}
             offsetAlong={offsetAlong}
             disableAnimationIn={true}
-            disableAnimationOut={state.isExpanded || !state.isFadingOut}
+            disableAnimationOut={state.disableAnimationOut}
             overlay={
                 <OverlayTriggerOverlay
                     ref={useMergedRefs<HTMLDivElement>(overlayRef, outsidePressRef)}
@@ -589,7 +574,7 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
             withoutAnimation?: boolean;
         }) => void;
     },
-    ref: Ref<HTMLDivElement>,
+    externalRef: Ref<HTMLDivElement>,
 ) {
     const overlayRef = useRef<HTMLElement>(null);
 
@@ -742,7 +727,7 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
         // While tooltips are disabled outside our overlay, we still want to allow
         // tooltips within our overlay.
         <TooltipCoordinationContextProvider>
-            <div ref={ref}>{useElementWithRef(overlay, overlayRef)}</div>
+            {useElementWithRef(overlay, useMergedRefs(overlayRef, externalRef))}
         </TooltipCoordinationContextProvider>
     );
 });

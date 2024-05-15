@@ -387,7 +387,15 @@ function ContentEditorKeyboardLinkFloater({
             // occlude the toolbar.
             fallbackPlacements={["bottom-start"]}
             overlay={
-                <Box ref={useOutsidePress(onClose)}>
+                <Box
+                    ref={useOutsidePress(onClose)}
+                    // It's important the overlay is focusable for `<FocusScope contain>`. That way
+                    // when you click into the overlay, focus goes to this element instead of
+                    // `document.body`. If `<FocusScope contain>` sees focus on `document.body` then
+                    // it will move focus right back to the element that was blurred which is not
+                    // what the user wants.
+                    tabIndex={-1}
+                >
                     {isClosing ? (
                         <ContentEditorLinkInput
                             viewRef={viewRef}
