@@ -1,4 +1,4 @@
-import {Modality, usePress} from "@react-aria/interactions";
+import {Modality} from "@react-aria/interactions";
 import {animate} from "motion";
 import {ArrowArcLeft, ArrowRight, ArrowUp, PencilSimple, X} from "phosphor-react";
 import {EditorView} from "prosemirror-view";
@@ -364,6 +364,27 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     const handleFocus = () => {
         setIsFocused(true);
         onFocus?.();
+
+        // HACK(calebmer): Absolute hack. We animate up message inputs in our native
+        // mobile wrapper so the animation is synced with the keyboard. However,
+        // sometimes WebKit doesn't know the selection has translated up as well.
+        // Calling blur/focus after the keyboard animation (which is ~2.5s) forces
+        // WebKit to re-render the selection in the right location.
+        //
+        // Ideally native code would find a way to animate the selection with the
+        // keyboard as well but I can't find a way to do that right now. My guess would
+        // be you gotta call `selectionWillChange()` and `selectionDidChange()` on
+        // [`UITextInputDelegate`][1] but I tried that and it didn't work.
+        //
+        // [1]: https://developer.apple.com/documentation/uikit/uitextinputdelegate
+        if (NativeMobileBridge && isBottomBar && isMobileWebKit) {
+            setTimeout(() => {
+                if (editorRef.current?.isFocused()) {
+                    editorRef.current.blur();
+                    editorRef.current.focus();
+                }
+            }, 300);
+        }
     };
 
     const handleBlur = () => {
@@ -731,16 +752,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                     })}
                                     maxHeight={isMobile || withMobileMaxHeight ? "48" : "96"}
                                     position="relative"
-                                    zIndex="0"
                                     overflowX="hidden"
                                     overflowY="auto"
                                 >
-                                    {isBottomBar && clientInfo.isNativeMobile && !isFocused && (
-                                        <MessageInputNativeMobileBottomBarUnfocusedContentEditorCover
-                                            inputContainerRef={inputContainerRef}
-                                            editorRef={editorRef}
-                                        />
-                                    )}
                                     <ContentEditor
                                         ref={editorRef}
                                         state={state}
@@ -930,48 +944,4 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             )}
         </Box>
     );
-}
-
-function MessageInputNativeMobileBottomBarUnfocusedContentEditorCover({
-    inputContainerRef,
-    editorRef,
-}: {
-    inputContainerRef: RefObject<HTMLDivElement>;
-    editorRef: RefObject<ContentEditorRef<MessageContentWithReferences>>;
-}) {
-    const {pressProps} = usePress({
-        onPress: () => {
-            const editor = assertExists(editorRef.current);
-
-            if (!isMobileWebKit) {
-                editor.focus();
-                return;
-            }
-
-            const inputContainerElement = assertExists(inputContainerRef.current);
-
-            const temporaryInputElement = document.createElement("input");
-            temporaryInputElement.type = "text";
-            temporaryInputElement.style.width = "0";
-            temporaryInputElement.style.height = "0";
-            temporaryInputElement.style.margin = "0";
-            temporaryInputElement.style.padding = "0";
-            temporaryInputElement.style.border = "0";
-            temporaryInputElement.style.opacity = "0";
-            temporaryInputElement.style.position = "fixed";
-            temporaryInputElement.style.top = "0px";
-            inputContainerElement.appendChild(temporaryInputElement);
-            temporaryInputElement.addEventListener("blur", () => {
-                temporaryInputElement.parentElement?.removeChild(temporaryInputElement);
-            });
-
-            temporaryInputElement.focus();
-
-            setTimeout(() => {
-                editor.focus();
-            }, 500);
-        },
-    });
-
-    return <Box {...pressProps} position="absolute" inset="0" zIndex="10" />;
 }
