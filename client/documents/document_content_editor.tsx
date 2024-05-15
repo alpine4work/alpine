@@ -48,6 +48,7 @@ import {
     SubscribeToCommentThreadEventsFunction,
     useDocumentContentEditorWebSocket,
 } from "~/client/documents/use_document_content_editor_web_socket.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
@@ -79,7 +80,6 @@ import {InternalError} from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -370,6 +370,9 @@ function DocumentContentEditorStateful({
                     ],
                 ],
                 {
+                    // Add a little bit of delay so React can finish rendering before playing our
+                    // animation.
+                    delay: 0.05,
                     duration: mobileFullScreenModalAnimationDurationLongMs / 1000,
                 },
             );
@@ -406,28 +409,34 @@ function DocumentContentEditorStateful({
                     ],
                 ],
                 {
+                    // Add a little bit of delay so React can finish rendering before playing our
+                    // animation.
+                    delay: 0.05,
                     defaultOptions: {
                         easing: spring({
                             stiffness: 300,
                             damping: 31,
                         }),
                     },
-                    delay: 0.002,
                 },
             );
         }
 
-        // Wait for React to finish rendering before playing our animation. We need to
-        // start our animation in a layout effect to apply the initial transform in the
-        // right paint, but React may need to re-render again before releasing control
-        // to the browser. So wait for React to finish rendering before starting our
-        // animation.
-        animation.pause();
-        scheduleAfterNextBrowserPaint(() => {
-            animation.play();
-        });
-
         animation.finished.finally(() => {
+            // NOTE(calebmer): I've observed mobile WebKit, surprisingly, reverting back to
+            // initial transform values when the animation completes. Make sure our
+            // transforms stick in the DOM by manually updating.
+            //
+            // This feels like either a bug in WebKit or `motion` or the combination of
+            // both.
+            if (isMobileWebKit && withMobileLayout) {
+                const mobileFakeCommentInputElement = mobileFakeCommentInputRef.current;
+
+                sidebarElement.style.transform = "translateY(0)";
+                if (mobileFakeCommentInputElement)
+                    mobileFakeCommentInputElement.style.transform = "translateY(0)";
+            }
+
             // Our native app doesn't automatically update scrollbar insets after a scroll
             // view translates (since this is rare) so manually update all insets.
             NativeMobileBridge?.scrollbar.updateAllInsets();
@@ -459,11 +468,12 @@ function DocumentContentEditorStateful({
         const remPx = getRemPxWithoutListening();
 
         let animation: AnimationControls;
+        let sidebarHeight: number | undefined;
 
         if (withMobileLayout) {
             const editorContainerRect = editorContainerElement.getBoundingClientRect();
 
-            const sidebarHeight =
+            sidebarHeight =
                 editorContainerRect.height -
                 convertRemLengthToPx(spacing[documentContentEditorMobileSidebarInsetTop], remPx);
 
@@ -512,6 +522,9 @@ function DocumentContentEditorStateful({
                     ],
                 ],
                 {
+                    // Add a little bit of delay so React can finish rendering before playing our
+                    // animation.
+                    delay: 0.05,
                     duration: mobileFullScreenModalAnimationDurationLongMs / 1000,
                 },
             );
@@ -548,6 +561,9 @@ function DocumentContentEditorStateful({
                     ],
                 ],
                 {
+                    // Add a little bit of delay so React can finish rendering before playing our
+                    // animation.
+                    delay: 0.05,
                     defaultOptions: {
                         easing: spring({
                             stiffness: 420,
@@ -558,17 +574,21 @@ function DocumentContentEditorStateful({
             );
         }
 
-        // Wait for React to finish rendering before playing our animation. We need to
-        // start our animation in a layout effect to apply the initial transform in the
-        // right paint, but React may need to re-render again before releasing control
-        // to the browser. So wait for React to finish rendering before starting our
-        // animation.
-        animation.pause();
-        scheduleAfterNextBrowserPaint(() => {
-            animation.play();
-        });
-
         animation.finished.finally(() => {
+            // NOTE(calebmer): I've observed mobile WebKit, surprisingly, reverting back to
+            // initial transform values when the animation completes. Make sure our
+            // transforms stick in the DOM by manually updating.
+            //
+            // This feels like either a bug in WebKit or `motion` or the combination of
+            // both.
+            if (isMobileWebKit && withMobileLayout) {
+                const mobileFakeCommentInputElement = mobileFakeCommentInputRef.current;
+
+                sidebarElement.style.transform = `translateY(${sidebarHeight!}px)`;
+                if (mobileFakeCommentInputElement)
+                    mobileFakeCommentInputElement.style.transform = `translateY(${sidebarHeight!}px)`;
+            }
+
             // Our native app doesn't automatically update scrollbar insets after a scroll
             // view translates (since this is rare) so manually update all insets.
             NativeMobileBridge?.scrollbar.updateAllInsets();
@@ -668,6 +688,16 @@ function DocumentContentEditorStateful({
         );
 
         animation.finished.finally(() => {
+            // NOTE(calebmer): I've observed mobile WebKit, surprisingly, reverting back to
+            // initial transform values when the animation completes. Make sure our
+            // transforms stick in the DOM by manually updating.
+            //
+            // This feels like either a bug in WebKit or `motion` or the combination of
+            // both.
+            if (isMobileWebKit) {
+                sidebarElement.style.transform = `translateY(${-offset}px)`;
+            }
+
             // Our native app doesn't automatically update scrollbar insets after a scroll
             // view translates (since this is rare) so manually update all insets.
             NativeMobileBridge?.scrollbar.updateAllInsets();
@@ -726,6 +756,16 @@ function DocumentContentEditorStateful({
         );
 
         animation.finished.finally(() => {
+            // NOTE(calebmer): I've observed mobile WebKit, surprisingly, reverting back to
+            // initial transform values when the animation completes. Make sure our
+            // transforms stick in the DOM by manually updating.
+            //
+            // This feels like either a bug in WebKit or `motion` or the combination of
+            // both.
+            if (isMobileWebKit) {
+                sidebarElement.style.transform = "translateY(0)";
+            }
+
             // Our native app doesn't automatically update scrollbar insets after a scroll
             // view translates (since this is rare) so manually update all insets.
             NativeMobileBridge?.scrollbar.updateAllInsets();
@@ -1181,7 +1221,12 @@ function DocumentContentEditorStateful({
             lastSidebarStateRef.current = sidebarState;
 
             const commentThreadId =
-                sidebarState.isOpen && sidebarState.animationState !== "Closing"
+                sidebarState.isOpen &&
+                // NOTE(calebmer): I've found running the sidebar open animation and the scroll
+                // animation at the same time on mobile WebKit makes the sidebar open animation
+                // look janky. However sequencing one after the other looks smooth. *shrug*
+                (!isMobileWebKit || sidebarState.animationState !== "Opening") &&
+                sidebarState.animationState !== "Closing"
                     ? sidebarState.commentThreadId
                     : null;
 
