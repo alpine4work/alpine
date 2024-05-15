@@ -616,6 +616,16 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // the selection and caret color among other things.
         webView.tintColor = initThemeTintColor()
 
+        // Don't allow scrolling the root scroll view. Scrolling should happen in
+        // subviews. When the keyboard opens WebKit will want to scroll the root scroll
+        // view.
+        webView.scrollView.isScrollEnabled = false
+        if #available(iOS 17.0, *) { webView.scrollView.allowsKeyboardScrolling = false }
+
+        // As a final fallback, we set ourselves as the scroll view delegate and reset
+        // scroll position to 0 if it ever changes.
+        webView.scrollView.delegate = self
+
         // Don't allow zooming.
         webView.scrollView.minimumZoomScale = 1
         webView.scrollView.maximumZoomScale = 1
@@ -664,6 +674,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             name: UIResponder.keyboardWillHideNotification,
             object: nil
         )
+        NotificationCenter.default.removeObserver(
+            webView,
+            name: UIResponder.keyboardDidHideNotification,
+            object: nil
+        )
 
         // Enable developer tool usage in development environments.
         #if DBG_COMPILATION_MODE || DEVELOPMENT_RUN_ENVIRONMENT
@@ -684,7 +699,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     private func initThemeTintColor() -> UIColor {
         return UIColor { [self] (traits) in
-            traits.userInterfaceStyle == .dark ? theme70Color : theme40Color
+            traits.userInterfaceStyle == .dark ? theme60Color : theme40Color
         }
     }
 
@@ -1634,7 +1649,16 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        webDelegate?.webNavigationController?(self, didScrollWebScrollView: scrollView)
+        if scrollView == webView.scrollView {
+            // `WKWebView`'s document scroll view should never be scrolled! WebKit by
+            // default scrolls the document when the keyboard is open even when
+            // `overflow: hidden` is set on `<body>`. We have a number of protections in
+            // place to prevent this and here is our last stand.
+            if scrollView.contentOffset.y != 0 { scrollView.contentOffset.y = 0 }
+        } else {
+            webDelegate?.webNavigationController?(self, didScrollWebScrollView: scrollView)
+        }
+
     }
 
     @objc private func keyboardWillShow(notification: NSNotification) {
