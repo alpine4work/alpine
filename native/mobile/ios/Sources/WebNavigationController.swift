@@ -1576,6 +1576,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     webBottomBarViews[webBottomBarView] = webBottomBarViewState
 
                     updateWebBottomBarFrame(webBottomBarView, webBottomBarViewState)
+                    updateAllWebMaskedViewMasks()
                     setAllWebScrollViewScrollIndicatorInsets()
                     updateWebInputAccessoryObserverViewHeight()
                 }

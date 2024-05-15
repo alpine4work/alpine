@@ -24,6 +24,8 @@ class CALayerMasker: NSObject {
         self.maskSuperlayerRect = maskSuperlayerRect
         self.maskLayer = CAShapeLayer()
 
+        print("maskSuperlayerRect", maskSuperlayerRect)
+
         super.init()
 
         maskLayer.frame = layer.bounds
