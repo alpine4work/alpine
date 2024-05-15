@@ -149,8 +149,14 @@ export function addRemLengths(...remLengths: Array<RemLength>): RemLength {
 /**
  * Subtract one `RemLength` from another.
  */
-export function subtractRemLengths(remLength1: RemLength, remLength2: RemLength): RemLength {
-    return `${parseRemLengthNumber(remLength1) - parseRemLengthNumber(remLength2)}rem`;
+export function subtractRemLengths(
+    remLength1: RemLength,
+    ...remLengths: Array<RemLength>
+): RemLength {
+    return `${remLengths.reduce(
+        (totalRemLength, remLength) => totalRemLength - parseRemLengthNumber(remLength),
+        parseRemLengthNumber(remLength1),
+    )}rem`;
 }
 
 /**

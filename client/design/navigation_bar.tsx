@@ -112,6 +112,16 @@ export function getNavigationBarHeightPxWithoutListening(): number {
 const navigationBarActionsFlexBasis: Spacing = "10";
 const mobileNavigationBarGap: Spacing = "3";
 
+const navigationBarDoneButtonActionFlexBasis: Spacing = "16";
+const navigationBarDoneButtonActionWidth = subtractRemLengths(
+    spacing[navigationBarDoneButtonActionFlexBasis],
+    spacing[mobileNavigationBarGap],
+);
+const navigationBarDoneButtonActionSpacerWidth = subtractRemLengths(
+    spacing[navigationBarDoneButtonActionFlexBasis],
+    spacing[navigationBarActionsFlexBasis],
+);
+
 export const mobileNavigationBarActionsWidthFittingFlexBasis = subtractRemLengths(
     spacing[navigationBarActionsFlexBasis],
     spacing[mobileNavigationBarGap],
@@ -1721,7 +1731,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
             width="full"
             height={navigationBarHeight}
             display="flex"
-            gap={isMobile ? mobileNavigationBarGap : "5"}
+            gap={!isMobile ? "5" : undefined}
             style={{
                 maxWidth: !isMobile ? desktopMaxWidth : undefined,
                 margin: !isMobile ? "0 auto" : undefined,
@@ -1781,10 +1791,22 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                               }}
                           />
                       )}
+                {!replaceActions && isTextInputFocused && (
+                    // This spacer keeps the title centered when the done button is visible if the
+                    // title is small enough to still fit in the center. If the title is longer then
+                    // this spacer will shrink to give the title space.
+                    <Box
+                        style={{
+                            flexShrink: 1000,
+                            width: navigationBarDoneButtonActionSpacerWidth,
+                        }}
+                    />
+                )}
                 <Box
                     flexGrow="1"
                     flexShrink="1"
                     height={navigationBarHeight}
+                    paddingX={isMobile ? mobileNavigationBarGap : undefined}
                     paddingLeft={desktopTitleMaxWidth === undefined && !isMobile ? "5" : undefined}
                     display="flex"
                     justifyContent={titleJustifyContents ?? (isMobile ? "center" : "flex-start")}
@@ -1863,6 +1885,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                 </Box>
                 {(replaceActions ||
                     shareButton ||
+                    isTextInputFocused ||
                     menuActions.length > 0 ||
                     (isMobile && (onMobileCancel || !withoutMobileBackButton))) && (
                     <Box
@@ -1876,7 +1899,12 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                         gap={isMobile ? "0.5" : "2"}
                         // Gives children `pointer-events: initial` so the user can interact with them.
                         className={pointerEventsNoneNotInheritedClassName}
-                        style={{flexBasis: spacing[navigationBarActionsFlexBasis]}}
+                        style={{
+                            flexBasis:
+                                !replaceActions && isTextInputFocused
+                                    ? spacing[navigationBarDoneButtonActionFlexBasis]
+                                    : spacing[navigationBarActionsFlexBasis],
+                        }}
                     >
                         {replaceActions ? (
                             replaceActions
@@ -1891,21 +1919,27 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                     // If a text input is focused then we hide menu actions and replace it with a
                                     // "Done" button. This helps the user see how to end their editing session.
                                     // Opening menu actions would cause the text input to unfocus anyway.
-                                    <Button
-                                        fontSize="100"
-                                        // Don't remove focus from the current text input element
-                                        // on press start. Remove focus on press finish.
-                                        isFocusable={false}
-                                        onPress={() => {
-                                            if (document.activeElement instanceof HTMLElement) {
-                                                document.activeElement.blur();
-                                            }
-                                        }}
+                                    <Box
+                                        display="flex"
+                                        justifyContent="flex-end"
+                                        style={{width: navigationBarDoneButtonActionWidth}}
                                     >
-                                        <Box display="inline" fontStyle="semi-bold">
-                                            Done
-                                        </Box>
-                                    </Button>
+                                        <Button
+                                            fontSize="100"
+                                            // Don't remove focus from the current text input element
+                                            // on press start. Remove focus on press finish.
+                                            isFocusable={false}
+                                            onPress={() => {
+                                                if (document.activeElement instanceof HTMLElement) {
+                                                    document.activeElement.blur();
+                                                }
+                                            }}
+                                        >
+                                            <Box display="inline" fontStyle="semi-bold">
+                                                Done
+                                            </Box>
+                                        </Button>
+                                    </Box>
                                 ) : (
                                     (menuActions.length > 0 ||
                                         (shareButton && withMobileLayout)) && (
