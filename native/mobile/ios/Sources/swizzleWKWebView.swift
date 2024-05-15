@@ -34,6 +34,13 @@ func swizzleWKWebView(_ webView: WKWebView, customInputAccessoryView: UIView?) {
 
     let newClassName = "WKContentView_Custom"
 
+    // NOTE(calebmer): Useful snippet to print all methods of a class at runtime.
+    // From: https://stackoverflow.com/a/38501979/1568890
+    //
+    // ```
+    // print(targetViewClass.perform(Selector(("_methodDescription"))) as Any)
+    // ```
+
     let newClass: AnyClass
     if let existingClass = NSClassFromString(newClassName) {
         newClass = existingClass
@@ -78,6 +85,20 @@ func swizzleWKWebView(_ webView: WKWebView, customInputAccessoryView: UIView?) {
             areTypeEncodingDifferencesAllowed: true
         )
 
+        // Make sure this method exists with the type signature we expect.
+        checkMethod(
+            baseClass: targetViewClass,
+            stubClass: WKContentView_Custom.self,
+            selector: #selector(WKContentView_Custom.beginSelectionChange)
+        )
+
+        // Make sure this method exists with the type signature we expect.
+        checkMethod(
+            baseClass: targetViewClass,
+            stubClass: WKContentView_Custom.self,
+            selector: #selector(WKContentView_Custom.endSelectionChange)
+        )
+
         objc_registerClassPair(newClass)
     }
 
@@ -117,6 +138,50 @@ func reloadSwizzledWKWebViewInputView(_ webView: WKWebView, inputView: UIView?) 
     )
 
     targetView.reloadInputViews()
+}
+
+/// Call `selectionWillChange` for the `WKWebView`. Useful when opening/closing
+/// the keyboard since the selection position will change.
+func beginSwizzledWKWebViewSelectionChange(_ webView: WKWebView) {
+    var targetView: UIView?
+
+    for view in webView.scrollView.subviews {
+        if type(of: view).description() == "WKContentView_Custom" { targetView = view }
+    }
+
+    guard let targetView = targetView else { fatalError("`WKWebView` is not swizzled") }
+
+    let superclass: AnyClass = class_getSuperclass(object_getClass(targetView))!
+    let selector = #selector(WKContentView_Custom.beginSelectionChange)
+
+    let superBeginSelectionChange = unsafeBitCast(
+        method_getImplementation(class_getInstanceMethod(superclass, selector)!),
+        to: (@convention(c) (AnyObject, Selector) -> Void).self
+    )
+
+    superBeginSelectionChange(targetView, selector)
+}
+
+/// Call `selectionDidChange` for the `WKWebView`. Useful when opening/closing
+/// the keyboard since the selection position will change.
+func endSwizzledWKWebViewSelectionChange(_ webView: WKWebView) {
+    var targetView: UIView?
+
+    for view in webView.scrollView.subviews {
+        if type(of: view).description() == "WKContentView_Custom" { targetView = view }
+    }
+
+    guard let targetView = targetView else { fatalError("`WKWebView` is not swizzled") }
+
+    let superclass: AnyClass = class_getSuperclass(object_getClass(targetView))!
+    let selector = #selector(WKContentView_Custom.endSelectionChange)
+
+    let superEndSelectionChange = unsafeBitCast(
+        method_getImplementation(class_getInstanceMethod(superclass, selector)!),
+        to: (@convention(c) (AnyObject, Selector) -> Void).self
+    )
+
+    superEndSelectionChange(targetView, selector)
 }
 
 /// Enable the "Add comment" edit menu option. The provided action will be
@@ -179,6 +244,29 @@ private func addOverridingMethod(
     )
 }
 
+private func checkMethod(baseClass: AnyClass, stubClass: AnyClass, selector: Selector) {
+    let baseMethod = class_getInstanceMethod(baseClass, selector)
+    guard let baseMethod = baseMethod else {
+        fatalError("Selector `\(selector)` doesn't exist in base class")
+    }
+
+    let stubMethod = class_getInstanceMethod(stubClass, selector)
+    guard let stubMethod = stubMethod else {
+        fatalError("Selector `\(selector)` doesn't exist in stub class")
+    }
+
+    let baseMethodTypeEncoding = method_getTypeEncoding(baseMethod)!
+    let stubMethodTypeEncoding = method_getTypeEncoding(stubMethod)!
+
+    let baseMethodTypeEncodingString = String(cString: baseMethodTypeEncoding)
+    let stubMethodTypeEncodingString = String(cString: stubMethodTypeEncoding)
+    guard baseMethodTypeEncodingString == stubMethodTypeEncodingString else {
+        fatalError(
+            "Selector `\(selector)`'s stub method type encoding `\(stubMethodTypeEncodingString)` doesn't equal base method type encoding `\(baseMethodTypeEncodingString)`"
+        )
+    }
+}
+
 private func addNonOverridingMethod(
     baseClass: AnyClass,
     stubClass: AnyClass,
@@ -238,6 +326,24 @@ private func addNonOverridingMethod(
         activityStateChanges: Bool,
         userObject: Any?
     ) { fatalError("Stub implementation") }
+
+    /// In Objective-C the [signature][1] is:
+    ///
+    /// ```
+    /// - (void)beginSelectionChange
+    /// ```
+    ///
+    /// [1]: https://github.com/WebKit/WebKit/blob/5590366d49ca543c06cddd64d9e4e3bdfff6f52f/Source/WebKit/UIProcess/ios/WKContentViewInteraction.mm#L5936
+    @objc func beginSelectionChange() { fatalError("Stub implementation") }
+
+    /// In Objective-C the [signature][1] is:
+    ///
+    /// ```
+    /// - (void)endSelectionChange
+    /// ```
+    ///
+    /// [1]: https://github.com/WebKit/WebKit/blob/5590366d49ca543c06cddd64d9e4e3bdfff6f52f/Source/WebKit/UIProcess/ios/WKContentViewInteraction.mm#L5963
+    @objc func endSelectionChange() { fatalError("Stub implementation") }
 }
 
 @objc private class WKContentView_Custom: WKContentViewStub {

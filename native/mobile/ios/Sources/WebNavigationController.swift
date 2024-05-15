@@ -2429,7 +2429,16 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             webBottomBarViewState.withLock { [self] (completionHandler) in
                 webView.evaluateJavaScript(
                     #"{ const element = document.getElementById("\#(webBottomBarViewState.id)"); if (element) element.style.transform = "translateY(\#(translateY)px)" }"#,
-                    completionHandler: { (_, _) in completionHandler() }
+                    completionHandler: { [self] (_, _) in
+                        completionHandler()
+
+                        // Tell `UITextInput` that the selection changed so it can redraw the selection
+                        // at its new position. This matters for the message input. When you tap on the
+                        // message input it animates with the keyboard. Once we reconcile the position
+                        // in JS we need native to redraw the selection.
+                        beginSwizzledWKWebViewSelectionChange(webView)
+                        endSwizzledWKWebViewSelectionChange(webView)
+                    }
                 )
             }
         }
