@@ -1,7 +1,9 @@
 import {globalStyle, style} from "@vanilla-extract/css";
+import {darkColorSchemeSelector} from "~/shared/styles/internal/color_scheme.css.js";
 import {
     commentClassName,
     docClassName,
+    highlightClassNameByColor,
     linkClassName,
     mentionClassName,
 } from "~/shared/styles/internal/content_schema.css.js";
@@ -97,7 +99,15 @@ export const canNotPrimaryInputHoverContainerClassName = style({});
 // link. Reflect this in the UI by removing their link color. They'll look like
 // regular text with an underline.
 globalStyle(
-    `${canNotPrimaryInputHoverContainerClassName} ${docClassName}[contenteditable=true] ${linkClassName}`,
+    [
+        `${canNotPrimaryInputHoverContainerClassName} ${docClassName}[contenteditable=true] ${linkClassName}`,
+        // We give highlighted links a different color in dark mode so we need to
+        // explicitly target highlights to set `color: inherit`.
+        ...Object.values(highlightClassNameByColor).map(
+            highlightClassName =>
+                `${darkColorSchemeSelector} ${canNotPrimaryInputHoverContainerClassName} ${docClassName}[contenteditable=true] ${linkClassName} ${highlightClassName}`,
+        ),
+    ].join(", "),
     {
         color: "inherit",
     },
