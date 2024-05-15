@@ -41,6 +41,7 @@ import {
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useRegisterBottomBarFrame} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
@@ -363,6 +364,27 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     const handleFocus = () => {
         setIsFocused(true);
         onFocus?.();
+
+        // HACK(calebmer): Absolute hack. We animate up message inputs in our native
+        // mobile wrapper so the animation is synced with the keyboard. However,
+        // sometimes WebKit doesn't know the selection has translated up as well.
+        // Calling blur/focus after the keyboard animation (which is ~2.5s) forces
+        // WebKit to re-render the selection in the right location.
+        //
+        // Ideally native code would find a way to animate the selection with the
+        // keyboard as well but I can't find a way to do that right now. My guess would
+        // be you gotta call `selectionWillChange()` and `selectionDidChange()` on
+        // [`UITextInputDelegate`][1] but I tried that and it didn't work.
+        //
+        // [1]: https://developer.apple.com/documentation/uikit/uitextinputdelegate
+        if (NativeMobileBridge && isBottomBar && isMobileWebKit) {
+            setTimeout(() => {
+                if (editorRef.current?.isFocused()) {
+                    editorRef.current.blur();
+                    editorRef.current.focus();
+                }
+            }, 300);
+        }
     };
 
     const handleBlur = () => {
