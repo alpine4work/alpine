@@ -1,3 +1,4 @@
+import {AnimationControls, animate} from "motion";
 import {
     At,
     IconContext,
@@ -11,7 +12,7 @@ import {
 } from "phosphor-react";
 import {Command, EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {ReactNode, RefObject, useId, useMemo} from "react";
+import {ReactNode, RefObject, useId, useMemo, useRef} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {openMentionFloaterMetaKey} from "~/client/content/internal/build_content_editor_input_rules_plugin.js";
@@ -31,6 +32,7 @@ import {
 } from "~/client/content/internal/helpers/indent_and_dedent_list_item_commands.js";
 import {Box} from "~/client/design/box.js";
 import {mobileBottomBarKeyboardToolbarHeight} from "~/client/design/mobile_bottom_bar.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
@@ -59,6 +61,8 @@ export function MessageInputMobileKeyboardToolbar({
     onLinkModalOpen: (linkModalState: ContentEditorMobileLinkModalState) => void;
     inputContainerRef: RefObject<HTMLDivElement | null>;
 }) {
+    const toolbarRef = useRef<HTMLDivElement>(null);
+
     const toolbarId = useId();
 
     const {isBoldActive, isItalicActive} = useMemo(() => {
@@ -110,17 +114,50 @@ export function MessageInputMobileKeyboardToolbar({
         [state],
     );
 
+    const hasInitiallyRenderedRef = useRef(false);
+    const isVisibleRef = useRef(isVisible);
+    const lastAnimationRef = useRef<AnimationControls | null>(null);
+
+    // NOTE(calebmer): Implementing fade out animation with the `motion()` package.
+    // This used to be implemented with CSS transitions but I found sometimes
+    // (after ~3min of use) mobile WebKit wouldn't run the animation! Adding
+    // `allowWebkitAcceleration: true` also breaks the animation.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const toolbarElement = assertExists(toolbarRef.current);
+
+        if (!hasInitiallyRenderedRef.current) {
+            hasInitiallyRenderedRef.current = true;
+            toolbarElement.style.opacity = isVisible ? "1" : "0";
+        }
+
+        if (isVisibleRef.current === isVisible) return;
+        isVisibleRef.current = isVisible;
+
+        lastAnimationRef.current?.finish();
+        lastAnimationRef.current = null;
+
+        const animation = animate(
+            toolbarElement,
+            {
+                opacity: isVisible ? [0, 1] : [1, 0],
+            },
+            {
+                duration: 0.2,
+                easing: "ease",
+            },
+        );
+
+        lastAnimationRef.current = animation;
+    }, [isVisible]);
+
     return (
         <Box
+            ref={toolbarRef}
             id={toolbarId}
             height={mobileBottomBarKeyboardToolbarHeight}
             paddingX="0.5"
             display="flex"
-            style={{
-                transition: "opacity 200ms ease",
-                opacity: !isVisible ? "0" : undefined,
-                pointerEvents: !isVisible ? "none" : undefined,
-            }}
+            style={{pointerEvents: !isVisible ? "none" : undefined}}
         >
             <MessageInputMobileKeyboardToolbarButton
                 dividerRight
