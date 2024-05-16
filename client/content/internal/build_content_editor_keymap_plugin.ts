@@ -18,6 +18,7 @@ import {EditorView} from "prosemirror-view";
 import {addSharedContentEditorKeymapCommands} from "~/client/content/add_shared_content_editor_keymap_commands.js";
 import {contentEditorQuickUndoCommand} from "~/client/content/content_editor_state.js";
 import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
+import {splitBlockWithCodeBlockLineLeadingIndentation} from "~/client/content/internal/helpers/split_block_with_code_block_line_leading_indentation.js";
 import {
     dedentListItemCommand,
     indentListItemCommand,
@@ -187,7 +188,17 @@ export function buildContentEditorKeymapPlugin(
         // cursor is at the end of the block this will simply create a new block.
         // If the cursor is in the middle of the block it will split the block
         // in two.
-        splitBlock,
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
+            const node = $from.node();
+            const isSelectionCodeBlockLine = node.type.name === "codeBlockLine";
+
+            if (isSelectionCodeBlockLine) {
+                return splitBlockWithCodeBlockLineLeadingIndentation(state, dispatch);
+            } else {
+                return splitBlock(state, dispatch);
+            }
+        },
     );
 
     // Enter and Shift-Enter do the same thing. That's because in some contexts
