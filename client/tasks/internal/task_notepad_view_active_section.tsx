@@ -241,6 +241,7 @@ function TaskNotepadViewActiveSection({
                 {allTasks.slice(0, taskCardCount).map(({id: taskId, assigneeActivePosition}) => (
                     <TaskNotepadCardView
                         key={taskId}
+                        withMobileLayout={withMobileLayout}
                         widthStyle={cardWidthStyle}
                         affinityManager={affinityManager}
                         query={assigneeActiveQuery}

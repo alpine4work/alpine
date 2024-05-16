@@ -53,6 +53,7 @@ const TaskNotepadCardViewMemo = memo(TaskNotepadCardView);
 export {TaskNotepadCardViewMemo as TaskNotepadCardView};
 
 function TaskNotepadCardView({
+    withMobileLayout,
     widthStyle,
     affinityManager,
     query,
@@ -61,6 +62,7 @@ function TaskNotepadCardView({
     onExpand,
     deleteTaskAndAllChildren,
 }: {
+    withMobileLayout: boolean;
     widthStyle: string;
     affinityManager: TaskClientStoreSearchAffinityManager;
     query: TaskClientQuery;
@@ -150,6 +152,7 @@ function TaskNotepadCardView({
 
     const content = (
         <TaskCardViewContent
+            withMobileLayout={withMobileLayout}
             displayStatus={displayStatus}
             title={title}
             assigneeAccountData={assigneeAccountData}

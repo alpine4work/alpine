@@ -10,10 +10,7 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
 import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_tasks_progress_wheel.js";
-import {
-    TaskCollectionChip,
-    taskCollectionChipContainerMaxWidth,
-} from "~/client/tasks/internal/task_collection_chip.js";
+import {TaskCollectionChip} from "~/client/tasks/internal/task_collection_chip.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {AccountModelData} from "~/shared/accounts/account_model.js";
@@ -38,6 +35,7 @@ export {TaskCardViewContentForwardRef as TaskCardViewContent};
  */
 function TaskCardViewContent(
     {
+        withMobileLayout,
         displayStatus,
         title,
         assigneeAccountData,
@@ -47,6 +45,7 @@ function TaskCardViewContent(
         childTaskCount,
         closedChildTaskCount,
     }: {
+        withMobileLayout: boolean;
         displayStatus: TaskDisplayStatus;
         title: TaskTitleModel;
         assigneeAccountData: AccountModelData | null;
@@ -185,23 +184,29 @@ function TaskCardViewContent(
     // to tell if we are the last field before collections.
     fieldElements.reverse();
 
-    for (const collection of displayCollections.slice(0, 5)) {
+    const maxCollectionCount = withMobileLayout ? 3 : 5;
+
+    for (const collection of displayCollections.slice(0, maxCollectionCount)) {
         fieldElements.push(
             <Box
                 overflow="hidden"
                 marginY="-0.5"
                 marginLeft="-1"
-                style={{maxWidth: taskCollectionChipContainerMaxWidth}}
+                style={{maxWidth: `calc(50% - ${spacing["1"]})`}}
             >
-                <TaskCollectionChip collection={collection} />
+                <TaskCollectionChip
+                    collection={collection}
+                    // Always use the smaller, desktop, task collection chips even on mobile.
+                    withDesktopLayout={true}
+                />
             </Box>,
         );
     }
 
-    if (displayCollections.length > 5) {
+    if (displayCollections.length > maxCollectionCount) {
         fieldElements.push(
             <Box color="grey-70" marginLeft="-1" style={{fontFeatureSettings: '"calt"'}}>
-                +{displayCollections.length - 5}
+                +{displayCollections.length - maxCollectionCount}
             </Box>,
         );
     }

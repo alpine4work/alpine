@@ -13,12 +13,14 @@ export const taskCollectionChipContainerMaxWidth = `max(calc(50% - ${spacing["2.
 export function TaskCollectionChip({
     collection,
     nameMaxWidth,
+    withDesktopLayout,
     tabIndex,
     onPress,
     onRemove,
 }: {
     collection: TaskCollectionModel | null;
     nameMaxWidth?: Spacing;
+    withDesktopLayout?: boolean;
     tabIndex?: number;
     onPress?: () => void;
     onRemove?: () => void;
@@ -28,6 +30,7 @@ export function TaskCollectionChip({
             color={collection?.getColor() ?? null}
             name={collection?.getName() ?? ""}
             nameMaxWidth={nameMaxWidth}
+            withDesktopLayout={withDesktopLayout}
             tabIndex={tabIndex}
             onPress={onPress}
             onRemove={onRemove}

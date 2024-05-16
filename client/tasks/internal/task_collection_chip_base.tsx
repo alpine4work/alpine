@@ -20,8 +20,7 @@ export const taskCollectionChipBorderRadius = "base";
 const TaskCollectionChipBaseForwardRef = forwardRef(TaskCollectionChipBase);
 export {TaskCollectionChipBaseForwardRef as TaskCollectionChipBase};
 
-const chipClassName = sprinkles({
-    height: taskCollectionChipHeight,
+const chipClassNameBase = sprinkles({
     fontSize: "75",
     paddingY: taskCollectionChipPaddingY,
     paddingRight: "1.5",
@@ -37,13 +36,30 @@ const chipClassName = sprinkles({
     overflow: "hidden",
 });
 
+const chipClassName = `${chipClassNameBase} ${sprinkles({
+    height: taskCollectionChipHeight,
+})}`;
+
+const desktopLayoutChipClassName = `${chipClassNameBase} ${sprinkles({
+    height: taskCollectionChipHeight.desktop,
+})}`;
+
 const chipWithoutColorClassName = `${chipClassName} ${sprinkles({
     paddingLeft: {desktop: "1.5", mobile: "2.5"},
+})}`;
+
+const desktopLayoutChipWithoutColorClassName = `${desktopLayoutChipClassName} ${sprinkles({
+    paddingLeft: "1.5",
 })}`;
 
 const colorDotContainerClassName = sprinkles({
     paddingLeft: {desktop: "1.5", mobile: "2.5"},
     paddingRight: {desktop: "1", mobile: "1.5"},
+});
+
+const desktopLayoutColorDotContainerClassName = sprinkles({
+    paddingLeft: "1.5",
+    paddingRight: "1",
 });
 
 const colorDotClassNameByColor = new DefaultMap((color: Sprinkles["color"]) =>
@@ -66,6 +82,7 @@ function TaskCollectionChipBase(
         color,
         name,
         nameMaxWidth,
+        withDesktopLayout,
         tabIndex,
         onPress,
         onRemove,
@@ -73,6 +90,7 @@ function TaskCollectionChipBase(
         color: ThemeColor | null;
         name: ReactNode;
         nameMaxWidth?: Spacing;
+        withDesktopLayout?: boolean;
         tabIndex?: number;
         onPress?: () => void;
         onRemove?: () => void;
@@ -107,14 +125,28 @@ function TaskCollectionChipBase(
             // `<input>` we don't want to prevent enter/space keypresses.
             {...(isDisabled ? omitObject(pressProps, ["onKeyDown", "onKeyUp"]) : pressProps)}
             ref={ref}
-            className={color !== null ? chipClassName : chipWithoutColorClassName}
+            className={
+                withDesktopLayout
+                    ? color !== null
+                        ? desktopLayoutChipClassName
+                        : desktopLayoutChipWithoutColorClassName
+                    : color !== null
+                    ? chipClassName
+                    : chipWithoutColorClassName
+            }
             tabIndex={tabIndex}
             style={{
                 backgroundColor: isPressed ? colorSchemeVars["grey-10"] : colorSchemeVars["grey-5"],
             }}
         >
             {color !== null && (
-                <div className={colorDotContainerClassName}>
+                <div
+                    className={
+                        withDesktopLayout
+                            ? desktopLayoutColorDotContainerClassName
+                            : colorDotContainerClassName
+                    }
+                >
                     <div
                         className={colorDotClassNameByColor.getOrSetDefault(
                             getTaskCollectionColor(color),
@@ -131,7 +163,7 @@ function TaskCollectionChipBase(
             {onRemove && (
                 <div className={removeButtonContainerClassName}>
                     <IconButton
-                        size={isMobile ? "md" : "xs"}
+                        size={isMobile && !withDesktopLayout ? "md" : "xs"}
                         variant="quiet-above-grey-5-background"
                         borderRadius="sm"
                         // The user focuses the pill as a whole and hits the delete key to delete using
@@ -141,7 +173,7 @@ function TaskCollectionChipBase(
                         withoutTooltip={true}
                         onPress={onRemove}
                     >
-                        <X size={isMobile ? spacing["3"] : spacing["2.5"]} />
+                        <X size={isMobile && !withDesktopLayout ? spacing["3"] : spacing["2.5"]} />
                     </IconButton>
                 </div>
             )}
