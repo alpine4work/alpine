@@ -131,6 +131,10 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     nextUrl.searchParams.delete("scroll");
     currentUrl.searchParams.delete("scroll");
 
+    // Used to initially focus the document:
+    nextUrl.searchParams.delete("focus");
+    currentUrl.searchParams.delete("focus");
+
     return nextUrl.toString() !== currentUrl.toString();
 };
 
@@ -140,6 +144,9 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
     const updateMetaTitle = useUpdateMetaTitle();
     const context = useAppContext();
     const {space} = useSpaceContext();
+
+    const focusSearchParam = searchParams.get("focus");
+    const [shouldInitiallyFocus] = useState(focusSearchParam === "");
 
     const [initialScroll] = useState((): DocumentContentEditorInitialScroll | null => {
         const scrollString = searchParams.get("scroll");
@@ -160,9 +167,10 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
 
     // Remove the `create` search param.
     useEffect(() => {
-        if (searchParams.has("create")) {
+        if (searchParams.has("create") || searchParams.has("focus")) {
             const newSearchParams = new URLSearchParams(searchParams);
             newSearchParams.delete("create");
+            newSearchParams.delete("focus");
             setSearchParams(newSearchParams, {replace: true});
         }
     }, [searchParams, setSearchParams]);
@@ -183,6 +191,7 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
             // `initialScroll` since it depends on the comment thread being opened.
             initialScrollToCommentIndex={commentIndex}
             initialScroll={initialScroll}
+            shouldInitiallyFocus={shouldInitiallyFocus}
             onContentChange={content => {
                 updateMetaTitle(`${getDocumentContentTitle(content)}${metaTitlePostfix}`);
             }}

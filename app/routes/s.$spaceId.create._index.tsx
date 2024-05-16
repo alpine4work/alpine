@@ -71,8 +71,7 @@ export default function CreateRoute() {
                     onPress={async () => {
                         const documentId = generateId();
 
-                        // NOCOMMIT: Auto-focus?
-                        await rootNavigate(`/s/${space.id}/documents/${documentId}?create`);
+                        await rootNavigate(`/s/${space.id}/documents/${documentId}?create&focus`);
                     }}
                 />
                 <CreateRouteDivider />

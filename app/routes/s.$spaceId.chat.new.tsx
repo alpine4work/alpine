@@ -1,5 +1,10 @@
 import {useEffect, useRef, useState} from "react";
-import {useLocation, useNavigation, useSearchParams} from "react-router-dom";
+import {
+    ShouldRevalidateFunction,
+    useLocation,
+    useNavigation,
+    useSearchParams,
+} from "react-router-dom";
 import {ChatAccountPicker} from "~/client/chat/chat_account_picker.js";
 import {NewChatMessagingView} from "~/client/chat/new_chat_messaging_view.js";
 import {Box} from "~/client/design/box.js";
@@ -82,6 +87,21 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
     );
 }
 
+// We don't need to reload when certain search params change.
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+    currentUrl: _currentUrl,
+    nextUrl: _nextUrl,
+}) => {
+    const currentUrl = new URL(_currentUrl);
+    const nextUrl = new URL(_nextUrl);
+
+    // Used to initially focus the chat:
+    nextUrl.searchParams.delete("focus");
+    currentUrl.searchParams.delete("focus");
+
+    return nextUrl.toString() !== currentUrl.toString();
+};
+
 export default function NewChatRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
     const loaderData = useLoaderDataWithSchema(LoaderSchema);
 
@@ -97,20 +117,12 @@ export default function NewChatRoute({withMobileLayout = false}: {withMobileLayo
     );
 
     useEffect(() => {
-        if (focusSearchParam !== null) {
+        if (searchParams.has("focus")) {
             const newSearchParams = new URLSearchParams(searchParams);
-
             newSearchParams.delete("focus");
-
-            setSearchParams(newSearchParams, {
-                replace: true,
-                // Don't revalidate when updating search params from here. We can't use the
-                // stable `shouldRevalidate` route function because if the user navigates to
-                // a new URL we want to load new data and re-render the route.
-                unstable_shouldRevalidate: false,
-            });
+            setSearchParams(newSearchParams, {replace: true});
         }
-    }, [focusSearchParam, searchParams, setSearchParams]);
+    }, [searchParams, setSearchParams]);
 
     // Having state here allows us to optimistically update selected accounts. Then
     // when we get a new result back from Remix (due to route transition), that

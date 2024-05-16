@@ -73,8 +73,7 @@ export function SpaceLayoutSideBarCreateButton() {
                         onPress: async () => {
                             const documentId = generateId();
                             await peekStackContext.push(
-                                `/s/${space.id}/documents/${documentId}?create`,
-                                {focus: true},
+                                `/s/${space.id}/documents/${documentId}?create&focus`,
                             );
                         },
                         render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (

@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {useSearchParams} from "react-router-dom";
+import {ShouldRevalidateFunction, useSearchParams} from "react-router-dom";
 import {PostCreatorView} from "~/client/forum/post_creator_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -42,6 +42,21 @@ export async function loader({context: unauthenticatedContext, params, request}:
     });
 }
 
+// We don't need to reload when certain search params change.
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+    currentUrl: _currentUrl,
+    nextUrl: _nextUrl,
+}) => {
+    const currentUrl = new URL(_currentUrl);
+    const nextUrl = new URL(_nextUrl);
+
+    // Used to initially focus the chat:
+    nextUrl.searchParams.delete("focus");
+    currentUrl.searchParams.delete("focus");
+
+    return nextUrl.toString() !== currentUrl.toString();
+};
+
 export default function PostCreateRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
     const [searchParams, setSearchParams] = useSearchParams();
     const {
@@ -64,20 +79,12 @@ export default function PostCreateRoute({withMobileLayout = false}: {withMobileL
     );
 
     useEffect(() => {
-        if (focusSearchParam !== null) {
+        if (searchParams.has("focus")) {
             const newSearchParams = new URLSearchParams(searchParams);
-
             newSearchParams.delete("focus");
-
-            setSearchParams(newSearchParams, {
-                replace: true,
-                // Don't revalidate when updating search params from here. We can't use the
-                // stable `shouldRevalidate` route function because if the user navigates to
-                // a new URL we want to load new data and re-render the route.
-                unstable_shouldRevalidate: false,
-            });
+            setSearchParams(newSearchParams, {replace: true});
         }
-    }, [focusSearchParam, searchParams, setSearchParams]);
+    }, [searchParams, setSearchParams]);
 
     return (
         <PostCreatorView

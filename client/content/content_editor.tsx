@@ -623,6 +623,16 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return document.activeElement === view.dom;
             },
             focus: (options?: FocusOptions) => {
+                // If we're in dual modality mode then we need to set our focused state before
+                // the editor is focusable at all.
+                //
+                // This is a little strange. See the same line of code in our `touchstart`
+                // handler (around `touchState`'s `finish` function) for a more thorough
+                // explanation of what's happening here.
+                if (isDualModalityRef.current) {
+                    flushSync(() => setIsFocused(true));
+                }
+
                 const view = assertExists(viewRef.current);
                 (view.dom as HTMLDivElement).focus(options);
             },

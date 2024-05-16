@@ -1,3 +1,5 @@
+import "~/client/helpers/events/register_focus_event_debugger.js";
+
 import {AnimationControls, animate, spring, timeline} from "motion";
 import {
     ArrowLeft,
@@ -29,6 +31,7 @@ import {
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
@@ -125,6 +128,7 @@ export function DocumentContentEditor({
     initialCommentThreadResult,
     initialScrollToCommentIndex,
     initialScroll,
+    shouldInitiallyFocus,
     onContentChange,
     onContentLocalChange,
     onCommentThreadChange,
@@ -138,6 +142,7 @@ export function DocumentContentEditor({
     } | null;
     initialScrollToCommentIndex: number | null;
     initialScroll: DocumentContentEditorInitialScroll | null;
+    shouldInitiallyFocus: boolean;
     onContentChange?: (content: DocumentContent) => void;
     onContentLocalChange?: () => void;
     onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
@@ -152,6 +157,7 @@ export function DocumentContentEditor({
             initialCommentThreadResult={initialCommentThreadResult}
             initialScrollToCommentIndex={initialScrollToCommentIndex}
             initialScroll={initialScroll}
+            shouldInitiallyFocus={shouldInitiallyFocus}
             onContentChange={onContentChange}
             onContentLocalChange={onContentLocalChange}
             onCommentThreadChange={onCommentThreadChange}
@@ -205,6 +211,7 @@ function DocumentContentEditorStateful({
     initialCommentThreadResult,
     initialScrollToCommentIndex,
     initialScroll,
+    shouldInitiallyFocus,
     onContentChange,
     onContentLocalChange,
     onCommentThreadChange,
@@ -218,6 +225,7 @@ function DocumentContentEditorStateful({
     } | null;
     initialScrollToCommentIndex: number | null;
     initialScroll: DocumentContentEditorInitialScroll | null;
+    shouldInitiallyFocus: boolean;
     onContentChange?: (content: DocumentContent) => void;
     onContentLocalChange?: () => void;
     onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
@@ -275,6 +283,20 @@ function DocumentContentEditorStateful({
             lastContentDocRef.current = content.doc;
         }
     }, [content.doc, onContentChange]);
+
+    const hasInitiallyMountedRef = useRef(false);
+    useEffect(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
+        const editor = assertExists(editorRef.current);
+
+        if (!shouldInitiallyFocus) return;
+
+        return scheduleAfterNavigationAnimation(() => {
+            editor.focus();
+        });
+    }, [shouldInitiallyFocus]);
 
     /* ========================================================================== *\
      *                            Sidebar animations                              *
