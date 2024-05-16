@@ -11,6 +11,7 @@ import {
     obfuscateSetCookieHeaders,
 } from "~/shared/tracer/fetch_with_tracer.js";
 import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
+import {tracerEventHttpSearchParamNameByServiceName} from "~/shared/tracer/helpers/tracer_event_http_search_param_name.js";
 import {tracerPropagationContextHeaderName} from "~/shared/tracer/tracer_propagation_context_header.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -68,12 +69,22 @@ export async function traceServerResponse(
             ? parseInt(requestContentLengthHeader, 10)
             : null;
 
+        const spanSearch: {[key: string]: string} = {};
+        const validSpanSearchParamNames =
+            tracerEventHttpSearchParamNameByServiceName[tracer.serviceName];
+        for (const [searchParamName, searchParamValue] of requestUrl.searchParams) {
+            if (validSpanSearchParamNames?.has(searchParamName as any)) {
+                spanSearch[searchParamName] = searchParamValue;
+            }
+        }
+
         span.addData({
             http: {
                 route,
                 method: request.method,
                 scheme: requestUrl.protocol.slice(0, -1),
                 target: `${requestUrl.pathname}${requestUrl.search}`,
+                search: spanSearch,
                 // We depend on Cloudflare to set `x-real-ip` or `cf-connecting-ip` header on
                 // our request to get the IP address.
                 // https://developers.cloudflare.com/fundamentals/get-started/reference/http-request-headers

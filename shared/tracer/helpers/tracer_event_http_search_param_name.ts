@@ -1,0 +1,62 @@
+import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
+
+/**
+ * HTTP search parameter names we may add to a tracer span. We don't add all
+ * search parameters to tracer spans since search parameters may contain
+ * sensitive data! We do include some relevant params that meaningfully change
+ * the behavior of the route when it loads to help us debug.
+ *
+ * Search parameter names are meaningful to our system. They are not
+ * standardized.
+ */
+export type TracerEventHttpSearchParamName = keyof TracerEventHttpSearchParamNameMap;
+
+type TracerEventHttpSearchParamNameMap = {
+    // Signals we're creating some entity. Like a document or a forum channel.
+    create: true;
+    // Specifies what in the route should receive focus after navigation
+    // completes.
+    focus: true;
+    // Specifies where in the route we should initially scroll to after navigation
+    // completes.
+    scroll: true;
+    // In a messaging view, indicates which message we should scroll to on load.
+    // Some messaging implementations use the word "comment" instead of "message"
+    // so support that too.
+    message: true;
+    comment: true;
+    // In the document route, indicates which comment thread we should open in the
+    // comment sidebar (or in the comment bottom sheet on mobile).
+    comments: true;
+};
+
+const tracerEventHttpSearchParamNameMap: TracerEventHttpSearchParamNameMap = {
+    create: true,
+    focus: true,
+    scroll: true,
+    message: true,
+    comment: true,
+    comments: true,
+};
+
+/**
+ * All of the header names in our `TracerEventHttpSearchParamName` type
+ * available at runtime.
+ */
+export const tracerEventHttpSearchParamNames: ReadonlySet<string> = new Set(
+    Object.keys(tracerEventHttpSearchParamNameMap),
+);
+
+/**
+ * The search params we'll include in `TracerEvent`s by `TracerServiceName`.
+ * Search params may have different meanings for each service. So we only want
+ * to record search params that are relevant to each service and don't contain
+ * sensitive data for that service.
+ *
+ * Right now, only `AppService` really uses search params.
+ */
+export const tracerEventHttpSearchParamNameByServiceName: {
+    [Key in TracerServiceName]?: ReadonlySet<TracerEventHttpSearchParamName>;
+} = {
+    AppService: new Set(["create", "focus", "scroll", "message", "comment", "comments"]),
+};

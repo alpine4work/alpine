@@ -17,6 +17,7 @@ import {
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 import type {TracerEventHttpHeaderName} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
+import {TracerEventHttpSearchParamName} from "~/shared/tracer/helpers/tracer_event_http_search_param_name.js";
 
 /**
  * All data available in an event.
@@ -280,6 +281,9 @@ export type TracerEventData = {
          * server framework).
          */
         readonly route?: string;
+
+        /** HTTP URL search params. */
+        readonly search?: {readonly [K in TracerEventHttpSearchParamName]?: string};
 
         /** The IP address of the original client behind all proxies. */
         readonly clientIp?: string;

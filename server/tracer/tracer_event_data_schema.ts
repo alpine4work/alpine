@@ -17,6 +17,10 @@ import {
     TracerEventHttpHeaderName,
     tracerEventHttpHeaderNames,
 } from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
+import {
+    TracerEventHttpSearchParamName,
+    tracerEventHttpSearchParamNames,
+} from "~/shared/tracer/helpers/tracer_event_http_search_param_name.js";
 import {TracerEventDataBase, TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
 type TracerEventDataSchemaType<Data extends TracerEventDataBase> = {
@@ -119,6 +123,12 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         scheme: IdentifierStringSchema,
         target: LabelStringSchema,
         route: LabelStringSchema,
+        search: Object.fromEntries(
+            mapIterable(tracerEventHttpSearchParamNames, searchParamName => [
+                searchParamName,
+                LabelStringSchema,
+            ]),
+        ) as unknown as {[K in TracerEventHttpSearchParamName]: Schema<string>},
         clientIp: LabelStringSchema,
         service: {
             name: Schema.string,
