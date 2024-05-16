@@ -1854,9 +1854,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             self.temporarilyPreservedKeyboardOffset = temporarilyPreservedKeyboardOffset
 
             let reconcileTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) {
-                (_) in
+                [self] (_) in
                 self.temporarilyPreservedKeyboardOffset = nil
                 self.temporarilyPreservedKeyboardOffsetReconcileTimer = nil
+
+                // After our preserved keyboard offset is cleared, we need to update safe
+                // area insets.
+                updateWebViewSafeAreaInsets()
             }
 
             // Add some tolerance to reduce timer energy impact.
