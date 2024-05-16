@@ -20,7 +20,7 @@ import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_f
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
-import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {

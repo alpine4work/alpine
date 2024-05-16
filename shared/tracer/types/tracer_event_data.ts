@@ -17,7 +17,7 @@ import {
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 import type {TracerEventHttpHeaderName} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
-import {TracerEventHttpSearchParamName} from "~/shared/tracer/helpers/tracer_event_http_search_param_name.js";
+import type {TracerEventHttpSearchParamName} from "~/shared/tracer/helpers/tracer_event_http_search_param_name.js";
 
 /**
  * All data available in an event.

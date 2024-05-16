@@ -20,7 +20,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateId, isId} from "~/shared/id/id.js";
+import {isId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";

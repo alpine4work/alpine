@@ -38,7 +38,7 @@ import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_s
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId, isId} from "~/shared/id/id.js";
-import {BrowserId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {BrowserId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {addTaskCollectionAffinityPoints} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 import {taskCollectionAffinityPointsPer5MinOfViewingTime} from "~/shared/tasks/task_collection_affinity_constants.js";
