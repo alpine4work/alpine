@@ -33,6 +33,7 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
+import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {
     RemLength,
     Spacing,
@@ -231,6 +232,38 @@ export function PostContentView({
 
     const isEditingPost = !!postEditingForThisPost;
 
+    const postSnippet = useMemo(() => {
+        if (isSingleLayoutWithPinnedCommentInput) {
+            return null;
+        } else {
+            return {
+                doc: getContentSnippet(
+                    post.content.doc.resolve(0),
+                    {linesAbove: 0, linesBelow: withMobileLayout ? 5 : 16},
+                    {
+                        // 1.125x the number of "x"s we can fit in a single line in a peek (64). We
+                        // want to be slightly more aggressive than the default grapheme count (which
+                        // counts the "l" character which is narrower) since we render the entire
+                        // snippet.
+                        maxLineGraphemeCount: isMobile ? 42 : 72,
+                    },
+                ),
+                references: post.content.references,
+            };
+        }
+    }, [
+        isMobile,
+        isSingleLayoutWithPinnedCommentInput,
+        post.content.doc,
+        post.content.references,
+        withMobileLayout,
+    ]);
+
+    const isPostSnippetTruncated = post.content.doc.nodeSize !== postSnippet?.doc.nodeSize;
+
+    const [isShowingAllContent, setIsShowingAllContent] = useState(!isPostSnippetTruncated);
+    if (!isShowingAllContent && !isPostSnippetTruncated) setIsShowingAllContent(true);
+
     return (
         <Box
             data-testid={
@@ -317,11 +350,33 @@ export function PostContentView({
                 }}
             >
                 {!isEditingPost ? (
-                    <ContentView
-                        content={post.content}
-                        contentUpdatedTime={post.contentUpdatedTime}
-                        className={sprinkles({paddingY: contentEditorPaddingY})}
-                    />
+                    isSingleLayoutWithPinnedCommentInput ? (
+                        <ContentView
+                            content={post.content}
+                            contentUpdatedTime={post.contentUpdatedTime}
+                            className={sprinkles({paddingY: contentEditorPaddingY})}
+                        />
+                    ) : (
+                        <ContentView
+                            contentUpdatedTime={post.contentUpdatedTime}
+                            className={sprinkles({paddingY: contentEditorPaddingY})}
+                            content={
+                                isPostSnippetTruncated && !isShowingAllContent && postSnippet
+                                    ? postSnippet
+                                    : post.content
+                            }
+                            onSeeMoreContent={
+                                isPostSnippetTruncated && !isShowingAllContent
+                                    ? () => setIsShowingAllContent(true)
+                                    : undefined
+                            }
+                            onSeeLessContent={
+                                isPostSnippetTruncated && isShowingAllContent
+                                    ? () => setIsShowingAllContent(false)
+                                    : undefined
+                            }
+                        />
+                    )
                 ) : (
                     <PostContentViewEditor
                         idBase={idBase}
