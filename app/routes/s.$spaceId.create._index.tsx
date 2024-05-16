@@ -59,8 +59,7 @@ export default function CreateRoute() {
                     description="Start a chat with anyone"
                     pressErrorTitle="Couldn’t open new chat"
                     onPress={async () => {
-                        // NOCOMMIT: Auto-focus?
-                        await rootNavigate(`/s/${space.id}/chat/new`);
+                        await rootNavigate(`/s/${space.id}/chat/new?focus=picker`);
                     }}
                 />
                 <CreateRouteDivider />

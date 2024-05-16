@@ -1065,10 +1065,10 @@ function PeekStackOverlay({
     {
         // On initial render, imperatively set our initial styles so we render from
         // this starting place.
-        const hasInitiallyRenderedRef = useRef(false);
+        const hasInitiallyMountedRef = useRef(false);
         useLayoutEffect(() => {
-            if (hasInitiallyRenderedRef.current) return;
-            hasInitiallyRenderedRef.current = true;
+            if (hasInitiallyMountedRef.current) return;
+            hasInitiallyMountedRef.current = true;
 
             const overlayElement = assertExists(overlayRef.current);
 

@@ -29,10 +29,10 @@ export function ContentEditorLinkInput({
     const inputRef = useRef<HTMLInputElement>(null);
     const [url, setUrl] = useState<string>(mark?.attrs.url ?? "");
 
-    const hasInitiallyRenderedRef = useRef(false);
+    const hasInitiallyMountedRef = useRef(false);
     useEffect(() => {
-        if (hasInitiallyRenderedRef.current) return;
-        hasInitiallyRenderedRef.current = true;
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
         if (autoFocus) assertExists(inputRef.current).focus({preventScroll: true});
     }, [autoFocus]);
 

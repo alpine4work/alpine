@@ -114,7 +114,7 @@ export function MessageInputMobileKeyboardToolbar({
         [state],
     );
 
-    const hasInitiallyRenderedRef = useRef(false);
+    const hasInitiallyMountedRef = useRef(false);
     const isVisibleRef = useRef(isVisible);
     const lastAnimationRef = useRef<AnimationControls | null>(null);
 
@@ -125,8 +125,8 @@ export function MessageInputMobileKeyboardToolbar({
     useLayoutEffectWithoutServerSideWarning(() => {
         const toolbarElement = assertExists(toolbarRef.current);
 
-        if (!hasInitiallyRenderedRef.current) {
-            hasInitiallyRenderedRef.current = true;
+        if (!hasInitiallyMountedRef.current) {
+            hasInitiallyMountedRef.current = true;
             toolbarElement.style.opacity = isVisible ? "1" : "0";
         }
 

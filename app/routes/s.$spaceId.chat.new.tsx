@@ -1,4 +1,4 @@
-import {useEffect, useRef} from "react";
+import {useEffect, useRef, useState} from "react";
 import {useLocation, useNavigation, useSearchParams} from "react-router-dom";
 import {ChatAccountPicker} from "~/client/chat/chat_account_picker.js";
 import {NewChatMessagingView} from "~/client/chat/new_chat_messaging_view.js";
@@ -90,6 +90,31 @@ export default function NewChatRoute({withMobileLayout = false}: {withMobileLayo
 
     const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
+
+    const focusSearchParam = searchParams.get("focus");
+    const [initiallyFocus] = useState(
+        focusSearchParam === "picker"
+            ? ("ChatAccountPicker" as const)
+            : focusSearchParam === "message"
+            ? ("MessageInput" as const)
+            : null,
+    );
+
+    useEffect(() => {
+        if (focusSearchParam !== null) {
+            const newSearchParams = new URLSearchParams(searchParams);
+
+            newSearchParams.delete("focus");
+
+            setSearchParams(newSearchParams, {
+                replace: true,
+                // Don't revalidate when updating search params from here. We can't use the
+                // stable `shouldRevalidate` route function because if the user navigates to
+                // a new URL we want to load new data and re-render the route.
+                unstable_shouldRevalidate: false,
+            });
+        }
+    }, [focusSearchParam, searchParams, setSearchParams]);
 
     // Having state here allows us to optimistically update selected accounts. Then
     // when we get a new result back from Remix (due to route transition), that
@@ -222,7 +247,7 @@ export default function NewChatRoute({withMobileLayout = false}: {withMobileLayo
                         onUpdateSelectedAccounts={setSelectedAccounts}
                         shouldShowPendingSpinner={shouldShowAccountPickerPendingSpinner}
                         suggestedChats={loaderData.suggestedChats}
-                        withMobileLayout={withMobileLayout}
+                        shouldInitiallyFocus={initiallyFocus === "ChatAccountPicker"}
                     />
                 </Box>
             </Box>

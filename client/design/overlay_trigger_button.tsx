@@ -578,11 +578,11 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
 ) {
     const overlayRef = useRef<HTMLElement>(null);
 
-    const hasInitiallyRenderedRef = useRef(false);
+    const hasInitiallyMountedRef = useRef(false);
 
     useLayoutEffect(() => {
-        if (hasInitiallyRenderedRef.current) return;
-        hasInitiallyRenderedRef.current = true;
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
 
         assert(
             overlayRef.current instanceof HTMLElement,

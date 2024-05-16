@@ -54,7 +54,7 @@ export function SpaceLayoutSideBarCreateButton() {
                         withCustomLayout: true,
                         pressErrorTitle: "Couldn’t open new chat",
                         onPress: async () => {
-                            await peekStackContext.push(`/s/${space.id}/chat/new`, {focus: true});
+                            await peekStackContext.push(`/s/${space.id}/chat/new?focus=picker`);
                         },
                         render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
                             <SpaceLayoutSideBarCreateButtonItem

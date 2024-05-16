@@ -23,6 +23,7 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
+import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -85,7 +86,7 @@ export function ChatAccountPicker({
     onUpdateSelectedAccounts,
     shouldShowPendingSpinner,
     suggestedChats,
-    withMobileLayout,
+    shouldInitiallyFocus,
 }: {
     selectedAccounts: ReadonlyArray<AccountModel>;
     onUpdateSelectedAccounts: (
@@ -93,7 +94,7 @@ export function ChatAccountPicker({
     ) => void;
     shouldShowPendingSpinner: boolean;
     suggestedChats: ReadonlyArray<ChatModel>;
-    withMobileLayout: boolean;
+    shouldInitiallyFocus: boolean;
 }) {
     const isMobile = useIsMobile();
     const accountStore = useAccountClientStore();
@@ -103,6 +104,20 @@ export function ChatAccountPicker({
     const buttonRef = useRef<HTMLButtonElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
     const listBoxRef = useRef<HTMLUListElement>(null);
+
+    const hasInitiallyMountedRef = useRef(false);
+    useEffect(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
+        const inputElement = assertExists(inputRef.current);
+
+        if (!shouldInitiallyFocus) return;
+
+        return scheduleAfterNavigationAnimation(() => {
+            inputElement.focus();
+        });
+    }, [shouldInitiallyFocus]);
 
     // Preload accounts since we don't load accounts until the dropdown is open.
     useExpensivelyPreloadAllSpaceAccounts();
@@ -745,7 +760,7 @@ function ChatAccountPickerListBox({
                     marginX: "2",
                     backgroundColor: "grey-0",
                     boxShadow: "elevation-20",
-                    maxHeight: "64",
+                    maxHeight: {desktop: "64", mobile: "48"},
                     overflowX: "hidden",
                     overflowY: "auto",
                     position: "relative",

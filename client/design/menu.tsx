@@ -435,13 +435,13 @@ export const Menu = forwardRef(function Menu(
         }
     }
 
-    const hasInitiallyRenderedRef = useRef(false);
+    const hasInitiallyMountedRef = useRef(false);
 
     // If our menu is large enough to scroll, automatically scroll to the first
     // `isSelected` item on initial mount.
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (hasInitiallyRenderedRef.current) return;
-        hasInitiallyRenderedRef.current = true;
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
 
         const menuElement = assertExists(menuRef.current);
 
