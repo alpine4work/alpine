@@ -1461,12 +1461,17 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 // Make sure scroll view wasn't removed.
                 guard webScrollViews[webScrollView] != nil else { return }
 
+                // Don't consider safe area insets in our main scroll view determination
+                // calculation.
+                let viewFrameForMainDetermination = view.bounds.inset(by: windowSafeAreaInsets)
+
                 // Only consider scroll view bounds that are visible onscreen for determining
                 // whether this is a main scroll view. This is for comment threads in
                 // `<DocumentContentEditor>` who have a scroll view that extends below the
                 // screen which shouldn't be considered main.
-                let webScrollViewFrame = webScrollView.convert(webScrollView.bounds, to: view)
-                    .intersection(view.bounds)
+                let webScrollViewFrameForMainDetermination =
+                    webScrollView.convert(webScrollView.bounds, to: view)
+                    .intersection(viewFrameForMainDetermination)
 
                 // There may be other scroll views on our web page but we need to decide what
                 // the "main" scroll view is so that as it scrolls we can show/hide the tab
@@ -1480,10 +1485,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 // The root scroll view may not be the main scroll view since the root scroll
                 // view shouldn't be scrollable.
                 let isMain =
-                    webScrollViewFrame.width >= view.frame.width * 0.5
-                    // 250px is selected to exclude the document comment thread bottom sheet that
-                    // opens when you tap a comment but include chat views.
-                    && webScrollViewFrame.height >= view.frame.height - 250
+                    webScrollViewFrameForMainDetermination.width >= viewFrameForMainDetermination
+                    .width * 0.5
+                    // 225px is selected to exclude the document comment thread bottom sheet that
+                    // opens when you tap a comment but include new chat views.
+                    && webScrollViewFrameForMainDetermination.height
+                        >= viewFrameForMainDetermination.height - 225
 
                 webScrollViews[webScrollView]!.isMain = isMain
 
