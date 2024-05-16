@@ -1,4 +1,4 @@
-import {ShouldRevalidateFunction, useSearchParams} from "@remix-run/react";
+import {ShouldRevalidateFunction, useParams, useSearchParams} from "@remix-run/react";
 import {useEffect, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {
@@ -13,29 +13,27 @@ import {markSearchAffinityLowIntentUpdateInteraction} from "~/client/search/mark
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    createDocument,
-    getDocument,
     getDocumentCommentThreadAndInitialComments,
+    getDocumentIfExists,
 } from "~/server/documents/data/documents_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
-import {emptyDocumentContent} from "~/shared/documents/document_content_schema.js";
+import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
-import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
-    document: DocumentModel.schema(),
+    document: DocumentModel.schema().nullable(),
     commentThreadResult: Schema.object({
         commentThread: DocumentCommentThreadModel.schema(),
         initialComments: Schema.array(DocumentCommentModel.schema()),
@@ -47,46 +45,13 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
     const context = (await _context.actor.authenticate()).actor.authorizeSession();
 
     const url = new URL(request.url);
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
     const documentId = Schema.id<DocumentId>().deserialize(params.documentId ?? null);
     const commentThreadId = Schema.id<DocumentCommentThreadId>()
         .nullable()
         .deserialize(url.searchParams.get("comments"));
 
     const [document, commentThreadResult] = await runAllPromises([
-        (async () => {
-            // If the `create` query parameter is included then we will attempt to create
-            // the document if it does not already exist. If the document does already
-            // exist then we will load it.
-            if (url.searchParams.has("create")) {
-                try {
-                    const content = emptyDocumentContent;
-
-                    const newDocument = await createDocument(context, {
-                        id: documentId,
-                        spaceId,
-                        content,
-                    });
-
-                    return new DocumentModel({
-                        ...newDocument,
-                        spaceId,
-                        content: {
-                            doc: content,
-                            references: emptyDocumentContentReferences,
-                        },
-                    });
-                } catch (error) {
-                    if (error instanceof FailedPreconditionError) {
-                        // The document already exists! Try reading it...
-                    } else {
-                        throw error;
-                    }
-                }
-            }
-
-            return getDocument(context, documentId);
-        })(),
+        getDocumentIfExists(context, documentId),
         commentThreadId
             ? getDocumentCommentThreadAndInitialComments(context, {
                   documentId,
@@ -96,6 +61,11 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
             : null,
     ]);
 
+    // Must have the `create` search param to load a document that doesn't exist.
+    if (!document && url.searchParams.get("create") !== "") {
+        throw new NotFoundError("Document not found");
+    }
+
     const propagateEventData: TracerEventData = {
         context: {documentId},
     };
@@ -104,7 +74,7 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
 }
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) => [
-    {title: document.getTitle()},
+    {title: document?.getTitle() ?? documentFallbackTitle},
 ]);
 
 // We don't need to reload when certain search params change.
@@ -140,10 +110,13 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 
 export default function DocumentRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
     const {document: initialDocument, commentThreadResult} = useLoaderDataWithSchema(LoaderSchema);
+    const params = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const updateMetaTitle = useUpdateMetaTitle();
     const context = useAppContext();
     const {space} = useSpaceContext();
+
+    const documentId = Schema.id<DocumentId>().deserialize(params.documentId ?? null);
 
     const focusSearchParam = searchParams.get("focus");
     const [shouldInitiallyFocus] = useState(focusSearchParam === "");
@@ -165,26 +138,38 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
         return null;
     });
 
-    // Remove the `create` search param.
+    const [isCreating, setIsCreating] = useState(initialDocument === null);
+
+    // Remove the `focus` search param.
     useEffect(() => {
-        if (searchParams.has("create") || searchParams.has("focus")) {
+        if (searchParams.has("focus")) {
             const newSearchParams = new URLSearchParams(searchParams);
-            newSearchParams.delete("create");
             newSearchParams.delete("focus");
             setSearchParams(newSearchParams, {replace: true});
         }
     }, [searchParams, setSearchParams]);
 
+    // Remove the `create` search param.
+    useEffect(() => {
+        if (!isCreating && searchParams.has("create")) {
+            const newSearchParams = new URLSearchParams(searchParams);
+            newSearchParams.delete("create");
+            setSearchParams(newSearchParams, {replace: true});
+        }
+    }, [isCreating, searchParams, setSearchParams]);
+
     const commentIndexString = searchParams.get("comment");
     const commentIndex = commentIndexString ? parseInt(commentIndexString, 10) : null;
 
-    useSearchAffinityViewInteraction(`Document:${initialDocument.id}`);
+    // Don't update affinity score while creating.
+    useSearchAffinityViewInteraction(!isCreating ? `Document:${documentId}` : null);
 
     return (
         <DocumentContentEditor
             // Re-render when the document changes
-            key={initialDocument.id}
+            key={documentId}
             withMobileLayout={withMobileLayout}
+            documentId={documentId}
             initialDocument={initialDocument}
             initialCommentThreadResult={commentThreadResult}
             // Scrolling to an initial comment index is a little different than
@@ -192,14 +177,18 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
             initialScrollToCommentIndex={commentIndex}
             initialScroll={initialScroll}
             shouldInitiallyFocus={shouldInitiallyFocus}
+            onCreate={() => setIsCreating(false)}
             onContentChange={content => {
                 updateMetaTitle(`${getDocumentContentTitle(content)}${metaTitlePostfix}`);
             }}
             onContentLocalChange={() => {
+                // Don't update affinity score while creating.
+                if (isCreating) return;
+
                 markSearchAffinityLowIntentUpdateInteraction(
                     context,
                     space.id,
-                    `Document:${initialDocument.id}`,
+                    `Document:${documentId}`,
                     {isVeryLow: true},
                 );
             }}

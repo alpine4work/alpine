@@ -1,5 +1,3 @@
-import "~/client/helpers/events/register_focus_event_debugger.js";
-
 import {AnimationControls, animate, spring, timeline} from "motion";
 import {
     ArrowLeft,
@@ -122,49 +120,6 @@ export type DocumentContentEditorInitialScroll = {
     readonly commentThreadId: DocumentCommentThreadId;
 };
 
-export function DocumentContentEditor({
-    withMobileLayout,
-    initialDocument,
-    initialCommentThreadResult,
-    initialScrollToCommentIndex,
-    initialScroll,
-    shouldInitiallyFocus,
-    onContentChange,
-    onContentLocalChange,
-    onCommentThreadChange,
-}: {
-    withMobileLayout: boolean;
-    initialDocument: DocumentModel;
-    initialCommentThreadResult: {
-        commentThread: DocumentCommentThreadModel;
-        initialComments: ReadonlyArray<DocumentCommentModel>;
-        initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
-    } | null;
-    initialScrollToCommentIndex: number | null;
-    initialScroll: DocumentContentEditorInitialScroll | null;
-    shouldInitiallyFocus: boolean;
-    onContentChange?: (content: DocumentContent) => void;
-    onContentLocalChange?: () => void;
-    onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
-}) {
-    return (
-        <DocumentContentEditorStateful
-            // If a document prop with a different id + version is passed in then remount
-            // our stateful content editor component.
-            key={`${initialDocument.id}-${initialDocument.version}`}
-            withMobileLayout={withMobileLayout}
-            initialDocument={initialDocument}
-            initialCommentThreadResult={initialCommentThreadResult}
-            initialScrollToCommentIndex={initialScrollToCommentIndex}
-            initialScroll={initialScroll}
-            shouldInitiallyFocus={shouldInitiallyFocus}
-            onContentChange={onContentChange}
-            onContentLocalChange={onContentLocalChange}
-            onCommentThreadChange={onCommentThreadChange}
-        />
-    );
-}
-
 type DocumentContentEditorSidebarState =
     | {
           readonly isOpen: false;
@@ -205,19 +160,22 @@ type DocumentContentEditorSidebarData = {
     readonly initialOptimisticComments: ReadonlyArray<OptimisticMessageModel>;
 };
 
-function DocumentContentEditorStateful({
+export function DocumentContentEditor({
     withMobileLayout: withMobileLayoutProp,
+    documentId,
     initialDocument,
     initialCommentThreadResult,
     initialScrollToCommentIndex,
     initialScroll,
     shouldInitiallyFocus,
+    onCreate,
     onContentChange,
     onContentLocalChange,
     onCommentThreadChange,
 }: {
     withMobileLayout: boolean;
-    initialDocument: DocumentModel;
+    documentId: DocumentId;
+    initialDocument: DocumentModel | null;
     initialCommentThreadResult: {
         commentThread: DocumentCommentThreadModel;
         initialComments: ReadonlyArray<DocumentCommentModel>;
@@ -226,12 +184,11 @@ function DocumentContentEditorStateful({
     initialScrollToCommentIndex: number | null;
     initialScroll: DocumentContentEditorInitialScroll | null;
     shouldInitiallyFocus: boolean;
+    onCreate?: () => void;
     onContentChange?: (content: DocumentContent) => void;
     onContentLocalChange?: () => void;
     onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
 }) {
-    const {id: documentId, spaceId} = initialDocument;
-
     const context = useAppContext();
     const isInitialAppRender = useIsInitialAppRender();
     const {isAppleDevice, isNativeMobile} = useClientInfo();
@@ -247,6 +204,7 @@ function DocumentContentEditorStateful({
     const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const {
+        spaceId,
         isConnected,
         editorState,
         onChangeEditorState,
@@ -256,7 +214,8 @@ function DocumentContentEditorStateful({
         procedures,
         subscribeToCommentThreadEvents,
         unpersistedResolutionStateByCommentThreadId,
-    } = useDocumentContentEditorWebSocket(initialDocument);
+        ensureCreateDocument,
+    } = useDocumentContentEditorWebSocket({documentId, initialDocument}, {onCreate});
 
     const phantomSelections = useDocumentContentEditorPhantomSelections({
         editorState,
@@ -1549,6 +1508,11 @@ function DocumentContentEditorStateful({
                     label: "Copy link",
                     pressErrorTitle: "Couldn’t copy document link",
                     onPress: async () => {
+                        // When the user goes to copy the link for a document, make sure the document
+                        // has been created before copying. Otherwise the other user won't see realtime
+                        // updates to the document.
+                        await ensureCreateDocument();
+
                         const url = new URL(
                             `/s/${spaceId}/documents/${documentId}`,
                             window.location.href,

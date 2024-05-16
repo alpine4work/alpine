@@ -4,7 +4,6 @@ import {AppContext} from "~/client/context/app_context.js";
 import {
     DocumentContentEditorAction,
     DocumentContentEditorState,
-    getInitialDocumentContentEditorState,
     reduceDocumentContentEditorState,
 } from "~/client/documents/internal/document_content_editor_state.js";
 import {Store} from "~/client/helpers/store/store.js";
@@ -19,7 +18,6 @@ import {DocumentContentWithReferences} from "~/shared/documents/document_content
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
-    DocumentModel,
 } from "~/shared/documents/document_model.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -36,17 +34,7 @@ export type DocumentContentEditorWebSocketClientProcedures = Pick<
     WebSocketClientProcedures<
         WebSocketProtocolProceduresType<typeof DocumentCollaborationProtocol>
     >,
-    | "backfillComments"
-    | "createComment"
-    | "updateCommentContent"
-    | "deleteComment"
-    | "startTypingInCommentInput"
-    | "stopTypingInCommentInput"
-    | "getCommentThreadAndInitialCommentsIfExists"
-    | "getCommentsFromStart"
-    | "getCommentsFromEnd"
-    | "resolveCommentThread"
-    | "unresolveCommentThread"
+    (typeof DocumentContentEditorWebSocketClient.procedureNames)[number]
 >;
 
 /**
@@ -80,6 +68,24 @@ export type DocumentContentEditorWebSocketClientProcedures = Pick<
  *   1's cursor. (This exercises `rememberedSteps`.)
  */
 export class DocumentContentEditorWebSocketClient {
+    public static readonly procedureNames = [
+        "backfillComments",
+        "createComment",
+        "updateCommentContent",
+        "deleteComment",
+        "startTypingInCommentInput",
+        "stopTypingInCommentInput",
+        "getCommentThreadAndInitialCommentsIfExists",
+        "getCommentsFromStart",
+        "getCommentsFromEnd",
+        "resolveCommentThread",
+        "unresolveCommentThread",
+    ] as const satisfies ReadonlyArray<
+        keyof WebSocketClientProcedures<
+            WebSocketProtocolProceduresType<typeof DocumentCollaborationProtocol>
+        >
+    >;
+
     public readonly documentId: DocumentId;
     private readonly _client: WebSocketClient<typeof DocumentCollaborationProtocol>;
     private readonly _state: ValueStore<DocumentContentEditorState>;
@@ -97,28 +103,23 @@ export class DocumentContentEditorWebSocketClient {
         return this._client.state;
     }
 
-    constructor(getContext: () => AppContext, initialDocument: DocumentModel) {
-        this.documentId = initialDocument.id;
+    constructor(
+        getContext: () => AppContext,
+        documentId: DocumentId,
+        initialState: DocumentContentEditorState,
+    ) {
+        this.documentId = documentId;
         this._client = new WebSocketClient(
             getContext,
             DocumentCollaborationProtocol,
-            `/api/durable-objects/documents/${initialDocument.id}`,
+            `/api/durable-objects/documents/${documentId}`,
         );
-        this._state = new ValueStore(getInitialDocumentContentEditorState(initialDocument));
+        this._state = new ValueStore(initialState);
 
-        this.procedures = pickObject(this._client.procedures, [
-            "backfillComments",
-            "createComment",
-            "updateCommentContent",
-            "deleteComment",
-            "startTypingInCommentInput",
-            "stopTypingInCommentInput",
-            "getCommentThreadAndInitialCommentsIfExists",
-            "getCommentsFromStart",
-            "getCommentsFromEnd",
-            "resolveCommentThread",
-            "unresolveCommentThread",
-        ]);
+        this.procedures = pickObject(
+            this._client.procedures,
+            DocumentContentEditorWebSocketClient.procedureNames,
+        );
     }
 
     private _dispatchBatch(actions: ReadonlyArray<DocumentContentEditorAction>) {

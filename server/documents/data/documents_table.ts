@@ -750,36 +750,30 @@ export async function createDocument(
 
     const updatedTraits: DocumentIndexSearchEntityJob["updatedTraits"] = {type: "Any"};
 
-    await DynamoTableSchema.executeTransaction(
-        context,
-        [
-            DocumentsTable.transactionCreateItem({
-                partitionType: "Document",
-                sortRangeType: "Attributes",
-                createdTime,
-                spaceId,
-                documentId: id,
-                creatorId: context.actor.getAccountId(),
-                version,
-                titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
-                lastIndexSearchEntityJob: {
-                    sendTime: createdTime,
-                    updatedTraits,
-                },
-                stepCountByAccountId: new DocumentStepCountByAccountId(new Map()),
-            }),
-            DocumentsTable.transactionCreateOrReplaceItem({
-                partitionType: "Document",
-                documentId: id,
-                sortRangeType: "Snapshot",
-                version,
-                content,
-            }),
-        ],
-        {
-            clientRequestToken: id,
-        },
-    );
+    await DynamoTableSchema.executeTransaction(context, [
+        DocumentsTable.transactionCreateItem({
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            createdTime,
+            spaceId,
+            documentId: id,
+            creatorId: context.actor.getAccountId(),
+            version,
+            titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
+            lastIndexSearchEntityJob: {
+                sendTime: createdTime,
+                updatedTraits,
+            },
+            stepCountByAccountId: new DocumentStepCountByAccountId(new Map()),
+        }),
+        DocumentsTable.transactionCreateOrReplaceItem({
+            partitionType: "Document",
+            documentId: id,
+            sortRangeType: "Snapshot",
+            version,
+            content,
+        }),
+    ]);
 
     context.jobs.send(
         {
@@ -1023,7 +1017,8 @@ async function getInternalDocumentIfExists(
 }
 
 /**
- * Get the full document with the provided id.
+ * Get the full document with the provided id. Throw an error if it doesn't
+ * exist.
  */
 export async function getDocument(
     context: ServerActionContext,
@@ -1034,6 +1029,19 @@ export async function getDocument(
 }
 
 /**
+ * Get the full document with the provided id. Return null if it doesn't exist.
+ */
+export async function getDocumentIfExists(
+    context: ServerActionContext,
+    documentId: DocumentId,
+): Promise<DocumentModel | null> {
+    return (
+        (await getDocumentAndCommentThreadsIfExists(context, {documentId, commentThreadIds: []}))
+            ?.document ?? null
+    );
+}
+
+/**
  * Get the document with the provided id and all the requested comment threads.
  *
  * The returned document model includes all referenced comment threads already,
@@ -1041,6 +1049,28 @@ export async function getDocument(
  * in the `archivedCommentThreadById` map.
  */
 export async function getDocumentAndCommentThreads(
+    context: ServerActionContext,
+    options: {
+        documentId: DocumentId;
+        // Allow `commentThreadIds` to be a promise so we can execute document loading
+        // in parallel with code that loads which `commentThreadIds`.
+        commentThreadIds:
+            | Iterable<DocumentCommentThreadId>
+            | Promise<Iterable<DocumentCommentThreadId>>;
+        // If you pass this in, we will resolve the promise once we load the `SpaceId`
+        // for the document.
+        spaceIdPromiseResolver?: PromiseResolver<SpaceId>;
+    },
+): Promise<{
+    document: DocumentModel;
+    commentThreads: Array<DocumentCommentThreadModel>;
+}> {
+    const result = await getDocumentAndCommentThreadsIfExists(context, options);
+    if (!result) throw new NotFoundError("Document not found");
+    return result;
+}
+
+async function getDocumentAndCommentThreadsIfExists(
     context: ServerActionContext,
     {
         documentId,
@@ -1060,7 +1090,7 @@ export async function getDocumentAndCommentThreads(
 ): Promise<{
     document: DocumentModel;
     commentThreads: Array<DocumentCommentThreadModel>;
-}> {
+} | null> {
     try {
         let _attributes: DocumentAttributesItem | null = null;
         let stepTransactionsAfterSnapshot: Array<DocumentStepTransactionAfterSnapshotItem> = [];
@@ -1110,7 +1140,7 @@ export async function getDocumentAndCommentThreads(
                     staleReferencedCommentThreadById.size === 0,
                 "Document with no attributes should not have snapshot",
             );
-            throw new NotFoundError("Document not found");
+            return null;
         }
         const attributes = _attributes;
 

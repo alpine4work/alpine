@@ -30,6 +30,18 @@ export const authorizeDocumentAccess = defineRpc({
     output: {},
 });
 
+export const createDocument = defineRpc({
+    name: "createDocument",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        documentId: Schema.id<DocumentId>().optional(),
+    },
+    output: {
+        documentId: Schema.id<DocumentId>(),
+        createdTime: Schema.date,
+    },
+});
+
 export const getDocument = defineRpc({
     name: "getDocument",
     input: {

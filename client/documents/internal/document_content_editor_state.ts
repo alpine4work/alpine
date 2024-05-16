@@ -15,9 +15,14 @@ import {DocumentCollaborationPresenceState} from "~/shared/documents/document_co
 import {
     DocumentContentReferences,
     DocumentContentWithReferences,
+    emptyDocumentContentReferences,
     mergeDocumentContentReferences,
 } from "~/shared/documents/document_content_references.js";
-import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema.js";
+import {
+    DocumentContent,
+    emptyDocumentContent,
+    isDocumentContent,
+} from "~/shared/documents/document_content_schema.js";
 import {DocumentModel} from "~/shared/documents/document_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -102,11 +107,14 @@ type DocumentContentEditorExtraState = {
 };
 
 export function getInitialDocumentContentEditorState(
-    initialDocument: DocumentModel,
+    initialDocument: DocumentModel | null,
 ): DocumentContentEditorState {
     return getInitialCollaborativeContentEditorState({
-        initialVersion: initialDocument.version,
-        initialContent: initialDocument.content,
+        initialVersion: initialDocument?.version ?? 0,
+        initialContent: initialDocument?.content ?? {
+            doc: emptyDocumentContent,
+            references: emptyDocumentContentReferences,
+        },
         reduceReferences: reduceDocumentContentReferences,
         extra: {
             pendingCreateCommentThreads: null,

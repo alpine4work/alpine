@@ -12,6 +12,7 @@ import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {MessageContentPayloadModel, MessageModel} from "~/shared/messaging/message_model.js";
+import {overlayFadeOutAnimationDurationMs} from "~/shared/styles/styles.js";
 
 export function MessageViewActions<RoomKey extends string>({
     messageNoun,
@@ -93,14 +94,14 @@ export function MessageViewActions<RoomKey extends string>({
                         setIsMoreMenuOpenTimeoutRef.current?.clear();
                         setIsMoreMenuOpenTimeoutRef.current = null;
 
-                        const nextIsMoreMenuOpen = state.isExpanded || state.isFadingOut;
+                        const nextIsMoreMenuOpen = state.isExpanded;
                         if (isMoreMenuOpen && !nextIsMoreMenuOpen) {
                             // Wait a bit before setting `isMoreMenuOpen` to false so `isHovered` state can
                             // become true and actions don't temporarily blink out of existence.
                             setIsMoreMenuOpenTimeoutRef.current = createTimeout(() => {
                                 setIsMoreMenuOpenTimeoutRef.current = null;
                                 setIsMoreMenuOpen(nextIsMoreMenuOpen);
-                            }, perceivedAsInstantLimitMs);
+                            }, (!state.disableAnimationOut ? overlayFadeOutAnimationDurationMs : 0) + perceivedAsInstantLimitMs);
                         } else {
                             setIsMoreMenuOpen(nextIsMoreMenuOpen);
                         }

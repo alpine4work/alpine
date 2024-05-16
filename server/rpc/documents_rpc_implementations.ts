@@ -6,6 +6,7 @@ import {
     authorizeDocumentAccess,
     backfillDocumentComments,
     batchGetDocumentCommentThreadReferencesIfExists,
+    createDocument,
     createDocumentComment,
     deleteDocumentComment,
     getDocument,
@@ -20,6 +21,7 @@ import {
 } from "~/server/documents/data/documents_table.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
+import {emptyDocumentContent} from "~/shared/documents/document_content_schema.js";
 import {DocumentCommentModel} from "~/shared/documents/document_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import * as definition from "~/shared/rpc/documents_rpc_definitions.js";
@@ -32,6 +34,16 @@ implementRpc(
         return {};
     },
 );
+
+implementRpc(definition.createDocument, {visibility: ["AppClient"]}, async (context, input) => {
+    const {id, createdTime} = await createDocument(context.actor.authorizeSession(), {
+        id: input.documentId,
+        spaceId: input.spaceId,
+        content: emptyDocumentContent,
+    });
+
+    return {documentId: id, createdTime};
+});
 
 implementRpc(
     definition.getDocument,

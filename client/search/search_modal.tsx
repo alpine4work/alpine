@@ -15,12 +15,12 @@ import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {Modal} from "~/client/design/modal.js";
-import {Toast, useShowToast} from "~/client/design/toast.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
@@ -47,7 +47,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {generateId, unsafelyGenerateStableId} from "~/shared/id/id.js";
+import {unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {PeekId, SpaceId} from "~/shared/id/types/id_types.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
@@ -90,7 +90,6 @@ export function SearchModal({
 }) {
     const {space} = useSpaceContext();
     const navigate = useNavigate();
-    const showToast = useShowToast();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const resultListContainerRef = useRef<HTMLDivElement>(null);
@@ -140,7 +139,6 @@ export function SearchModal({
 
     const {selectedPeek, activePeek, switchPeek} = usePeekSwitcherState<{
         resultId: SearchResultId;
-        destination: SearchResultDestination;
     }>({
         // Reset our peek state if the search response changes.
         key: output.key,
@@ -247,15 +245,15 @@ export function SearchModal({
                             // items so looping would be disorienting.
                             if (!result) break;
 
-                            const destination = getSearchResultDestination(
+                            const destinationPath = getSearchResultDestinationPath(
                                 space.id,
                                 result.id,
                                 output.key,
                             );
 
                             void switchPeek({
-                                spacePath: destination.type === "Path" ? destination.path : null,
-                                extra: {resultId: result.id, destination},
+                                spacePath: destinationPath,
+                                extra: {resultId: result.id},
                             });
                             break;
                         }
@@ -282,36 +280,18 @@ export function SearchModal({
                             event.preventDefault();
 
                             // If nothing is selected, there's nothing to open.
-                            if (!selectedPeek) break;
+                            if (!selectedPeek?.content) break;
 
-                            switch (selectedPeek.extra.destination.type) {
-                                case "Action": {
-                                    selectedPeek.extra.destination.onSelect({
-                                        spaceId: space.id,
-                                        navigate,
-                                        showToast,
-                                    });
-                                    break;
-                                }
-                                case "Path": {
-                                    if (!selectedPeek.content) break;
+                            // Open the selected peek when `Enter` is pressed. You've probably just
+                            // selected a peek with the keyboard.
+                            const spacePath = convertPeekPathToSpacePath(
+                                selectedPeek.content.history.location,
+                            );
+                            if (!spacePath) throw new InternalError("Can only expand peek routes");
 
-                                    // Open the selected peek when `Enter` is pressed. You've probably just
-                                    // selected a peek with the keyboard.
-                                    const spacePath = convertPeekPathToSpacePath(
-                                        selectedPeek.content.history.location,
-                                    );
-                                    if (!spacePath)
-                                        throw new InternalError("Can only expand peek routes");
-
-                                    // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                                    // Eventually switch to new page with a loading spinner?
-                                    void navigate(spacePath);
-                                    break;
-                                }
-                                default:
-                                    throw exhaustive(selectedPeek.extra.destination);
-                            }
+                            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+                            // Eventually switch to new page with a loading spinner?
+                            void navigate(spacePath);
                             break;
                         }
                     }
@@ -559,24 +539,17 @@ function SearchModalResultList({
 }: {
     searchKey: string;
     results: ReadonlyArray<SearchResult>;
-    selectedPeek: PeekSwitcherStatePeek<{
-        resultId: SearchResultId;
-        destination: SearchResultDestination;
-    }> | null;
+    selectedPeek: PeekSwitcherStatePeek<{resultId: SearchResultId}> | null;
     switchPeek: Memo<
         (
             peekData: {
                 spacePath: string | null;
-                extra: {
-                    resultId: SearchResultId;
-                    destination: SearchResultDestination;
-                };
+                extra: {resultId: SearchResultId};
             } | null,
         ) => Promise<void>
     >;
 }) {
     const navigate = useNavigate();
-    const showToast = useShowToast();
     const {space} = useSpaceContext();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -594,6 +567,23 @@ function SearchModalResultList({
             view.scrollToKeyIfExists(`Loaded:${selectedPeek.extra.resultId}`, {withAnchor: true});
         }
     }, [selectedPeek?.extra.resultId]);
+
+    const handleDoubleClick = useEvent((result: SearchResult) => {
+        if (result.id !== selectedPeek?.extra.resultId || !selectedPeek?.content) {
+            const destinationPath = getSearchResultDestinationPath(space.id, result.id, searchKey);
+
+            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+            // Eventually switch to new page with a loading spinner?
+            void navigate(destinationPath);
+        } else {
+            const spacePath = convertPeekPathToSpacePath(selectedPeek.content.history.location);
+            if (!spacePath) throw new InternalError("Can only expand peek routes");
+
+            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+            // Eventually switch to new page with a loading spinner?
+            void navigate(spacePath);
+        }
+    });
 
     return (
         <VirtualizedScrollView
@@ -622,57 +612,28 @@ function SearchModalResultList({
                                 // its style.
                                 onPressStart={() => {
                                     if (result.id !== selectedPeek?.extra.resultId) {
-                                        const destination = getSearchResultDestination(
+                                        const destinationPath = getSearchResultDestinationPath(
                                             space.id,
                                             result.id,
                                             searchKey,
                                         );
 
                                         void switchPeek({
-                                            spacePath:
-                                                destination.type === "Path"
-                                                    ? destination.path
-                                                    : null,
-                                            extra: {resultId: result.id, destination},
+                                            spacePath: destinationPath,
+                                            extra: {resultId: result.id},
                                         });
                                     }
                                 }}
-                                onDoubleClick={() => {
-                                    const destination = getSearchResultDestination(
-                                        space.id,
-                                        result.id,
-                                        searchKey,
-                                    );
-
-                                    switch (destination.type) {
-                                        case "Path": {
-                                            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                                            // Eventually switch to new page with a loading spinner?
-                                            void navigate(destination.path);
-                                            break;
-                                        }
-                                        case "Action": {
-                                            destination.onSelect({
-                                                spaceId: space.id,
-                                                navigate,
-                                                showToast,
-                                            });
-                                            break;
-                                        }
-                                        default:
-                                            throw exhaustive(destination);
-                                    }
-                                }}
+                                onDoubleClick={() => handleDoubleClick(result)}
                             />
                         ),
                     };
                 },
                 [
-                    navigate,
+                    handleDoubleClick,
                     results,
                     searchKey,
                     selectedPeek?.extra.resultId,
-                    showToast,
                     space.id,
                     switchPeek,
                 ],
@@ -712,94 +673,54 @@ function SearchModalResultList({
     );
 }
 
-type SearchResultDestination =
-    | {
-          readonly type: "Path";
-          readonly path: string;
-      }
-    | {
-          readonly type: "Action";
-          readonly onSelect: (props: {
-              spaceId: SpaceId;
-              navigate: (to: To) => Promise<void>;
-              showToast: (toast: Toast) => void;
-          }) => void;
-      };
-
-function getSearchResultDestination(
+function getSearchResultDestinationPath(
     spaceId: SpaceId,
     resultId: SearchResultId,
     searchKey: string,
-): SearchResultDestination {
-    const getStableRandom = () => new StableRandom(`getSearchResultDestination:${searchKey}`);
+): string {
+    const getStableRandom = () => new StableRandom(`getSearchResultDestinationPath:${searchKey}`);
 
     switch (resultId) {
         case "CreateChat":
         case "CreateChatMessage": {
-            return {
-                type: "Path",
-                path: `/s/${spaceId}/chat/new`,
-            };
+            return `/s/${spaceId}/chat/new`;
         }
         case "CreatePost": {
             // Make sure we use the same `draftId` consistently for the current search
             // result list.
             const draftId = unsafelyGenerateStableId(getStableRandom(), resultId);
 
-            return {
-                type: "Path",
-                path: `/s/${spaceId}/posts/new/${draftId}`,
-            };
+            return `/s/${spaceId}/posts/new/${draftId}`;
         }
         case "CreateChannel": {
             // Make sure we use the same `channelId` consistently for the current search
             // result list.
             const channelId = unsafelyGenerateStableId(getStableRandom(), resultId);
 
-            return {
-                type: "Path",
-                path: `/s/${spaceId}/channels/${channelId}?create&focus=none`,
-            };
+            return `/s/${spaceId}/channels/${channelId}?create&focus=none`;
         }
         case "CreateDocument": {
-            // TODO(calebmer): Looks like now this is the only search result that doesn't
-            // display something in the peek. Eventually I'd like to change documents so
-            // when you open a URL with `?create` it doesn't actually create the document
-            // until you start typing. At that point we can let you create a new document
-            // through search.
-            return {
-                type: "Action",
-                onSelect: ({spaceId, navigate}) => {
-                    const documentId = generateId();
+            // Make sure we use the same `channelId` consistently for the current search
+            // result list.
+            const documentId = unsafelyGenerateStableId(getStableRandom(), resultId);
 
-                    // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                    // Eventually switch to new page with a loading spinner?
-                    void navigate(`/s/${spaceId}/documents/${documentId}?create`);
-                },
-            };
+            // Documents are only created once the user starts typing in them. The user
+            // doesn't create a document every time they navigate to this search route.
+            return `/s/${spaceId}/documents/${documentId}?create`;
         }
         case "CreateTaskCollection": {
             // Make sure we use the same `collectionId` consistently for the current search
             // result list.
             const collectionId = unsafelyGenerateStableId(getStableRandom(), resultId);
 
-            return {
-                type: "Path",
-                path: `/s/${spaceId}/tasks/collections/${collectionId}?create&focus=none`,
-            };
+            return `/s/${spaceId}/tasks/collections/${collectionId}?create&focus=none`;
         }
         case "CreateTaskView": {
-            return {
-                type: "Path",
-                path: `/s/${spaceId}/tasks/view`,
-            };
+            return `/s/${spaceId}/tasks/view`;
         }
         case "CreateTask":
         case "TaskNotepad": {
-            return {
-                type: "Path",
-                path: `/s/${spaceId}/tasks`,
-            };
+            return `/s/${spaceId}/tasks`;
         }
         case "TaskQueryFilteredToCreatorIsCurrentAccount": {
             const nameSearchParam = encodeURIComponent("Tasks I’ve created");
@@ -821,10 +742,7 @@ function getSearchResultDestination(
                 },
             ]);
 
-            return {
-                type: "Path",
-                path: `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
-            };
+            return `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
         }
         case "TaskQueryFilteredToAssigneeIsCurrentAccount": {
             const nameSearchParam = encodeURIComponent("Tasks assigned to me");
@@ -846,10 +764,7 @@ function getSearchResultDestination(
                 },
             ]);
 
-            return {
-                type: "Path",
-                path: `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
-            };
+            return `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
         }
         case "TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive": {
             const nameSearchParam = encodeURIComponent("Active tasks assigned to me");
@@ -878,10 +793,7 @@ function getSearchResultDestination(
                 },
             ]);
 
-            return {
-                type: "Path",
-                path: `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
-            };
+            return `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
         }
         case "TaskQueryFilteredToAssignerIsCurrentAccount": {
             const nameSearchParam = encodeURIComponent("Tasks I’ve assigned to others");
@@ -917,17 +829,11 @@ function getSearchResultDestination(
                 },
             ]);
 
-            return {
-                type: "Path",
-                path: `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
-            };
+            return `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
         }
         default: {
             const entityIdObject = parseSearchEntityId(resultId);
-            return {
-                type: "Path",
-                path: getSearchEntityPath(spaceId, entityIdObject),
-            };
+            return getSearchEntityPath(spaceId, entityIdObject);
         }
     }
 }
@@ -988,11 +894,8 @@ function SearchModalPeekContent({
     switchPeek: Memo<
         (
             peekData: {
-                spacePath: string | null;
-                extra: {
-                    resultId: SearchResultId;
-                    destination: SearchResultDestination;
-                };
+                spacePath: string;
+                extra: {resultId: SearchResultId};
             } | null,
         ) => Promise<void>
     >;
