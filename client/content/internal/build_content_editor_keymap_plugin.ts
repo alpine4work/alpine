@@ -375,6 +375,41 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
+        // We only want to delete the code block if the code block is empty,
+        // has only one code block line, and if the selection is at
+        // the beginning of the code block.
+        // Also handles the case when deleting the code block at the top
+        // of the document, below the title.
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
+            const currentNode = $from.node();
+            const parentNode = $from.node($from.depth - 1);
+
+            const isSelectionAtFirstOffsetOfCodeBlockLine =
+                $from.pos === $to.pos &&
+                $from.parentOffset === 0 &&
+                currentNode.type.name === "codeBlockLine";
+            const isCodeBlockLineEmpty = currentNode.textContent.length === 0;
+            const isCodeBlockEmpty = parentNode.childCount === 1;
+
+            if (
+                !isCodeBlockEmpty ||
+                !isCodeBlockLineEmpty ||
+                !isSelectionAtFirstOffsetOfCodeBlockLine
+            ) {
+                return false;
+            }
+
+            if (dispatch) {
+                const transaction = state.tr.delete(
+                    $from.before($from.depth - 1),
+                    $to.after($from.depth - 1),
+                );
+                dispatch(transaction);
+            }
+            return true;
+        },
+
         // If the cursor is at the beginning of a block and the user presses
         // backspace then join with the prior block.
         joinBackward,
