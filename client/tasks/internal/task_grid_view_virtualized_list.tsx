@@ -250,7 +250,7 @@ export function useTaskGridViewVirtualizedList({
     columnHeaderControls,
     rowMaxWidth = null,
     withoutDecorativeGhostRowsIfEmpty = false,
-    withTopGhostTaskRow = false,
+    initiallyWithTopGhostTaskRow = false,
     onApplyUndoStackEntry,
     getAnchorPosition,
 }: {
@@ -274,7 +274,7 @@ export function useTaskGridViewVirtualizedList({
     columnHeaderControls?: Memo<{minHeight: RemLength | number; node: ReactNode}>;
     rowMaxWidth?: Spacing | null;
     withoutDecorativeGhostRowsIfEmpty?: boolean;
-    withTopGhostTaskRow?: boolean;
+    initiallyWithTopGhostTaskRow?: boolean;
     onApplyUndoStackEntry?: (options: {
         type: "Undo" | "Redo";
         entry: DistributiveOmit<TaskUndoStackEntry, "release">;
@@ -357,6 +357,11 @@ export function useTaskGridViewVirtualizedList({
     focusEnd: Memo<() => void>;
 
     /**
+     * (Optional) Makes sure the top ghost task is visible and focuses it.
+     */
+    showTopGhostTaskAndFocus: Memo<() => void>;
+
+    /**
      * (Optional) Add an entry to the grid view's undo stack.
      */
     pushUndoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
@@ -422,7 +427,7 @@ export function useTaskGridViewVirtualizedList({
     const reactId = useId();
 
     const [topGhostTaskId, setTopGhostTaskId] = useState(() => {
-        if (!withTopGhostTaskRow) return null;
+        if (!initiallyWithTopGhostTaskRow) return null;
         if (!initialAppRenderId) return generateId<TaskId>();
 
         // If this is the initial app render, generate a stable `Id` that's consistent
@@ -511,12 +516,10 @@ export function useTaskGridViewVirtualizedList({
 
     const stateItemCount = state.getItemCount();
 
-    const hasTopGhostTask =
-        !capabilities.isReadOnly &&
-        !isRootQueryNull &&
-        isRootQueryManuallySorted &&
-        stateItemCount > 0 &&
-        topGhostTaskId;
+    const canHaveTopGhostTask =
+        !capabilities.isReadOnly && !isRootQueryNull && isRootQueryManuallySorted;
+
+    const hasTopGhostTask = canHaveTopGhostTask && stateItemCount > 0 && topGhostTaskId;
 
     // If we don't have a top ghost task even when `topGhostTaskId` is set (one
     // likely cause is `stateItemCount > 0`) then clear out our top ghost state so
@@ -1124,6 +1127,24 @@ export function useTaskGridViewVirtualizedList({
 
                 taskRow.focusTitleEnd();
                 break;
+            }
+        },
+
+        showTopGhostTaskAndFocus: () => {
+            if (!canHaveTopGhostTask) return;
+
+            if (topGhostTaskId || stateItemCount === 0) {
+                events.focusStart();
+            } else {
+                setTopGhostTaskId(generateId<TaskId>());
+
+                onLayoutEffectCallbacksRef.current.push(() => {
+                    // This may call `flushSync()` which can't be called during React lifecycle
+                    // methods. So we wrap in a microtask.
+                    scheduleMicrotask(() => {
+                        events.focusStart();
+                    });
+                });
             }
         },
 
@@ -2350,6 +2371,7 @@ export function useTaskGridViewVirtualizedList({
         onGlobalKeyDown,
         focusStart: events.focusStart,
         focusEnd: events.focusEnd,
+        showTopGhostTaskAndFocus: events.showTopGhostTaskAndFocus,
         pushUndoStackEntry: events.pushUndoStackEntry,
         pushUndoStackEntryFromRedo: events.pushUndoStackEntryFromRedo,
         pushRedoStackEntry: events.pushRedoStackEntry,
@@ -2380,6 +2402,7 @@ type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly getTaskRowByIndexIfExists: (index: number) => TaskRowViewRef | null;
     readonly focusStart: () => void;
     readonly focusEnd: () => void;
+    readonly showTopGhostTaskAndFocus: () => void;
     readonly focusPreviousTaskTitleEnd: (key: Key) => void;
     readonly focusPreviousTaskTitleAll: (key: Key) => void;
     readonly focusTaskTitleStart: (gridKey: TaskGridViewTaskKey) => void;

@@ -125,7 +125,12 @@ function Button(
         /**
          * How tall is this button? Default is `7`.
          */
-        height?: "5" | "6" | "7" | "full";
+        height?:
+            | "5"
+            | "6"
+            | "7"
+            | "full"
+            | {desktop: "5" | "6" | "7" | "full"; mobile: "5" | "6" | "7" | "full"};
 
         /**
          * Gap between the icon and button label. Default is `1`.

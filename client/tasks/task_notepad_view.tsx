@@ -6,7 +6,7 @@ import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
-import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -211,6 +211,64 @@ export function TaskNotepadView({
 
     const overDroppableData = dndContextOver?.data.current as TaskGridViewDroppableData | undefined;
 
+    // We need to wrap this in a `useEvent()` even though
+    // `showGridViewTopGhostTaskAndFocus` should be memoized to avoid creating a
+    // cycle.
+    const showGridViewTopGhostTaskAndFocusEvent = useEvent(() =>
+        showGridViewTopGhostTaskAndFocus(),
+    );
+
+    const paginatorElement = useMemo(
+        () => (
+            <TaskNotepadViewPaginator
+                store={store}
+                allNotepadPageIds={allNotepadPageIds}
+                notepadPageId={notepadPageState.notepadPageId}
+                onNotepadPageIdCreate={notepadPageId => {
+                    const promiseResolver = createPromiseResolver();
+
+                    setNotepadPageState({
+                        notepadPageId,
+                        // After creating a new notepad page, immediately initialize our client query
+                        // to an empty query so we don't have to wait for it to load.
+                        shouldImmediatelyInitializeEmptyQueryRef: {current: true},
+                        promiseResolver,
+                    });
+
+                    promiseResolver.promise.then(
+                        () => {
+                            setNewNotepadPageIds(newNotepadPageIds => [
+                                ...newNotepadPageIds,
+                                notepadPageId,
+                            ]);
+                        },
+                        () => {},
+                    );
+
+                    return promiseResolver.promise;
+                }}
+                onNotepadPageIdSelect={notepadPageId => {
+                    const promiseResolver = createPromiseResolver();
+
+                    setNotepadPageState({
+                        notepadPageId,
+                        shouldImmediatelyInitializeEmptyQueryRef: {current: false},
+                        promiseResolver,
+                    });
+
+                    return promiseResolver.promise;
+                }}
+                onCreateTask={showGridViewTopGhostTaskAndFocusEvent}
+            />
+        ),
+        [
+            allNotepadPageIds,
+            notepadPageState.notepadPageId,
+            showGridViewTopGhostTaskAndFocusEvent,
+            store,
+        ],
+    );
+
     const shiftRenderedRangeForGridView = useCallback(
         (range: {startIndex: number; endIndex: number} | null) => {
             if (!range) {
@@ -303,6 +361,7 @@ export function TaskNotepadView({
         onGlobalKeyDown: onGridViewGlobalKeyDown,
         focusStart: focusGridViewStart,
         focusEnd: focusGridViewEnd,
+        showTopGhostTaskAndFocus: showGridViewTopGhostTaskAndFocus,
         undo,
         redo,
     } = useTaskGridViewVirtualizedList({
@@ -311,7 +370,7 @@ export function TaskNotepadView({
         query: queryState.activeQuery.query,
         affinityManager,
         viewRef: gridViewRef,
-        withTopGhostTaskRow: shouldInitiallyFocusTopGhostTask,
+        initiallyWithTopGhostTaskRow: shouldInitiallyFocusTopGhostTask,
         getMoveTaskToQueryActions: (taskId, position) => {
             const time = store.clock.now();
 
@@ -367,44 +426,11 @@ export function TaskNotepadView({
                         <Box fontSize="200" fontStyle="semi-bold">
                             Notepad
                         </Box>
-                        <TaskNotepadViewPaginator
-                            store={store}
-                            allNotepadPageIds={allNotepadPageIds}
-                            notepadPageId={notepadPageState.notepadPageId}
-                            onNotepadPageIdCreate={notepadPageId => {
-                                const promiseResolver = createPromiseResolver();
-
-                                setNewNotepadPageIds(newNotepadPageIds => [
-                                    ...newNotepadPageIds,
-                                    notepadPageId,
-                                ]);
-
-                                setNotepadPageState({
-                                    notepadPageId,
-                                    // After creating a new notepad page, immediately initialize our client query
-                                    // to an empty query so we don't have to wait for it to load.
-                                    shouldImmediatelyInitializeEmptyQueryRef: {current: true},
-                                    promiseResolver,
-                                });
-
-                                return promiseResolver.promise;
-                            }}
-                            onNotepadPageIdSelect={notepadPageId => {
-                                const promiseResolver = createPromiseResolver();
-
-                                setNotepadPageState({
-                                    notepadPageId,
-                                    shouldImmediatelyInitializeEmptyQueryRef: {current: false},
-                                    promiseResolver,
-                                });
-
-                                return promiseResolver.promise;
-                            }}
-                        />
+                        {paginatorElement}
                     </Box>
                 ),
             };
-        }, [allNotepadPageIds, isMobile, notepadPageState.notepadPageId, store]),
+        }, [isMobile, paginatorElement]),
     });
 
     const {undoEvent, redoEvent} = useEvents({
@@ -515,7 +541,7 @@ export function TaskNotepadView({
                                         ? addRemLengths(
                                               taskNotepadViewActiveSectionMinHeight.mobile,
                                               spacing["2"],
-                                              spacing[taskNotepadViewPaginatorHeight],
+                                              spacing[taskNotepadViewPaginatorHeight.mobile],
                                               spacing["2"],
                                           )
                                         : taskNotepadViewActiveSectionMinHeight.desktop,
@@ -530,48 +556,7 @@ export function TaskNotepadView({
                                             />
                                             {isMobile && (
                                                 <Box paddingX="2" paddingY="2">
-                                                    <TaskNotepadViewPaginator
-                                                        store={store}
-                                                        allNotepadPageIds={allNotepadPageIds}
-                                                        notepadPageId={
-                                                            notepadPageState.notepadPageId
-                                                        }
-                                                        onNotepadPageIdCreate={notepadPageId => {
-                                                            const promiseResolver =
-                                                                createPromiseResolver();
-
-                                                            setNewNotepadPageIds(
-                                                                newNotepadPageIds => [
-                                                                    ...newNotepadPageIds,
-                                                                    notepadPageId,
-                                                                ],
-                                                            );
-
-                                                            setNotepadPageState({
-                                                                notepadPageId,
-                                                                // After creating a new notepad page, immediately initialize our client query
-                                                                // to an empty query so we don't have to wait for it to load.
-                                                                shouldImmediatelyInitializeEmptyQueryRef:
-                                                                    {current: true},
-                                                                promiseResolver,
-                                                            });
-
-                                                            return promiseResolver.promise;
-                                                        }}
-                                                        onNotepadPageIdSelect={notepadPageId => {
-                                                            const promiseResolver =
-                                                                createPromiseResolver();
-
-                                                            setNotepadPageState({
-                                                                notepadPageId,
-                                                                shouldImmediatelyInitializeEmptyQueryRef:
-                                                                    {current: false},
-                                                                promiseResolver,
-                                                            });
-
-                                                            return promiseResolver.promise;
-                                                        }}
-                                                    />
+                                                    {paginatorElement}
                                                 </Box>
                                             )}
                                         </>
@@ -584,13 +569,11 @@ export function TaskNotepadView({
                         [
                             activeDraggableData,
                             affinityManager,
-                            allNotepadPageIds,
                             assigneeActiveQuery,
                             isMobile,
-                            notepadPageState.notepadPageId,
                             overDroppableData,
+                            paginatorElement,
                             renderGridViewItem,
-                            store,
                             withMobileLayout,
                         ],
                     )}

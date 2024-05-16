@@ -16,7 +16,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 
-export const taskNotepadViewPaginatorHeight = "6";
+export const taskNotepadViewPaginatorHeight = {desktop: "6", mobile: "7"} as const;
 
 export function TaskNotepadViewPaginator({
     store,
@@ -24,12 +24,14 @@ export function TaskNotepadViewPaginator({
     notepadPageId,
     onNotepadPageIdCreate,
     onNotepadPageIdSelect,
+    onCreateTask,
 }: {
     store: TaskClientStore;
     allNotepadPageIds: Lazy<Iterable<TaskNotepadPageId>>;
     notepadPageId: TaskNotepadPageId;
     onNotepadPageIdCreate: (notepadPageId: TaskNotepadPageId) => Promise<void>;
     onNotepadPageIdSelect: (notepadPageId: TaskNotepadPageId) => Promise<void>;
+    onCreateTask: () => void;
 }) {
     const isMobile = useIsMobile();
 
@@ -53,6 +55,34 @@ export function TaskNotepadViewPaginator({
         shouldIncludeSeconds: true,
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    const createNotepadPage = useEvent(async () => {
+        const synchronizedSystemClock = await getSynchronizedSystemClock();
+
+        const newNotepadPageId = generateTaskNotepadPageId(synchronizedSystemClock);
+
+        // You may notice that we're directly calling `commitTaskActionTransaction()`
+        // instead of calling `store.commitTaskActionTransaction()`! This is because we
+        // don't try keeping task notepad pages up-to-date in realtime. So we'd rather
+        // do the pending/error state here instead of using the `TaskClientStore`
+        // optimistic update/rollback machinery.
+        await commitTaskActionTransaction(context, {
+            clientId: null,
+            spaceId: space.id,
+            actions: [
+                {
+                    type: "UpdateNotepadPage",
+                    time: store.clock.now(),
+                    accountId: currentAccount.id,
+                    notepadPageId: newNotepadPageId,
+                    notepadPageAction: {type: "Create"},
+                },
+            ],
+        });
+
+        await onNotepadPageIdCreate(newNotepadPageId);
+    });
+
     return (
         <Box
             flexGrow={isMobile ? "1" : undefined}
@@ -63,47 +93,34 @@ export function TaskNotepadViewPaginator({
             alignItems="center"
             gap="3"
         >
-            <Button
-                variant={isMobile ? "quieter" : "neutral"}
-                icon={<Plus />}
-                height={taskNotepadViewPaginatorHeight}
-                paddingX="2"
-                pressErrorTitle="Couldn’t create notepad page"
-                onPress={async () => {
-                    const synchronizedSystemClock = await getSynchronizedSystemClock();
-
-                    const newNotepadPageId = generateTaskNotepadPageId(synchronizedSystemClock);
-
-                    // You may notice that we're directly calling `commitTaskActionTransaction()`
-                    // instead of calling `store.commitTaskActionTransaction()`! This is because we
-                    // don't try keeping task notepad pages up-to-date in realtime. So we'd rather
-                    // do the pending/error state here instead of using the `TaskClientStore`
-                    // optimistic update/rollback machinery.
-                    await commitTaskActionTransaction(context, {
-                        clientId: null,
-                        spaceId: space.id,
-                        actions: [
-                            {
-                                type: "UpdateNotepadPage",
-                                time: store.clock.now(),
-                                accountId: currentAccount.id,
-                                notepadPageId: newNotepadPageId,
-                                notepadPageAction: {type: "Create"},
-                            },
-                        ],
-                    });
-
-                    await onNotepadPageIdCreate(newNotepadPageId);
-                }}
-            >
-                Fresh page
-            </Button>
+            {isMobile ? (
+                <Button
+                    variant="quieter"
+                    icon={<Plus />}
+                    height={taskNotepadViewPaginatorHeight}
+                    paddingX="2"
+                    onPress={onCreateTask}
+                >
+                    New task
+                </Button>
+            ) : (
+                <Button
+                    variant="neutral"
+                    icon={<Plus />}
+                    height={taskNotepadViewPaginatorHeight}
+                    paddingX="2"
+                    pressErrorTitle="Couldn’t create notepad page"
+                    onPress={createNotepadPage}
+                >
+                    Fresh page
+                </Button>
+            )}
             <MenuButton
                 size="lg"
                 maxHeight="64"
                 placement="bottom-end"
                 actions={useCallback(() => {
-                    return Array.from(
+                    const actions = Array.from(
                         mapIterable(
                             iterateWithAdjacents(
                                 mapIterable(
@@ -157,11 +174,29 @@ export function TaskNotepadViewPaginator({
                             },
                         }),
                     ).reverse();
+
+                    if (!isMobile) {
+                        return actions;
+                    } else {
+                        return [
+                            [
+                                {
+                                    label: "Fresh page",
+                                    icon: <Plus />,
+                                    pressErrorTitle: "Couldn’t create new notepad page",
+                                    onPress: createNotepadPage,
+                                },
+                            ],
+                            actions,
+                        ];
+                    }
                 }, [
                     allNotepadPageIds,
+                    createNotepadPage,
                     formatDateWithTimeWithSeconds,
                     formatDateWithTimeWithoutSeconds,
                     formatDateWithoutTime,
+                    isMobile,
                     notepadPageId,
                     onNotepadPageIdSelect,
                 ])}
