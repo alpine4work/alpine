@@ -98,6 +98,7 @@ import {
     Spacing,
     addRemLengths,
     convertRemLengthToPx,
+    screenPaddingX,
     spacing,
 } from "~/shared/design/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -537,7 +538,9 @@ export function useTaskGridViewVirtualizedList({
             ? stateItemCount + 1
             : Math.max(
                   stateItemCount + (hasBottomGhostTask ? 1 : 0),
-                  withoutDecorativeGhostRowsIfEmpty && stateItemCount === 0 ? 0 : 3,
+                  withoutDecorativeGhostRowsIfEmpty && stateItemCount === 0
+                      ? 0
+                      : 3 - (hasTopGhostTask ? 1 : 0),
               ));
 
     const taskRowByGridKeyRef = useRef(new Map<TaskGridViewTaskKey, TaskRowViewRef>());
@@ -2777,7 +2780,7 @@ const TaskGridViewDecorativeGhostTaskMemo = memo(function TaskGridViewDecorative
 
     return (
         <Box
-            paddingX="5"
+            paddingX={screenPaddingX}
             maxWidth={rowMaxWidth ?? undefined}
             marginX="center"
             // Create an illusion that the text editor extends into the margins by giving

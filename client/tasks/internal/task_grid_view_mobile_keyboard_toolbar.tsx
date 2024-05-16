@@ -117,10 +117,7 @@ export function TaskGridViewMobileKeyboardToolbar({
             onPriorityPress={focusPriorityInput}
             isDueDateActive={!!task?.getDueDate()}
             onDueDatePress={focusDueDateInput}
-            onOpenPress={async () => {
-                if (!task) return;
-                await navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`);
-            }}
+            onOpenPress={task ? () => navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`) : null}
         />,
         portalElement,
     );
@@ -464,7 +461,11 @@ function TaskGridViewMobileKeyboardToolbarContent({
                 pressErrorTitle="Couldn’t open task"
                 onPress={onOpenPress ?? noop}
             >
-                <Box fontSize="100" fontStyle="semi-bold" color="grey-100">
+                <Box
+                    fontSize="100"
+                    fontStyle="semi-bold"
+                    color={onOpenPress ? "grey-100" : undefined}
+                >
                     Open
                 </Box>
             </TaskGridViewMobileKeyboardToolbarButton>
