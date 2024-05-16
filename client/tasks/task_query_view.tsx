@@ -65,7 +65,6 @@ import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/spa
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
 import {
     inputPlaceholderStyles,
     invertSelectionColorsClassName,
@@ -206,7 +205,6 @@ export function TaskQueryView({
     initialQuery: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
-        initialBottomGhostTaskId: TaskId;
     } | null;
     initialName: string;
     onNameChange: (name: string) => void;

@@ -13,8 +13,7 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -67,7 +66,6 @@ export type TaskQueryState = {
               readonly query: {
                   readonly query: TaskClientQuery;
                   readonly initialGridViewExpansionState: TaskGridViewExpansionState;
-                  readonly initialBottomGhostTaskId: TaskId;
               };
           }
         | {
@@ -99,7 +97,6 @@ export function useTaskQueryState({
     initialQuery: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
-        initialBottomGhostTaskId: TaskId;
     } | null;
     filters: TaskQueryNormalizedFilters | null;
     sorts: ReadonlyArray<TaskQueryNormalizedSort>;
@@ -270,7 +267,6 @@ export function useTaskQueryState({
                                 )?.takeInitialGridViewExpansionStateForQueryIfExists(
                                     pendingQuery,
                                 ) ?? null,
-                            initialBottomGhostTaskId: generateId(),
                         },
                     },
                     pendingQuery: null,

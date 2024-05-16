@@ -75,7 +75,6 @@ const LoaderSchema = Schema.object({
             type: Schema.value("Exists"),
             initialMetaTitleText: Schema.string,
             initialGridViewExpansionState: TaskGridViewExpansionStateSchema,
-            initialBottomGhostTaskId: Schema.id<TaskId>(),
         }),
     }),
     filterReferences: TaskQueryFilterReferencesSchema,
@@ -264,7 +263,6 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 type: "Exists",
                 initialMetaTitleText: backfillCollection?.collection.getName() ?? "",
                 initialGridViewExpansionState: queryOutput?.gridViewExpansionState ?? null,
-                initialBottomGhostTaskId: generateId<TaskId>(),
             },
             filterReferences,
         },
@@ -455,7 +453,6 @@ function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean
                               query: initialQuery,
                               initialGridViewExpansionState:
                                   collectionState.initialGridViewExpansionState,
-                              initialBottomGhostTaskId: collectionState.initialBottomGhostTaskId,
                           }
                         : null
                 }

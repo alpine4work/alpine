@@ -51,6 +51,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {generateId} from "~/shared/id/id.js";
 import {getRealmId} from "~/shared/id/realm_id.js";
 import {BrowserId} from "~/shared/id/types/id_types.js";
 import {ClientInfoSchema, defaultClientInfo} from "~/shared/remix/client_info.js";
@@ -88,6 +89,7 @@ export const shouldRevalidate = () => false;
 
 const LoaderSchema = Schema.object({
     initialTime: Schema.date,
+    initialAppRenderId: Schema.id(),
     browserId: Schema.id<BrowserId>(),
     clientInfo: ClientInfoSchema,
     devServerPort: Schema.integer.optional(),
@@ -96,6 +98,7 @@ const LoaderSchema = Schema.object({
 export function loader({context}: LoaderArgs) {
     return jsonWithSchema(LoaderSchema, {
         initialTime: context.loader.getInitialTime(),
+        initialAppRenderId: generateId(),
         browserId: context.loader.getBrowserId(),
         clientInfo: context.loader.getClientInfo(),
         devServerPort: context.loader.devServerPort ?? undefined,
@@ -401,7 +404,9 @@ export default function Root() {
     const wrappedChildren = useGlobalContextProvider(
         <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
             <AppContextProvider value={context}>
-                <AppInitialRenderContextProvider>
+                <AppInitialRenderContextProvider
+                    initialAppRenderId={loaderData?.initialAppRenderId}
+                >
                     <ClientInfoContextProvider
                         // If there was an error at our root loader and we couldn't load `BrowserId`
                         // then use the `RealmId` as the `BrowserId`.

@@ -33,7 +33,6 @@ import {TaskRealtimeUpdateEventBackfillTask} from "~/shared/tasks/task_realtime_
 const LoaderSchema = Schema.object({
     initialMetaTitleText: Schema.string,
     childrenGridViewExpansionState: TaskGridViewExpansionStateSchema,
-    initialBottomGhostTaskId: Schema.id<TaskId>(),
     notesVersion: Schema.integer,
     notesContent: TaskNotesContentWithReferencesSchema,
 });
@@ -105,7 +104,6 @@ export async function loader({params, context: _context}: LoaderArgs) {
         {
             initialMetaTitleText: backfillTask?.task.getTitle().getText() ?? "",
             childrenGridViewExpansionState: childrenQueryOutput.gridViewExpansionState,
-            initialBottomGhostTaskId: generateId<TaskId>(),
             notesVersion,
             notesContent,
         },
@@ -149,7 +147,6 @@ export default function TaskRoute({withMobileLayout = false}: {withMobileLayout?
 
     const {
         childrenGridViewExpansionState,
-        initialBottomGhostTaskId,
         notesVersion: initialNotesVersion,
         notesContent: initialNotesContent,
     } = useLoaderDataWithSchema(LoaderSchema);
@@ -212,7 +209,6 @@ export default function TaskRoute({withMobileLayout = false}: {withMobileLayout?
                     childrenQuery={childrenQuery}
                     affinityManager={affinityManager}
                     initialChildrenGridViewExpansionState={childrenGridViewExpansionState}
-                    initialBottomGhostTaskId={initialBottomGhostTaskId}
                     initialNotesVersion={initialNotesVersion}
                     initialNotesContent={initialNotesContent}
                 />

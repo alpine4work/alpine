@@ -16,6 +16,7 @@ import {
     memo,
     useCallback,
     useEffect,
+    useId,
     useMemo,
     useRef,
     useState,
@@ -32,7 +33,7 @@ import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {MemoObject, useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useInitialAppRenderId} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
@@ -99,6 +100,7 @@ import {
     convertRemLengthToPx,
     spacing,
 } from "~/shared/design/spacing.js";
+import {InternalError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
@@ -113,9 +115,10 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {LinkedList} from "~/shared/helpers/immutable/linked_list.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
-import {Id, generateId} from "~/shared/id/id.js";
+import {Id, generateId, unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars, spinAnimationClassName, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
@@ -246,6 +249,7 @@ export function useTaskGridViewVirtualizedList({
     columnHeaderControls,
     rowMaxWidth = null,
     withoutDecorativeGhostRowsIfEmpty = false,
+    withTopGhostTaskRow = false,
     onApplyUndoStackEntry,
     getAnchorPosition,
 }: {
@@ -255,17 +259,21 @@ export function useTaskGridViewVirtualizedList({
     query: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
-        initialBottomGhostTaskId: TaskId;
     } | null;
     affinityManager: TaskClientStoreSearchAffinityManager;
     getMoveTaskToQueryActions: (
         taskId: TaskId,
-        position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
+        position:
+            | {type: "Start"}
+            | {type: "End"}
+            | {type: "Above"; taskId: TaskId}
+            | {type: "Below"; taskId: TaskId},
     ) => Array<TaskAction>;
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
     columnHeaderControls?: Memo<{minHeight: RemLength | number; node: ReactNode}>;
     rowMaxWidth?: Spacing | null;
     withoutDecorativeGhostRowsIfEmpty?: boolean;
+    withTopGhostTaskRow?: boolean;
     onApplyUndoStackEntry?: (options: {
         type: "Undo" | "Redo";
         entry: DistributiveOmit<TaskUndoStackEntry, "release">;
@@ -377,7 +385,8 @@ export function useTaskGridViewVirtualizedList({
      */
     remPx: number;
 } {
-    const isInitialAppRender = useIsInitialAppRender();
+    const initialAppRenderId = useInitialAppRenderId();
+    const isInitialAppRender = initialAppRenderId !== null;
     const isMobile = useIsMobile();
     const {isAppleDevice} = useClientInfo();
     const context = useAppContext();
@@ -409,8 +418,34 @@ export function useTaskGridViewVirtualizedList({
         [isDragging],
     );
 
+    const reactId = useId();
+
+    const [topGhostTaskId, setTopGhostTaskId] = useState(() => {
+        if (!withTopGhostTaskRow) return null;
+        if (!initialAppRenderId) return generateId<TaskId>();
+
+        // If this is the initial app render, generate a stable `Id` that's consistent
+        // across the client and server. We need the `reactId` as well to disambiguate
+        // in case multiple grid views were rendered (could happen if we server peeks
+        // someday).
+        const stableRandom = new StableRandom(`TaskGridViewVirtualizedList-${initialAppRenderId}`);
+        return unsafelyGenerateStableId<TaskId>(stableRandom, `${reactId}-topGhostTaskId`);
+    });
+
     const [bottomGhostTaskId, setBottomGhostTaskId] = useStateWithDependencies(
-        rootQueryWithInitialState?.initialBottomGhostTaskId ?? null,
+        (rootQuery: TaskClientQuery | undefined) => {
+            if (!rootQuery) return null;
+            if (!initialAppRenderId) return generateId<TaskId>();
+
+            // If this is the initial app render, generate a stable `Id` that's consistent
+            // across the client and server. We need the `reactId` as well to disambiguate
+            // in case multiple grid views were rendered (could happen if we server peeks
+            // someday).
+            const stableRandom = new StableRandom(
+                `TaskGridViewVirtualizedList-${initialAppRenderId}`,
+            );
+            return unsafelyGenerateStableId<TaskId>(stableRandom, `${reactId}-bottomGhostTaskId`);
+        },
         [rootQueryWithInitialState?.query],
     );
 
@@ -475,11 +510,26 @@ export function useTaskGridViewVirtualizedList({
 
     const stateItemCount = state.getItemCount();
 
-    const hasColumnHeaderItem: boolean = capabilities.hasColumns || !!columnHeaderControls;
-    const itemCountBeforeState = hasColumnHeaderItem ? 1 : 0;
+    const hasTopGhostTask =
+        !capabilities.isReadOnly &&
+        !isRootQueryNull &&
+        isRootQueryManuallySorted &&
+        stateItemCount > 0 &&
+        topGhostTaskId;
+
+    // If we don't have a top ghost task even when `topGhostTaskId` is set (one
+    // likely cause is `stateItemCount > 0`) then clear out our top ghost state so
+    // it doesn't appear later.
+    if (!hasTopGhostTask && topGhostTaskId) setTopGhostTaskId(null);
 
     const hasBottomGhostTask =
-        !capabilities.isReadOnly && isRootQueryManuallySorted && bottomGhostTaskId;
+        !capabilities.isReadOnly &&
+        !isRootQueryNull &&
+        isRootQueryManuallySorted &&
+        bottomGhostTaskId;
+
+    const hasColumnHeaderItem: boolean = capabilities.hasColumns || !!columnHeaderControls;
+    const itemCountBeforeState = (hasColumnHeaderItem ? 1 : 0) + (hasTopGhostTask ? 1 : 0);
 
     const itemCount =
         itemCountBeforeState +
@@ -1019,7 +1069,10 @@ export function useTaskGridViewVirtualizedList({
         pushUndoStackEntryFromRedo,
         pushRedoStackEntry,
 
-        onGhostTaskCreated: () => {
+        onTopGhostTaskCreated: () => {
+            setTopGhostTaskId(null);
+        },
+        onBottomGhostTaskCreated: () => {
             setBottomGhostTaskId(generateId<TaskId>());
         },
 
@@ -1030,10 +1083,13 @@ export function useTaskGridViewVirtualizedList({
                 stateItemCount > 0 && 0 <= stateIndex && stateIndex < stateItemCount;
 
             if (!isIndexWithinState) {
+                if (stateIndex === -1 && hasTopGhostTask) {
+                    return taskRowByGridKeyRef.current.get(topGhostTaskId) ?? null;
+                }
                 if (
                     stateIndex === state.getItemCount() &&
                     loadedState === "FullyLoaded" &&
-                    bottomGhostTaskId
+                    hasBottomGhostTask
                 ) {
                     return taskRowByGridKeyRef.current.get(bottomGhostTaskId) ?? null;
                 }
@@ -1895,31 +1951,112 @@ export function useTaskGridViewVirtualizedList({
         return (itemIndex: number): VirtualizedScrollViewItem => {
             // If this item is above our task list then render it.
             if (itemIndex < itemCountBeforeState) {
-                const minHeight = getTaskGridViewColumnHeaderWithControlsHeight(
-                    remPx,
-                    capabilities,
-                    columnHeaderControlsWithMinHeightPx?.minHeight ?? 0,
-                );
+                let relativeItemIndex = itemIndex;
 
-                return {
-                    key: "ColumnHeader",
-                    minHeight,
-                    withManualLayout: true,
-                    render: ({ref, offset, height, shouldRenderWithRelativePositioning}) => (
-                        <TaskGridViewColumnHeaderMemo
-                            ref={ref}
-                            viewRef={viewRef}
-                            hasColumns={capabilities.hasColumns}
-                            columnHeaderControls={columnHeaderControlsWithMinHeightPx}
-                            minHeight={minHeight}
-                            offset={offset}
-                            height={height}
-                            shouldRenderWithRelativePositioning={
-                                shouldRenderWithRelativePositioning
-                            }
-                        />
-                    ),
-                };
+                if (hasColumnHeaderItem) {
+                    if (relativeItemIndex === 0) {
+                        const minHeight = getTaskGridViewColumnHeaderWithControlsHeight(
+                            remPx,
+                            capabilities,
+                            columnHeaderControlsWithMinHeightPx?.minHeight ?? 0,
+                        );
+
+                        return {
+                            key: "ColumnHeader",
+                            minHeight,
+                            withManualLayout: true,
+                            render: ({
+                                ref,
+                                offset,
+                                height,
+                                shouldRenderWithRelativePositioning,
+                            }) => (
+                                <TaskGridViewColumnHeaderMemo
+                                    ref={ref}
+                                    viewRef={viewRef}
+                                    hasColumns={capabilities.hasColumns}
+                                    columnHeaderControls={columnHeaderControlsWithMinHeightPx}
+                                    minHeight={minHeight}
+                                    offset={offset}
+                                    height={height}
+                                    shouldRenderWithRelativePositioning={
+                                        shouldRenderWithRelativePositioning
+                                    }
+                                />
+                            ),
+                        };
+                    }
+
+                    relativeItemIndex -= 1;
+                }
+
+                if (hasTopGhostTask) {
+                    if (relativeItemIndex === 0) {
+                        return {
+                            // We want to use the same key and component as a regular task so we can turn a
+                            // ghost task into a regular task without losing focus.
+                            key: `Task:${topGhostTaskId}`,
+                            minHeight: spacing[taskRowViewMinHeight],
+                            withManualLayout: true,
+                            render: renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll(
+                                disableExpensiveFeaturesDuringScroll => (
+                                    <TaskRowViewMemo
+                                        context={context}
+                                        capabilities={capabilities}
+                                        maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
+                                        stateKey={stateKey}
+                                        rootQuery={rootQuery}
+                                        isRootQueryManuallySorted={isRootQueryManuallySorted}
+                                        affinityManager={affinityManager}
+                                        query={rootQuery}
+                                        gridKey={topGhostTaskId}
+                                        cursor={null}
+                                        ghostTaskId={topGhostTaskId}
+                                        isTopGhostTask={true}
+                                        parents={emptyArray}
+                                        rowMaxWidth={rowMaxWidth}
+                                        // Don't disable expensive features while auto-scrolling during drag since one
+                                        // of the expensive features this flag disables is droppable zones. The user
+                                        // still needs to be able to reach droppable zones during a drag auto-scroll.
+                                        disableExpensiveFeaturesDuringScroll={
+                                            !isDragging && disableExpensiveFeaturesDuringScroll
+                                        }
+                                        isFirstRow={true}
+                                        // The ghost row is not a task in the query so always report as false.
+                                        isFirstTaskInQuery={false}
+                                        nextIndentation={0}
+                                        titlePlaceholder="Add a task…"
+                                        viewRef={viewRef}
+                                        events={events}
+                                        taskRowByGridKeyRef={taskRowByGridKeyRef}
+                                        onLayoutEffectCallbacksRef={onLayoutEffectCallbacksRef}
+                                        getAreChildTasksExpandedStore={
+                                            getAreChildTasksExpandedStore
+                                        }
+                                        toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
+                                        setTaskDeleteConfirmationState={
+                                            setTaskDeleteConfirmationState
+                                        }
+                                        onTaskDeleteConfirmationModalDialogClosedCallbacksRef={
+                                            onTaskDeleteConfirmationModalDialogClosedCallbacksRef
+                                        }
+                                        // If there are no task rows, the padding just makes our ghost row placeholder
+                                        // look misaligned. So remove it.
+                                        withoutPaddingLeft={stateItemCount === 0}
+                                        withPaddingBottom={itemIndex === itemCount - 1}
+                                        mobileKeyboardToolbarPortalRef={
+                                            mobileKeyboardToolbarPortalRef
+                                        }
+                                    />
+                                ),
+                            ),
+                        };
+                    }
+
+                    relativeItemIndex -= 1;
+                }
+
+                throw new InternalError("Unexpected item before state");
             }
 
             // If this item is below our task list then render either a ghost row or empty
@@ -1944,7 +2081,7 @@ export function useTaskGridViewVirtualizedList({
 
                 // No ghost task if `rootQuery` is null, the grid view is read-only, or we're
                 // not manually sorted.
-                if (rootQuery && hasBottomGhostTask) {
+                if (hasBottomGhostTask) {
                     if (relativeItemIndex === 0) {
                         return {
                             // We want to use the same key and component as a regular task so we can turn a
@@ -1974,7 +2111,7 @@ export function useTaskGridViewVirtualizedList({
                                         disableExpensiveFeaturesDuringScroll={
                                             !isDragging && disableExpensiveFeaturesDuringScroll
                                         }
-                                        isFirstRow={stateItemCount === 0}
+                                        isFirstRow={!hasTopGhostTask && stateItemCount === 0}
                                         // The ghost row is not a task in the query so always report as false.
                                         isFirstTaskInQuery={false}
                                         nextIndentation={0}
@@ -2061,7 +2198,9 @@ export function useTaskGridViewVirtualizedList({
                                 disableExpensiveFeaturesDuringScroll={
                                     !isDragging && disableExpensiveFeaturesDuringScroll
                                 }
-                                isFirstRow={itemIndex - itemCountBeforeState === 0}
+                                isFirstRow={
+                                    !hasTopGhostTask && itemIndex - itemCountBeforeState === 0
+                                }
                                 isFirstTaskInQuery={item.isFirstTaskInQuery}
                                 nextIndentation={
                                     itemIndex + 1 < itemCountBeforeState + stateItemCount
@@ -2127,6 +2266,8 @@ export function useTaskGridViewVirtualizedList({
         events,
         getAreChildTasksExpandedStore,
         hasBottomGhostTask,
+        hasColumnHeaderItem,
+        hasTopGhostTask,
         isDragging,
         isRootQueryManuallySorted,
         isRootQueryNull,
@@ -2142,6 +2283,7 @@ export function useTaskGridViewVirtualizedList({
         stateKey,
         taskGhostRowPlaceholder,
         toggleAreChildTasksExpanded,
+        topGhostTaskId,
         viewRef,
     ]);
 
@@ -2217,7 +2359,11 @@ export function useTaskGridViewVirtualizedList({
 type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly getMoveTaskToRootQueryActions: (
         taskId: TaskId,
-        position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
+        position:
+            | {type: "Start"}
+            | {type: "End"}
+            | {type: "Above"; taskId: TaskId}
+            | {type: "Below"; taskId: TaskId},
     ) => Array<TaskAction>;
     readonly getMaybeRemoveTaskFromRootQueryActions: (taskId: TaskId) => Array<TaskAction>;
     readonly getItemCount: () => number;
@@ -2226,7 +2372,8 @@ type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly pushUndoStackEntry: (entry: TaskUndoStackEntry) => void;
     readonly pushUndoStackEntryFromRedo: (entry: TaskUndoStackEntry) => void;
     readonly pushRedoStackEntry: (entry: TaskUndoStackEntry) => void;
-    readonly onGhostTaskCreated: () => void;
+    readonly onTopGhostTaskCreated: () => void;
+    readonly onBottomGhostTaskCreated: () => void;
     readonly getTaskRowByIndexIfExists: (index: number) => TaskRowViewRef | null;
     readonly focusStart: () => void;
     readonly focusEnd: () => void;
@@ -2726,6 +2873,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     gridKey,
     cursor,
     ghostTaskId,
+    isTopGhostTask,
     parents,
     rowMaxWidth,
     disableExpensiveFeaturesDuringScroll,
@@ -2756,6 +2904,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     gridKey: TaskGridViewTaskKey;
     cursor: TaskQuerySortCursor | null;
     ghostTaskId?: TaskId | null;
+    isTopGhostTask?: boolean;
     parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
     rowMaxWidth: Spacing | null;
     disableExpensiveFeaturesDuringScroll: boolean;
@@ -2825,7 +2974,11 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     // task is currently at.
     const getMoveTaskToQueryActions: (
         taskId: TaskId,
-        position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
+        position:
+            | {type: "Start"}
+            | {type: "End"}
+            | {type: "Above"; taskId: TaskId}
+            | {type: "Below"; taskId: TaskId},
     ) => Array<TaskAction> =
         query === rootQuery
             ? events.getMoveTaskToRootQueryActions
@@ -2882,6 +3035,14 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
         // auto-sorted query.
         if (!isQueryManuallySorted) return;
 
+        // Can't create a task above our top ghost task. So always create a task below
+        // and focus it since the user expects their cursor to move down when enter is
+        // pressed.
+        if (!taskId && isTopGhostTask) {
+            createTaskBelowAndFocus();
+            return;
+        }
+
         const newTaskId = generateId<TaskId>();
 
         disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
@@ -2914,9 +3075,52 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
         // auto-sorted query.
         if (!isQueryManuallySorted) return;
 
-        // This method doesn't support ghost tasks. You can't create a task below a
-        // ghost task. Ghost tasks should be using `createTaskAbove()`.
-        if (!taskId) return;
+        if (!taskId) {
+            // This method doesn't support bottom ghost tasks. You can't create a task
+            // below the bottom ghost task. Bottom ghost tasks should be using
+            // `createTaskAbove()`.
+            if (!isTopGhostTask) return;
+
+            const newTaskId = generateId<TaskId>();
+
+            disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
+
+            query.store.commitTaskActionTransaction(
+                context,
+                [
+                    {
+                        type: "UpdateTask",
+                        time: query.store.clock.now(),
+                        taskId: newTaskId,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: currentAccount.id,
+                            creatorTimeZone: timeZone,
+                        },
+                    },
+                    ...getMoveTaskToQueryActions(newTaskId, {type: "Start"}),
+                ],
+                {undoManager, affinityManager},
+            );
+
+            onLayoutEffectCallbacksRef.current.push(() => {
+                // This may call `flushSync()` which can't be called during React lifecycle
+                // methods. So we wrap in a microtask.
+                scheduleMicrotask(() => {
+                    events.focusTaskTitleStart(newTaskId);
+
+                    // Make sure the new task is visible...
+                    if (
+                        document.activeElement instanceof HTMLElement &&
+                        isTextInputElement(document.activeElement)
+                    ) {
+                        maintainTextInputVisibility(document.activeElement);
+                    }
+                });
+            });
+            return;
+        }
+
         const task = query.getLoadedTaskSnapshot(taskId);
 
         const newTaskId = generateId<TaskId>();
@@ -3082,7 +3286,11 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
         for (let previousItemIndex = itemIndex - 1; previousItemIndex >= 0; previousItemIndex--) {
             const indentation = parents.length;
 
-            const previousItem = state.getItem(previousItemIndex - itemCountBeforeState);
+            // Can't tab into the top ghost task.
+            const stateItemIndex = previousItemIndex - itemCountBeforeState;
+            if (stateItemIndex < 0) break;
+
+            const previousItem = state.getItem(stateItemIndex);
             const previousIndentation = previousItem.parents.length;
 
             if (previousIndentation > indentation) continue;
@@ -3445,7 +3653,9 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             affinityManager={affinityManager}
             cursor={cursor}
             ghostTaskId={ghostTaskId}
-            onGhostTaskCreated={events.onGhostTaskCreated}
+            onGhostTaskCreated={
+                isTopGhostTask ? events.onTopGhostTaskCreated : events.onBottomGhostTaskCreated
+            }
             gridKey={gridKey}
             parents={parents}
             rowMaxWidth={rowMaxWidth}

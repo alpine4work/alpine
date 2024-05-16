@@ -357,6 +357,7 @@ function TaskRowView(
         getMoveTaskToQueryActions: (
             taskId: TaskId,
             position:
+                | {type: "Start"}
                 | {type: "End"}
                 | {type: "Above"; taskId: TaskId}
                 | {type: "Below"; taskId: TaskId},
@@ -364,6 +365,7 @@ function TaskRowView(
         getMoveTaskToRootQueryActions: (
             taskId: TaskId,
             position:
+                | {type: "Start"}
                 | {type: "End"}
                 | {type: "Above"; taskId: TaskId}
                 | {type: "Below"; taskId: TaskId},
@@ -1008,7 +1010,9 @@ function TaskRowView(
                                 creatorTimeZone: timeZone,
                             },
                         },
-                        ...getMoveTaskToQueryActions(ghostTaskId, {type: "End"}),
+                        ...getMoveTaskToQueryActions(ghostTaskId, {
+                            type: isFirstRow ? "Start" : "End",
+                        }),
                         ...getActions(ghostTaskId),
                     ],
                     {...options, undoManager, affinityManager},

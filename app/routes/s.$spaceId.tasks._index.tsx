@@ -1,4 +1,5 @@
-import {Params} from "react-router";
+import {useEffect, useState} from "react";
+import {Params, ShouldRevalidateFunction} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -22,7 +23,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {generateId} from "~/shared/id/id.js";
-import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
@@ -41,7 +42,6 @@ const LoaderSchema = Schema.object({
     allNotepadPageIds: TaskNotepadPageIdCompressedSet.schema,
     initialNotepadPageId: TaskNotepadPageIdSchema,
     initialNotepadPageGridViewExpansionState: TaskGridViewExpansionStateSchema,
-    initialBottomGhostTaskId: Schema.id<TaskId>(),
 });
 
 export const meta = createMetaFunction(LoaderSchema, () => [{title: "Notepad"}]);
@@ -167,7 +167,6 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
             allNotepadPageIds,
             initialNotepadPageId: notepadPageId,
             initialNotepadPageGridViewExpansionState: notepadPageGridViewExpansionState,
-            initialBottomGhostTaskId: generateId<TaskId>(),
         },
         {
             propagateEventData: {
@@ -211,16 +210,26 @@ export async function clientLoader({
     clientLoaderTaskStoreLoaderData(spaceId, data);
 }
 
+// We don't need to reload when certain search params change.
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+    currentUrl: _currentUrl,
+    nextUrl: _nextUrl,
+}) => {
+    const currentUrl = new URL(_currentUrl);
+    const nextUrl = new URL(_nextUrl);
+
+    // Used to initially focus the document:
+    nextUrl.searchParams.delete("focus");
+    currentUrl.searchParams.delete("focus");
+
+    return nextUrl.toString() !== currentUrl.toString();
+};
+
 export default function TasksRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const {
-        key,
-        allNotepadPageIds,
-        initialNotepadPageId,
-        initialNotepadPageGridViewExpansionState,
-        initialBottomGhostTaskId,
-    } = useLoaderDataWithSchema(LoaderSchema);
+    const {key, allNotepadPageIds, initialNotepadPageId, initialNotepadPageGridViewExpansionState} =
+        useLoaderDataWithSchema(LoaderSchema);
 
     // We don't retain here since the components that consume our queries are
     // expected to retain them.
@@ -231,6 +240,17 @@ export default function TasksRoute({withMobileLayout = false}: {withMobileLayout
     assert(assigneeActiveQuery && initialNotepadPageQuery);
 
     const affinityManager = useTaskClientStoreSearchAffinityManager("TaskNotepad");
+
+    const [shouldInitiallyFocusTopGhostTask] = useState(searchParams.get("focus") === "create");
+
+    // Remove the `focus` search param.
+    useEffect(() => {
+        if (searchParams.has("focus")) {
+            const newSearchParams = new URLSearchParams(searchParams);
+            newSearchParams.delete("focus");
+            setSearchParams(newSearchParams, {replace: true});
+        }
+    }, [searchParams, setSearchParams]);
 
     return (
         <TaskGridViewDndContext store={store}>
@@ -244,7 +264,6 @@ export default function TasksRoute({withMobileLayout = false}: {withMobileLayout
                 initialQuery={{
                     query: initialNotepadPageQuery,
                     initialGridViewExpansionState: initialNotepadPageGridViewExpansionState,
-                    initialBottomGhostTaskId,
                 }}
                 initialNotepadPageId={initialNotepadPageId}
                 allNotepadPageIds={allNotepadPageIds}
@@ -261,6 +280,7 @@ export default function TasksRoute({withMobileLayout = false}: {withMobileLayout
                         unstable_shouldRevalidate: false,
                     });
                 }}
+                shouldInitiallyFocusTopGhostTask={shouldInitiallyFocusTopGhostTask}
             />
         </TaskGridViewDndContext>
     );

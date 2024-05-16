@@ -3,6 +3,7 @@ import {Memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useS
 import {Box} from "~/client/design/box.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
@@ -47,7 +48,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
 import {tasksStyles} from "~/shared/styles/styles.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
@@ -66,6 +66,7 @@ export function TaskNotepadView({
     initialNotepadPageId,
     allNotepadPageIds: allNotepadPageIdsWithoutNewNotepadPageIds,
     onActiveNotepadPageIdChange,
+    shouldInitiallyFocusTopGhostTask,
 }: {
     withMobileLayout: boolean;
     store: TaskClientStore;
@@ -74,11 +75,11 @@ export function TaskNotepadView({
     initialQuery: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
-        initialBottomGhostTaskId: TaskId;
     };
     initialNotepadPageId: TaskNotepadPageId;
     allNotepadPageIds: TaskNotepadPageIdCompressedSet;
     onActiveNotepadPageIdChange: (notepadPageId: TaskNotepadPageId) => void;
+    shouldInitiallyFocusTopGhostTask: boolean;
 }) {
     const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
@@ -300,6 +301,7 @@ export function TaskNotepadView({
         alwaysRenderAdditionalItemIndexes: alwaysRenderAdditionalGridViewItemIndexes,
         scrollbarInsetTopItemIndex: scrollbarInsetTopGridViewItemIndex,
         onGlobalKeyDown: onGridViewGlobalKeyDown,
+        focusStart: focusGridViewStart,
         focusEnd: focusGridViewEnd,
         undo,
         redo,
@@ -309,6 +311,7 @@ export function TaskNotepadView({
         query: queryState.activeQuery.query,
         affinityManager,
         viewRef: gridViewRef,
+        withTopGhostTaskRow: shouldInitiallyFocusTopGhostTask,
         getMoveTaskToQueryActions: (taskId, position) => {
             const time = store.clock.now();
 
@@ -408,6 +411,18 @@ export function TaskNotepadView({
         undoEvent: undo,
         redoEvent: redo,
     });
+
+    const hasInitiallyMountedRef = useRef(false);
+    useEffect(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
+        if (!shouldInitiallyFocusTopGhostTask) return;
+
+        return scheduleAfterNavigationAnimation(() => {
+            focusGridViewStart();
+        });
+    }, [focusGridViewStart, shouldInitiallyFocusTopGhostTask]);
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         isDisabled: !isMobile,

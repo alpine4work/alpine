@@ -45,7 +45,6 @@ const LoaderSchema = Schema.object({
     key: Schema.id(),
     filterReferences: TaskQueryFilterReferencesSchema,
     initialGridViewExpansionState: TaskGridViewExpansionStateSchema,
-    initialBottomGhostTaskId: Schema.id<TaskId>(),
 });
 
 export const meta = createMetaFunction(LoaderSchema, ({location}) => {
@@ -113,7 +112,6 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
             key: generateId(),
             filterReferences,
             initialGridViewExpansionState: queryOutput?.gridViewExpansionState ?? null,
-            initialBottomGhostTaskId: generateId<TaskId>(),
         },
         {
             taskStoreLoaderData: loadQueryResult
@@ -164,8 +162,7 @@ function TaskQueryRouteInner({withMobileLayout}: {withMobileLayout: boolean}) {
     const updateMetaTitle = useUpdateMetaTitle();
 
     const [searchParams, setSearchParams] = useSearchParams();
-    const {initialGridViewExpansionState, initialBottomGhostTaskId} =
-        useLoaderDataWithSchema(LoaderSchema);
+    const {initialGridViewExpansionState} = useLoaderDataWithSchema(LoaderSchema);
     const {
         store,
         queries: [initialQuery],
@@ -205,7 +202,6 @@ function TaskQueryRouteInner({withMobileLayout}: {withMobileLayout: boolean}) {
                         ? {
                               query: initialQuery,
                               initialGridViewExpansionState,
-                              initialBottomGhostTaskId,
                           }
                         : null
                 }

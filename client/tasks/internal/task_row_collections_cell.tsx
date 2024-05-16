@@ -183,28 +183,37 @@ function TaskRowCollectionsCell(
 
     // We want to show collections that are not required by the query first, then
     // if we still have room show collections required by the query.
-    const previewDisplayCollections = useMemo(() => {
-        const maxPreviewDisplayCollectionCount = 2;
-        const previewDisplayCollections: Array<TaskCollectionModel> = [];
+    const {previewDisplayCollections, doesPreviewDisplayCollectionsHaveRequiredCollection} =
+        useMemo(() => {
+            const maxPreviewDisplayCollectionCount = 2;
+            const previewDisplayCollections: Array<TaskCollectionModel> = [];
+            let doesPreviewDisplayCollectionsHaveRequiredCollection = false;
 
-        for (const collection of displayCollections) {
-            if (queryFiltersRequiredCollectionIds.has(collection.id)) continue;
+            for (const collection of displayCollections) {
+                if (queryFiltersRequiredCollectionIds.has(collection.id)) continue;
 
-            previewDisplayCollections.push(collection);
-            if (previewDisplayCollections.length >= maxPreviewDisplayCollectionCount)
-                return previewDisplayCollections;
-        }
+                previewDisplayCollections.push(collection);
+                if (previewDisplayCollections.length >= maxPreviewDisplayCollectionCount)
+                    return {
+                        previewDisplayCollections,
+                        doesPreviewDisplayCollectionsHaveRequiredCollection,
+                    };
+            }
 
-        for (const collection of displayCollections) {
-            if (!queryFiltersRequiredCollectionIds.has(collection.id)) continue;
+            for (const collection of displayCollections) {
+                if (!queryFiltersRequiredCollectionIds.has(collection.id)) continue;
 
-            previewDisplayCollections.push(collection);
-            if (previewDisplayCollections.length >= maxPreviewDisplayCollectionCount)
-                return previewDisplayCollections;
-        }
+                doesPreviewDisplayCollectionsHaveRequiredCollection = true;
+                previewDisplayCollections.push(collection);
+                if (previewDisplayCollections.length >= maxPreviewDisplayCollectionCount)
+                    return {
+                        previewDisplayCollections,
+                        doesPreviewDisplayCollectionsHaveRequiredCollection,
+                    };
+            }
 
-        return previewDisplayCollections;
-    }, [displayCollections, queryFiltersRequiredCollectionIds]);
+            return {previewDisplayCollections, doesPreviewDisplayCollectionsHaveRequiredCollection};
+        }, [displayCollections, queryFiltersRequiredCollectionIds]);
 
     const cellRef = useRef<HTMLDivElement>(null);
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
@@ -369,9 +378,10 @@ function TaskRowCollectionsCell(
                                                 7,
                                             15,
                                         ) -
-                                            (queryFiltersRequiredCollectionIds.has(collection.id)
-                                                ? 0
-                                                : 7),
+                                            (doesPreviewDisplayCollectionsHaveRequiredCollection &&
+                                            !queryFiltersRequiredCollectionIds.has(collection.id)
+                                                ? 7
+                                                : 0),
                                     ),
                                 }}
                             >

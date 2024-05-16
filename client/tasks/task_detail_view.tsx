@@ -118,7 +118,6 @@ export function TaskDetailView({
     childrenQuery,
     affinityManager,
     initialChildrenGridViewExpansionState,
-    initialBottomGhostTaskId,
     initialNotesVersion,
     initialNotesContent,
 }: {
@@ -127,7 +126,6 @@ export function TaskDetailView({
     childrenQuery: TaskClientQuery;
     affinityManager: TaskClientStoreSearchAffinityManager;
     initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
-    initialBottomGhostTaskId: TaskId;
     initialNotesVersion: number;
     initialNotesContent: TaskNotesContentWithReferences;
 }) {
@@ -293,7 +291,6 @@ export function TaskDetailView({
         query: {
             query: childrenQuery,
             initialGridViewExpansionState: initialChildrenGridViewExpansionState,
-            initialBottomGhostTaskId,
         },
         affinityManager,
         rowMaxWidth: taskDetailViewMaxWidth,
