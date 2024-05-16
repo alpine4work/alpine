@@ -361,6 +361,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
     const [isFocused, setIsFocused] = useState(false);
 
+    const lastNativeMobileWebKitRefocusTimeRef = useRef<number | null>(null);
+
     const handleFocus = () => {
         setIsFocused(true);
         onFocus?.();
@@ -376,10 +378,21 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         // be you gotta call `selectionWillChange()` and `selectionDidChange()` on
         // [`UITextInputDelegate`][1] but I tried that and it didn't work.
         //
+        // Or we find a different way to force the text cursor to re-render.
+        //
         // [1]: https://developer.apple.com/documentation/uikit/uitextinputdelegate
-        if (NativeMobileBridge && isBottomBar && isMobileWebKit) {
+        if (
+            NativeMobileBridge &&
+            isBottomBar &&
+            isMobileWebKit &&
+            // Make sure we don't get stuck in a refocus loop.
+            (lastNativeMobileWebKitRefocusTimeRef.current === null ||
+                Date.now() - lastNativeMobileWebKitRefocusTimeRef.current > 1000)
+        ) {
             setTimeout(() => {
                 if (editorRef.current?.isFocused()) {
+                    lastNativeMobileWebKitRefocusTimeRef.current = Date.now();
+
                     editorRef.current.blur();
                     editorRef.current.focus();
                 }
