@@ -93,11 +93,7 @@ export default function NewChatRoute({withMobileLayout = false}: {withMobileLayo
 
     const focusSearchParam = searchParams.get("focus");
     const [initiallyFocus] = useState(
-        focusSearchParam === "picker"
-            ? ("ChatAccountPicker" as const)
-            : focusSearchParam === "message"
-            ? ("MessageInput" as const)
-            : null,
+        focusSearchParam === "picker" ? ("ChatAccountPicker" as const) : null,
     );
 
     useEffect(() => {
