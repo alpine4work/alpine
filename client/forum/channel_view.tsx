@@ -6,8 +6,8 @@ import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
+import {ChannelMobileEditor} from "~/client/forum/channel_mobile_editor.js";
 import {ChannelViewAside} from "~/client/forum/internal/channel_view_aside.js";
-import {ChannelViewEditNameAndDescriptionMobileModal} from "~/client/forum/internal/channel_view_edit_name_and_description_mobile_modal.js";
 import {ChannelViewNameEditor} from "~/client/forum/internal/channel_view_name_editor.js";
 import {
     postContentViewMinHeightWithClosedCommentSection,
@@ -322,7 +322,8 @@ export function ChannelView({
                     onClose={() => setEditNameAndDescriptionMobileModalState(null)}
                 >
                     {({onCloseWithAnimation}) => (
-                        <ChannelViewEditNameAndDescriptionMobileModal
+                        <ChannelMobileEditor
+                            title="Edit channel"
                             initiallyFocus={editNameAndDescriptionMobileModalState.initiallyFocus}
                             initialName={channel.name}
                             initialDescription={channel.description}
@@ -337,7 +338,7 @@ export function ChannelView({
                                 // our realtime WebSocket connection is slow.
                                 handleEventTransactionForChannel(event.eventTransaction);
                             }}
-                            onCloseWithAnimation={onCloseWithAnimation}
+                            onCloseWithAnimation={() => onCloseWithAnimation()}
                         />
                     )}
                 </MobileFullScreenModal>

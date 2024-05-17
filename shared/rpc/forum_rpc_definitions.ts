@@ -16,6 +16,20 @@ import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 
+export const createChannel = defineRpc({
+    name: "createChannel",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        channelId: Schema.id<ChannelId>().optional(),
+        name: Schema.string,
+        description: MessageContentSchema.optional(),
+    },
+    output: {
+        channelId: Schema.id<ChannelId>(),
+        createdTime: Schema.date,
+    },
+});
+
 export const updateChannelName = defineRpc({
     name: "updateChannelName",
     input: {

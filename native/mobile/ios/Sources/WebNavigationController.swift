@@ -929,6 +929,19 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             (topViewController! as! WebNavigationEntryController).replaceWebViewWithSnapshotView()
 
             return nil
+        } else if prompt == "%%%navigation.prepareReplaceWithPushAnimation" {
+            preparingNavigationEntry = (topViewController as! WebNavigationEntryController).entry
+            hasAddedMainScrollViewWhilePreparingNavigation = false
+
+            cleanupModalPresentedViewController()
+
+            isNavigationAnimating = true
+
+            // Beware! If `NativeMobileBridge.navigation.replaceWithPushAnimation()` is not
+            // promptly called the app will appear frozen.
+            (topViewController! as! WebNavigationEntryController).replaceWebViewWithSnapshotView()
+
+            return nil
         } else if prompt == "%%%navigation.preparePresentModal" {
             preparingNavigationEntry = WebNavigationEntry()
             hasAddedMainScrollViewWhilePreparingNavigation = false
@@ -1139,6 +1152,58 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 modalPresentedViewController.url = url
             }
             (topViewController! as! WebNavigationEntryController).url = url
+        } else if messageBody.starts(with: "navigation.replaceWithPushAnimation:") {
+            cleanupModalPresentedViewController()
+
+            let urlString = messageBody.suffix(
+                from: messageBody.index(messageBody.startIndex, offsetBy: 36)
+            )
+            let url = URL(string: String(urlString))!
+
+            logger.info(
+                "Replace with push animation navigation to: \(url.absoluteString, privacy: .public)"
+            )
+
+            let viewController = WebNavigationEntryController(
+                entry: preparingNavigationEntry ?? WebNavigationEntry(),
+                url: url,
+                webNavigationController: self,
+                webView: webView,
+                healthState: webViewHealthState
+            )
+
+            var newViewControllers = Array(viewControllers.prefix(viewControllers.count - 1))
+            newViewControllers.append(viewController)
+
+            webDelegate?.webNavigationController?(
+                self,
+                didNavigate: viewController.entry,
+                hasMainScrollView: hasAddedMainScrollViewWhilePreparingNavigation
+            )
+
+            preparingNavigationEntry = nil
+            hasAddedMainScrollViewWhilePreparingNavigation = false
+
+            super.setViewControllers(newViewControllers, animated: true)
+
+            let completion = { [self] in
+                isNavigationAnimating = false
+
+                if isAfterNavigationAnimationCallbackScheduled {
+                    isAfterNavigationAnimationCallbackScheduled = false
+                    webView.evaluateJavaScript(
+                        "window.__NativeMobileBridge.navigation._callScheduledAfterAnimationCallbacks()"
+                    )
+                }
+            }
+
+            // Call completion after push animation. Derived from:
+            // https://stackoverflow.com/a/33767837/1568890
+            if let transitionCoordinator = transitionCoordinator {
+                transitionCoordinator.animate(alongsideTransition: nil) { _ in completion() }
+            } else {
+                DispatchQueue.main.async { completion() }
+            }
         } else if messageBody == "navigation.presentModal" {
             logger.info("Present modal navigation")
 
@@ -3215,6 +3280,12 @@ private let webBridgeSource = """
                 },
                 replace: url => {
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replace:${url}`);
+                },
+                prepareReplaceWithPushAnimation: () => {
+                    prompt("%%%navigation.prepareReplaceWithPushAnimation");
+                },
+                replaceWithPushAnimation: url => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replaceWithPushAnimation:${url}`);
                 },
                 preparePresentModal: () => {
                     prompt("%%%navigation.preparePresentModal");

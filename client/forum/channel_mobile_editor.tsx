@@ -26,17 +26,19 @@ import {
 } from "~/shared/messaging/message_content_schema.js";
 import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 
-export function ChannelViewEditNameAndDescriptionMobileModal({
+export function ChannelMobileEditor({
+    title,
     initiallyFocus,
     initialName,
     initialDescription,
     onCloseWithAnimation,
     onSave,
 }: {
+    title: string;
     initiallyFocus: "Name" | "Description";
     initialName: string;
     initialDescription: MessageContentWithReferences;
-    onCloseWithAnimation: () => void;
+    onCloseWithAnimation: (options: {hasSaved: boolean}) => void;
     onSave: (update: {name: string; description: MessageContent}) => Promise<void>;
 }) {
     const isInitialAppRender = useIsInitialAppRender();
@@ -87,7 +89,7 @@ export function ChannelViewEditNameAndDescriptionMobileModal({
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         withMobileLayout: true,
-        title: "Edit channel",
+        title,
         withoutDisappearingTitle: true,
         replaceActions: (
             <Box
@@ -104,7 +106,7 @@ export function ChannelViewEditNameAndDescriptionMobileModal({
                     pressErrorTitle="Couldn’t save channel"
                     onPress={async () => {
                         await onSave({name: name.trim(), description: descriptionState.getDoc()});
-                        onCloseWithAnimation();
+                        onCloseWithAnimation({hasSaved: true});
                     }}
                 >
                     Save
@@ -112,7 +114,7 @@ export function ChannelViewEditNameAndDescriptionMobileModal({
             </Box>
         ),
         // Instead of calling `navigate(-1)` the navigation bar needs a cancel button.
-        onMobileCancel: onCloseWithAnimation,
+        onMobileCancel: () => onCloseWithAnimation({hasSaved: false}),
     });
 
     useScrollToAvoidBottomBarsAndMobileKeyboard(containerRef, {

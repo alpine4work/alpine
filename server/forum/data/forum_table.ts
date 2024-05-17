@@ -791,10 +791,12 @@ export async function createChannel(
         spaceId,
         channelId = generateId<ChannelId>(),
         name,
+        description = emptyMessageContent,
     }: {
         spaceId: SpaceId;
         channelId?: ChannelId;
         name: string;
+        description?: MessageContent;
     },
 ): Promise<{
     id: ChannelId;
@@ -811,7 +813,7 @@ export async function createChannel(
         createdTime: new Date(),
         creatorId: context.actor.getAccountId(),
         name,
-        description: emptyMessageContent,
+        description,
     };
 
     const {getRealtimeItem} = await ForumRealtimeTable.createItem(context, channelItem);
@@ -868,7 +870,7 @@ export async function createChannel(
 export async function getChannelIfPossible(
     context: ServerActionContext,
     channelId: ChannelId,
-    options?: {consistency: DynamoReadConsistency},
+    options?: {consistency?: DynamoReadConsistency},
 ): Promise<Result<DynamoGeneralRealtimeItem<ChannelModel>, PermissionDeniedError> | null> {
     const getPromise = (async () => {
         const channel = await ForumRealtimeTable.getRealtimeItemIfExists(
@@ -939,7 +941,7 @@ async function createChannelModelFromItem(
 export async function getChannelIfExists(
     context: ServerActionContext,
     channelId: ChannelId,
-    options?: {consistency: DynamoReadConsistency},
+    options?: {consistency?: DynamoReadConsistency},
 ): Promise<DynamoGeneralRealtimeItem<ChannelModel> | null> {
     const channel = await getChannelIfPossible(context, channelId, options);
     if (!channel) return null;
@@ -953,7 +955,7 @@ export async function getChannelIfExists(
 export async function getChannel(
     context: ServerActionContext,
     channelId: ChannelId,
-    options?: {consistency: DynamoReadConsistency},
+    options?: {consistency?: DynamoReadConsistency},
 ): Promise<DynamoGeneralRealtimeItem<ChannelModel>> {
     const channel = await getChannelIfExists(context, channelId, options);
     if (!channel) throw new NotFoundError("Channel not found");

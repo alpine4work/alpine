@@ -97,10 +97,28 @@ test("can not create a channel for a different space", async () => {
 });
 
 test("can create a channel", async () => {
-    await createChannel(context.action(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
-        name: "Test",
+        name: "Test 1",
     });
+
+    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 1");
+    expect(
+        (await getChannel(context.action(session1), channel.id)).model.description.doc.toJSON(),
+    ).toEqual(emptyMessageContent.toJSON());
+});
+
+test("can create a channel with a description", async () => {
+    const channel = await createChannel(context.action(session1), {
+        spaceId: space.id,
+        name: "Test 2",
+        description: createSimpleMessageContent("This is a description"),
+    });
+
+    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 2");
+    expect(
+        (await getChannel(context.action(session1), channel.id)).model.description.doc.toJSON(),
+    ).toEqual(createSimpleMessageContent("This is a description").toJSON());
 });
 
 test("can not get a channel that does not exist", async () => {

@@ -20,6 +20,10 @@ type TracerEventHttpSearchParamNameMap = {
     // Specifies where in the route we should initially scroll to after navigation
     // completes.
     scroll: true;
+    // Specifies the read consistency with which we should use when reading data.
+    // By default we generally use eventual consistency but some routes need to use
+    // strong consistency.
+    consistency: true;
     // In a messaging view, indicates which message we should scroll to on load.
     // Some messaging implementations use the word "comment" instead of "message"
     // so support that too.
@@ -34,6 +38,7 @@ const tracerEventHttpSearchParamNameMap: TracerEventHttpSearchParamNameMap = {
     create: true,
     focus: true,
     scroll: true,
+    consistency: true,
     message: true,
     comment: true,
     comments: true,
@@ -58,5 +63,13 @@ export const tracerEventHttpSearchParamNames: ReadonlySet<string> = new Set(
 export const tracerEventHttpSearchParamNameByServiceName: {
     [Key in TracerServiceName]?: ReadonlySet<TracerEventHttpSearchParamName>;
 } = {
-    AppService: new Set(["create", "focus", "scroll", "message", "comment", "comments"]),
+    AppService: new Set([
+        "create",
+        "focus",
+        "scroll",
+        "consistency",
+        "message",
+        "comment",
+        "comments",
+    ]),
 };

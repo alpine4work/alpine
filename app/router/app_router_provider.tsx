@@ -155,6 +155,10 @@ export function AppRouterProvider({
 
                 NativeMobileBridge?.navigation.preparePop(url);
             }
+        } else if (state.historyAction === "REPLACE") {
+            if (state.location.state?.withPushAnimation) {
+                NativeMobileBridge?.navigation.prepareReplaceWithPushAnimation();
+            }
         }
     }, [state.historyAction, state.location.key]);
 
@@ -201,8 +205,11 @@ export function AppRouterProvider({
                         NativeMobileBridge.navigation.finishExternalPop();
                     }
                 } else if (state.historyAction === "REPLACE") {
-                    // NOCOMMIT: Test that this works!
-                    NativeMobileBridge.navigation.replace(url);
+                    if (state.location.state?.withPushAnimation) {
+                        NativeMobileBridge?.navigation.replaceWithPushAnimation(url);
+                    } else {
+                        NativeMobileBridge.navigation.replace(url);
+                    }
                 }
             });
         });

@@ -301,6 +301,26 @@ export const NativeMobileBridge: {
         replace(url: URL): void;
 
         /**
+         * Prepares a replace with push animation. Does almost the exact same thing as
+         * `preparePush()` except we don't push a new entry to the navigation stack.
+         * Instead we reuse the current entry.
+         *
+         * So if you go pop back, you don't go back to the replaced route. You go to
+         * the route before.
+         */
+        prepareReplaceWithPushAnimation(): void;
+
+        /**
+         * Runs a replace with push animation. Does almost the exact same thing as
+         * `push()` except we don't push a new entry to the navigation stack.
+         * Instead we reuse the current entry.
+         *
+         * So if you go pop back, you don't go back to the replaced route. You go to
+         * the route before.
+         */
+        replaceWithPushAnimation(url: URL): void;
+
+        /**
          * Works similar to `preparePush()` and `push()` except a modal is displayed
          * from the bottom of the screen and the navigation stack is unchanged.
          */

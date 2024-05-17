@@ -1,11 +1,15 @@
 import {useEffect, useState} from "react";
 import {ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {ChannelCreator} from "~/client/forum/channel_creator.js";
+import {ChannelDesktopCreator} from "~/client/forum/channel_desktop_creator.js";
+import {ChannelMobileEditor} from "~/client/forum/channel_mobile_editor.js";
 import {ChannelView, newChannelNamePlaceholder} from "~/client/forum/channel_view.js";
 import {postContentViewMinHeightWithClosedCommentSection} from "~/client/forum/post_content_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
@@ -19,6 +23,7 @@ import {
 } from "~/server/forum/data/forum_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     DynamoGeneralRealtimeItem,
     createDynamoGeneralRealtimeIndexQuerySchema,
@@ -31,6 +36,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isId} from "~/shared/id/id.js";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
+import {createChannel as createChannelRpc} from "~/shared/rpc/forum_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
@@ -105,7 +112,10 @@ export async function loader({request, params, context: unauthenticatedContext}:
     const [channel, postsResult] = await runAllPromises([
         getDynamoGeneralRealtimeItem
             ? getDynamoGeneralRealtimeItem()
-            : getChannel(context, channelId),
+            : getChannel(context, channelId, {
+                  consistency:
+                      url.searchParams.get("consistency") === "strong" ? "Strong" : undefined,
+              }),
         getChannelPosts(context, {
             channelId,
             limit: getInitialVirtualizedScrollViewRenderedItemCount(
@@ -150,6 +160,9 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     currentUrl.searchParams.delete("focus");
     nextUrl.searchParams.delete("focus");
 
+    currentUrl.searchParams.delete("consistency");
+    nextUrl.searchParams.delete("consistency");
+
     // The client removes the `create` and `focus` search params. Don't revalidate
     // when the client does this.
     if (currentUrl.toString() === nextUrl.toString()) {
@@ -165,6 +178,8 @@ export default function ChannelRoute({withMobileLayout = false}: {withMobileLayo
     assert(channelId && isId<ChannelId>(channelId));
     const [searchParams, setSearchParams] = useSearchParams();
 
+    const context = useAppContext();
+    const isMobile = useIsMobile();
     const navigate = useNavigate();
     const {space} = useSpaceContext();
 
@@ -179,10 +194,15 @@ export default function ChannelRoute({withMobileLayout = false}: {withMobileLayo
     useEffect(() => {
         if (channelState.type === "NotExists") return;
 
-        if (searchParams.has("create") || searchParams.has("focus")) {
+        if (
+            searchParams.has("create") ||
+            searchParams.has("focus") ||
+            searchParams.has("consistency")
+        ) {
             const newSearchParams = new URLSearchParams(searchParams);
             newSearchParams.delete("create");
             newSearchParams.delete("focus");
+            newSearchParams.delete("consistency");
             setSearchParams(newSearchParams, {replace: true});
         }
     }, [channelState.type, searchParams, setSearchParams]);
@@ -201,8 +221,74 @@ export default function ChannelRoute({withMobileLayout = false}: {withMobileLayo
                     initialChannel={channelState.channel}
                     initialPostsResult={channelState.postsResult}
                 />
+            ) : isMobile ? (
+                <ChannelMobileEditor
+                    title="Create channel"
+                    initiallyFocus="Name"
+                    initialName=""
+                    initialDescription={emptyMessageContentWithReferences}
+                    onCloseWithAnimation={({hasSaved}) => {
+                        if (hasSaved) return;
+                        void navigate(-1);
+                    }}
+                    onSave={async ({name, description}) => {
+                        if (isContentEmpty(description)) {
+                            const newSearchParams = new URLSearchParams(searchParams);
+                            newSearchParams.set("create", name);
+
+                            await navigate(
+                                `/s/${
+                                    space.id
+                                }/channels/${channelId}?${newSearchParams.toString()}`,
+                                {
+                                    replace: true,
+                                    // In our native mobile app, we want to call
+                                    // `NativeMobileBridge.navigation.replaceWithPushAnimation()` to run the native
+                                    // push animation while replacing in the history stack.
+                                    state: NativeMobileBridge
+                                        ? {withPushAnimation: true}
+                                        : undefined,
+                                },
+                            );
+                        } else {
+                            // It's slightly more efficient to create a channel with the `create` URL
+                            // parameter because:
+                            //
+                            // 1. We don't need to read the channel back from DynamoDB in the loader since
+                            //    we created the DynamoDB item in the loader.
+                            //
+                            // 2. We need to read the channel back from DynamoDB with strong read
+                            //    consistency (which is more expensive than eventual consistency) or else
+                            //    we risk telling the user the channel they just created doesn't exist.
+                            //
+                            // However, the `create` URL parameter doesn't support descriptions. We
+                            // couldn't fit a long description into the URL. So if the user typed up a
+                            // description we need to create the channel with an RPC then navigate to
+                            // its URL.
+                            await createChannelRpc(context, {
+                                spaceId: space.id,
+                                channelId,
+                                name,
+                                description,
+                            });
+
+                            await navigate(
+                                `/s/${space.id}/channels/${channelId}?consistency=strong`,
+                                {
+                                    replace: true,
+                                    // In our native mobile app, we want to call
+                                    // `NativeMobileBridge.navigation.replaceWithPushAnimation()` to run the native
+                                    // push animation while replacing in the history stack.
+                                    state: NativeMobileBridge
+                                        ? {withPushAnimation: true}
+                                        : undefined,
+                                },
+                            );
+                        }
+                    }}
+                />
             ) : (
-                <ChannelCreator
+                <ChannelDesktopCreator
                     withMobileLayout={withMobileLayout}
                     channelId={channelId}
                     shouldInitiallyFocusChannelName={shouldInitiallyFocusChannelName}

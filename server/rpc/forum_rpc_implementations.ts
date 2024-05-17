@@ -4,6 +4,7 @@ import {
     authorizePostAccess,
     backfillChannelPosts,
     backfillPostComments,
+    createChannel,
     createPost,
     createPostComment,
     deletePostComment,
@@ -23,6 +24,11 @@ import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import {PostCommentModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import * as definition from "~/shared/rpc/forum_rpc_definitions.js";
+
+implementRpc(definition.createChannel, {visibility: ["AppClient"]}, async (context, input) => {
+    const {id, createdTime} = await createChannel(context.actor.authorizeSession(), input);
+    return {channelId: id, createdTime};
+});
 
 implementRpc(definition.updateChannelName, {visibility: ["AppClient"]}, async (context, input) => {
     const {getDynamoGeneralRealtimeEventTransaction} = await updateChannelName(context, input);

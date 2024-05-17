@@ -193,7 +193,13 @@ export function createNativeMobileRouter(
 
             // Close keyboard before navigating if we're about to animate. We don't animate
             // the navigation on replace.
-            if (typeof args[0] === "number" || !(args[1] as any)?.replace) {
+            if (
+                typeof args[0] === "number" ||
+                !(args[1] as any)?.replace ||
+                // Make sure to wait until the keyboard closes if we're navigating with
+                // `replace: true` but also `withPushAnimation: true`.
+                (args[1] as any)?.state?.withPushAnimation
+            ) {
                 // When a navigation is performed and we have a focused text input element,
                 // blur it. We want to wait for the virtual keyboard to close before navigating
                 // so we don't end up with snapshots of partially animated bottom bar elements.

@@ -13,7 +13,7 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 
-export function ChannelCreator({
+export function ChannelDesktopCreator({
     withMobileLayout,
     channelId,
     shouldInitiallyFocusChannelName,
