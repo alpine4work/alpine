@@ -36,11 +36,11 @@
 
 import {Attrs, ContentMatch, Fragment, Node, NodeType, Slice} from "prosemirror-model";
 import {AllSelection, Command, NodeSelection, TextSelection} from "prosemirror-state";
-import {canSplit, ReplaceStep, Transform} from "prosemirror-transform";
+import {ReplaceStep, Transform, canSplit} from "prosemirror-transform";
 
 function defaultBlockAt(match: ContentMatch) {
     for (let i = 0; i < match.edgeCount; i++) {
-        let {type} = match.edge(i);
+        const {type} = match.edge(i);
         if (type.isTextblock && !type.hasRequiredAttrs()) return type;
     }
     return null;
@@ -50,11 +50,11 @@ function splitWithCodeBlockLineLeadingIdentation(
     tr: Transform,
     pos: number,
     depth = 1,
-    typesAfter?: (null | {type: NodeType; attrs?: Attrs | null})[],
+    typesAfter?: Array<null | {type: NodeType; attrs?: Attrs | null}>,
 ) {
-    let $pos = tr.doc.resolve(pos),
-        before = Fragment.empty,
-        after = Fragment.empty;
+    const $pos = tr.doc.resolve(pos);
+    let before = Fragment.empty;
+    let after = Fragment.empty;
 
     // NOTE: This is the code that we modified from the fork.
     // If the node is a code block line, we append to the after fragments.
@@ -73,7 +73,7 @@ function splitWithCodeBlockLineLeadingIdentation(
 
     for (let d = $pos.depth, e = $pos.depth - depth, i = depth - 1; d > e; d--, i--) {
         before = Fragment.from($pos.node(d).copy(before));
-        let typeAfter = typesAfter && typesAfter[i];
+        const typeAfter = typesAfter && typesAfter[i];
         after = Fragment.from(
             typeAfter ? typeAfter.type.create(typeAfter.attrs, after) : $pos.node(d).copy(after),
         );
@@ -86,7 +86,7 @@ function splitBlockAsWithCodeBlockLineLeadingIndentation(
     splitNode?: (node: Node, atEnd: boolean) => {type: NodeType; attrs?: Attrs} | null,
 ): Command {
     return (state, dispatch) => {
-        let {$from, $to} = state.selection;
+        const {$from, $to} = state.selection;
         if (state.selection instanceof NodeSelection && state.selection.node.isBlock) {
             if (!$from.parentOffset || !canSplit(state.doc, $from.pos)) return false;
             if (dispatch) {
@@ -100,15 +100,15 @@ function splitBlockAsWithCodeBlockLineLeadingIndentation(
         if (!$from.parent.isBlock) return false;
 
         if (dispatch) {
-            let atEnd = $to.parentOffset == $to.parent.content.size;
-            let tr = state.tr;
+            const atEnd = $to.parentOffset == $to.parent.content.size;
+            const tr = state.tr;
             if (state.selection instanceof TextSelection || state.selection instanceof AllSelection)
                 tr.deleteSelection();
-            let deflt =
+            const deflt =
                 $from.depth == 0
                     ? null
                     : defaultBlockAt($from.node(-1).contentMatchAt($from.indexAfter(-1)));
-            let splitType = splitNode && splitNode($to.parent, atEnd);
+            const splitType = splitNode && splitNode($to.parent, atEnd);
             let types = splitType ? [splitType] : atEnd && deflt ? [{type: deflt}] : undefined;
             let can = canSplit(tr.doc, tr.mapping.map($from.pos), 1, types);
             if (
@@ -122,7 +122,7 @@ function splitBlockAsWithCodeBlockLineLeadingIndentation(
             if (can) {
                 splitWithCodeBlockLineLeadingIdentation(tr, tr.mapping.map($from.pos), 1, types);
                 if (!atEnd && !$from.parentOffset && $from.parent.type != deflt) {
-                    let first = tr.mapping.map($from.before()),
+                    const first = tr.mapping.map($from.before()),
                         $first = tr.doc.resolve(first);
                     if (
                         deflt &&
