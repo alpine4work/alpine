@@ -39,7 +39,7 @@ import {
     postCommentInputMinHeight,
 } from "~/client/forum/internal/post_comment_input.js";
 import {PostEditing, usePostEditing} from "~/client/forum/internal/post_editing.js";
-import {PostMobileEditorView} from "~/client/forum/internal/post_mobile_editor_view.js";
+import {PostMobileEditor} from "~/client/forum/internal/post_mobile_editor.js";
 import {PostShimmer} from "~/client/forum/internal/post_shimmer.js";
 import {
     PostContentView,
@@ -1581,7 +1581,7 @@ function PostListView(
                         assert(postEditing.state.isEditing);
 
                         return (
-                            <PostMobileEditorView
+                            <PostMobileEditor
                                 post={
                                     posts.getPostByIdIfExists(postEditing.state.postId)?.post ??
                                     null

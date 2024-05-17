@@ -17,9 +17,9 @@ import {safeAreaOnlyScrollbarInsetTop, useScrollbar} from "~/client/design/scrol
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {PostContentViewHeaderBase} from "~/client/forum/internal/post_content_view_header.js";
 import {
-    PostCreatorViewChannelSelectorInput,
-    PostCreatorViewChannelSelectorInputRef,
-} from "~/client/forum/internal/post_creator_view_channel_selector_input.js";
+    PostCreatorChannelSelectorInput,
+    PostCreatorChannelSelectorInputRef,
+} from "~/client/forum/internal/post_creator_channel_selector_input.js";
 import {
     desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
@@ -83,7 +83,7 @@ const postContentEditorBlockMaxWidth = mapObjectValues(screenPaddingX, paddingX 
     subtractRemLengths(spacing[postViewMaxWidth], spacing[paddingX]),
 );
 
-export function PostCreatorView({
+export function PostCreator({
     withMobileLayout: withMobileLayoutProp,
     draftId,
     displayCreatedTime,
@@ -107,7 +107,7 @@ export function PostCreatorView({
     const {space, currentAccount} = useSpaceContext();
 
     const editorContainerRef = useRef<HTMLDivElement>(null);
-    const channelSelectorRef = useRef<PostCreatorViewChannelSelectorInputRef>(null);
+    const channelSelectorRef = useRef<PostCreatorChannelSelectorInputRef>(null);
     const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
     const createButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
@@ -312,7 +312,7 @@ export function PostCreatorView({
                             extraAfterCreatedTime={isMobile ? `, in:` : undefined}
                             channelSelector={
                                 !isMobile && (
-                                    <PostCreatorViewChannelSelectorInput
+                                    <PostCreatorChannelSelectorInput
                                         ref={channelSelectorRef}
                                         channel={channel}
                                         onChannelChange={onChannelChange}
@@ -322,7 +322,7 @@ export function PostCreatorView({
                         />
                         {isMobile && (
                             <Box paddingTop="1" paddingLeft="10">
-                                <PostCreatorViewChannelSelectorInput
+                                <PostCreatorChannelSelectorInput
                                     ref={channelSelectorRef}
                                     channel={channel}
                                     onChannelChange={onChannelChange}

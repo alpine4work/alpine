@@ -44,7 +44,7 @@ const postContentEditorBlockMaxWidth = mapObjectValues(screenPaddingX, paddingX 
     subtractRemLengths(spacing[postViewMaxWidth], spacing[paddingX]),
 );
 
-export function PostMobileEditorView({
+export function PostMobileEditor({
     post: postFromProps,
     contentEditorState: state,
     onContentEditorStateChange: onChange,

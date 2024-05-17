@@ -13,7 +13,7 @@ import {
     postContentViewMinHeightWithClosedCommentSection,
     postViewMaxWidth,
 } from "~/client/forum/post_content_view.js";
-import {createPostEventEmitter} from "~/client/forum/post_creator_view.js";
+import {createPostEventEmitter} from "~/client/forum/post_creator.js";
 import {
     PostListChannelHeader,
     PostQueryList,
