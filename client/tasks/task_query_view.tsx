@@ -30,6 +30,7 @@ import {
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {createTaskQueryCollectionsFilterCollectionResultsStore} from "~/client/tasks/internal/task_query_collections_filter_operation_editor.js";
+import {TaskQueryMobileEditor} from "~/client/tasks/internal/task_query_mobile_editor.js";
 import {
     TaskQueryViewCustomizationBar,
     TaskQueryViewCustomizationBarRef,
@@ -47,7 +48,6 @@ import {
     TaskQueryViewDesktopHeaderNameRef,
     defaultTaskQueryViewName,
 } from "~/client/tasks/internal/task_query_view_desktop_header_name.js";
-import {TaskQueryViewEditNameMobileModal} from "~/client/tasks/internal/task_query_view_edit_name_mobile_modal.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
@@ -821,7 +821,7 @@ export function TaskQueryView({
             {shouldShowEditNameMobileModal && (
                 <MobileFullScreenModal onClose={() => setShouldShowEditNameMobileModal(false)}>
                     {({onCloseWithAnimation}) => (
-                        <TaskQueryViewEditNameMobileModal
+                        <TaskQueryMobileEditor
                             initialName={name}
                             onNameChange={setName}
                             onCloseWithAnimation={onCloseWithAnimation}

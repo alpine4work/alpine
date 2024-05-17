@@ -38,7 +38,6 @@ import {
     TaskCollectionViewDesktopHeaderName,
     TaskCollectionViewDesktopHeaderNameRef,
 } from "~/client/tasks/internal/task_collection_view_desktop_header_name.js";
-import {TaskCollectionViewEditNameMobileModal} from "~/client/tasks/internal/task_collection_view_edit_name_mobile_modal.js";
 import {
     TaskGridViewVirtualizedListViewRef,
     isTaskQueryManuallySorted,
@@ -59,6 +58,7 @@ import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/task_client_store.js";
+import {TaskCollectionMobileEditor} from "~/client/tasks/task_collection_mobile_editor.js";
 import {createTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/task_query_view.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
 import {
@@ -978,7 +978,8 @@ export function TaskCollectionView({
             {editNameMobileModalState && (
                 <MobileFullScreenModal onClose={() => setEditNameMobileModalState(null)}>
                     {({onCloseWithAnimation}) => (
-                        <TaskCollectionViewEditNameMobileModal
+                        <TaskCollectionMobileEditor
+                            title="Edit collection"
                             initiallyFocusName={editNameMobileModalState.initiallyFocusName}
                             getInitialName={() =>
                                 collectionSubscription?.collectionEntryStore
@@ -1025,7 +1026,7 @@ export function TaskCollectionView({
                                     {undoManager: null, affinityManager},
                                 );
                             }}
-                            onCloseWithAnimation={onCloseWithAnimation}
+                            onCloseWithAnimation={() => onCloseWithAnimation()}
                         />
                     )}
                 </MobileFullScreenModal>

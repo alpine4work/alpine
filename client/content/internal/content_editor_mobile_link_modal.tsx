@@ -9,7 +9,7 @@ import {TextInput} from "~/client/design/text_input.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 // NOTE(calebmer): Apps like Google Docs put a search under the URL input to
@@ -145,6 +145,7 @@ export function ContentEditorMobileLinkModal({
                         // have a keyboard you can use keyboard shortcuts instead of tabbing into these
                         // buttons.
                         isFocusable={false}
+                        paddingX="2"
                         fontSize="100"
                         pressErrorTitle="Couldn’t cancel"
                         onPress={onCloseWithAnimation}
@@ -167,6 +168,7 @@ export function ContentEditorMobileLinkModal({
                         // have a keyboard you can use keyboard shortcuts instead of tabbing into these
                         // buttons.
                         isFocusable={false}
+                        paddingX="2"
                         fontSize="100"
                         isDisabled={!hasTextChanged && !hasUrlChanged}
                         onPress={save}
@@ -175,8 +177,8 @@ export function ContentEditorMobileLinkModal({
                     </Button>
                 </Box>
             </Box>
-            <Box paddingX="4">
-                <Spacer space="8" />
+            <Box paddingX={screenPaddingX}>
+                <Spacer space="5" />
                 <TextInput
                     // Don't auto-capitalize since this may be a snippet of text in a
                     // longer sentence.

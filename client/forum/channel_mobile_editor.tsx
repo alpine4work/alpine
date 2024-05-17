@@ -17,7 +17,7 @@ import {TextInput} from "~/client/design/text_input.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {convertRemLengthToPx} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx, screenPaddingX} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
@@ -164,8 +164,8 @@ export function ChannelMobileEditor({
             <Box position="relative" paddingY="safe-area-inset">
                 {navigationBar}
                 <Box height={navigationBarHeight} />
-                <Box paddingX="3">
-                    <Spacer space="8" />
+                <Box paddingX={screenPaddingX}>
+                    <Spacer space="5" />
                     <TextInput
                         ref={nameInputRef}
                         fontSize="100"

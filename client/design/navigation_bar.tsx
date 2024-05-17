@@ -1760,6 +1760,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                       }}
                                   >
                                       <Button
+                                          paddingX="2"
                                           fontSize="100"
                                           pressErrorTitle="Couldn’t cancel"
                                           onPress={onMobileCancel}

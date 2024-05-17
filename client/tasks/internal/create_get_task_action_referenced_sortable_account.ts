@@ -51,7 +51,7 @@ export function createGetTaskActionReferencedSortableAccount(
     // 2 is why we can't pass an `AccountClientStore` directly into
     // `TaskModel.apply()`. We need to make sure that at task creation time we
     // capture a reference to referenced accounts so then at a later action
-    // application time the referenced accounts aren't garbage collected.
+    // applied time the referenced accounts aren't garbage collected.
     const actionReferencedAccountStoreById = new Map(
         mapIterable(actionReferencedAccountIds, accountId => {
             const accountStore = store.weakGetAccountStoreByIdIfExists(accountId);

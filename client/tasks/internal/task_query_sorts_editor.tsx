@@ -456,6 +456,7 @@ function TaskQuerySortsEditorRowBase({
                         alignItems: "center",
                         borderRadius: "full",
                         cursor: "grab",
+                        color: "grey-70",
                     })}
                     // Drag handle is not tab focusable. Keyboard navigation within a task grid is
                     // not done with tab navigation.

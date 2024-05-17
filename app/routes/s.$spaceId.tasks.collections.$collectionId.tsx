@@ -3,15 +3,19 @@ import {Params, ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {useAppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {getCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
+import {TaskCollectionMobileEditor} from "~/client/tasks/task_collection_mobile_editor.js";
 import {
     TaskCollectionView,
     newTaskCollectionNamePlaceholder,
@@ -29,6 +33,7 @@ import {
     authorizeTaskCollectionAccess,
     commitTaskActionTransaction,
 } from "~/server/tasks/data/task_table.js";
+import {isThemeColor} from "~/shared/design/theme_colors.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -41,6 +46,7 @@ import {generateId, isId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {addTaskCollectionAffinityPoints} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {taskCollectionAffinityPointsPer5MinOfViewingTime} from "~/shared/tasks/task_collection_affinity_constants.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
@@ -118,10 +124,14 @@ export async function loader({request, params, context: unauthenticatedContext}:
 
     if (createSearchParam !== null) {
         try {
-            await commitTaskActionTransaction(context, spaceId, [
+            const colorSearchParam = url.searchParams.get("color");
+
+            const currentTime = Date.now();
+
+            const actions: Array<TaskAction> = [
                 {
                     type: "UpdateCollection",
-                    time: [Date.now(), 0],
+                    time: [currentTime, 0],
                     collectionId,
                     collectionAction: {
                         type: "Create",
@@ -135,7 +145,21 @@ export async function loader({request, params, context: unauthenticatedContext}:
                         },
                     },
                 },
-            ]);
+            ];
+
+            if (colorSearchParam && isThemeColor(colorSearchParam)) {
+                actions.push({
+                    type: "UpdateCollection",
+                    time: [currentTime, 1],
+                    collectionId,
+                    collectionAction: {
+                        type: "UpdateColor",
+                        color: colorSearchParam,
+                    },
+                });
+            }
+
+            await commitTaskActionTransaction(context, spaceId, actions);
 
             // NOTE(calebmer): Normally affinity points for committing task actions is
             // added on the client through the `affinityManager` object. Since we create
@@ -323,6 +347,9 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     currentUrl.searchParams.delete("focus");
     nextUrl.searchParams.delete("focus");
 
+    currentUrl.searchParams.delete("color");
+    nextUrl.searchParams.delete("color");
+
     // The client removes the `create` and `focus` search params. Don't revalidate
     // when the client does this.
     if (currentUrl.toString() === nextUrl.toString()) {
@@ -349,9 +376,11 @@ export default function TaskCollectionRoute({
 }
 
 function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean}) {
+    const isMobile = useIsMobile();
     const navigate = useNavigate();
-    const [searchParams, setSearchParams] = useSearchParams();
+    const {space} = useSpaceContext();
 
+    const [searchParams, setSearchParams] = useSearchParams();
     const {collectionId} = useParams();
     assert(collectionId && isId<TaskCollectionId>(collectionId));
 
@@ -402,10 +431,11 @@ function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean
     useEffect(() => {
         if (!collectionSubscription) return;
 
-        if (searchParams.has("create") || searchParams.has("focus")) {
+        if (searchParams.has("create") || searchParams.has("focus") || searchParams.has("color")) {
             const newSearchParams = new URLSearchParams(searchParams);
             newSearchParams.delete("create");
             newSearchParams.delete("focus");
+            newSearchParams.delete("color");
             setSearchParams(newSearchParams, {replace: true});
         }
     }, [collectionSubscription, searchParams, setSearchParams]);
@@ -435,6 +465,44 @@ function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean
     const affinityManager = useTaskClientStoreSearchAffinityManager(
         collectionSubscription ? `TaskCollection:${collectionSubscription.collectionId}` : null,
     );
+
+    if (isMobile && !collectionSubscription) {
+        return (
+            <Box flexGrow="1" overflow="hidden" position="relative" height="full">
+                <TaskCollectionMobileEditor
+                    title="Create collection"
+                    initiallyFocusName={true}
+                    getInitialName={() => ""}
+                    getInitialColor={() => null}
+                    onCloseWithAnimation={({hasSaved}) => {
+                        if (hasSaved) return;
+                        void navigate(-1);
+                    }}
+                    onSave={async ({name, color, hasColorChanged}) => {
+                        const newSearchParams = new URLSearchParams(searchParams);
+                        newSearchParams.set("create", name);
+
+                        if (hasColorChanged && color !== null) {
+                            newSearchParams.set("color", color);
+                        }
+
+                        await navigate(
+                            `/s/${
+                                space.id
+                            }/tasks/collections/${collectionId}?${newSearchParams.toString()}`,
+                            {
+                                replace: true,
+                                // In our native mobile app, we want to call
+                                // `NativeMobileBridge.navigation.replaceWithPushAnimation()` to run the native
+                                // push animation while replacing in the history stack.
+                                state: NativeMobileBridge ? {withPushAnimation: true} : undefined,
+                            },
+                        );
+                    }}
+                />
+            </Box>
+        );
+    }
 
     return (
         <TaskGridViewDndContext store={store}>

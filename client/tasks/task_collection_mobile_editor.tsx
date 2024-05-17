@@ -7,19 +7,22 @@ import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
-export function TaskCollectionViewEditNameMobileModal({
+export function TaskCollectionMobileEditor({
+    title,
     initiallyFocusName,
     getInitialName,
     getInitialColor,
     onSave,
     onCloseWithAnimation,
 }: {
+    title: string;
     initiallyFocusName: boolean;
     getInitialName: () => string;
     getInitialColor: () => ThemeColor | null;
@@ -33,9 +36,10 @@ export function TaskCollectionViewEditNameMobileModal({
         hasNameChanged: boolean;
         color: ThemeColor | null;
         hasColorChanged: boolean;
-    }) => void;
-    onCloseWithAnimation: () => void;
+    }) => MaybePromise<void>;
+    onCloseWithAnimation: (options: {hasSaved: boolean}) => void;
 }) {
+    const saveButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
     const nameInputRef = useRef<HTMLInputElement>(null);
 
     const [{name, hasNameChanged}, setNameState] = useState(() => ({
@@ -52,15 +56,15 @@ export function TaskCollectionViewEditNameMobileModal({
         setColorState({color, hasColorChanged: true});
     };
 
-    const save = () => {
-        onSave({
+    const save = async () => {
+        await onSave({
             name: name.trim(),
             hasNameChanged,
             color,
             hasColorChanged,
         });
 
-        onCloseWithAnimation();
+        onCloseWithAnimation({hasSaved: true});
     };
 
     const hasInitiallyMountedRef = useRef(false);
@@ -97,15 +101,16 @@ export function TaskCollectionViewEditNameMobileModal({
                     style={{flexBasis: spacing["10"]}}
                 >
                     <Button
+                        paddingX="2"
                         fontSize="100"
                         pressErrorTitle="Couldn’t go back"
-                        onPress={onCloseWithAnimation}
+                        onPress={() => onCloseWithAnimation({hasSaved: false})}
                     >
                         Cancel
                     </Button>
                 </Box>
                 <Box fontSize="100" fontStyle="semi-bold">
-                    Edit collection
+                    {title}
                 </Box>
                 <Box
                     flexGrow="1"
@@ -114,25 +119,28 @@ export function TaskCollectionViewEditNameMobileModal({
                     style={{flexBasis: spacing["10"]}}
                 >
                     <Button
+                        ref={saveButtonRef}
+                        paddingX="2"
                         fontSize="100"
                         isDisabled={
                             (!hasNameChanged && !hasColorChanged) || name.trim().length === 0
                         }
+                        pressErrorTitle="Couldn’t save collection"
                         onPress={save}
                     >
                         Save
                     </Button>
                 </Box>
             </Box>
-            <Box paddingX="3">
-                <Spacer space="8" />
+            <Box paddingX={screenPaddingX}>
+                <Spacer space="5" />
                 <TextInput
                     ref={nameInputRef}
                     fontSize="100"
                     label="Name"
                     value={name}
                     onChange={name => setNameState({name, hasNameChanged: true})}
-                    onEnter={save}
+                    onEnter={() => assertExists(saveButtonRef.current).press()}
                 />
                 <Spacer space="5" />
                 <Box>
@@ -147,49 +155,49 @@ export function TaskCollectionViewEditNameMobileModal({
                         Color
                     </label>
                     <Box display="flex" justifyContent="space-between">
-                        <TaskCollectionViewDesktopHeaderColorSelectorButton
+                        <TaskCollectionMobileEditorColorSelectorButton
                             description="None"
                             color={null}
                             selectedColor={color}
                             onSelectedColorChange={onColorChange}
                         />
-                        <TaskCollectionViewDesktopHeaderColorSelectorButton
+                        <TaskCollectionMobileEditorColorSelectorButton
                             description="Red"
                             color="red"
                             selectedColor={color}
                             onSelectedColorChange={onColorChange}
                         />
-                        <TaskCollectionViewDesktopHeaderColorSelectorButton
+                        <TaskCollectionMobileEditorColorSelectorButton
                             description="Orange"
                             color="orange"
                             selectedColor={color}
                             onSelectedColorChange={onColorChange}
                         />
-                        <TaskCollectionViewDesktopHeaderColorSelectorButton
+                        <TaskCollectionMobileEditorColorSelectorButton
                             description="Yellow"
                             color="yellow"
                             selectedColor={color}
                             onSelectedColorChange={onColorChange}
                         />
-                        <TaskCollectionViewDesktopHeaderColorSelectorButton
+                        <TaskCollectionMobileEditorColorSelectorButton
                             description="Green"
                             color="green"
                             selectedColor={color}
                             onSelectedColorChange={onColorChange}
                         />
-                        <TaskCollectionViewDesktopHeaderColorSelectorButton
+                        <TaskCollectionMobileEditorColorSelectorButton
                             description="Blue"
                             color="blue"
                             selectedColor={color}
                             onSelectedColorChange={onColorChange}
                         />
-                        <TaskCollectionViewDesktopHeaderColorSelectorButton
+                        <TaskCollectionMobileEditorColorSelectorButton
                             description="Purple"
                             color="purple"
                             selectedColor={color}
                             onSelectedColorChange={onColorChange}
                         />
-                        <TaskCollectionViewDesktopHeaderColorSelectorButton
+                        <TaskCollectionMobileEditorColorSelectorButton
                             description="Pink"
                             color="pink"
                             selectedColor={color}
@@ -202,7 +210,7 @@ export function TaskCollectionViewEditNameMobileModal({
     );
 }
 
-function TaskCollectionViewDesktopHeaderColorSelectorButton({
+function TaskCollectionMobileEditorColorSelectorButton({
     description,
     color,
     selectedColor,
@@ -226,11 +234,7 @@ function TaskCollectionViewDesktopHeaderColorSelectorButton({
                     weight="bold"
                     color={
                         colorSchemeVars[
-                            color === null
-                                ? ("grey-50" as const)
-                                : color === "blue"
-                                ? ("indigo-80" as const)
-                                : (`${color}-80` as const)
+                            color === null ? ("grey-60" as const) : (`${color}-80` as const)
                         ]
                     }
                 />

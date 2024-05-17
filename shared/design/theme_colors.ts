@@ -1,4 +1,5 @@
 import {Color} from "~/shared/design/colors.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 
 /**
  * Theme color names like `red`, `blue`, and `green`.
@@ -31,3 +32,10 @@ export const themeColors = [
  * The default color theme when the user is not within a space.
  */
 export const defaultThemeColor: ThemeColor = "indigo";
+
+/**
+ * Is the provided color a theme color?
+ */
+export function isThemeColor(string: string): string is ThemeColor {
+    return cast<ReadonlyArray<string>>(themeColors).includes(string);
+}

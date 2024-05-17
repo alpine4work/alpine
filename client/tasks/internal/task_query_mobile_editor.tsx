@@ -5,10 +5,10 @@ import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
-export function TaskQueryViewEditNameMobileModal({
+export function TaskQueryMobileEditor({
     initialName,
     onNameChange,
     onCloseWithAnimation,
@@ -61,6 +61,7 @@ export function TaskQueryViewEditNameMobileModal({
                     style={{flexBasis: spacing["10"]}}
                 >
                     <Button
+                        paddingX="2"
                         fontSize="100"
                         pressErrorTitle="Couldn’t go back"
                         onPress={onCloseWithAnimation}
@@ -78,6 +79,7 @@ export function TaskQueryViewEditNameMobileModal({
                     style={{flexBasis: spacing["10"]}}
                 >
                     <Button
+                        paddingX="2"
                         fontSize="100"
                         isDisabled={!hasNameChanged || name.trim().length === 0}
                         onPress={save}
@@ -86,8 +88,8 @@ export function TaskQueryViewEditNameMobileModal({
                     </Button>
                 </Box>
             </Box>
-            <Box paddingX="3">
-                <Spacer space="8" />
+            <Box paddingX={screenPaddingX}>
+                <Spacer space="5" />
                 <TextInput
                     ref={nameInputRef}
                     fontSize="100"

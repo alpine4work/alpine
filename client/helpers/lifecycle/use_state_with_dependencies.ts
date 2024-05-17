@@ -8,7 +8,7 @@ import {DependencyList, Dispatch, SetStateAction, useCallback, useMemo, useState
  * You can kind of think of this as a `useMemo(() => useState(), dependencies)`
  * combination.
  */
-export function useStateWithDependencies<State, Dependencies extends DependencyList>(
+export function useStateWithDependencies<State, const Dependencies extends DependencyList>(
     initializeState: State | ((...dependencies: Dependencies) => State),
     dependencies: Dependencies,
 ): [State, Dispatch<SetStateAction<State>>] {
