@@ -11,6 +11,20 @@ export type Color = keyof typeof colors;
  *
  * We have more shades of grey than other colors for more range of expression
  * in dark modes.
+ *
+ * We aim for our theme colors to have similar luminosity and chroma values in
+ * the [HCL color system][1]. That way our colors can be used interchangeably
+ * without looking odd. An excellent tool for debugging our color scheme and
+ * tweaking it for the HCL color space is https://tailwind.ink. To import our
+ * color scheme into https://tailwind.ink use the `generateTailwindInkUrl()`
+ * function. From there you can see how we're doing on maintaining luminosity
+ * and chroma values for our color scheme and manually drag colors around to
+ * tweak them.
+ *
+ * `yellow` we don't try to maintain a similar luminosity value as other theme
+ * colors as yellow will just end up looking muddy and ugly.
+ *
+ * [1]: https://en.wikipedia.org/wiki/HCL_color_space
  */
 export const colors = {
     "grey-0": "#fbfbfc",
@@ -49,7 +63,7 @@ export const colors = {
     "red-10": "#fee3cf",
     "red-20": "#feb99a",
     "red-30": "#fe9676",
-    "red-40": "#fa7854",
+    "red-40": "#fc7659",
     "red-50": "#f75644",
     "red-60": "#d9383c",
     "red-70": "#a42835",
@@ -116,15 +130,15 @@ export const colors = {
     "indigo-80": "#0b1e50",
     "indigo-90": "#10152c",
 
-    "purple-10": "#f0e0ff",
-    "purple-20": "#cab6fa",
-    "purple-30": "#a68ff5",
-    "purple-40": "#8167f0",
-    "purple-50": "#6143de",
-    "purple-60": "#4c33bf",
-    "purple-70": "#3c2693",
-    "purple-80": "#2c1a67",
-    "purple-90": "#1c0d3b",
+    "purple-10": "#eee0fe",
+    "purple-20": "#d6c2fe",
+    "purple-30": "#b69efd",
+    "purple-40": "#9f81fe",
+    "purple-50": "#8661fe",
+    "purple-60": "#704fe0",
+    "purple-70": "#5439a9",
+    "purple-80": "#3a2674",
+    "purple-90": "#221341",
 
     "pink-10": "#ffe6ec",
     "pink-20": "#fcc2e1",
