@@ -42,12 +42,19 @@ ts_playwright_tests(
     ],
 )
 
-# NOCOMMIT: Insert a link on mobile in the following places:
+# NOCOMMIT: Add these tests
 #
-# - A chat message
-# - A post comment
-# - A new post
-# - While editing a post
-# - On a document
-# - While adding a new comment to a document
-# - In a comment thread on a document
+# - Insert a link on mobile in the following places:
+#   - A chat message
+#   - A post comment
+#   - A new post
+#   - While editing a post
+#   - On a document
+#   - While adding a new comment to a document
+#   - In a comment thread on a document
+# - Channel creation mobile test and desktop test (on mobile, with and
+#   without description)
+# - Channel name editing mobile and desktop test
+# - Channel description editing mobile and desktop test
+# - Task collection creation mobile test and desktop test
+# - Task collection name editing mobile and desktop test
