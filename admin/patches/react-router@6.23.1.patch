@@ -1,18 +1,592 @@
-diff --git a/dist/index.js b/dist/index.js
-index 5e9d570eaffa2c55e3903bbbd6981f5330e6d890..0b2166e1e3f66ca874221a3c2d6d164bbdc76358 100644
---- a/dist/index.js
-+++ b/dist/index.js
-@@ -478,17 +478,34 @@ class RenderErrorBoundary extends React.Component {
-     };
-   }
-   componentDidCatch(error, errorInfo) {
--    console.error("React Router caught the following error during render", error, errorInfo);
+diff --git a/dist/index.cjs.js b/dist/index.cjs.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..0fa393864f6fe20919f9eac01a589c4a97b15421
+--- a/dev/null
++++ b/dist/index.cjs.js
+@@ -0,0 +1,1610 @@
++// NOTE(calebmer): To reduce the maintenance burden of our `react-router`
++// patch, we don't patch UMD builds. Instead we copy `index.js` to
++// `index.cjs.js` and remove any `import`s and `export`s that would be invalid
++// CommonJS syntax.
++
++/**
++ * React Router v6.23.1
++ *
++ * Copyright (c) Remix Software Inc.
++ *
++ * This source code is licensed under the MIT license found in the
++ * LICENSE.md file in the root directory of this source tree.
++ *
++ * @license MIT
++ */
++const React = _interopNamespace(require('react'));
++const RemixRunRouter = require('@remix-run/router');
++const { UNSAFE_invariant, joinPaths, matchPath, UNSAFE_getResolveToMatches, UNSAFE_warning, resolveTo, parsePath, matchRoutes, Action, UNSAFE_convertRouteMatchToUiMatch, stripBasename, IDLE_BLOCKER, isRouteErrorResponse, createMemoryHistory, AbortedDeferredError, createRouter } = RemixRunRouter
++
++function _interopNamespace(e) {
++  if (e && e.__esModule) return e;
++  var n = Object.create(null);
++  if (e) {
++    Object.keys(e).forEach(function (k) {
++      if (k !== 'default') {
++        var d = Object.getOwnPropertyDescriptor(e, k);
++        Object.defineProperty(n, k, d.get ? d : {
++          enumerable: true,
++          get: function () { return e[k]; }
++        });
++      }
++    });
++  }
++  n["default"] = e;
++  return Object.freeze(n);
++}
++
++Object.defineProperty(exports, 'AbortedDeferredError', {
++  enumerable: true,
++  get: function () { return RemixRunRouter.AbortedDeferredError; }
++});
++Object.defineProperty(exports, 'NavigationType', {
++  enumerable: true,
++  get: function () { return RemixRunRouter.Action; }
++});
++Object.defineProperty(exports, 'createPath', {
++  enumerable: true,
++  get: function () { return RemixRunRouter.createPath; }
++});
++Object.defineProperty(exports, 'defer', {
++  enumerable: true,
++  get: function () { return RemixRunRouter.defer; }
++});
++Object.defineProperty(exports, 'generatePath', {
++  enumerable: true,
++  get: function () { return RemixRunRouter.generatePath; }
++});
++Object.defineProperty(exports, 'isRouteErrorResponse', {
++  enumerable: true,
++  get: function () { return RemixRunRouter.isRouteErrorResponse; }
++});
++Object.defineProperty(exports, 'json', {
++  enumerable: true,
++  get: function () { return RemixRunRouter.json; }
++});
++Object.defineProperty(exports, 'matchPath', {
++  enumerable: true,
++  get: function () { return RemixRunRouter.matchPath; }
++});
++Object.defineProperty(exports, 'matchRoutes', {
++  enumerable: true,
++  get: function () { return RemixRunRouter.matchRoutes; }
++});
++Object.defineProperty(exports, 'parsePath', {
++  enumerable: true,
++  get: function () { return RemixRunRouter.parsePath; }
++});
++Object.defineProperty(exports, 'redirect', {
++  enumerable: true,
++  get: function () { return RemixRunRouter.redirect; }
++});
++Object.defineProperty(exports, 'redirectDocument', {
++  enumerable: true,
++  get: function () { return RemixRunRouter.redirectDocument; }
++});
++Object.defineProperty(exports, 'resolvePath', {
++  enumerable: true,
++  get: function () { return RemixRunRouter.resolvePath; }
++});
++
++function _extends() {
++  _extends = Object.assign ? Object.assign.bind() : function (target) {
++    for (var i = 1; i < arguments.length; i++) {
++      var source = arguments[i];
++      for (var key in source) {
++        if (Object.prototype.hasOwnProperty.call(source, key)) {
++          target[key] = source[key];
++        }
++      }
++    }
++    return target;
++  };
++  return _extends.apply(this, arguments);
++}
++
++// Create react-specific types from the agnostic types in @remix-run/router to
++// export from react-router
++const DataRouterContext = /*#__PURE__*/React.createContext(null);
++if (process.env.NODE_ENV !== "production") {
++  DataRouterContext.displayName = "DataRouter";
++}
++const DataRouterStateContext = /*#__PURE__*/React.createContext(null);
++if (process.env.NODE_ENV !== "production") {
++  DataRouterStateContext.displayName = "DataRouterState";
++}
++const AwaitContext = /*#__PURE__*/React.createContext(null);
++if (process.env.NODE_ENV !== "production") {
++  AwaitContext.displayName = "Await";
++}
++
++/**
++ * A Navigator is a "location changer"; it's how you get to different locations.
++ *
++ * Every history instance conforms to the Navigator interface, but the
++ * distinction is useful primarily when it comes to the low-level `<Router>` API
++ * where both the location and a navigator must be provided separately in order
++ * to avoid "tearing" that may occur in a suspense-enabled app if the action
++ * and/or location were to be read directly from the history instance.
++ */
++
++const NavigationContext = /*#__PURE__*/React.createContext(null);
++if (process.env.NODE_ENV !== "production") {
++  NavigationContext.displayName = "Navigation";
++}
++const LocationContext = /*#__PURE__*/React.createContext(null);
++if (process.env.NODE_ENV !== "production") {
++  LocationContext.displayName = "Location";
++}
++const RouteContext = /*#__PURE__*/React.createContext({
++  outlet: null,
++  matches: [],
++  isDataRoute: false
++});
++if (process.env.NODE_ENV !== "production") {
++  RouteContext.displayName = "Route";
++}
++const RouteErrorContext = /*#__PURE__*/React.createContext(null);
++if (process.env.NODE_ENV !== "production") {
++  RouteErrorContext.displayName = "RouteError";
++}
++
++/**
++ * Returns the full href for the given "to" value. This is useful for building
++ * custom links that are also accessible and preserve right-click behavior.
++ *
++ * @see https://reactrouter.com/hooks/use-href
++ */
++function useHref(to, _temp) {
++  let {
++    relative
++  } = _temp === void 0 ? {} : _temp;
++  !useInRouterContext() ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, // TODO: This error is probably because they somehow have 2 versions of the
++  // router loaded. We can help them understand how to avoid that.
++  "useHref() may be used only in the context of a <Router> component.") : UNSAFE_invariant(false) : void 0;
++  let {
++    basename,
++    navigator
++  } = React.useContext(NavigationContext);
++  let {
++    hash,
++    pathname,
++    search
++  } = useResolvedPath(to, {
++    relative
++  });
++  let joinedPathname = pathname;
++
++  // If we're operating within a basename, prepend it to the pathname prior
++  // to creating the href.  If this is a root navigation, then just use the raw
++  // basename which allows the basename to have full control over the presence
++  // of a trailing slash on root links
++  if (basename !== "/") {
++    joinedPathname = pathname === "/" ? basename : joinPaths([basename, pathname]);
++  }
++  return navigator.createHref({
++    pathname: joinedPathname,
++    search,
++    hash
++  });
++}
++
++/**
++ * Returns true if this component is a descendant of a `<Router>`.
++ *
++ * @see https://reactrouter.com/hooks/use-in-router-context
++ */
++function useInRouterContext() {
++  return React.useContext(LocationContext) != null;
++}
++
++/**
++ * Returns the current location object, which represents the current URL in web
++ * browsers.
++ *
++ * Note: If you're using this it may mean you're doing some of your own
++ * "routing" in your app, and we'd like to know what your use case is. We may
++ * be able to provide something higher-level to better suit your needs.
++ *
++ * @see https://reactrouter.com/hooks/use-location
++ */
++function useLocation() {
++  !useInRouterContext() ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, // TODO: This error is probably because they somehow have 2 versions of the
++  // router loaded. We can help them understand how to avoid that.
++  "useLocation() may be used only in the context of a <Router> component.") : UNSAFE_invariant(false) : void 0;
++  return React.useContext(LocationContext).location;
++}
++
++/**
++ * Returns the current navigation action which describes how the router came to
++ * the current location, either by a pop, push, or replace on the history stack.
++ *
++ * @see https://reactrouter.com/hooks/use-navigation-type
++ */
++function useNavigationType() {
++  return React.useContext(LocationContext).navigationType;
++}
++
++/**
++ * Returns a PathMatch object if the given pattern matches the current URL.
++ * This is useful for components that need to know "active" state, e.g.
++ * `<NavLink>`.
++ *
++ * @see https://reactrouter.com/hooks/use-match
++ */
++function useMatch(pattern) {
++  !useInRouterContext() ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, // TODO: This error is probably because they somehow have 2 versions of the
++  // router loaded. We can help them understand how to avoid that.
++  "useMatch() may be used only in the context of a <Router> component.") : UNSAFE_invariant(false) : void 0;
++  let {
++    pathname
++  } = useLocation();
++  return React.useMemo(() => matchPath(pattern, pathname), [pathname, pattern]);
++}
++
++/**
++ * The interface for the navigate() function returned from useNavigate().
++ */
++
++const navigateEffectWarning = "You should call navigate() in a React.useEffect(), not when " + "your component is first rendered.";
++
++// Mute warnings for calls to useNavigate in SSR environments
++function useIsomorphicLayoutEffect(cb) {
++  let isStatic = React.useContext(NavigationContext).static;
++  if (!isStatic) {
++    // We should be able to get rid of this once react 18.3 is released
++    // See: https://github.com/facebook/react/pull/26395
++    // eslint-disable-next-line react-hooks/rules-of-hooks
++    React.useLayoutEffect(cb);
++  }
++}
++
++/**
++ * Returns an imperative method for changing the location. Used by `<Link>`s, but
++ * may also be used by other elements to change the location.
++ *
++ * @see https://reactrouter.com/hooks/use-navigate
++ */
++function useNavigate() {
++  let {
++    isDataRoute
++  } = React.useContext(RouteContext);
++  // Conditional usage is OK here because the usage of a data router is static
++  // eslint-disable-next-line react-hooks/rules-of-hooks
++  return isDataRoute ? useNavigateStable() : useNavigateUnstable();
++}
++function useNavigateUnstable() {
++  !useInRouterContext() ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, // TODO: This error is probably because they somehow have 2 versions of the
++  // router loaded. We can help them understand how to avoid that.
++  "useNavigate() may be used only in the context of a <Router> component.") : UNSAFE_invariant(false) : void 0;
++  let dataRouterContext = React.useContext(DataRouterContext);
++  let {
++    basename,
++    future,
++    navigator
++  } = React.useContext(NavigationContext);
++  let {
++    matches
++  } = React.useContext(RouteContext);
++  let {
++    pathname: locationPathname
++  } = useLocation();
++  let routePathnamesJson = JSON.stringify(UNSAFE_getResolveToMatches(matches, future.v7_relativeSplatPath));
++  let activeRef = React.useRef(false);
++  useIsomorphicLayoutEffect(() => {
++    activeRef.current = true;
++  });
++  let navigate = React.useCallback(function (to, options) {
++    if (options === void 0) {
++      options = {};
++    }
++    process.env.NODE_ENV !== "production" ? UNSAFE_warning(activeRef.current, navigateEffectWarning) : void 0;
++
++    // Short circuit here since if this happens on first render the navigate
++    // is useless because we haven't wired up our history listener yet
++    if (!activeRef.current) return;
++    if (typeof to === "number") {
++      navigator.go(to);
++      return;
++    }
++    let path = resolveTo(to, JSON.parse(routePathnamesJson), locationPathname, options.relative === "path");
++
++    // If we're operating within a basename, prepend it to the pathname prior
++    // to handing off to history (but only if we're not in a data router,
++    // otherwise it'll prepend the basename inside of the router).
++    // If this is a root navigation, then we navigate to the raw basename
++    // which allows the basename to have full control over the presence of a
++    // trailing slash on root links
++    if (dataRouterContext == null && basename !== "/") {
++      path.pathname = path.pathname === "/" ? basename : joinPaths([basename, path.pathname]);
++    }
++    (!!options.replace ? navigator.replace : navigator.push)(path, options.state, options);
++  }, [basename, navigator, routePathnamesJson, locationPathname, dataRouterContext]);
++  return navigate;
++}
++const OutletContext = /*#__PURE__*/React.createContext(null);
++
++/**
++ * Returns the context (if provided) for the child route at this level of the route
++ * hierarchy.
++ * @see https://reactrouter.com/hooks/use-outlet-context
++ */
++function useOutletContext() {
++  return React.useContext(OutletContext);
++}
++
++/**
++ * Returns the element for the child route at this level of the route
++ * hierarchy. Used internally by `<Outlet>` to render child routes.
++ *
++ * @see https://reactrouter.com/hooks/use-outlet
++ */
++function useOutlet(context) {
++  let outlet = React.useContext(RouteContext).outlet;
++  if (outlet) {
++    return /*#__PURE__*/React.createElement(OutletContext.Provider, {
++      value: context
++    }, outlet);
++  }
++  return outlet;
++}
++
++/**
++ * Returns an object of key/value pairs of the dynamic params from the current
++ * URL that were matched by the route path.
++ *
++ * @see https://reactrouter.com/hooks/use-params
++ */
++function useParams() {
++  let {
++    matches
++  } = React.useContext(RouteContext);
++  let routeMatch = matches[matches.length - 1];
++  return routeMatch ? routeMatch.params : {};
++}
++
++/**
++ * Resolves the pathname of the given `to` value against the current location.
++ *
++ * @see https://reactrouter.com/hooks/use-resolved-path
++ */
++function useResolvedPath(to, _temp2) {
++  let {
++    relative
++  } = _temp2 === void 0 ? {} : _temp2;
++  let {
++    future
++  } = React.useContext(NavigationContext);
++  let {
++    matches
++  } = React.useContext(RouteContext);
++  let {
++    pathname: locationPathname
++  } = useLocation();
++  let routePathnamesJson = JSON.stringify(UNSAFE_getResolveToMatches(matches, future.v7_relativeSplatPath));
++  return React.useMemo(() => resolveTo(to, JSON.parse(routePathnamesJson), locationPathname, relative === "path"), [to, routePathnamesJson, locationPathname, relative]);
++}
++
++/**
++ * Returns the element of the route that matched the current location, prepared
++ * with the correct context to render the remainder of the route tree. Route
++ * elements in the tree must render an `<Outlet>` to render their child route's
++ * element.
++ *
++ * @see https://reactrouter.com/hooks/use-routes
++ */
++function useRoutes(routes, locationArg) {
++  return useRoutesImpl(routes, locationArg);
++}
++
++// Internal implementation with accept optional param for RouterProvider usage
++function useRoutesImpl(routes, locationArg, dataRouterState, future) {
++  !useInRouterContext() ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, // TODO: This error is probably because they somehow have 2 versions of the
++  // router loaded. We can help them understand how to avoid that.
++  "useRoutes() may be used only in the context of a <Router> component.") : UNSAFE_invariant(false) : void 0;
++  let {
++    navigator
++  } = React.useContext(NavigationContext);
++  let {
++    matches: parentMatches
++  } = React.useContext(RouteContext);
++  let routeMatch = parentMatches[parentMatches.length - 1];
++  let parentParams = routeMatch ? routeMatch.params : {};
++  let parentPathname = routeMatch ? routeMatch.pathname : "/";
++  let parentPathnameBase = routeMatch ? routeMatch.pathnameBase : "/";
++  let parentRoute = routeMatch && routeMatch.route;
++  if (process.env.NODE_ENV !== "production") {
++    // You won't get a warning about 2 different <Routes> under a <Route>
++    // without a trailing *, but this is a best-effort warning anyway since we
++    // cannot even give the warning unless they land at the parent route.
++    //
++    // Example:
++    //
++    // <Routes>
++    //   {/* This route path MUST end with /* because otherwise
++    //       it will never match /blog/post/123 */}
++    //   <Route path="blog" element={<Blog />} />
++    //   <Route path="blog/feed" element={<BlogFeed />} />
++    // </Routes>
++    //
++    // function Blog() {
++    //   return (
++    //     <Routes>
++    //       <Route path="post/:id" element={<Post />} />
++    //     </Routes>
++    //   );
++    // }
++    let parentPath = parentRoute && parentRoute.path || "";
++    warningOnce(parentPathname, !parentRoute || parentPath.endsWith("*"), "You rendered descendant <Routes> (or called `useRoutes()`) at " + ("\"" + parentPathname + "\" (under <Route path=\"" + parentPath + "\">) but the ") + "parent route path has no trailing \"*\". This means if you navigate " + "deeper, the parent won't match anymore and therefore the child " + "routes will never render.\n\n" + ("Please change the parent <Route path=\"" + parentPath + "\"> to <Route ") + ("path=\"" + (parentPath === "/" ? "*" : parentPath + "/*") + "\">."));
++  }
++  let locationFromContext = useLocation();
++  let location;
++  if (locationArg) {
++    var _parsedLocationArg$pa;
++    let parsedLocationArg = typeof locationArg === "string" ? parsePath(locationArg) : locationArg;
++    !(parentPathnameBase === "/" || ((_parsedLocationArg$pa = parsedLocationArg.pathname) == null ? void 0 : _parsedLocationArg$pa.startsWith(parentPathnameBase))) ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, "When overriding the location using `<Routes location>` or `useRoutes(routes, location)`, " + "the location pathname must begin with the portion of the URL pathname that was " + ("matched by all parent routes. The current pathname base is \"" + parentPathnameBase + "\" ") + ("but pathname \"" + parsedLocationArg.pathname + "\" was given in the `location` prop.")) : UNSAFE_invariant(false) : void 0;
++    location = parsedLocationArg;
++  } else {
++    location = locationFromContext;
++  }
++  let pathname = location.pathname || "/";
++  let remainingPathname = pathname;
++  if (parentPathnameBase !== "/") {
++    // Determine the remaining pathname by removing the # of URL segments the
++    // parentPathnameBase has, instead of removing based on character count.
++    // This is because we can't guarantee that incoming/outgoing encodings/
++    // decodings will match exactly.
++    // We decode paths before matching on a per-segment basis with
++    // decodeURIComponent(), but we re-encode pathnames via `new URL()` so they
++    // match what `window.location.pathname` would reflect.  Those don't 100%
++    // align when it comes to encoded URI characters such as % and &.
++    //
++    // So we may end up with:
++    //   pathname:           "/descendant/a%25b/match"
++    //   parentPathnameBase: "/descendant/a%b"
++    //
++    // And the direct substring removal approach won't work :/
++    let parentSegments = parentPathnameBase.replace(/^\//, "").split("/");
++    let segments = pathname.replace(/^\//, "").split("/");
++    remainingPathname = "/" + segments.slice(parentSegments.length).join("/");
++  }
++  let matches = matchRoutes(routes, {
++    pathname: remainingPathname
++  });
++  if (process.env.NODE_ENV !== "production") {
++    process.env.NODE_ENV !== "production" ? UNSAFE_warning(parentRoute || matches != null, "No routes matched location \"" + location.pathname + location.search + location.hash + "\" ") : void 0;
++    process.env.NODE_ENV !== "production" ? UNSAFE_warning(matches == null || matches[matches.length - 1].route.element !== undefined || matches[matches.length - 1].route.Component !== undefined || matches[matches.length - 1].route.lazy !== undefined, "Matched leaf route at location \"" + location.pathname + location.search + location.hash + "\" " + "does not have an element or Component. This means it will render an <Outlet /> with a " + "null value by default resulting in an \"empty\" page.") : void 0;
++  }
++  let renderedMatches = _renderMatches(matches && matches.map(match => Object.assign({}, match, {
++    params: Object.assign({}, parentParams, match.params),
++    pathname: joinPaths([parentPathnameBase,
++    // Re-encode pathnames that were decoded inside matchRoutes
++    navigator.encodeLocation ? navigator.encodeLocation(match.pathname).pathname : match.pathname]),
++    pathnameBase: match.pathnameBase === "/" ? parentPathnameBase : joinPaths([parentPathnameBase,
++    // Re-encode pathnames that were decoded inside matchRoutes
++    navigator.encodeLocation ? navigator.encodeLocation(match.pathnameBase).pathname : match.pathnameBase])
++  })), parentMatches, dataRouterState, future);
++
++  // When a user passes in a `locationArg`, the associated routes need to
++  // be wrapped in a new `LocationContext.Provider` in order for `useLocation`
++  // to use the scoped location instead of the global location.
++  if (locationArg && renderedMatches) {
++    return /*#__PURE__*/React.createElement(LocationContext.Provider, {
++      value: {
++        location: _extends({
++          pathname: "/",
++          search: "",
++          hash: "",
++          state: null,
++          key: "default"
++        }, location),
++        navigationType: Action.Pop
++      }
++    }, renderedMatches);
++  }
++  return renderedMatches;
++}
++function DefaultErrorComponent() {
++  let error = useRouteError();
++  let message = isRouteErrorResponse(error) ? error.status + " " + error.statusText : error instanceof Error ? error.message : JSON.stringify(error);
++  let stack = error instanceof Error ? error.stack : null;
++  let lightgrey = "rgba(200,200,200, 0.5)";
++  let preStyles = {
++    padding: "0.5rem",
++    backgroundColor: lightgrey
++  };
++  let codeStyles = {
++    padding: "2px 4px",
++    backgroundColor: lightgrey
++  };
++  let devInfo = null;
++  if (process.env.NODE_ENV !== "production") {
++    console.error("Error handled by React Router default ErrorBoundary:", error);
++    devInfo = /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", null, "\uD83D\uDCBF Hey developer \uD83D\uDC4B"), /*#__PURE__*/React.createElement("p", null, "You can provide a way better UX than this when your app throws errors by providing your own ", /*#__PURE__*/React.createElement("code", {
++      style: codeStyles
++    }, "ErrorBoundary"), " or", " ", /*#__PURE__*/React.createElement("code", {
++      style: codeStyles
++    }, "errorElement"), " prop on your route."));
++  }
++  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("h2", null, "Unexpected Application Error!"), /*#__PURE__*/React.createElement("h3", {
++    style: {
++      fontStyle: "italic"
++    }
++  }, message), stack ? /*#__PURE__*/React.createElement("pre", {
++    style: preStyles
++  }, stack) : null, devInfo);
++}
++const defaultErrorElement = /*#__PURE__*/React.createElement(DefaultErrorComponent, null);
++class RenderErrorBoundary extends React.Component {
++  constructor(props) {
++    super(props);
++    this.state = {
++      location: props.location,
++      revalidation: props.revalidation,
++      error: props.error
++    };
++  }
++  static getDerivedStateFromError(error) {
++    return {
++      error: error
++    };
++  }
++  static getDerivedStateFromProps(props, state) {
++    // When we get into an error state, the user will likely click "back" to the
++    // previous page that didn't have an error. Because this wraps the entire
++    // application, that will have no effect--the error page continues to display.
++    // This gives us a mechanism to recover from the error when the location changes.
++    //
++    // Whether we're in an error state or not, we update the location in state
++    // so that when we are in an error state, it gets reset when a new location
++    // comes in and the user recovers from the error.
++    if (state.location !== props.location || state.revalidation !== "idle" && props.revalidation === "idle") {
++      return {
++        error: props.error,
++        location: props.location,
++        revalidation: props.revalidation
++      };
++    }
++
++    // If we're not changing locations, preserve the location but still surface
++    // any new errors that may come through. We retain the existing error, we do
++    // this because the error provided from the app state may be cleared without
++    // the location changing.
++    return {
++      error: props.error !== undefined ? props.error : state.error,
++      location: state.location,
++      revalidation: props.revalidation || state.revalidation
++    };
++  }
++  componentDidCatch(error, errorInfo) {
 +    // NOTE(calebmer): Our application error handlers are already responsible for
 +    // logging React errors. `react-router` is just adding noise.
-   }
-   render() {
--    return this.state.error ? /*#__PURE__*/React.createElement(RouteContext.Provider, {
--      value: this.props.routeContext
++  }
++  render() {
 +    let {match} = this.props;
 +    let dataRouterContext = this.context;
 +
@@ -25,7 +599,1049 @@ index 5e9d570eaffa2c55e3903bbbd6981f5330e6d890..0b2166e1e3f66ca874221a3c2d6d164b
 +    }
 +
 +    return /*#__PURE__*/React.createElement(RouteContext.Provider, {
-+      value: this.state.error ? {...this.props.routeContext, outlet: null} : this.props.routeContext
++      value: this.state.error !== undefined ? {...this.props.routeContext, outlet: null} : this.props.routeContext
++    }, /*#__PURE__*/React.createElement(RouteErrorContext.Provider, {
++      value: this.state.error,
++      // NOTE(calebmer): We want our error element and ok element to have the
++      // same React key path so they share state across renders. We restructure
++      // `react-router` code a bit here so that `<RenderedRoute>` logic happens
++      // here in `<RenderErrorBoundary>`.
++      children: this.state.error !== undefined ? this.props.component : this.props.children
++    }));
++  }
++}
++RenderErrorBoundary.contextType = DataRouterContext;
++function RenderedRoute(_ref) {
++  let {
++    routeContext,
++    match,
++    children
++  } = _ref;
++  let dataRouterContext = React.useContext(DataRouterContext);
++
++  // Track how deep we got in our render pass to emulate SSR componentDidCatch
++  // in a DataStaticRouter
++  if (dataRouterContext && dataRouterContext.static && dataRouterContext.staticContext && (match.route.errorElement || match.route.ErrorBoundary)) {
++    dataRouterContext.staticContext._deepestRenderedBoundaryId = match.route.id;
++  }
++  return /*#__PURE__*/React.createElement(RouteContext.Provider, {
++    value: routeContext
++  }, children);
++}
++function _renderMatches(matches, parentMatches, dataRouterState, future, options) {
++  var _dataRouterState2;
++  if (parentMatches === void 0) {
++    parentMatches = [];
++  }
++  if (dataRouterState === void 0) {
++    dataRouterState = null;
++  }
++  if (future === void 0) {
++    future = null;
++  }
++  if (options === void 0) {
++    options = {};
++  }
++  if (matches == null) {
++    var _dataRouterState;
++    if ((_dataRouterState = dataRouterState) != null && _dataRouterState.errors) {
++      // Don't bail if we have data router errors so we can render them in the
++      // boundary.  Use the pre-matched (or shimmed) matches
++      matches = dataRouterState.matches;
++    } else {
++      return null;
++    }
++  }
++  let renderedMatches = matches;
++
++  // If we have data errors, trim matches to the highest error boundary
++  let errors = (_dataRouterState2 = dataRouterState) == null ? void 0 : _dataRouterState2.errors;
++  if (errors != null) {
++    let errorIndex = renderedMatches.findIndex(m => m.route.id && (errors == null ? void 0 : errors[m.route.id]) !== undefined);
++    !(errorIndex >= 0) ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, "Could not find a matching route for errors on route IDs: " + Object.keys(errors).join(",")) : UNSAFE_invariant(false) : void 0;
++    renderedMatches = renderedMatches.slice(0, Math.min(renderedMatches.length, errorIndex + 1));
++  }
++
++  // If we're in a partial hydration mode, detect if we need to render down to
++  // a given HydrateFallback while we load the rest of the hydration data
++  let renderFallback = false;
++  let fallbackIndex = -1;
++  if (dataRouterState && future && future.v7_partialHydration) {
++    for (let i = 0; i < renderedMatches.length; i++) {
++      let match = renderedMatches[i];
++      // Track the deepest fallback up until the first route without data
++      if (match.route.HydrateFallback || match.route.hydrateFallbackElement) {
++        fallbackIndex = i;
++      }
++      if (match.route.id) {
++        let {
++          loaderData,
++          errors
++        } = dataRouterState;
++        let needsToRunLoader = match.route.loader && loaderData[match.route.id] === undefined && (!errors || errors[match.route.id] === undefined);
++        if (match.route.lazy || needsToRunLoader) {
++          // We found the first route that's not ready to render (waiting on
++          // lazy, or has a loader that hasn't run yet).  Flag that we need to
++          // render a fallback and render up until the appropriate fallback
++          renderFallback = true;
++          if (fallbackIndex >= 0) {
++            renderedMatches = renderedMatches.slice(0, fallbackIndex + 1);
++          } else {
++            renderedMatches = [renderedMatches[0]];
++          }
++          break;
++        }
++      }
++    }
++  }
++  return renderedMatches.reduceRight((outlet, match, index) => {
++    // Only data routers handle errors/fallbacks
++    let error;
++    let shouldRenderHydrateFallback = false;
++    let errorElement = null;
++    let hydrateFallbackElement = null;
++    if (dataRouterState) {
++      error = errors && match.route.id ? errors[match.route.id] : undefined;
++      errorElement = match.route.errorElement || defaultErrorElement;
++      if (renderFallback) {
++        if (fallbackIndex < 0 && index === 0) {
++          warningOnce("route-fallback", false, "No `HydrateFallback` element provided to render during initial hydration");
++          shouldRenderHydrateFallback = true;
++          hydrateFallbackElement = null;
++        } else if (fallbackIndex === index) {
++          shouldRenderHydrateFallback = true;
++          hydrateFallbackElement = match.route.hydrateFallbackElement || null;
++        }
++      }
++    }
++    let matches = parentMatches.concat(renderedMatches.slice(0, index + 1));
++    let getChildren = (wrap) => {
++      let children;
++      if (error) {
++        children = errorElement;
++      } else if (shouldRenderHydrateFallback) {
++        children = hydrateFallbackElement;
++      } else if (match.route.Component) {
++        // Note: This is a de-optimized path since React won't re-use the
++        // ReactElement since it's identity changes with each new
++        // React.createElement call.  We keep this so folks can use
++        // `<Route Component={...}>` in `<Routes>` but generally `Component`
++        // usage is only advised in `RouterProvider` when we can convert it to
++        // `element` ahead of time.
++        children = /*#__PURE__*/React.createElement(match.route.Component, null);
++      } else if (match.route.element) {
++        children = match.route.element;
++      } else {
++        children = outlet;
++      }
++      if (!wrap) {
++        return children;
++      }
++      return /*#__PURE__*/React.createElement(RenderedRoute, {
++        match: match,
++        routeContext: {
++          outlet,
++          matches,
++          isDataRoute: dataRouterState != null
++        },
++        children: children
++      });
++    };
++    // Only wrap in an error boundary within data router usages when we have an
++    // ErrorBoundary/errorElement on this route.  Otherwise let it bubble up to
++    // an ancestor ErrorBoundary/errorElement
++    //
++    // NOTE(calebmer): Allow turning off error boundary wrapping for the first
++    // route. We use this when rendering inert routes in our native mobile app
++    // to make sure we can maintain the same React key path between when the
++    // route is inert vs not inert.
++    return dataRouterState && (match.route.ErrorBoundary || match.route.errorElement || (!options.disableErrorBoundaryForFirstMatch && index === 0)) ? /*#__PURE__*/React.createElement(RenderErrorBoundary, {
++      location: dataRouterState.location,
++      revalidation: dataRouterState.revalidation,
++      component: errorElement,
++      error: error,
++      children: getChildren(false),
++      match: match,
++      routeContext: {
++        outlet: outlet,
++        matches,
++        isDataRoute: true
++      }
++    }) : getChildren(true);
++  }, null);
++}
++var DataRouterHook = /*#__PURE__*/function (DataRouterHook) {
++  DataRouterHook["UseBlocker"] = "useBlocker";
++  DataRouterHook["UseRevalidator"] = "useRevalidator";
++  DataRouterHook["UseNavigateStable"] = "useNavigate";
++  return DataRouterHook;
++}(DataRouterHook || {});
++var DataRouterStateHook = /*#__PURE__*/function (DataRouterStateHook) {
++  DataRouterStateHook["UseBlocker"] = "useBlocker";
++  DataRouterStateHook["UseLoaderData"] = "useLoaderData";
++  DataRouterStateHook["UseActionData"] = "useActionData";
++  DataRouterStateHook["UseRouteError"] = "useRouteError";
++  DataRouterStateHook["UseNavigation"] = "useNavigation";
++  DataRouterStateHook["UseRouteLoaderData"] = "useRouteLoaderData";
++  DataRouterStateHook["UseMatches"] = "useMatches";
++  DataRouterStateHook["UseRevalidator"] = "useRevalidator";
++  DataRouterStateHook["UseNavigateStable"] = "useNavigate";
++  DataRouterStateHook["UseRouteId"] = "useRouteId";
++  return DataRouterStateHook;
++}(DataRouterStateHook || {});
++function getDataRouterConsoleError(hookName) {
++  return hookName + " must be used within a data router.  See https://reactrouter.com/routers/picking-a-router.";
++}
++function useDataRouterContext(hookName) {
++  let ctx = React.useContext(DataRouterContext);
++  !ctx ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, getDataRouterConsoleError(hookName)) : UNSAFE_invariant(false) : void 0;
++  return ctx;
++}
++function useDataRouterState(hookName) {
++  let state = React.useContext(DataRouterStateContext);
++  !state ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, getDataRouterConsoleError(hookName)) : UNSAFE_invariant(false) : void 0;
++  return state;
++}
++function useRouteContext(hookName) {
++  let route = React.useContext(RouteContext);
++  !route ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, getDataRouterConsoleError(hookName)) : UNSAFE_invariant(false) : void 0;
++  return route;
++}
++
++// Internal version with hookName-aware debugging
++function useCurrentRouteId(hookName) {
++  let route = useRouteContext(hookName);
++  let thisRoute = route.matches[route.matches.length - 1];
++  !thisRoute.route.id ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, hookName + " can only be used on routes that contain a unique \"id\"") : UNSAFE_invariant(false) : void 0;
++  return thisRoute.route.id;
++}
++
++/**
++ * Returns the ID for the nearest contextual route
++ */
++function useRouteId() {
++  return useCurrentRouteId(DataRouterStateHook.UseRouteId);
++}
++
++/**
++ * Returns the current navigation, defaulting to an "idle" navigation when
++ * no navigation is in progress
++ */
++function useNavigation() {
++  let state = useDataRouterState(DataRouterStateHook.UseNavigation);
++  return state.navigation;
++}
++
++/**
++ * Returns a revalidate function for manually triggering revalidation, as well
++ * as the current state of any manual revalidations
++ */
++function useRevalidator() {
++  let dataRouterContext = useDataRouterContext(DataRouterHook.UseRevalidator);
++  let state = useDataRouterState(DataRouterStateHook.UseRevalidator);
++  return React.useMemo(() => ({
++    revalidate: dataRouterContext.router.revalidate,
++    state: state.revalidation
++  }), [dataRouterContext.router.revalidate, state.revalidation]);
++}
++
++/**
++ * Returns the active route matches, useful for accessing loaderData for
++ * parent/child routes or the route "handle" property
++ */
++function useMatches() {
++  let {
++    matches,
++    loaderData
++  } = useDataRouterState(DataRouterStateHook.UseMatches);
++  return React.useMemo(() => matches.map(m => UNSAFE_convertRouteMatchToUiMatch(m, loaderData)), [matches, loaderData]);
++}
++
++/**
++ * Returns the loader data for the nearest ancestor Route loader
++ */
++function useLoaderData() {
++  let state = useDataRouterState(DataRouterStateHook.UseLoaderData);
++  let routeId = useCurrentRouteId(DataRouterStateHook.UseLoaderData);
++  if (state.errors && state.errors[routeId] != null) {
++    console.error("You cannot `useLoaderData` in an errorElement (routeId: " + routeId + ")");
++    return undefined;
++  }
++  return state.loaderData[routeId];
++}
++
++/**
++ * Returns the loaderData for the given routeId
++ */
++function useRouteLoaderData(routeId) {
++  let state = useDataRouterState(DataRouterStateHook.UseRouteLoaderData);
++  return state.loaderData[routeId];
++}
++
++/**
++ * Returns the action data for the nearest ancestor Route action
++ */
++function useActionData() {
++  let state = useDataRouterState(DataRouterStateHook.UseActionData);
++  let routeId = useCurrentRouteId(DataRouterStateHook.UseLoaderData);
++  return state.actionData ? state.actionData[routeId] : undefined;
++}
++
++/**
++ * Returns the nearest ancestor Route error, which could be a loader/action
++ * error or a render error.  This is intended to be called from your
++ * ErrorBoundary/errorElement to display a proper error message.
++ */
++function useRouteError() {
++  var _state$errors;
++  let error = React.useContext(RouteErrorContext);
++  let state = useDataRouterState(DataRouterStateHook.UseRouteError);
++  let routeId = useCurrentRouteId(DataRouterStateHook.UseRouteError);
++
++  // If this was a render error, we put it in a RouteError context inside
++  // of RenderErrorBoundary
++  if (error !== undefined) {
++    return error;
++  }
++
++  // Otherwise look for errors from our data router state
++  return (_state$errors = state.errors) == null ? void 0 : _state$errors[routeId];
++}
++
++/**
++ * Returns the happy-path data from the nearest ancestor `<Await />` value
++ */
++function useAsyncValue() {
++  let value = React.useContext(AwaitContext);
++  return value == null ? void 0 : value._data;
++}
++
++/**
++ * Returns the error from the nearest ancestor `<Await />` value
++ */
++function useAsyncError() {
++  let value = React.useContext(AwaitContext);
++  return value == null ? void 0 : value._error;
++}
++let blockerId = 0;
++
++/**
++ * Allow the application to block navigations within the SPA and present the
++ * user a confirmation dialog to confirm the navigation.  Mostly used to avoid
++ * using half-filled form data.  This does not handle hard-reloads or
++ * cross-origin navigations.
++ */
++function useBlocker(shouldBlock) {
++  let {
++    router,
++    basename
++  } = useDataRouterContext(DataRouterHook.UseBlocker);
++  let state = useDataRouterState(DataRouterStateHook.UseBlocker);
++  let [blockerKey, setBlockerKey] = React.useState("");
++  let blockerFunction = React.useCallback(arg => {
++    if (typeof shouldBlock !== "function") {
++      return !!shouldBlock;
++    }
++    if (basename === "/") {
++      return shouldBlock(arg);
++    }
++
++    // If they provided us a function and we've got an active basename, strip
++    // it from the locations we expose to the user to match the behavior of
++    // useLocation
++    let {
++      currentLocation,
++      nextLocation,
++      historyAction
++    } = arg;
++    return shouldBlock({
++      currentLocation: _extends({}, currentLocation, {
++        pathname: stripBasename(currentLocation.pathname, basename) || currentLocation.pathname
++      }),
++      nextLocation: _extends({}, nextLocation, {
++        pathname: stripBasename(nextLocation.pathname, basename) || nextLocation.pathname
++      }),
++      historyAction
++    });
++  }, [basename, shouldBlock]);
++
++  // This effect is in charge of blocker key assignment and deletion (which is
++  // tightly coupled to the key)
++  React.useEffect(() => {
++    let key = String(++blockerId);
++    setBlockerKey(key);
++    return () => router.deleteBlocker(key);
++  }, [router]);
++
++  // This effect handles assigning the blockerFunction.  This is to handle
++  // unstable blocker function identities, and happens only after the prior
++  // effect so we don't get an orphaned blockerFunction in the router with a
++  // key of "".  Until then we just have the IDLE_BLOCKER.
++  React.useEffect(() => {
++    if (blockerKey !== "") {
++      router.getBlocker(blockerKey, blockerFunction);
++    }
++  }, [router, blockerKey, blockerFunction]);
++
++  // Prefer the blocker from `state` not `router.state` since DataRouterContext
++  // is memoized so this ensures we update on blocker state updates
++  return blockerKey && state.blockers.has(blockerKey) ? state.blockers.get(blockerKey) : IDLE_BLOCKER;
++}
++
++/**
++ * Stable version of useNavigate that is used when we are in the context of
++ * a RouterProvider.
++ */
++function useNavigateStable() {
++  let {
++    router
++  } = useDataRouterContext(DataRouterHook.UseNavigateStable);
++  let id = useCurrentRouteId(DataRouterStateHook.UseNavigateStable);
++  let activeRef = React.useRef(false);
++  useIsomorphicLayoutEffect(() => {
++    activeRef.current = true;
++  });
++  let navigate = React.useCallback(function (to, options) {
++    if (options === void 0) {
++      options = {};
++    }
++    process.env.NODE_ENV !== "production" ? UNSAFE_warning(activeRef.current, navigateEffectWarning) : void 0;
++
++    // Short circuit here since if this happens on first render the navigate
++    // is useless because we haven't wired up our router subscriber yet
++    if (!activeRef.current) return;
++    if (typeof to === "number") {
++      router.navigate(to);
++    } else {
++      router.navigate(to, _extends({
++        fromRouteId: id
++      }, options));
++    }
++  }, [router, id]);
++  return navigate;
++}
++const alreadyWarned = {};
++function warningOnce(key, cond, message) {
++  if (!cond && !alreadyWarned[key]) {
++    alreadyWarned[key] = true;
++    process.env.NODE_ENV !== "production" ? UNSAFE_warning(false, message) : void 0;
++  }
++}
++
++/**
++  Webpack + React 17 fails to compile on any of the following because webpack
++  complains that `startTransition` doesn't exist in `React`:
++  * import { startTransition } from "react"
++  * import * as React from from "react";
++    "startTransition" in React ? React.startTransition(() => setState()) : setState()
++  * import * as React from from "react";
++    "startTransition" in React ? React["startTransition"](() => setState()) : setState()
++
++  Moving it to a constant such as the following solves the Webpack/React 17 issue:
++  * import * as React from from "react";
++    const START_TRANSITION = "startTransition";
++    START_TRANSITION in React ? React[START_TRANSITION](() => setState()) : setState()
++
++  However, that introduces webpack/terser minification issues in production builds
++  in React 18 where minification/obfuscation ends up removing the call of
++  React.startTransition entirely from the first half of the ternary.  Grabbing
++  this exported reference once up front resolves that issue.
++
++  See https://github.com/remix-run/react-router/issues/10579
++*/
++const START_TRANSITION = "startTransition";
++const startTransitionImpl = React[START_TRANSITION];
++
++/**
++ * Given a Remix Router instance, render the appropriate UI
++ */
++function RouterProvider(_ref) {
++  let {
++    fallbackElement,
++    router,
++    future,
++    dangerouslyAllowNesting
++  } = _ref;
++  let [state, setStateImpl] = React.useState(router.state);
++  let {
++    v7_startTransition
++  } = future || {};
++  let setState = React.useCallback(newState => {
++    if (v7_startTransition && startTransitionImpl) {
++      startTransitionImpl(() => setStateImpl(newState));
++    } else {
++      setStateImpl(newState);
++    }
++  }, [setStateImpl, v7_startTransition]);
++
++  // Need to use a layout effect here so we are subscribed early enough to
++  // pick up on any render-driven redirects/navigations (useEffect/<Navigate>)
++  React.useLayoutEffect(() => router.subscribe(setState), [router, setState]);
++  React.useEffect(() => {
++    process.env.NODE_ENV !== "production" ? UNSAFE_warning(fallbackElement == null || !router.future.v7_partialHydration, "`<RouterProvider fallbackElement>` is deprecated when using " + "`v7_partialHydration`, use a `HydrateFallback` component instead") : void 0;
++    // Only log this once on initial mount
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, []);
++  let navigator = React.useMemo(() => {
++    return {
++      createHref: router.createHref,
++      encodeLocation: router.encodeLocation,
++      go: n => router.navigate(n),
++      push: (to, state, opts) => router.navigate(to, {
++        state,
++        preventScrollReset: opts == null ? void 0 : opts.preventScrollReset
++      }),
++      replace: (to, state, opts) => router.navigate(to, {
++        replace: true,
++        state,
++        preventScrollReset: opts == null ? void 0 : opts.preventScrollReset
++      })
++    };
++  }, [router]);
++  let basename = router.basename || "/";
++  let dataRouterContext = React.useMemo(() => ({
++    router,
++    navigator,
++    static: false,
++    basename
++  }), [router, navigator, basename]);
++
++  // The fragment and {null} here are important!  We need them to keep React 18's
++  // useId happy when we are server-rendering since we may have a <script> here
++  // containing the hydrated server-side staticContext (from StaticRouterProvider).
++  // useId relies on the component tree structure to generate deterministic id's
++  // so we need to ensure it remains the same on the client even though
++  // we don't need the <script> tag
++  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(DataRouterContext.Provider, {
++    value: dataRouterContext
++  }, /*#__PURE__*/React.createElement(DataRouterStateContext.Provider, {
++    value: state
++  }, /*#__PURE__*/React.createElement(Router, {
++    basename: basename,
++    location: state.location,
++    navigationType: state.historyAction,
++    navigator: navigator,
++    dangerouslyAllowNesting: dangerouslyAllowNesting,
++    future: {
++      v7_relativeSplatPath: router.future.v7_relativeSplatPath
++    }
++  }, state.initialized || router.future.v7_partialHydration ? /*#__PURE__*/React.createElement(DataRoutes, {
++    routes: router.routes,
++    future: router.future,
++    state: state
++  }) : fallbackElement))), null);
++}
++function DataRoutes(_ref2) {
++  let {
++    routes,
++    future,
++    state
++  } = _ref2;
++  return useRoutesImpl(routes, undefined, state, future);
++}
++/**
++ * A `<Router>` that stores all entries in memory.
++ *
++ * @see https://reactrouter.com/router-components/memory-router
++ */
++function MemoryRouter(_ref3) {
++  let {
++    basename,
++    children,
++    initialEntries,
++    initialIndex,
++    future
++  } = _ref3;
++  let historyRef = React.useRef();
++  if (historyRef.current == null) {
++    historyRef.current = createMemoryHistory({
++      initialEntries,
++      initialIndex,
++      v5Compat: true
++    });
++  }
++  let history = historyRef.current;
++  let [state, setStateImpl] = React.useState({
++    action: history.action,
++    location: history.location
++  });
++  let {
++    v7_startTransition
++  } = future || {};
++  let setState = React.useCallback(newState => {
++    v7_startTransition && startTransitionImpl ? startTransitionImpl(() => setStateImpl(newState)) : setStateImpl(newState);
++  }, [setStateImpl, v7_startTransition]);
++  React.useLayoutEffect(() => history.listen(setState), [history, setState]);
++  return /*#__PURE__*/React.createElement(Router, {
++    basename: basename,
++    children: children,
++    location: state.location,
++    navigationType: state.action,
++    navigator: history,
++    future: future
++  });
++}
++/**
++ * Changes the current location.
++ *
++ * Note: This API is mostly useful in React.Component subclasses that are not
++ * able to use hooks. In functional components, we recommend you use the
++ * `useNavigate` hook instead.
++ *
++ * @see https://reactrouter.com/components/navigate
++ */
++function Navigate(_ref4) {
++  let {
++    to,
++    replace,
++    state,
++    relative
++  } = _ref4;
++  !useInRouterContext() ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, // TODO: This error is probably because they somehow have 2 versions of
++  // the router loaded. We can help them understand how to avoid that.
++  "<Navigate> may be used only in the context of a <Router> component.") : UNSAFE_invariant(false) : void 0;
++  let {
++    future,
++    static: isStatic
++  } = React.useContext(NavigationContext);
++  process.env.NODE_ENV !== "production" ? UNSAFE_warning(!isStatic, "<Navigate> must not be used on the initial render in a <StaticRouter>. " + "This is a no-op, but you should modify your code so the <Navigate> is " + "only ever rendered in response to some user interaction or state change.") : void 0;
++  let {
++    matches
++  } = React.useContext(RouteContext);
++  let {
++    pathname: locationPathname
++  } = useLocation();
++  let navigate = useNavigate();
++
++  // Resolve the path outside of the effect so that when effects run twice in
++  // StrictMode they navigate to the same place
++  let path = resolveTo(to, UNSAFE_getResolveToMatches(matches, future.v7_relativeSplatPath), locationPathname, relative === "path");
++  let jsonPath = JSON.stringify(path);
++  React.useEffect(() => navigate(JSON.parse(jsonPath), {
++    replace,
++    state,
++    relative
++  }), [navigate, jsonPath, relative, replace, state]);
++  return null;
++}
++/**
++ * Renders the child route's element, if there is one.
++ *
++ * @see https://reactrouter.com/components/outlet
++ */
++function Outlet(props) {
++  return useOutlet(props.context);
++}
++/**
++ * Declares an element that should be rendered at a certain URL path.
++ *
++ * @see https://reactrouter.com/components/route
++ */
++function Route(_props) {
++  process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, "A <Route> is only ever to be used as the child of <Routes> element, " + "never rendered directly. Please wrap your <Route> in a <Routes>.") : UNSAFE_invariant(false) ;
++}
++/**
++ * Provides location context for the rest of the app.
++ *
++ * Note: You usually won't render a `<Router>` directly. Instead, you'll render a
++ * router that is more specific to your environment such as a `<BrowserRouter>`
++ * in web browsers or a `<StaticRouter>` for server rendering.
++ *
++ * @see https://reactrouter.com/router-components/router
++ */
++function Router(_ref5) {
++  let {
++    basename: basenameProp = "/",
++    children = null,
++    location: locationProp,
++    navigationType = Action.Pop,
++    navigator,
++    static: staticProp = false,
++    future,
++    dangerouslyAllowNesting = false
++  } = _ref5;
++  // NOTE(calebmer): We need nested router support for implementing peeks.
++  // Taking full responsibility for any nested router issues. Acknowledge this
++  // is not officially supported by calling the prop "dangerous".
++  !(!useInRouterContext() || dangerouslyAllowNesting) ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, "You cannot render a <Router> inside another <Router>." + " You should never have more than one in your app.") : UNSAFE_invariant(false) : void 0;
++
++  // Preserve trailing slashes on basename, so we can let the user control
++  // the enforcement of trailing slashes throughout the app
++  let basename = basenameProp.replace(/^\/*/, "/");
++  let navigationContext = React.useMemo(() => ({
++    basename,
++    navigator,
++    static: staticProp,
++    future: _extends({
++      v7_relativeSplatPath: false
++    }, future)
++  }), [basename, future, navigator, staticProp]);
++  if (typeof locationProp === "string") {
++    locationProp = parsePath(locationProp);
++  }
++  let {
++    pathname = "/",
++    search = "",
++    hash = "",
++    state = null,
++    key = "default"
++  } = locationProp;
++  let locationContext = React.useMemo(() => {
++    let trailingPathname = stripBasename(pathname, basename);
++    if (trailingPathname == null) {
++      return null;
++    }
++    return {
++      location: {
++        pathname: trailingPathname,
++        search,
++        hash,
++        state,
++        key
++      },
++      navigationType
++    };
++  }, [basename, pathname, search, hash, state, key, navigationType]);
++  process.env.NODE_ENV !== "production" ? UNSAFE_warning(locationContext != null, "<Router basename=\"" + basename + "\"> is not able to match the URL " + ("\"" + pathname + search + hash + "\" because it does not start with the ") + "basename, so the <Router> won't render anything.") : void 0;
++  if (locationContext == null) {
++    return null;
++  }
++  return /*#__PURE__*/React.createElement(NavigationContext.Provider, {
++    value: navigationContext
++  }, /*#__PURE__*/React.createElement(LocationContext.Provider, {
++    children: children,
++    value: locationContext
++  }));
++}
++/**
++ * A container for a nested tree of `<Route>` elements that renders the branch
++ * that best matches the current location.
++ *
++ * @see https://reactrouter.com/components/routes
++ */
++function Routes(_ref6) {
++  let {
++    children,
++    location
++  } = _ref6;
++  return useRoutes(createRoutesFromChildren(children), location);
++}
++/**
++ * Component to use for rendering lazily loaded data from returning defer()
++ * in a loader function
++ */
++function Await(_ref7) {
++  let {
++    children,
++    errorElement,
++    resolve
++  } = _ref7;
++  return /*#__PURE__*/React.createElement(AwaitErrorBoundary, {
++    resolve: resolve,
++    errorElement: errorElement
++  }, /*#__PURE__*/React.createElement(ResolveAwait, null, children));
++}
++var AwaitRenderStatus = /*#__PURE__*/function (AwaitRenderStatus) {
++  AwaitRenderStatus[AwaitRenderStatus["pending"] = 0] = "pending";
++  AwaitRenderStatus[AwaitRenderStatus["success"] = 1] = "success";
++  AwaitRenderStatus[AwaitRenderStatus["error"] = 2] = "error";
++  return AwaitRenderStatus;
++}(AwaitRenderStatus || {});
++const neverSettledPromise = new Promise(() => {});
++class AwaitErrorBoundary extends React.Component {
++  constructor(props) {
++    super(props);
++    this.state = {
++      error: null
++    };
++  }
++  static getDerivedStateFromError(error) {
++    return {
++      error
++    };
++  }
++  componentDidCatch(error, errorInfo) {
++    console.error("<Await> caught the following error during render", error, errorInfo);
++  }
++  render() {
++    let {
++      children,
++      errorElement,
++      resolve
++    } = this.props;
++    let promise = null;
++    let status = AwaitRenderStatus.pending;
++    if (!(resolve instanceof Promise)) {
++      // Didn't get a promise - provide as a resolved promise
++      status = AwaitRenderStatus.success;
++      promise = Promise.resolve();
++      Object.defineProperty(promise, "_tracked", {
++        get: () => true
++      });
++      Object.defineProperty(promise, "_data", {
++        get: () => resolve
++      });
++    } else if (this.state.error) {
++      // Caught a render error, provide it as a rejected promise
++      status = AwaitRenderStatus.error;
++      let renderError = this.state.error;
++      promise = Promise.reject().catch(() => {}); // Avoid unhandled rejection warnings
++      Object.defineProperty(promise, "_tracked", {
++        get: () => true
++      });
++      Object.defineProperty(promise, "_error", {
++        get: () => renderError
++      });
++    } else if (resolve._tracked) {
++      // Already tracked promise - check contents
++      promise = resolve;
++      status = "_error" in promise ? AwaitRenderStatus.error : "_data" in promise ? AwaitRenderStatus.success : AwaitRenderStatus.pending;
++    } else {
++      // Raw (untracked) promise - track it
++      status = AwaitRenderStatus.pending;
++      Object.defineProperty(resolve, "_tracked", {
++        get: () => true
++      });
++      promise = resolve.then(data => Object.defineProperty(resolve, "_data", {
++        get: () => data
++      }), error => Object.defineProperty(resolve, "_error", {
++        get: () => error
++      }));
++    }
++    if (status === AwaitRenderStatus.error && promise._error instanceof AbortedDeferredError) {
++      // Freeze the UI by throwing a never resolved promise
++      throw neverSettledPromise;
++    }
++    if (status === AwaitRenderStatus.error && !errorElement) {
++      // No errorElement, throw to the nearest route-level error boundary
++      throw promise._error;
++    }
++    if (status === AwaitRenderStatus.error) {
++      // Render via our errorElement
++      return /*#__PURE__*/React.createElement(AwaitContext.Provider, {
++        value: promise,
++        children: errorElement
++      });
++    }
++    if (status === AwaitRenderStatus.success) {
++      // Render children with resolved value
++      return /*#__PURE__*/React.createElement(AwaitContext.Provider, {
++        value: promise,
++        children: children
++      });
++    }
++
++    // Throw to the suspense boundary
++    throw promise;
++  }
++}
++
++/**
++ * @private
++ * Indirection to leverage useAsyncValue for a render-prop API on `<Await>`
++ */
++function ResolveAwait(_ref8) {
++  let {
++    children
++  } = _ref8;
++  let data = useAsyncValue();
++  let toRender = typeof children === "function" ? children(data) : children;
++  return /*#__PURE__*/React.createElement(React.Fragment, null, toRender);
++}
++
++///////////////////////////////////////////////////////////////////////////////
++// UTILS
++///////////////////////////////////////////////////////////////////////////////
++
++/**
++ * Creates a route config from a React "children" object, which is usually
++ * either a `<Route>` element or an array of them. Used internally by
++ * `<Routes>` to create a route config from its children.
++ *
++ * @see https://reactrouter.com/utils/create-routes-from-children
++ */
++function createRoutesFromChildren(children, parentPath) {
++  if (parentPath === void 0) {
++    parentPath = [];
++  }
++  let routes = [];
++  React.Children.forEach(children, (element, index) => {
++    if (! /*#__PURE__*/React.isValidElement(element)) {
++      // Ignore non-elements. This allows people to more easily inline
++      // conditionals in their route config.
++      return;
++    }
++    let treePath = [...parentPath, index];
++    if (element.type === React.Fragment) {
++      // Transparently support React.Fragment and its children.
++      routes.push.apply(routes, createRoutesFromChildren(element.props.children, treePath));
++      return;
++    }
++    !(element.type === Route) ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, "[" + (typeof element.type === "string" ? element.type : element.type.name) + "] is not a <Route> component. All component children of <Routes> must be a <Route> or <React.Fragment>") : UNSAFE_invariant(false) : void 0;
++    !(!element.props.index || !element.props.children) ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, "An index route cannot have child routes.") : UNSAFE_invariant(false) : void 0;
++    let route = {
++      id: element.props.id || treePath.join("-"),
++      caseSensitive: element.props.caseSensitive,
++      element: element.props.element,
++      Component: element.props.Component,
++      index: element.props.index,
++      path: element.props.path,
++      loader: element.props.loader,
++      action: element.props.action,
++      errorElement: element.props.errorElement,
++      ErrorBoundary: element.props.ErrorBoundary,
++      hasErrorBoundary: element.props.ErrorBoundary != null || element.props.errorElement != null,
++      shouldRevalidate: element.props.shouldRevalidate,
++      handle: element.props.handle,
++      lazy: element.props.lazy
++    };
++    if (element.props.children) {
++      route.children = createRoutesFromChildren(element.props.children, treePath);
++    }
++    routes.push(route);
++  });
++  return routes;
++}
++
++/**
++ * Renders the result of `matchRoutes()` into a React element.
++ */
++// NOTE(calebmer): Pass all four arguments to `renderMatches()`.
++function renderMatches(matches, parentMatches, dataRouterState, future, options) {
++  return _renderMatches(matches, parentMatches, dataRouterState, future, options);
++}
++
++function mapRouteProperties(route) {
++  let updates = {
++    // Note: this check also occurs in createRoutesFromChildren so update
++    // there if you change this -- please and thank you!
++    hasErrorBoundary: route.ErrorBoundary != null || route.errorElement != null
++  };
++  if (route.Component) {
++    if (process.env.NODE_ENV !== "production") {
++      if (route.element) {
++        process.env.NODE_ENV !== "production" ? UNSAFE_warning(false, "You should not include both `Component` and `element` on your route - " + "`Component` will be used.") : void 0;
++      }
++    }
++    Object.assign(updates, {
++      element: /*#__PURE__*/React.createElement(route.Component),
++      Component: undefined
++    });
++  }
++  if (route.HydrateFallback) {
++    if (process.env.NODE_ENV !== "production") {
++      if (route.hydrateFallbackElement) {
++        process.env.NODE_ENV !== "production" ? UNSAFE_warning(false, "You should not include both `HydrateFallback` and `hydrateFallbackElement` on your route - " + "`HydrateFallback` will be used.") : void 0;
++      }
++    }
++    Object.assign(updates, {
++      hydrateFallbackElement: /*#__PURE__*/React.createElement(route.HydrateFallback),
++      HydrateFallback: undefined
++    });
++  }
++  if (route.ErrorBoundary) {
++    if (process.env.NODE_ENV !== "production") {
++      if (route.errorElement) {
++        process.env.NODE_ENV !== "production" ? UNSAFE_warning(false, "You should not include both `ErrorBoundary` and `errorElement` on your route - " + "`ErrorBoundary` will be used.") : void 0;
++      }
++    }
++    Object.assign(updates, {
++      errorElement: /*#__PURE__*/React.createElement(route.ErrorBoundary),
++      ErrorBoundary: undefined
++    });
++  }
++  return updates;
++}
++function createMemoryRouter(routes, opts) {
++  return createRouter({
++    basename: opts == null ? void 0 : opts.basename,
++    future: _extends({}, opts == null ? void 0 : opts.future, {
++      v7_prependBasename: true
++    }),
++    history: createMemoryHistory({
++      initialEntries: opts == null ? void 0 : opts.initialEntries,
++      initialIndex: opts == null ? void 0 : opts.initialIndex
++    }),
++    hydrationData: opts == null ? void 0 : opts.hydrationData,
++    routes,
++    mapRouteProperties,
++    unstable_dataStrategy: opts == null ? void 0 : opts.unstable_dataStrategy
++  }).initialize();
++}
++
++exports.Await = Await;
++exports.MemoryRouter = MemoryRouter;
++exports.Navigate = Navigate;
++exports.Outlet = Outlet;
++exports.Route = Route;
++exports.Router = Router;
++exports.RouterProvider = RouterProvider;
++exports.Routes = Routes;
++exports.UNSAFE_DataRouterContext = DataRouterContext;
++exports.UNSAFE_DataRouterStateContext = DataRouterStateContext;
++exports.UNSAFE_LocationContext = LocationContext;
++exports.UNSAFE_NavigationContext = NavigationContext;
++exports.UNSAFE_RouteContext = RouteContext;
++exports.UNSAFE_mapRouteProperties = mapRouteProperties;
++exports.UNSAFE_useRouteId = useRouteId;
++exports.UNSAFE_useRoutesImpl = useRoutesImpl;
++exports.createMemoryRouter = createMemoryRouter;
++exports.createRoutesFromChildren = createRoutesFromChildren;
++exports.createRoutesFromElements = createRoutesFromChildren;
++exports.renderMatches = renderMatches;
++exports.useActionData = useActionData;
++exports.useAsyncError = useAsyncError;
++exports.useAsyncValue = useAsyncValue;
++exports.useBlocker = useBlocker;
++exports.useHref = useHref;
++exports.useInRouterContext = useInRouterContext;
++exports.useLoaderData = useLoaderData;
++exports.useLocation = useLocation;
++exports.useMatch = useMatch;
++exports.useMatches = useMatches;
++exports.useNavigate = useNavigate;
++exports.useNavigation = useNavigation;
++exports.useNavigationType = useNavigationType;
++exports.useOutlet = useOutlet;
++exports.useOutletContext = useOutletContext;
++exports.useParams = useParams;
++exports.useResolvedPath = useResolvedPath;
++exports.useRevalidator = useRevalidator;
++exports.useRouteError = useRouteError;
++exports.useRouteLoaderData = useRouteLoaderData;
++exports.useRoutes = useRoutes;
++
++Object.defineProperty(exports, '__esModule', { value: true });
++
++// NOTE(calebmer): Don't use source map since our patches break the source map.
+diff --git a/dist/index.js b/dist/index.js
+index 7b7a033cb99a2ec947e95824d330994580fd7a10..e1b31008250cb54bfd0c0e4682b81cc4999c1ab1 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -501,17 +501,34 @@ class RenderErrorBoundary extends React.Component {
+     };
+   }
+   componentDidCatch(error, errorInfo) {
+-    console.error("React Router caught the following error during render", error, errorInfo);
++    // NOTE(calebmer): Our application error handlers are already responsible for
++    // logging React errors. `react-router` is just adding noise.
+   }
+   render() {
+-    return this.state.error !== undefined ? /*#__PURE__*/React.createElement(RouteContext.Provider, {
+-      value: this.props.routeContext
++    let {match} = this.props;
++    let dataRouterContext = this.context;
++
++    if (!this.state.error) {
++      // Track how deep we got in our render pass to emulate SSR componentDidCatch
++      // in a DataStaticRouter
++      if (dataRouterContext && dataRouterContext.static && dataRouterContext.staticContext && (match.route.errorElement || match.route.ErrorBoundary)) {
++        dataRouterContext.staticContext._deepestRenderedBoundaryId = match.route.id;
++      }
++    }      
++
++    return /*#__PURE__*/React.createElement(RouteContext.Provider, {
++      value: this.state.error !== undefined ? {...this.props.routeContext, outlet: null} : this.props.routeContext      
      }, /*#__PURE__*/React.createElement(RouteErrorContext.Provider, {
        value: this.state.error,
 -      children: this.props.component
@@ -34,7 +1650,7 @@ index 5e9d570eaffa2c55e3903bbbd6981f5330e6d890..0b2166e1e3f66ca874221a3c2d6d164b
 +      // same React key path so they share state across renders. We restructure
 +      // `react-router` code a bit here so that `<RenderedRoute>` logic happens
 +      // here in `<RenderErrorBoundary>`.
-+      children: this.state.error ? this.props.component : this.props.children
++      children: this.state.error !== undefined ? this.props.component : this.props.children
 +    }));
    }
  }
@@ -42,18 +1658,18 @@ index 5e9d570eaffa2c55e3903bbbd6981f5330e6d890..0b2166e1e3f66ca874221a3c2d6d164b
  function RenderedRoute(_ref) {
    let {
      routeContext,
-@@ -506,7 +523,7 @@ function RenderedRoute(_ref) {
+@@ -529,7 +546,7 @@ function RenderedRoute(_ref) {
      value: routeContext
    }, children);
  }
--function _renderMatches(matches, parentMatches, dataRouterState) {
-+function _renderMatches(matches, parentMatches, dataRouterState, options) {
+-function _renderMatches(matches, parentMatches, dataRouterState, future) {
++function _renderMatches(matches, parentMatches, dataRouterState, future, options) {
    var _dataRouterState2;
    if (parentMatches === void 0) {
      parentMatches = [];
-@@ -514,6 +531,9 @@ function _renderMatches(matches, parentMatches, dataRouterState) {
-   if (dataRouterState === void 0) {
-     dataRouterState = null;
+@@ -540,6 +557,9 @@ function _renderMatches(matches, parentMatches, dataRouterState, future) {
+   if (future === void 0) {
+     future = null;
    }
 +  if (options === void 0) {
 +    options = {};
@@ -61,8 +1677,8 @@ index 5e9d570eaffa2c55e3903bbbd6981f5330e6d890..0b2166e1e3f66ca874221a3c2d6d164b
    if (matches == null) {
      var _dataRouterState;
      if ((_dataRouterState = dataRouterState) != null && _dataRouterState.errors) {
-@@ -541,7 +561,7 @@ function _renderMatches(matches, parentMatches, dataRouterState) {
-       errorElement = match.route.errorElement || defaultErrorElement;
+@@ -613,7 +633,7 @@ function _renderMatches(matches, parentMatches, dataRouterState, future) {
+       }
      }
      let matches = parentMatches.concat(renderedMatches.slice(0, index + 1));
 -    let getChildren = () => {
@@ -70,7 +1686,7 @@ index 5e9d570eaffa2c55e3903bbbd6981f5330e6d890..0b2166e1e3f66ca874221a3c2d6d164b
        let children;
        if (error) {
          children = errorElement;
-@@ -558,6 +578,9 @@ function _renderMatches(matches, parentMatches, dataRouterState) {
+@@ -632,6 +652,9 @@ function _renderMatches(matches, parentMatches, dataRouterState, future) {
        } else {
          children = outlet;
        }
@@ -80,7 +1696,7 @@ index 5e9d570eaffa2c55e3903bbbd6981f5330e6d890..0b2166e1e3f66ca874221a3c2d6d164b
        return /*#__PURE__*/React.createElement(RenderedRoute, {
          match: match,
          routeContext: {
-@@ -571,18 +594,24 @@ function _renderMatches(matches, parentMatches, dataRouterState) {
+@@ -645,18 +668,24 @@ function _renderMatches(matches, parentMatches, dataRouterState, future) {
      // Only wrap in an error boundary within data router usages when we have an
      // ErrorBoundary/errorElement on this route.  Otherwise let it bubble up to
      // an ancestor ErrorBoundary/errorElement
@@ -100,7 +1716,7 @@ index 5e9d570eaffa2c55e3903bbbd6981f5330e6d890..0b2166e1e3f66ca874221a3c2d6d164b
 +      match: match,
        routeContext: {
 -        outlet: null,
-+        outlet,
++        outlet: outlet,
          matches,
          isDataRoute: true
        }
@@ -108,8 +1724,8 @@ index 5e9d570eaffa2c55e3903bbbd6981f5330e6d890..0b2166e1e3f66ca874221a3c2d6d164b
 +    }) : getChildren(true);
    }, null);
  }
- var DataRouterHook;
-@@ -879,7 +908,8 @@ function RouterProvider(_ref) {
+ var DataRouterHook = /*#__PURE__*/function (DataRouterHook) {
+@@ -948,7 +977,8 @@ function RouterProvider(_ref) {
    let {
      fallbackElement,
      router,
@@ -117,25 +1733,23 @@ index 5e9d570eaffa2c55e3903bbbd6981f5330e6d890..0b2166e1e3f66ca874221a3c2d6d164b
 +    future,
 +    dangerouslyAllowNesting
    } = _ref;
-   // Need to use a layout effect here so we are subscribed early enough to
-   // pick up on any render-driven redirects/navigations (useEffect/<Navigate>)
-@@ -929,7 +959,8 @@ function RouterProvider(_ref) {
-     basename: basename,
+   let [state, setStateImpl] = React.useState(router.state);
+   let {
+@@ -1009,6 +1039,7 @@ function RouterProvider(_ref) {
      location: state.location,
      navigationType: state.historyAction,
--    navigator: navigator
-+    navigator: navigator,
-+    dangerouslyAllowNesting: dangerouslyAllowNesting
-   }, state.initialized ? /*#__PURE__*/React.createElement(DataRoutes, {
-     routes: router.routes,
-     state: state
-@@ -1054,9 +1085,13 @@ function Router(_ref5) {
-     location: locationProp,
+     navigator: navigator,
++    dangerouslyAllowNesting: dangerouslyAllowNesting,
+     future: {
+       v7_relativeSplatPath: router.future.v7_relativeSplatPath
+     }
+@@ -1144,9 +1175,13 @@ function Router(_ref5) {
      navigationType = Action.Pop,
      navigator,
--    static: staticProp = false
-+    static: staticProp = false,
-+    dangerouslyAllowNesting = false,
+     static: staticProp = false,
+-    future
++    future,
++    dangerouslyAllowNesting = false
    } = _ref5;
 -  !!useInRouterContext() ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, "You cannot render a <Router> inside another <Router>." + " You should never have more than one in your app.") : UNSAFE_invariant(false) : void 0;
 +  // NOTE(calebmer): We need nested router support for implementing peeks.
@@ -145,32 +1759,32 @@ index 5e9d570eaffa2c55e3903bbbd6981f5330e6d890..0b2166e1e3f66ca874221a3c2d6d164b
  
    // Preserve trailing slashes on basename, so we can let the user control
    // the enforcement of trailing slashes throughout the app
-@@ -1296,8 +1331,9 @@ function createRoutesFromChildren(children, parentPath) {
+@@ -1389,8 +1424,9 @@ function createRoutesFromChildren(children, parentPath) {
  /**
   * Renders the result of `matchRoutes()` into a React element.
   */
 -function renderMatches(matches) {
 -  return _renderMatches(matches);
-+// NOTE(calebmer): Pass all three arguments to `renderMatches()`.
-+function renderMatches(matches, parentMatches, dataRouterState, options) {
-+  return _renderMatches(matches, parentMatches, dataRouterState, options);
++// NOTE(calebmer): Pass all four arguments to `renderMatches()`.
++function renderMatches(matches, parentMatches, dataRouterState, future, options) {
++  return _renderMatches(matches, parentMatches, dataRouterState, future, options);
  }
  
  function mapRouteProperties(route) {
-@@ -1347,4 +1383,4 @@ function createMemoryRouter(routes, opts) {
+@@ -1452,4 +1488,4 @@ function createMemoryRouter(routes, opts) {
  }
  
- export { Await, MemoryRouter, Navigate, Outlet, Route, Router, RouterProvider, Routes, DataRouterContext as UNSAFE_DataRouterContext, DataRouterStateContext as UNSAFE_DataRouterStateContext, LocationContext as UNSAFE_LocationContext, NavigationContext as UNSAFE_NavigationContext, RouteContext as UNSAFE_RouteContext, mapRouteProperties as UNSAFE_mapRouteProperties, useRouteId as UNSAFE_useRouteId, useRoutesImpl as UNSAFE_useRoutesImpl, createMemoryRouter, createRoutesFromChildren, createRoutesFromChildren as createRoutesFromElements, renderMatches, useBlocker as unstable_useBlocker, useActionData, useAsyncError, useAsyncValue, useHref, useInRouterContext, useLoaderData, useLocation, useMatch, useMatches, useNavigate, useNavigation, useNavigationType, useOutlet, useOutletContext, useParams, useResolvedPath, useRevalidator, useRouteError, useRouteLoaderData, useRoutes };
+ export { Await, MemoryRouter, Navigate, Outlet, Route, Router, RouterProvider, Routes, DataRouterContext as UNSAFE_DataRouterContext, DataRouterStateContext as UNSAFE_DataRouterStateContext, LocationContext as UNSAFE_LocationContext, NavigationContext as UNSAFE_NavigationContext, RouteContext as UNSAFE_RouteContext, mapRouteProperties as UNSAFE_mapRouteProperties, useRouteId as UNSAFE_useRouteId, useRoutesImpl as UNSAFE_useRoutesImpl, createMemoryRouter, createRoutesFromChildren, createRoutesFromChildren as createRoutesFromElements, renderMatches, useActionData, useAsyncError, useAsyncValue, useBlocker, useHref, useInRouterContext, useLoaderData, useLocation, useMatch, useMatches, useNavigate, useNavigation, useNavigationType, useOutlet, useOutletContext, useParams, useResolvedPath, useRevalidator, useRouteError, useRouteLoaderData, useRoutes };
 -//# sourceMappingURL=index.js.map
 +// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/dist/lib/components.d.ts b/dist/lib/components.d.ts
-index 49086d020b6121d05213b0554c1f4f30b35f81ce..c41255034ca140da2522e957d2cb4763c05964e8 100644
+index 36ab79ad110c11b718b4cf69be19db51b9b343fa..dc99a5a2a4d98f25c743a436166fcf61d7eb4f03 100644
 --- a/dist/lib/components.d.ts
 +++ b/dist/lib/components.d.ts
-@@ -9,6 +9,10 @@ export interface RouterProviderProps {
+@@ -10,6 +10,10 @@ export interface RouterProviderProps {
      fallbackElement?: React.ReactNode;
      router: RemixRouter;
-     future?: FutureConfig;
+     future?: Partial<Pick<FutureConfig, "v7_startTransition">>;
 +    // NOTE(calebmer): We need nested router support for implementing peeks.
 +    // Taking full responsibility for any nested router issues. Acknowledge this
 +    // is not officially supported by calling the prop "dangerous".
@@ -178,10 +1792,10 @@ index 49086d020b6121d05213b0554c1f4f30b35f81ce..c41255034ca140da2522e957d2cb4763
  }
  /**
   * Given a Remix Router instance, render the appropriate UI
-@@ -102,6 +106,10 @@ export interface RouterProps {
-     navigationType?: NavigationType;
+@@ -108,6 +112,10 @@ export interface RouterProps {
      navigator: Navigator;
      static?: boolean;
+     future?: Partial<Pick<FutureConfig, "v7_relativeSplatPath">>;
 +    // NOTE(calebmer): We need nested router support for implementing peeks.
 +    // Taking full responsibility for any nested router issues. Acknowledge this
 +    // is not officially supported by calling the prop "dangerous".
@@ -189,16 +1803,17 @@ index 49086d020b6121d05213b0554c1f4f30b35f81ce..c41255034ca140da2522e957d2cb4763
  }
  /**
   * Provides location context for the rest of the app.
-@@ -148,4 +156,14 @@ export declare function createRoutesFromChildren(children: React.ReactNode, pare
+@@ -154,4 +162,15 @@ export declare function createRoutesFromChildren(children: React.ReactNode, pare
  /**
   * Renders the result of `matchRoutes()` into a React element.
   */
 -export declare function renderMatches(matches: RouteMatch[] | null): React.ReactElement | null;
-+// NOTE(calebmer): Pass all three arguments to `renderMatches()`.
++// NOTE(calebmer): Pass all four arguments to `renderMatches()`.
 +export declare function renderMatches(
 +    matches: RouteMatch[] | null,
 +    parentMatches?: RouteMatch[],
 +    dataRouterState?: RemixRouter["state"] | null,
++    future?: Partial<FutureConfig>,
 +    // NOTE(calebmer): Allow turning off error boundary wrapping for the first
 +    // route. We use this when rendering inert routes in our native mobile app
 +    // to make sure we can maintain the same React key path between when the
@@ -206,13 +1821,13 @@ index 49086d020b6121d05213b0554c1f4f30b35f81ce..c41255034ca140da2522e957d2cb4763
 +    options?: {disableErrorBoundaryForFirstMatch?: boolean},
 +): React.ReactElement | null;
 diff --git a/dist/lib/context.d.ts b/dist/lib/context.d.ts
-index 8ed080485b37f6b5589c8b90a416743260232403..63190c4b8b86d64b115b67a1dfab4cc345dbb94f 100644
+index c1bcca16986b51f76ccecd1b81584e951e627ca6..f58b5965b035804e3e85ebf44daba453c713a51d 100644
 --- a/dist/lib/context.d.ts
 +++ b/dist/lib/context.d.ts
-@@ -56,6 +56,9 @@ export interface NavigateOptions {
-     state?: any;
-     preventScrollReset?: boolean;
+@@ -61,6 +61,9 @@ export interface NavigateOptions {
      relative?: RelativeRoutingType;
+     unstable_flushSync?: boolean;
+     unstable_viewTransition?: boolean;
 +    // NOTE(calebmer): Add an `unstable_shouldRevalidate` option to allow
 +    // developers to stop revalidation at navigation function call-sites.
 +    unstable_shouldRevalidate?: boolean;
@@ -220,345 +1835,68 @@ index 8ed080485b37f6b5589c8b90a416743260232403..63190c4b8b86d64b115b67a1dfab4cc3
  /**
   * A Navigator is a "location changer"; it's how you get to different locations.
 diff --git a/dist/react-router.development.js b/dist/react-router.development.js
-index 307080dc1b458a04f3a340a8160a4b73feb49ba3..4a1678418ebdc5b8f66c9ef72064d5851179638a 100644
+index b4d673b07d3077f6d9acd1858deb79e529f921c9..46ce855910a9e7734e94b0277c0f934a30914b39 100644
 --- a/dist/react-router.development.js
 +++ b/dist/react-router.development.js
-@@ -428,17 +428,34 @@ class RenderErrorBoundary extends React.Component {
-     };
-   }
-   componentDidCatch(error, errorInfo) {
--    console.error("React Router caught the following error during render", error, errorInfo);
-+    // NOTE(calebmer): Our application error handlers are already responsible for
-+    // logging React errors. `react-router` is just adding noise.
-   }
-   render() {
--    return this.state.error ? /*#__PURE__*/React.createElement(RouteContext.Provider, {
--      value: this.props.routeContext
-+    let {match} = this.props;
-+    let dataRouterContext = this.context;
+@@ -1,3 +1,8 @@
++// NOTE(calebmer): To reduce the maintenance burden of our `react-router`
++// patch, we don't patch UMD builds. This is especially nice since it means we
++// don't need to patch the minified UMD build.
++throw new Error("`react-router` UMD build is not supported");
 +
-+    if (!this.state.error) {
-+      // Track how deep we got in our render pass to emulate SSR componentDidCatch
-+      // in a DataStaticRouter
-+      if (dataRouterContext && dataRouterContext.static && dataRouterContext.staticContext && (match.route.errorElement || match.route.ErrorBoundary)) {
-+        dataRouterContext.staticContext._deepestRenderedBoundaryId = match.route.id;
-+      }
-+    }
-+
-+    return /*#__PURE__*/React.createElement(RouteContext.Provider, {
-+      value: this.state.error ? {...this.props.routeContext, outlet: null} : this.props.routeContext
-     }, /*#__PURE__*/React.createElement(RouteErrorContext.Provider, {
-       value: this.state.error,
--      children: this.props.component
--    })) : this.props.children;
-+      // NOTE(calebmer): We want our error element and ok element to have the
-+      // same React key path so they share state across renders. We restructure
-+      // `react-router` code a bit here so that `<RenderedRoute>` logic happens
-+      // here in `<RenderErrorBoundary>`.
-+      children: this.state.error ? this.props.component : this.props.children
-+    }));
-   }
- }
-+RenderErrorBoundary.contextType = DataRouterContext;
- function RenderedRoute({
-   routeContext,
-   match,
-@@ -454,7 +471,7 @@ function RenderedRoute({
-     value: routeContext
-   }, children);
- }
--function _renderMatches(matches, parentMatches = [], dataRouterState = null) {
-+function _renderMatches(matches, parentMatches = [], dataRouterState = null, options = {}) {
-   if (matches == null) {
-     if (dataRouterState?.errors) {
-       // Don't bail if we have data router errors so we can render them in the
-@@ -480,7 +497,7 @@ function _renderMatches(matches, parentMatches = [], dataRouterState = null) {
-       errorElement = match.route.errorElement || defaultErrorElement;
-     }
-     let matches = parentMatches.concat(renderedMatches.slice(0, index + 1));
--    let getChildren = () => {
-+    let getChildren = (wrap) => {
-       let children;
-       if (error) {
-         children = errorElement;
-@@ -497,6 +514,9 @@ function _renderMatches(matches, parentMatches = [], dataRouterState = null) {
-       } else {
-         children = outlet;
-       }
-+      if (!wrap) {
-+        return children;
-+      }
-       return /*#__PURE__*/React.createElement(RenderedRoute, {
-         match: match,
-         routeContext: {
-@@ -510,18 +530,23 @@ function _renderMatches(matches, parentMatches = [], dataRouterState = null) {
-     // Only wrap in an error boundary within data router usages when we have an
-     // ErrorBoundary/errorElement on this route.  Otherwise let it bubble up to
-     // an ancestor ErrorBoundary/errorElement
--    return dataRouterState && (match.route.ErrorBoundary || match.route.errorElement || index === 0) ? /*#__PURE__*/React.createElement(RenderErrorBoundary, {
-+    //
-+    // NOTE(calebmer): Allow turning off error boundary wrapping for the first
-+    // route. We use this when rendering inert routes in our native mobile app
-+    // to make sure we can maintain the same React key path between when the
-+    // route is inert vs not inert.
-+    return dataRouterState && (match.route.ErrorBoundary || match.route.errorElement || (!options.disableErrorBoundaryForFirstMatch && index === 0)) ? /*#__PURE__*/React.createElement(RenderErrorBoundary, {
-       location: dataRouterState.location,
-       revalidation: dataRouterState.revalidation,
-       component: errorElement,
-       error: error,
--      children: getChildren(),
-+      children: getChildren(false),
-       routeContext: {
--        outlet: null,
-+        outlet,
-         matches,
-         isDataRoute: true
-       }
--    }) : getChildren();
-+    }) : getChildren(true);
-   }, null);
- }
- var DataRouterHook;
-@@ -797,7 +822,8 @@ const startTransitionImpl = React[START_TRANSITION];
- function RouterProvider({
-   fallbackElement,
-   router,
--  future
-+  future,
-+  dangerouslyAllowNesting
- }) {
-   // Need to use a layout effect here so we are subscribed early enough to
-   // pick up on any render-driven redirects/navigations (useEffect/<Navigate>)
-@@ -846,7 +872,8 @@ function RouterProvider({
-     basename: basename,
-     location: state.location,
-     navigationType: state.historyAction,
--    navigator: navigator
-+    navigator: navigator,
-+    dangerouslyAllowNesting
-   }, state.initialized ? /*#__PURE__*/React.createElement(DataRoutes, {
-     routes: router.routes,
-     state: state
-@@ -967,9 +994,13 @@ function Router({
-   location: locationProp,
-   navigationType = Action.Pop,
-   navigator,
--  static: staticProp = false
-+  static: staticProp = false,
-+  dangerouslyAllowNesting = false,
- }) {
--  !!useInRouterContext() ? UNSAFE_invariant(false, `You cannot render a <Router> inside another <Router>.` + ` You should never have more than one in your app.`)  : void 0;
-+  // NOTE(calebmer): We need nested router support for implementing peeks.
-+  // Taking full responsibility for any nested router issues. Acknowledge this
-+  // is not officially supported by calling the prop "dangerous".
-+  !(!useInRouterContext() || dangerouslyAllowNesting) ? UNSAFE_invariant(false, `You cannot render a <Router> inside another <Router>.` + ` You should never have more than one in your app.`)  : void 0;
-   // Preserve trailing slashes on basename, so we can let the user control
-   // the enforcement of trailing slashes throughout the app
-   let basename = basenameProp.replace(/^\/*/, "/");
-@@ -1197,8 +1228,9 @@ function createRoutesFromChildren(children, parentPath = []) {
  /**
-  * Renders the result of `matchRoutes()` into a React element.
-  */
--function renderMatches(matches) {
--  return _renderMatches(matches);
-+// NOTE(calebmer): Pass all three arguments to `renderMatches()`.
-+function renderMatches(matches, parentMatches, dataRouterState, options) {
-+  return _renderMatches(matches, parentMatches, dataRouterState, options);
- }
- 
- function mapRouteProperties(route) {
-@@ -1249,4 +1281,4 @@ function createMemoryRouter(routes, opts) {
- }
- 
- export { Await, MemoryRouter, Navigate, Outlet, Route, Router, RouterProvider, Routes, DataRouterContext as UNSAFE_DataRouterContext, DataRouterStateContext as UNSAFE_DataRouterStateContext, LocationContext as UNSAFE_LocationContext, NavigationContext as UNSAFE_NavigationContext, RouteContext as UNSAFE_RouteContext, mapRouteProperties as UNSAFE_mapRouteProperties, useRouteId as UNSAFE_useRouteId, useRoutesImpl as UNSAFE_useRoutesImpl, createMemoryRouter, createRoutesFromChildren, createRoutesFromChildren as createRoutesFromElements, renderMatches, useBlocker as unstable_useBlocker, useActionData, useAsyncError, useAsyncValue, useHref, useInRouterContext, useLoaderData, useLocation, useMatch, useMatches, useNavigate, useNavigation, useNavigationType, useOutlet, useOutletContext, useParams, useResolvedPath, useRevalidator, useRouteError, useRouteLoaderData, useRoutes };
--//# sourceMappingURL=react-router.development.js.map
-+// NOTE(calebmer): Don't use source map since our patches break the source map.
+  * React Router v6.23.1
+  *
 diff --git a/dist/react-router.production.min.js b/dist/react-router.production.min.js
-index b024c78ba5cdca0c8ee6c3aa9724e1b29a79d51d..80920c1869c4145f0779c56f6898266432512a46 100644
+index 85a3a8873180e6743ec3bc88fc27a9d9651e2600..6de20cb1bd5005bbea964b44d198bf1339c03eda 100644
 --- a/dist/react-router.production.min.js
 +++ b/dist/react-router.production.min.js
-@@ -8,5 +8,4 @@
+@@ -1,3 +1,8 @@
++// NOTE(calebmer): To reduce the maintenance burden of our `react-router`
++// patch, we don't patch UMD builds. This is especially nice since it means we
++// don't need to patch the minified UMD build.
++throw new Error("`react-router` UMD build is not supported");
++
+ /**
+  * React Router v6.23.1
   *
-  * @license MIT
-  */
--import*as e from"react";import{UNSAFE_invariant as t,joinPaths as r,matchPath as n,UNSAFE_getPathContributingMatches as a,resolveTo as o,parsePath as i,matchRoutes as l,Action as u,IDLE_BLOCKER as s,stripBasename as c,isRouteErrorResponse as p,createMemoryHistory as d,AbortedDeferredError as m,createRouter as h}from"@remix-run/router";export{AbortedDeferredError,Action as NavigationType,createPath,defer,generatePath,isRouteErrorResponse,json,matchPath,matchRoutes,parsePath,redirect,resolvePath}from"@remix-run/router";const f=e.createContext(null),v=e.createContext(null),E=e.createContext(null),g=e.createContext(null),x=e.createContext(null),C=e.createContext({outlet:null,matches:[],isDataRoute:!1}),y=e.createContext(null);function R(n,{relative:a}={}){b()||t(!1);let{basename:o,navigator:i}=e.useContext(g),{hash:l,pathname:u,search:s}=O(n,{relative:a}),c=u;return"/"!==o&&(c="/"===u?o:r([o,u])),i.createHref({pathname:c,search:s,hash:l})}function b(){return null!=e.useContext(x)}function U(){return b()||t(!1),e.useContext(x).location}function S(){return e.useContext(x).navigationType}function P(r){b()||t(!1);let{pathname:a}=U();return e.useMemo((()=>n(r,a)),[a,r])}function B(t){e.useContext(g).static||e.useLayoutEffect(t)}function D(){let{isDataRoute:n}=e.useContext(C);return n?function(){let{router:t}=H(J.UseNavigateStable),r=V(z.UseNavigateStable),n=e.useRef(!1);return B((()=>{n.current=!0})),e.useCallback(((e,a={})=>{n.current&&("number"==typeof e?t.navigate(e):t.navigate(e,{fromRouteId:r,...a}))}),[t,r])}():function(){b()||t(!1);let n=e.useContext(f),{basename:i,navigator:l}=e.useContext(g),{matches:u}=e.useContext(C),{pathname:s}=U(),c=JSON.stringify(a(u).map((e=>e.pathnameBase))),p=e.useRef(!1);return B((()=>{p.current=!0})),e.useCallback(((e,t={})=>{if(!p.current)return;if("number"==typeof e)return void l.go(e);let a=o(e,JSON.parse(c),s,"path"===t.relative);null==n&&"/"!==i&&(a.pathname="/"===a.pathname?i:r([i,a.pathname])),(t.replace?l.replace:l.push)(a,t.state,t)}),[i,l,c,s,n])}()}const _=e.createContext(null);function k(){return e.useContext(_)}function N(t){let r=e.useContext(C).outlet;return r?e.createElement(_.Provider,{value:t},r):r}function L(){let{matches:t}=e.useContext(C),r=t[t.length-1];return r?r.params:{}}function O(t,{relative:r}={}){let{matches:n}=e.useContext(C),{pathname:i}=U(),l=JSON.stringify(a(n).map((e=>e.pathnameBase)));return e.useMemo((()=>o(t,JSON.parse(l),i,"path"===r)),[t,l,i,r])}function A(e,t){return F(e,t)}function F(n,a,o){b()||t(!1);let{navigator:s}=e.useContext(g),{matches:c}=e.useContext(C),p=c[c.length-1],d=p?p.params:{};!p||p.pathname;let m=p?p.pathnameBase:"/";p&&p.route;let h,f=U();if(a){let e="string"==typeof a?i(a):a;"/"===m||e.pathname?.startsWith(m)||t(!1),h=e}else h=f;let v=h.pathname||"/",E="/"===m?v:v.slice(m.length)||"/",y=l(n,{pathname:E}),R=w(y&&y.map((e=>Object.assign({},e,{params:Object.assign({},d,e.params),pathname:r([m,s.encodeLocation?s.encodeLocation(e.pathname).pathname:e.pathname]),pathnameBase:"/"===e.pathnameBase?m:r([m,s.encodeLocation?s.encodeLocation(e.pathnameBase).pathname:e.pathnameBase])}))),c,o);return a&&R?e.createElement(x.Provider,{value:{location:{pathname:"/",search:"",hash:"",state:null,key:"default",...h},navigationType:u.Pop}},R):R}function j(){let t=Z(),r=p(t)?`${t.status} ${t.statusText}`:t instanceof Error?t.message:JSON.stringify(t),n=t instanceof Error?t.stack:null,a={padding:"0.5rem",backgroundColor:"rgba(200,200,200, 0.5)"};return e.createElement(e.Fragment,null,e.createElement("h2",null,"Unexpected Application Error!"),e.createElement("h3",{style:{fontStyle:"italic"}},r),n?e.createElement("pre",{style:a},n):null,null)}const I=e.createElement(j,null);class M extends e.Component{constructor(e){super(e),this.state={location:e.location,revalidation:e.revalidation,error:e.error}}static getDerivedStateFromError(e){return{error:e}}static getDerivedStateFromProps(e,t){return t.location!==e.location||"idle"!==t.revalidation&&"idle"===e.revalidation?{error:e.error,location:e.location,revalidation:e.revalidation}:{error:e.error||t.error,location:t.location,revalidation:e.revalidation||t.revalidation}}componentDidCatch(e,t){console.error("React Router caught the following error during render",e,t)}render(){return this.state.error?e.createElement(C.Provider,{value:this.props.routeContext},e.createElement(y.Provider,{value:this.state.error,children:this.props.component})):this.props.children}}function T({routeContext:t,match:r,children:n}){let a=e.useContext(f);return a&&a.static&&a.staticContext&&(r.route.errorElement||r.route.ErrorBoundary)&&(a.staticContext._deepestRenderedBoundaryId=r.route.id),e.createElement(C.Provider,{value:t},n)}function w(r,n=[],a=null){if(null==r){if(!a?.errors)return null;r=a.matches}let o=r,i=a?.errors;if(null!=i){let e=o.findIndex((e=>e.route.id&&i?.[e.route.id]));e>=0||t(!1),o=o.slice(0,Math.min(o.length,e+1))}return o.reduceRight(((t,r,l)=>{let u=r.route.id?i?.[r.route.id]:null,s=null;a&&(s=r.route.errorElement||I);let c=n.concat(o.slice(0,l+1)),p=()=>{let n;return n=u?s:r.route.Component?e.createElement(r.route.Component,null):r.route.element?r.route.element:t,e.createElement(T,{match:r,routeContext:{outlet:t,matches:c,isDataRoute:null!=a},children:n})};return a&&(r.route.ErrorBoundary||r.route.errorElement||0===l)?e.createElement(M,{location:a.location,revalidation:a.revalidation,component:s,error:u,children:p(),routeContext:{outlet:null,matches:c,isDataRoute:!0}}):p()}),null)}var J,z;function H(r){let n=e.useContext(f);return n||t(!1),n}function $(r){let n=e.useContext(v);return n||t(!1),n}function V(r){let n=function(r){let n=e.useContext(C);return n||t(!1),n}(),a=n.matches[n.matches.length-1];return a.route.id||t(!1),a.route.id}function W(){return V(z.UseRouteId)}function Y(){return $(z.UseNavigation).navigation}function q(){let e=H(J.UseRevalidator),t=$(z.UseRevalidator);return{revalidate:e.router.revalidate,state:t.revalidation}}function G(){let{matches:t,loaderData:r}=$(z.UseMatches);return e.useMemo((()=>t.map((e=>{let{pathname:t,params:n}=e;return{id:e.route.id,pathname:t,params:n,data:r[e.route.id],handle:e.route.handle}}))),[t,r])}function K(){let e=$(z.UseLoaderData),t=V(z.UseLoaderData);if(!e.errors||null==e.errors[t])return e.loaderData[t];console.error(`You cannot \`useLoaderData\` in an errorElement (routeId: ${t})`)}function Q(e){return $(z.UseRouteLoaderData).loaderData[e]}function X(){let r=$(z.UseActionData);return e.useContext(C)||t(!1),Object.values(r?.actionData||{})[0]}function Z(){let t=e.useContext(y),r=$(z.UseRouteError),n=V(z.UseRouteError);return t||r.errors?.[n]}function ee(){return e.useContext(E)?._data}function te(){return e.useContext(E)?._error}!function(e){e.UseBlocker="useBlocker",e.UseRevalidator="useRevalidator",e.UseNavigateStable="useNavigate"}(J||(J={})),function(e){e.UseBlocker="useBlocker",e.UseLoaderData="useLoaderData",e.UseActionData="useActionData",e.UseRouteError="useRouteError",e.UseNavigation="useNavigation",e.UseRouteLoaderData="useRouteLoaderData",e.UseMatches="useMatches",e.UseRevalidator="useRevalidator",e.UseNavigateStable="useNavigate",e.UseRouteId="useRouteId"}(z||(z={}));let re=0;function ne(t){let{router:r,basename:n}=H(J.UseBlocker),a=$(z.UseBlocker),[o,i]=e.useState(""),[l,u]=e.useState(s),p=e.useCallback((e=>{if("function"!=typeof t)return!!t;if("/"===n)return t(e);let{currentLocation:r,nextLocation:a,historyAction:o}=e;return t({currentLocation:{...r,pathname:c(r.pathname,n)||r.pathname},nextLocation:{...a,pathname:c(a.pathname,n)||a.pathname},historyAction:o})}),[n,t]);return e.useEffect((()=>{let e=String(++re);return u(r.getBlocker(e,p)),i(e),()=>r.deleteBlocker(e)}),[r,u,i,p]),o&&a.blockers.has(o)?a.blockers.get(o):l}const ae=e.startTransition;function oe({fallbackElement:t,router:r,future:n}){let[a,o]=e.useState(r.state),{v7_startTransition:i}=n||{},l=e.useCallback((e=>{i&&ae?ae((()=>o(e))):o(e)}),[o,i]);e.useLayoutEffect((()=>r.subscribe(l)),[r,l]);let u=e.useMemo((()=>({createHref:r.createHref,encodeLocation:r.encodeLocation,go:e=>r.navigate(e),push:(e,t,n)=>r.navigate(e,{state:t,preventScrollReset:n?.preventScrollReset}),replace:(e,t,n)=>r.navigate(e,{replace:!0,state:t,preventScrollReset:n?.preventScrollReset})})),[r]),s=r.basename||"/",c=e.useMemo((()=>({router:r,navigator:u,static:!1,basename:s})),[r,u,s]);return e.createElement(e.Fragment,null,e.createElement(f.Provider,{value:c},e.createElement(v.Provider,{value:a},e.createElement(pe,{basename:s,location:a.location,navigationType:a.historyAction,navigator:u},a.initialized?e.createElement(ie,{routes:r.routes,state:a}):t))),null)}function ie({routes:e,state:t}){return F(e,void 0,t)}function le({basename:t,children:r,initialEntries:n,initialIndex:a,future:o}){let i=e.useRef();null==i.current&&(i.current=d({initialEntries:n,initialIndex:a,v5Compat:!0}));let l=i.current,[u,s]=e.useState({action:l.action,location:l.location}),{v7_startTransition:c}=o||{},p=e.useCallback((e=>{c&&ae?ae((()=>s(e))):s(e)}),[s,c]);return e.useLayoutEffect((()=>l.listen(p)),[l,p]),e.createElement(pe,{basename:t,children:r,location:u.location,navigationType:u.action,navigator:l})}function ue({to:r,replace:n,state:i,relative:l}){b()||t(!1);let{matches:u}=e.useContext(C),{pathname:s}=U(),c=D(),p=o(r,a(u).map((e=>e.pathnameBase)),s,"path"===l),d=JSON.stringify(p);return e.useEffect((()=>c(JSON.parse(d),{replace:n,state:i,relative:l})),[c,d,l,n,i]),null}function se(e){return N(e.context)}function ce(e){t(!1)}function pe({basename:r="/",children:n=null,location:a,navigationType:o=u.Pop,navigator:l,static:s=!1}){b()&&t(!1);let p=r.replace(/^\/*/,"/"),d=e.useMemo((()=>({basename:p,navigator:l,static:s})),[p,l,s]);"string"==typeof a&&(a=i(a));let{pathname:m="/",search:h="",hash:f="",state:v=null,key:E="default"}=a,C=e.useMemo((()=>{let e=c(m,p);return null==e?null:{location:{pathname:e,search:h,hash:f,state:v,key:E},navigationType:o}}),[p,m,h,f,v,E,o]);return null==C?null:e.createElement(g.Provider,{value:d},e.createElement(x.Provider,{children:n,value:C}))}function de({children:e,location:t}){return A(ge(e),t)}function me({children:t,errorElement:r,resolve:n}){return e.createElement(ve,{resolve:n,errorElement:r},e.createElement(Ee,null,t))}var he;!function(e){e[e.pending=0]="pending",e[e.success=1]="success",e[e.error=2]="error"}(he||(he={}));const fe=new Promise((()=>{}));class ve extends e.Component{constructor(e){super(e),this.state={error:null}}static getDerivedStateFromError(e){return{error:e}}componentDidCatch(e,t){console.error("<Await> caught the following error during render",e,t)}render(){let{children:t,errorElement:r,resolve:n}=this.props,a=null,o=he.pending;if(n instanceof Promise)if(this.state.error){o=he.error;let e=this.state.error;a=Promise.reject().catch((()=>{})),Object.defineProperty(a,"_tracked",{get:()=>!0}),Object.defineProperty(a,"_error",{get:()=>e})}else n._tracked?(a=n,o=void 0!==a._error?he.error:void 0!==a._data?he.success:he.pending):(o=he.pending,Object.defineProperty(n,"_tracked",{get:()=>!0}),a=n.then((e=>Object.defineProperty(n,"_data",{get:()=>e})),(e=>Object.defineProperty(n,"_error",{get:()=>e}))));else o=he.success,a=Promise.resolve(),Object.defineProperty(a,"_tracked",{get:()=>!0}),Object.defineProperty(a,"_data",{get:()=>n});if(o===he.error&&a._error instanceof m)throw fe;if(o===he.error&&!r)throw a._error;if(o===he.error)return e.createElement(E.Provider,{value:a,children:r});if(o===he.success)return e.createElement(E.Provider,{value:a,children:t});throw a}}function Ee({children:t}){let r=ee(),n="function"==typeof t?t(r):t;return e.createElement(e.Fragment,null,n)}function ge(r,n=[]){let a=[];return e.Children.forEach(r,((r,o)=>{if(!e.isValidElement(r))return;let i=[...n,o];if(r.type===e.Fragment)return void a.push.apply(a,ge(r.props.children,i));r.type!==ce&&t(!1),r.props.index&&r.props.children&&t(!1);let l={id:r.props.id||i.join("-"),caseSensitive:r.props.caseSensitive,element:r.props.element,Component:r.props.Component,index:r.props.index,path:r.props.path,loader:r.props.loader,action:r.props.action,errorElement:r.props.errorElement,ErrorBoundary:r.props.ErrorBoundary,hasErrorBoundary:null!=r.props.ErrorBoundary||null!=r.props.errorElement,shouldRevalidate:r.props.shouldRevalidate,handle:r.props.handle,lazy:r.props.lazy};r.props.children&&(l.children=ge(r.props.children,i)),a.push(l)})),a}function xe(e){return w(e)}function Ce(t){let r={hasErrorBoundary:null!=t.ErrorBoundary||null!=t.errorElement};return t.Component&&Object.assign(r,{element:e.createElement(t.Component),Component:void 0}),t.ErrorBoundary&&Object.assign(r,{errorElement:e.createElement(t.ErrorBoundary),ErrorBoundary:void 0}),r}function ye(e,t){return h({basename:t?.basename,future:{...t?.future,v7_prependBasename:!0},history:d({initialEntries:t?.initialEntries,initialIndex:t?.initialIndex}),hydrationData:t?.hydrationData,routes:e,mapRouteProperties:Ce}).initialize()}export{me as Await,le as MemoryRouter,ue as Navigate,se as Outlet,ce as Route,pe as Router,oe as RouterProvider,de as Routes,f as UNSAFE_DataRouterContext,v as UNSAFE_DataRouterStateContext,x as UNSAFE_LocationContext,g as UNSAFE_NavigationContext,C as UNSAFE_RouteContext,Ce as UNSAFE_mapRouteProperties,W as UNSAFE_useRouteId,F as UNSAFE_useRoutesImpl,ye as createMemoryRouter,ge as createRoutesFromChildren,ge as createRoutesFromElements,xe as renderMatches,ne as unstable_useBlocker,X as useActionData,te as useAsyncError,ee as useAsyncValue,R as useHref,b as useInRouterContext,K as useLoaderData,U as useLocation,P as useMatch,G as useMatches,D as useNavigate,Y as useNavigation,S as useNavigationType,N as useOutlet,k as useOutletContext,L as useParams,O as useResolvedPath,q as useRevalidator,Z as useRouteError,Q as useRouteLoaderData,A as useRoutes};
--//# sourceMappingURL=react-router.production.min.js.map
-+import*as e from"react";import{UNSAFE_invariant as t,joinPaths as r,matchPath as n,UNSAFE_getPathContributingMatches as a,resolveTo as o,parsePath as i,matchRoutes as l,Action as u,IDLE_BLOCKER as s,stripBasename as c,isRouteErrorResponse as p,createMemoryHistory as d,AbortedDeferredError as m,createRouter as h}from"@remix-run/router";export{AbortedDeferredError,Action as NavigationType,createPath,defer,generatePath,isRouteErrorResponse,json,matchPath,matchRoutes,parsePath,redirect,resolvePath}from"@remix-run/router";const f=e.createContext(null),v=e.createContext(null),E=e.createContext(null),g=e.createContext(null),x=e.createContext(null),C=e.createContext({outlet:null,matches:[],isDataRoute:!1}),y=e.createContext(null);function R(n,{relative:a}={}){b()||t(!1);let{basename:o,navigator:i}=e.useContext(g),{hash:l,pathname:u,search:s}=O(n,{relative:a}),c=u;return"/"!==o&&(c="/"===u?o:r([o,u])),i.createHref({pathname:c,search:s,hash:l})}function b(){return null!=e.useContext(x)}function U(){return b()||t(!1),e.useContext(x).location}function S(){return e.useContext(x).navigationType}function P(r){b()||t(!1);let{pathname:a}=U();return e.useMemo((()=>n(r,a)),[a,r])}function B(t){e.useContext(g).static||e.useLayoutEffect(t)}function D(){let{isDataRoute:n}=e.useContext(C);return n?function(){let{router:t}=H(J.UseNavigateStable),r=V(z.UseNavigateStable),n=e.useRef(!1);return B((()=>{n.current=!0})),e.useCallback(((e,a={})=>{n.current&&("number"==typeof e?t.navigate(e):t.navigate(e,{fromRouteId:r,...a}))}),[t,r])}():function(){b()||t(!1);let n=e.useContext(f),{basename:i,navigator:l}=e.useContext(g),{matches:u}=e.useContext(C),{pathname:s}=U(),c=JSON.stringify(a(u).map((e=>e.pathnameBase))),p=e.useRef(!1);return B((()=>{p.current=!0})),e.useCallback(((e,t={})=>{if(!p.current)return;if("number"==typeof e)return void l.go(e);let a=o(e,JSON.parse(c),s,"path"===t.relative);null==n&&"/"!==i&&(a.pathname="/"===a.pathname?i:r([i,a.pathname])),(t.replace?l.replace:l.push)(a,t.state,t)}),[i,l,c,s,n])}()}const _=e.createContext(null);function k(){return e.useContext(_)}function N(t){let r=e.useContext(C).outlet;return r?e.createElement(_.Provider,{value:t},r):r}function L(){let{matches:t}=e.useContext(C),r=t[t.length-1];return r?r.params:{}}function O(t,{relative:r}={}){let{matches:n}=e.useContext(C),{pathname:i}=U(),l=JSON.stringify(a(n).map((e=>e.pathnameBase)));return e.useMemo((()=>o(t,JSON.parse(l),i,"path"===r)),[t,l,i,r])}function A(e,t){return F(e,t)}function F(n,a,o){b()||t(!1);let{navigator:s}=e.useContext(g),{matches:c}=e.useContext(C),p=c[c.length-1],d=p?p.params:{};!p||p.pathname;let m=p?p.pathnameBase:"/";p&&p.route;let h,f=U();if(a){let e="string"==typeof a?i(a):a;"/"===m||e.pathname?.startsWith(m)||t(!1),h=e}else h=f;let v=h.pathname||"/",E="/"===m?v:v.slice(m.length)||"/",y=l(n,{pathname:E}),R=w(y&&y.map((e=>Object.assign({},e,{params:Object.assign({},d,e.params),pathname:r([m,s.encodeLocation?s.encodeLocation(e.pathname).pathname:e.pathname]),pathnameBase:"/"===e.pathnameBase?m:r([m,s.encodeLocation?s.encodeLocation(e.pathnameBase).pathname:e.pathnameBase])}))),c,o);return a&&R?e.createElement(x.Provider,{value:{location:{pathname:"/",search:"",hash:"",state:null,key:"default",...h},navigationType:u.Pop}},R):R}function j(){let t=Z(),r=p(t)?`${t.status} ${t.statusText}`:t instanceof Error?t.message:JSON.stringify(t),n=t instanceof Error?t.stack:null,a={padding:"0.5rem",backgroundColor:"rgba(200,200,200, 0.5)"};return e.createElement(e.Fragment,null,e.createElement("h2",null,"Unexpected Application Error!"),e.createElement("h3",{style:{fontStyle:"italic"}},r),n?e.createElement("pre",{style:a},n):null,null)}const I=e.createElement(j,null);class M extends e.Component{constructor(e){super(e),this.state={location:e.location,revalidation:e.revalidation,error:e.error}}static getDerivedStateFromError(e){return{error:e}}static getDerivedStateFromProps(e,t){return t.location!==e.location||"idle"!==t.revalidation&&"idle"===e.revalidation?{error:e.error,location:e.location,revalidation:e.revalidation}:{error:e.error||t.error,location:t.location,revalidation:e.revalidation||t.revalidation}}componentDidCatch(e,t){}render(){let{match:t}=this.props,r=this.context;return this.state.error||r&&r.static&&r.staticContext&&(t.route.errorElement||t.route.ErrorBoundary)&&(r.staticContext._deepestRenderedBoundaryId=t.route.id),e.createElement(C.Provider,{value:this.state.error?{...this.props.routeContext,outlet:null}:this.props.routeContext},e.createElement(y.Provider,{value:this.state.error,children:this.state.error?this.props.component:this.props.children}))}}M.contextType=f;function T({routeContext:t,match:r,children:n}){let a=e.useContext(f);return a&&a.static&&a.staticContext&&(r.route.errorElement||r.route.ErrorBoundary)&&(a.staticContext._deepestRenderedBoundaryId=r.route.id),e.createElement(C.Provider,{value:t},n)}function w(r,n=[],a=null,o2={}){if(null==r){if(!a?.errors)return null;r=a.matches}let o=r,i=a?.errors;if(null!=i){let e=o.findIndex((e=>e.route.id&&i?.[e.route.id]));e>=0||t(!1),o=o.slice(0,Math.min(o.length,e+1))}return o.reduceRight(((t,r,l)=>{let u=r.route.id?i?.[r.route.id]:null,s=null;a&&(s=r.route.errorElement||I);let c=n.concat(o.slice(0,l+1)),p=(w)=>{let n;return n=u?s:r.route.Component?e.createElement(r.route.Component,null):r.route.element?r.route.element:t,!w?n:e.createElement(T,{match:r,routeContext:{outlet:t,matches:c,isDataRoute:null!=a},children:n})};return a&&(r.route.ErrorBoundary||r.route.errorElement||(!o2.disableErrorBoundaryForFirstMatch&&0===l))?e.createElement(M,{location:a.location,revalidation:a.revalidation,component:s,error:u,children:p(false),match:r,routeContext:{outlet:t,matches:c,isDataRoute:!0}}):p(true)}),null)}var J,z;function H(r){let n=e.useContext(f);return n||t(!1),n}function $(r){let n=e.useContext(v);return n||t(!1),n}function V(r){let n=function(r){let n=e.useContext(C);return n||t(!1),n}(),a=n.matches[n.matches.length-1];return a.route.id||t(!1),a.route.id}function W(){return V(z.UseRouteId)}function Y(){return $(z.UseNavigation).navigation}function q(){let e=H(J.UseRevalidator),t=$(z.UseRevalidator);return{revalidate:e.router.revalidate,state:t.revalidation}}function G(){let{matches:t,loaderData:r}=$(z.UseMatches);return e.useMemo((()=>t.map((e=>{let{pathname:t,params:n}=e;return{id:e.route.id,pathname:t,params:n,data:r[e.route.id],handle:e.route.handle}}))),[t,r])}function K(){let e=$(z.UseLoaderData),t=V(z.UseLoaderData);if(!e.errors||null==e.errors[t])return e.loaderData[t];console.error(`You cannot \`useLoaderData\` in an errorElement (routeId: ${t})`)}function Q(e){return $(z.UseRouteLoaderData).loaderData[e]}function X(){let r=$(z.UseActionData);return e.useContext(C)||t(!1),Object.values(r?.actionData||{})[0]}function Z(){let t=e.useContext(y),r=$(z.UseRouteError),n=V(z.UseRouteError);return t||r.errors?.[n]}function ee(){return e.useContext(E)?._data}function te(){return e.useContext(E)?._error}!function(e){e.UseBlocker="useBlocker",e.UseRevalidator="useRevalidator",e.UseNavigateStable="useNavigate"}(J||(J={})),function(e){e.UseBlocker="useBlocker",e.UseLoaderData="useLoaderData",e.UseActionData="useActionData",e.UseRouteError="useRouteError",e.UseNavigation="useNavigation",e.UseRouteLoaderData="useRouteLoaderData",e.UseMatches="useMatches",e.UseRevalidator="useRevalidator",e.UseNavigateStable="useNavigate",e.UseRouteId="useRouteId"}(z||(z={}));let re=0;function ne(t){let{router:r,basename:n}=H(J.UseBlocker),a=$(z.UseBlocker),[o,i]=e.useState(""),[l,u]=e.useState(s),p=e.useCallback((e=>{if("function"!=typeof t)return!!t;if("/"===n)return t(e);let{currentLocation:r,nextLocation:a,historyAction:o}=e;return t({currentLocation:{...r,pathname:c(r.pathname,n)||r.pathname},nextLocation:{...a,pathname:c(a.pathname,n)||a.pathname},historyAction:o})}),[n,t]);return e.useEffect((()=>{let e=String(++re);return u(r.getBlocker(e,p)),i(e),()=>r.deleteBlocker(e)}),[r,u,i,p]),o&&a.blockers.has(o)?a.blockers.get(o):l}const ae=e.startTransition;function oe({fallbackElement:t,router:r,future:n,dangerouslyAllowNesting:p}){let[a,o]=e.useState(r.state),{v7_startTransition:i}=n||{},l=e.useCallback((e=>{i&&ae?ae((()=>o(e))):o(e)}),[o,i]);e.useLayoutEffect((()=>r.subscribe(l)),[r,l]);let u=e.useMemo((()=>({createHref:r.createHref,encodeLocation:r.encodeLocation,go:e=>r.navigate(e),push:(e,t,n)=>r.navigate(e,{state:t,preventScrollReset:n?.preventScrollReset}),replace:(e,t,n)=>r.navigate(e,{replace:!0,state:t,preventScrollReset:n?.preventScrollReset})})),[r]),s=r.basename||"/",c=e.useMemo((()=>({router:r,navigator:u,static:!1,basename:s})),[r,u,s]);return e.createElement(e.Fragment,null,e.createElement(f.Provider,{value:c},e.createElement(v.Provider,{value:a},e.createElement(pe,{basename:s,location:a.location,navigationType:a.historyAction,navigator:u,dangerouslyAllowNesting:p},a.initialized?e.createElement(ie,{routes:r.routes,state:a}):t))),null)}function ie({routes:e,state:t}){return F(e,void 0,t)}function le({basename:t,children:r,initialEntries:n,initialIndex:a,future:o}){let i=e.useRef();null==i.current&&(i.current=d({initialEntries:n,initialIndex:a,v5Compat:!0}));let l=i.current,[u,s]=e.useState({action:l.action,location:l.location}),{v7_startTransition:c}=o||{},p=e.useCallback((e=>{c&&ae?ae((()=>s(e))):s(e)}),[s,c]);return e.useLayoutEffect((()=>l.listen(p)),[l,p]),e.createElement(pe,{basename:t,children:r,location:u.location,navigationType:u.action,navigator:l})}function ue({to:r,replace:n,state:i,relative:l}){b()||t(!1);let{matches:u}=e.useContext(C),{pathname:s}=U(),c=D(),p=o(r,a(u).map((e=>e.pathnameBase)),s,"path"===l),d=JSON.stringify(p);return e.useEffect((()=>c(JSON.parse(d),{replace:n,state:i,relative:l})),[c,d,l,n,i]),null}function se(e){return N(e.context)}function ce(e){t(!1)}function pe({basename:r="/",children:n=null,location:a,navigationType:o=u.Pop,navigator:l,static:s=!1,dangerouslyAllowNesting:w=!1}){b()&&!w&&t(!1);let p=r.replace(/^\/*/,"/"),d=e.useMemo((()=>({basename:p,navigator:l,static:s})),[p,l,s]);"string"==typeof a&&(a=i(a));let{pathname:m="/",search:h="",hash:f="",state:v=null,key:E="default"}=a,C=e.useMemo((()=>{let e=c(m,p);return null==e?null:{location:{pathname:e,search:h,hash:f,state:v,key:E},navigationType:o}}),[p,m,h,f,v,E,o]);return null==C?null:e.createElement(g.Provider,{value:d},e.createElement(x.Provider,{children:n,value:C}))}function de({children:e,location:t}){return A(ge(e),t)}function me({children:t,errorElement:r,resolve:n}){return e.createElement(ve,{resolve:n,errorElement:r},e.createElement(Ee,null,t))}var he;!function(e){e[e.pending=0]="pending",e[e.success=1]="success",e[e.error=2]="error"}(he||(he={}));const fe=new Promise((()=>{}));class ve extends e.Component{constructor(e){super(e),this.state={error:null}}static getDerivedStateFromError(e){return{error:e}}componentDidCatch(e,t){console.error("<Await> caught the following error during render",e,t)}render(){let{children:t,errorElement:r,resolve:n}=this.props,a=null,o=he.pending;if(n instanceof Promise)if(this.state.error){o=he.error;let e=this.state.error;a=Promise.reject().catch((()=>{})),Object.defineProperty(a,"_tracked",{get:()=>!0}),Object.defineProperty(a,"_error",{get:()=>e})}else n._tracked?(a=n,o=void 0!==a._error?he.error:void 0!==a._data?he.success:he.pending):(o=he.pending,Object.defineProperty(n,"_tracked",{get:()=>!0}),a=n.then((e=>Object.defineProperty(n,"_data",{get:()=>e})),(e=>Object.defineProperty(n,"_error",{get:()=>e}))));else o=he.success,a=Promise.resolve(),Object.defineProperty(a,"_tracked",{get:()=>!0}),Object.defineProperty(a,"_data",{get:()=>n});if(o===he.error&&a._error instanceof m)throw fe;if(o===he.error&&!r)throw a._error;if(o===he.error)return e.createElement(E.Provider,{value:a,children:r});if(o===he.success)return e.createElement(E.Provider,{value:a,children:t});throw a}}function Ee({children:t}){let r=ee(),n="function"==typeof t?t(r):t;return e.createElement(e.Fragment,null,n)}function ge(r,n=[]){let a=[];return e.Children.forEach(r,((r,o)=>{if(!e.isValidElement(r))return;let i=[...n,o];if(r.type===e.Fragment)return void a.push.apply(a,ge(r.props.children,i));r.type!==ce&&t(!1),r.props.index&&r.props.children&&t(!1);let l={id:r.props.id||i.join("-"),caseSensitive:r.props.caseSensitive,element:r.props.element,Component:r.props.Component,index:r.props.index,path:r.props.path,loader:r.props.loader,action:r.props.action,errorElement:r.props.errorElement,ErrorBoundary:r.props.ErrorBoundary,hasErrorBoundary:null!=r.props.ErrorBoundary||null!=r.props.errorElement,shouldRevalidate:r.props.shouldRevalidate,handle:r.props.handle,lazy:r.props.lazy};r.props.children&&(l.children=ge(r.props.children,i)),a.push(l)})),a}function xe(e,f,g,h){return w(e,f,g,h)}function Ce(t){let r={hasErrorBoundary:null!=t.ErrorBoundary||null!=t.errorElement};return t.Component&&Object.assign(r,{element:e.createElement(t.Component),Component:void 0}),t.ErrorBoundary&&Object.assign(r,{errorElement:e.createElement(t.ErrorBoundary),ErrorBoundary:void 0}),r}function ye(e,t){return h({basename:t?.basename,future:{...t?.future,v7_prependBasename:!0},history:d({initialEntries:t?.initialEntries,initialIndex:t?.initialIndex}),hydrationData:t?.hydrationData,routes:e,mapRouteProperties:Ce}).initialize()}export{me as Await,le as MemoryRouter,ue as Navigate,se as Outlet,ce as Route,pe as Router,oe as RouterProvider,de as Routes,f as UNSAFE_DataRouterContext,v as UNSAFE_DataRouterStateContext,x as UNSAFE_LocationContext,g as UNSAFE_NavigationContext,C as UNSAFE_RouteContext,Ce as UNSAFE_mapRouteProperties,W as UNSAFE_useRouteId,F as UNSAFE_useRoutesImpl,ye as createMemoryRouter,ge as createRoutesFromChildren,ge as createRoutesFromElements,xe as renderMatches,ne as unstable_useBlocker,X as useActionData,te as useAsyncError,ee as useAsyncValue,R as useHref,b as useInRouterContext,K as useLoaderData,U as useLocation,P as useMatch,G as useMatches,D as useNavigate,Y as useNavigation,S as useNavigationType,N as useOutlet,k as useOutletContext,L as useParams,O as useResolvedPath,q as useRevalidator,Z as useRouteError,Q as useRouteLoaderData,A as useRoutes};
 diff --git a/dist/umd/react-router.development.js b/dist/umd/react-router.development.js
-index 97aca4a68094049fbc8db939d4fdb4af394aa505..9449d604eba50909870272596cd9e05f863f95b9 100644
+index 68f41036f7da973c9ff12bcfc2f7fea091cd1355..6fe54a9b57b83bffb31461d750bbc1bc5549823a 100644
 --- a/dist/umd/react-router.development.js
 +++ b/dist/umd/react-router.development.js
-@@ -500,17 +500,34 @@
-       };
-     }
-     componentDidCatch(error, errorInfo) {
--      console.error("React Router caught the following error during render", error, errorInfo);
-+      // NOTE(calebmer): Our application error handlers are already responsible for
-+      // logging React errors. `react-router` is just adding noise.
-     }
-     render() {
--      return this.state.error ? /*#__PURE__*/React__namespace.createElement(RouteContext.Provider, {
--        value: this.props.routeContext
--      }, /*#__PURE__*/React__namespace.createElement(RouteErrorContext.Provider, {
-+      let {match} = this.props;
-+      let dataRouterContext = this.context;
-+  
-+      if (!this.state.error) {
-+        // Track how deep we got in our render pass to emulate SSR componentDidCatch
-+        // in a DataStaticRouter
-+        if (dataRouterContext && dataRouterContext.static && dataRouterContext.staticContext && (match.route.errorElement || match.route.ErrorBoundary)) {
-+          dataRouterContext.staticContext._deepestRenderedBoundaryId = match.route.id;
-+        }
-+      }
-+  
-+      return /*#__PURE__*/React.createElement(RouteContext.Provider, {
-+        value: this.state.error ? {...this.props.routeContext, outlet: null} : this.props.routeContext
-+      }, /*#__PURE__*/React.createElement(RouteErrorContext.Provider, {
-         value: this.state.error,
--        children: this.props.component
--      })) : this.props.children;
-+        // NOTE(calebmer): We want our error element and ok element to have the
-+        // same React key path so they share state across renders. We restructure
-+        // `react-router` code a bit here so that `<RenderedRoute>` logic happens
-+        // here in `<RenderErrorBoundary>`.
-+        children: this.state.error ? this.props.component : this.props.children
-+      }));
-     }
-   }
-+  RenderErrorBoundary.contextType = DataRouterContext;
-   function RenderedRoute(_ref) {
-     let {
-       routeContext,
-@@ -528,7 +545,7 @@
-       value: routeContext
-     }, children);
-   }
--  function _renderMatches(matches, parentMatches, dataRouterState) {
-+  function _renderMatches(matches, parentMatches, dataRouterState, options) {
-     var _dataRouterState2;
-     if (parentMatches === void 0) {
-       parentMatches = [];
-@@ -536,6 +553,9 @@
-     if (dataRouterState === void 0) {
-       dataRouterState = null;
-     }
-+    if (options === void 0) {
-+      options = {};
-+    }
-     if (matches == null) {
-       var _dataRouterState;
-       if ((_dataRouterState = dataRouterState) != null && _dataRouterState.errors) {
-@@ -563,7 +583,7 @@
-         errorElement = match.route.errorElement || defaultErrorElement;
-       }
-       let matches = parentMatches.concat(renderedMatches.slice(0, index + 1));
--      let getChildren = () => {
-+      let getChildren = (wrap) => {
-         let children;
-         if (error) {
-           children = errorElement;
-@@ -580,6 +600,9 @@
-         } else {
-           children = outlet;
-         }
-+        if (!wrap) {
-+          return children;
-+        }  
-         return /*#__PURE__*/React__namespace.createElement(RenderedRoute, {
-           match: match,
-           routeContext: {
-@@ -593,18 +616,24 @@
-       // Only wrap in an error boundary within data router usages when we have an
-       // ErrorBoundary/errorElement on this route.  Otherwise let it bubble up to
-       // an ancestor ErrorBoundary/errorElement
--      return dataRouterState && (match.route.ErrorBoundary || match.route.errorElement || index === 0) ? /*#__PURE__*/React__namespace.createElement(RenderErrorBoundary, {
-+      //
-+      // NOTE(calebmer): Allow turning off error boundary wrapping for the first
-+      // route. We use this when rendering inert routes in our native mobile app
-+      // to make sure we can maintain the same React key path between when the
-+      // route is inert vs not inert.
-+      return dataRouterState && (match.route.ErrorBoundary || match.route.errorElement || (!options.disableErrorBoundaryForFirstMatch && index === 0)) ? /*#__PURE__*/React__namespace.createElement(RenderErrorBoundary, {
-         location: dataRouterState.location,
-         revalidation: dataRouterState.revalidation,
-         component: errorElement,
-         error: error,
--        children: getChildren(),
-+        children: getChildren(false),
-+        match: match,
-         routeContext: {
--          outlet: null,
-+          outlet,
-           matches,
-           isDataRoute: true
-         }
--      }) : getChildren();
-+      }) : getChildren(true);
-     }, null);
-   }
-   var DataRouterHook;
-@@ -901,7 +930,8 @@
-     let {
-       fallbackElement,
-       router,
--      future
-+      future,
-+      dangerouslyAllowNesting
-     } = _ref;
-     // Need to use a layout effect here so we are subscribed early enough to
-     // pick up on any render-driven redirects/navigations (useEffect/<Navigate>)
-@@ -951,7 +981,8 @@
-       basename: basename,
-       location: state.location,
-       navigationType: state.historyAction,
--      navigator: navigator
-+      navigator: navigator,
-+      dangerouslyAllowNesting: dangerouslyAllowNesting
-     }, state.initialized ? /*#__PURE__*/React__namespace.createElement(DataRoutes, {
-       routes: router.routes,
-       state: state
-@@ -1076,9 +1107,13 @@
-       location: locationProp,
-       navigationType = router.Action.Pop,
-       navigator,
--      static: staticProp = false
-+      static: staticProp = false,
-+      dangerouslyAllowNesting = false,
-     } = _ref5;
--    !!useInRouterContext() ? router.UNSAFE_invariant(false, "You cannot render a <Router> inside another <Router>." + " You should never have more than one in your app.")  : void 0;
-+    // NOTE(calebmer): We need nested router support for implementing peeks.
-+    // Taking full responsibility for any nested router issues. Acknowledge this
-+    // is not officially supported by calling the prop "dangerous".
-+    !(!useInRouterContext() || dangerouslyAllowNesting) ? router.UNSAFE_invariant(false, "You cannot render a <Router> inside another <Router>." + " You should never have more than one in your app.")  : void 0;
- 
-     // Preserve trailing slashes on basename, so we can let the user control
-     // the enforcement of trailing slashes throughout the app
-@@ -1318,8 +1353,9 @@
-   /**
-    * Renders the result of `matchRoutes()` into a React element.
-    */
--  function renderMatches(matches) {
--    return _renderMatches(matches);
-+  // NOTE(calebmer): Pass all three arguments to `renderMatches()`.
-+  function renderMatches(matches, parentMatches, dataRouterState, options) {
-+    return _renderMatches(matches, parentMatches, dataRouterState, options);
-   }
- 
-   function mapRouteProperties(route) {
-@@ -1461,4 +1497,4 @@
-   Object.defineProperty(exports, '__esModule', { value: true });
- 
- }));
--//# sourceMappingURL=react-router.development.js.map
-+// NOTE(calebmer): Don't use source map since our patches break the source map.
+@@ -1,3 +1,8 @@
++// NOTE(calebmer): To reduce the maintenance burden of our `react-router`
++// patch, we don't patch UMD builds. This is especially nice since it means we
++// don't need to patch the minified UMD build.
++throw new Error("`react-router` UMD build is not supported");
++
+ /**
+  * React Router v6.23.1
+  *
 diff --git a/dist/umd/react-router.production.min.js b/dist/umd/react-router.production.min.js
-index 3300f0b04bab242d88c2f262bf1a9fee9799e24d..d19b5e8ff39eb10e71f3449610e651485fb5c89d 100644
+index 99e16cec89ea754048e507bbd147431b6b10ded1..fac73b6c0760b5825a2dcd0433b140b5ff022bd2 100644
 --- a/dist/umd/react-router.production.min.js
 +++ b/dist/umd/react-router.production.min.js
-@@ -8,5 +8,5 @@
+@@ -1,3 +1,8 @@
++// NOTE(calebmer): To reduce the maintenance burden of our `react-router`
++// patch, we don't patch UMD builds. This is especially nice since it means we
++// don't need to patch the minified UMD build.
++throw new Error("`react-router` UMD build is not supported");
++
+ /**
+  * React Router v6.23.1
   *
-  * @license MIT
-  */
--!function(e,t){"object"==typeof exports&&"undefined"!=typeof module?t(exports,require("react"),require("@remix-run/router")):"function"==typeof define&&define.amd?define(["exports","react","@remix-run/router"],t):t((e="undefined"!=typeof globalThis?globalThis:e||self).ReactRouter={},e.React,e.RemixRouter)}(this,(function(e,t,r){"use strict";function n(e){if(e&&e.__esModule)return e;var t=Object.create(null);return e&&Object.keys(e).forEach((function(r){if("default"!==r){var n=Object.getOwnPropertyDescriptor(e,r);Object.defineProperty(t,r,n.get?n:{enumerable:!0,get:function(){return e[r]}})}})),t.default=e,Object.freeze(t)}var a=n(t);function o(){return o=Object.assign?Object.assign.bind():function(e){for(var t=1;t<arguments.length;t++){var r=arguments[t];for(var n in r)Object.prototype.hasOwnProperty.call(r,n)&&(e[n]=r[n])}return e},o.apply(this,arguments)}const i=a.createContext(null),u=a.createContext(null),l=a.createContext(null),s=a.createContext(null),c=a.createContext(null),d=a.createContext({outlet:null,matches:[],isDataRoute:!1}),p=a.createContext(null);function m(){return null!=a.useContext(c)}function h(){return m()||r.UNSAFE_invariant(!1),a.useContext(c).location}function f(e){a.useContext(s).static||a.useLayoutEffect(e)}function v(){let{isDataRoute:e}=a.useContext(d);return e?function(){let{router:e}=A(_.UseNavigateStable),t=j(N.UseNavigateStable),r=a.useRef(!1);return f((()=>{r.current=!0})),a.useCallback((function(n,a){void 0===a&&(a={}),r.current&&("number"==typeof n?e.navigate(n):e.navigate(n,o({fromRouteId:t},a)))}),[e,t])}():function(){m()||r.UNSAFE_invariant(!1);let e=a.useContext(i),{basename:t,navigator:n}=a.useContext(s),{matches:o}=a.useContext(d),{pathname:u}=h(),l=JSON.stringify(r.UNSAFE_getPathContributingMatches(o).map((e=>e.pathnameBase))),c=a.useRef(!1);return f((()=>{c.current=!0})),a.useCallback((function(a,o){if(void 0===o&&(o={}),!c.current)return;if("number"==typeof a)return void n.go(a);let i=r.resolveTo(a,JSON.parse(l),u,"path"===o.relative);null==e&&"/"!==t&&(i.pathname="/"===i.pathname?t:r.joinPaths([t,i.pathname])),(o.replace?n.replace:n.push)(i,o.state,o)}),[t,n,l,u,e])}()}const g=a.createContext(null);function E(e){let t=a.useContext(d).outlet;return t?a.createElement(g.Provider,{value:e},t):t}function y(e,t){let{relative:n}=void 0===t?{}:t,{matches:o}=a.useContext(d),{pathname:i}=h(),u=JSON.stringify(r.UNSAFE_getPathContributingMatches(o).map((e=>e.pathnameBase)));return a.useMemo((()=>r.resolveTo(e,JSON.parse(u),i,"path"===n)),[e,u,i,n])}function b(e,t){return R(e,t)}function R(e,t,n){m()||r.UNSAFE_invariant(!1);let{navigator:i}=a.useContext(s),{matches:u}=a.useContext(d),l=u[u.length-1],p=l?l.params:{};!l||l.pathname;let f=l?l.pathnameBase:"/";l&&l.route;let v,g=h();if(t){var E;let e="string"==typeof t?r.parsePath(t):t;"/"===f||(null==(E=e.pathname)?void 0:E.startsWith(f))||r.UNSAFE_invariant(!1),v=e}else v=g;let y=v.pathname||"/",b="/"===f?y:y.slice(f.length)||"/",R=r.matchRoutes(e,{pathname:b}),C=S(R&&R.map((e=>Object.assign({},e,{params:Object.assign({},p,e.params),pathname:r.joinPaths([f,i.encodeLocation?i.encodeLocation(e.pathname).pathname:e.pathname]),pathnameBase:"/"===e.pathnameBase?f:r.joinPaths([f,i.encodeLocation?i.encodeLocation(e.pathnameBase).pathname:e.pathnameBase])}))),u,n);return t&&C?a.createElement(c.Provider,{value:{location:o({pathname:"/",search:"",hash:"",state:null,key:"default"},v),navigationType:r.Action.Pop}},C):C}function C(){let e=F(),t=r.isRouteErrorResponse(e)?e.status+" "+e.statusText:e instanceof Error?e.message:JSON.stringify(e),n=e instanceof Error?e.stack:null,o={padding:"0.5rem",backgroundColor:"rgba(200,200,200, 0.5)"};return a.createElement(a.Fragment,null,a.createElement("h2",null,"Unexpected Application Error!"),a.createElement("h3",{style:{fontStyle:"italic"}},t),n?a.createElement("pre",{style:o},n):null,null)}const x=a.createElement(C,null);class P extends a.Component{constructor(e){super(e),this.state={location:e.location,revalidation:e.revalidation,error:e.error}}static getDerivedStateFromError(e){return{error:e}}static getDerivedStateFromProps(e,t){return t.location!==e.location||"idle"!==t.revalidation&&"idle"===e.revalidation?{error:e.error,location:e.location,revalidation:e.revalidation}:{error:e.error||t.error,location:t.location,revalidation:e.revalidation||t.revalidation}}componentDidCatch(e,t){console.error("React Router caught the following error during render",e,t)}render(){return this.state.error?a.createElement(d.Provider,{value:this.props.routeContext},a.createElement(p.Provider,{value:this.state.error,children:this.props.component})):this.props.children}}function U(e){let{routeContext:t,match:r,children:n}=e,o=a.useContext(i);return o&&o.static&&o.staticContext&&(r.route.errorElement||r.route.ErrorBoundary)&&(o.staticContext._deepestRenderedBoundaryId=r.route.id),a.createElement(d.Provider,{value:t},n)}function S(e,t,n){var o;if(void 0===t&&(t=[]),void 0===n&&(n=null),null==e){var i;if(null==(i=n)||!i.errors)return null;e=n.matches}let u=e,l=null==(o=n)?void 0:o.errors;if(null!=l){let e=u.findIndex((e=>e.route.id&&(null==l?void 0:l[e.route.id])));e>=0||r.UNSAFE_invariant(!1),u=u.slice(0,Math.min(u.length,e+1))}return u.reduceRight(((e,r,o)=>{let i=r.route.id?null==l?void 0:l[r.route.id]:null,s=null;n&&(s=r.route.errorElement||x);let c=t.concat(u.slice(0,o+1)),d=()=>{let t;return t=i?s:r.route.Component?a.createElement(r.route.Component,null):r.route.element?r.route.element:e,a.createElement(U,{match:r,routeContext:{outlet:e,matches:c,isDataRoute:null!=n},children:t})};return n&&(r.route.ErrorBoundary||r.route.errorElement||0===o)?a.createElement(P,{location:n.location,revalidation:n.revalidation,component:s,error:i,children:d(),routeContext:{outlet:null,matches:c,isDataRoute:!0}}):d()}),null)}var _,N;function A(e){let t=a.useContext(i);return t||r.UNSAFE_invariant(!1),t}function O(e){let t=a.useContext(u);return t||r.UNSAFE_invariant(!1),t}function j(e){let t=function(e){let t=a.useContext(d);return t||r.UNSAFE_invariant(!1),t}(),n=t.matches[t.matches.length-1];return n.route.id||r.UNSAFE_invariant(!1),n.route.id}function F(){var e;let t=a.useContext(p),r=O(N.UseRouteError),n=j(N.UseRouteError);return t||(null==(e=r.errors)?void 0:e[n])}function D(){let e=a.useContext(l);return null==e?void 0:e._data}!function(e){e.UseBlocker="useBlocker",e.UseRevalidator="useRevalidator",e.UseNavigateStable="useNavigate"}(_||(_={})),function(e){e.UseBlocker="useBlocker",e.UseLoaderData="useLoaderData",e.UseActionData="useActionData",e.UseRouteError="useRouteError",e.UseNavigation="useNavigation",e.UseRouteLoaderData="useRouteLoaderData",e.UseMatches="useMatches",e.UseRevalidator="useRevalidator",e.UseNavigateStable="useNavigate",e.UseRouteId="useRouteId"}(N||(N={}));let B=0;const k=a.startTransition;function L(e){let{routes:t,state:r}=e;return R(t,void 0,r)}function M(e){r.UNSAFE_invariant(!1)}function T(e){let{basename:t="/",children:n=null,location:o,navigationType:i=r.Action.Pop,navigator:u,static:l=!1}=e;m()&&r.UNSAFE_invariant(!1);let d=t.replace(/^\/*/,"/"),p=a.useMemo((()=>({basename:d,navigator:u,static:l})),[d,u,l]);"string"==typeof o&&(o=r.parsePath(o));let{pathname:h="/",search:f="",hash:v="",state:g=null,key:E="default"}=o,y=a.useMemo((()=>{let e=r.stripBasename(h,d);return null==e?null:{location:{pathname:e,search:f,hash:v,state:g,key:E},navigationType:i}}),[d,h,f,v,g,E,i]);return null==y?null:a.createElement(s.Provider,{value:p},a.createElement(c.Provider,{children:n,value:y}))}var I;!function(e){e[e.pending=0]="pending",e[e.success=1]="success",e[e.error=2]="error"}(I||(I={}));const w=new Promise((()=>{}));class J extends a.Component{constructor(e){super(e),this.state={error:null}}static getDerivedStateFromError(e){return{error:e}}componentDidCatch(e,t){console.error("<Await> caught the following error during render",e,t)}render(){let{children:e,errorElement:t,resolve:n}=this.props,o=null,i=I.pending;if(n instanceof Promise)if(this.state.error){i=I.error;let e=this.state.error;o=Promise.reject().catch((()=>{})),Object.defineProperty(o,"_tracked",{get:()=>!0}),Object.defineProperty(o,"_error",{get:()=>e})}else n._tracked?(o=n,i=void 0!==o._error?I.error:void 0!==o._data?I.success:I.pending):(i=I.pending,Object.defineProperty(n,"_tracked",{get:()=>!0}),o=n.then((e=>Object.defineProperty(n,"_data",{get:()=>e})),(e=>Object.defineProperty(n,"_error",{get:()=>e}))));else i=I.success,o=Promise.resolve(),Object.defineProperty(o,"_tracked",{get:()=>!0}),Object.defineProperty(o,"_data",{get:()=>n});if(i===I.error&&o._error instanceof r.AbortedDeferredError)throw w;if(i===I.error&&!t)throw o._error;if(i===I.error)return a.createElement(l.Provider,{value:o,children:t});if(i===I.success)return a.createElement(l.Provider,{value:o,children:e});throw o}}function H(e){let{children:t}=e,r=D(),n="function"==typeof t?t(r):t;return a.createElement(a.Fragment,null,n)}function z(e,t){void 0===t&&(t=[]);let n=[];return a.Children.forEach(e,((e,o)=>{if(!a.isValidElement(e))return;let i=[...t,o];if(e.type===a.Fragment)return void n.push.apply(n,z(e.props.children,i));e.type!==M&&r.UNSAFE_invariant(!1),e.props.index&&e.props.children&&r.UNSAFE_invariant(!1);let u={id:e.props.id||i.join("-"),caseSensitive:e.props.caseSensitive,element:e.props.element,Component:e.props.Component,index:e.props.index,path:e.props.path,loader:e.props.loader,action:e.props.action,errorElement:e.props.errorElement,ErrorBoundary:e.props.ErrorBoundary,hasErrorBoundary:null!=e.props.ErrorBoundary||null!=e.props.errorElement,shouldRevalidate:e.props.shouldRevalidate,handle:e.props.handle,lazy:e.props.lazy};e.props.children&&(u.children=z(e.props.children,i)),n.push(u)})),n}function q(e){let t={hasErrorBoundary:null!=e.ErrorBoundary||null!=e.errorElement};return e.Component&&Object.assign(t,{element:a.createElement(e.Component),Component:void 0}),e.ErrorBoundary&&Object.assign(t,{errorElement:a.createElement(e.ErrorBoundary),ErrorBoundary:void 0}),t}Object.defineProperty(e,"AbortedDeferredError",{enumerable:!0,get:function(){return r.AbortedDeferredError}}),Object.defineProperty(e,"NavigationType",{enumerable:!0,get:function(){return r.Action}}),Object.defineProperty(e,"createPath",{enumerable:!0,get:function(){return r.createPath}}),Object.defineProperty(e,"defer",{enumerable:!0,get:function(){return r.defer}}),Object.defineProperty(e,"generatePath",{enumerable:!0,get:function(){return r.generatePath}}),Object.defineProperty(e,"isRouteErrorResponse",{enumerable:!0,get:function(){return r.isRouteErrorResponse}}),Object.defineProperty(e,"json",{enumerable:!0,get:function(){return r.json}}),Object.defineProperty(e,"matchPath",{enumerable:!0,get:function(){return r.matchPath}}),Object.defineProperty(e,"matchRoutes",{enumerable:!0,get:function(){return r.matchRoutes}}),Object.defineProperty(e,"parsePath",{enumerable:!0,get:function(){return r.parsePath}}),Object.defineProperty(e,"redirect",{enumerable:!0,get:function(){return r.redirect}}),Object.defineProperty(e,"resolvePath",{enumerable:!0,get:function(){return r.resolvePath}}),e.Await=function(e){let{children:t,errorElement:r,resolve:n}=e;return a.createElement(J,{resolve:n,errorElement:r},a.createElement(H,null,t))},e.MemoryRouter=function(e){let{basename:t,children:n,initialEntries:o,initialIndex:i,future:u}=e,l=a.useRef();null==l.current&&(l.current=r.createMemoryHistory({initialEntries:o,initialIndex:i,v5Compat:!0}));let s=l.current,[c,d]=a.useState({action:s.action,location:s.location}),{v7_startTransition:p}=u||{},m=a.useCallback((e=>{p&&k?k((()=>d(e))):d(e)}),[d,p]);return a.useLayoutEffect((()=>s.listen(m)),[s,m]),a.createElement(T,{basename:t,children:n,location:c.location,navigationType:c.action,navigator:s})},e.Navigate=function(e){let{to:t,replace:n,state:o,relative:i}=e;m()||r.UNSAFE_invariant(!1);let{matches:u}=a.useContext(d),{pathname:l}=h(),s=v(),c=r.resolveTo(t,r.UNSAFE_getPathContributingMatches(u).map((e=>e.pathnameBase)),l,"path"===i),p=JSON.stringify(c);return a.useEffect((()=>s(JSON.parse(p),{replace:n,state:o,relative:i})),[s,p,i,n,o]),null},e.Outlet=function(e){return E(e.context)},e.Route=M,e.Router=T,e.RouterProvider=function(e){let{fallbackElement:t,router:r,future:n}=e,[o,l]=a.useState(r.state),{v7_startTransition:s}=n||{},c=a.useCallback((e=>{s&&k?k((()=>l(e))):l(e)}),[l,s]);a.useLayoutEffect((()=>r.subscribe(c)),[r,c]);let d=a.useMemo((()=>({createHref:r.createHref,encodeLocation:r.encodeLocation,go:e=>r.navigate(e),push:(e,t,n)=>r.navigate(e,{state:t,preventScrollReset:null==n?void 0:n.preventScrollReset}),replace:(e,t,n)=>r.navigate(e,{replace:!0,state:t,preventScrollReset:null==n?void 0:n.preventScrollReset})})),[r]),p=r.basename||"/",m=a.useMemo((()=>({router:r,navigator:d,static:!1,basename:p})),[r,d,p]);return a.createElement(a.Fragment,null,a.createElement(i.Provider,{value:m},a.createElement(u.Provider,{value:o},a.createElement(T,{basename:p,location:o.location,navigationType:o.historyAction,navigator:d},o.initialized?a.createElement(L,{routes:r.routes,state:o}):t))),null)},e.Routes=function(e){let{children:t,location:r}=e;return b(z(t),r)},e.UNSAFE_DataRouterContext=i,e.UNSAFE_DataRouterStateContext=u,e.UNSAFE_LocationContext=c,e.UNSAFE_NavigationContext=s,e.UNSAFE_RouteContext=d,e.UNSAFE_mapRouteProperties=q,e.UNSAFE_useRouteId=function(){return j(N.UseRouteId)},e.UNSAFE_useRoutesImpl=R,e.createMemoryRouter=function(e,t){return r.createRouter({basename:null==t?void 0:t.basename,future:o({},null==t?void 0:t.future,{v7_prependBasename:!0}),history:r.createMemoryHistory({initialEntries:null==t?void 0:t.initialEntries,initialIndex:null==t?void 0:t.initialIndex}),hydrationData:null==t?void 0:t.hydrationData,routes:e,mapRouteProperties:q}).initialize()},e.createRoutesFromChildren=z,e.createRoutesFromElements=z,e.renderMatches=function(e){return S(e)},e.unstable_useBlocker=function(e){let{router:t,basename:n}=A(_.UseBlocker),i=O(N.UseBlocker),[u,l]=a.useState(""),[s,c]=a.useState(r.IDLE_BLOCKER),d=a.useCallback((t=>{if("function"!=typeof e)return!!e;if("/"===n)return e(t);let{currentLocation:a,nextLocation:i,historyAction:u}=t;return e({currentLocation:o({},a,{pathname:r.stripBasename(a.pathname,n)||a.pathname}),nextLocation:o({},i,{pathname:r.stripBasename(i.pathname,n)||i.pathname}),historyAction:u})}),[n,e]);return a.useEffect((()=>{let e=String(++B);return c(t.getBlocker(e,d)),l(e),()=>t.deleteBlocker(e)}),[t,c,l,d]),u&&i.blockers.has(u)?i.blockers.get(u):s},e.useActionData=function(){let e=O(N.UseActionData);return a.useContext(d)||r.UNSAFE_invariant(!1),Object.values((null==e?void 0:e.actionData)||{})[0]},e.useAsyncError=function(){let e=a.useContext(l);return null==e?void 0:e._error},e.useAsyncValue=D,e.useHref=function(e,t){let{relative:n}=void 0===t?{}:t;m()||r.UNSAFE_invariant(!1);let{basename:o,navigator:i}=a.useContext(s),{hash:u,pathname:l,search:c}=y(e,{relative:n}),d=l;return"/"!==o&&(d="/"===l?o:r.joinPaths([o,l])),i.createHref({pathname:d,search:c,hash:u})},e.useInRouterContext=m,e.useLoaderData=function(){let e=O(N.UseLoaderData),t=j(N.UseLoaderData);if(!e.errors||null==e.errors[t])return e.loaderData[t];console.error("You cannot `useLoaderData` in an errorElement (routeId: "+t+")")},e.useLocation=h,e.useMatch=function(e){m()||r.UNSAFE_invariant(!1);let{pathname:t}=h();return a.useMemo((()=>r.matchPath(e,t)),[t,e])},e.useMatches=function(){let{matches:e,loaderData:t}=O(N.UseMatches);return a.useMemo((()=>e.map((e=>{let{pathname:r,params:n}=e;return{id:e.route.id,pathname:r,params:n,data:t[e.route.id],handle:e.route.handle}}))),[e,t])},e.useNavigate=v,e.useNavigation=function(){return O(N.UseNavigation).navigation},e.useNavigationType=function(){return a.useContext(c).navigationType},e.useOutlet=E,e.useOutletContext=function(){return a.useContext(g)},e.useParams=function(){let{matches:e}=a.useContext(d),t=e[e.length-1];return t?t.params:{}},e.useResolvedPath=y,e.useRevalidator=function(){let e=A(_.UseRevalidator),t=O(N.UseRevalidator);return{revalidate:e.router.revalidate,state:t.revalidation}},e.useRouteError=F,e.useRouteLoaderData=function(e){return O(N.UseRouteLoaderData).loaderData[e]},e.useRoutes=b,Object.defineProperty(e,"__esModule",{value:!0})}));
--//# sourceMappingURL=react-router.production.min.js.map
-+!function(e,t){"object"==typeof exports&&"undefined"!=typeof module?t(exports,require("react"),require("@remix-run/router")):"function"==typeof define&&define.amd?define(["exports","react","@remix-run/router"],t):t((e="undefined"!=typeof globalThis?globalThis:e||self).ReactRouter={},e.React,e.RemixRouter)}(this,(function(e,t,r){"use strict";function n(e){if(e&&e.__esModule)return e;var t=Object.create(null);return e&&Object.keys(e).forEach((function(r){if("default"!==r){var n=Object.getOwnPropertyDescriptor(e,r);Object.defineProperty(t,r,n.get?n:{enumerable:!0,get:function(){return e[r]}})}})),t.default=e,Object.freeze(t)}var a=n(t);function o(){return o=Object.assign?Object.assign.bind():function(e){for(var t=1;t<arguments.length;t++){var r=arguments[t];for(var n in r)Object.prototype.hasOwnProperty.call(r,n)&&(e[n]=r[n])}return e},o.apply(this,arguments)}const i=a.createContext(null),u=a.createContext(null),l=a.createContext(null),s=a.createContext(null),c=a.createContext(null),d=a.createContext({outlet:null,matches:[],isDataRoute:!1}),p=a.createContext(null);function m(){return null!=a.useContext(c)}function h(){return m()||r.UNSAFE_invariant(!1),a.useContext(c).location}function f(e){a.useContext(s).static||a.useLayoutEffect(e)}function v(){let{isDataRoute:e}=a.useContext(d);return e?function(){let{router:e}=A(_.UseNavigateStable),t=j(N.UseNavigateStable),r=a.useRef(!1);return f((()=>{r.current=!0})),a.useCallback((function(n,a){void 0===a&&(a={}),r.current&&("number"==typeof n?e.navigate(n):e.navigate(n,o({fromRouteId:t},a)))}),[e,t])}():function(){m()||r.UNSAFE_invariant(!1);let e=a.useContext(i),{basename:t,navigator:n}=a.useContext(s),{matches:o}=a.useContext(d),{pathname:u}=h(),l=JSON.stringify(r.UNSAFE_getPathContributingMatches(o).map((e=>e.pathnameBase))),c=a.useRef(!1);return f((()=>{c.current=!0})),a.useCallback((function(a,o){if(void 0===o&&(o={}),!c.current)return;if("number"==typeof a)return void n.go(a);let i=r.resolveTo(a,JSON.parse(l),u,"path"===o.relative);null==e&&"/"!==t&&(i.pathname="/"===i.pathname?t:r.joinPaths([t,i.pathname])),(o.replace?n.replace:n.push)(i,o.state,o)}),[t,n,l,u,e])}()}const g=a.createContext(null);function E(e){let t=a.useContext(d).outlet;return t?a.createElement(g.Provider,{value:e},t):t}function y(e,t){let{relative:n}=void 0===t?{}:t,{matches:o}=a.useContext(d),{pathname:i}=h(),u=JSON.stringify(r.UNSAFE_getPathContributingMatches(o).map((e=>e.pathnameBase)));return a.useMemo((()=>r.resolveTo(e,JSON.parse(u),i,"path"===n)),[e,u,i,n])}function b(e,t){return R(e,t)}function R(e,t,n){m()||r.UNSAFE_invariant(!1);let{navigator:i}=a.useContext(s),{matches:u}=a.useContext(d),l=u[u.length-1],p=l?l.params:{};!l||l.pathname;let f=l?l.pathnameBase:"/";l&&l.route;let v,g=h();if(t){var E;let e="string"==typeof t?r.parsePath(t):t;"/"===f||(null==(E=e.pathname)?void 0:E.startsWith(f))||r.UNSAFE_invariant(!1),v=e}else v=g;let y=v.pathname||"/",b="/"===f?y:y.slice(f.length)||"/",R=r.matchRoutes(e,{pathname:b}),C=S(R&&R.map((e=>Object.assign({},e,{params:Object.assign({},p,e.params),pathname:r.joinPaths([f,i.encodeLocation?i.encodeLocation(e.pathname).pathname:e.pathname]),pathnameBase:"/"===e.pathnameBase?f:r.joinPaths([f,i.encodeLocation?i.encodeLocation(e.pathnameBase).pathname:e.pathnameBase])}))),u,n);return t&&C?a.createElement(c.Provider,{value:{location:o({pathname:"/",search:"",hash:"",state:null,key:"default"},v),navigationType:r.Action.Pop}},C):C}function C(){let e=F(),t=r.isRouteErrorResponse(e)?e.status+" "+e.statusText:e instanceof Error?e.message:JSON.stringify(e),n=e instanceof Error?e.stack:null,o={padding:"0.5rem",backgroundColor:"rgba(200,200,200, 0.5)"};return a.createElement(a.Fragment,null,a.createElement("h2",null,"Unexpected Application Error!"),a.createElement("h3",{style:{fontStyle:"italic"}},t),n?a.createElement("pre",{style:o},n):null,null)}const x=a.createElement(C,null);class P extends a.Component{constructor(e){super(e),this.state={location:e.location,revalidation:e.revalidation,error:e.error}}static getDerivedStateFromError(e){return{error:e}}static getDerivedStateFromProps(e,t){return t.location!==e.location||"idle"!==t.revalidation&&"idle"===e.revalidation?{error:e.error,location:e.location,revalidation:e.revalidation}:{error:e.error||t.error,location:t.location,revalidation:e.revalidation||t.revalidation}}componentDidCatch(e,t){}render(){let{match:t}=this.props,r=this.context;return this.state.error||r&&r.static&&r.staticContext&&(t.route.errorElement||t.route.ErrorBoundary)&&(r.staticContext._deepestRenderedBoundaryId=t.route.id),a.createElement(d.Provider,{value:this.state.error?{...this.props.routeContext,outlet:null}:this.props.routeContext},a.createElement(p.Provider,{value:this.state.error,children:this.state.error?this.props.component:this.props.children}))}}P.contextType=i;function U(e){let{routeContext:t,match:r,children:n}=e,o=a.useContext(i);return o&&o.static&&o.staticContext&&(r.route.errorElement||r.route.ErrorBoundary)&&(o.staticContext._deepestRenderedBoundaryId=r.route.id),a.createElement(d.Provider,{value:t},n)}function S(e,t,n,o2){var o;if(void 0===t&&(t=[]),void 0===n&&(n=null),void 0===o2&&(o2={}),null==e){var i;if(null==(i=n)||!i.errors)return null;e=n.matches}let u=e,l=null==(o=n)?void 0:o.errors;if(null!=l){let e=u.findIndex((e=>e.route.id&&(null==l?void 0:l[e.route.id])));e>=0||r.UNSAFE_invariant(!1),u=u.slice(0,Math.min(u.length,e+1))}return u.reduceRight(((e,r,o)=>{let i=r.route.id?null==l?void 0:l[r.route.id]:null,s=null;n&&(s=r.route.errorElement||x);let c=t.concat(u.slice(0,o+1)),d=(w)=>{let t;return t=i?s:r.route.Component?a.createElement(r.route.Component,null):r.route.element?r.route.element:e,!w?t:a.createElement(U,{match:r,routeContext:{outlet:e,matches:c,isDataRoute:null!=n},children:t})};return n&&(r.route.ErrorBoundary||r.route.errorElement||(!o2.disableErrorBoundaryForFirstMatch&&0===o))?a.createElement(P,{location:n.location,revalidation:n.revalidation,component:s,error:i,children:d(false),match:r,routeContext:{outlet:e,matches:c,isDataRoute:!0}}):d(true)}),null)}var _,N;function A(e){let t=a.useContext(i);return t||r.UNSAFE_invariant(!1),t}function O(e){let t=a.useContext(u);return t||r.UNSAFE_invariant(!1),t}function j(e){let t=function(e){let t=a.useContext(d);return t||r.UNSAFE_invariant(!1),t}(),n=t.matches[t.matches.length-1];return n.route.id||r.UNSAFE_invariant(!1),n.route.id}function F(){var e;let t=a.useContext(p),r=O(N.UseRouteError),n=j(N.UseRouteError);return t||(null==(e=r.errors)?void 0:e[n])}function D(){let e=a.useContext(l);return null==e?void 0:e._data}!function(e){e.UseBlocker="useBlocker",e.UseRevalidator="useRevalidator",e.UseNavigateStable="useNavigate"}(_||(_={})),function(e){e.UseBlocker="useBlocker",e.UseLoaderData="useLoaderData",e.UseActionData="useActionData",e.UseRouteError="useRouteError",e.UseNavigation="useNavigation",e.UseRouteLoaderData="useRouteLoaderData",e.UseMatches="useMatches",e.UseRevalidator="useRevalidator",e.UseNavigateStable="useNavigate",e.UseRouteId="useRouteId"}(N||(N={}));let B=0;const k=a.startTransition;function L(e){let{routes:t,state:r}=e;return R(t,void 0,r)}function M(e){r.UNSAFE_invariant(!1)}function T(e){let{basename:t="/",children:n=null,location:o,navigationType:i=r.Action.Pop,navigator:u,static:l=!1,dangerouslyAllowNesting:q=!1}=e;m()&&!q&&r.UNSAFE_invariant(!1);let d=t.replace(/^\/*/,"/"),p=a.useMemo((()=>({basename:d,navigator:u,static:l})),[d,u,l]);"string"==typeof o&&(o=r.parsePath(o));let{pathname:h="/",search:f="",hash:v="",state:g=null,key:E="default"}=o,y=a.useMemo((()=>{let e=r.stripBasename(h,d);return null==e?null:{location:{pathname:e,search:f,hash:v,state:g,key:E},navigationType:i}}),[d,h,f,v,g,E,i]);return null==y?null:a.createElement(s.Provider,{value:p},a.createElement(c.Provider,{children:n,value:y}))}var I;!function(e){e[e.pending=0]="pending",e[e.success=1]="success",e[e.error=2]="error"}(I||(I={}));const w=new Promise((()=>{}));class J extends a.Component{constructor(e){super(e),this.state={error:null}}static getDerivedStateFromError(e){return{error:e}}componentDidCatch(e,t){console.error("<Await> caught the following error during render",e,t)}render(){let{children:e,errorElement:t,resolve:n}=this.props,o=null,i=I.pending;if(n instanceof Promise)if(this.state.error){i=I.error;let e=this.state.error;o=Promise.reject().catch((()=>{})),Object.defineProperty(o,"_tracked",{get:()=>!0}),Object.defineProperty(o,"_error",{get:()=>e})}else n._tracked?(o=n,i=void 0!==o._error?I.error:void 0!==o._data?I.success:I.pending):(i=I.pending,Object.defineProperty(n,"_tracked",{get:()=>!0}),o=n.then((e=>Object.defineProperty(n,"_data",{get:()=>e})),(e=>Object.defineProperty(n,"_error",{get:()=>e}))));else i=I.success,o=Promise.resolve(),Object.defineProperty(o,"_tracked",{get:()=>!0}),Object.defineProperty(o,"_data",{get:()=>n});if(i===I.error&&o._error instanceof r.AbortedDeferredError)throw w;if(i===I.error&&!t)throw o._error;if(i===I.error)return a.createElement(l.Provider,{value:o,children:t});if(i===I.success)return a.createElement(l.Provider,{value:o,children:e});throw o}}function H(e){let{children:t}=e,r=D(),n="function"==typeof t?t(r):t;return a.createElement(a.Fragment,null,n)}function z(e,t){void 0===t&&(t=[]);let n=[];return a.Children.forEach(e,((e,o)=>{if(!a.isValidElement(e))return;let i=[...t,o];if(e.type===a.Fragment)return void n.push.apply(n,z(e.props.children,i));e.type!==M&&r.UNSAFE_invariant(!1),e.props.index&&e.props.children&&r.UNSAFE_invariant(!1);let u={id:e.props.id||i.join("-"),caseSensitive:e.props.caseSensitive,element:e.props.element,Component:e.props.Component,index:e.props.index,path:e.props.path,loader:e.props.loader,action:e.props.action,errorElement:e.props.errorElement,ErrorBoundary:e.props.ErrorBoundary,hasErrorBoundary:null!=e.props.ErrorBoundary||null!=e.props.errorElement,shouldRevalidate:e.props.shouldRevalidate,handle:e.props.handle,lazy:e.props.lazy};e.props.children&&(u.children=z(e.props.children,i)),n.push(u)})),n}function q(e){let t={hasErrorBoundary:null!=e.ErrorBoundary||null!=e.errorElement};return e.Component&&Object.assign(t,{element:a.createElement(e.Component),Component:void 0}),e.ErrorBoundary&&Object.assign(t,{errorElement:a.createElement(e.ErrorBoundary),ErrorBoundary:void 0}),t}Object.defineProperty(e,"AbortedDeferredError",{enumerable:!0,get:function(){return r.AbortedDeferredError}}),Object.defineProperty(e,"NavigationType",{enumerable:!0,get:function(){return r.Action}}),Object.defineProperty(e,"createPath",{enumerable:!0,get:function(){return r.createPath}}),Object.defineProperty(e,"defer",{enumerable:!0,get:function(){return r.defer}}),Object.defineProperty(e,"generatePath",{enumerable:!0,get:function(){return r.generatePath}}),Object.defineProperty(e,"isRouteErrorResponse",{enumerable:!0,get:function(){return r.isRouteErrorResponse}}),Object.defineProperty(e,"json",{enumerable:!0,get:function(){return r.json}}),Object.defineProperty(e,"matchPath",{enumerable:!0,get:function(){return r.matchPath}}),Object.defineProperty(e,"matchRoutes",{enumerable:!0,get:function(){return r.matchRoutes}}),Object.defineProperty(e,"parsePath",{enumerable:!0,get:function(){return r.parsePath}}),Object.defineProperty(e,"redirect",{enumerable:!0,get:function(){return r.redirect}}),Object.defineProperty(e,"resolvePath",{enumerable:!0,get:function(){return r.resolvePath}}),e.Await=function(e){let{children:t,errorElement:r,resolve:n}=e;return a.createElement(J,{resolve:n,errorElement:r},a.createElement(H,null,t))},e.MemoryRouter=function(e){let{basename:t,children:n,initialEntries:o,initialIndex:i,future:u}=e,l=a.useRef();null==l.current&&(l.current=r.createMemoryHistory({initialEntries:o,initialIndex:i,v5Compat:!0}));let s=l.current,[c,d]=a.useState({action:s.action,location:s.location}),{v7_startTransition:p}=u||{},m=a.useCallback((e=>{p&&k?k((()=>d(e))):d(e)}),[d,p]);return a.useLayoutEffect((()=>s.listen(m)),[s,m]),a.createElement(T,{basename:t,children:n,location:c.location,navigationType:c.action,navigator:s})},e.Navigate=function(e){let{to:t,replace:n,state:o,relative:i}=e;m()||r.UNSAFE_invariant(!1);let{matches:u}=a.useContext(d),{pathname:l}=h(),s=v(),c=r.resolveTo(t,r.UNSAFE_getPathContributingMatches(u).map((e=>e.pathnameBase)),l,"path"===i),p=JSON.stringify(c);return a.useEffect((()=>s(JSON.parse(p),{replace:n,state:o,relative:i})),[s,p,i,n,o]),null},e.Outlet=function(e){return E(e.context)},e.Route=M,e.Router=T,e.RouterProvider=function(e){let{fallbackElement:t,router:r,future:n,dangerouslyAllowNesting:q}=e,[o,l]=a.useState(r.state),{v7_startTransition:s}=n||{},c=a.useCallback((e=>{s&&k?k((()=>l(e))):l(e)}),[l,s]);a.useLayoutEffect((()=>r.subscribe(c)),[r,c]);let d=a.useMemo((()=>({createHref:r.createHref,encodeLocation:r.encodeLocation,go:e=>r.navigate(e),push:(e,t,n)=>r.navigate(e,{state:t,preventScrollReset:null==n?void 0:n.preventScrollReset}),replace:(e,t,n)=>r.navigate(e,{replace:!0,state:t,preventScrollReset:null==n?void 0:n.preventScrollReset})})),[r]),p=r.basename||"/",m=a.useMemo((()=>({router:r,navigator:d,static:!1,basename:p})),[r,d,p]);return a.createElement(a.Fragment,null,a.createElement(i.Provider,{value:m},a.createElement(u.Provider,{value:o},a.createElement(T,{basename:p,location:o.location,navigationType:o.historyAction,navigator:d,dangerouslyAllowNesting:q},o.initialized?a.createElement(L,{routes:r.routes,state:o}):t))),null)},e.Routes=function(e){let{children:t,location:r}=e;return b(z(t),r)},e.UNSAFE_DataRouterContext=i,e.UNSAFE_DataRouterStateContext=u,e.UNSAFE_LocationContext=c,e.UNSAFE_NavigationContext=s,e.UNSAFE_RouteContext=d,e.UNSAFE_mapRouteProperties=q,e.UNSAFE_useRouteId=function(){return j(N.UseRouteId)},e.UNSAFE_useRoutesImpl=R,e.createMemoryRouter=function(e,t){return r.createRouter({basename:null==t?void 0:t.basename,future:o({},null==t?void 0:t.future,{v7_prependBasename:!0}),history:r.createMemoryHistory({initialEntries:null==t?void 0:t.initialEntries,initialIndex:null==t?void 0:t.initialIndex}),hydrationData:null==t?void 0:t.hydrationData,routes:e,mapRouteProperties:q}).initialize()},e.createRoutesFromChildren=z,e.createRoutesFromElements=z,e.renderMatches=function(e,f,g,h){return S(e,f,g,h)},e.unstable_useBlocker=function(e){let{router:t,basename:n}=A(_.UseBlocker),i=O(N.UseBlocker),[u,l]=a.useState(""),[s,c]=a.useState(r.IDLE_BLOCKER),d=a.useCallback((t=>{if("function"!=typeof e)return!!e;if("/"===n)return e(t);let{currentLocation:a,nextLocation:i,historyAction:u}=t;return e({currentLocation:o({},a,{pathname:r.stripBasename(a.pathname,n)||a.pathname}),nextLocation:o({},i,{pathname:r.stripBasename(i.pathname,n)||i.pathname}),historyAction:u})}),[n,e]);return a.useEffect((()=>{let e=String(++B);return c(t.getBlocker(e,d)),l(e),()=>t.deleteBlocker(e)}),[t,c,l,d]),u&&i.blockers.has(u)?i.blockers.get(u):s},e.useActionData=function(){let e=O(N.UseActionData);return a.useContext(d)||r.UNSAFE_invariant(!1),Object.values((null==e?void 0:e.actionData)||{})[0]},e.useAsyncError=function(){let e=a.useContext(l);return null==e?void 0:e._error},e.useAsyncValue=D,e.useHref=function(e,t){let{relative:n}=void 0===t?{}:t;m()||r.UNSAFE_invariant(!1);let{basename:o,navigator:i}=a.useContext(s),{hash:u,pathname:l,search:c}=y(e,{relative:n}),d=l;return"/"!==o&&(d="/"===l?o:r.joinPaths([o,l])),i.createHref({pathname:d,search:c,hash:u})},e.useInRouterContext=m,e.useLoaderData=function(){let e=O(N.UseLoaderData),t=j(N.UseLoaderData);if(!e.errors||null==e.errors[t])return e.loaderData[t];console.error("You cannot `useLoaderData` in an errorElement (routeId: "+t+")")},e.useLocation=h,e.useMatch=function(e){m()||r.UNSAFE_invariant(!1);let{pathname:t}=h();return a.useMemo((()=>r.matchPath(e,t)),[t,e])},e.useMatches=function(){let{matches:e,loaderData:t}=O(N.UseMatches);return a.useMemo((()=>e.map((e=>{let{pathname:r,params:n}=e;return{id:e.route.id,pathname:r,params:n,data:t[e.route.id],handle:e.route.handle}}))),[e,t])},e.useNavigate=v,e.useNavigation=function(){return O(N.UseNavigation).navigation},e.useNavigationType=function(){return a.useContext(c).navigationType},e.useOutlet=E,e.useOutletContext=function(){return a.useContext(g)},e.useParams=function(){let{matches:e}=a.useContext(d),t=e[e.length-1];return t?t.params:{}},e.useResolvedPath=y,e.useRevalidator=function(){let e=A(_.UseRevalidator),t=O(N.UseRevalidator);return{revalidate:e.router.revalidate,state:t.revalidation}},e.useRouteError=F,e.useRouteLoaderData=function(e){return O(N.UseRouteLoaderData).loaderData[e]},e.useRoutes=b,Object.defineProperty(e,"__esModule",{value:!0})}));
-+// NOTE(calebmer): Don't use source map since our patches break the source map.
+diff --git a/package.json b/package.json
+index 2871b86e4c3214fdd6025ff2a30616f71d825131..f0f2fe6b0f07a2e6c668f7b5842ae0867ea6be7a 100644
+--- a/package.json
++++ b/package.json
+@@ -18,8 +18,7 @@
+   "license": "MIT",
+   "author": "Remix Software <hello@remix.run>",
+   "sideEffects": false,
+-  "main": "./dist/main.js",
+-  "unpkg": "./dist/umd/react-router.production.min.js",
++  "main": "./dist/index.cjs.js",
+   "module": "./dist/index.js",
+   "types": "./dist/index.d.ts",
+   "dependencies": {

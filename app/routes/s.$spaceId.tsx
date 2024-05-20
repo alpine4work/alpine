@@ -44,7 +44,10 @@ import {
 } from "~/client/spaces/layout/space_layout_web_mobile_tab_bar.js";
 import {SpaceContextProvider} from "~/client/spaces/space_context.js";
 import {SpaceRouteErrorRenderer} from "~/client/spaces/space_route_error_renderer.js";
-import {TaskRealtimeClientContextProvider} from "~/client/tasks/task_realtime_client_context_provider.js";
+import {
+    TaskRealtimeClientContextProvider,
+    clientLoaderTaskStoreLoaderData,
+} from "~/client/tasks/task_realtime_client_context_provider.js";
 import {getInbox} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -156,6 +159,10 @@ const outletContainerClassName = sprinkles({
     position: "relative",
     zIndex: "0",
 });
+
+// Make `clientLoaderTaskStoreLoaderData` available when importing the
+// `s.$spaceId.tsx` route module.
+SpaceLayoutRoute.clientLoaderTaskStoreLoaderData = clientLoaderTaskStoreLoaderData;
 
 /**
  * Routes that render under `/s/$spaceId` should generally render

@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {Params, ShouldRevalidateFunction, useParams} from "react-router";
+import {ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -21,10 +21,7 @@ import {
     newTaskCollectionNamePlaceholder,
 } from "~/client/tasks/task_collection_view.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
-import {
-    clientLoaderTaskStoreLoaderData,
-    useTaskStoreLoaderDataWithoutRetaining,
-} from "~/client/tasks/task_realtime_client_context_provider.js";
+import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
@@ -45,7 +42,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {addTaskCollectionAffinityPoints} from "~/shared/rpc/tasks_rpc_definitions.js";
-import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {taskCollectionAffinityPointsPer5MinOfViewingTime} from "~/shared/tasks/task_collection_affinity_constants.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
@@ -318,18 +315,6 @@ export async function loader({request, params, context: unauthenticatedContext}:
     );
 }
 
-export async function clientLoader({
-    data,
-    params,
-}: {
-    data: SchemaSerializedObjectValue;
-    params: Params<string>;
-}) {
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
-
-    clientLoaderTaskStoreLoaderData(spaceId, data);
-}
-
 export const shouldRevalidate: ShouldRevalidateFunction = ({
     currentUrl: _currentUrl,
     nextUrl: _nextUrl,
@@ -466,6 +451,17 @@ function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean
         collectionSubscription ? `TaskCollection:${collectionSubscription.collectionId}` : null,
     );
 
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    const createCollection = useEvent(async (name: string) => {
+        const newSearchParams = new URLSearchParams(searchParams);
+        newSearchParams.set("create", name);
+
+        await navigate(
+            `/s/${store.spaceId}/tasks/collections/${collectionId}?${newSearchParams.toString()}`,
+            {replace: true},
+        );
+    });
+
     if (isMobile && !collectionSubscription) {
         return (
             <Box flexGrow="1" overflow="hidden" position="relative" height="full">
@@ -564,18 +560,7 @@ function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean
                         unstable_shouldRevalidate: false,
                     });
                 }}
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises
-                createCollection={useEvent(async name => {
-                    const newSearchParams = new URLSearchParams(searchParams);
-                    newSearchParams.set("create", name);
-
-                    await navigate(
-                        `/s/${
-                            store.spaceId
-                        }/tasks/collections/${collectionId}?${newSearchParams.toString()}`,
-                        {replace: true},
-                    );
-                })}
+                createCollection={createCollection}
             />
         </TaskGridViewDndContext>
     );

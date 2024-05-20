@@ -9,6 +9,10 @@ const env = parseDotenv();
 /** @type {import('@remix-run/dev').AppConfig} */
 module.exports = {
     future: {
+        v3_fetcherPersist: true,
+        v3_relativeSplatPath: true,
+        v3_throwAbortReason: true,
+
         v2_routeConvention: true,
         v2_errorBoundary: true,
         v2_normalizeFormMethod: true,
@@ -33,6 +37,7 @@ module.exports = {
     serverPlatform: "node",
     devServerPort: env.REMIX_DEV_SERVER_PORT ? parseInt(env.REMIX_DEV_SERVER_PORT, 10) : undefined,
     ignoredRouteFiles: ["**/.*"],
+    browserNodeBuiltinsPolyfill: {modules: {util: true}},
 };
 
 // Copy of `admin/helpers/parse_dotenv.ts`. Hard to figure out how to import

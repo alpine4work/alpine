@@ -1,7 +1,7 @@
 import {Path, createPath} from "@remix-run/router";
 import {
     ServerRoute,
-    callRouteLoaderRR,
+    callRouteLoader,
     matchServerRoutes,
     serializeErrors,
 } from "@remix-run/server-runtime";
@@ -47,7 +47,7 @@ export async function loadInitialPeekDataForServer(
             if (!match.route.module.loader) return null;
 
             try {
-                const result = await callRouteLoaderRR({
+                const result = await callRouteLoader({
                     loadContext: context,
                     loader: match.route.module.loader,
                     params: match.params,

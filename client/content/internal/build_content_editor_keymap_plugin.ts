@@ -18,11 +18,11 @@ import {EditorView} from "prosemirror-view";
 import {addSharedContentEditorKeymapCommands} from "~/client/content/add_shared_content_editor_keymap_commands.js";
 import {contentEditorQuickUndoCommand} from "~/client/content/content_editor_state.js";
 import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
-import {splitBlockWithCodeBlockLineLeadingIndentation} from "~/client/content/internal/helpers/split_block_with_code_block_line_leading_indentation.js";
 import {
     dedentListItemCommand,
     indentListItemCommand,
 } from "~/client/content/internal/helpers/indent_and_dedent_list_item_commands.js";
+import {splitBlockWithCodeBlockLineLeadingIndentation} from "~/client/content/internal/helpers/split_block_with_code_block_line_leading_indentation.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
@@ -189,7 +189,7 @@ export function buildContentEditorKeymapPlugin(
         // If the cursor is in the middle of the block it will split the block
         // in two.
         (state, dispatch) => {
-            const {$from, $to} = state.selection;
+            const {$from} = state.selection;
             const node = $from.node();
             const isSelectionCodeBlockLine = node.type.name === "codeBlockLine";
 

@@ -1,17 +1,17 @@
 diff --git a/dist/compiler/js/compiler.js b/dist/compiler/js/compiler.js
-index f76c5bab53a3d925d6b9b6450268508a6f78576c..c28ade31fe7d57e38be50a53e44c6c5d1c70d444 100644
+index 3520f44b09e799abb863df2fc3c3f0493d4ee9d9..dbe69ccb21ba013ef65f7515cc29f0929770fd92 100644
 --- a/dist/compiler/js/compiler.js
 +++ b/dist/compiler/js/compiler.js
-@@ -31,6 +31,7 @@ var cssSideEffectImports = require('../plugins/cssSideEffectImports.js');
- var vanillaExtract = require('../plugins/vanillaExtract.js');
+@@ -31,6 +31,7 @@ var vanillaExtract = require('../plugins/vanillaExtract.js');
  var invariant = require('../../invariant.js');
  var hmr = require('./plugins/hmr.js');
+ var analysis = require('../analysis.js');
 +var fs = require('fs');
  
  function _interopNamespace(e) {
    if (e && e.__esModule) return e;
-@@ -89,7 +90,10 @@ const createEsbuildConfig = (ctx, refs) => {
-     hmr: ctx.options.mode === "development" && ctx.config.future.v2_dev !== false
+@@ -85,7 +86,10 @@ const createEsbuildConfig = (ctx, refs) => {
+     hmr: ctx.options.mode === "development"
    }), cssImports.cssFilePlugin(ctx), absoluteCssUrlsPlugin.absoluteCssUrlsPlugin(), external.externalPlugin(/^https?:\/\//, {
      sideEffects: false
 -  }), mdx.mdxPlugin(ctx), emptyModules.emptyModulesPlugin(ctx, /\.server(\.[jt]sx?)?$/), emptyModules.emptyModulesPlugin(ctx, /^@remix-run\/(deno|cloudflare|node)(\/.*)?$/, {
@@ -20,27 +20,10 @@ index f76c5bab53a3d925d6b9b6450268508a6f78576c..c28ade31fe7d57e38be50a53e44c6c5d
 +  // extension.
 +  }), mdx.mdxPlugin(ctx), emptyModules.emptyModulesPlugin(ctx, /(\.server|(^|\/)server\/.*)(\.[mc]?[jt]sx?)?$/), emptyModules.emptyModulesPlugin(ctx, /^@remix-run\/(deno|cloudflare|node)(\/.*)?$/, {
      includeNodeModules: true
-   }), esbuildPluginsNodeModulesPolyfill.nodeModulesPolyfillPlugin(), external.externalPlugin(/^node:.*/, {
-     sideEffects: false
-diff --git a/dist/compiler/js/plugins/routes.js b/dist/compiler/js/plugins/routes.js
-index cb8522e283204fc0230b838d9e9b5aacf8f6d49a..152dfde182c74fd12309e73d16a2e9ede5ad9dc1 100644
---- a/dist/compiler/js/plugins/routes.js
-+++ b/dist/compiler/js/plugins/routes.js
-@@ -43,7 +43,11 @@ const browserSafeRouteExports = {
-   handle: true,
-   links: true,
-   meta: true,
--  shouldRevalidate: true
-+  shouldRevalidate: true,
-+  // NOTE(calebmer): We add support for a client loader function that runs after
-+  // our server loader but only on the client. Make sure the Remix compiler
-+  // includes this loader in the client bundle.
-+  clientLoader: true
- };
- 
- /**
+   }), browserNodeBuiltinsPolyfill.browserNodeBuiltinsPolyfillPlugin(ctx)];
+   if (ctx.options.mode === "development") {
 diff --git a/dist/compiler/manifest.js b/dist/compiler/manifest.js
-index 1adfd7ee810bf08fd87cdcbc3d39e9e19526a9fa..4e3241908713bbe23ce850460cc64b2d273c5d83 100644
+index f1d0c51ae5fcf1343b9e6d6b08fa3e6159fc7374..5cab38238fa1bde4e72e9025ff5703cdc697796d 100644
 --- a/dist/compiler/manifest.js
 +++ b/dist/compiler/manifest.js
 @@ -60,7 +60,13 @@ async function create({
@@ -59,7 +42,7 @@ index 1adfd7ee810bf08fd87cdcbc3d39e9e19526a9fa..4e3241908713bbe23ce850460cc64b2d
          module: resolveUrl(key),
          imports: resolveImports(output.imports)
 diff --git a/dist/compiler/plugins/emptyModules.js b/dist/compiler/plugins/emptyModules.js
-index 7d9a287a4f58b2ca35ce829f18a7a3b5ace3f78a..f2ac850cd22032616ac619e56dad07dab98c1f7b 100644
+index bc282d8cd8b2330fdc3c8ba04529b7abd84a56ad..98b2434cc4014ce3cc6f35d5160b99de75327c3d 100644
 --- a/dist/compiler/plugins/emptyModules.js
 +++ b/dist/compiler/plugins/emptyModules.js
 @@ -53,7 +53,11 @@ function emptyModulesPlugin({
@@ -76,43 +59,28 @@ index 7d9a287a4f58b2ca35ce829f18a7a3b5ace3f78a..f2ac850cd22032616ac619e56dad07da
              path: args.path,
              namespace: "empty-module"
 diff --git a/dist/compiler/server/compiler.js b/dist/compiler/server/compiler.js
-index 10850b2ec9650954dab23be2fd838ae41354e911..9e4c9b92edeb11bdeb472ef516eabd8c28b96aea 100644
+index 8de93275fdc6b210a76bca1a59d98cacb15dd27d..4b143ebf7996421a162358078d6bce08ea05446f 100644
 --- a/dist/compiler/server/compiler.js
 +++ b/dist/compiler/server/compiler.js
 @@ -93,7 +93,8 @@ const createEsbuildConfig = (ctx, refs) => {
      minifySyntax: true,
      minify: ctx.options.mode === "production" && ctx.config.serverMinify,
      mainFields: ctx.config.serverMainFields,
--    target: "node14",
+-    target: "node18",
 +    // NOTE(calebmer): Target the version of Node.js we run in.
-+    target: "node20.3.1",
++    target: "node20.9.0",
      loader: loaders.loaders,
      bundle: true,
      logLevel: "silent",
-diff --git a/dist/compiler/server/plugins/bareImports.js b/dist/compiler/server/plugins/bareImports.js
-index 54f469ac40950ace84f0ccb9f8b40376b305b860..2fa03a1019217f49be1ce0d51774d5c2f33b6e41 100644
---- a/dist/compiler/server/plugins/bareImports.js
-+++ b/dist/compiler/server/plugins/bareImports.js
-@@ -109,7 +109,9 @@ function serverBareModulesPlugin(ctx) {
-             return undefined;
-           }
-         }
--        if (!isNodeBuiltIn(packageName) && kind !== "dynamic-import" && ctx.config.serverPlatform === "node") {
-+        // NOTE(calebmer): If our server module format is `esm` then it is ok to
-+        // import an ESM-only package.
-+        if (!isNodeBuiltIn(packageName) && kind !== "dynamic-import" && ctx.config.serverPlatform === "node" && ctx.config.serverModuleFormat !== "esm") {
-           warnOnceIfEsmOnlyPackage(ctx, packageName, path$1, importer);
-         }
- 
 diff --git a/dist/compiler/server/write.js b/dist/compiler/server/write.js
-index aa35b4b724b363a955a1a6091c0ce4f523d5b0d6..aa783ead0ca1357e34adadec3ebc71b72b9e7d47 100644
+index af5a2de82d11d76b6505de9f205e5f78eff7f9b3..c4633e7db48f70802a13fc8373ff57acecc67a56 100644
 --- a/dist/compiler/server/write.js
 +++ b/dist/compiler/server/write.js
-@@ -42,7 +42,10 @@ async function write(config, outputFiles) {
-     if (file.path.endsWith(".js") || file.path.endsWith(".mjs")) {
+@@ -44,7 +44,10 @@ async function write(config, outputFiles) {
+     if ([".js", ".cjs", ".mjs"].some(ext => file.path.endsWith(ext))) {
        // fix sourceMappingURL to be relative to current path instead of /build
        let filename = file.path.substring(file.path.lastIndexOf(path__namespace.sep) + 1);
--      let escapedFilename = filename.replace(/\./g, "\\.");
+-      let escapedFilename = filename.replace(/([.[\]])/g, "\\$1");
 +      // NOTE(calebmer): When we build for Cloudflare pages the server
 +      // JavaScript file is named `[[path]].js`. The `[` and `]` characters must
 +      // be escaped within a regex.
@@ -121,7 +89,7 @@ index aa35b4b724b363a955a1a6091c0ce4f523d5b0d6..aa783ead0ca1357e34adadec3ebc71b7
        let contents = Buffer.from(file.contents).toString("utf-8");
        contents = contents.replace(new RegExp(pattern), `$1${filename}`);
 diff --git a/dist/config/flat-routes.js b/dist/config/flat-routes.js
-index 3f394c82055229325aeafd04301664df1a3cb9c7..8d27f117cafd79c9410ad6cb4294b39908a46018 100644
+index 70c183de6d9a19bd97e694a7c2e0f3ad67c0a0de..8bee451e7d26c013d2b4ae5854bd698c65fd1eb3 100644
 --- a/dist/config/flat-routes.js
 +++ b/dist/config/flat-routes.js
 @@ -89,7 +89,12 @@ function flatRoutes(appDirectory, ignoredFilePatterns = [], prefix = "routes") {
@@ -137,41 +105,4 @@ index 3f394c82055229325aeafd04301664df1a3cb9c7..8d27f117cafd79c9410ad6cb4294b399
 +    ) {
        route = findRouteModuleForFile(appDirectory, filepath, ignoredFileRegex);
      }
-     if (route) routes.push(route);
-diff --git a/dist/config/routesConvention.js b/dist/config/routesConvention.js
-index ca84eda743956c49910b1083fe6d02f390f20495..cdb48c77efba15b81ee349b2d1bcc80e68f1f07a 100644
---- a/dist/config/routesConvention.js
-+++ b/dist/config/routesConvention.js
-@@ -70,6 +70,15 @@ function defineConventionalRoutes(appDir, ignoredFilePatterns) {
-       files[routeId] = path__namespace.join("routes", file);
-       return;
-     }
-+
-+    // NOTE(calebmer): When executing in a Bazel output directory we may have
-+    // `.js` and `.js.map` since the `.js` file is transpiled from a `.ts` file.
-+    // We want to ignore the `.js.map` file if the `.js` file is a valid
-+    // route file.
-+    if (file.endsWith(".map") && isRouteModuleFile(file.slice(0, -4))) {
-+      return;
-+    }
-+
-     throw new Error(`Invalid route module file: ${path__namespace.join(appDir, "routes", file)}`);
-   });
-   let routeIds = Object.keys(files).sort(byLongestFirst);
-diff --git a/dist/config.js b/dist/config.js
-index c3cad77d4e848d8e327cbcef66e7deb264f39c68..42a9b86d190e2d14a9dace2a93ff5afaddcb4b45 100644
---- a/dist/config.js
-+++ b/dist/config.js
-@@ -233,9 +233,9 @@ async function readConfig(remixRoot, serverMode = serverModes.ServerMode.Product
-   }
-   let assetsBuildDirectory = appConfig.assetsBuildDirectory || appConfig.browserBuildDirectory || path__default["default"].join("public", "build");
-   let absoluteAssetsBuildDirectory = path__default["default"].resolve(rootDirectory, assetsBuildDirectory);
--  let devServerPort = Number(process.env.REMIX_DEV_SERVER_WS_PORT) || (await getPort__default["default"]({
--    port: Number(appConfig.devServerPort) || 8002
--  }));
-+  // NOTE(calebmer): If a port was provided in `remix.config.js` then always use
-+  // that exactly as is. Never try to guess a new port.
-+  let devServerPort = Number(process.env.REMIX_DEV_SERVER_WS_PORT) || Number(appConfig.devServerPort) || (await getPort__default["default"]({port: 8002}));
-   // set env variable so un-bundled servers can use it
-   process.env.REMIX_DEV_SERVER_WS_PORT = String(devServerPort);
-   let devServerBroadcastDelay = appConfig.devServerBroadcastDelay || 0;
+     if (route) routes$1.push(route);

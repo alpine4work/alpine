@@ -7,7 +7,7 @@ import {Schema} from "~/shared/schema/schema.js";
  * Returns the data from our loader after deserializing with a schema.
  */
 export function useLoaderDataWithSchema<Value>(schema: Schema<Value>): Value {
-    const serializedValue = useLoaderData();
+    const serializedValue = useLoaderData<any>();
     return useMemo(
         () => getLoaderDataWithSchema(schema, serializedValue),
         [schema, serializedValue],

@@ -5,6 +5,7 @@ import {
     Location,
     Path,
     Router,
+    FutureConfig as RouterFutureConfig,
     RouterState,
     StaticHandlerContext,
     To,
@@ -64,7 +65,7 @@ export function isNativeMobileRouterState(
  * router states on navigation and include them in a `inertRouterStates`
  * property so they can be rendered to the DOM.
  */
-export function createNativeMobileRouter(
+export function createNativeMobileRouterWithoutInitialization(
     routes: Array<RouteObject>,
     opts?: {
         basename?: string;
@@ -104,6 +105,9 @@ export function createNativeMobileRouter(
         get basename() {
             return routerBase.basename;
         },
+        get future() {
+            return routerBase.future;
+        },
         get state() {
             const state: any = routerBase.state;
 
@@ -137,8 +141,11 @@ export function createNativeMobileRouter(
         get routes() {
             return routerBase.routes;
         },
+        get window() {
+            return routerBase.window;
+        },
         subscribe: fn => {
-            return routerBase.subscribe((state: any) => {
+            return routerBase.subscribe((state: any, opts) => {
                 if (!state[isNativeMobileRouterStateSymbol]) {
                     // Should be non-enumerable so that a spread doesn't copy the property.
                     Object.defineProperty(state, isNativeMobileRouterStateSymbol, {
@@ -164,7 +171,7 @@ export function createNativeMobileRouter(
                     state.inertRouterStates = stateInertRouterStates;
                 }
 
-                return fn(state as NativeMobileRouterState);
+                return fn(state as NativeMobileRouterState, opts);
             });
         },
         enableScrollRestoration: routerBase.enableScrollRestoration.bind(routerBase),
@@ -258,22 +265,27 @@ export function createNativeMobileRouter(
         },
     };
 
-    router.initialize();
     return router;
 }
 
 /**
- * `createNativeMobileRouter()` but for use in server-side rendering.
+ * `createNativeMobileRouterWithoutInitialization()` but for use in server-side rendering.
  */
 export function createNativeMobileStaticRouter(
     routes: Array<RouteObject>,
     context: StaticHandlerContext,
+    options?: {
+        future?: Partial<Pick<RouterFutureConfig, "v7_partialHydration" | "v7_relativeSplatPath">>;
+    },
 ) {
-    const routerBase = createStaticRouter(routes, context);
+    const routerBase = createStaticRouter(routes, context, options);
 
     const router: NativeMobileRouter = {
         get basename() {
             return routerBase.basename;
+        },
+        get future() {
+            return routerBase.future;
         },
         get state() {
             const state: any = routerBase.state;
@@ -303,8 +315,11 @@ export function createNativeMobileStaticRouter(
         get routes() {
             return routerBase.routes;
         },
+        get window() {
+            return routerBase.window;
+        },
         subscribe: fn => {
-            return routerBase.subscribe((state: any) => {
+            return routerBase.subscribe((state: any, opts) => {
                 if (!state[isNativeMobileRouterStateSymbol]) {
                     // Should be non-enumerable so that a spread doesn't copy the property.
                     Object.defineProperty(state, isNativeMobileRouterStateSymbol, {
@@ -325,7 +340,7 @@ export function createNativeMobileStaticRouter(
                     state.entryKey = "Static";
                 }
 
-                return fn(state as NativeMobileRouterState);
+                return fn(state as NativeMobileRouterState, opts);
             });
         },
         enableScrollRestoration: routerBase.enableScrollRestoration.bind(routerBase),

@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {Params, ShouldRevalidateFunction} from "react-router";
+import {ShouldRevalidateFunction} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -11,10 +11,7 @@ import {
     TaskNotepadView,
     taskNotepadAssigneeActiveLoadLimit,
 } from "~/client/tasks/task_notepad_view.js";
-import {
-    clientLoaderTaskStoreLoaderData,
-    useTaskStoreLoaderDataWithoutRetaining,
-} from "~/client/tasks/task_realtime_client_context_provider.js";
+import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getTaskNotepadPageIds} from "~/server/tasks/data/task_table.js";
@@ -24,7 +21,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {generateId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     TaskNotepadPageId,
@@ -196,18 +193,6 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
             },
         },
     );
-}
-
-export async function clientLoader({
-    data,
-    params,
-}: {
-    data: SchemaSerializedObjectValue;
-    params: Params<string>;
-}) {
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
-
-    clientLoaderTaskStoreLoaderData(spaceId, data);
 }
 
 // We don't need to reload when certain search params change.

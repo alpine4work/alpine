@@ -1,5 +1,5 @@
 import {useEffect} from "react";
-import {Params, useParams} from "react-router";
+import {useParams} from "react-router";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {Box} from "~/client/design/box.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
@@ -9,10 +9,7 @@ import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_me
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskDetailView} from "~/client/tasks/task_detail_view.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
-import {
-    clientLoaderTaskStoreLoaderData,
-    useTaskStoreLoaderDataWithoutRetaining,
-} from "~/client/tasks/task_realtime_client_context_provider.js";
+import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getTaskNotesContent} from "~/server/tasks/data/task_table.js";
@@ -22,7 +19,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskNotesContentWithReferencesSchema} from "~/shared/tasks/task_notes_content_schema.js";
@@ -127,18 +124,6 @@ export async function loader({params, context: _context}: LoaderArgs) {
             },
         },
     );
-}
-
-export async function clientLoader({
-    data,
-    params,
-}: {
-    data: SchemaSerializedObjectValue;
-    params: Params<string>;
-}) {
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
-
-    clientLoaderTaskStoreLoaderData(spaceId, data);
 }
 
 export default function TaskRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {

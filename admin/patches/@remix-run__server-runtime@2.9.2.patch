@@ -1,20 +1,21 @@
 diff --git a/dist/data.js b/dist/data.js
-index 5a4eba4f67ce51aeab35df0564bd453f406b3fc8..8e2a3402e1ec67dc184ca9fe0218d6787e2c6502 100644
+index dc045a001f79e42dd659baf76d89d627945c2b74..6751a132f7b6b06b177e0ac8e7c3292ca8d67264 100644
 --- a/dist/data.js
 +++ b/dist/data.js
-@@ -25,34 +25,69 @@ var responses = require('./responses.js');
-  * Note: This moves to unknown in ReactRouter and eventually likely in Remix
+@@ -25,19 +25,36 @@ var responses = require('./responses.js');
+  * Data for a route that was returned from a `loader()`.
   */
  
--async function callRouteActionRR({
-+function callRouteActionRR({
+-async function callRouteAction({
++function callRouteAction({
    loadContext,
    action,
    params,
    request,
--  routeId
-+  routeId,
+   routeId,
 +  routes,
+   singleFetch,
+   response
  }) {
 +  // NOTE(calebmer): Add spans around Remix action functions at the framework
 +  // level. This lets us see when an action has an error. It also lets us see
@@ -31,28 +32,30 @@ index 5a4eba4f67ce51aeab35df0564bd453f406b3fc8..8e2a3402e1ec67dc184ca9fe0218d678
    let result = await action({
      request: stripDataParam(stripIndexParam(request)),
      context: loadContext,
--    params
-+    params,
+     params,
 +    span,
 +    // NOTE(calebmer): Pass the server routes array to our code. That way we
 +    // can use it to match routes for a peek within a loader.
 +    serverRoutes: routes,
-   });
-   if (result === undefined) {
-     throw new Error(`You defined an action for route "${routeId}" but didn't return ` + `anything from your \`action\` function. Please return a value or \`null\`.`);
+     // Only provided when single fetch is enabled, and made available via
+     // `defineAction` types, not `ActionFunctionArgs`
+     ...(singleFetch ? {
+@@ -53,20 +70,38 @@ async function callRouteAction({
+     return result;
    }
    return responses.isResponse(result) ? result : responses.json(result);
 +  });
  }
--async function callRouteLoaderRR({
-+function callRouteLoaderRR({
+-async function callRouteLoader({
++function callRouteLoader({
    loadContext,
    loader,
    params,
    request,
--  routeId
-+  routeId,
+   routeId,
 +  routes,
+   singleFetch,
+   response
  }) {
 +  // NOTE(calebmer): Add spans around Remix loader functions at the framework
 +  // level. This lets us see when a loader has an error. It also lets us see
@@ -69,16 +72,15 @@ index 5a4eba4f67ce51aeab35df0564bd453f406b3fc8..8e2a3402e1ec67dc184ca9fe0218d678
    let result = await loader({
      request: stripDataParam(stripIndexParam(request)),
      context: loadContext,
--    params
-+    params,
+     params,
 +    span,
 +    // NOTE(calebmer): Pass the server routes array to our code. That way we
 +    // can use it to match routes for a peek within a loader.
 +    serverRoutes: routes,
-   });
-   if (result === undefined) {
-     throw new Error(`You defined a loader for route "${routeId}" but didn't return ` + `anything from your \`loader\` function. Please return a value or \`null\`.`);
-@@ -64,6 +99,7 @@ async function callRouteLoaderRR({
+     // Only provided when single fetch is enabled, and made available via
+     // `defineLoader` types, not `LoaderFunctionArgs`
+     ...(singleFetch ? {
+@@ -88,6 +123,7 @@ async function callRouteLoader({
      return result;
    }
    return responses.isResponse(result) ? result : responses.json(result);
@@ -87,12 +89,12 @@ index 5a4eba4f67ce51aeab35df0564bd453f406b3fc8..8e2a3402e1ec67dc184ca9fe0218d678
  
  // TODO: Document these search params better
 diff --git a/dist/errors.js b/dist/errors.js
-index b36de14d45f917d3689f8fe6881477ba8576edf0..19913d9fe134e1d464c8d1dad378116a78f64dd6 100644
+index ef24a1437e799febe77caaedc758d1c0251a3193..611183348c535a6c637efd87d2d3b719840800f9 100644
 --- a/dist/errors.js
 +++ b/dist/errors.js
-@@ -62,7 +62,9 @@ var mode = require('./mode.js');
-  * enable the `future.v2_errorBoundary` flag to ease your migration to Remix v2.
+@@ -58,7 +58,9 @@ var mode = require('./mode.js');
   */
+ 
  function sanitizeError(error, serverMode) {
 -  if (error instanceof Error && serverMode !== mode.ServerMode.Development) {
 +  // NOTE(calebmer): We use custom error serialization which removes the stack
@@ -101,8 +103,8 @@ index b36de14d45f917d3689f8fe6881477ba8576edf0..19913d9fe134e1d464c8d1dad378116a
      let sanitized = new Error("Unexpected Server Error");
      sanitized.stack = undefined;
      return sanitized;
-@@ -81,6 +83,15 @@ function sanitizeErrors(errors, serverMode) {
- // https://github.com/microsoft/TypeScript/issues/15300
+@@ -78,6 +80,15 @@ function sanitizeErrors(errors, serverMode) {
+ 
  function serializeError(error, serverMode) {
    let sanitized = sanitizeError(error, serverMode);
 +
@@ -112,19 +114,26 @@ index b36de14d45f917d3689f8fe6881477ba8576edf0..19913d9fe134e1d464c8d1dad378116a
 +  // than injection to do this.
 +  if (typeof __remixErrorSchema !== "undefined") {
 +    return __remixErrorSchema.serialize(sanitized);
-+  }
++  }  
 +
    return {
      message: sanitized.message,
      stack: sanitized.stack
-@@ -100,11 +111,23 @@ function serializeErrors(errors, serverMode) {
+@@ -97,18 +108,37 @@ function serializeErrors(errors, serverMode) {
        };
      } else if (val instanceof Error) {
        let sanitized = sanitizeError(val, serverMode);
 -      serialized[key] = {
 -        message: sanitized.message,
 -        stack: sanitized.stack,
--        __type: "Error"
+-        __type: "Error",
+-        // If this is a subclass (i.e., ReferenceError), send up the type so we
+-        // can re-create the same type during hydration.  This will only apply
+-        // in dev mode since all production errors are sanitized to normal
+-        // Error instances
+-        ...(sanitized.name !== "Error" ? {
+-          __subType: sanitized.name
+-        } : {})
 -      };
 +
 +      // NOTE(calebmer): We want to use our own error serialization/deserialization
@@ -134,29 +143,50 @@ index b36de14d45f917d3689f8fe6881477ba8576edf0..19913d9fe134e1d464c8d1dad378116a
 +      if (typeof __remixErrorSchema !== "undefined") {
 +        serialized[key] = {
 +          ...__remixErrorSchema.serialize(sanitized),
-+          __type: "Error"
++          __type: "Error",
++          // If this is a subclass (i.e., ReferenceError), send up the type so we
++          // can re-create the same type during hydration.  This will only apply
++          // in dev mode since all production errors are sanitized to normal
++          // Error instances
++          ...(sanitized.name !== "Error" ? {
++            __subType: sanitized.name
++          } : {})
 +        };
 +      } else {
 +        serialized[key] = {
 +          message: sanitized.message,
 +          stack: sanitized.stack,
-+          __type: "Error"
++          __type: "Error",
++          // If this is a subclass (i.e., ReferenceError), send up the type so we
++          // can re-create the same type during hydration.  This will only apply
++          // in dev mode since all production errors are sanitized to normal
++          // Error instances
++          ...(sanitized.name !== "Error" ? {
++            __subType: sanitized.name
++          } : {})
 +        };
 +      }
      } else {
        serialized[key] = val;
      }
 diff --git a/dist/esm/data.js b/dist/esm/data.js
-index 86c7c1fc57560a1cd1c651d4c7f5cf72b0bfc8a6..32b6f2ec40c389516ed6405d725e21fb02fbcbf6 100644
+index 119f6423a96eb7bfbd662b199e1ef11354028080..921d7482344bbc8817a3d90a829722ee06ab2442 100644
 --- a/dist/esm/data.js
 +++ b/dist/esm/data.js
-@@ -26,29 +26,64 @@ async function callRouteActionRR({
+@@ -21,19 +21,36 @@ import { isResponse, json, isDeferredData, isRedirectStatusCode, redirect } from
+  * Data for a route that was returned from a `loader()`.
+  */
+ 
+-async function callRouteAction({
++function callRouteAction({
+   loadContext,
    action,
    params,
    request,
--  routeId
-+  routeId,
+   routeId,
 +  routes,
+   singleFetch,
+   response
  }) {
 +  // NOTE(calebmer): Add spans around Remix action functions at the framework
 +  // level. This lets us see when an action has an error. It also lets us see
@@ -173,27 +203,30 @@ index 86c7c1fc57560a1cd1c651d4c7f5cf72b0bfc8a6..32b6f2ec40c389516ed6405d725e21fb
    let result = await action({
      request: stripDataParam(stripIndexParam(request)),
      context: loadContext,
--    params
-+    params,
+     params,
 +    span,
 +    // NOTE(calebmer): Pass the server routes array to our code. That way we
 +    // can use it to match routes for a peek within a loader.
 +    serverRoutes: routes,
-   });
-   if (result === undefined) {
-     throw new Error(`You defined an action for route "${routeId}" but didn't return ` + `anything from your \`action\` function. Please return a value or \`null\`.`);
+     // Only provided when single fetch is enabled, and made available via
+     // `defineAction` types, not `ActionFunctionArgs`
+     ...(singleFetch ? {
+@@ -49,20 +66,38 @@ async function callRouteAction({
+     return result;
    }
    return isResponse(result) ? result : json(result);
 +  });
  }
- async function callRouteLoaderRR({
+-async function callRouteLoader({
++function callRouteLoader({
    loadContext,
    loader,
    params,
    request,
--  routeId
-+  routeId,
+   routeId,
 +  routes,
+   singleFetch,
+   response
  }) {
 +  // NOTE(calebmer): Add spans around Remix loader functions at the framework
 +  // level. This lets us see when a loader has an error. It also lets us see
@@ -210,16 +243,15 @@ index 86c7c1fc57560a1cd1c651d4c7f5cf72b0bfc8a6..32b6f2ec40c389516ed6405d725e21fb
    let result = await loader({
      request: stripDataParam(stripIndexParam(request)),
      context: loadContext,
--    params
-+    params,
+     params,
 +    span,
 +    // NOTE(calebmer): Pass the server routes array to our code. That way we
 +    // can use it to match routes for a peek within a loader.
 +    serverRoutes: routes,
-   });
-   if (result === undefined) {
-     throw new Error(`You defined a loader for route "${routeId}" but didn't return ` + `anything from your \`loader\` function. Please return a value or \`null\`.`);
-@@ -60,6 +95,7 @@ async function callRouteLoaderRR({
+     // Only provided when single fetch is enabled, and made available via
+     // `defineLoader` types, not `LoaderFunctionArgs`
+     ...(singleFetch ? {
+@@ -84,6 +119,7 @@ async function callRouteLoader({
      return result;
    }
    return isResponse(result) ? result : json(result);
@@ -228,12 +260,12 @@ index 86c7c1fc57560a1cd1c651d4c7f5cf72b0bfc8a6..32b6f2ec40c389516ed6405d725e21fb
  
  // TODO: Document these search params better
 diff --git a/dist/esm/errors.js b/dist/esm/errors.js
-index 61139f0a8c53f48815b8abc49f90a16a619566e1..da479ab3d1e2a51af58b99c424f4bf4a3c90b4ee 100644
+index f8f683d8082f1deebdfd78bb8edd4f10873e9a6c..73b27011eded60e6b7e378cac0c395febfbdb64c 100644
 --- a/dist/esm/errors.js
 +++ b/dist/esm/errors.js
-@@ -58,7 +58,9 @@ import { ServerMode } from './mode.js';
-  * enable the `future.v2_errorBoundary` flag to ease your migration to Remix v2.
+@@ -54,7 +54,9 @@ import { ServerMode } from './mode.js';
   */
+ 
  function sanitizeError(error, serverMode) {
 -  if (error instanceof Error && serverMode !== ServerMode.Development) {
 +  // NOTE(calebmer): We use custom error serialization which removes the stack
@@ -242,8 +274,8 @@ index 61139f0a8c53f48815b8abc49f90a16a619566e1..da479ab3d1e2a51af58b99c424f4bf4a
      let sanitized = new Error("Unexpected Server Error");
      sanitized.stack = undefined;
      return sanitized;
-@@ -77,6 +79,15 @@ function sanitizeErrors(errors, serverMode) {
- // https://github.com/microsoft/TypeScript/issues/15300
+@@ -74,6 +76,15 @@ function sanitizeErrors(errors, serverMode) {
+ 
  function serializeError(error, serverMode) {
    let sanitized = sanitizeError(error, serverMode);
 +
@@ -258,14 +290,21 @@ index 61139f0a8c53f48815b8abc49f90a16a619566e1..da479ab3d1e2a51af58b99c424f4bf4a
    return {
      message: sanitized.message,
      stack: sanitized.stack
-@@ -96,11 +107,23 @@ function serializeErrors(errors, serverMode) {
+@@ -93,18 +104,37 @@ function serializeErrors(errors, serverMode) {
        };
      } else if (val instanceof Error) {
        let sanitized = sanitizeError(val, serverMode);
 -      serialized[key] = {
 -        message: sanitized.message,
 -        stack: sanitized.stack,
--        __type: "Error"
+-        __type: "Error",
+-        // If this is a subclass (i.e., ReferenceError), send up the type so we
+-        // can re-create the same type during hydration.  This will only apply
+-        // in dev mode since all production errors are sanitized to normal
+-        // Error instances
+-        ...(sanitized.name !== "Error" ? {
+-          __subType: sanitized.name
+-        } : {})
 -      };
 +
 +      // NOTE(calebmer): We want to use our own error serialization/deserialization
@@ -275,35 +314,49 @@ index 61139f0a8c53f48815b8abc49f90a16a619566e1..da479ab3d1e2a51af58b99c424f4bf4a
 +      if (typeof __remixErrorSchema !== "undefined") {
 +        serialized[key] = {
 +          ...__remixErrorSchema.serialize(sanitized),
-+          __type: "Error"
++          __type: "Error",
++          // If this is a subclass (i.e., ReferenceError), send up the type so we
++          // can re-create the same type during hydration.  This will only apply
++          // in dev mode since all production errors are sanitized to normal
++          // Error instances
++          ...(sanitized.name !== "Error" ? {
++            __subType: sanitized.name
++          } : {})
 +        };
 +      } else {
 +        serialized[key] = {
 +          message: sanitized.message,
 +          stack: sanitized.stack,
-+          __type: "Error"
++          __type: "Error",
++          // If this is a subclass (i.e., ReferenceError), send up the type so we
++          // can re-create the same type during hydration.  This will only apply
++          // in dev mode since all production errors are sanitized to normal
++          // Error instances
++          ...(sanitized.name !== "Error" ? {
++            __subType: sanitized.name
++          } : {})
 +        };
 +      }
      } else {
        serialized[key] = val;
      }
 diff --git a/dist/esm/index.js b/dist/esm/index.js
-index 9736dad1f331c52d2a23f7bb3c71c014ada02c60..7c5b9c3688638cc7b4f112ef5f4ce874fde34a11 100644
+index 23e8415f0941f9c79da66fed39ae312c305f1577..0303cf3829d53526d838381a87a6a1f2401b1919 100644
 --- a/dist/esm/index.js
 +++ b/dist/esm/index.js
-@@ -18,3 +18,10 @@ export { createMemorySessionStorageFactory } from './sessions/memoryStorage.js';
+@@ -19,3 +19,10 @@ export { createMemorySessionStorageFactory } from './sessions/memoryStorage.js';
  export { createMemoryUploadHandler as unstable_createMemoryUploadHandler } from './upload/memoryUploadHandler.js';
  export { MaxPartSizeExceededError } from './upload/errors.js';
- export { broadcastDevReady, logDevReady } from './dev.js';
+ export { broadcastDevReady, logDevReady, setDevServerHooks as unstable_setDevServerHooks } from './dev.js';
 +
 +// NOTE(calebmer): Export some extra Remix internals that we use. By exporting
 +// these internals we make it harder to upgrade Remix and take responsibility
 +// for correct usage of this dependency's internals.
 +export { matchServerRoutes } from './routeMatching.js';
-+export { callRouteLoaderRR } from './data.js';
++export { callRouteLoader } from './data.js';
 +export { serializeErrors } from './errors.js';
 diff --git a/dist/esm/routes.js b/dist/esm/routes.js
-index 2181536a3789c42cad59c61f1aedf185fae51814..71e39645ed772869ef0fa6cec0633f99918883b1 100644
+index cd2f4c3ccdd624cd47d44b802319a1c967719897..e04eb32a18d3e9adcbb274af635a3c6ff6697419 100644
 --- a/dist/esm/routes.js
 +++ b/dist/esm/routes.js
 @@ -37,7 +37,7 @@ function createRoutes(manifest, parentId = "", routesByParentId = groupRoutesByP
@@ -313,28 +366,25 @@ index 2181536a3789c42cad59c61f1aedf185fae51814..71e39645ed772869ef0fa6cec0633f99
 -function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesByParentId = groupRoutesByParentId(manifest)) {
 +function createStaticHandlerDataRoutes(manifest, future, routes, parentId = "", routesByParentId = groupRoutesByParentId(manifest)) {
    return (routesByParentId[parentId] || []).map(route => {
-     let hasErrorBoundary = future.v2_errorBoundary === true ? route.id === "root" || route.module.ErrorBoundary != null : route.id === "root" || route.module.CatchBoundary != null || route.module.ErrorBoundary != null;
      let commonRoute = {
-@@ -50,14 +50,16 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
-         params: args.params,
+       // Always include root due to default boundaries
+@@ -53,6 +53,7 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
          loadContext: args.context,
          loader: route.module.loader,
--        routeId: route.id
-+        routeId: route.id,
+         routeId: route.id,
 +        routes,
+         singleFetch: future.unstable_singleFetch === true,
+         response: dataStrategyCtx === null || dataStrategyCtx === void 0 ? void 0 : dataStrategyCtx.response
        }) : undefined,
-       action: route.module.action ? args => callRouteActionRR({
-         request: args.request,
-         params: args.params,
+@@ -62,6 +63,7 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
          loadContext: args.context,
          action: route.module.action,
--        routeId: route.id
-+        routeId: route.id,
+         routeId: route.id,
 +        routes,
+         singleFetch: future.unstable_singleFetch === true,
+         response: dataStrategyCtx === null || dataStrategyCtx === void 0 ? void 0 : dataStrategyCtx.response
        }) : undefined,
-       handle: route.module.handle
-     };
-@@ -66,7 +68,7 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
+@@ -72,7 +74,7 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
        ...commonRoute
      } : {
        caseSensitive: route.caseSensitive,
@@ -344,89 +394,91 @@ index 2181536a3789c42cad59c61f1aedf185fae51814..71e39645ed772869ef0fa6cec0633f99
      };
    });
 diff --git a/dist/esm/server.js b/dist/esm/server.js
-index 6a99b0202e01950a2911f879517411bdbc783df2..a57215b017df02d9329ea3279f3a33b7b13351ca 100644
+index 9c9460d22233eb9345e08c821239866ac88b86cb..0271e1c9298329ccb47960b40dcaa8caca42a066 100644
 --- a/dist/esm/server.js
 +++ b/dist/esm/server.js
-@@ -21,7 +21,7 @@ import { createServerHandoffString } from './serverHandoff.js';
- 
- const createRequestHandler = (build, mode) => {
+@@ -25,7 +25,7 @@ import { resourceRouteJsonWarning } from './deprecations.js';
+ function derive(build, mode) {
+   var _build$future, _build$future2;
    let routes = createRoutes(build.routes);
 -  let dataRoutes = createStaticHandlerDataRoutes(build.routes, build.future);
 +  let dataRoutes = createStaticHandlerDataRoutes(build.routes, build.future, routes);
    let serverMode = isServerMode(mode) ? mode : ServerMode.Production;
-   let staticHandler = createStaticHandler(dataRoutes);
-   let errorHandler = build.entry.module.handleError || ((error, {
-@@ -31,9 +31,12 @@ const createRequestHandler = (build, mode) => {
-       console.error(error);
-     }
-   });
+   let staticHandler = createStaticHandler(dataRoutes, {
+     basename: build.basename,
+@@ -57,7 +57,7 @@ const createRequestHandler = (build, mode) => {
+   let serverMode;
+   let staticHandler;
+   let errorHandler;
 -  return async function requestHandler(request, loadContext = {}) {
--    let url = new URL(request.url);
--    let matches = matchServerRoutes(routes, url.pathname);
 +  async function requestHandler(request, loadContext = {}, preMatch) {
+     _build = typeof build === "function" ? await build() : build;
+     mode ??= _build.mode;
+     if (typeof build === "function") {
+@@ -73,8 +73,11 @@ const createRequestHandler = (build, mode) => {
+       staticHandler = derived.staticHandler;
+       errorHandler = derived.errorHandler;
+     }
+-    let url = new URL(request.url);
+-    let matches = matchServerRoutes(routes, url.pathname, _build.basename);
 +    // NOTE(calebmer): Allow figuring out matches before we call into the
 +    // request handler. We need matches outside this function to initialize our
 +    // tracer.
 +    let url = preMatch !== undefined ? preMatch.url : new URL(request.url);
-+    let matches = preMatch !== undefined ? preMatch.matches : matchServerRoutes(routes, url.pathname);
-     let handleError = error => errorHandler(error, {
-       context: loadContext,
-       params: matches && matches.length > 0 ? matches[0].params : {},
-@@ -64,7 +67,13 @@ const createRequestHandler = (build, mode) => {
++    let matches = preMatch !== undefined ? preMatch.matches : matchServerRoutes(routes, url.pathname, _build.basename);
+     let params = matches && matches.length > 0 ? matches[0].params : {};
+     let handleError = error => {
+       if (mode === ServerMode.Development) {
+@@ -145,7 +148,28 @@ const createRequestHandler = (build, mode) => {
        });
      }
      return response;
 +  }
 +
 +  requestHandler.matchServerRoutes = url => {
-+    return routeMatching.matchServerRoutes(routes$1, url.pathname);
++    _build = typeof build === "function" ? (() => { throw new Error("`build` as a function is unsupported") })() : build;
++    mode ??= _build.mode;
++    if (typeof build === "function") {
++      let derived = derive(_build, mode);
++      routes = derived.routes;
++      serverMode = derived.serverMode;
++      staticHandler = derived.staticHandler;
++      errorHandler = derived.errorHandler;
++    } else if (!routes || !serverMode || !staticHandler || !errorHandler) {
++      let derived = derive(_build, mode);
++      routes = derived.routes;
++      serverMode = derived.serverMode;
++      staticHandler = derived.staticHandler;
++      errorHandler = derived.errorHandler;
++    }
++    return matchServerRoutes(routes, url.pathname, _build.basename);
    };
 +
-+  return requestHandler;
++  return requestHandler
  };
- async function handleDataRequestRR(serverMode, staticHandler, routeId, request, loadContext, handleError) {
+ async function handleDataRequest(serverMode, build, staticHandler, routeId, request, loadContext, handleError) {
    try {
-@@ -190,6 +199,9 @@ async function handleDocumentRequestRR(serverMode, build, staticHandler, request
-     staticHandlerContext: context,
-     serverHandoffString: createServerHandoffString({
-       url: context.location.pathname + context.location.search,
-+      // NOTE(calebmer): Include route matches in the server handoff string so
-+      // we can use them to call `clientLoader`.
-+      matches: context.matches.map(match => ({params: match.params, routeId: match.route.id})),
-       state: {
-         loaderData: context.loaderData,
-         actionData: context.actionData,
-@@ -225,6 +237,9 @@ async function handleDocumentRequestRR(serverMode, build, staticHandler, request
-       staticHandlerContext: context,
-       serverHandoffString: createServerHandoffString({
-         url: context.location.pathname + context.location.search,
-+        // NOTE(calebmer): Include route matches in the server handoff string so
-+        // we can use them to call `clientLoader`.
-+        matches: context.matches.map(match => ({params: match.params, routeId: match.route.id})),
-         state: {
-           loaderData: context.loaderData,
-           actionData: context.actionData,
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index 1b5bd46c94c3c521d50451561da232cc92005a6b..6daa0e0c01d31c4b0888d4c53a74973521485e59 100644
+index 65fd0016d4c0bf89015a128719a9e553b49ce219..d1912f3d0d87aba1912c56cf7243108aa213e656 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -10,3 +10,11 @@ export { MaxPartSizeExceededError } from "./upload/errors";
- export { broadcastDevReady, logDevReady } from "./dev";
+@@ -12,3 +12,11 @@ export { MaxPartSizeExceededError } from "./upload/errors";
+ export { broadcastDevReady, logDevReady, setDevServerHooks as unstable_setDevServerHooks, } from "./dev";
  export type { CreateCookieFunction, CreateCookieSessionStorageFunction, CreateMemorySessionStorageFunction, CreateRequestHandlerFunction, CreateSessionFunction, CreateSessionStorageFunction, IsCookieFunction, IsSessionFunction, JsonFunction, RedirectFunction, } from "./interface";
- export type { ActionArgs, ActionFunction, AppData, AppLoadContext, Cookie, CookieOptions, CookieParseOptions, CookieSerializeOptions, CookieSignatureOptions, DataFunctionArgs, EntryContext, ErrorBoundaryComponent, FlashSessionData, HandleDataRequestFunction, HandleDocumentRequestFunction, HeadersArgs, HeadersFunction, HtmlLinkDescriptor, HtmlMetaDescriptor, LinkDescriptor, LinksFunction, LoaderArgs, LoaderFunction, MemoryUploadHandlerFilterArgs, MemoryUploadHandlerOptions, MetaDescriptor, MetaFunction, HandleErrorFunction, PageLinkDescriptor, RequestHandler, RouteComponent, RouteHandle, SerializeFrom, ServerBuild, ServerEntryModule, V2_ServerRuntimeMetaArgs, V2_ServerRuntimeMetaDescriptor, V2_ServerRuntimeMetaFunction, Session, SessionData, SessionIdStorageStrategy, SessionStorage, SignFunction, TypedDeferredData, TypedResponse, UnsignFunction, UploadHandler, UploadHandlerPart, } from "./reexport";
+ export type { ActionFunction, ActionFunctionArgs, AppLoadContext, Cookie, CookieOptions, CookieParseOptions, CookieSerializeOptions, CookieSignatureOptions, DataFunctionArgs, EntryContext, ErrorResponse, FlashSessionData, HandleDataRequestFunction, HandleDocumentRequestFunction, HeadersArgs, HeadersFunction, HtmlLinkDescriptor, LinkDescriptor, LinksFunction, LoaderFunction, LoaderFunctionArgs, MemoryUploadHandlerFilterArgs, MemoryUploadHandlerOptions, HandleErrorFunction, PageLinkDescriptor, RequestHandler, SerializeFrom, ServerBuild, ServerEntryModule, ServerRuntimeMetaArgs, ServerRuntimeMetaDescriptor, ServerRuntimeMetaFunction, Session, SessionData, SessionIdStorageStrategy, SessionStorage, SignFunction, TypedDeferredData, TypedResponse, UnsignFunction, UploadHandler, UploadHandlerPart, } from "./reexport";
 +
 +// NOTE(calebmer): Export some extra Remix internals that we use. By exporting
 +// these internals we make it harder to upgrade Remix and take responsibility
 +// for correct usage of this dependency's internals.
 +export { matchServerRoutes } from "./routeMatching";
-+export { callRouteLoaderRR } from "./data";
++export { callRouteLoader } from "./data";
 +export type { ServerRoute } from "./routes";
 +export { serializeErrors } from "./errors";
 diff --git a/dist/index.js b/dist/index.js
-index 19561c1294861509c0c27632a8c6568b32ca1441..aea8024a0a982082da0e19d3dbe069eecd3b9bcc 100644
+index 5f6ee8a272b8b5a3a9b6a67f4c4f348c334ada50..5cc82a22885681de0e3745c1df1126c20934058e 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -20,8 +20,11 @@ var sessions = require('./sessions.js');
+@@ -21,8 +21,11 @@ var sessions = require('./sessions.js');
  var cookieStorage = require('./sessions/cookieStorage.js');
  var memoryStorage = require('./sessions/memoryStorage.js');
  var memoryUploadHandler = require('./upload/memoryUploadHandler.js');
@@ -439,7 +491,7 @@ index 19561c1294861509c0c27632a8c6568b32ca1441..aea8024a0a982082da0e19d3dbe069ee
  
  
  
-@@ -39,6 +42,13 @@ exports.isSession = sessions.isSession;
+@@ -44,7 +47,14 @@ exports.isSession = sessions.isSession;
  exports.createCookieSessionStorageFactory = cookieStorage.createCookieSessionStorageFactory;
  exports.createMemorySessionStorageFactory = memoryStorage.createMemorySessionStorageFactory;
  exports.unstable_createMemoryUploadHandler = memoryUploadHandler.createMemoryUploadHandler;
@@ -447,15 +499,16 @@ index 19561c1294861509c0c27632a8c6568b32ca1441..aea8024a0a982082da0e19d3dbe069ee
 +exports.MaxPartSizeExceededError = uploadErrors.MaxPartSizeExceededError;
  exports.broadcastDevReady = dev.broadcastDevReady;
  exports.logDevReady = dev.logDevReady;
+ exports.unstable_setDevServerHooks = dev.setDevServerHooks;
 +
 +// NOTE(calebmer): Export some extra Remix internals that we use. By exporting
 +// these internals we make it harder to upgrade Remix and take responsibility
 +// for correct usage of this dependency's internals.
 +exports.matchServerRoutes = routeMatching.matchServerRoutes;
-+exports.callRouteLoaderRR = data.callRouteLoaderRR;
++exports.callRouteLoader = data.callRouteLoader;
 +exports.serializeErrors = errors.serializeErrors;
 diff --git a/dist/routes.js b/dist/routes.js
-index 02d692fcaaff6bc40dd69713fa512ae67ce11b20..be607c825b52c5601d06e08b66c7bb470a6761f1 100644
+index eb216c8bbc76b42ccf439e2e6820bfb601c30af9..79145cfecfe316168349fd78ae969a9cf28d82a5 100644
 --- a/dist/routes.js
 +++ b/dist/routes.js
 @@ -41,7 +41,7 @@ function createRoutes(manifest, parentId = "", routesByParentId = groupRoutesByP
@@ -465,28 +518,25 @@ index 02d692fcaaff6bc40dd69713fa512ae67ce11b20..be607c825b52c5601d06e08b66c7bb47
 -function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesByParentId = groupRoutesByParentId(manifest)) {
 +function createStaticHandlerDataRoutes(manifest, future, routes, parentId = "", routesByParentId = groupRoutesByParentId(manifest)) {
    return (routesByParentId[parentId] || []).map(route => {
-     let hasErrorBoundary = future.v2_errorBoundary === true ? route.id === "root" || route.module.ErrorBoundary != null : route.id === "root" || route.module.CatchBoundary != null || route.module.ErrorBoundary != null;
      let commonRoute = {
-@@ -54,14 +54,16 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
-         params: args.params,
+       // Always include root due to default boundaries
+@@ -57,6 +57,7 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
          loadContext: args.context,
          loader: route.module.loader,
--        routeId: route.id
-+        routeId: route.id,
+         routeId: route.id,
 +        routes,
+         singleFetch: future.unstable_singleFetch === true,
+         response: dataStrategyCtx === null || dataStrategyCtx === void 0 ? void 0 : dataStrategyCtx.response
        }) : undefined,
-       action: route.module.action ? args => data.callRouteActionRR({
-         request: args.request,
-         params: args.params,
+@@ -66,6 +67,7 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
          loadContext: args.context,
          action: route.module.action,
--        routeId: route.id
-+        routeId: route.id,
+         routeId: route.id,
 +        routes,
+         singleFetch: future.unstable_singleFetch === true,
+         response: dataStrategyCtx === null || dataStrategyCtx === void 0 ? void 0 : dataStrategyCtx.response
        }) : undefined,
-       handle: route.module.handle
-     };
-@@ -70,7 +72,7 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
+@@ -76,7 +78,7 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
        ...commonRoute
      } : {
        caseSensitive: route.caseSensitive,
@@ -496,11 +546,10 @@ index 02d692fcaaff6bc40dd69713fa512ae67ce11b20..be607c825b52c5601d06e08b66c7bb47
      };
    });
 diff --git a/dist/server.d.ts b/dist/server.d.ts
-index e7db253d071596a3ce5aa557ca0bc5860e0bd8b2..8955d0d8e07867cf58ab649f37350590819f1f07 100644
+index f553eef46e608b6fa0aeb899dc49e81990098328..7cc6f9ebd7eed6bf2f96cc89796c67de13dc02f0 100644
 --- a/dist/server.d.ts
 +++ b/dist/server.d.ts
-@@ -1,7 +1,14 @@
- import type { StaticHandlerContext } from "@remix-run/router";
+@@ -1,5 +1,12 @@
  import type { AppLoadContext } from "./data";
  import type { ServerBuild } from "./build";
 -export type RequestHandler = (request: Request, loadContext?: AppLoadContext) => Promise<Response>;
@@ -509,72 +558,74 @@ index e7db253d071596a3ce5aa557ca0bc5860e0bd8b2..8955d0d8e07867cf58ab649f37350590
 +// NOTE(calebmer): Allow figuring out matches before we call into the
 +// request handler. We need matches outside this function to initialize our
 +// tracer.
-+export type RequestHandler = ((request: Request, loadContext?: AppLoadContext, preMatch?: {url: URL; matches: RouteMatch<ServerRoute>[] | null}) => Promise<Response>)  & {
++export type RequestHandler = ((request: Request, loadContext?: AppLoadContext, preMatch?: {url: URL; matches: RouteMatch<ServerRoute>[] | null}) => Promise<Response>) & {
 +  matchServerRoutes(url: URL): RouteMatch<ServerRoute>[] | null;
 +};
- export type CreateRequestHandlerFunction = (build: ServerBuild, mode?: string) => RequestHandler;
+ export type CreateRequestHandlerFunction = (build: ServerBuild | (() => ServerBuild | Promise<ServerBuild>), mode?: string) => RequestHandler;
  export declare const createRequestHandler: CreateRequestHandlerFunction;
- export declare function differentiateCatchVersusErrorBoundaries(build: ServerBuild, context: StaticHandlerContext): void;
 diff --git a/dist/server.js b/dist/server.js
-index c0468862698b223a885bb29d78822ebf80d68ca1..3cc7f2dac60c93705834a4a6ccff1e6871443c5b 100644
+index 216f844cce8eafef9aacd5bbf26b973a0dc4539d..84b18175f84b2e9c54e6fc0575e1d79619a6a555 100644
 --- a/dist/server.js
 +++ b/dist/server.js
-@@ -25,7 +25,7 @@ var serverHandoff = require('./serverHandoff.js');
- 
- const createRequestHandler = (build, mode$1) => {
+@@ -29,7 +29,7 @@ var deprecations = require('./deprecations.js');
+ function derive(build, mode$1) {
+   var _build$future, _build$future2;
    let routes$1 = routes.createRoutes(build.routes);
 -  let dataRoutes = routes.createStaticHandlerDataRoutes(build.routes, build.future);
 +  let dataRoutes = routes.createStaticHandlerDataRoutes(build.routes, build.future, routes$1);
    let serverMode = mode.isServerMode(mode$1) ? mode$1 : mode.ServerMode.Production;
-   let staticHandler = router.createStaticHandler(dataRoutes);
-   let errorHandler = build.entry.module.handleError || ((error, {
-@@ -35,9 +35,12 @@ const createRequestHandler = (build, mode$1) => {
-       console.error(error);
-     }
-   });
+   let staticHandler = router.createStaticHandler(dataRoutes, {
+     basename: build.basename,
+@@ -61,7 +61,7 @@ const createRequestHandler = (build, mode$1) => {
+   let serverMode;
+   let staticHandler;
+   let errorHandler;
 -  return async function requestHandler(request, loadContext = {}) {
--    let url = new URL(request.url);
--    let matches = routeMatching.matchServerRoutes(routes$1, url.pathname);
 +  async function requestHandler(request, loadContext = {}, preMatch) {
+     _build = typeof build === "function" ? await build() : build;
+     mode$1 ??= _build.mode;
+     if (typeof build === "function") {
+@@ -77,8 +77,11 @@ const createRequestHandler = (build, mode$1) => {
+       staticHandler = derived.staticHandler;
+       errorHandler = derived.errorHandler;
+     }
+-    let url = new URL(request.url);
+-    let matches = routeMatching.matchServerRoutes(routes, url.pathname, _build.basename);
 +    // NOTE(calebmer): Allow figuring out matches before we call into the
 +    // request handler. We need matches outside this function to initialize our
 +    // tracer.
 +    let url = preMatch !== undefined ? preMatch.url : new URL(request.url);
-+    let matches = preMatch !== undefined ? preMatch.matches : routeMatching.matchServerRoutes(routes$1, url.pathname);
-     let handleError = error => errorHandler(error, {
-       context: loadContext,
-       params: matches && matches.length > 0 ? matches[0].params : {},
-@@ -68,7 +71,13 @@ const createRequestHandler = (build, mode$1) => {
++    let matches = preMatch !== undefined ? preMatch.matches : routeMatching.matchServerRoutes(routes, url.pathname, _build.basename);
+     let params = matches && matches.length > 0 ? matches[0].params : {};
+     let handleError = error => {
+       if (mode$1 === mode.ServerMode.Development) {
+@@ -149,7 +152,28 @@ const createRequestHandler = (build, mode$1) => {
        });
      }
      return response;
+-  };
 +  }
 +
 +  requestHandler.matchServerRoutes = url => {
-+    return routeMatching.matchServerRoutes(routes$1, url.pathname);
-   };
++    _build = typeof build === "function" ? (() => { throw new Error("`build` as a function is unsupported") })() : build;
++    mode$1 ??= _build.mode;
++    if (typeof build === "function") {
++      let derived = derive(_build, mode$1);
++      routes = derived.routes;
++      serverMode = derived.serverMode;
++      staticHandler = derived.staticHandler;
++      errorHandler = derived.errorHandler;
++    } else if (!routes || !serverMode || !staticHandler || !errorHandler) {
++      let derived = derive(_build, mode$1);
++      routes = derived.routes;
++      serverMode = derived.serverMode;
++      staticHandler = derived.staticHandler;
++      errorHandler = derived.errorHandler;
++    }
++    return routeMatching.matchServerRoutes(routes, url.pathname, _build.basename);
++  };    
 +
 +  return requestHandler;
  };
- async function handleDataRequestRR(serverMode, staticHandler, routeId, request, loadContext, handleError) {
+ async function handleDataRequest(serverMode, build, staticHandler, routeId, request, loadContext, handleError) {
    try {
-@@ -194,6 +203,9 @@ async function handleDocumentRequestRR(serverMode, build, staticHandler, request
-     staticHandlerContext: context,
-     serverHandoffString: serverHandoff.createServerHandoffString({
-       url: context.location.pathname + context.location.search,
-+      // NOTE(calebmer): Include route matches in the server handoff string so
-+      // we can use them to call `clientLoader`.
-+      matches: context.matches.map(match => ({params: match.params, routeId: match.route.id})),
-       state: {
-         loaderData: context.loaderData,
-         actionData: context.actionData,
-@@ -229,6 +241,9 @@ async function handleDocumentRequestRR(serverMode, build, staticHandler, request
-       staticHandlerContext: context,
-       serverHandoffString: serverHandoff.createServerHandoffString({
-         url: context.location.pathname + context.location.search,
-+        // NOTE(calebmer): Include route matches in the server handoff string so
-+        // we can use them to call `clientLoader`.
-+        matches: context.matches.map(match => ({params: match.params, routeId: match.route.id})),
-         state: {
-           loaderData: context.loaderData,
-           actionData: context.actionData,

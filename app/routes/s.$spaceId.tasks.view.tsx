@@ -1,5 +1,4 @@
 import {useState} from "react";
-import {Params} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -9,10 +8,7 @@ import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_me
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {TaskQueryView, defaultTaskQueryViewName} from "~/client/tasks/task_query_view.js";
-import {
-    clientLoaderTaskStoreLoaderData,
-    useTaskStoreLoaderDataWithoutRetaining,
-} from "~/client/tasks/task_realtime_client_context_provider.js";
+import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/task_realtime_client_context_provider.js";
 import {isTaskQueryMissingRequiredFilters} from "~/client/tasks/use_task_query_state.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -21,7 +17,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     deserializeTaskQueryFiltersSearchParam,
@@ -132,18 +128,6 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
                 : undefined,
         },
     );
-}
-
-export async function clientLoader({
-    data,
-    params,
-}: {
-    data: SchemaSerializedObjectValue;
-    params: Params<string>;
-}) {
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
-
-    clientLoaderTaskStoreLoaderData(spaceId, data);
 }
 
 export default function TaskQueryRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {

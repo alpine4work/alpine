@@ -39,6 +39,8 @@ export const NativeMobileBridgeForTest: typeof NativeMobileBridge & {
             return navigationRequestExternalPopEmitter.subscribe(listener);
         },
         replace: () => {},
+        prepareReplaceWithPushAnimation: () => {},
+        replaceWithPushAnimation: () => {},
         preparePresentModal: () => {},
         presentModal: () => {},
         prepareDismissModal: () => {},

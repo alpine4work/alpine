@@ -138,7 +138,7 @@ export function clientLoaderTaskStoreLoaderData(spaceId: SpaceId, data: SchemaSe
     if (client) loadTaskDataIntoClient(client, data);
 }
 
-export function useTaskStoreLoaderDataWithoutRetainingOnlyStore() {
+export function useTaskStoreLoaderDataWithoutRetainingButOnlyStore() {
     const store = useContext(TaskClientStoreContext);
 
     if (!store) {
@@ -161,9 +161,9 @@ export function useTaskStoreLoaderDataWithoutRetaining(): {
     taskSubscriptions: Array<TaskClientTaskSubscription>;
     collectionSubscriptions: Array<TaskClientCollectionSubscription>;
 } {
-    const store = useTaskStoreLoaderDataWithoutRetainingOnlyStore();
+    const store = useTaskStoreLoaderDataWithoutRetainingButOnlyStore();
 
-    const loaderData = useLoaderData();
+    const loaderData = useLoaderData<any>();
 
     const {queries, taskSubscriptions, collectionSubscriptions} = (loaderData ?? {})[
         taskStoreLoaderDataSymbol
@@ -225,6 +225,10 @@ export function TaskRealtimeClientContextProvider({
                 onDisplayError: ({title, error}) => showToast({type: "Error", title, error}),
             });
 
+            // Initialize `TaskClientStore` with initial loader data. After initialization,
+            // task routes must have a `clientLoader` that calls
+            // `clientLoaderTaskStoreLoaderData()` to make sure their data gets into the
+            // store before React renders.
             for (const loaderData of Object.values(dataRouterStateContext.loaderData)) {
                 loadTaskDataIntoClient(client, loaderData);
             }

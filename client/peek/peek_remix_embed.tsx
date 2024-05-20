@@ -83,6 +83,9 @@ export function usePeekRemixEmbedRouter() {
 
     const navigate = useNavigate();
 
+    const remixOriginalRoutesForPeek: Array<DataRouteObject> = (remixContext as any)
+        .originalRoutesForPeek;
+
     // We only want to allow peek routes to be rendered from a peek embed. So take
     // the full route tree from our remix context and create a new tree with just
     // the peek routes.
@@ -91,7 +94,9 @@ export function usePeekRemixEmbedRouter() {
     // instance of React Router.
     const peekRoutes: Array<DataRouteObject> = useMemo(() => {
         try {
-            const routes = parentDataRouterContext.router.routes as Array<DataRouteObject>;
+            // It's important that we use the original routes object since it'll update
+            // after `route.lazy()` is called thanks to `makeLazyDataRouteSelfUpdating()`.
+            const routes = remixOriginalRoutesForPeek;
             assert(routes.length === 1);
             const rootRoute = routes[0]!;
             assert(rootRoute.id === "root");
@@ -112,7 +117,7 @@ export function usePeekRemixEmbedRouter() {
         } catch (error) {
             throw InternalError.from(error, "Could not find peek Remix client route");
         }
-    }, [parentDataRouterContext.router.routes]);
+    }, [remixOriginalRoutesForPeek]);
 
     return {
         peekRoutes,
@@ -125,7 +130,7 @@ export function usePeekRemixEmbedRouter() {
                 hydrationData?: HydrationState;
             }): PeekRemixEmbedRouter => {
                 // Derived from:
-                // https://github.com/remix-run/react-router/blob/bc2552840147206716544e5cdcdb54f649f9193f/packages/react-router/index.ts#L258-L282
+                // https://github.com/remix-run/react-router/blob/7759e8e2912eb69f6dd63b2906490831a2154cfd/packages/react-router/index.ts#L291-L317
                 const router = createRouter({
                     history: {
                         ...history,
@@ -154,7 +159,7 @@ export function usePeekRemixEmbedRouter() {
                     routes: peekRoutes,
                     mapRouteProperties,
                     future: {
-                        v7_normalizeFormMethod: remixContext.future.v2_normalizeFormMethod,
+                        ...remixContext.future,
                         v7_prependBasename: true,
                     },
                 }).initialize();
@@ -208,7 +213,7 @@ export function usePeekRemixEmbedRouter() {
 
                 return peekRouter;
             },
-            [navigate, peekRoutes, remixContext.future.v2_normalizeFormMethod],
+            [navigate, peekRoutes, remixContext.future],
         ),
     };
 }

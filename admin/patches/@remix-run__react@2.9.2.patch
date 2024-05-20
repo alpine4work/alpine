@@ -1,93 +1,8 @@
-diff --git a/dist/browser.d.ts b/dist/browser.d.ts
-index da399bb5e415585520698623cbf261bec20ecd65..3eb8a36a85c30a382564e40d0dd9a3b6e6d4b844 100644
---- a/dist/browser.d.ts
-+++ b/dist/browser.d.ts
-@@ -1,10 +1,14 @@
- import type { HydrationState } from "@remix-run/router";
- import type { ReactElement } from "react";
-+import type { Params } from "react-router-dom";
- import type { EntryContext, FutureConfig } from "./entry";
- import type { RouteModules } from "./routeModules";
- declare global {
-     var __remixContext: {
-         url: string;
-+        // NOTE(calebmer): We include matches in `__remixContext` so we can call
-+        // `clientLoader`s.
-+        matches: Array<{params: Params<string>; routeId: string}>;
-         state: HydrationState;
-         future: FutureConfig;
-         a?: number;
-diff --git a/dist/components.js b/dist/components.js
-index d818dad4ce6f197c0b122816cee59bfe4f493986..f06a54320cd6e1675f1b57dcbf00042aad50de1c 100644
---- a/dist/components.js
-+++ b/dist/components.js
-@@ -67,6 +67,9 @@ function useRemixContext() {
- ////////////////////////////////////////////////////////////////////////////////
- // RemixRoute
- 
-+// NOTE(calebmer): Merge `RemixRouteError` and `RemixRoute` into one component
-+// so that when switching between the two if we use the same child component we
-+// don't end up remounting and resetting state.
- function RemixRoute({
-   id
- }) {
-@@ -75,34 +78,22 @@ function RemixRoute({
-     future
-   } = useRemixContext();
-   invariant(routeModules, "Cannot initialize 'routeModules'. This normally occurs when you have server code in your client modules.\n" + "Check this link for more details:\nhttps://remix.run/pages/gotchas#server-code-in-client-bundles");
-+  let error = reactRouterDom.useRouteError();
-   let {
-     default: Component,
-     ErrorBoundary,
-     CatchBoundary
-   } = routeModules[id];
- 
--  // Default Component to Outlet if we expose boundary UI components
--  if (!Component && (ErrorBoundary || !future.v2_errorBoundary && CatchBoundary)) {
--    Component = reactRouterDom.Outlet;
-+  if (!error) {
-+    // Default Component to Outlet if we expose boundary UI components
-+    if (!Component && (ErrorBoundary || !future.v2_errorBoundary && CatchBoundary)) {
-+      Component = reactRouterDom.Outlet;
-+    }
-+    invariant(Component, `Route "${id}" has no component! Please go add a \`default\` export in the route module file.\n` + "If you were trying to navigate or submit to a resource route, use `<a>` instead of `<Link>` or `<Form reloadDocument>`.");
-+    return /*#__PURE__*/React__namespace.createElement(Component, null);
-   }
--  invariant(Component, `Route "${id}" has no component! Please go add a \`default\` export in the route module file.\n` + "If you were trying to navigate or submit to a resource route, use `<a>` instead of `<Link>` or `<Form reloadDocument>`.");
--  return /*#__PURE__*/React__namespace.createElement(Component, null);
--}
--function RemixRouteError({
--  id
--}) {
--  let {
--    future,
--    routeModules
--  } = useRemixContext();
- 
--  // This checks prevent cryptic error messages such as: 'Cannot read properties of undefined (reading 'root')'
--  invariant(routeModules, "Cannot initialize 'routeModules'. This normally occurs when you have server code in your client modules.\n" + "Check this link for more details:\nhttps://remix.run/pages/gotchas#server-code-in-client-bundles");
--  let error = reactRouterDom.useRouteError();
--  let {
--    CatchBoundary,
--    ErrorBoundary
--  } = routeModules[id];
-   if (future.v2_errorBoundary) {
-     // Provide defaults for the root route if they are not present
-     if (id === "root") {
-@@ -1421,7 +1412,7 @@ exports.NavLink = NavLink;
- exports.PrefetchPageLinks = PrefetchPageLinks;
- exports.RemixContext = RemixContext;
- exports.RemixRoute = RemixRoute;
--exports.RemixRouteError = RemixRouteError;
-+exports.RemixRouteError = RemixRoute;
- exports.Scripts = Scripts;
- exports.composeEventHandlers = composeEventHandlers;
- exports.useActionData = useActionData;
 diff --git a/dist/data.js b/dist/data.js
-index b3b935f5b72a1b1d9aa71247f791389c4fc9a918..a49504d9c484d778684823b8fea2fb3ba244dc23 100644
+index 98ab9496f32ed74755493ce0352ad8acfa74b736..f099826ff513d56bec0e3fbbdd743065ed739341 100644
 --- a/dist/data.js
 +++ b/dist/data.js
-@@ -75,6 +75,13 @@ async function fetchData(request, routeId, retry = 0) {
+@@ -68,6 +68,13 @@ async function fetchData(request, routeId, retry = 0) {
    });
    if (isErrorResponse(response)) {
      let data = await response.json();
@@ -102,16 +17,24 @@ index b3b935f5b72a1b1d9aa71247f791389c4fc9a918..a49504d9c484d778684823b8fea2fb3b
      error.stack = data.stack;
      return error;
 diff --git a/dist/errors.js b/dist/errors.js
-index f4dd34fae394d3bfb43f4ad2c03f431c4fb4e680..f3c344a8d46c8de44385d2e00bdf69f5bb6a9447 100644
+index afff00e25a00e9196742b072c37f66db211d341d..e585e3e4db5c5b7c6e5cfef4299e8611d5cc1e41 100644
 --- a/dist/errors.js
 +++ b/dist/errors.js
-@@ -29,9 +29,17 @@ function deserializeErrors(errors) {
+@@ -24,24 +24,32 @@ function deserializeErrors(errors) {
      if (val && val.__type === "RouteErrorResponse") {
-       serialized[key] = new router.ErrorResponse(val.status, val.statusText, val.data, val.internal === true);
+       serialized[key] = new router.UNSAFE_ErrorResponseImpl(val.status, val.statusText, val.data, val.internal === true);
      } else if (val && val.__type === "Error") {
--      let error = new Error(val.message);
--      error.stack = val.stack;
--      serialized[key] = error;
+-      // Attempt to reconstruct the right type of Error (i.e., ReferenceError)
+-      if (val.__subType) {
+-        let ErrorConstructor = window[val.__subType];
+-        if (typeof ErrorConstructor === "function") {
+-          try {
+-            // @ts-expect-error
+-            let error = new ErrorConstructor(val.message);
+-            error.stack = val.stack;
+-            serialized[key] = error;
+-          } catch (e) {
+-            // no-op - fall through and create a normal Error
 +      // NOTE(calebmer): We want to use our own error serialization/deserialization
 +      // logic instead of the default logic Remix comes out of the box with. To do
 +      // this we inject a global. Ideally there would be some first-class way other
@@ -119,81 +42,38 @@ index f4dd34fae394d3bfb43f4ad2c03f431c4fb4e680..f3c344a8d46c8de44385d2e00bdf69f5
 +      if (typeof __remixErrorSchema !== "undefined") {
 +        serialized[key] = __remixErrorSchema.deserialize(val);
 +      } else {
-+        let error = new Error(val.message);
-+        error.stack = val.stack;
-+        serialized[key] = error;
-+      }
++        // Attempt to reconstruct the right type of Error (i.e., ReferenceError)
++        if (val.__subType) {
++          let ErrorConstructor = window[val.__subType];
++          if (typeof ErrorConstructor === "function") {
++            try {
++              // @ts-expect-error
++              let error = new ErrorConstructor(val.message);
++              error.stack = val.stack;
++              serialized[key] = error;
++            } catch (e) {
++              // no-op - fall through and create a normal Error
++            }
+           }
+         }
+-      }
+-      if (serialized[key] == null) {
+-        let error = new Error(val.message);
+-        error.stack = val.stack;
+-        serialized[key] = error;
++        if (serialized[key] == null) {
++          let error = new Error(val.message);
++          error.stack = val.stack;
++          serialized[key] = error;
++        }
+       }
      } else {
        serialized[key] = val;
-     }
-diff --git a/dist/esm/components.js b/dist/esm/components.js
-index f2a540d17fafb27efc0145f1a1f8458bd316d31b..205dd372a245898eae2516e193ce4d1209c0a36a 100644
---- a/dist/esm/components.js
-+++ b/dist/esm/components.js
-@@ -43,6 +43,9 @@ function useRemixContext() {
- ////////////////////////////////////////////////////////////////////////////////
- // RemixRoute
- 
-+// NOTE(calebmer): Merge `RemixRouteError` and `RemixRoute` into one component
-+// so that when switching between the two if we use the same child component we
-+// don't end up remounting and resetting state.
- function RemixRoute({
-   id
- }) {
-@@ -51,34 +54,22 @@ function RemixRoute({
-     future
-   } = useRemixContext();
-   invariant(routeModules, "Cannot initialize 'routeModules'. This normally occurs when you have server code in your client modules.\n" + "Check this link for more details:\nhttps://remix.run/pages/gotchas#server-code-in-client-bundles");
-+  let error = useRouteError();
-   let {
-     default: Component,
-     ErrorBoundary,
-     CatchBoundary
-   } = routeModules[id];
- 
--  // Default Component to Outlet if we expose boundary UI components
--  if (!Component && (ErrorBoundary || !future.v2_errorBoundary && CatchBoundary)) {
--    Component = Outlet;
-+  if (!error) {
-+    // Default Component to Outlet if we expose boundary UI components
-+    if (!Component && (ErrorBoundary || !future.v2_errorBoundary && CatchBoundary)) {
-+      Component = Outlet;
-+    }
-+    invariant(Component, `Route "${id}" has no component! Please go add a \`default\` export in the route module file.\n` + "If you were trying to navigate or submit to a resource route, use `<a>` instead of `<Link>` or `<Form reloadDocument>`.");
-+    return /*#__PURE__*/React.createElement(Component, null);
-   }
--  invariant(Component, `Route "${id}" has no component! Please go add a \`default\` export in the route module file.\n` + "If you were trying to navigate or submit to a resource route, use `<a>` instead of `<Link>` or `<Form reloadDocument>`.");
--  return /*#__PURE__*/React.createElement(Component, null);
--}
--function RemixRouteError({
--  id
--}) {
--  let {
--    future,
--    routeModules
--  } = useRemixContext();
- 
--  // This checks prevent cryptic error messages such as: 'Cannot read properties of undefined (reading 'root')'
--  invariant(routeModules, "Cannot initialize 'routeModules'. This normally occurs when you have server code in your client modules.\n" + "Check this link for more details:\nhttps://remix.run/pages/gotchas#server-code-in-client-bundles");
--  let error = useRouteError();
--  let {
--    CatchBoundary,
--    ErrorBoundary
--  } = routeModules[id];
-   if (future.v2_errorBoundary) {
-     // Provide defaults for the root route if they are not present
-     if (id === "root") {
-@@ -1388,4 +1379,4 @@ function mergeRefs(...refs) {
-   };
- }
- 
--export { Await, Link, Links, LiveReload, Meta, NavLink, PrefetchPageLinks, RemixContext, RemixRoute, RemixRouteError, Scripts, composeEventHandlers, useActionData, useFetcher, useFetchers, useLoaderData, useMatches, useTransition };
-+export { Await, Link, Links, LiveReload, Meta, NavLink, PrefetchPageLinks, RemixContext, RemixRoute, RemixRoute as RemixRouteError, Scripts, composeEventHandlers, useActionData, useFetcher, useFetchers, useLoaderData, useMatches, useTransition };
 diff --git a/dist/esm/data.js b/dist/esm/data.js
-index 2727874a01c5ec6fb5cb032fad9b4bed5344dbfd..91e0c4d65ca2a16fe5d295bc5a572c22d3fb161b 100644
+index 3561432fb72d91e5403247390d3a851619cf53ce..8aff740c1034cca846dca5c3c07f2f3f49bb25e5 100644
 --- a/dist/esm/data.js
 +++ b/dist/esm/data.js
-@@ -71,6 +71,13 @@ async function fetchData(request, routeId, retry = 0) {
+@@ -64,6 +64,13 @@ async function fetchData(request, routeId, retry = 0) {
    });
    if (isErrorResponse(response)) {
      let data = await response.json();
@@ -208,16 +88,24 @@ index 2727874a01c5ec6fb5cb032fad9b4bed5344dbfd..91e0c4d65ca2a16fe5d295bc5a572c22
      error.stack = data.stack;
      return error;
 diff --git a/dist/esm/errors.js b/dist/esm/errors.js
-index b27cbfd5626a825c27e5fcf83a54b9e509d08acf..ebf58e10815bbbe326a40dadc781cc1ad2dd227d 100644
+index dc1abd5d2fa7656f7d934de5ce85cc508cccb585..a2f48951300918dbe0f3394fdbf966b0ac29ed10 100644
 --- a/dist/esm/errors.js
 +++ b/dist/esm/errors.js
-@@ -25,9 +25,17 @@ function deserializeErrors(errors) {
+@@ -20,24 +20,32 @@ function deserializeErrors(errors) {
      if (val && val.__type === "RouteErrorResponse") {
-       serialized[key] = new ErrorResponse(val.status, val.statusText, val.data, val.internal === true);
+       serialized[key] = new UNSAFE_ErrorResponseImpl(val.status, val.statusText, val.data, val.internal === true);
      } else if (val && val.__type === "Error") {
--      let error = new Error(val.message);
--      error.stack = val.stack;
--      serialized[key] = error;
+-      // Attempt to reconstruct the right type of Error (i.e., ReferenceError)
+-      if (val.__subType) {
+-        let ErrorConstructor = window[val.__subType];
+-        if (typeof ErrorConstructor === "function") {
+-          try {
+-            // @ts-expect-error
+-            let error = new ErrorConstructor(val.message);
+-            error.stack = val.stack;
+-            serialized[key] = error;
+-          } catch (e) {
+-            // no-op - fall through and create a normal Error
 +      // NOTE(calebmer): We want to use our own error serialization/deserialization
 +      // logic instead of the default logic Remix comes out of the box with. To do
 +      // this we inject a global. Ideally there would be some first-class way other
@@ -225,147 +113,91 @@ index b27cbfd5626a825c27e5fcf83a54b9e509d08acf..ebf58e10815bbbe326a40dadc781cc1a
 +      if (typeof __remixErrorSchema !== "undefined") {
 +        serialized[key] = __remixErrorSchema.deserialize(val);
 +      } else {
-+        let error = new Error(val.message);
-+        error.stack = val.stack;
-+        serialized[key] = error;
-+      }
++        // Attempt to reconstruct the right type of Error (i.e., ReferenceError)
++        if (val.__subType) {
++          let ErrorConstructor = window[val.__subType];
++          if (typeof ErrorConstructor === "function") {
++            try {
++              // @ts-expect-error
++              let error = new ErrorConstructor(val.message);
++              error.stack = val.stack;
++              serialized[key] = error;
++            } catch (e) {
++              // no-op - fall through and create a normal Error
++            }
+           }
+         }
+-      }
+-      if (serialized[key] == null) {
+-        let error = new Error(val.message);
+-        error.stack = val.stack;
+-        serialized[key] = error;
++        if (serialized[key] == null) {
++          let error = new Error(val.message);
++          error.stack = val.stack;
++          serialized[key] = error;
++        }
+       }
      } else {
        serialized[key] = val;
-     }
 diff --git a/dist/esm/index.js b/dist/esm/index.js
-index 08846c4605214228051c9ba21216a70dc8d015c3..b44a116652bf563e167b0b52f433d4b05a51baa5 100644
+index 9f487c5a068f238eca60982460f8270e497445cb..d5c4ad85462064dab0234849cc4864de66d2bbfc 100644
 --- a/dist/esm/index.js
 +++ b/dist/esm/index.js
-@@ -14,3 +14,9 @@ export { Await, Link, Links, LiveReload, Meta, NavLink, PrefetchPageLinks, Scrip
- export { useCatch } from './errorBoundaries.js';
+@@ -15,3 +15,9 @@ export { Await, Link, Links, LiveReload, Meta, NavLink, PrefetchPageLinks, Scrip
  export { ScrollRestoration } from './scroll-restoration.js';
  export { RemixServer } from './server.js';
+ export { defineClientAction as unstable_defineClientAction, defineClientLoader as unstable_defineClientLoader } from './single-fetch.js';
 +
 +// NOTE(calebmer): Export some extra Remix internals that we use. By exporting
 +// these internals we make it harder to upgrade Remix and take responsibility
 +// for correct usage of this dependency's internals.
-+export { loadRouteModuleWithBlockingLinks, createClientRoutes, createServerRoutes } from './routes.js';
++export { loadRouteModuleWithBlockingLinks, createClientRoutes, createServerRoutes, shouldHydrateRouteLoader } from './routes.js';
 +export { deserializeErrors } from './errors.js';
 diff --git a/dist/esm/routes.js b/dist/esm/routes.js
-index 76d512bf71729951e5c45dce97c9423f7308d250..d20ea4d16cdd308d8feb34a7725c7d2c6985ad9f 100644
+index 44a0b4e39b459308cf1bd105fab69332e72cc856..f0e4e68e37b57127195e1a2a2fb13f9837b08b63 100644
 --- a/dist/esm/routes.js
 +++ b/dist/esm/routes.js
-@@ -105,40 +105,81 @@ function createShouldRevalidate(route, routeModules, needsRevalidation) {
-     return arg.defaultShouldRevalidate;
+@@ -326,7 +326,7 @@ function wrapShouldRevalidateForHdr(routeId, routeShouldRevalidate, needsRevalid
+     return routeShouldRevalidate ? routeShouldRevalidate(arg) : arg.defaultShouldRevalidate;
    };
  }
 -async function loadRouteModuleWithBlockingLinks(route, routeModules) {
 +export async function loadRouteModuleWithBlockingLinks(route, routeModules) {
    let routeModule = await loadRouteModule(route, routeModules);
-   await prefetchStyleLinks(routeModule);
-   return routeModule;
- }
- function createDataFunction(route, routeModules, isAction) {
-   return async ({
--    request
-+    request,
-+    params
-   }) => {
-     let routeModulePromise = loadRouteModuleWithBlockingLinks(route, routeModules);
-     try {
-       if (isAction && !route.hasAction) {
-         let msg = `Route "${route.id}" does not have an action, but you are trying ` + `to submit to it. To fix this, please add an \`action\` function to the route`;
-         console.error(msg);
-+        await routeModulePromise;
-         throw new Error(msg);
-       } else if (!isAction && !route.hasLoader) {
-+        let routeModule = await routeModulePromise;
-+        if (routeModule.clientLoader) await routeModule.clientLoader({data: null, params});
-         return null;
-       }
-       let result = await fetchData(request, route.id);
-       if (result instanceof Error) {
-+        await routeModulePromise;
-         throw result;
-       }
-       if (isRedirectResponse(result)) {
-+        await routeModulePromise;
-         throw getRedirect(result);
-       }
-       if (isCatchResponse(result)) {
-+        await routeModulePromise;
-         throw result;
-       }
-+
-+      // NOTE(calebmer): We add support for a `clientLoader` function to Remix
-+      // data loading. `clientLoader` runs after the server loader to perform
-+      // any imperative client-side loading you might need. Two cases where we
-+      // currently use it:
-+      //
-+      // 1. Make sure we've loaded extra modules for the inbox route
-+      // 2. Incorporate task data into our task data store
-+      let routeModule = await routeModulePromise;
-+      if (!isAction && routeModule.clientLoader) {
-+        if (isDeferredResponse(result)) {
-+          throw new Error("Deferred responses are not currently supported with `clientLoader`");
-+        }
-+
-+        // Implement same unwrapping logic as `@remix-run/router`:
-+        // https://github.com/remix-run/react-router/blob/4b494b935d62cd1244fe5c091db920d3f0315e9e/packages/router/router.ts#L3764-L3772
-+        let data;
-+        let contentType = result.headers.get("Content-Type");
-+        // Check between word boundaries instead of startsWith() due to the last
-+        // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
-+        if (contentType && /\bapplication\/json\b/.test(contentType)) {
-+          data = await result.json();
-+        } else {
-+          data = await result.text();
-+        }
-+
-+        await routeModule.clientLoader({data, params});
-+
-+        // Response status codes and headers are discarded when using a client
-+        // loader. An upstream Remix implementation would need to handle them.
-+        return data;
-+      }
-+
-       if (isDeferredResponse(result) && result.body) {
-         return await parseDeferredReadableStream(result.body);
-       }
-       return result;
--    } finally {
-+    } catch (error) {
-       await routeModulePromise;
-+      throw error;
-     }
-   };
- }
+   await prefetchStyleLinks(route, routeModule);
+ 
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index e16d76beb57831a7a4f2032e44bb2c82a383f434..36eef28587466e09692e1235dc79e34148a8ceb7 100644
+index 252a2940fb4c16d2894424192c5a3adfd935d71d..ed8539d82155ad174f22689c8368dbf0250474e6 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -14,3 +14,9 @@ export { RemixServer } from "./server";
- export type { Fetcher } from "./transition";
+@@ -14,3 +14,9 @@ export type { ClientAction as unstable_ClientAction, ClientLoader as unstable_Cl
+ export { defineClientAction as unstable_defineClientAction, defineClientLoader as unstable_defineClientLoader, } from "./single-fetch";
  export type { FutureConfig as UNSAFE_FutureConfig, AssetsManifest as UNSAFE_AssetsManifest, RemixContextObject as UNSAFE_RemixContextObject, } from "./entry";
  export type { EntryRoute as UNSAFE_EntryRoute, RouteManifest as UNSAFE_RouteManifest, } from "./routes";
 +
 +// NOTE(calebmer): Export some extra Remix internals that we use. By exporting
 +// these internals we make it harder to upgrade Remix and take responsibility
 +// for correct usage of this dependency's internals.
-+export { loadRouteModuleWithBlockingLinks, createClientRoutes, createServerRoutes } from "./routes";
++export { loadRouteModuleWithBlockingLinks, createClientRoutes, createServerRoutes, shouldHydrateRouteLoader } from "./routes";
 +export { deserializeErrors } from "./errors";
 diff --git a/dist/index.js b/dist/index.js
-index 0218e81d4f2e1a86771874e261489b96ee986556..e60cea5f1a30f4fc3a707894eaf6df99ac42c1c0 100644
+index 72aaefa0ac982a913826e2b1d664076d20187dc0..e5615daf80396a407b3ddc36260bd41afb041695 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -18,6 +18,8 @@ var components = require('./components.js');
- var errorBoundaries = require('./errorBoundaries.js');
+@@ -19,6 +19,8 @@ var components = require('./components.js');
  var scrollRestoration = require('./scroll-restoration.js');
  var server = require('./server.js');
+ var singleFetch = require('./single-fetch.js');
 +var routes = require('./routes.js');
 +var errors = require('./errors.js');
  
  
  
-@@ -136,3 +138,11 @@ exports.useTransition = components.useTransition;
- exports.useCatch = errorBoundaries.useCatch;
- exports.ScrollRestoration = scrollRestoration.ScrollRestoration;
+@@ -225,3 +227,12 @@ exports.ScrollRestoration = scrollRestoration.ScrollRestoration;
  exports.RemixServer = server.RemixServer;
+ exports.unstable_defineClientAction = singleFetch.defineClientAction;
+ exports.unstable_defineClientLoader = singleFetch.defineClientLoader;
 +
 +// NOTE(calebmer): Export some extra Remix internals that we use. By exporting
 +// these internals we make it harder to upgrade Remix and take responsibility
@@ -373,107 +205,24 @@ index 0218e81d4f2e1a86771874e261489b96ee986556..e60cea5f1a30f4fc3a707894eaf6df99
 +exports.loadRouteModuleWithBlockingLinks = routes.loadRouteModuleWithBlockingLinks;
 +exports.createClientRoutes = routes.createClientRoutes;
 +exports.createServerRoutes = routes.createServerRoutes;
++exports.shouldHydrateRouteLoader = routes.shouldHydrateRouteLoader;
 +exports.deserializeErrors = errors.deserializeErrors;
 diff --git a/dist/routes.d.ts b/dist/routes.d.ts
-index f9e34d7b58f4c3abbdf5382fcb95f71d6322ac9f..7fa23c7a1381f4b232f52def1c201e2acf002cd5 100644
+index 47c3aff1afa72c19924fe3fe9c64713aab080eab..566692230959317d1a4f644f15b8b063314497c5 100644
 --- a/dist/routes.d.ts
 +++ b/dist/routes.d.ts
-@@ -1,5 +1,5 @@
- import type { DataRouteObject } from "react-router-dom";
--import type { RouteModules } from "./routeModules";
-+import type { RouteModules, RouteModule } from "./routeModules";
- import type { FutureConfig } from "./entry";
- export interface RouteManifest<Route> {
-     [routeId: string]: Route;
-@@ -23,4 +23,5 @@ export interface EntryRoute extends Route {
- export declare function createServerRoutes(manifest: RouteManifest<EntryRoute>, routeModules: RouteModules, future: FutureConfig, parentId?: string, routesByParentId?: Record<string, Omit<EntryRoute, "children">[]>): DataRouteObject[];
- export declare function createClientRoutesWithHMRRevalidationOptOut(needsRevalidation: Set<string>, manifest: RouteManifest<EntryRoute>, routeModulesCache: RouteModules, future: FutureConfig): DataRouteObject[];
- export declare function createClientRoutes(manifest: RouteManifest<EntryRoute>, routeModulesCache: RouteModules, future: FutureConfig, parentId?: string, routesByParentId?: Record<string, Omit<EntryRoute, "children">[]>, needsRevalidation?: Set<string>): DataRouteObject[];
-+export function loadRouteModuleWithBlockingLinks(route: EntryRoute, routeModules: RouteModules): Promise<RouteModule>;
+@@ -29,4 +29,5 @@ export declare function createServerRoutes(manifest: RouteManifest<EntryRoute>,
+ export declare function createClientRoutesWithHMRRevalidationOptOut(needsRevalidation: Set<string>, manifest: RouteManifest<EntryRoute>, routeModulesCache: RouteModules, initialState: HydrationState, future: FutureConfig, isSpaMode: boolean): DataRouteObject[];
+ export declare function createClientRoutes(manifest: RouteManifest<EntryRoute>, routeModulesCache: RouteModules, initialState: HydrationState, future: FutureConfig, isSpaMode: boolean, parentId?: string, routesByParentId?: Record<string, Omit<EntryRoute, "children">[]>, needsRevalidation?: Set<string>): DataRouteObject[];
+ export declare function shouldHydrateRouteLoader(route: EntryRoute, routeModule: RouteModule, isSpaMode: boolean): boolean;
++export function loadRouteModuleWithBlockingLinks(route: EntryRoute, routeModules: RouteModules): Promise<DataRouteObject>;
  export {};
 diff --git a/dist/routes.js b/dist/routes.js
-index 9ecc80713a04b565997423181c8c7091bb969be4..09a3440d86686f45280a02a364237220dabff02a 100644
+index d82afc3c3edb83edcc137398773ec270f607cce7..edee77d4af0a05509c6a3a4a894d406c289696b1 100644
 --- a/dist/routes.js
 +++ b/dist/routes.js
-@@ -133,33 +133,74 @@ async function loadRouteModuleWithBlockingLinks(route, routeModules$1) {
- }
- function createDataFunction(route, routeModules, isAction) {
-   return async ({
--    request
-+    request,
-+    params
-   }) => {
-     let routeModulePromise = loadRouteModuleWithBlockingLinks(route, routeModules);
-     try {
-       if (isAction && !route.hasAction) {
-         let msg = `Route "${route.id}" does not have an action, but you are trying ` + `to submit to it. To fix this, please add an \`action\` function to the route`;
-         console.error(msg);
-+        await routeModulePromise;
-         throw new Error(msg);
-       } else if (!isAction && !route.hasLoader) {
-+        let routeModule = await routeModulePromise;
-+        if (routeModule.clientLoader) await routeModule.clientLoader({data: null, params});
-         return null;
-       }
-       let result = await data.fetchData(request, route.id);
-       if (result instanceof Error) {
-+        await routeModulePromise;
-         throw result;
-       }
-       if (data.isRedirectResponse(result)) {
-+        await routeModulePromise;
-         throw getRedirect(result);
-       }
-       if (data.isCatchResponse(result)) {
-+        await routeModulePromise;
-         throw result;
-       }
-+
-+      // NOTE(calebmer): We add support for a `clientLoader` function to Remix
-+      // data loading. `clientLoader` runs after the server loader to perform
-+      // any imperative client-side loading you might need. Two cases where we
-+      // currently use it:
-+      //
-+      // 1. Make sure we've loaded extra modules for the inbox route
-+      // 2. Incorporate task data into our task data store
-+      let routeModule = await routeModulePromise;
-+      if (!isAction && routeModule.clientLoader) {
-+        if (data.isDeferredResponse(result)) {
-+          throw new Error("Deferred responses are not currently supported with `clientLoader`");
-+        }
-+
-+        // Implement same unwrapping logic as `@remix-run/router`:
-+        // https://github.com/remix-run/react-router/blob/4b494b935d62cd1244fe5c091db920d3f0315e9e/packages/router/router.ts#L3764-L3772
-+        let data;
-+        let contentType = result.headers.get("Content-Type");
-+        // Check between word boundaries instead of startsWith() due to the last
-+        // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
-+        if (contentType && /\bapplication\/json\b/.test(contentType)) {
-+          data = await result.json();
-+        } else {
-+          data = await result.text();
-+        }
-+
-+        await routeModule.clientLoader({data, params});
-+
-+        // Response status codes and headers are discarded when using a client
-+        // loader. An upstream Remix implementation would need to handle them.
-+        return data;
-+      }
-+
-       if (data.isDeferredResponse(result) && result.body) {
-         return await data.parseDeferredReadableStream(result.body);
-       }
-       return result;
--    } finally {
-+    } catch (error) {
-       await routeModulePromise;
-+      throw error;
-     }
-   };
- }
-@@ -179,3 +220,4 @@ function getRedirect(response) {
- 
- exports.createClientRoutes = createClientRoutes;
+@@ -436,3 +436,4 @@ exports.createClientRoutes = createClientRoutes;
+ exports.createClientRoutesWithHMRRevalidationOptOut = createClientRoutesWithHMRRevalidationOptOut;
  exports.createServerRoutes = createServerRoutes;
+ exports.shouldHydrateRouteLoader = shouldHydrateRouteLoader;
 +exports.loadRouteModuleWithBlockingLinks = loadRouteModuleWithBlockingLinks;

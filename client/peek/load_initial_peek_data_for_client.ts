@@ -3,6 +3,7 @@ import {DataRouteObject} from "react-router";
 import {CancelledError, NotFoundError} from "~/shared/error/error.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * We have a server version of this too: `loadInitialPeekDataForServer()`.
@@ -35,13 +36,32 @@ export async function loadInitialPeekDataForClient(
             request.signal.addEventListener("abort", handleAbort);
 
             try {
-                const result = await Promise.race([
-                    match.route.loader?.({
-                        request,
-                        params: match.params,
-                    }),
+                const shouldCallLazy = match.route.id.startsWith("routes/s.$spaceId.peek");
+
+                const [result] = await Promise.race([
+                    await runAllPromises([
+                        typeof match.route.loader === "function"
+                            ? match.route.loader({
+                                  request,
+                                  params: match.params,
+                              })
+                            : undefined,
+                        // Make sure we load modules for any matches we'll need to render with this
+                        // peek. On the server we add modules we need to load to an `loadExtraRouteIds`
+                        // array.
+                        shouldCallLazy && match.route.lazy ? match.route.lazy() : undefined,
+                    ]),
                     abortPromiseResolver.promise,
                 ]);
+
+                // We expect the `lazy` function to update the route object with the loaded
+                // component data. That way when we create a router for this route it doesn't
+                // need to load the route again. Remix does not do this out of the box. Look
+                // for our `makeLazyDataRouteSelfUpdating()` function which overrides the
+                // `lazy` function.
+                if (shouldCallLazy) {
+                    assert(match.route.lazy === undefined);
+                }
 
                 loaderData[match.route.id] = await processLoaderResult(result);
             } catch (error) {

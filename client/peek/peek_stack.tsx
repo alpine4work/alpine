@@ -1401,7 +1401,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
 
     const [{abortController, routerPromise}] = useState(() => {
         // If there's an initial router promise then take it. If this peek is
-        // unmounted/remounted we want to complete reload its data.
+        // unmounted/remounted we want to completely reload its data.
         if (entry.initialRouterPromiseRef.current) {
             const routerPromise = entry.initialRouterPromiseRef.current;
             entry.initialRouterPromiseRef.current = null;

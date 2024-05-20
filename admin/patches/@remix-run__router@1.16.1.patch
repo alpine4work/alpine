@@ -1,5 +1,5 @@
 diff --git a/dist/history.d.ts b/dist/history.d.ts
-index 7b1f3993bdb062c299f985dd356a54613af0762d..9cdf2c6d8fda748d6fff37d28f33c4ff5e9c39bf 100644
+index bda672225f076be7fc7350f01e11a35d84ba167a..d3b553e3db679bb5982854b5240adf7b9d428b30 100644
 --- a/dist/history.d.ts
 +++ b/dist/history.d.ts
 @@ -177,6 +177,10 @@ export interface MemoryHistory extends History {
@@ -14,24 +14,27 @@ index 7b1f3993bdb062c299f985dd356a54613af0762d..9cdf2c6d8fda748d6fff37d28f33c4ff
  /**
   * Memory history stores the current location in memory. It is designed for use
 diff --git a/dist/router.cjs.js b/dist/router.cjs.js
-index 9630bd035315468d4b232f05842383fe1047b8f4..1582e033903b83ef17bd5baa8b0ff8bb2642b400 100644
+index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..a542ad58180b184d34e781017339fee491c3b274 100644
 --- a/dist/router.cjs.js
 +++ b/dist/router.cjs.js
-@@ -122,6 +122,9 @@ function createMemoryHistory(options) {
+@@ -125,6 +125,11 @@ function createMemoryHistory(options) {
      get index() {
        return index;
      },
++    // NOTE(calebmer): Expose the memory history's current entries so we can
++    // serialize them. We return a slice so you can't mutate history entries.
 +    get entries() {
 +      return entries.slice();
 +    },
      get action() {
        return action;
      },
-@@ -1238,9 +1241,15 @@ const json = function json(data, init) {
+@@ -1308,9 +1313,16 @@ const json = function json(data, init) {
    if (!headers.has("Content-Type")) {
      headers.set("Content-Type", "application/json; charset=utf-8");
    }
 -  return new Response(JSON.stringify(data), _extends({}, responseInit, {
++
 +  let response = new Response(JSON.stringify(data), _extends({}, responseInit, {
      headers
    }));
@@ -44,7 +47,7 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..1582e033903b83ef17bd5baa8b0ff8bb
  };
  class AbortedDeferredError extends Error {}
  class DeferredData {
-@@ -1865,6 +1874,73 @@ function createRouter(init) {
+@@ -2104,6 +2116,76 @@ function createRouter(init) {
      cancelledFetcherLoads = [];
    }
  
@@ -84,8 +87,11 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..1582e033903b83ef17bd5baa8b0ff8bb
 +
 +    // On a successful navigation we can assume we got through all blockers
 +    // so we can start fresh
-+    let blockers = new Map();
-+    blockerFunctions.clear();
++    let blockers = state.blockers;
++    if (blockers.size > 0) {
++      blockers = new Map(blockers);
++      blockers.forEach((_, k) => blockers.set(k, IDLE_BLOCKER));
++    }
 +
 +    // Restore any fetchers with an idle state. Fetchers that were
 +    // loading/submitting should have been cancelled when the router state was
@@ -97,38 +103,38 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..1582e033903b83ef17bd5baa8b0ff8bb
 +      }
 +    }
 +
-+    updateState({
-+      ...newState,
++    updateState(_extends({}, newState, {
 +      initialized: true,
 +      navigation: IDLE_NAVIGATION,
 +      revalidation: "idle",
 +      blockers,
-+      fetchers,
-+    });
++      fetchers
++    }));
 +
 +    // Reset stateful navigation vars
-+    pendingAction = exports.Action.Pop;
++    pendingAction = Action.Pop;
 +    pendingPreventScrollReset = false;
++    pendingViewTransitionEnabled = false;
 +    isUninterruptedRevalidation = false;
 +    isRevalidationRequired = false;
 +    cancelledDeferredRoutes = [];
-+    cancelledFetcherLoads = [];    
++    cancelledFetcherLoads = [];
 +  }
 +
    // Trigger a navigation event, which can either be a numerical POP or a PUSH
    // replace with an optional submission
    async function navigate(to, opts) {
-@@ -1935,7 +2011,8 @@ function createRouter(init) {
-       // render at the right error boundary after we match routes
-       pendingError: error,
+@@ -2177,7 +2259,8 @@ function createRouter(init) {
        preventScrollReset,
--      replace: opts && opts.replace
-+      replace: opts && opts.replace,
+       replace: opts && opts.replace,
+       enableViewTransition: opts && opts.unstable_viewTransition,
+-      flushSync
++      flushSync,
 +      unstable_shouldRevalidate: opts && opts.unstable_shouldRevalidate
      });
    }
  
-@@ -2003,6 +2080,30 @@ function createRouter(init) {
+@@ -2247,6 +2330,30 @@ function createRouter(init) {
        } = getShortCircuitMatches(routesToUse);
        // Cancel all pending deferred on 404s since we don't keep any routes
        cancelActiveDeferreds();
@@ -159,7 +165,7 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..1582e033903b83ef17bd5baa8b0ff8bb
        completeNavigation(location, {
          matches: notFoundMatches,
          loaderData: {},
-@@ -2019,7 +2120,33 @@ function createRouter(init) {
+@@ -2265,7 +2372,33 @@ function createRouter(init) {
      // Ignore on initial page loads because since the initial load will always
      // be "same hash".  For example, on /page#hash and submit a <Form method="post">
      // which will default to a navigation to /page
@@ -193,8 +199,8 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..1582e033903b83ef17bd5baa8b0ff8bb
 +
        completeNavigation(location, {
          matches
-       });
-@@ -2067,6 +2194,24 @@ function createRouter(init) {
+       }, {
+@@ -2314,6 +2447,24 @@ function createRouter(init) {
        return;
      }
  
@@ -219,7 +225,7 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..1582e033903b83ef17bd5baa8b0ff8bb
      // Clean up now that the action/loaders have completed.  Don't clean up if
      // we short circuited because pendingNavigationController will have already
      // been assigned to a new controller for the next navigation
-@@ -2184,6 +2329,24 @@ function createRouter(init) {
+@@ -2428,6 +2579,24 @@ function createRouter(init) {
  
      // Short circuit if we have no loaders to run
      if (matchesToLoad.length === 0 && revalidatingFetchers.length === 0) {
@@ -244,7 +250,7 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..1582e033903b83ef17bd5baa8b0ff8bb
        let updatedFetchers = markFetchRedirectsDone();
        completeNavigation(location, _extends({
          matches,
-@@ -2474,6 +2637,31 @@ function createRouter(init) {
+@@ -2777,6 +2946,31 @@ function createRouter(init) {
      if (state.navigation.state === "loading" && loadId > pendingNavigationLoadId) {
        invariant(pendingAction, "Expected pending action");
        pendingNavigationController && pendingNavigationController.abort();
@@ -276,7 +282,7 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..1582e033903b83ef17bd5baa8b0ff8bb
        completeNavigation(state.navigation.location, {
          matches,
          loaderData,
-@@ -2911,7 +3099,8 @@ function createRouter(init) {
+@@ -3291,7 +3485,8 @@ function createRouter(init) {
      _internalActiveDeferreds: activeDeferreds,
      // TODO: Remove setRoutes, it's temporary to avoid dealing with
      // updating the tree while validating the update algorithm.
@@ -286,29 +292,29 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..1582e033903b83ef17bd5baa8b0ff8bb
    };
    return router;
  }
-@@ -3829,7 +4018,10 @@ async function callLoaderOrAction(type, request, match, matches, manifest, mapRo
-     // Check between word boundaries instead of startsWith() due to the last
-     // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
-     if (contentType && /\bapplication\/json\b/.test(contentType)) {
--      data = await result.json();
-+      // NOTE(calebmer): If this response was constructed by `json()` then avoid
-+      // parsing it again which is wasteful.
-+      let originalData = result[Symbol.for("remix.response.json")];
-+      data = originalData !== undefined ? originalData : await result.json();
-     } else {
-       data = await result.text();
-     }
-@@ -4442,4 +4634,4 @@ exports.redirect = redirect;
+@@ -4326,7 +4521,10 @@ async function convertHandlerResultToDataResult(handlerResult) {
+         if (result.body == null) {
+           data = null;
+         } else {
+-          data = await result.json();
++          // NOTE(calebmer): If this response was constructed by `json()` then avoid
++          // parsing it again which is wasteful.
++          let originalData = result[Symbol.for("remix.response.json")];
++          data = originalData !== undefined ? originalData : await result.json();
+         }
+       } else {
+         data = await result.text();
+@@ -5017,4 +5215,4 @@ exports.redirectDocument = redirectDocument;
  exports.resolvePath = resolvePath;
  exports.resolveTo = resolveTo;
  exports.stripBasename = stripBasename;
 -//# sourceMappingURL=router.cjs.js.map
 +// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/dist/router.d.ts b/dist/router.d.ts
-index 05966cddc95fd6d6563b1cc80a28f37e48869649..b3fa81d08462721126c152c324a5d0f57a950989 100644
+index f9c6cadf4a97ca40f80f8a379098249c21b9232f..7a6b9d68739cae1b14b073d7f4e646bcc93bd5c9 100644
 --- a/dist/router.d.ts
 +++ b/dist/router.d.ts
-@@ -168,6 +168,19 @@ export interface Router {
+@@ -182,6 +182,19 @@ export interface Router {
       * Internal pending DeferredData instances accessed by unit tests
       */
      _internalActiveDeferreds: Map<string, DeferredData>;
@@ -324,14 +330,14 @@ index 05966cddc95fd6d6563b1cc80a28f37e48869649..b3fa81d08462721126c152c324a5d0f5
 +            RouterState,
 +            "initialized" | "navigation" | "revalidation" | "blockers"
 +        >,
-+    ): Promise<void>;    
++    ): Promise<void>;
  }
  /**
   * State maintained internally by the router.  During a navigation, all states
-@@ -257,6 +270,11 @@ export interface RouterInit {
-     future?: Partial<FutureConfig>;
+@@ -276,6 +289,11 @@ export interface RouterInit {
      hydrationData?: HydrationState;
      window?: Window;
+     unstable_dataStrategy?: DataStrategyFunction;
 +    // NOTE(calebmer): Add a callback that lets our code wait after loaders have
 +    // finished but before router state is updated. Useful for doing things like
 +    // making sure "close" animations (e.g. keyboard close) have finished on the
@@ -340,10 +346,10 @@ index 05966cddc95fd6d6563b1cc80a28f37e48869649..b3fa81d08462721126c152c324a5d0f5
  }
  /**
   * State returned from a server-side query() call
-@@ -322,6 +340,9 @@ type BaseNavigateOptions = BaseNavigateOrFetchOptions & {
-     replace?: boolean;
+@@ -347,6 +365,9 @@ type BaseNavigateOptions = BaseNavigateOrFetchOptions & {
      state?: any;
      fromRouteId?: string;
+     unstable_viewTransition?: boolean;
 +    // NOTE(calebmer): Add an `unstable_shouldRevalidate` option to allow
 +    // developers to stop revalidation at navigation function call-sites.
 +    unstable_shouldRevalidate?: boolean;
@@ -351,24 +357,27 @@ index 05966cddc95fd6d6563b1cc80a28f37e48869649..b3fa81d08462721126c152c324a5d0f5
  type BaseSubmissionOptions = {
      formMethod?: HTMLFormMethod;
 diff --git a/dist/router.js b/dist/router.js
-index 476e375a5387243e5e206d0b62ba9c3670a69664..0abe16ed72321e98cdfc644dd86ac021c4c4c910 100644
+index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..9d625d713c9bec20d544245e6cda556d93cd9390 100644
 --- a/dist/router.js
 +++ b/dist/router.js
-@@ -91,6 +91,9 @@ function createMemoryHistory(options) {
+@@ -91,6 +91,11 @@ function createMemoryHistory(options) {
      get index() {
        return index;
      },
++    // NOTE(calebmer): Expose the memory history's current entries so we can
++    // serialize them. We return a slice so you can't mutate history entries.
 +    get entries() {
 +      return entries.slice();
 +    },
      get action() {
        return action;
      },
-@@ -996,9 +999,15 @@ const json = function json(data, init) {
+@@ -1040,9 +1045,16 @@ const json = function json(data, init) {
    if (!headers.has("Content-Type")) {
      headers.set("Content-Type", "application/json; charset=utf-8");
    }
 -  return new Response(JSON.stringify(data), _extends({}, responseInit, {
++
 +  let response = new Response(JSON.stringify(data), _extends({}, responseInit, {
      headers
    }));
@@ -381,7 +390,7 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..0abe16ed72321e98cdfc644dd86ac021
  };
  class AbortedDeferredError extends Error {}
  class DeferredData {
-@@ -1510,6 +1519,72 @@ function createRouter(init) {
+@@ -1717,6 +1729,75 @@ function createRouter(init) {
      cancelledDeferredRoutes = [];
      cancelledFetcherLoads = [];
    }
@@ -421,8 +430,11 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..0abe16ed72321e98cdfc644dd86ac021
 +
 +    // On a successful navigation we can assume we got through all blockers
 +    // so we can start fresh
-+    let blockers = new Map();
-+    blockerFunctions.clear();
++    let blockers = state.blockers;
++    if (blockers.size > 0) {
++      blockers = new Map(blockers);
++      blockers.forEach((_, k) => blockers.set(k, IDLE_BLOCKER));
++    }
 +
 +    // Restore any fetchers with an idle state. Fetchers that were
 +    // loading/submitting should have been cancelled when the router state was
@@ -434,37 +446,37 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..0abe16ed72321e98cdfc644dd86ac021
 +      }
 +    }
 +
-+    updateState({
-+      ...newState,
++    updateState(_extends({}, newState, {
 +      initialized: true,
 +      navigation: IDLE_NAVIGATION,
 +      revalidation: "idle",
 +      blockers,
-+      fetchers,
-+    });
++      fetchers
++    }));
 +
 +    // Reset stateful navigation vars
 +    pendingAction = Action.Pop;
 +    pendingPreventScrollReset = false;
++    pendingViewTransitionEnabled = false;
 +    isUninterruptedRevalidation = false;
 +    isRevalidationRequired = false;
 +    cancelledDeferredRoutes = [];
-+    cancelledFetcherLoads = [];    
++    cancelledFetcherLoads = [];
 +  }
    // Trigger a navigation event, which can either be a numerical POP or a PUSH
    // replace with an optional submission
    async function navigate(to, opts) {
-@@ -1579,7 +1654,8 @@ function createRouter(init) {
-       // render at the right error boundary after we match routes
-       pendingError: error,
+@@ -1789,7 +1870,8 @@ function createRouter(init) {
        preventScrollReset,
--      replace: opts && opts.replace
-+      replace: opts && opts.replace,
+       replace: opts && opts.replace,
+       enableViewTransition: opts && opts.unstable_viewTransition,
+-      flushSync
++      flushSync,
 +      unstable_shouldRevalidate: opts && opts.unstable_shouldRevalidate
      });
    }
    // Revalidate all current loaders.  If a navigation is in progress or if this
-@@ -1640,6 +1716,30 @@ function createRouter(init) {
+@@ -1852,6 +1934,30 @@ function createRouter(init) {
        } = getShortCircuitMatches(routesToUse);
        // Cancel all pending deferred on 404s since we don't keep any routes
        cancelActiveDeferreds();
@@ -495,7 +507,7 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..0abe16ed72321e98cdfc644dd86ac021
        completeNavigation(location, {
          matches: notFoundMatches,
          loaderData: {},
-@@ -1655,7 +1755,33 @@ function createRouter(init) {
+@@ -1869,7 +1975,33 @@ function createRouter(init) {
      // Ignore on initial page loads because since the initial load will always
      // be "same hash".  For example, on /page#hash and submit a <Form method="post">
      // which will default to a navigation to /page
@@ -526,11 +538,11 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..0abe16ed72321e98cdfc644dd86ac021
 +
 +        pendingNavigationController = null;
 +      }
-+      
++
        completeNavigation(location, {
          matches
-       });
-@@ -1699,6 +1825,25 @@ function createRouter(init) {
+       }, {
+@@ -1914,6 +2046,25 @@ function createRouter(init) {
      if (shortCircuited) {
        return;
      }
@@ -556,8 +568,8 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..0abe16ed72321e98cdfc644dd86ac021
      // Clean up now that the action/loaders have completed.  Don't clean up if
      // we short circuited because pendingNavigationController will have already
      // been assigned to a new controller for the next navigation
-@@ -1808,6 +1953,24 @@ function createRouter(init) {
-     cancelActiveDeferreds(routeId => !(matches && matches.some(m => m.route.id === routeId)) || matchesToLoad && matchesToLoad.some(m => m.route.id === routeId));
+@@ -2020,6 +2171,24 @@ function createRouter(init) {
+     pendingNavigationLoadId = ++incrementingLoadId;
      // Short circuit if we have no loaders to run
      if (matchesToLoad.length === 0 && revalidatingFetchers.length === 0) {
 +      // NOTE(calebmer): Allow our code to add a delay after data has loaded but
@@ -581,7 +593,7 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..0abe16ed72321e98cdfc644dd86ac021
        let updatedFetchers = markFetchRedirectsDone();
        completeNavigation(location, _extends({
          matches,
-@@ -2081,6 +2244,31 @@ function createRouter(init) {
+@@ -2350,6 +2519,31 @@ function createRouter(init) {
      if (state.navigation.state === "loading" && loadId > pendingNavigationLoadId) {
        invariant(pendingAction, "Expected pending action");
        pendingNavigationController && pendingNavigationController.abort();
@@ -613,36 +625,36 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..0abe16ed72321e98cdfc644dd86ac021
        completeNavigation(state.navigation.location, {
          matches,
          loaderData,
-@@ -2499,7 +2687,8 @@ function createRouter(init) {
+@@ -2843,7 +3037,8 @@ function createRouter(init) {
      _internalActiveDeferreds: activeDeferreds,
      // TODO: Remove setRoutes, it's temporary to avoid dealing with
      // updating the tree while validating the update algorithm.
 -    _internalSetRoutes
 +    _internalSetRoutes,
-+    unstable_unsafelyRestoreNavigation: unsafelyRestoreNavigation,
++    unstable_unsafelyRestoreNavigation: unsafelyRestoreNavigation
    };
    return router;
  }
-@@ -3375,7 +3564,10 @@ async function callLoaderOrAction(type, request, match, matches, manifest, mapRo
-     // Check between word boundaries instead of startsWith() due to the last
-     // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
-     if (contentType && /\bapplication\/json\b/.test(contentType)) {
--      data = await result.json();
-+      // NOTE(calebmer): If this response was constructed by `json()` then avoid
-+      // parsing it again which is wasteful.
-+      let originalData = result[Symbol.for("remix.response.json")];
-+      data = originalData !== undefined ? originalData : await result.json();
-     } else {
-       data = await result.text();
-     }
-@@ -3943,4 +4135,4 @@ function getDoneFetcher(data) {
+@@ -3828,7 +4023,10 @@ async function convertHandlerResultToDataResult(handlerResult) {
+         if (result.body == null) {
+           data = null;
+         } else {
+-          data = await result.json();
++          // NOTE(calebmer): If this response was constructed by `json()` then avoid
++          // parsing it again which is wasteful.
++          let originalData = result[Symbol.for("remix.response.json")];
++          data = originalData !== undefined ? originalData : await result.json();
+         }
+       } else {
+         data = await result.text();
+@@ -4472,4 +4670,4 @@ function persistAppliedTransitions(_window, transitions) {
  //#endregion
  
- export { AbortedDeferredError, Action, ErrorResponse, IDLE_BLOCKER, IDLE_FETCHER, IDLE_NAVIGATION, UNSAFE_DEFERRED_SYMBOL, DeferredData as UNSAFE_DeferredData, convertRoutesToDataRoutes as UNSAFE_convertRoutesToDataRoutes, getPathContributingMatches as UNSAFE_getPathContributingMatches, invariant as UNSAFE_invariant, warning as UNSAFE_warning, createBrowserHistory, createHashHistory, createMemoryHistory, createPath, createRouter, createStaticHandler, defer, generatePath, getStaticContextFromError, getToPathname, isDeferredData, isRouteErrorResponse, joinPaths, json, matchPath, matchRoutes, normalizePathname, parsePath, redirect, resolvePath, resolveTo, stripBasename };
+ export { AbortedDeferredError, Action, IDLE_BLOCKER, IDLE_FETCHER, IDLE_NAVIGATION, UNSAFE_DEFERRED_SYMBOL, DeferredData as UNSAFE_DeferredData, ErrorResponseImpl as UNSAFE_ErrorResponseImpl, convertRouteMatchToUiMatch as UNSAFE_convertRouteMatchToUiMatch, convertRoutesToDataRoutes as UNSAFE_convertRoutesToDataRoutes, getResolveToMatches as UNSAFE_getResolveToMatches, invariant as UNSAFE_invariant, warning as UNSAFE_warning, createBrowserHistory, createHashHistory, createMemoryHistory, createPath, createRouter, createStaticHandler, defer, generatePath, getStaticContextFromError, getToPathname, isDeferredData, isRouteErrorResponse, joinPaths, json, matchPath, matchRoutes, normalizePathname, parsePath, redirect, redirectDocument, resolvePath, resolveTo, stripBasename };
 -//# sourceMappingURL=router.js.map
 +// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/dist/router.umd.js b/dist/router.umd.js
-index f866ddc5eafb8f8c5427cc394aab333f4d31e048..804f63c622efe02c699b0fde19cdc8c09eed5843 100644
+index ad9e39f7c8b4a33fc2233f461798f17c08fe1cc1..56a7e06a02bc1ee39c20ad2ce0ffbcde3428f9ad 100644
 --- a/dist/router.umd.js
 +++ b/dist/router.umd.js
 @@ -1,3 +1,8 @@
@@ -652,10 +664,10 @@ index f866ddc5eafb8f8c5427cc394aab333f4d31e048..804f63c622efe02c699b0fde19cdc8c0
 +throw new Error("`@remix-run/router` UMD build is not supported");
 +
  /**
-  * @remix-run/router v1.7.0
+  * @remix-run/router v1.16.1
   *
 diff --git a/dist/router.umd.min.js b/dist/router.umd.min.js
-index b26cf0e57776b32310a88ae2385ff08b7c98c07b..a5c968200eebf9fb6a597c4c68b0a0c220518682 100644
+index 691e830dd4f5b969ea480ff1293f9e7ca3f7bc38..b8d08b83a8cd348ee0668f4297538aa692aaf092 100644
 --- a/dist/router.umd.min.js
 +++ b/dist/router.umd.min.js
 @@ -1,3 +1,8 @@
@@ -665,13 +677,13 @@ index b26cf0e57776b32310a88ae2385ff08b7c98c07b..a5c968200eebf9fb6a597c4c68b0a0c2
 +throw new Error("`@remix-run/router` UMD build is not supported");
 +
  /**
-  * @remix-run/router v1.7.0
+  * @remix-run/router v1.16.1
   *
 diff --git a/history.ts b/history.ts
-index f12845324aa20ad9f26b3a8ee42258c5369e4fff..6702cecf3654672a4fd7595042ead604507847d7 100644
+index 335645db1cdfd1d5f2af3c8fac6cab3a7bfe0ad0..72ae06a7c11cb4cea4d6455f925311d4ce122836 100644
 --- a/history.ts
 +++ b/history.ts
-@@ -218,6 +218,10 @@ export interface MemoryHistory extends History {
+@@ -221,6 +221,10 @@ export interface MemoryHistory extends History {
     * The current index in the history stack.
     */
    readonly index: number;
@@ -682,7 +694,7 @@ index f12845324aa20ad9f26b3a8ee42258c5369e4fff..6702cecf3654672a4fd7595042ead604
  }
  
  /**
-@@ -276,6 +280,11 @@ export function createMemoryHistory(
+@@ -279,6 +283,11 @@ export function createMemoryHistory(
      get index() {
        return index;
      },
@@ -695,7 +707,7 @@ index f12845324aa20ad9f26b3a8ee42258c5369e4fff..6702cecf3654672a4fd7595042ead604
        return action;
      },
 diff --git a/package.json b/package.json
-index 5a796fd48dadee89f0b71fcc3991364788a4b6f2..40acea9336f2d997929119dd35fc26371eb5c999 100644
+index 6b56d4d25e968a05c26f41c61e6b5c2661b5d210..c205276b6a92d9ef781ef8b44937deb4188a1362 100644
 --- a/package.json
 +++ b/package.json
 @@ -16,7 +16,6 @@
@@ -707,10 +719,10 @@ index 5a796fd48dadee89f0b71fcc3991364788a4b6f2..40acea9336f2d997929119dd35fc2637
    "types": "./dist/index.d.ts",
    "files": [
 diff --git a/router.ts b/router.ts
-index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..0f0db3d7aa87b966af30ce1647bc66f4fa7b924f 100644
+index b72cb7009192971da790f1d7eb269947c7504f70..e85ef6fe7eea350a8d5784627f4cdb5ed157e339 100644
 --- a/router.ts
 +++ b/router.ts
-@@ -246,6 +246,20 @@ export interface Router {
+@@ -266,6 +266,20 @@ export interface Router {
     * Internal pending DeferredData instances accessed by unit tests
     */
    _internalActiveDeferreds: Map<string, DeferredData>;
@@ -731,10 +743,10 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..0f0db3d7aa87b966af30ce1647bc66f4
  }
  
  /**
-@@ -353,6 +367,11 @@ export interface RouterInit {
-   future?: Partial<FutureConfig>;
+@@ -378,6 +392,11 @@ export interface RouterInit {
    hydrationData?: HydrationState;
    window?: Window;
+   unstable_dataStrategy?: DataStrategyFunction;
 +  // NOTE(calebmer): Add a callback that lets our code wait after loaders have
 +  // finished but before router state is updated. Useful for doing things like
 +  // making sure "close" animations (e.g. keyboard close) have finished on the
@@ -743,17 +755,17 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..0f0db3d7aa87b966af30ce1647bc66f4
  }
  
  /**
-@@ -430,6 +449,9 @@ type BaseNavigateOptions = BaseNavigateOrFetchOptions & {
-   replace?: boolean;
+@@ -469,6 +488,9 @@ type BaseNavigateOptions = BaseNavigateOrFetchOptions & {
    state?: any;
    fromRouteId?: string;
+   unstable_viewTransition?: boolean;
 +  // NOTE(calebmer): Add an `unstable_shouldRevalidate` option to allow
 +  // developers to stop revalidation at navigation function call-sites.
 +  unstable_shouldRevalidate?: boolean;
  };
  
  // Only allowed for submission navigations
-@@ -1078,6 +1100,78 @@ export function createRouter(init: RouterInit): Router {
+@@ -1272,6 +1294,82 @@ export function createRouter(init: RouterInit): Router {
      cancelledFetcherLoads = [];
    }
  
@@ -798,8 +810,11 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..0f0db3d7aa87b966af30ce1647bc66f4
 +
 +    // On a successful navigation we can assume we got through all blockers
 +    // so we can start fresh
-+    let blockers = new Map();
-+    blockerFunctions.clear();
++    let blockers = state.blockers;
++    if (blockers.size > 0) {
++      blockers = new Map(blockers);
++      blockers.forEach((_, k) => blockers.set(k, IDLE_BLOCKER));
++    }
 +
 +    // Restore any fetchers with an idle state. Fetchers that were
 +    // loading/submitting should have been cancelled when the router state was
@@ -823,32 +838,33 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..0f0db3d7aa87b966af30ce1647bc66f4
 +    // Reset stateful navigation vars
 +    pendingAction = HistoryAction.Pop;
 +    pendingPreventScrollReset = false;
++    pendingViewTransitionEnabled = false;
 +    isUninterruptedRevalidation = false;
 +    isRevalidationRequired = false;
 +    cancelledDeferredRoutes = [];
-+    cancelledFetcherLoads = [];    
++    cancelledFetcherLoads = [];
 +  }
 +
    // Trigger a navigation event, which can either be a numerical POP or a PUSH
    // replace with an optional submission
    async function navigate(
-@@ -1180,6 +1274,7 @@ export function createRouter(init: RouterInit): Router {
-       pendingError: error,
-       preventScrollReset,
+@@ -1379,6 +1477,7 @@ export function createRouter(init: RouterInit): Router {
        replace: opts && opts.replace,
-+      unstable_shouldRevalidate: opts && opts.unstable_shouldRevalidate
+       enableViewTransition: opts && opts.unstable_viewTransition,
+       flushSync,
++      unstable_shouldRevalidate: opts && opts.unstable_shouldRevalidate,
      });
    }
  
-@@ -1230,6 +1325,7 @@ export function createRouter(init: RouterInit): Router {
-       startUninterruptedRevalidation?: boolean;
-       preventScrollReset?: boolean;
+@@ -1432,6 +1531,7 @@ export function createRouter(init: RouterInit): Router {
        replace?: boolean;
+       enableViewTransition?: boolean;
+       flushSync?: boolean;
 +      unstable_shouldRevalidate?: boolean;
      }
    ): Promise<void> {
      // Abort any in-progress navigations and start a new one. Unset any ongoing
-@@ -1257,6 +1353,30 @@ export function createRouter(init: RouterInit): Router {
+@@ -1462,6 +1562,30 @@ export function createRouter(init: RouterInit): Router {
          getShortCircuitMatches(routesToUse);
        // Cancel all pending deferred on 404s since we don't keep any routes
        cancelActiveDeferreds();
@@ -876,10 +892,16 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..0f0db3d7aa87b966af30ce1647bc66f4
 +        pendingNavigationController = null;
 +      }
 +
-       completeNavigation(location, {
-         matches: notFoundMatches,
-         loaderData: {},
-@@ -1276,9 +1396,32 @@ export function createRouter(init: RouterInit): Router {
+       completeNavigation(
+         location,
+         {
+@@ -1482,12 +1606,38 @@ export function createRouter(init: RouterInit): Router {
+     // Ignore on initial page loads because since the initial load will always
+     // be "same hash".  For example, on /page#hash and submit a <Form method="post">
+     // which will default to a navigation to /page
++    //
++    // NOTE(calebmer): Add an `unstable_shouldRevalidate` option to allow
++    // developers to stop revalidation at navigation function call-sites.
      if (
        state.initialized &&
        !isRevalidationRequired &&
@@ -910,10 +932,10 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..0f0db3d7aa87b966af30ce1647bc66f4
 +        pendingNavigationController = null;
 +      }
 +
-       completeNavigation(location, { matches });
+       completeNavigation(location, { matches }, { flushSync });
        return;
      }
-@@ -1345,6 +1488,24 @@ export function createRouter(init: RouterInit): Router {
+@@ -1559,6 +1709,24 @@ export function createRouter(init: RouterInit): Router {
        return;
      }
  
@@ -938,7 +960,7 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..0f0db3d7aa87b966af30ce1647bc66f4
      // Clean up now that the action/loaders have completed.  Don't clean up if
      // we short circuited because pendingNavigationController will have already
      // been assigned to a new controller for the next navigation
-@@ -1499,6 +1660,24 @@ export function createRouter(init: RouterInit): Router {
+@@ -1721,6 +1889,24 @@ export function createRouter(init: RouterInit): Router {
  
      // Short circuit if we have no loaders to run
      if (matchesToLoad.length === 0 && revalidatingFetchers.length === 0) {
@@ -961,9 +983,9 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..0f0db3d7aa87b966af30ce1647bc66f4
 +      }
 +
        let updatedFetchers = markFetchRedirectsDone();
-       completeNavigation(location, {
-         matches,
-@@ -1905,6 +2084,30 @@ export function createRouter(init: RouterInit): Router {
+       completeNavigation(
+         location,
+@@ -2215,6 +2401,30 @@ export function createRouter(init: RouterInit): Router {
      ) {
        invariant(pendingAction, "Expected pending action");
        pendingNavigationController && pendingNavigationController.abort();
@@ -994,7 +1016,7 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..0f0db3d7aa87b966af30ce1647bc66f4
  
        completeNavigation(state.navigation.location, {
          matches,
-@@ -2486,6 +2689,7 @@ export function createRouter(init: RouterInit): Router {
+@@ -2904,6 +3114,7 @@ export function createRouter(init: RouterInit): Router {
      // TODO: Remove setRoutes, it's temporary to avoid dealing with
      // updating the tree while validating the update algorithm.
      _internalSetRoutes,
@@ -1002,23 +1024,23 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..0f0db3d7aa87b966af30ce1647bc66f4
    };
  
    return router;
-@@ -3705,7 +3909,10 @@ async function callLoaderOrAction(
-     // Check between word boundaries instead of startsWith() due to the last
-     // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
-     if (contentType && /\bapplication\/json\b/.test(contentType)) {
--      data = await result.json();
-+      // NOTE(calebmer): If this response was constructed by `json()` then avoid
-+      // parsing it again which is wasteful.
-+      let originalData = result[Symbol.for("remix.response.json")];
-+      data = originalData !== undefined ? originalData : await result.json();
-     } else {
-       data = await result.text();
-     }
+@@ -4364,7 +4575,10 @@ async function convertHandlerResultToDataResult(
+         if (result.body == null) {
+           data = null;
+         } else {
+-          data = await result.json();
++          // NOTE(calebmer): If this response was constructed by `json()` then avoid
++          // parsing it again which is wasteful.
++          let originalData = result[Symbol.for("remix.response.json")];
++          data = originalData !== undefined ? originalData : await result.json();
+         }
+       } else {
+         data = await result.text();
 diff --git a/utils.ts b/utils.ts
-index 6c7796ed3fcfc28ed8149615a94ea302331fd5c0..67f4f83a565d43dd276afe8fa08872a1decc9824 100644
+index 561421e777349fe05016cf161236b9c12de5f8ea..e50feffe2e16bc101b63056e51c2c062abc5ed26 100644
 --- a/utils.ts
 +++ b/utils.ts
-@@ -1238,10 +1238,16 @@ export const json: JsonFunction = (data, init = {}) => {
+@@ -1326,10 +1326,16 @@ export const json: JsonFunction = (data, init = {}) => {
      headers.set("Content-Type", "application/json; charset=utf-8");
    }
  

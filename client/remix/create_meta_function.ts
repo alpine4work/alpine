@@ -1,4 +1,4 @@
-import {V2_MetaArgs as MetaArgs, V2_MetaDescriptor as MetaDescriptor} from "@remix-run/react";
+import {MetaArgs, MetaDescriptor} from "@remix-run/react";
 import {Location, Params} from "react-router-dom";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {metaDefaultTitle, metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
@@ -26,7 +26,7 @@ export function createMetaFunction<Data>(
         location: Location;
     }) => Array<MetaDescriptor>,
 ) {
-    return (args: MetaArgs): Array<MetaDescriptor> => {
+    return (args: MetaArgs<any>): Array<MetaDescriptor> => {
         // If there is an error, data will sometimes be undefined and sometimes be an
         // `Error` object. In that case return some default meta.
         if (!args.data || args.data instanceof Error) {

@@ -10,6 +10,7 @@ import {
     parsePath,
     UNSAFE_useRoutesImpl as useRoutesImpl,
 } from "react-router";
+import {UNSAFE_FetchersContext as FetchersContext} from "react-router-dom";
 import {StaticHandlerContext} from "react-router-dom/server.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -21,7 +22,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * We forked this component to add support for our native mobile router. We've
  * also simplified some some bits we don't need.
  *
- * [1]: https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/react-router-dom/server.tsx#L93-L154
+ * [1]: https://github.com/remix-run/react-router/blob/7759e8e2912eb69f6dd63b2906490831a2154cfd/packages/react-router-dom/server.tsx#L96-L174
  */
 export function AppStaticRouterProvider({
     context,
@@ -40,20 +41,24 @@ export function AppStaticRouterProvider({
         basename: context.basename || "/",
     };
 
+    const fetchersContext = new Map();
+
     const {state} = dataRouterContext.router;
 
     return (
         <DataRouterContext.Provider value={dataRouterContext}>
             <DataRouterStateContext.Provider value={state}>
-                <Router
-                    basename={dataRouterContext.basename}
-                    location={state.location}
-                    navigationType={state.historyAction}
-                    navigator={dataRouterContext.navigator}
-                    static={dataRouterContext.static}
-                >
-                    <DataRoutes routes={router.routes} state={state} />
-                </Router>
+                <FetchersContext.Provider value={fetchersContext}>
+                    <Router
+                        basename={dataRouterContext.basename}
+                        location={state.location}
+                        navigationType={state.historyAction}
+                        navigator={dataRouterContext.navigator}
+                        static={dataRouterContext.static}
+                    >
+                        <DataRoutes routes={router.routes} future={router.future} state={state} />
+                    </Router>
+                </FetchersContext.Provider>
             </DataRouterStateContext.Provider>
         </DataRouterContext.Provider>
     );
@@ -61,12 +66,14 @@ export function AppStaticRouterProvider({
 
 function DataRoutes({
     routes,
+    future,
     state,
 }: {
     routes: Array<DataRouteObject>;
+    future: RemixRouter["future"];
     state: RouterState;
 }): React.ReactElement | null {
-    return useRoutesImpl(routes, undefined, state);
+    return useRoutesImpl(routes, undefined, state, future);
 }
 
 function createHref(to: To) {

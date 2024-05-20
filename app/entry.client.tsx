@@ -1,3 +1,4 @@
+import {loadRouteModuleWithBlockingLinks} from "@remix-run/react";
 import {startTransition} from "react";
 import {hydrateRoot} from "react-dom/client";
 import {AppRemixBrowser} from "~/app/router/app_remix_browser.js";
@@ -13,63 +14,34 @@ import {createClientTracer} from "~/client/tracer/client_tracer.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {Schema} from "~/shared/schema/schema.js";
+
+declare global {
+    // eslint-disable-next-line no-var
+    var __remixErrorSchema: Schema<any> | undefined;
+    // eslint-disable-next-line no-var
+    var __remixLoadExtraRouteIds: Array<string> | undefined;
+}
 
 // We've patched Remix so that when it serializes and deserializes errors it
 // looks for this global and uses it.
-(globalThis as any).__remixErrorSchema = ErrorSchema;
+globalThis.__remixErrorSchema = ErrorSchema;
 
 async function main() {
-    // We add a `clientLoader` feature to Remix routes. `clientLoader` functions
-    // are called on the client with server loader data. We call `clientLoader` for
-    // initial loads here in our code vs in a patch so we can make it async.
-    //
-    // NOTE(calebmer, 2024-01-17): Looks like since I added a custom
-    // `clientLoader`, the Remix team [added their own `clientLoader`][1]! The
-    // semantics are a bit different. Ideally we'd use the Remix `clientLoader`.
-    //
-    // [1]: https://remix.run/docs/en/main/route/client-loader
-    const clientLoaderResults = await Promise.allSettled(
-        window.__remixContext.matches.map(async (match, i) => {
-            const routeModule = window.__remixRouteModules[match.routeId]!;
-
-            // If there was an error from an earlier match, don't run this client loader.
-            for (let j = 0; j < i; j++) {
-                const earlierMatch = window.__remixContext.matches[j]!;
-                if (window.__remixContext.state.errors?.[earlierMatch.routeId]) return;
-            }
-
-            const loaderData = window.__remixContext.state.loaderData?.[match.routeId];
-
-            await (routeModule as any).clientLoader?.({data: loaderData, params: match.params});
-        }),
-    );
-
-    // Check if there was an error in our results and update `__remixContext` as if
-    // the error was thrown on the server.
-    //
-    // If there's a `clientLoader` error then there will be a hydration HTML
-    // mismatch! This forces our app into client-side rendering which is fine.
-    for (let i = 0; i < clientLoaderResults.length; i++) {
-        const clientLoaderResult = clientLoaderResults[i]!;
-
-        if (clientLoaderResult.status === "rejected") {
-            for (let j = i; j >= 0; j--) {
-                const match = window.__remixContext.matches[j]!;
-                const routeModule = window.__remixRouteModules[match.routeId]!;
-
-                if (!routeModule.ErrorBoundary) {
-                    if (window.__remixContext.state.loaderData)
-                        delete window.__remixContext.state.loaderData[match.routeId];
-                } else {
-                    (window.__remixContext.state.errors ??= {})[match.routeId] =
-                        clientLoaderResult.reason;
-                    break;
-                }
-            }
-            break;
-        }
+    // Used by `s.$spaceId.inbox.tsx` to load routes rendered in the peek before
+    // React hydration starts (which will need the route module code).
+    if (window.__remixLoadExtraRouteIds) {
+        await runAllPromises(
+            window.__remixLoadExtraRouteIds.map(routeId =>
+                loadRouteModuleWithBlockingLinks(
+                    window.__remixManifest.routes[routeId]!,
+                    window.__remixRouteModules,
+                ),
+            ),
+        );
     }
 
     const tracer = createClientTracer();

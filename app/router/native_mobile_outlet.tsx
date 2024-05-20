@@ -69,11 +69,17 @@ export function NativeMobileOutlet({
                 get basename() {
                     return currentRouter.basename;
                 },
+                get future() {
+                    return currentRouter.future;
+                },
                 get state() {
                     return inertRouterState;
                 },
                 get routes() {
                     return currentRouter.routes;
+                },
+                get window() {
+                    return currentRouter.window;
                 },
                 subscribe: () => {
                     // Inert router state never changes.
@@ -118,7 +124,7 @@ export function NativeMobileOutlet({
                     // If the fetcher is already deleted. This is a noop. This method is called by
                     // an effect in `useFetcher()` when the `router` object changes. Our inert
                     // fetcher does no work so we don't need to garbage collect fetchers.
-                    if (!inertRouterState.fetchers.has(key!)) {
+                    if (!inertRouterState.fetchers.has(key)) {
                         return;
                     }
 
@@ -192,6 +198,7 @@ export function NativeMobileOutlet({
                 basename,
                 navigator,
                 static: false,
+                future: currentNavigationContext.future,
             };
 
             const {
@@ -238,9 +245,15 @@ export function NativeMobileOutlet({
                 navigationContext,
                 locationContext,
                 outlet: !hasErrorInParentRoute
-                    ? renderMatches(matches, parentMatches, inertRouterState, {
-                          disableErrorBoundaryForFirstMatch: true,
-                      })
+                    ? renderMatches(
+                          matches,
+                          parentMatches,
+                          inertRouterState,
+                          currentNavigationContext.future,
+                          {
+                              disableErrorBoundaryForFirstMatch: true,
+                          },
+                      )
                     : // If there's an error in the parent route, we render nothing for our inert
                       // route. If the inert route becomes the primary route again then the error
                       // component is completely remounted.

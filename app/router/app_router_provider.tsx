@@ -1,4 +1,4 @@
-import {RouterState} from "@remix-run/router";
+import {Router as RemixRouter, RouterState, RouterSubscriber} from "@remix-run/router";
 import {
     startTransition,
     useCallback,
@@ -9,6 +9,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {flushSync} from "react-dom";
 import {
     DataRouteObject,
     UNSAFE_DataRouterContext as DataRouterContext,
@@ -18,9 +19,11 @@ import {
     RouterProviderProps,
     UNSAFE_useRoutesImpl as useRoutesImpl,
 } from "react-router";
+import {UNSAFE_FetchersContext as FetchersContext} from "react-router-dom";
 import {getLocationNativeMobileTab} from "~/app/router/native_mobile_router.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -30,7 +33,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * We forked this component to add support for our native mobile router. We've
  * also simplified some some bits we don't need.
  *
- * [1]: https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/react-router/lib/components.tsx#L89-L166
+ * [1]: https://github.com/remix-run/react-router/blob/7759e8e2912eb69f6dd63b2906490831a2154cfd/packages/react-router-dom/index.tsx#L477-L743
  */
 export function AppRouterProvider({
     fallbackElement,
@@ -58,23 +61,54 @@ export function AppRouterProvider({
     // Need to use a layout effect here so we are subscribed early enough to
     // pick up on any render-driven redirects/navigations (useEffect/<Navigate>)
     const [state, setStateImpl] = useState(router.state);
+    const fetcherData = useRef<Map<string, any>>(new Map());
     const {v7_startTransition} = future || {};
-    const setState = useCallback(
-        (newState: RouterState) => {
-            v7_startTransition
-                ? startTransition(() => setStateImpl(newState))
-                : setStateImpl(newState);
+
+    const setState: RouterSubscriber = useCallback(
+        (newState, {deletedFetchers, unstable_flushSync, unstable_viewTransitionOpts}) => {
+            // NOTE(calebmer): We don't currently use Remix view transitions so don't
+            // include them in our fork.
+            if (unstable_viewTransitionOpts) {
+                throw new UnimplementedError("`unstable_viewTransitionOpts` is not implemented");
+            }
+
+            deletedFetchers.forEach(key => fetcherData.current.delete(key));
+            newState.fetchers.forEach((fetcher, key) => {
+                if (fetcher.data !== undefined) {
+                    fetcherData.current.set(key, fetcher.data);
+                }
+            });
+
+            if (unstable_flushSync) {
+                flushSync(() => setStateImpl(newState));
+            } else if (v7_startTransition) {
+                startTransition(() => setStateImpl(newState));
+            } else {
+                setStateImpl(newState);
+            }
         },
         [setStateImpl, v7_startTransition],
     );
     useLayoutEffect(() => router.subscribe(setState), [router, setState]);
+
+    useEffect(() => {
+        if (fallbackElement != null && router.future.v7_partialHydration) {
+            // eslint-disable-next-line no-console
+            console.warn(
+                "`<RouterProvider fallbackElement>` is deprecated when using " +
+                    "`v7_partialHydration`, use a `HydrateFallback` component instead",
+            );
+        }
+        // Only log this once on initial mount
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const navigator = useMemo((): Navigator => {
         return {
             createHref: router.createHref.bind(router),
             encodeLocation: router.encodeLocation.bind(router),
             go: n => {
-                // NOTE(calebmer): The Remix code we forked not await the `navigate()`
+                // NOTE(calebmer): The Remix code we forked didn't await the `navigate()`
                 // promises. We try to avoid calling these functions to navigate, instead using
                 // our `useNavigate()` hook which returns a promise.
                 //
@@ -83,7 +117,7 @@ export function AppRouterProvider({
                 void router.navigate(n);
             },
             push: (to, state, opts) => {
-                // NOTE(calebmer): The Remix code we forked not await the `navigate()`
+                // NOTE(calebmer): The Remix code we forked didn't await the `navigate()`
                 // promises. We try to avoid calling these functions to navigate, instead using
                 // our `useNavigate()` hook which returns a promise.
                 //
@@ -95,7 +129,7 @@ export function AppRouterProvider({
                 });
             },
             replace: (to, state, opts) => {
-                // NOTE(calebmer): The Remix code we forked not await the `navigate()`
+                // NOTE(calebmer): The Remix code we forked didn't await the `navigate()`
                 // promises. We try to avoid calling these functions to navigate, instead using
                 // our `useNavigate()` hook which returns a promise.
                 //
@@ -218,18 +252,27 @@ export function AppRouterProvider({
     return (
         <DataRouterContext.Provider value={dataRouterContext}>
             <DataRouterStateContext.Provider value={state}>
-                <Router
-                    basename={basename}
-                    location={state.location}
-                    navigationType={state.historyAction}
-                    navigator={navigator}
-                >
-                    {state.initialized ? (
-                        <DataRoutes routes={router.routes} state={state} />
-                    ) : (
-                        fallbackElement
-                    )}
-                </Router>
+                <FetchersContext.Provider value={fetcherData.current}>
+                    <Router
+                        basename={basename}
+                        location={state.location}
+                        navigationType={state.historyAction}
+                        navigator={navigator}
+                        future={{
+                            v7_relativeSplatPath: router.future.v7_relativeSplatPath,
+                        }}
+                    >
+                        {state.initialized || router.future.v7_partialHydration ? (
+                            <DataRoutes
+                                routes={router.routes}
+                                future={router.future}
+                                state={state}
+                            />
+                        ) : (
+                            fallbackElement
+                        )}
+                    </Router>
+                </FetchersContext.Provider>
             </DataRouterStateContext.Provider>
         </DataRouterContext.Provider>
     );
@@ -237,10 +280,12 @@ export function AppRouterProvider({
 
 function DataRoutes({
     routes,
+    future,
     state,
 }: {
     routes: Array<DataRouteObject>;
+    future: RemixRouter["future"];
     state: RouterState;
 }): React.ReactElement | null {
-    return useRoutesImpl(routes, undefined, state);
+    return useRoutesImpl(routes, undefined, state, future);
 }
