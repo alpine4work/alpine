@@ -11,6 +11,7 @@ import {
 } from "phosphor-react";
 import {Memo, Ref, forwardRef, useCallback, useEffect, useId, useRef, useState} from "react";
 import {To, createPath} from "react-router";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -50,6 +51,8 @@ import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {PeekId, SpaceId} from "~/shared/id/types/id_types.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
+import {markSearchAffinityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
+import {isSearchAffinityId} from "~/shared/search/search_affinity_id.js";
 import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchOptions} from "~/shared/search/search_options.js";
 import {SearchResult, SearchResultId} from "~/shared/search/search_result.js";
@@ -88,6 +91,7 @@ export function SearchModal({
     pushPeekStack: (to: To, options?: {focus?: boolean}) => Promise<void>;
     debugOptions: SearchOptions | null;
 }) {
+    const context = useAppContext();
     const {space} = useSpaceContext();
     const navigate = useNavigate();
 
@@ -151,6 +155,30 @@ export function SearchModal({
         // we'll display a large loading indicator in the result list while we wait for
         // results to load.
         !!output.results;
+
+    // Whenever the user selects a search result, we accord a high intent affinity
+    // interaction. This is because the user opening a result from search is super
+    // high signal that this is an entity they care about. In this way search is a
+    // self reinforcing system. The more a user selects an entity, the higher the
+    // entity will appear in the user's next search.
+    const markResultSelectAffinityInteraction = (resultId: SearchResultId) => {
+        if (!isSearchAffinityId(resultId)) return;
+
+        markSearchAffinityInteraction(context, {
+            spaceId: space.id,
+            affinityId: resultId,
+            interaction: {type: "HighIntentUpdate"},
+        }).catch(error => {
+            // Silently fail. This doesn't affect anything the user sees so we don't need
+            // to report the error to the user.
+            context.tracer
+                .getRoot()
+                .logUncaughtException(
+                    "Couldn't mark search result select affinity interaction",
+                    error,
+                );
+        });
+    };
 
     return (
         <Modal
@@ -291,7 +319,9 @@ export function SearchModal({
 
                             // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
                             // Eventually switch to new page with a loading spinner?
-                            void navigate(spacePath);
+                            void navigate(spacePath).then(() => {
+                                markResultSelectAffinityInteraction(selectedPeek.extra.resultId);
+                            });
                             break;
                         }
                     }
@@ -373,6 +403,9 @@ export function SearchModal({
                                     results={output.results}
                                     selectedPeek={selectedPeek}
                                     switchPeek={switchPeek}
+                                    markResultSelectAffinityInteraction={
+                                        markResultSelectAffinityInteraction
+                                    }
                                 />
                             )}
                         </Box>
@@ -387,11 +420,15 @@ export function SearchModal({
                                 <SearchModalPeekContent
                                     // Fully remount whenever the peek changes...
                                     key={activePeek.id}
+                                    resultId={activePeek.extra.resultId}
                                     peekId={activePeek.id}
                                     peekContent={activePeek.content}
                                     onClose={onClose}
                                     pushPeekStack={pushPeekStack}
                                     switchPeek={switchPeek}
+                                    markResultSelectAffinityInteraction={
+                                        markResultSelectAffinityInteraction
+                                    }
                                 />
                             ) : (
                                 <Box
@@ -536,6 +573,7 @@ function SearchModalResultList({
     results,
     selectedPeek,
     switchPeek,
+    markResultSelectAffinityInteraction,
 }: {
     searchKey: string;
     results: ReadonlyArray<SearchResult>;
@@ -548,6 +586,7 @@ function SearchModalResultList({
             } | null,
         ) => Promise<void>
     >;
+    markResultSelectAffinityInteraction: (resultId: SearchResultId) => void;
 }) {
     const navigate = useNavigate();
     const {space} = useSpaceContext();
@@ -574,14 +613,18 @@ function SearchModalResultList({
 
             // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
             // Eventually switch to new page with a loading spinner?
-            void navigate(destinationPath);
+            void navigate(destinationPath).then(() => {
+                markResultSelectAffinityInteraction(result.id);
+            });
         } else {
             const spacePath = convertPeekPathToSpacePath(selectedPeek.content.history.location);
             if (!spacePath) throw new InternalError("Can only expand peek routes");
 
             // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
             // Eventually switch to new page with a loading spinner?
-            void navigate(spacePath);
+            void navigate(spacePath).then(() => {
+                markResultSelectAffinityInteraction(result.id);
+            });
         }
     });
 
@@ -881,12 +924,15 @@ function getSearchEntityPath(spaceId: SpaceId, entityId: SearchEntityIdObject): 
 }
 
 function SearchModalPeekContent({
+    resultId,
     peekId,
     peekContent,
     onClose,
     pushPeekStack,
     switchPeek,
+    markResultSelectAffinityInteraction,
 }: {
+    resultId: SearchResultId;
     peekId: PeekId;
     peekContent: PeekSwitcherStatePeekContent;
     onClose: () => void;
@@ -899,6 +945,7 @@ function SearchModalPeekContent({
             } | null,
         ) => Promise<void>
     >;
+    markResultSelectAffinityInteraction: (resultId: SearchResultId) => void;
 }) {
     const navigate = useNavigate();
     const routerResult = usePromise(peekContent.routerPromise);
@@ -1024,8 +1071,10 @@ function SearchModalPeekContent({
                                     );
                                 } else if (event.shiftKey) {
                                     await pushPeekStack(spacePath).finally(onClose);
+                                    markResultSelectAffinityInteraction(resultId);
                                 } else {
                                     await navigate(spacePath);
+                                    markResultSelectAffinityInteraction(resultId);
                                 }
                             }}
                         >

@@ -1,4 +1,8 @@
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
 import {
     AccountId,
     ChannelId,
@@ -8,7 +12,9 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {SearchCommandId} from "~/shared/search/search_commands.js";
 import {SearchEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchResultId} from "~/shared/search/search_result.js";
 
 /**
  * `SearchEntityId`s that we record affinity points for. Not every search
@@ -33,6 +39,47 @@ export type SearchAffinityId =
     // a search entity doc for it.
     | "TaskNotepad";
 
+// Make sure `SearchAffinityId`s are valid `SearchEntityId`s (excluding
+// `TaskNotepad`).
 assertAssignableTypes<Exclude<SearchAffinityId, "TaskNotepad">, SearchEntityId>();
 
+// Make sure there's no overlap between `SearchAffinityId` and `SearchCommandId`
+// (excluding `TaskNotepad`).
+assertEqualTypes<Exclude<SearchAffinityId, "TaskNotepad"> & SearchCommandId, never>();
+
 export const SearchAffinityIdSchema = Schema.string as Schema<SearchAffinityId>;
+
+type GetSearchAffinityIdTestMapUnionType<Id extends string> = Id extends `${infer IdType}:${string}`
+    ? Record<IdType, true>
+    : Record<Id, false>;
+
+type GetSearchAffinityIdTestMapType<Id extends string> = MergeObjectIntersection<
+    UnionToIntersection<GetSearchAffinityIdTestMapUnionType<Id>>
+>;
+
+const searchAffinityIdTestMap: GetSearchAffinityIdTestMapType<SearchAffinityId> = {
+    Account: true,
+    Document: true,
+    Channel: true,
+    Chat: true,
+    Task: true,
+    TaskCollection: true,
+    TaskNotepad: false,
+};
+
+/**
+ * Is the provided `SearchResultId` a valid `SearchAffinityId`?
+ */
+export function isSearchAffinityId(id: SearchResultId): id is SearchAffinityId {
+    const [idType = "", idRest = ""] = id.split(":", 2);
+    const idTest = cast<{[key: string]: boolean}>(searchAffinityIdTestMap)[idType];
+
+    if (idTest === undefined) return false;
+
+    if (idTest) {
+        return idRest.length > 0;
+    } else {
+        // Implies that `idRest` is an empty string.
+        return id === idType;
+    }
+}

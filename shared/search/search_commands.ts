@@ -1,5 +1,7 @@
 import _Fuse from "fuse.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
@@ -26,6 +28,10 @@ export type SearchCommandId =
     | "TaskQueryFilteredToAssigneeIsCurrentAccount"
     | "TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive"
     | "TaskQueryFilteredToAssignerIsCurrentAccount";
+
+// Make sure there's no overlap between `SearchEntityId`s and
+// `SearchCommandId`s.
+assertEqualTypes<SearchEntityId & SearchCommandId, never>();
 
 type SearchCommand = {
     readonly title: string;
