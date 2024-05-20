@@ -41,7 +41,7 @@ test("can search for an account in mention menu", async ({
     } else {
         await page
             .getByRole("textbox", {name: "Document"})
-            .tap({position: {x: viewport.width / 2, y: viewport.height - 100}});
+            .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
 
     await expect(page.getByTestId("ContentEditorMentionFloater")).toBeHidden();
@@ -106,7 +106,7 @@ test("can see a mention added by another user", async ({
     } else {
         await page1
             .getByRole("textbox", {name: "Document"})
-            .tap({position: {x: viewport.width / 2, y: viewport.height - 100}});
+            .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
 
     // Focusing the document in the second browser will wait for the document to

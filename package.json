@@ -93,6 +93,7 @@
         "@vanilla-extract/esbuild-plugin": "2.1.0",
         "@vanilla-extract/integration": "^5.0.1",
         "@vanilla-extract/sprinkles": "^1.5.0",
+        "@web3-storage/multipart-parser": "1.0.0",
         "@xenova/transformers": "^2.8.0",
         "autoprefixer": "^10.4.15",
         "aws-cdk": "2.110.1",
@@ -257,7 +258,8 @@
             "react-router-dom@6.23.1": "admin/patches/react-router-dom@6.23.1.patch",
             "@remix-run/server-runtime@2.9.2": "admin/patches/@remix-run__server-runtime@2.9.2.patch",
             "@remix-run/react@2.9.2": "admin/patches/@remix-run__react@2.9.2.patch",
-            "@remix-run/dev@2.9.2": "admin/patches/@remix-run__dev@2.9.2.patch"
+            "@remix-run/dev@2.9.2": "admin/patches/@remix-run__dev@2.9.2.patch",
+            "@web3-storage/multipart-parser@1.0.0": "admin/patches/@web3-storage__multipart-parser@1.0.0.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

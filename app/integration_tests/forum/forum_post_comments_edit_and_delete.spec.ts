@@ -411,7 +411,11 @@ test("will backfill an edit in realtime when comments are reopened", async ({
     await page1.getByRole("button", {name: "1 comment"}).click();
     await expect(page1.getByText("Test post comment content 1")).toBeVisible();
     await expect(page1.getByText("Test post comment content 2")).toBeHidden();
-    await page1.getByRole("button", {name: "1 comment"}).click();
+    if (!isMobile) {
+        await page1.getByRole("button", {name: "1 comment"}).click();
+    } else {
+        await page1.getByRole("button", {name: "Go back"}).click();
+    }
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
     await expect(page1.getByText("Test post comment content 2")).toBeHidden();
 
@@ -497,7 +501,11 @@ test("will backfill a delete in realtime when comments are reopened", async ({
     await page1.getByRole("button", {name: "1 comment"}).click();
     await expect(page1.getByText("Test post comment content 1")).toBeVisible();
     await expect(page1.getByText("Comment deleted")).toBeHidden();
-    await page1.getByRole("button", {name: "1 comment"}).click();
+    if (!isMobile) {
+        await page1.getByRole("button", {name: "1 comment"}).click();
+    } else {
+        await page1.getByRole("button", {name: "Go back"}).click();
+    }
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
     await expect(page1.getByText("Comment deleted")).toBeHidden();
 

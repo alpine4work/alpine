@@ -15,7 +15,7 @@ exports[`bold 1`] = `
   >
     Hello 
     <strong
-      class="content_schema__14lcw3gs"
+      class="content_schema__14lcw3gu"
     >
       world
     </strong>
@@ -143,9 +143,9 @@ exports[`bullet list plain 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gi"
+    class="content_schema__14lcw3gj content_schema__14lcw3gk"
     data-list-indent="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -195,9 +195,9 @@ exports[`bullet list with multiple items 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gi"
+    class="content_schema__14lcw3gj content_schema__14lcw3gk"
     data-list-indent="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -206,9 +206,9 @@ exports[`bullet list with multiple items 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gi"
+    class="content_schema__14lcw3gj content_schema__14lcw3gk"
     data-list-indent="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -217,9 +217,9 @@ exports[`bullet list with multiple items 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gi"
+    class="content_schema__14lcw3gj content_schema__14lcw3gk"
     data-list-indent="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -263,9 +263,9 @@ exports[`bullet list with sub-list 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gi"
+    class="content_schema__14lcw3gj content_schema__14lcw3gk"
     data-list-indent="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -274,9 +274,9 @@ exports[`bullet list with sub-list 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gi"
+    class="content_schema__14lcw3gj content_schema__14lcw3gk"
     data-list-indent="1"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -285,9 +285,9 @@ exports[`bullet list with sub-list 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gi"
+    class="content_schema__14lcw3gj content_schema__14lcw3gk"
     data-list-indent="1"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -296,9 +296,9 @@ exports[`bullet list with sub-list 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gi"
+    class="content_schema__14lcw3gj content_schema__14lcw3gk"
     data-list-indent="1"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -320,9 +320,9 @@ exports[`bullet list with sub-list of another type 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gi"
+    class="content_schema__14lcw3gj content_schema__14lcw3gk"
     data-list-indent="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -331,10 +331,10 @@ exports[`bullet list with sub-list of another type 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gj"
+    class="content_schema__14lcw3gj content_schema__14lcw3gl"
     data-list-indent="1"
     data-list-number="0"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -343,10 +343,10 @@ exports[`bullet list with sub-list of another type 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gj"
+    class="content_schema__14lcw3gj content_schema__14lcw3gl"
     data-list-indent="1"
     data-list-number="0"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -355,10 +355,10 @@ exports[`bullet list with sub-list of another type 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gj"
+    class="content_schema__14lcw3gj content_schema__14lcw3gl"
     data-list-indent="1"
     data-list-number="0"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -438,9 +438,9 @@ exports[`can put hard breaks inside list items 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gi"
+    class="content_schema__14lcw3gj content_schema__14lcw3gk"
     data-list-indent="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -508,9 +508,9 @@ exports[`can put multiple paragraphs inside list items 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gi"
+    class="content_schema__14lcw3gj content_schema__14lcw3gk"
     data-list-indent="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -678,18 +678,18 @@ exports[`check list (checked) plain 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gk"
+    class="content_schema__14lcw3gj content_schema__14lcw3gm"
     data-list-indent="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <div
-      class="content_schema__14lcw3gm"
+      class="content_schema__14lcw3go"
     >
       <div
-        class="content_schema__14lcw3gn"
+        class="content_schema__14lcw3gp"
       >
         <svg
-          class="content_schema__14lcw3gp"
+          class="content_schema__14lcw3gr"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -710,7 +710,7 @@ exports[`check list (checked) plain 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gl"
+      class="content_schema__14lcw3gn"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -891,18 +891,18 @@ exports[`check list (unchecked) plain 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gh"
+    class="content_schema__14lcw3gj"
     data-list-indent="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <div
-      class="content_schema__14lcw3gm"
+      class="content_schema__14lcw3go"
     >
       <div
-        class="content_schema__14lcw3gn"
+        class="content_schema__14lcw3gp"
       >
         <svg
-          class="content_schema__14lcw3gp"
+          class="content_schema__14lcw3gr"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -923,7 +923,7 @@ exports[`check list (unchecked) plain 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gl"
+      class="content_schema__14lcw3gn"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -982,18 +982,18 @@ exports[`check list with multiple items 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gk"
+    class="content_schema__14lcw3gj content_schema__14lcw3gm"
     data-list-indent="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <div
-      class="content_schema__14lcw3gm"
+      class="content_schema__14lcw3go"
     >
       <div
-        class="content_schema__14lcw3gn"
+        class="content_schema__14lcw3gp"
       >
         <svg
-          class="content_schema__14lcw3gp"
+          class="content_schema__14lcw3gr"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1014,7 +1014,7 @@ exports[`check list with multiple items 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gl"
+      class="content_schema__14lcw3gn"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -1024,18 +1024,18 @@ exports[`check list with multiple items 1`] = `
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gh"
+    class="content_schema__14lcw3gj"
     data-list-indent="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <div
-      class="content_schema__14lcw3gm"
+      class="content_schema__14lcw3go"
     >
       <div
-        class="content_schema__14lcw3gn"
+        class="content_schema__14lcw3gp"
       >
         <svg
-          class="content_schema__14lcw3gp"
+          class="content_schema__14lcw3gr"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1056,7 +1056,7 @@ exports[`check list with multiple items 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gl"
+      class="content_schema__14lcw3gn"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -1066,18 +1066,18 @@ exports[`check list with multiple items 1`] = `
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gk"
+    class="content_schema__14lcw3gj content_schema__14lcw3gm"
     data-list-indent="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <div
-      class="content_schema__14lcw3gm"
+      class="content_schema__14lcw3go"
     >
       <div
-        class="content_schema__14lcw3gn"
+        class="content_schema__14lcw3gp"
       >
         <svg
-          class="content_schema__14lcw3gp"
+          class="content_schema__14lcw3gr"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1098,7 +1098,7 @@ exports[`check list with multiple items 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gl"
+      class="content_schema__14lcw3gn"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -1157,18 +1157,18 @@ exports[`check list with sub-list 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gk"
+    class="content_schema__14lcw3gj content_schema__14lcw3gm"
     data-list-indent="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <div
-      class="content_schema__14lcw3gm"
+      class="content_schema__14lcw3go"
     >
       <div
-        class="content_schema__14lcw3gn"
+        class="content_schema__14lcw3gp"
       >
         <svg
-          class="content_schema__14lcw3gp"
+          class="content_schema__14lcw3gr"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1189,7 +1189,7 @@ exports[`check list with sub-list 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gl"
+      class="content_schema__14lcw3gn"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -1199,18 +1199,18 @@ exports[`check list with sub-list 1`] = `
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gk"
+    class="content_schema__14lcw3gj content_schema__14lcw3gm"
     data-list-indent="1"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <div
-      class="content_schema__14lcw3gm"
+      class="content_schema__14lcw3go"
     >
       <div
-        class="content_schema__14lcw3gn"
+        class="content_schema__14lcw3gp"
       >
         <svg
-          class="content_schema__14lcw3gp"
+          class="content_schema__14lcw3gr"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1231,7 +1231,7 @@ exports[`check list with sub-list 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gl"
+      class="content_schema__14lcw3gn"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -1241,18 +1241,18 @@ exports[`check list with sub-list 1`] = `
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gh"
+    class="content_schema__14lcw3gj"
     data-list-indent="1"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <div
-      class="content_schema__14lcw3gm"
+      class="content_schema__14lcw3go"
     >
       <div
-        class="content_schema__14lcw3gn"
+        class="content_schema__14lcw3gp"
       >
         <svg
-          class="content_schema__14lcw3gp"
+          class="content_schema__14lcw3gr"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1273,7 +1273,7 @@ exports[`check list with sub-list 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gl"
+      class="content_schema__14lcw3gn"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -1283,18 +1283,18 @@ exports[`check list with sub-list 1`] = `
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gk"
+    class="content_schema__14lcw3gj content_schema__14lcw3gm"
     data-list-indent="1"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <div
-      class="content_schema__14lcw3gm"
+      class="content_schema__14lcw3go"
     >
       <div
-        class="content_schema__14lcw3gn"
+        class="content_schema__14lcw3gp"
       >
         <svg
-          class="content_schema__14lcw3gp"
+          class="content_schema__14lcw3gr"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1315,7 +1315,7 @@ exports[`check list with sub-list 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gl"
+      class="content_schema__14lcw3gn"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -1338,18 +1338,18 @@ exports[`check list with sub-list of another type 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gk"
+    class="content_schema__14lcw3gj content_schema__14lcw3gm"
     data-list-indent="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <div
-      class="content_schema__14lcw3gm"
+      class="content_schema__14lcw3go"
     >
       <div
-        class="content_schema__14lcw3gn"
+        class="content_schema__14lcw3gp"
       >
         <svg
-          class="content_schema__14lcw3gp"
+          class="content_schema__14lcw3gr"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1370,7 +1370,7 @@ exports[`check list with sub-list of another type 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gl"
+      class="content_schema__14lcw3gn"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -1380,10 +1380,10 @@ exports[`check list with sub-list of another type 1`] = `
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gj"
+    class="content_schema__14lcw3gj content_schema__14lcw3gl"
     data-list-indent="1"
     data-list-number="0"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -1392,10 +1392,10 @@ exports[`check list with sub-list of another type 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gj"
+    class="content_schema__14lcw3gj content_schema__14lcw3gl"
     data-list-indent="1"
     data-list-number="0"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -1404,10 +1404,10 @@ exports[`check list with sub-list of another type 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gj"
+    class="content_schema__14lcw3gj content_schema__14lcw3gl"
     data-list-indent="1"
     data-list-number="0"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -1515,7 +1515,7 @@ exports[`code 1`] = `
   >
     Hello 
     <code
-      class="content_schema__14lcw3gr"
+      class="content_schema__14lcw3gt"
     >
       world
     </code>
@@ -1527,7 +1527,9 @@ exports[`code 1`] = `
 exports[`code empty: clipboard 1`] = `
 <div>
   <pre>
-    <code />
+    <code>
+      <span />
+    </code>
   </pre>
 </div>
 `;
@@ -1542,9 +1544,15 @@ exports[`code plain 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <pre>
+  <pre
+    class="content_schema__14lcw3gg"
+  >
     <code>
-      Hello world!
+      <span
+        class="content_schema__14lcw3gh"
+      >
+        Hello world!
+      </span>
     </code>
   </pre>
 </div>
@@ -1554,7 +1562,9 @@ exports[`code plain: clipboard 1`] = `
 <div>
   <pre>
     <code>
-      Hello world!
+      <span>
+        Hello world!
+      </span>
     </code>
   </pre>
 </div>
@@ -1583,7 +1593,7 @@ exports[`divider empty 1`] = `
   translate="no"
 >
   <hr
-    class="content_schema__14lcw3gq"
+    class="content_schema__14lcw3gs"
   />
 </div>
 `;
@@ -1939,7 +1949,7 @@ exports[`highlight 1`] = `
   >
     Hello 
     <mark
-      class="content_schema__14lcw3g10"
+      class="content_schema__14lcw3g12"
       data-highlight-color="green"
     >
       world
@@ -1978,7 +1988,7 @@ exports[`italic 1`] = `
   >
     Hello 
     <em
-      class="content_schema__14lcw3gt"
+      class="content_schema__14lcw3gv"
     >
       world
     </em>
@@ -2014,7 +2024,7 @@ exports[`link (XSS vulnerability) 1`] = `
   >
     Hello 
     <a
-      class="content_schema__14lcw3g14"
+      class="content_schema__14lcw3g16"
       href="about:blank#blocked"
       rel="noopener noreferrer"
       target="_blank"
@@ -2041,7 +2051,7 @@ exports[`link 1`] = `
   >
     Hello 
     <a
-      class="content_schema__14lcw3g14"
+      class="content_schema__14lcw3g16"
       href="https://example.com/"
       rel="noopener noreferrer"
       target="_blank"
@@ -2176,10 +2186,10 @@ exports[`ordered list plain 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gj"
+    class="content_schema__14lcw3gj content_schema__14lcw3gl"
     data-list-indent="0"
     data-list-number="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2229,10 +2239,10 @@ exports[`ordered list with multiple items 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gj"
+    class="content_schema__14lcw3gj content_schema__14lcw3gl"
     data-list-indent="0"
     data-list-number="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2241,10 +2251,10 @@ exports[`ordered list with multiple items 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gj"
+    class="content_schema__14lcw3gj content_schema__14lcw3gl"
     data-list-indent="0"
     data-list-number="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2253,10 +2263,10 @@ exports[`ordered list with multiple items 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gj"
+    class="content_schema__14lcw3gj content_schema__14lcw3gl"
     data-list-indent="0"
     data-list-number="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2300,10 +2310,10 @@ exports[`ordered list with sub-list 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gj"
+    class="content_schema__14lcw3gj content_schema__14lcw3gl"
     data-list-indent="0"
     data-list-number="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2312,10 +2322,10 @@ exports[`ordered list with sub-list 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gj"
+    class="content_schema__14lcw3gj content_schema__14lcw3gl"
     data-list-indent="1"
     data-list-number="0"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2324,10 +2334,10 @@ exports[`ordered list with sub-list 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gj"
+    class="content_schema__14lcw3gj content_schema__14lcw3gl"
     data-list-indent="1"
     data-list-number="0"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2336,10 +2346,10 @@ exports[`ordered list with sub-list 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gj"
+    class="content_schema__14lcw3gj content_schema__14lcw3gl"
     data-list-indent="1"
     data-list-number="0"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2361,10 +2371,10 @@ exports[`ordered list with sub-list of another type 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gj"
+    class="content_schema__14lcw3gj content_schema__14lcw3gl"
     data-list-indent="0"
     data-list-number="0"
-    style="--_14lcw3gg:0"
+    style="--list-item-indent__14lcw3gi:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2373,18 +2383,18 @@ exports[`ordered list with sub-list of another type 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gk"
+    class="content_schema__14lcw3gj content_schema__14lcw3gm"
     data-list-indent="1"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <div
-      class="content_schema__14lcw3gm"
+      class="content_schema__14lcw3go"
     >
       <div
-        class="content_schema__14lcw3gn"
+        class="content_schema__14lcw3gp"
       >
         <svg
-          class="content_schema__14lcw3gp"
+          class="content_schema__14lcw3gr"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -2405,7 +2415,7 @@ exports[`ordered list with sub-list of another type 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gl"
+      class="content_schema__14lcw3gn"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -2415,18 +2425,18 @@ exports[`ordered list with sub-list of another type 1`] = `
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gh"
+    class="content_schema__14lcw3gj"
     data-list-indent="1"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <div
-      class="content_schema__14lcw3gm"
+      class="content_schema__14lcw3go"
     >
       <div
-        class="content_schema__14lcw3gn"
+        class="content_schema__14lcw3gp"
       >
         <svg
-          class="content_schema__14lcw3gp"
+          class="content_schema__14lcw3gr"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -2447,7 +2457,7 @@ exports[`ordered list with sub-list of another type 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gl"
+      class="content_schema__14lcw3gn"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -2457,18 +2467,18 @@ exports[`ordered list with sub-list of another type 1`] = `
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gh content_schema__14lcw3gk"
+    class="content_schema__14lcw3gj content_schema__14lcw3gm"
     data-list-indent="1"
-    style="--_14lcw3gg:1"
+    style="--list-item-indent__14lcw3gi:1"
   >
     <div
-      class="content_schema__14lcw3gm"
+      class="content_schema__14lcw3go"
     >
       <div
-        class="content_schema__14lcw3gn"
+        class="content_schema__14lcw3gp"
       >
         <svg
-          class="content_schema__14lcw3gp"
+          class="content_schema__14lcw3gr"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -2489,7 +2499,7 @@ exports[`ordered list with sub-list of another type 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gl"
+      class="content_schema__14lcw3gn"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -2828,7 +2838,7 @@ exports[`strike 1`] = `
   >
     Hello 
     <del
-      class="content_schema__14lcw3gu"
+      class="content_schema__14lcw3gw"
     >
       world
     </del>

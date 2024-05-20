@@ -265,7 +265,7 @@ test("works when certain nodes have empty text", () => {
                 type: "paragraph",
                 content: [{type: "text", text: "This has some empty"}],
             },
-            {type: "codeBlock"},
+            {type: "codeBlock", content: [{type: "codeBlockLine"}]},
             {
                 type: "paragraph",
                 content: [{type: "text", text: "multiline code"}],

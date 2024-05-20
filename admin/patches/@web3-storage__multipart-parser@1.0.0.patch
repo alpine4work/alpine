@@ -1,0 +1,17 @@
+diff --git a/package.json b/package.json
+index 0736c17fe0873145eab4a1ebe556e4705454a257..c58dd9a1ac322f3b4472e53eee2260fbf7baf2f5 100644
+--- a/package.json
++++ b/package.json
+@@ -31,12 +31,8 @@
+     "typescript": "^4.3.5",
+     "web-streams-polyfill": "^3.1.0"
+   },
+-  "browser": {
+-    ".": "./cjs/src/index.js"
+-  },
+   "exports": {
+     ".": {
+-      "browser": "./esm/src/index.js",
+       "require": "./cjs/src/index.js",
+       "import": "./esm/src/index.js"
+     }

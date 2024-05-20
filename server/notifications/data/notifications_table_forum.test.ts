@@ -10796,6 +10796,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 0,
                     limit: 100,
+                    commentLimit: 100,
                     afterPostId: null,
                 }),
             ).rejects.toThrow(PermissionDeniedError);
@@ -10863,6 +10864,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 0,
                     limit: 100,
+                    commentLimit: 100,
                     afterPostId: null,
                 }),
             ).toEqual({
@@ -10903,6 +10905,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 4,
                     limit: 100,
+                    commentLimit: 100,
                     afterPostId: null,
                 }),
             ).rejects.toThrow(NotFoundError);
@@ -10964,6 +10967,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 0,
                     limit: 100,
+                    commentLimit: 100,
                     afterPostId: null,
                 }),
             ).toEqual({
@@ -11004,6 +11008,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 2,
                     limit: 100,
+                    commentLimit: 100,
                     afterPostId: null,
                 }),
             ).toEqual({
@@ -11099,6 +11104,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 0,
                     limit: 100,
+                    commentLimit: 100,
                     afterPostId: null,
                 }),
             ).toEqual({
@@ -11139,6 +11145,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 2,
                     limit: 100,
+                    commentLimit: 100,
                     afterPostId: null,
                 }),
             ).toEqual({
@@ -11166,6 +11173,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 4,
                     limit: 100,
+                    commentLimit: 100,
                     afterPostId: null,
                 }),
             ).toEqual({
@@ -11303,6 +11311,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 0,
                     limit: 100,
+                    commentLimit: 100,
                     afterPostId: null,
                 }),
             ).toEqual({
@@ -11394,6 +11403,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 0,
                     limit: 100,
+                    commentLimit: 100,
                     afterPostId: null,
                 }),
             ).toEqual({
@@ -11434,6 +11444,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 2,
                     limit: 100,
+                    commentLimit: 100,
                     afterPostId: null,
                 }),
             ).toEqual({
@@ -11650,6 +11661,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 0,
                     limit: 100,
+                    commentLimit: 100,
                     afterPostId: null,
                 }),
             ).toEqual({
@@ -11672,6 +11684,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 0,
                     limit: 4,
+                    commentLimit: 100,
                     afterPostId: null,
                 }),
             ).toEqual({
@@ -11685,6 +11698,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 0,
                     limit: 7,
+                    commentLimit: 100,
                     afterPostId: null,
                 }),
             ).toEqual({
@@ -11706,6 +11720,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 0,
                     limit: 8,
+                    commentLimit: 100,
                     afterPostId: null,
                 }),
             ).toEqual({
@@ -11728,6 +11743,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 0,
                     limit: 100,
+                    commentLimit: 100,
                     afterPostId: post5.id,
                 }),
             ).toEqual({
@@ -11741,6 +11757,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 0,
                     limit: 4,
+                    commentLimit: 100,
                     afterPostId: post5.id,
                 }),
             ).toEqual({
@@ -11754,6 +11771,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 0,
                     limit: 3,
+                    commentLimit: 100,
                     afterPostId: post5.id,
                 }),
             ).toEqual({
@@ -11767,6 +11785,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 0,
                     limit: 4,
+                    commentLimit: 100,
                     afterPostId: post7.id,
                 }),
             ).toEqual({
@@ -11786,6 +11805,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channelId: channel.id,
                     bucketGeneration: 0,
                     limit: 4,
+                    commentLimit: 100,
                     afterPostId: post9.id,
                 }),
             ).rejects.toThrow(NotFoundError);

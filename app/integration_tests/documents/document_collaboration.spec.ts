@@ -56,7 +56,7 @@ test("can write collaboratively in a document", async ({
     } else {
         await page1
             .getByRole("textbox", {name: "Document"})
-            .tap({position: {x: viewport.width / 2, y: viewport.height - 100}});
+            .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
 
     await page1.getByRole("textbox", {name: "Document"}).type("Test document content 1");
@@ -75,7 +75,7 @@ test("can write collaboratively in a document", async ({
     } else {
         await page2
             .getByRole("textbox", {name: "Document"})
-            .tap({position: {x: viewport.width / 2, y: viewport.height - 100}});
+            .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
 
     await page2.getByRole("textbox", {name: "Document"}).press("Enter");
@@ -95,7 +95,7 @@ test("can write collaboratively in a document", async ({
     } else {
         await page1
             .getByRole("textbox", {name: "Document"})
-            .tap({position: {x: viewport.width / 2, y: viewport.height - 100}});
+            .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
 
     await page1.getByRole("textbox", {name: "Document"}).press("Enter");
@@ -115,7 +115,7 @@ test("can write collaboratively in a document", async ({
     } else {
         await page2
             .getByRole("textbox", {name: "Document"})
-            .tap({position: {x: viewport.width / 2, y: viewport.height - 100}});
+            .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
 
     await page2.getByRole("textbox", {name: "Document"}).press("Enter");
@@ -167,10 +167,10 @@ test("can write collaboratively at the same time in a document", async ({
     } else {
         await page1
             .getByRole("textbox", {name: "Document"})
-            .tap({position: {x: viewport.width / 2, y: viewport.height - 100}});
+            .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
         await page2
             .getByRole("textbox", {name: "Document"})
-            .tap({position: {x: viewport.width / 2, y: viewport.height - 100}});
+            .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
 
     await runAllPromiseThunks(
@@ -186,7 +186,7 @@ test("can write collaboratively at the same time in a document", async ({
                 } else {
                     await page1
                         .getByRole("textbox", {name: "Document"})
-                        .tap({position: {x: viewport.width / 2, y: viewport.height - 100}});
+                        .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
                 }
 
                 await page1
@@ -209,7 +209,7 @@ test("can write collaboratively at the same time in a document", async ({
                 } else {
                     await page2
                         .getByRole("textbox", {name: "Document"})
-                        .tap({position: {x: viewport.width / 2, y: viewport.height - 100}});
+                        .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
                 }
 
                 await page2

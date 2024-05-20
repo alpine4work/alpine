@@ -46,7 +46,7 @@ const blockTestCases: Array<{
     {
         name: "code",
         disableInlineTests: true,
-        build: content => schema.node("codeBlock", {}, content),
+        build: content => schema.node("codeBlock", {}, schema.node("codeBlockLine", {}, content)),
     },
     {
         name: "divider",

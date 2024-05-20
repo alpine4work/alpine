@@ -388,7 +388,7 @@ export const codeBlockLineClassName = style({
 
 export const listItemIndentation = spacing["8"];
 export const listItemIndentationRem = parseRemLengthNumber(listItemIndentation);
-export const listItemIndentationVar: CssVarFunction = createVar();
+export const listItemIndentationVar: CssVarFunction = createVar("list-item-indent");
 
 const bulletListItemBulletSize = spacing["1.5"];
 

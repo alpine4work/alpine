@@ -170,7 +170,7 @@ test("can not create a document with invalid format", async () => {
     ).rejects.toThrowError(InvalidArgumentError);
 });
 
-test("can idempotently create a document twice", async () => {
+test("can not idempotently create a document twice", async () => {
     const id = generateId<DocumentId>();
 
     await createDocument(context.action(session1), {
@@ -179,11 +179,13 @@ test("can idempotently create a document twice", async () => {
         content: emptyDocumentContent,
     });
 
-    await createDocument(context.action(session1), {
-        id,
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    await expect(async () => {
+        await createDocument(context.action(session1), {
+            id,
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+    }).rejects.toThrow(FailedPreconditionError);
 });
 
 test("can not idempotently create a document twice if the content is different", async () => {

@@ -6,6 +6,7 @@ import {
     Ref,
     RefAttributes,
     forwardRef,
+    useCallback,
     useEffect,
     useRef,
     useState,
@@ -108,10 +109,23 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
             ? (messageEditing as MessageEditing<RoomKey> & {state: {isEditing: true}})
             : null;
 
-    const [newMessageState, setNewMessageState] = useState(
+    const [newMessageState, _setNewMessageState] = useState(
         () =>
             restoreStateRef?.current?.state ??
             ContentEditorState.create(emptyMessageContentWithReferences),
+    );
+    const setNewMessageState = useCallback(
+        (newMessageState: ContentEditorState<MessageContentWithReferences>) => {
+            if (restoreStateRef) {
+                restoreStateRef.current = {
+                    state: newMessageState,
+                    isFocused: inputRef.current?.isFocused() ?? false,
+                };
+            }
+
+            _setNewMessageState(newMessageState);
+        },
+        [restoreStateRef],
     );
 
     // If we're editing a message then clear any new message text so when we finish
@@ -143,12 +157,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         if (isInitialMount && restoreStateRef.current?.isFocused) {
             input.focus({preventScroll: true});
         }
-
-        restoreStateRef.current = {
-            state: newMessageState,
-            isFocused: restoreStateRef.current?.isFocused ?? input.isFocused() ?? false,
-        };
-    });
+    }, [messageEditingForThisInput, restoreStateRef]);
 
     const sendNewMessage = () => {
         if (isMessageCreationDisabled) return;
