@@ -48,7 +48,7 @@ import {
     TaskIndexDocType,
     TaskIndexSearchEntityJob,
 } from "~/server/tasks/data/task_index_doc.js";
-import {assembleTaskCollectionSearchResults} from "~/server/tasks/data/task_table.js";
+import {getTaskCollectionSearchResultIfExists} from "~/server/tasks/data/task_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -64,6 +64,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
@@ -1554,7 +1555,7 @@ export async function queryTaskIndex(
 export async function searchTaskCollections(
     context: ServerSessionActionContext,
     {spaceId, nameQuery, limit}: {spaceId: SpaceId; nameQuery: string; limit: number},
-): Promise<Array<TaskCollectionModelSearchResult>> {
+): Promise<Array<TaskCollectionModelSearchResult & {readonly score: number}>> {
     await authorizeSpaceAccess(context, spaceId);
 
     const {hits} = await context.opensearch.searchWithoutSource(TaskCollectionIndex, spaceId, {
@@ -1667,7 +1668,15 @@ export async function searchTaskCollections(
         },
     });
 
-    return assembleTaskCollectionSearchResults(context, hits);
+    const results = await runAllPromises(
+        hits.map(async hit => {
+            const result = await getTaskCollectionSearchResultIfExists(context, hit.id);
+            if (!result) return null;
+            return {...result, score: hit.score};
+        }),
+    );
+
+    return results.filter(isNonNullable);
 }
 
 /**

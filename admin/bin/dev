@@ -33,7 +33,18 @@ case "$1" in
         if has_arg "--all" "${@:2}"; then
             ./admin/bin/bazel test //... --test_tag_filters=dev-check
         else
-            files="$(git diff --name-only main | grep -E '\.tsx?$' | xargs | sed "s/ / union /g")"
+            # - `git diff --name-only main`: Finds all the files which are different from
+            #   the `main` branch.
+            #
+            # - `grep -E '\.tsx?$'`: Filter out non-TypeScript files.
+            #
+            # - `xargs find 2> /dev/null`: Filter out files that don't exist, by default
+            #   `find` prints the file name if it exists. Ideally we'd look for the closest
+            #   `BUILD` file that exists near the deleted file.
+            #
+            # - `xargs | sed "s/ / union /g"`: Put files on one line with the string
+            #   " union " between each file.
+            files="$(git diff --name-only main | grep -E '\.tsx?$' | xargs find 2> /dev/null | xargs | sed "s/ / union /g")"
 
             if [ -z "$files" ]; then
                 echo "No changed files"
@@ -47,7 +58,18 @@ case "$1" in
         if has_arg "--all" "${@:2}"; then
             ./admin/bin/bazel test //... --test_tag_filters=dev-test
         else
-            files="$(git diff --name-only main | grep -E '\.tsx?$' | xargs | sed "s/ / union /g")"
+            # - `git diff --name-only main`: Finds all the files which are different from
+            #   the `main` branch.
+            #
+            # - `grep -E '\.tsx?$'`: Filter out non-TypeScript files.
+            #
+            # - `xargs find 2> /dev/null`: Filter out files that don't exist, by default
+            #   `find` prints the file name if it exists. Ideally we'd look for the closest
+            #   `BUILD` file that exists near the deleted file.
+            #
+            # - `xargs | sed "s/ / union /g"`: Put files on one line with the string
+            #   " union " between each file.
+            files="$(git diff --name-only main | grep -E '\.tsx?$' | xargs find 2> /dev/null | xargs | sed "s/ / union /g")"
 
             if [ -z "$files" ]; then
                 echo "No changed files"

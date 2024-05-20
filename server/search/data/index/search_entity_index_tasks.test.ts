@@ -7,7 +7,9 @@ import {
     processIndexSearchEntityJob,
     processSearchEntityJobUpdateDependentEntitiesTestCounter,
     searchByKeywords,
+    searchTaskCollectionsByAffinity,
 } from "~/server/search/data/index/search_entity_index.js";
+import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
@@ -1404,4 +1406,112 @@ test("will not index a task twice if multiple notes updates and task updates hap
 
     // Make sure there are no more jobs in the queue.
     expect(import.meta.jest.getTimerCount()).toEqual(0);
+});
+
+test("can get affinitive collections for an account", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    expect(
+        (
+            await searchTaskCollectionsByAffinity(session1.action(), {
+                spaceId: space.id,
+                limit: 100,
+            })
+        ).map(({collection}) => collection.id),
+    ).toEqual([]);
+
+    const [collection1, collection2, collection3, collection4, collection5, collection6] =
+        await runAllPromises([
+            TestTaskCollection.createPrivate(session1),
+            TestTaskCollection.createPrivate(session1),
+            TestTaskCollection.createPublic(session1),
+            TestTaskCollection.createPrivate(session2),
+            TestTaskCollection.createPublic(session2),
+            TestTaskCollection.createPublic(session2),
+        ]);
+
+    for (let i = 0; i < 1; i++) {
+        await markSearchAffinityInteraction(session1.action(), {
+            spaceId: space.id,
+            affinityId: `TaskCollection:${collection1.id}`,
+            interaction: {type: "MediumIntentUpdate"},
+        });
+    }
+
+    for (let i = 0; i < 3; i++) {
+        await markSearchAffinityInteraction(session1.action(), {
+            spaceId: space.id,
+            affinityId: `TaskCollection:${collection2.id}`,
+            interaction: {type: "MediumIntentUpdate"},
+        });
+    }
+
+    for (let i = 0; i < 2; i++) {
+        await markSearchAffinityInteraction(session1.action(), {
+            spaceId: space.id,
+            affinityId: `TaskCollection:${collection3.id}`,
+            interaction: {type: "MediumIntentUpdate"},
+        });
+    }
+
+    for (let i = 0; i < 4; i++) {
+        await markSearchAffinityInteraction(session1.action(), {
+            spaceId: space.id,
+            affinityId: `TaskCollection:${collection4.id}`,
+            interaction: {type: "MediumIntentUpdate"},
+        });
+    }
+
+    for (let i = 0; i < 5; i++) {
+        await markSearchAffinityInteraction(session1.action(), {
+            spaceId: space.id,
+            affinityId: `TaskCollection:${collection5.id}`,
+            interaction: {type: "MediumIntentUpdate"},
+        });
+    }
+
+    for (let i = 0; i < 6; i++) {
+        await markSearchAffinityInteraction(session1.action(), {
+            spaceId: space.id,
+            affinityId: `TaskCollection:${collection6.id}`,
+            interaction: {type: "MediumIntentUpdate"},
+        });
+    }
+
+    expect(
+        (
+            await searchTaskCollectionsByAffinity(session1.action(), {spaceId: space.id, limit: 3})
+        ).map(({collection}) => collection.id),
+    ).toEqual([collection6.id, collection5.id, collection2.id]);
+
+    expect(
+        (
+            await searchTaskCollectionsByAffinity(session1.action(), {
+                spaceId: space.id,
+                limit: 100,
+            })
+        ).map(({collection}) => collection.id),
+    ).toEqual([collection6.id, collection5.id, collection2.id, collection3.id, collection1.id]);
+
+    await collection5.setPrivateAccessPolicy(session2);
+
+    expect(
+        (
+            await searchTaskCollectionsByAffinity(session1.action(), {spaceId: space.id, limit: 3})
+        ).map(({collection}) => collection.id),
+    ).toEqual([collection6.id, collection2.id, collection3.id]);
+
+    expect(
+        (
+            await searchTaskCollectionsByAffinity(session1.action(), {
+                spaceId: space.id,
+                limit: 100,
+            })
+        ).map(({collection}) => collection.id),
+    ).toEqual([collection6.id, collection2.id, collection3.id, collection1.id]);
+
+    import.meta.jest.runAllTimers();
+    await ProcessContextModule.waitForTestTasks();
 });

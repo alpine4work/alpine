@@ -1,6 +1,6 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
-import {assembleTaskCollectionSearchResults} from "~/server/tasks/data/task_table.js";
+import {getTaskCollectionSearchResult} from "~/server/tasks/data/task_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
@@ -23,13 +23,10 @@ export async function getTaskQueryFilterReferences(
         runAllPromises(
             Array.from(accountIds, accountId => getAccount(context, spaceId, accountId)),
         ),
-        assembleTaskCollectionSearchResults(
-            context,
-            Array.from(collectionIds, collectionId => ({
-                id: collectionId,
-                score: 0,
-                isRequired: true,
-            })),
+        runAllPromises(
+            Array.from(collectionIds, collectionId =>
+                getTaskCollectionSearchResult(context, collectionId),
+            ),
         ),
     ]);
 

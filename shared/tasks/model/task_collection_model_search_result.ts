@@ -17,15 +17,6 @@ export type TaskCollectionModelSearchResult = SchemaType<
 
 export const TaskCollectionModelSearchResultSchema = Schema.object({
     /**
-     * The score used to sort search results. Scores from different endpoints may
-     * not be comparable to each other. For instance the score from
-     * `getAffinitiveTaskCollections()` are the collection's affinity points while
-     * the score from `searchTaskCollections()` is the score computed by
-     * OpenSearch. These have two different scales.
-     */
-    score: Schema.float,
-
-    /**
      * The number of open tasks in the collection.
      */
     openTaskCount: Schema.integer,

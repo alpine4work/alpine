@@ -47,8 +47,10 @@ import {
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {SearchEntityIndexSystemActionContext} from "~/server/search/data/index/search_entity_index_system_action_context.js";
 import {
-    getChannelSearchAffinities,
+    getPossiblyStaleChannelSearchAffinityIds,
+    getPossiblyStaleTaskCollectionSearchAffinityIds,
     internalDangerouslyGetSpaceChannelSearchAffinities,
+    internalDangerouslyGetSpaceTaskCollectionSearchAffinities,
     internalGetSearchAffinities,
 } from "~/server/search/data/table/search_entity_table.js";
 import {
@@ -56,7 +58,10 @@ import {
     getAccount,
     getSpaceAccountNameSearchIndex,
 } from "~/server/spaces/spaces_table.js";
-import {getTaskCollectionSearchResultBodyTextSnippetIfPossible} from "~/server/tasks/data/task_table.js";
+import {
+    getTaskCollectionSearchResultBodyTextSnippetIfPossible,
+    getTaskCollectionSearchResultIfExists,
+} from "~/server/tasks/data/task_table.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {
@@ -100,6 +105,7 @@ import {
 } from "~/shared/search/search_entity_id.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
 import {SearchResult, SearchResultMedia} from "~/shared/search/search_result.js";
+import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
@@ -1857,7 +1863,7 @@ export async function searchChannelsByKeywords(
  *
  * If it's a personal recommendation we return `origin: "Account"`. If it's a
  * space-wide recommendation we return `origin: "Space"`. Only personal
- * recommendations will be used to boost keyword search results.
+ * recommendations should be used to boost keyword search results.
  */
 export async function searchChannelsByAffinity(
     context: ServerSessionActionContext,
@@ -1869,7 +1875,10 @@ export async function searchChannelsByAffinity(
         origin: "Account" | "Space";
     }>
 > {
-    const channelIdsFromAccountAffinities = await getChannelSearchAffinities(context, spaceId);
+    const channelIdsFromAccountAffinities = await getPossiblyStaleChannelSearchAffinityIds(
+        context,
+        spaceId,
+    );
 
     if (channelIdsFromAccountAffinities.length >= limit) {
         const channels = await runAllPromises(
@@ -1920,4 +1929,81 @@ export async function searchChannelsByAffinity(
     );
 
     return channels.filter(isNonNullable).slice(0, limit);
+}
+
+/**
+ * Get a list of task collections relevant to the session account. First we
+ * look at collections the account has interacted with. If the user hasn't
+ * personally interacted with enough collections to fill `limit` then we'll
+ * return a list of the most popular collections across the entire space.
+ *
+ * If it's a personal recommendation we return `origin: "Account"`. If it's a
+ * space-wide recommendation we return `origin: "Space"`. Only personal
+ * recommendations should be used to boost keyword search results.
+ */
+export async function searchTaskCollectionsByAffinity(
+    context: ServerSessionActionContext,
+    {spaceId, limit}: {spaceId: SpaceId; limit: number},
+): Promise<
+    Array<
+        TaskCollectionModelSearchResult & {
+            origin: "Account" | "Space";
+        }
+    >
+> {
+    const collectionIdsFromAccountAffinities =
+        await getPossiblyStaleTaskCollectionSearchAffinityIds(context, spaceId);
+
+    if (collectionIdsFromAccountAffinities.length >= limit) {
+        const collections = await runAllPromises(
+            collectionIdsFromAccountAffinities.slice(0, limit).map(async collectionId => {
+                const collectionResult = await getTaskCollectionSearchResultIfExists(
+                    context,
+                    collectionId,
+                );
+                if (!collectionResult) return null;
+
+                return {
+                    ...collectionResult,
+                    origin: "Account" as const,
+                };
+            }),
+        );
+        return collections.filter(isNonNullable);
+    }
+
+    const collectionIdsFromAccountAffinitiesSet = new Set(collectionIdsFromAccountAffinities);
+
+    const collectionIdsFromSpaceAffinities =
+        await internalDangerouslyGetSpaceTaskCollectionSearchAffinities(context, {
+            spaceId,
+            // Load 10 extra collections since some space-level collections might be
+            // private. We load a full `limit` worth of items since there may be duplicates
+            // with collection IDs from account affinities.
+            limit: limit + 10,
+        });
+
+    const collections = await runAllPromises(
+        [
+            ...collectionIdsFromAccountAffinities,
+            ...collectionIdsFromSpaceAffinities.filter(
+                channelId =>
+                    !collectionIdsFromAccountAffinitiesSet.has(channelId.item.collectionId),
+            ),
+        ].map(async collectionId => {
+            const collectionResult = await getTaskCollectionSearchResultIfExists(
+                context,
+                typeof collectionId === "string" ? collectionId : collectionId.item.collectionId,
+            );
+            if (!collectionResult) return null;
+
+            return {
+                ...collectionResult,
+                origin:
+                    typeof collectionId === "string" ? ("Account" as const) : ("Space" as const),
+            };
+        }),
+    );
+
+    return collections.filter(isNonNullable).slice(0, limit);
 }

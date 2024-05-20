@@ -3,11 +3,9 @@ import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {searchTaskCollections} from "~/server/tasks/data/task_index.js";
 import {
-    addTaskCollectionAffinityPoints,
     authorizeTaskAccess,
     commitTaskActionTransaction,
     deleteTaskAndAllChildren,
-    getAffinitiveTaskCollections,
     getTaskNotesContentWithoutReferences,
     updateTaskGridViewExpansionState,
     updateTaskNotesContent,
@@ -128,27 +126,6 @@ implementRpc(
             spaceId,
             editResult,
         };
-    },
-);
-
-implementRpc(
-    definition.addTaskCollectionAffinityPoints,
-    {visibility: ["AppClient"]},
-    async (context, input) => {
-        await addTaskCollectionAffinityPoints(context.actor.authorizeSession(), input);
-        return {};
-    },
-);
-
-implementRpc(
-    definition.getAffinitiveTaskCollections,
-    {visibility: ["AppClient"]},
-    async (_context, input) => {
-        const context = _context.actor.authorizeSession();
-
-        const collectionResults = await getAffinitiveTaskCollections(context, input);
-
-        return {collectionResults};
     },
 );
 

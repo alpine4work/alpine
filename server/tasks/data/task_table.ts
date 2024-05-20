@@ -18,6 +18,7 @@ import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
+import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
@@ -58,7 +59,6 @@ import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for
 import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {isVtencBigInt64SetEmpty} from "~/shared/helpers/number/vtenc_big_uint_64_set.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -96,10 +96,6 @@ import {
     TaskCollectionAccessPolicyRegister,
     hasTaskCollectionAccessLevel,
 } from "~/shared/tasks/task_collection_access_policy.js";
-import {
-    addTaskToCollectionAffinityPoints,
-    createTaskCollectionAffinityPoints,
-} from "~/shared/tasks/task_collection_affinity_constants.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {
@@ -283,28 +279,13 @@ const TaskTable = DynamoTableSchema.new({
                     }),
                 },
 
-                /**
-                 * The collection affinity system helps us know what collections are most
-                 * important to an account. When an account takes actions against a collection
-                 * they add points to their affinity score for that collection. We apply an
-                 * [exponential decay][1] function to the account's affinity score. If they
-                 * stop interacting with one collection and start interacting with another then
-                 * the new collection should have a higher affinity score. We round scores of
-                 * less than <0.05 to zero. That gives 1 point 3 months (a quarter) to decay.
-                 * When a score reaches zero it's expired and we can remove it from our table
-                 * to save storage space.
-                 *
-                 * This system is definitely more art than science and should be tweaked over
-                 * time. Eventually we also want an account affinity score (so we know who an
-                 * account's "friends" are) and affinity scores for all kinds of other things.
-                 * We prioritized affinity scores for collections because we anticipate many
-                 * collections will be created in a space and we need a way to make them
-                 * manageable.
-                 *
-                 * [1]: https://en.wikipedia.org/wiki/Exponential_decay#Natural_sciences
-                 */
-                // TODO(calebmer): Get rid of custom task collection affinity and search and replace
-                // with our search system.
+                // NOTE(calebmer, 2024-05-20): This exists for backwards compatibility purposes
+                // only. Task collections had affinity points before we implemented the generic
+                // search affinity system. We've sense migrated task collections to use the
+                // generic search affinity system but we have to keep this definition around
+                // for backwards compatibility. You shouldn't use items of this type!
+                // Eventually all the old task collection affinity items will expire and we can
+                // remove this.
                 {
                     name: "TaskCollectionAffinity",
                     sortKeyAttributes: {
@@ -312,15 +293,7 @@ const TaskTable = DynamoTableSchema.new({
                     },
                     withExpirationTime: "Required",
                     attributes: Schema.object({
-                        /**
-                         * The number of affinity points this account has.
-                         */
                         points: Schema.float,
-
-                        /**
-                         * The last time we updated `points`. Used to determine how much decay we need
-                         * to apply to `points`.
-                         */
                         lastUpdatedTime: Schema.integer,
                     }),
                 },
@@ -922,14 +895,14 @@ export function commitTaskActionTransaction(
         // `afterCommitTaskActionTransaction()` is reserved for idempotent, critical,
         // work.
         if (!options.withoutAddingAffinityPoints) {
-            const addAffinityPointsByCollectionId = new Map<TaskCollectionId, number>();
-
             for (const action of actions) {
                 if (action.type === "UpdateTask" && action.taskAction.type === "AddCollection") {
-                    addAffinityPointsByCollectionId.set(
-                        action.taskAction.collectionId,
-                        (addAffinityPointsByCollectionId.get(action.taskAction.collectionId) ?? 0) +
-                            addTaskToCollectionAffinityPoints,
+                    context.process.waitUntil(
+                        markSearchAffinityInteraction(context, {
+                            spaceId,
+                            affinityId: `TaskCollection:${action.taskAction.collectionId}`,
+                            interaction: {type: "LowIntentUpdate"},
+                        }),
                     );
                 }
 
@@ -937,22 +910,14 @@ export function commitTaskActionTransaction(
                     action.type === "UpdateCollection" &&
                     action.collectionAction.type === "Create"
                 ) {
-                    addAffinityPointsByCollectionId.set(
-                        action.collectionId,
-                        (addAffinityPointsByCollectionId.get(action.collectionId) ?? 0) +
-                            createTaskCollectionAffinityPoints,
+                    context.process.waitUntil(
+                        markSearchAffinityInteraction(context, {
+                            spaceId,
+                            affinityId: `TaskCollection:${action.collectionId}`,
+                            interaction: {type: "HighIntentUpdate"},
+                        }),
                     );
                 }
-            }
-
-            for (const [collectionId, addAffinityPoints] of addAffinityPointsByCollectionId) {
-                context.process.waitUntil(
-                    addTaskCollectionAffinityPoints(context, {
-                        spaceId,
-                        collectionId,
-                        points: addAffinityPoints,
-                    }),
-                );
             }
         }
 
@@ -4637,11 +4602,9 @@ export async function getTaskGridViewExpansionState(
 }
 
 function createTaskCollectionModelSearchResultFromItem(
-    score: number,
     collectionItem: TaskCollectionEssentialAttributesItem,
 ): TaskCollectionModelSearchResult {
     return {
-        score,
         openTaskCount: collectionItem.openTaskCount,
         lastTaskAddedTime: collectionItem.lastTaskAddedTime,
         collection: new TaskCollectionModel({
@@ -4703,268 +4666,78 @@ export async function getTaskCollectionSearchResultBodyTextSnippetIfPossible(
 }
 
 /**
- * Assembles the result objects for `searchTaskCollections()`. Our
- * collection index doesn't have access to all the data we need to return
- * collection objects (e.g. `openTaskCount`). We get that here from DynamoDB.
- *
- * May return fewer collections than the `TaskCollectionId`s that were passed
- * in. Happens when the collection search index thinks our actor has access to
- * the collection but in fact the actor recently lost access and our search
- * index hasn't been refreshed.
- *
- * If a collection is required you may set the `isRequired` flag to true. Then
- * we'll return the collection even if it's deleted and we'll throw if you
- * don't have access to the collection.
+ * Get the search result description of a task collection if the task
+ * collection exists and the actor has access to it. Throws an error if the
+ * actor doesn't have access to the task collection. If the task collection
+ * exists but is deleted we return it if the user has access.
  */
-export async function assembleTaskCollectionSearchResults(
+export async function getTaskCollectionSearchResult(
     context: ServerSessionActionContext,
-    hits: Array<{score: number; id: TaskCollectionId; isRequired?: boolean}>,
-): Promise<Array<TaskCollectionModelSearchResult>> {
-    const collectionItems = await runAllPromises(
-        hits.map(async ({score, id: collectionId, isRequired = false}) => {
-            const collectionItem = await TaskTable.getItem(context, {
-                partitionType: "TaskCollection",
-                sortRangeType: "EssentialAttributes",
-                collectionId,
-            });
-
-            // Don't include deleted collections in results.
-            if (!isRequired && isTaskCollectionItemDeleted(collectionItem)) return null;
-
-            const expectedAccessLevel = "View";
-
-            // We need to double check that we have access to this collection. Since the
-            // collection search index might be out of date.
-            const hasAccess = await isTaskCollectionItemAccessAuthorized(
-                context,
-                context.actor.getAccountId(),
-                collectionItem,
-                expectedAccessLevel,
-            );
-
-            if (!hasAccess) {
-                // If the collection is required, throw an error if the user doesn't
-                // have access.
-                if (isRequired) {
-                    throw new PermissionDeniedError(
-                        quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
-                        {
-                            displayMessage:
-                                getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
-                                    collectionItem,
-                                    expectedAccessLevel,
-                                ),
-                        },
-                    );
-                }
-
-                return null;
-            }
-
-            return createTaskCollectionModelSearchResultFromItem(score, collectionItem);
-        }),
-    );
-
-    return collectionItems.filter(isNonNullable);
-}
-
-/**
- * Add some points to an account's affinity score for a task collection. 1
- * point will decay to 0 after 3 months (more accurately, 90 days).
- *
- * We have constants for how many points correspond to which actions in
- * `task_collection_affinity_constants.ts`.
- *
- * @deprecated Should migrate to search entity affinity.
- */
-export async function addTaskCollectionAffinityPoints(
-    context: ServerSessionActionContext,
-    {
-        spaceId,
+    collectionId: TaskCollectionId,
+): Promise<TaskCollectionModelSearchResult> {
+    const collectionItem = await TaskTable.getItem(context, {
+        partitionType: "TaskCollection",
+        sortRangeType: "EssentialAttributes",
         collectionId,
-        points,
-    }: {
-        spaceId: SpaceId;
-        collectionId: TaskCollectionId;
-        points: number;
-    },
-) {
-    if (points <= 0.05) throw new InvalidArgumentError("Invalid points");
+    });
 
-    // We don't authorize whether the actor has access to the collection since
-    // it's efficient. Since this is a personal score it doesn't really matter
-    // if the user gives themselves affinity points to a collection they don't have
-    // access to.
+    const expectedAccessLevel = "View";
 
-    const currentTime = Date.now();
-
-    await TaskTable.updateItem(
+    // We need to double check that we have access to this collection. Since the
+    // collection search index might be out of date.
+    const hasAccess = await isTaskCollectionItemAccessAuthorized(
         context,
-        {
-            partitionType: "Account",
-            sortRangeType: "TaskCollectionAffinity",
-            spaceId,
-            accountId: context.actor.getAccountId(),
-            collectionId,
-        },
-        affinityItem => {
-            let newPoints = affinityItem
-                ? getCurrentTaskCollectionAccountAffinityPoints(currentTime, affinityItem)
-                : 0;
-
-            newPoints += points;
-
-            const expirationDuration = Math.ceil(
-                getTaskCollectionAccountAffinityExpirationDuration(newPoints),
-            );
-            const expirationTime = new Date(currentTime + expirationDuration);
-
-            return {
-                ...affinityItem,
-                partitionType: "Account",
-                sortRangeType: "TaskCollectionAffinity",
-                spaceId,
-                accountId: context.actor.getAccountId(),
-                collectionId,
-                points: newPoints,
-                lastUpdatedTime: currentTime,
-                expirationTime,
-            };
-        },
-    );
-}
-
-/**
- * Get the collections our session actor has the highest affinity score with.
- * If the user has never interacted with any collections or all their
- * collection affinity scores have expired then this will return an empty
- * array.
- *
- * Affinitive is the adjective form of "affinity". I learned this from ChatGPT,
- * thanks! (Though ChatGPT did warn me that affinitive is an uncommon word
- * people may not be familiar with.)
- *
- * @deprecated Should migrate to search entity affinity.
- */
-export async function getAffinitiveTaskCollections(
-    context: ServerSessionActionContext,
-    {spaceId, limit}: {spaceId: SpaceId; limit: number},
-): Promise<Array<TaskCollectionModelSearchResult>> {
-    const currentTime = Date.now();
-
-    // We hope the number of collections a user reasonably interacts with over
-    // three months is reasonably low (less than 1000). Then it makes sense to
-    // query all their collection affinities and sort them in memory.
-    //
-    // If we find some users with too many affinities then we can delete their
-    // lowest affinities.
-    const affinityItems = await arrayFromAsyncIterable(
-        mapAsyncIterableIterator(
-            TaskTable.query(context, {
-                partitionKey: {
-                    partitionType: "Account",
-                    spaceId,
-                    accountId: context.actor.getAccountId(),
-                },
-                startSortKey: {
-                    sortRangeType: "TaskCollectionAffinity",
-                    collectionId: DynamoKeyAttributeSchema.id.getMinValue<TaskCollectionId>(),
-                },
-                endSortKey: {
-                    sortRangeType: "TaskCollectionAffinity",
-                    collectionId: DynamoKeyAttributeSchema.id.getMaxValue<TaskCollectionId>(),
-                },
-                limit: "All",
-            }),
-            affinityItem => ({
-                collectionId: affinityItem.collectionId,
-                points: getCurrentTaskCollectionAccountAffinityPoints(currentTime, affinityItem),
-            }),
-        ),
+        context.actor.getAccountId(),
+        collectionItem,
+        expectedAccessLevel,
     );
 
-    affinityItems.sort(
-        (affinityItem1, affinityItem2) => affinityItem2.points - affinityItem1.points,
-    );
-
-    let startAffinityItemIndex = 0;
-    const collectionResults = [];
-
-    // Take a slice of length `limit` from our affinity items and fetch those
-    // collections. If some of the collections the account no longer has access to
-    // then we want to fetch some more collections from our affinity items until
-    // we've satisfied `limit`.
-    while (collectionResults.length < limit && startAffinityItemIndex < affinityItems.length) {
-        const affinityItemsSlice = affinityItems.slice(
-            startAffinityItemIndex,
-            startAffinityItemIndex + (limit - collectionResults.length),
-        );
-        startAffinityItemIndex += limit - collectionResults.length;
-
-        const collectionResultsSlice = await runAllPromises(
-            affinityItemsSlice.map(async ({points, collectionId}) => {
-                const collectionItem = await TaskTable.getItemIfExists(context, {
-                    partitionType: "TaskCollection",
-                    sortRangeType: "EssentialAttributes",
-                    collectionId,
-                });
-                if (!collectionItem) return null;
-
-                // Don't include deleted collections in results.
-                if (isTaskCollectionItemDeleted(collectionItem)) return null;
-
-                // We need to double check that we have access to this collection. Since
-                // affinity scores might be out of date.
-                const hasAccess = await isTaskCollectionItemAccessAuthorized(
-                    context,
-                    context.actor.getAccountId(),
+    if (!hasAccess) {
+        throw new PermissionDeniedError(
+            quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
+            {
+                displayMessage: getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
                     collectionItem,
-                    "View",
-                );
-
-                if (!hasAccess) return null;
-                return createTaskCollectionModelSearchResultFromItem(points, collectionItem);
-            }),
+                    expectedAccessLevel,
+                ),
+            },
         );
-
-        for (const collectionResult of collectionResultsSlice) {
-            if (!collectionResult) continue;
-            collectionResults.push(collectionResult);
-        }
     }
 
-    return collectionResults;
+    return createTaskCollectionModelSearchResultFromItem(collectionItem);
 }
 
 /**
- * Apply our exponential decay function to figure out how many affinity points
- * we currently have.
- *
- * Our function is `f(t) = e^-t` where `t` is measured in months. This function
- * will decay 1 point to 0.05 (which we round down to 0) in 3 months.
+ * Get the search result description of a task collection if the task
+ * collection exists and the actor has access to it. Returns null if the
+ * collection doesn't exist or the account doesn't have access. If the task
+ * collection exists but is deleted we return null.
  */
-export function getCurrentTaskCollectionAccountAffinityPoints(
-    currentTime: number,
-    {points, lastUpdatedTime}: {points: number; lastUpdatedTime: number},
-): number {
-    // 30 days (~1 month) in milliseconds
-    const monthTime = 1000 * 60 * 60 * 24 * 30;
+export async function getTaskCollectionSearchResultIfExists(
+    context: ServerSessionActionContext,
+    collectionId: TaskCollectionId,
+): Promise<TaskCollectionModelSearchResult | null> {
+    const collectionItem = await TaskTable.getItem(context, {
+        partitionType: "TaskCollection",
+        sortRangeType: "EssentialAttributes",
+        collectionId,
+    });
 
-    const elapsedTime = currentTime - lastUpdatedTime;
+    // Don't include deleted collections in results.
+    if (isTaskCollectionItemDeleted(collectionItem)) return null;
 
-    return points * Math.exp(-(elapsedTime / monthTime));
-}
+    const expectedAccessLevel = "View";
 
-/**
- * Return the time in milliseconds for `points` to decay to 0.05 (which we
- * round down to 0). We set an expiration time on our item with this number.
- */
-export function getTaskCollectionAccountAffinityExpirationDuration(points: number): number {
-    // Any number less than this is negative.
-    assert(points > 0.05);
+    // We need to double check that we have access to this collection. Since the
+    // collection search index might be out of date.
+    const hasAccess = await isTaskCollectionItemAccessAuthorized(
+        context,
+        context.actor.getAccountId(),
+        collectionItem,
+        expectedAccessLevel,
+    );
 
-    // 30 days (~1 month) in milliseconds
-    const monthTime = 1000 * 60 * 60 * 24 * 30;
+    if (!hasAccess) return null;
 
-    return Math.log(points / 0.05) * monthTime;
+    return createTaskCollectionModelSearchResultFromItem(collectionItem);
 }

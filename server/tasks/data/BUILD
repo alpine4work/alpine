@@ -62,6 +62,7 @@ ts_project(
         "//server/helpers",
         "//server/helpers/node",
         "//server/opensearch",
+        "//server/search/data/table",
         "//server/spaces",
         "//server/tasks/router",
         "//shared/context",

@@ -1,6 +1,6 @@
 import {createAlphaSpaceAsAdmin} from "~/server/forum/data/forum_table.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
-import {getAccountSearchAffinities} from "~/server/search/data/table/search_entity_table.js";
+import {getPossiblyStaleAccountSearchAffinityIds} from "~/server/search/data/table/search_entity_table.js";
 import {
     dangerouslyCreateSpaceAccountAsAdmin,
     expensivelyGetAllSpaceAccounts,
@@ -17,7 +17,10 @@ implementRpc(
             expensivelyGetAllSpaceAccounts(context, input.spaceId),
 
             // We return all accounts sorted in affinity order.
-            getAccountSearchAffinities(context.actor.authorizeSession(), input.spaceId),
+            getPossiblyStaleAccountSearchAffinityIds(
+                context.actor.authorizeSession(),
+                input.spaceId,
+            ),
         ]);
 
         const sortedIndexByAccountId = new Map<AccountId, number>();

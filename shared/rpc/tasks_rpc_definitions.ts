@@ -6,7 +6,6 @@ import {
     BrowserId,
     SpaceId,
     TaskActionTransactionLeaseId,
-    TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
@@ -120,33 +119,6 @@ export const authorizeTaskAccess = defineRpc({
     },
 });
 
-/**
- * @deprecated Should migrate to search entity affinity.
- */
-export const addTaskCollectionAffinityPoints = defineRpc({
-    name: "addTaskCollectionAffinityPoints",
-    input: {
-        spaceId: Schema.id<SpaceId>(),
-        collectionId: Schema.id<TaskCollectionId>(),
-        points: Schema.float,
-    },
-    output: {},
-});
-
-/**
- * @deprecated Should migrate to search entity affinity.
- */
-export const getAffinitiveTaskCollections = defineRpc({
-    name: "getAffinitiveTaskCollections",
-    input: {
-        spaceId: Schema.id<SpaceId>(),
-        limit: Schema.integer,
-    },
-    output: {
-        collectionResults: Schema.array(TaskCollectionModelSearchResultSchema),
-    },
-});
-
 export const searchTaskCollections = defineRpc({
     name: "searchTaskCollections",
     input: {
@@ -155,6 +127,12 @@ export const searchTaskCollections = defineRpc({
         limit: Schema.integer,
     },
     output: {
-        collectionResults: Schema.array(TaskCollectionModelSearchResultSchema),
+        collectionResults: Schema.array(
+            TaskCollectionModelSearchResultSchema.merge(
+                Schema.object({
+                    score: Schema.float,
+                }),
+            ),
+        ),
     },
 });

@@ -20,9 +20,10 @@ import {
     TaskCollectionOption,
     taskCollectionOptionSecondaryTextColor,
 } from "~/client/tasks/internal/task_collection_option.js";
-import {useAffinitiveTaskCollections} from "~/client/tasks/internal/use_affinitive_task_collections.js";
+import {useSearchTaskCollectionsByAffinity} from "~/client/tasks/internal/use_search_task_collections_by_affinity.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {searchTaskCollections} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {fontSizes, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
@@ -38,7 +39,7 @@ export type TaskCollectionComboBoxItem =
 export type TaskCollectionComboBoxCollectionItem = {
     readonly type: "Collection";
     readonly key: `Collection:${TaskCollectionId}`;
-    readonly collectionResult: TaskCollectionModelSearchResult;
+    readonly collectionResult: TaskCollectionModelSearchResult & {readonly score: number};
 };
 
 export type TaskCollectionComboBoxCreateCollectionItem = {
@@ -70,7 +71,7 @@ export function useTaskCollectionComboBoxSearchState({
 }) {
     const {space} = useSpaceContext();
 
-    const affinitiveCollectionResults = useAffinitiveTaskCollections({
+    const searchByAffinityCollectionResults = useSearchTaskCollectionsByAffinity({
         isDisabled: !shouldLoadItems,
     });
 
@@ -108,7 +109,7 @@ export function useTaskCollectionComboBoxSearchState({
             return computeStore(get => {
                 // If we have no item data available then return null which should render a
                 // loading spinner.
-                if (!affinitiveCollectionResults && !searchCollectionsOutput) {
+                if (!searchByAffinityCollectionResults && !searchCollectionsOutput) {
                     return null;
                 }
 
@@ -117,11 +118,12 @@ export function useTaskCollectionComboBoxSearchState({
                 // Show search results if we have them, otherwise show collections the account
                 // has some affinity for.
                 if (searchCollectionsOutput) {
-                    const affinitiveCollectionResultById = new Map(
-                        affinitiveCollectionResults?.map(collectionResult => [
-                            collectionResult.collection.id,
-                            collectionResult.score,
-                        ]),
+                    const searchByAffinityCollectionIndexById = new Map(
+                        filterMapArray(searchByAffinityCollectionResults ?? [], (result, index) =>
+                            // Only use results from the account's affinity when re-ranking collection
+                            // results. Don't re-rank with results from the space's affinity.
+                            result.origin === "Account" ? [result.collection.id, index] : null,
+                        ),
                     );
 
                     for (const collectionResult of searchCollectionsOutput.collectionResults) {
@@ -165,25 +167,27 @@ export function useTaskCollectionComboBoxSearchState({
                             return item2.collectionResult.score - item1.collectionResult.score;
                         }
 
-                        const affinitiveCollectionResult1 = affinitiveCollectionResultById.get(
-                            item1.collectionResult.collection.id,
-                        );
-                        const affinitiveCollectionResult2 = affinitiveCollectionResultById.get(
-                            item2.collectionResult.collection.id,
-                        );
+                        const searchByAffinityCollectionIndex1 =
+                            searchByAffinityCollectionIndexById.get(
+                                item1.collectionResult.collection.id,
+                            );
+                        const searchByAffinityCollectionIndex2 =
+                            searchByAffinityCollectionIndexById.get(
+                                item2.collectionResult.collection.id,
+                            );
 
                         if (
-                            affinitiveCollectionResult1 === undefined &&
-                            affinitiveCollectionResult2 === undefined
+                            searchByAffinityCollectionIndex1 === undefined &&
+                            searchByAffinityCollectionIndex2 === undefined
                         ) {
                             return 0;
                         }
-                        if (affinitiveCollectionResult1 === undefined) return 1;
-                        if (affinitiveCollectionResult2 === undefined) return -1;
-                        return affinitiveCollectionResult2 - affinitiveCollectionResult1;
+                        if (searchByAffinityCollectionIndex1 === undefined) return 1;
+                        if (searchByAffinityCollectionIndex2 === undefined) return -1;
+                        return searchByAffinityCollectionIndex2 - searchByAffinityCollectionIndex1;
                     });
-                } else if (affinitiveCollectionResults) {
-                    for (const collectionResult of affinitiveCollectionResults) {
+                } else if (searchByAffinityCollectionResults) {
+                    for (const collectionResult of searchByAffinityCollectionResults) {
                         if (excludeCollectionIds?.has(collectionResult.collection.id)) {
                             continue;
                         }
@@ -208,6 +212,7 @@ export function useTaskCollectionComboBoxSearchState({
                                 collection: collection
                                     ? collectionResult.collection.merge(collection)
                                     : collectionResult.collection,
+                                score: 0,
                             },
                         });
                     }
@@ -222,7 +227,7 @@ export function useTaskCollectionComboBoxSearchState({
                 return items;
             });
         }, [
-            affinitiveCollectionResults,
+            searchByAffinityCollectionResults,
             excludeCollectionIds,
             isInputValueEmpty,
             searchCollectionsOutput,

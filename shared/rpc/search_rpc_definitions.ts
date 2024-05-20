@@ -7,6 +7,7 @@ import {SearchAffinityIdSchema} from "~/shared/search/search_affinity_id.js";
 import {SearchAffinityInteractionSchema} from "~/shared/search/search_affinity_interaction.js";
 import {SearchOptionsSchema} from "~/shared/search/search_options.js";
 import {SearchResultSchema} from "~/shared/search/search_result.js";
+import {TaskCollectionModelSearchResultSchema} from "~/shared/tasks/model/task_collection_model_search_result.js";
 
 export const searchByKeywords = defineRpc({
     name: "searchByKeywords",
@@ -90,6 +91,23 @@ export const searchChannelsByAffinity = defineRpc({
                 descriptionTextSnippet: Schema.string,
                 origin: Schema.enum(["Account", "Space"]),
             }),
+        ),
+    },
+});
+
+export const searchTaskCollectionsByAffinity = defineRpc({
+    name: "searchTaskCollectionsByAffinity",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        limit: Schema.integer,
+    },
+    output: {
+        results: Schema.array(
+            TaskCollectionModelSearchResultSchema.merge(
+                Schema.object({
+                    origin: Schema.enum(["Account", "Space"]),
+                }),
+            ),
         ),
     },
 });

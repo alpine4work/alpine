@@ -10,7 +10,7 @@ import {useTaskCollectionComboBoxSearchState} from "~/client/tasks/internal/task
 import {TaskCollectionOption} from "~/client/tasks/internal/task_collection_option.js";
 import {TaskQueryFilterEditorMultiSelectComboBox} from "~/client/tasks/internal/task_query_filter_editor_multi_select_combo_box.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
-import {usePreloadAffinitiveTaskCollections} from "~/client/tasks/internal/use_affinitive_task_collections.js";
+import {usePreloadSearchTaskCollectionsByAffinity} from "~/client/tasks/internal/use_search_task_collections_by_affinity.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientStore, TaskClientStoreCollectionEntry} from "~/client/tasks/task_client_store.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -133,7 +133,7 @@ export function TaskQueryCollectionsFilterOperationEditor({
     ) => void;
     valueTriggerButtonRef: Ref<OverlayTriggerButtonRef> | null;
 }) {
-    usePreloadAffinitiveTaskCollections();
+    usePreloadSearchTaskCollectionsByAffinity();
 
     const collectionSubscriptionByIdRef = useRef(
         new Map<TaskCollectionId, TaskClientCollectionSubscription>(),

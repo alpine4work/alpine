@@ -18,7 +18,6 @@ import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {
-    addTaskCollectionAffinityPoints,
     authorizeTaskAccess,
     authorizeTaskQueryAccess,
     backfillTaskActionTransactionHistory,
@@ -26,9 +25,6 @@ import {
     commitTaskActionTransactionBeforeExecuteTestCheckpoint,
     deleteTaskAndAllChildren,
     deleteTaskAndAllChildrenBeforeExecuteTestCheckpoint,
-    getAffinitiveTaskCollections,
-    getCurrentTaskCollectionAccountAffinityPoints,
-    getTaskCollectionAccountAffinityExpirationDuration,
     getTaskNotesContent,
     getTaskNotesContentWithoutReferences,
     updateTaskNotesContent,
@@ -16943,166 +16939,6 @@ test("a collection action and an action that indirectly updates collection task 
             lastTaskAddedTime: time1,
         }),
     );
-});
-
-test("collection account affinity points decay exponentially", () => {
-    const time1 = new Date();
-    const time2 = addDays(time1, 30);
-    const time3 = addDays(time2, 30);
-    const time4 = addDays(time3, 30);
-
-    expect(
-        getCurrentTaskCollectionAccountAffinityPoints(time4.getTime(), {
-            points: 1,
-            lastUpdatedTime: time1.getTime(),
-        }),
-    ).toEqual(0.049787068367863944);
-
-    expect(
-        getCurrentTaskCollectionAccountAffinityPoints(time4.getTime(), {
-            points: 1,
-            lastUpdatedTime: time2.getTime(),
-        }),
-    ).toEqual(0.1353352832366127);
-
-    expect(
-        getCurrentTaskCollectionAccountAffinityPoints(time4.getTime(), {
-            points: 1,
-            lastUpdatedTime: time3.getTime(),
-        }),
-    ).toEqual(0.36787944117144233);
-
-    expect(
-        getCurrentTaskCollectionAccountAffinityPoints(time3.getTime(), {
-            points: 0.36787944117144233,
-            lastUpdatedTime: time2.getTime(),
-        }),
-    ).toEqual(0.1353352832366127);
-
-    expect(
-        getCurrentTaskCollectionAccountAffinityPoints(time3.getTime(), {
-            points: 0.36787944117144233,
-            lastUpdatedTime: time1.getTime(),
-        }),
-    ).toEqual(0.04978706836786395);
-
-    expect(
-        getCurrentTaskCollectionAccountAffinityPoints(time2.getTime(), {
-            points: 0.1353352832366127,
-            lastUpdatedTime: time1.getTime(),
-        }),
-    ).toEqual(0.04978706836786395);
-});
-
-test("can determine when collection account affinity points will expire", () => {
-    const time1 = new Date();
-    const time2 = addDays(time1, 30);
-    const monthDuration = time2.getTime() - time1.getTime();
-
-    // Reference for the numbers returned below.
-    expect(monthDuration * 1).toEqual(2592000000);
-    expect(monthDuration * 2).toEqual(5184000000);
-    expect(monthDuration * 3).toEqual(7776000000);
-
-    expect(Math.ceil(getTaskCollectionAccountAffinityExpirationDuration(1))).toEqual(7764938054);
-
-    expect(
-        Math.ceil(getTaskCollectionAccountAffinityExpirationDuration(0.36787944117144233)),
-    ).toEqual(5172938054);
-
-    expect(
-        Math.ceil(getTaskCollectionAccountAffinityExpirationDuration(0.1353352832366127)),
-    ).toEqual(2580938054);
-});
-
-test("can get affinitive collections for an account", async () => {
-    const space = await TestSpace.create(context);
-    const session1 = await space.createSession();
-    const session2 = await space.createSession();
-
-    expect(
-        (
-            await getAffinitiveTaskCollections(session1.action(), {spaceId: space.id, limit: 100})
-        ).map(({collection}) => collection.id),
-    ).toEqual([]);
-
-    const [collection1, collection2, collection3, collection4, collection5, collection6] =
-        await runAllPromises([
-            TestTaskCollection.createPrivate(session1),
-            TestTaskCollection.createPrivate(session1),
-            TestTaskCollection.createPublic(session1),
-            TestTaskCollection.createPrivate(session2),
-            TestTaskCollection.createPublic(session2),
-            TestTaskCollection.createPublic(session2),
-        ]);
-
-    await addTaskCollectionAffinityPoints(session1.action(), {
-        spaceId: space.id,
-        collectionId: collection1.id,
-        points: 10,
-    });
-
-    await addTaskCollectionAffinityPoints(session1.action(), {
-        spaceId: space.id,
-        collectionId: collection2.id,
-        points: 30,
-    });
-
-    await addTaskCollectionAffinityPoints(session1.action(), {
-        spaceId: space.id,
-        collectionId: collection3.id,
-        points: 20,
-    });
-
-    await addTaskCollectionAffinityPoints(session1.action(), {
-        spaceId: space.id,
-        collectionId: collection4.id,
-        points: 40,
-    });
-
-    await addTaskCollectionAffinityPoints(session1.action(), {
-        spaceId: space.id,
-        collectionId: collection5.id,
-        points: 50,
-    });
-
-    await addTaskCollectionAffinityPoints(session1.action(), {
-        spaceId: space.id,
-        collectionId: collection6.id,
-        points: 25,
-    });
-
-    await addTaskCollectionAffinityPoints(session1.action(), {
-        spaceId: space.id,
-        collectionId: collection6.id,
-        points: 25,
-    });
-
-    expect(
-        (await getAffinitiveTaskCollections(session1.action(), {spaceId: space.id, limit: 3})).map(
-            ({collection}) => collection.id,
-        ),
-    ).toEqual([collection6.id, collection5.id, collection2.id]);
-
-    expect(
-        (
-            await getAffinitiveTaskCollections(session1.action(), {spaceId: space.id, limit: 100})
-        ).map(({collection}) => collection.id),
-    ).toEqual([collection6.id, collection5.id, collection2.id, collection3.id, collection1.id]);
-
-    await collection5.setPrivateAccessPolicy(session2);
-
-    expect(
-        (await getAffinitiveTaskCollections(session1.action(), {spaceId: space.id, limit: 3})).map(
-            ({collection}) => collection.id,
-        ),
-    ).toEqual([collection6.id, collection2.id, collection3.id]);
-
-    expect(
-        (
-            await getAffinitiveTaskCollections(session1.action(), {spaceId: space.id, limit: 100})
-        ).map(({collection}) => collection.id),
-    ).toEqual([collection6.id, collection2.id, collection3.id, collection1.id]);
 });
 
 test("account can remove access from itself", async () => {

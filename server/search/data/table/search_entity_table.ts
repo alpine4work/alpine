@@ -8,7 +8,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {assertId} from "~/shared/id/id.js";
+import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
+import {Id, assertId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchAffinityId} from "~/shared/search/search_affinity_id.js";
@@ -718,68 +719,104 @@ async function internalGetSearchAffinitiesBase<
     return candidateItems.slice(0, limit);
 }
 
-/**
- * Get all accounts our actor has an affinity for sorted by affinity score. We
- * display accounts in this order when the user goes to mention someone or send
- * a message.
- */
-export async function getAccountSearchAffinities(
+type GetSearchEntityAffinityIdType<
+    SearchAffinityIdType extends SearchAffinityId,
+    IdType extends Id,
+> = SearchAffinityIdType extends `${infer AffinityType}:${IdType}` ? AffinityType : never;
+
+async function querySessionActorSearchEntityAffinities<IdType extends Id>(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
-): Promise<Array<AccountId>> {
+    affinityType: GetSearchEntityAffinityIdType<SearchAffinityId, IdType>,
+): Promise<Array<IdType>> {
+    const currentTime = Date.now();
+
     const items = await arrayFromAsyncIterable(
-        SearchEntityTable.query(context, {
-            partitionKey: {
-                partitionType: "Account",
-                spaceId,
-                accountId: context.actor.getAccountId(),
-            },
-            startSortKey: {
-                sortRangeType: "SearchEntityAffinity",
-                entityId: `Account:${DynamoKeyAttributeSchema.id.getMinValue<AccountId>()}`,
-            },
-            endSortKey: {
-                sortRangeType: "SearchEntityAffinity",
-                entityId: `Account:${DynamoKeyAttributeSchema.id.getMaxValue<AccountId>()}`,
-            },
-            limit: "All",
-        }),
+        mapAsyncIterableIterator(
+            SearchEntityTable.query(context, {
+                partitionKey: {
+                    partitionType: "Account",
+                    spaceId,
+                    accountId: context.actor.getAccountId(),
+                },
+                startSortKey: {
+                    sortRangeType: "SearchEntityAffinity",
+                    entityId:
+                        `${affinityType}:${DynamoKeyAttributeSchema.id.getMinValue<IdType>()}` as SearchAffinityId,
+                },
+                endSortKey: {
+                    sortRangeType: "SearchEntityAffinity",
+                    entityId:
+                        `${affinityType}:${DynamoKeyAttributeSchema.id.getMaxValue<IdType>()}` as SearchAffinityId,
+                },
+                limit: "All",
+            }),
+            item => ({
+                entityId: item.entityId,
+                points: getCurrentSearchAffinityPoints(currentTime, item),
+            }),
+        ),
     );
 
     items.sort((a, b) => b.points - a.points);
 
-    return items.map(item => item.entityId.slice(8) as AccountId);
+    // NOTE(calebmer): We don't delete items below 0.05 points or update items that
+    // moved point buckets in this function. That's because the DynamoDB TTL should
+    // automatically expire items (so we don't have to) and the points bucket
+    // doesn't matter for the performance of this function. So spare the points
+    // bucket update cost.
+    return items.map(item => item.entityId.slice(affinityType.length + 1) as IdType);
 }
 
 /**
- * Get all channels our actor has an affinity for sorted by affinity score. We
- * display channels in this order when the user is selecting a channel to
- * post in.
+ * Get all accounts our actor has an affinity for sorted by affinity score in
+ * the context of a space. We display accounts in this order when the user goes
+ * to mention someone or send a message.
+ *
+ * `AccountId`s in the returned array may no longer be a part of the space.
+ * Hence the name "possibly stale".
  */
-export async function getChannelSearchAffinities(
+export async function getPossiblyStaleAccountSearchAffinityIds(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+): Promise<Array<AccountId>> {
+    return querySessionActorSearchEntityAffinities<AccountId>(context, spaceId, "Account");
+}
+
+/**
+ * Get all channels our actor has an affinity for sorted by affinity score in
+ * the context of a space. We display channels in this order when the user is
+ * selecting a channel to post in.
+ *
+ * The actor may not have access to all returned `ChannelId`s. They probably
+ * had access at some point in time in order to collect affinity points but you
+ * need to make sure the actor currently has access before returning
+ * `ChannelId`s to them. Hence the name "possibly stale".
+ */
+export async function getPossiblyStaleChannelSearchAffinityIds(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
 ): Promise<Array<ChannelId>> {
-    const items = await arrayFromAsyncIterable(
-        SearchEntityTable.query(context, {
-            partitionKey: {
-                partitionType: "Account",
-                spaceId,
-                accountId: context.actor.getAccountId(),
-            },
-            startSortKey: {
-                sortRangeType: "SearchEntityAffinity",
-                entityId: `Channel:${DynamoKeyAttributeSchema.id.getMinValue<ChannelId>()}`,
-            },
-            endSortKey: {
-                sortRangeType: "SearchEntityAffinity",
-                entityId: `Channel:${DynamoKeyAttributeSchema.id.getMaxValue<ChannelId>()}`,
-            },
-            limit: "All",
-        }),
+    return querySessionActorSearchEntityAffinities<ChannelId>(context, spaceId, "Channel");
+}
+
+/**
+ * Get all task collections our actor has an affinity for sorted by affinity
+ * score. We display collections in this order when the user is selecting a
+ * collection for a task.
+ *
+ * The actor may not have access to all returned `TaskCollectionId`s. They
+ * probably had access at some point in time in order to collect affinity
+ * points but you need to make sure the actor currently has access before
+ * returning `TaskCollectionId`s to them. Hence the name "possibly stale".
+ */
+export async function getPossiblyStaleTaskCollectionSearchAffinityIds(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+): Promise<Array<TaskCollectionId>> {
+    return querySessionActorSearchEntityAffinities<TaskCollectionId>(
+        context,
+        spaceId,
+        "TaskCollection",
     );
-
-    items.sort((a, b) => b.points - a.points);
-
-    return items.map(item => item.entityId.slice(8) as ChannelId);
 }

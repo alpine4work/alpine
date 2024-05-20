@@ -2,7 +2,6 @@ import {useEffect, useState} from "react";
 import {ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
-import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -14,7 +13,6 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
-import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskCollectionMobileEditor} from "~/client/tasks/task_collection_mobile_editor.js";
 import {
     TaskCollectionView,
@@ -34,17 +32,12 @@ import {isThemeColor} from "~/shared/design/theme_colors.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
-import {addTaskCollectionAffinityPoints} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {taskCollectionAffinityPointsPer5MinOfViewingTime} from "~/shared/tasks/task_collection_affinity_constants.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     deserializeTaskQueryFiltersSearchParam,
@@ -445,8 +438,6 @@ function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean
         return collectionSubscription?.collectionEntryStore.subscribe(update);
     }, [collectionSubscription?.collectionEntryStore, updateMetaTitle]);
 
-    useAddTaskCollectionViewingTimeAffinityPoints(collectionSubscription);
-
     const affinityManager = useTaskClientStoreSearchAffinityManager(
         collectionSubscription ? `TaskCollection:${collectionSubscription.collectionId}` : null,
     );
@@ -564,114 +555,4 @@ function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean
             />
         </TaskGridViewDndContext>
     );
-}
-
-/**
- * @deprecated Should migrate to search entity affinity.
- */
-function useAddTaskCollectionViewingTimeAffinityPoints(
-    collectionSubscription: TaskClientCollectionSubscription | undefined,
-) {
-    const context = useAppContext();
-    const {space} = useSpaceContext();
-
-    // Every 5min while our collection route is visible we add to the collection's
-    // affinity score. We don't add to the affinity scores while the page is
-    // hidden. We resume if the user reopens the page.
-    useEffect(() => {
-        if (!collectionSubscription) return;
-        const {collectionId} = collectionSubscription;
-
-        const clock = new MonotonicClock(unsynchronizedSystemClock);
-
-        let state: {
-            timeout: Timeout;
-            lastUpdatedTime: number;
-        } | null = null;
-
-        const update = () => {
-            const currentTime = clock.now();
-
-            // Stop our affinity update loop:
-            if (document.visibilityState !== "visible" && state) {
-                sessionStorage.setItem(
-                    `cyberworlds/taskCollectionDurationSinceLastUpdate/${collectionId}`,
-                    JSON.stringify(currentTime - state.lastUpdatedTime),
-                );
-                state.timeout.clear();
-                state = null;
-            }
-
-            // Start our affinity update loop:
-            if (document.visibilityState === "visible" && !state) {
-                const durationSinceLastUpdate = JSON.parse(
-                    sessionStorage.getItem(
-                        `cyberworlds/taskCollectionDurationSinceLastUpdate/${collectionId}`,
-                    ) ?? "0",
-                );
-
-                const updateIntervalDuration = 1000 * 60 * 5; // 5min
-
-                let updateCount = 0;
-                const maxUpdateCount = 12;
-
-                const updateLoop = () => {
-                    // If this errs it will show up in our telemetry but we don't care about
-                    // it here.
-                    void addTaskCollectionAffinityPoints(context, {
-                        spaceId: space.id,
-                        collectionId,
-                        points: taskCollectionAffinityPointsPer5MinOfViewingTime,
-                    });
-
-                    // Stop loop after we hit a max number of updates (1hr) to defend against the
-                    // user leaving their computer open and unattended for a long time. If the user
-                    // is continuously interacting with the page then we'll continue adding points.
-                    updateCount++;
-                    if (updateCount >= maxUpdateCount) return;
-
-                    state = {
-                        lastUpdatedTime: currentTime,
-                        timeout: createTimeout(updateLoop, updateIntervalDuration),
-                    };
-                };
-
-                if (
-                    durationSinceLastUpdate <= 0 ||
-                    updateIntervalDuration - durationSinceLastUpdate <= 0
-                ) {
-                    updateLoop();
-                } else {
-                    state = {
-                        lastUpdatedTime: currentTime - durationSinceLastUpdate,
-                        timeout: createTimeout(
-                            updateLoop,
-                            updateIntervalDuration - durationSinceLastUpdate,
-                        ),
-                    };
-                }
-            }
-        };
-
-        update();
-
-        document.addEventListener("visibilitychange", update);
-        return () => {
-            document.removeEventListener("visibilitychange", update);
-
-            // If our component unmounts, save the duration since last update in our
-            // session storage so we can pick up adding affinity points from there if the
-            // user navigates back.
-            if (state) {
-                const currentTime = clock.now();
-
-                sessionStorage.setItem(
-                    `cyberworlds/taskCollectionDurationSinceLastUpdate/${collectionId}`,
-                    JSON.stringify(currentTime - state.lastUpdatedTime),
-                );
-                state.timeout.clear();
-                state = null;
-            }
-        };
-    }, [collectionSubscription, context, space.id]);
 }

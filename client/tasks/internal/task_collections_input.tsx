@@ -52,7 +52,7 @@ import {
     renderTaskCollectionComboBoxItem,
     useTaskCollectionComboBoxSearchState,
 } from "~/client/tasks/internal/task_collection_combo_box_base.js";
-import {usePreloadAffinitiveTaskCollections} from "~/client/tasks/internal/use_affinitive_task_collections.js";
+import {usePreloadSearchTaskCollectionsByAffinity} from "~/client/tasks/internal/use_search_task_collections_by_affinity.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
     TaskClientStoreSearchAffinityManager,
@@ -185,7 +185,7 @@ function TaskCollectionsInput(
 
     // Preload task collections the account has an affinity for in case they open
     // the collections dropdown.
-    usePreloadAffinitiveTaskCollections();
+    usePreloadSearchTaskCollectionsByAffinity();
 
     const [shouldLoadItems, setShouldLoadItems] = useState(false);
 
