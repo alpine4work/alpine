@@ -89,9 +89,9 @@ test("buckets search entity account affinity points as expected", () => {
 
 test("search entity account affinity points decay exponentially", () => {
     const time1 = new Date();
-    const time2 = addDays(time1, 30);
-    const time3 = addDays(time2, 30);
-    const time4 = addDays(time3, 30);
+    const time2 = addDays(time1, 10);
+    const time3 = addDays(time2, 10);
+    const time4 = addDays(time3, 10);
 
     expect(
         getCurrentSearchAffinityPoints(time4.getTime(), {
@@ -295,7 +295,7 @@ test(
                 const expectedPoints = lerp(19, 0.1, documentIndex / (documentCount - 1));
 
                 const lastUpdatedMonthsAgo = randomFloat(0, 1 / 2);
-                const actualPoints = expectedPoints * Math.exp(lastUpdatedMonthsAgo);
+                const actualPoints = expectedPoints * Math.exp(3 * lastUpdatedMonthsAgo);
                 const lastUpdatedTime =
                     currentTime - Math.round(lastUpdatedMonthsAgo * monthDurationMs);
 
@@ -493,7 +493,7 @@ test(
                 const expectedPoints = lerp(19, 0.1, documentIndex / (documentCount - 1));
 
                 const lastUpdatedMonthsAgo = randomFloat(0, 1 / 15);
-                const actualPoints = expectedPoints * Math.exp(lastUpdatedMonthsAgo);
+                const actualPoints = expectedPoints * Math.exp(3 * lastUpdatedMonthsAgo);
                 const lastUpdatedTime =
                     currentTime - Math.round(lastUpdatedMonthsAgo * monthDurationMs);
 

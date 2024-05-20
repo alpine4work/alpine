@@ -210,8 +210,8 @@ export const monthDurationMs = 1000 * 60 * 60 * 24 * 30;
  * Apply our exponential decay function to figure out how many affinity points
  * we currently have.
  *
- * Our function is `f(t) = e^-t` where `t` is measured in months. This function
- * will decay 1 point to 0.05 (which we round down to 0) in 3 months.
+ * Our function is `f(t) = e^-3t` where `t` is measured in months. This function
+ * will decay 1 point to 0.05 (which we round down to 0) in 1 months.
  */
 export function getCurrentSearchAffinityPoints(
     currentTime: number,
@@ -219,7 +219,7 @@ export function getCurrentSearchAffinityPoints(
 ): number {
     const elapsedTime = currentTime - lastUpdatedTime;
 
-    return points * Math.exp(-(elapsedTime / monthDurationMs));
+    return points * Math.exp(-(3 * (elapsedTime / monthDurationMs)));
 }
 
 /**
