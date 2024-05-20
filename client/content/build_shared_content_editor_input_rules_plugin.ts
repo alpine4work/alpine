@@ -1,7 +1,47 @@
-import {InputRule, inputRules, smartQuotes} from "prosemirror-inputrules";
+import {InputRule, inputRules} from "prosemirror-inputrules";
+
+// We fork these input rules from Prosemirror's prosemirror-inputrules to
+// add our own custom behavior for smart quotes in code blocks and paragraphs.
+//
+// https://github.com/ProseMirror/prosemirror-inputrules/blob/8433778a3ce4e45c0188341b72fd71da3a440b5b/src/rules.ts#L7-L17
+/// “Smart” opening double quotes.
+const openDoubleQuote = new InputRule(
+    /(?:^|[\s\{\[\(\<'"\u2018\u201C])(")$/,
+    handleSmartQuotesInCodeBlocks("“"),
+);
+// “Smart” closing double quotes.
+const closeDoubleQuote = new InputRule(/"$/, handleSmartQuotesInCodeBlocks("”"));
+// “Smart” opening single quotes.
+const openSingleQuote = new InputRule(
+    /(?:^|[\s\{\[\(\<'"\u2018\u201C])(')$/,
+    handleSmartQuotesInCodeBlocks("‘"),
+);
+// “Smart” closing single quotes.
+const closeSingleQuote = new InputRule(/'$/, handleSmartQuotesInCodeBlocks("’"));
+
+// Smart-quote related input rules.
+const smartQuotes: ReadonlyArray<InputRule> = [
+    openDoubleQuote,
+    closeDoubleQuote,
+    openSingleQuote,
+    closeSingleQuote,
+];
+
+function handleSmartQuotesInCodeBlocks(char: string) {
+    return (state: any, match: any, start: number, end: number) => {
+        const $from = state.doc.resolve(state.selection.from);
+
+        // If we are inside a code block, we do not want smart quotes
+        const isInCodeBlockLine = $from.node().type.name === "codeBlockLine";
+        if (isInCodeBlockLine) {
+            return null;
+        }
+        return state.tr.replaceWith(start, end, state.schema.text(char));
+    };
+}
 
 export function addSharedContentEditorInputRules(rules: Array<InputRule>) {
-    // "smart quotes"
+    // Smart Quotes
     rules.push(...smartQuotes);
 
     // Emojis should be either at the beginning of the block or should come after
