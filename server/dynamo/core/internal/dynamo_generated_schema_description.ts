@@ -4606,6 +4606,55 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "removal": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "time": {
+                                                        "valueSchema": {
+                                                            "type": "Date"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "oldAccountData": {
+                                                        "valueSchema": {
+                                                            "type": "Object",
+                                                            "propertySchemaByKey": {
+                                                                "id": {
+                                                                    "valueSchema": {
+                                                                        "type": "Id"
+                                                                    },
+                                                                    "optional": false
+                                                                },
+                                                                "version": {
+                                                                    "valueSchema": {
+                                                                        "type": "Integer"
+                                                                    },
+                                                                    "optional": false
+                                                                },
+                                                                "name": {
+                                                                    "valueSchema": {
+                                                                        "type": "String"
+                                                                    },
+                                                                    "optional": false
+                                                                },
+                                                                "nameVersion": {
+                                                                    "valueSchema": {
+                                                                        "type": "Integer"
+                                                                    },
+                                                                    "optional": false
+                                                                }
+                                                            }
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"

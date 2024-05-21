@@ -15,7 +15,7 @@ import {
     messagingRealtimeCreateMessageBeforeSendTestCheckpoint,
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
 import {RoomInterface} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
-import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
+import {getAccount} from "~/server/spaces/spaces_table.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -28,6 +28,7 @@ import {
     MessagingRealtimeEvent,
     MessagingRealtimeProcedures,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type TestMessagingRealtimeConnectionProcedures<Message extends MessageModel> = {
@@ -89,7 +90,7 @@ export function testMessagingRealtimeImplementation<
             roomKey: RoomKey;
             index: number;
             createdTime: Date;
-            author: AccountModelWithoutSpace;
+            author: AccountModel;
             payload: MessagePayloadModel;
         }) => MessageModel<RoomKey>;
         createMessage: CreateMessageFunction<RoomKey, MessageModel<RoomKey>>;
@@ -181,7 +182,11 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -193,7 +198,11 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -205,7 +214,11 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -240,7 +253,11 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -252,7 +269,11 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -287,7 +308,11 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -299,7 +324,11 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -421,7 +450,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -439,7 +472,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -457,7 +494,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -488,7 +529,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -506,7 +551,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -524,7 +573,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -557,7 +610,11 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -569,7 +626,11 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -714,7 +775,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -732,7 +797,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -764,7 +833,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -782,7 +855,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -818,7 +895,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -834,7 +915,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -973,7 +1058,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -991,7 +1080,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1027,7 +1120,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1204,7 +1301,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1220,7 +1321,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1236,7 +1341,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1432,7 +1541,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1448,7 +1561,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1464,7 +1581,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1650,7 +1771,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1666,7 +1791,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1692,7 +1821,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1708,7 +1841,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1724,7 +1861,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1744,7 +1885,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1854,7 +1999,11 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1883,7 +2032,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -2004,7 +2157,11 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -2029,7 +2186,11 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",

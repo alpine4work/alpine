@@ -3,8 +3,8 @@ import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import {getPossiblyStaleAccountSearchAffinityIds} from "~/server/search/data/table/search_entity_table.js";
 import {
     dangerouslyAddSpaceAccountAsAdmin,
-    removeSpaceAccountAsAdmin,
     expensivelyGetAllSpaceAccounts,
+    removeSpaceAccountAsAdmin,
 } from "~/server/spaces/spaces_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId} from "~/shared/id/types/id_types.js";

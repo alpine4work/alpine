@@ -934,22 +934,22 @@ test("can get any account by id as admin", async () => {
 
     await expect(
         getAccountByIdAsAdmin(adminSession.action(), adminSession.account.id),
-    ).resolves.toEqual(await adminSession.get());
+    ).resolves.toEqual(await adminSession.account.get());
     await expect(
         getAccountByIdAsAdmin(adminSession.action(), session1.account.id),
-    ).resolves.toEqual(await session1.get());
+    ).resolves.toEqual(await session1.account.get());
     await expect(
         getAccountByIdAsAdmin(adminSession.action(), session2.account.id),
-    ).resolves.toEqual(await session2.get());
+    ).resolves.toEqual(await session2.account.get());
     await expect(
         getAccountByIdAsAdmin(adminSession.action(), session3.account.id),
-    ).resolves.toEqual(await session3.get());
+    ).resolves.toEqual(await session3.account.get());
     await expect(
         getAccountByIdAsAdmin(adminSession.action(), session4a.account.id),
-    ).resolves.toEqual(await session4a.get());
+    ).resolves.toEqual(await session4a.account.get());
     await expect(
         getAccountByIdAsAdmin(adminSession.action(), session4b.account.id),
-    ).resolves.toEqual(await session4a.get());
+    ).resolves.toEqual(await session4a.account.get());
 
     for (const session of [session1, session2, session3, session4a, session4b]) {
         await expect(
@@ -974,7 +974,7 @@ test("can get any account by id as admin", async () => {
 
     await expect(
         getAccountByIdAsAdmin(adminSession.action(), session1.account.id),
-    ).resolves.toEqual(await session1.get());
+    ).resolves.toEqual(await session1.account.get());
 });
 
 test("can get any account by email address as admin", async () => {
@@ -1009,22 +1009,22 @@ test("can get any account by email address as admin", async () => {
 
     await expect(
         getAccountByEmailAddressAsAdmin(adminSession.action(), adminEmailAddress),
-    ).resolves.toEqual(await adminSession.get());
+    ).resolves.toEqual(await adminSession.account.get());
     await expect(
         getAccountByEmailAddressAsAdmin(adminSession.action(), emailAddress1),
-    ).resolves.toEqual(await session1.get());
+    ).resolves.toEqual(await session1.account.get());
     await expect(
         getAccountByEmailAddressAsAdmin(adminSession.action(), emailAddress3a),
-    ).resolves.toEqual(await session3.get());
+    ).resolves.toEqual(await session3.account.get());
     await expect(
         getAccountByEmailAddressAsAdmin(adminSession.action(), emailAddress3b),
-    ).resolves.toEqual(await session3.get());
+    ).resolves.toEqual(await session3.account.get());
     await expect(
         getAccountByEmailAddressAsAdmin(adminSession.action(), emailAddress4),
-    ).resolves.toEqual(await session4a.get());
+    ).resolves.toEqual(await session4a.account.get());
     await expect(
         getAccountByEmailAddressAsAdmin(adminSession.action(), emailAddress4),
-    ).resolves.toEqual(await session4b.get());
+    ).resolves.toEqual(await session4b.account.get());
 
     for (const session of [session1, session2, session3, session4a, session4b]) {
         await expect(
@@ -1049,5 +1049,5 @@ test("can get any account by email address as admin", async () => {
 
     await expect(
         getAccountByEmailAddressAsAdmin(adminSession.action(), emailAddress3b),
-    ).resolves.toEqual(await session3.get());
+    ).resolves.toEqual(await session3.account.get());
 });

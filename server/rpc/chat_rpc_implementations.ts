@@ -9,6 +9,7 @@ import {
 } from "~/server/chat/data/chat_table.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
+import {getAccount} from "~/server/spaces/spaces_table.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import * as definition from "~/shared/rpc/chat_rpc_definitions.js";
@@ -36,11 +37,13 @@ implementRpc(
     async (unknownContext, input) => {
         const context = unknownContext.actor.authorizeSession();
 
-        const [{index, createdTime}, author, contentReferences] = await runAllPromises([
+        const [{index, createdTime}, [author, contentReferences]] = await runAllPromises([
             sendChatMessage(context, input),
-            context.actor.getAccount(),
             authorizeChatAccess(context, input.chatId).then(({spaceId}) =>
-                getContentReferencesForNode(context, spaceId, input.content),
+                runAllPromises([
+                    getAccount(context, spaceId, context.actor.getAccountId()),
+                    getContentReferencesForNode(context, spaceId, input.content),
+                ]),
             ),
         ]);
 

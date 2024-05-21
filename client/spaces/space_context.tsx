@@ -1,7 +1,5 @@
 import {Memo, ReactNode, createContext, useContext, useMemo} from "react";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
-import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {InternalError} from "~/shared/error/error.js";
 import {MyAccountEvent, MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
@@ -55,27 +53,6 @@ export function SpaceContextProvider({
     currentAccount: AccountModel;
     children?: ReactNode;
 }) {
-    const accountStore = useAccountClientStore();
-
-    // We need to hold a strong reference to `Store<AccountModelData>` so
-    // `accountStore.weakGetAccountStoreByIdIfExists()` will always be able to
-    // return the data for the current account.
-    //
-    // The task system depends on current account data existing in
-    // `AccountClientStore`. Any `AccountId` in a `TaskAction` we pass to
-    // `TaskClientStore` must have account data in `AccountClientStore` or else an
-    // error will be thrown. And we put `currentAccount.id` in `TaskAction`s a lot,
-    // e.g. when creating tasks we set the `creatorId` to `currentAccount.id`.
-    //
-    // Some other code may coincidentally have added `currentAccount` to
-    // `AccountClientStore` but we want to guarantee `currentAccount` is in
-    // `AccountClientStore` and also prevent garbage collection of `currentAccount`
-    // from `AccountClientStore`.
-    useStateWithDependencies(
-        (accountStore, currentAccount) => accountStore.getAccountStore(currentAccount),
-        [accountStore, currentAccount],
-    );
-
     const {isConnected, subscribeToEvents, toggleShouldConnect} = useWebSocket(
         MyAccountProtocol,
         `/api/durable-objects/my-account/${currentAccount.id}`,

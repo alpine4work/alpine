@@ -1380,8 +1380,8 @@ export async function getSessionActorAccountSpaces(context: ServerSessionActionC
 }
 
 export type SpaceAccountNameSearchIndex = {
-    searchNames(queryText: string): Array<AccountModelWithoutSpace>;
-    searchShortNames(queryText: string): Array<AccountModelWithoutSpace>;
+    searchNames(queryText: string): Array<AccountModel>;
+    searchShortNames(queryText: string): Array<AccountModel>;
 };
 
 /**

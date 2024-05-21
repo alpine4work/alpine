@@ -1571,7 +1571,11 @@ test("search by keywords only sees entities the account has access to", async ()
         ).results
             .map(result => result.id)
             .sort(defaultCompareStrings),
-    ).toEqual([`Document:${otherDocument.id}`].sort(defaultCompareStrings));
+    ).toEqual(
+        [`Account:${otherSession.account.id}`, `Document:${otherDocument.id}`].sort(
+            defaultCompareStrings,
+        ),
+    );
 
     expect(
         (
@@ -1587,6 +1591,8 @@ test("search by keywords only sees entities the account has access to", async ()
             .sort(defaultCompareStrings),
     ).toEqual(
         [
+            `Account:${session1.account.id}`,
+            `Account:${session2.account.id}`,
             `Document:${document.id}`,
             `Task:${task1.id}`,
             `Task:${task3.id}`,
@@ -1610,6 +1616,8 @@ test("search by keywords only sees entities the account has access to", async ()
             .sort(defaultCompareStrings),
     ).toEqual(
         [
+            `Account:${session1.account.id}`,
+            `Account:${session2.account.id}`,
             `Document:${document.id}`,
             `Task:${task2.id}`,
             `Task:${task3.id}`,
@@ -1999,7 +2007,7 @@ test("searches with natural language parsing works", async () => {
                 ],
                 media: {
                     type: "Account",
-                    account: await session1.account.get(),
+                    account: await session1.get(),
                 },
             },
             {
@@ -2113,7 +2121,7 @@ test("searches with natural language parsing works", async () => {
                 ],
                 media: {
                     type: "Account",
-                    account: await session1.account.get(),
+                    account: await session1.get(),
                 },
             },
         ],
@@ -2161,7 +2169,7 @@ test("searches with natural language parsing works", async () => {
                 ],
                 media: {
                     type: "Account",
-                    account: await session1.account.get(),
+                    account: await session1.get(),
                 },
             },
         ],
@@ -2231,7 +2239,7 @@ test("searches with natural language parsing works", async () => {
                 ],
                 media: {
                     type: "Account",
-                    account: await session1.account.get(),
+                    account: await session1.get(),
                 },
             },
         ],
@@ -2287,7 +2295,7 @@ test("searches with natural language parsing works", async () => {
                 ],
                 media: {
                     type: "Account",
-                    account: await session1.account.get(),
+                    account: await session1.get(),
                 },
             },
         ],
@@ -2321,6 +2329,16 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             },
             {
+                id: `Account:${session2.account.id}`,
+                score: expect.any(Number),
+                title: "Sara Smith",
+                bodyTextSnippet: [],
+                media: {
+                    type: "Account",
+                    account: await session2.get(),
+                },
+            },
+            {
                 id: `Document:${document3.id}`,
                 score: expect.any(Number),
                 title: "Test 3",
@@ -2341,7 +2359,7 @@ test("searches with natural language parsing works", async () => {
                 ],
                 media: {
                     type: "Account",
-                    account: await session1.account.get(),
+                    account: await session1.get(),
                 },
             },
         ],
@@ -2383,6 +2401,16 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             },
             {
+                id: `Account:${session1.account.id}`,
+                score: expect.any(Number),
+                title: "John Smith",
+                bodyTextSnippet: [],
+                media: {
+                    type: "Account",
+                    account: await session1.get(),
+                },
+            },
+            {
                 id: `Document:${document2.id}`,
                 score: expect.any(Number),
                 title: "Test 2",
@@ -2404,7 +2432,7 @@ test("searches with natural language parsing works", async () => {
                 ],
                 media: {
                     type: "Account",
-                    account: await session1.account.get(),
+                    account: await session1.get(),
                 },
             },
         ],

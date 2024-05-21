@@ -1,6 +1,6 @@
 import {Slice} from "prosemirror-model";
-import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
 import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
+import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";

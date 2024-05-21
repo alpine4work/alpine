@@ -6,9 +6,11 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {useBrowserId} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
@@ -208,8 +210,28 @@ export function TaskRealtimeClientContextProvider({
     });
 
     const showToast = useShowToast();
+    const {currentAccount} = useSpaceContext();
 
     const accountStore = useAccountClientStore();
+
+    // We need to hold a strong reference to `Store<AccountModelData>` so
+    // `accountStore.weakGetAccountStoreByIdIfExists()` will always be able to
+    // return the data for the current account.
+    //
+    // The task system depends on current account data existing in
+    // `AccountClientStore`. Any `AccountId` in a `TaskAction` we pass to
+    // `TaskClientStore` must have account data in `AccountClientStore` or else an
+    // error will be thrown. And we put `currentAccount.id` in `TaskAction`s a lot,
+    // e.g. when creating tasks we set the `creatorId` to `currentAccount.id`.
+    //
+    // Some other code may coincidentally have added `currentAccount` to
+    // `AccountClientStore` but we want to guarantee `currentAccount` is in
+    // `AccountClientStore` and also prevent garbage collection of `currentAccount`
+    // from `AccountClientStore`.
+    useStateWithDependencies(
+        (accountStore, currentAccount) => accountStore.getAccountStore(currentAccount),
+        [accountStore, currentAccount],
+    );
 
     const [client] = useState((): TaskRealtimeClient => {
         const initializeClient = () => {

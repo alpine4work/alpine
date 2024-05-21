@@ -175,7 +175,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: commentThread1CreatedTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("test1"),
@@ -254,7 +254,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     commentThreadCount: 2,
                     commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: commentThread1CreatedTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("test1"),
@@ -333,14 +333,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     commentThreadCount: 3,
                     commentThreadAuthorCount: 2,
                     firstComment: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: commentThread1CreatedTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("test1"),
                             references: emptyContentReferences,
                         }),
                     },
-                    otherCommentThreadAuthor: await scenario.session3.account.get(),
+                    otherCommentThreadAuthor: await scenario.session3.get(),
                 }),
             ]);
 
@@ -412,14 +412,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     commentThreadCount: 3,
                     commentThreadAuthorCount: 2,
                     firstComment: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: commentThread1CreatedTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("test1"),
                             references: emptyContentReferences,
                         }),
                     },
-                    otherCommentThreadAuthor: await scenario.session3.account.get(),
+                    otherCommentThreadAuthor: await scenario.session3.get(),
                 }),
             ]);
 
@@ -491,14 +491,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     commentThreadCount: 3,
                     commentThreadAuthorCount: 2,
                     firstComment: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: commentThread1CreatedTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("test1"),
                             references: emptyContentReferences,
                         }),
                     },
-                    otherCommentThreadAuthor: await scenario.session3.account.get(),
+                    otherCommentThreadAuthor: await scenario.session3.get(),
                 }),
             ]);
 
@@ -525,7 +525,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: commentThread5CreatedTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("test5"),
@@ -613,19 +613,16 @@ for (const [currentProcessingType, processingMultiple] of [
                         titleWithoutFallback: "",
                     }),
                     commentThreadId: commentThread1Id,
-                    firstCommentAuthor: await scenario.session2.account.get(),
+                    firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: commentThread1CreatedTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -700,19 +697,16 @@ for (const [currentProcessingType, processingMultiple] of [
                         titleWithoutFallback: "",
                     }),
                     commentThreadId: commentThread1Id,
-                    firstCommentAuthor: await scenario.session2.account.get(),
+                    firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: commentThread1CreatedTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -735,17 +729,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: commentThread2CreatedTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount3MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session3.account.id,
-                                        await scenario.session3.account.get(),
-                                    ],
+                                    [scenario.session3.account.id, await scenario.session3.get()],
                                 ]),
                             },
                         }),
@@ -783,19 +774,16 @@ for (const [currentProcessingType, processingMultiple] of [
                         titleWithoutFallback: "",
                     }),
                     commentThreadId: commentThread2Id,
-                    firstCommentAuthor: await scenario.session2.account.get(),
+                    firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: commentThread2CreatedTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount3MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session3.account.id,
-                                        await scenario.session3.account.get(),
-                                    ],
+                                    [scenario.session3.account.id, await scenario.session3.get()],
                                 ]),
                             },
                         }),
@@ -871,7 +859,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: commentThreadCreatedTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
@@ -932,7 +920,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: commentThreadCreatedTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
@@ -963,9 +951,9 @@ for (const [currentProcessingType, processingMultiple] of [
                         titleWithoutFallback: "",
                     }),
                     commentThreadId,
-                    firstCommentAuthor: await scenario.session2.account.get(),
+                    firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         createdTime: comment2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment2"),
@@ -1018,7 +1006,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: commentThreadCreatedTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
@@ -1058,9 +1046,9 @@ for (const [currentProcessingType, processingMultiple] of [
                         titleWithoutFallback: "",
                     }),
                     commentThreadId,
-                    firstCommentAuthor: await scenario.session2.account.get(),
+                    firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: comment3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
@@ -1104,7 +1092,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: commentThreadCreatedTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
@@ -1135,9 +1123,9 @@ for (const [currentProcessingType, processingMultiple] of [
                         titleWithoutFallback: "",
                     }),
                     commentThreadId,
-                    firstCommentAuthor: await scenario.session2.account.get(),
+                    firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: comment4.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment4"),
@@ -1145,7 +1133,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.account.get(),
+                    otherCommentAuthor: await scenario.session3.get(),
                 }),
             ]);
 
@@ -1169,9 +1157,9 @@ for (const [currentProcessingType, processingMultiple] of [
                         titleWithoutFallback: "",
                     }),
                     commentThreadId,
-                    firstCommentAuthor: await scenario.session2.account.get(),
+                    firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: comment4.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment4"),
@@ -1179,7 +1167,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session2.account.get(),
+                    otherCommentAuthor: await scenario.session2.get(),
                 }),
             ]);
         });
@@ -1298,10 +1286,10 @@ for (const [currentProcessingType, processingMultiple] of [
                     }),
                     commentThreadId,
                     loudNotificationCount: 0,
-                    firstCommentAuthor: await scenario.session2.account.get(),
+                    firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -1332,17 +1320,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     }),
                     commentThreadId,
                     loudNotificationCount: 0,
-                    firstCommentAuthor: await scenario.session2.account.get(),
+                    firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.account.get(),
+                    otherCommentAuthor: await scenario.session1.get(),
                 }),
             ]);
 
@@ -1369,10 +1357,10 @@ for (const [currentProcessingType, processingMultiple] of [
                     }),
                     commentThreadId,
                     loudNotificationCount: 0,
-                    firstCommentAuthor: await scenario.session2.account.get(),
+                    firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -1403,17 +1391,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     }),
                     commentThreadId,
                     loudNotificationCount: 1,
-                    firstCommentAuthor: await scenario.session2.account.get(),
+                    firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.account.get(),
+                    otherCommentAuthor: await scenario.session1.get(),
                 }),
             ]);
         });

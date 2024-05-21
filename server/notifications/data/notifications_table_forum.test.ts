@@ -152,7 +152,7 @@ test("won't create two inbox entries if inbox is observed between serially event
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: await scenario.session1.account.get(),
+                author: await scenario.session1.get(),
                 createdTime: post2.createdTime,
                 contentTextSnippet: printContentSingleLineTextSnippet(
                     emptyPostContentWithReferences,
@@ -179,7 +179,7 @@ test("won't create two inbox entries if inbox is observed between serially event
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
-                author: await scenario.session1.account.get(),
+                author: await scenario.session1.get(),
                 createdTime: post2.createdTime,
                 contentTextSnippet: printContentSingleLineTextSnippet(
                     emptyPostContentWithReferences,
@@ -260,7 +260,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -288,7 +288,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -319,14 +319,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -354,7 +354,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -382,7 +382,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -413,21 +413,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment2"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session2.account.get(),
+                    otherCommentAuthor: await scenario.session2.get(),
                 }),
             ]);
 
@@ -443,14 +443,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment2"),
                             references: emptyContentReferences,
@@ -468,7 +468,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -496,7 +496,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -536,21 +536,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.account.get(),
+                    otherCommentAuthor: await scenario.session3.get(),
                 }),
                 new InboxChannelPostsEntryModel({
                     spaceId: scenario.space.id,
@@ -561,7 +561,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -584,14 +584,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -609,7 +609,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -674,7 +674,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -702,7 +702,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -733,23 +733,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount3MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session3.account.id,
-                                        await scenario.session3.account.get(),
-                                    ],
+                                    [scenario.session3.account.id, await scenario.session3.get()],
                                 ]),
                             },
                         }),
@@ -776,7 +773,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -799,23 +796,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount3MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session3.account.id,
-                                        await scenario.session3.account.get(),
-                                    ],
+                                    [scenario.session3.account.id, await scenario.session3.get()],
                                 ]),
                             },
                         }),
@@ -832,7 +826,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -863,23 +857,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -906,7 +897,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -929,23 +920,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount3MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session3.account.id,
-                                        await scenario.session3.account.get(),
-                                    ],
+                                    [scenario.session3.account.id, await scenario.session3.get()],
                                 ]),
                             },
                         }),
@@ -962,7 +950,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -993,29 +981,26 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 2,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: await scenario.session2.account.get(),
+                    otherCommentAuthor: await scenario.session2.get(),
                 }),
             ]);
 
@@ -1031,23 +1016,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -1064,7 +1046,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1092,7 +1074,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1152,7 +1134,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1180,7 +1162,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1211,23 +1193,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -1254,7 +1233,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1282,7 +1261,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1322,14 +1301,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment2"),
                             references: emptyContentReferences,
@@ -1347,7 +1326,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1375,7 +1354,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1406,29 +1385,26 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session2.account.get(),
+                    otherCommentAuthor: await scenario.session2.get(),
                 }),
             ]);
 
@@ -1449,7 +1425,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1477,7 +1453,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1526,6 +1502,8 @@ for (const [currentProcessingType, processingMultiple] of [
                 content: emptyPostContent,
             });
 
+            await ProcessContextModule.waitForTestTasks();
+
             expect(
                 await getInboxEntries(context.action(scenario.sharedSession), {
                     spaceId: scenario.space.id,
@@ -1543,7 +1521,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1571,7 +1549,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.otherSession.account.get(),
+                        author: await scenario.otherSession.get(),
                         createdTime: otherPost.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1602,14 +1580,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionSharedAccountMessageContent,
                             references: {
@@ -1617,7 +1595,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 accountById: new Map([
                                     [
                                         scenario.sharedSession.account.id,
-                                        await scenario.sharedSession.account.get(),
+                                        await scenario.sharedSession.get(),
                                     ],
                                 ]),
                             },
@@ -1635,7 +1613,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1663,7 +1641,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.otherSession.account.get(),
+                        author: await scenario.otherSession.get(),
                         createdTime: otherPost.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1694,14 +1672,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionSharedAccountMessageContent,
                             references: {
@@ -1709,7 +1687,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 accountById: new Map([
                                     [
                                         scenario.sharedSession.account.id,
-                                        await scenario.sharedSession.account.get(),
+                                        await scenario.sharedSession.get(),
                                     ],
                                 ]),
                             },
@@ -1727,7 +1705,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1750,14 +1728,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.otherSpace.id,
                     accountId: scenario.sharedSession.account.id,
                     postId: otherPost.id,
-                    postAuthor: await scenario.otherSession.account.get(),
+                    postAuthor: await scenario.otherSession.get(),
                     channel: otherChannel,
                     loudNotificationCount: 1,
                     postCreatedTime: otherPost.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.otherSession.account.get(),
+                        author: await scenario.otherSession.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionSharedAccountMessageContent,
                             references: {
@@ -1765,7 +1743,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 accountById: new Map([
                                     [
                                         scenario.sharedSession.account.id,
-                                        await scenario.sharedSession.account.get(),
+                                        await scenario.sharedSession.get(),
                                     ],
                                 ]),
                             },
@@ -1783,7 +1761,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.otherSession.account.get(),
+                        author: await scenario.otherSession.get(),
                         createdTime: otherPost.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1825,6 +1803,8 @@ for (const [currentProcessingType, processingMultiple] of [
                 content: emptyPostContent,
             });
 
+            await ProcessContextModule.waitForTestTasks();
+
             expect(
                 await getInboxEntries(context.action(scenario.session3), {
                     spaceId: scenario.space.id,
@@ -1842,7 +1822,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1882,23 +1862,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount3MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session3.account.id,
-                                        await scenario.session3.account.get(),
-                                    ],
+                                    [scenario.session3.account.id, await scenario.session3.get()],
                                 ]),
                             },
                         }),
@@ -1915,7 +1892,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -1955,23 +1932,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount3MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session3.account.id,
-                                        await scenario.session3.account.get(),
-                                    ],
+                                    [scenario.session3.account.id, await scenario.session3.get()],
                                 ]),
                             },
                         }),
@@ -1988,7 +1962,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -2090,14 +2064,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session2.account.get(),
+                    postAuthor: await scenario.session2.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -2115,7 +2089,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -2138,21 +2112,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session2.account.get(),
+                    postAuthor: await scenario.session2.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.account.get(),
+                    otherCommentAuthor: await scenario.session1.get(),
                 }),
             ]);
 
@@ -2171,14 +2145,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session2.account.get(),
+                    postAuthor: await scenario.session2.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -2196,7 +2170,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -2219,21 +2193,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session2.account.get(),
+                    postAuthor: await scenario.session2.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.account.get(),
+                    otherCommentAuthor: await scenario.session1.get(),
                 }),
             ]);
         });
@@ -2319,14 +2293,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session2.account.get(),
+                    postAuthor: await scenario.session2.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -2344,7 +2318,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -2379,14 +2353,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session2.account.get(),
+                    postAuthor: await scenario.session2.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -2404,7 +2378,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: post.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -2486,14 +2460,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -2524,23 +2498,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2552,14 +2523,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -2590,23 +2561,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2618,14 +2586,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -2638,14 +2606,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -2676,23 +2644,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2704,14 +2669,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -2724,14 +2689,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
@@ -2762,23 +2727,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2790,14 +2752,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -2810,14 +2772,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
@@ -2848,23 +2810,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment6.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2876,23 +2835,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2904,14 +2860,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
@@ -2942,23 +2898,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment6.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2970,23 +2923,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2998,14 +2948,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
@@ -3036,23 +2986,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 2,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment8.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -3064,23 +3011,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment6.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -3092,14 +3036,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
@@ -3185,14 +3129,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -3223,23 +3167,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -3251,14 +3192,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -3289,23 +3230,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -3317,14 +3255,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -3337,14 +3275,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -3369,23 +3307,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -3397,14 +3332,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -3417,14 +3352,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -3455,14 +3390,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post4.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post4.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
@@ -3475,23 +3410,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -3503,14 +3435,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -3523,14 +3455,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -3561,14 +3493,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post4.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post4.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
@@ -3581,23 +3513,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -3609,14 +3538,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -3629,14 +3558,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -3667,14 +3596,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post4.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post4.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
@@ -3687,23 +3616,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -3715,14 +3641,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment6.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment6"),
                             references: emptyContentReferences,
@@ -3735,14 +3661,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -3773,23 +3699,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment7.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -3801,14 +3724,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post4.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post4.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
@@ -3821,23 +3744,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -3849,14 +3769,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -3948,21 +3868,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.sharedSession.account.get(),
+                        author: await scenario.sharedSession.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.account.get(),
+                    otherCommentAuthor: await scenario.session3.get(),
                 }),
             ]);
 
@@ -3978,23 +3898,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4006,21 +3923,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.sharedSession.account.get(),
+                        author: await scenario.sharedSession.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.account.get(),
+                    otherCommentAuthor: await scenario.session3.get(),
                 }),
                 new InboxChannelPostsEntryModel({
                     spaceId: scenario.space.id,
@@ -4031,7 +3948,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -4054,14 +3971,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.sharedSession.account.get(),
+                        author: await scenario.sharedSession.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -4079,7 +3996,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -4107,21 +4024,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.sharedSession.account.get(),
+                        author: await scenario.sharedSession.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.account.get(),
+                    otherCommentAuthor: await scenario.session3.get(),
                 }),
             ]);
 
@@ -4137,23 +4054,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4165,21 +4079,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.sharedSession.account.get(),
+                        author: await scenario.sharedSession.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.account.get(),
+                    otherCommentAuthor: await scenario.session3.get(),
                 }),
                 new InboxChannelPostsEntryModel({
                     spaceId: scenario.space.id,
@@ -4190,7 +4104,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -4218,7 +4132,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -4246,21 +4160,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.sharedSession.account.get(),
+                        author: await scenario.sharedSession.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.account.get(),
+                    otherCommentAuthor: await scenario.session3.get(),
                 }),
             ]);
 
@@ -4276,21 +4190,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.sharedSession.account.get(),
+                        author: await scenario.sharedSession.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.account.get(),
+                    otherCommentAuthor: await scenario.session3.get(),
                 }),
                 new InboxChannelPostsEntryModel({
                     spaceId: scenario.space.id,
@@ -4301,7 +4215,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -4329,7 +4243,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -4357,21 +4271,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.sharedSession.account.get(),
+                        author: await scenario.sharedSession.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.account.get(),
+                    otherCommentAuthor: await scenario.session3.get(),
                 }),
             ]);
 
@@ -4392,7 +4306,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -4420,7 +4334,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -4534,23 +4448,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment5.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4562,23 +4473,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4590,21 +4498,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.account.get(),
+                    otherCommentAuthor: await scenario.session3.get(),
                 }),
                 new InboxChannelPostsEntryModel({
                     spaceId: scenario.space.id,
@@ -4615,7 +4523,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -4638,14 +4546,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -4663,7 +4571,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -4710,23 +4618,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment5.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4743,7 +4648,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -4771,7 +4676,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -4808,23 +4713,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment5.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4841,7 +4743,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -4864,14 +4766,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -4889,7 +4791,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -4926,23 +4828,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4954,23 +4853,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment5.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4987,7 +4883,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -5010,14 +4906,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -5035,7 +4931,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -5072,43 +4968,40 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.account.get(),
+                    otherCommentAuthor: await scenario.session3.get(),
                 }),
                 new InboxPostCommentsEntryModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -5120,23 +5013,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment5.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -5153,7 +5043,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -5176,14 +5066,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -5201,7 +5091,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -5229,21 +5119,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.account.get(),
+                    otherCommentAuthor: await scenario.session3.get(),
                 }),
             ]);
 
@@ -5259,43 +5149,40 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.account.get(),
+                    otherCommentAuthor: await scenario.session3.get(),
                 }),
                 new InboxPostCommentsEntryModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -5307,23 +5194,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment5.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -5340,7 +5224,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -5363,14 +5247,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -5388,7 +5272,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -5488,14 +5372,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -5540,14 +5424,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment2"),
                             references: emptyContentReferences,
@@ -5610,23 +5494,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -5670,14 +5551,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment2"),
                             references: emptyContentReferences,
@@ -5740,14 +5621,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -5806,21 +5687,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment2"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session2.account.get(),
+                    otherCommentAuthor: await scenario.session2.get(),
                 }),
             ]);
         });
@@ -6614,13 +6495,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post6.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post6.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment6.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment6"),
                                     references: emptyContentReferences,
@@ -6639,13 +6520,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post5.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post5.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment5.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment5"),
                                     references: emptyContentReferences,
@@ -6664,13 +6545,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post4.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post4.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment4.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment4"),
                                     references: emptyContentReferences,
@@ -6689,13 +6570,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post3.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post3.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment3.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment3"),
                                     references: emptyContentReferences,
@@ -6714,13 +6595,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post2.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post2.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment2.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment2"),
                                     references: emptyContentReferences,
@@ -6739,13 +6620,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post1.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post1.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment1.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment1"),
                                     references: emptyContentReferences,
@@ -6791,13 +6672,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post4.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post4.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment4.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment4"),
                                     references: emptyContentReferences,
@@ -6816,13 +6697,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post3.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post3.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment3.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment3"),
                                     references: emptyContentReferences,
@@ -6841,13 +6722,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post2.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post2.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment2.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment2"),
                                     references: emptyContentReferences,
@@ -6866,13 +6747,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post1.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post1.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment1.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment1"),
                                     references: emptyContentReferences,
@@ -6919,13 +6800,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post3.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post3.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment3.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment3"),
                                     references: emptyContentReferences,
@@ -6944,13 +6825,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post2.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post2.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment2.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment2"),
                                     references: emptyContentReferences,
@@ -6969,13 +6850,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post1.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post1.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment1.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment1"),
                                     references: emptyContentReferences,
@@ -7021,13 +6902,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post6.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post6.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment6.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment6"),
                                     references: emptyContentReferences,
@@ -7046,13 +6927,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post5.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post5.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment5.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment5"),
                                     references: emptyContentReferences,
@@ -7071,13 +6952,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post4.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post4.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment4.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment4"),
                                     references: emptyContentReferences,
@@ -7096,13 +6977,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post3.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post3.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment3.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment3"),
                                     references: emptyContentReferences,
@@ -7121,13 +7002,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post2.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post2.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment2.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment2"),
                                     references: emptyContentReferences,
@@ -7174,13 +7055,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post6.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post6.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment6.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment6"),
                                     references: emptyContentReferences,
@@ -7199,13 +7080,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post5.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post5.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment5.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment5"),
                                     references: emptyContentReferences,
@@ -7224,13 +7105,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post4.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post4.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment4.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment4"),
                                     references: emptyContentReferences,
@@ -7249,13 +7130,13 @@ for (const [currentProcessingType, processingMultiple] of [
                             accountId: scenario.session1.account.id,
                             channel,
                             postId: post3.id,
-                            postAuthor: await scenario.session1.account.get(),
+                            postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
                             postCreatedTime: post3.createdTime,
                             postContentTextSnippetIfMentioned: null,
                             latestComment: {
                                 createdTime: comment3.createdTime,
-                                author: await scenario.session2.account.get(),
+                                author: await scenario.session2.get(),
                                 contentTextSnippet: printContentSingleLineTextSnippet({
                                     doc: createSimpleMessageContent("comment3"),
                                     references: emptyContentReferences,
@@ -7320,23 +7201,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -7348,23 +7226,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -7381,7 +7256,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -7409,23 +7284,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -7442,7 +7314,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -7473,23 +7345,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -7501,14 +7370,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
@@ -7526,7 +7395,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -7589,23 +7458,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -7617,23 +7483,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -7650,7 +7513,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -7681,23 +7544,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -7714,7 +7574,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -7745,23 +7605,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -7773,21 +7630,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.account.get(),
+                    otherCommentAuthor: await scenario.session1.get(),
                 }),
                 new InboxChannelPostsEntryModel({
                     spaceId: scenario.space.id,
@@ -7798,7 +7655,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -7872,23 +7729,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -7900,23 +7754,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -7928,23 +7779,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -7961,7 +7809,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -7998,23 +7846,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -8026,23 +7871,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -8059,7 +7901,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -8082,23 +7924,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -8125,23 +7964,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -8158,7 +7994,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -8181,23 +8017,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -8209,23 +8042,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -8257,7 +8087,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -8280,23 +8110,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -8308,23 +8135,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -8336,23 +8160,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -8425,23 +8246,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -8453,23 +8271,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -8481,23 +8296,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -8514,7 +8326,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -8554,23 +8366,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -8582,23 +8391,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -8615,7 +8421,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -8638,21 +8444,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("test"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.account.get(),
+                    otherCommentAuthor: await scenario.session1.get(),
                 }),
             ]);
 
@@ -8676,23 +8482,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -8709,7 +8512,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -8732,41 +8535,41 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment5.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("test"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.account.get(),
+                    otherCommentAuthor: await scenario.session1.get(),
                 }),
                 new InboxPostCommentsEntryModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("test"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.account.get(),
+                    otherCommentAuthor: await scenario.session1.get(),
                 }),
             ]);
 
@@ -8795,7 +8598,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -8818,61 +8621,61 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment6.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("test"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.account.get(),
+                    otherCommentAuthor: await scenario.session1.get(),
                 }),
                 new InboxPostCommentsEntryModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment5.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("test"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.account.get(),
+                    otherCommentAuthor: await scenario.session1.get(),
                 }),
                 new InboxPostCommentsEntryModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("test"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.account.get(),
+                    otherCommentAuthor: await scenario.session1.get(),
                 }),
             ]);
         });
@@ -8954,23 +8757,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -8982,23 +8782,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -9010,23 +8807,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -9056,23 +8850,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -9084,23 +8875,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -9112,21 +8900,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.account.get(),
+                    otherCommentAuthor: await scenario.session1.get(),
                 }),
             ]);
 
@@ -9150,43 +8938,40 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment5.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment5"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.account.get(),
+                    otherCommentAuthor: await scenario.session1.get(),
                 }),
                 new InboxPostCommentsEntryModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -9198,21 +8983,21 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment4"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.account.get(),
+                    otherCommentAuthor: await scenario.session1.get(),
                 }),
             ]);
         });
@@ -9300,7 +9085,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
@@ -9322,10 +9107,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         references: {
                             ...emptyContentReferences,
                             accountById: new Map([
-                                [
-                                    scenario.session2.account.id,
-                                    await scenario.session2.account.get(),
-                                ],
+                                [scenario.session2.account.id, await scenario.session2.get()],
                             ]),
                         },
                     }),
@@ -9341,7 +9123,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: assertPostContent(
@@ -9361,10 +9143,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session3.account.id,
-                                        await scenario.session3.account.get(),
-                                    ],
+                                    [scenario.session3.account.id, await scenario.session3.get()],
                                 ]),
                             },
                         }),
@@ -9385,7 +9164,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post3.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
@@ -9407,10 +9186,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         references: {
                             ...emptyContentReferences,
                             accountById: new Map([
-                                [
-                                    scenario.session3.account.id,
-                                    await scenario.session3.account.get(),
-                                ],
+                                [scenario.session3.account.id, await scenario.session3.get()],
                             ]),
                         },
                     }),
@@ -9426,7 +9202,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: assertPostContent(
@@ -9446,10 +9222,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -9503,7 +9276,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
@@ -9525,10 +9298,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         references: {
                             ...emptyContentReferences,
                             accountById: new Map([
-                                [
-                                    scenario.session2.account.id,
-                                    await scenario.session2.account.get(),
-                                ],
+                                [scenario.session2.account.id, await scenario.session2.get()],
                             ]),
                         },
                     }),
@@ -9557,7 +9327,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
@@ -9579,16 +9349,13 @@ for (const [currentProcessingType, processingMultiple] of [
                         references: {
                             ...emptyContentReferences,
                             accountById: new Map([
-                                [
-                                    scenario.session2.account.id,
-                                    await scenario.session2.account.get(),
-                                ],
+                                [scenario.session2.account.id, await scenario.session2.get()],
                             ]),
                         },
                     }),
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -9644,7 +9411,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
@@ -9666,10 +9433,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         references: {
                             ...emptyContentReferences,
                             accountById: new Map([
-                                [
-                                    scenario.session2.account.id,
-                                    await scenario.session2.account.get(),
-                                ],
+                                [scenario.session2.account.id, await scenario.session2.get()],
                             ]),
                         },
                     }),
@@ -9713,7 +9477,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
@@ -9735,10 +9499,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         references: {
                             ...emptyContentReferences,
                             accountById: new Map([
-                                [
-                                    scenario.session2.account.id,
-                                    await scenario.session2.account.get(),
-                                ],
+                                [scenario.session2.account.id, await scenario.session2.get()],
                             ]),
                         },
                     }),
@@ -9767,14 +9528,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment1.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
@@ -9854,23 +9615,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -9895,7 +9653,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 2,
                     postCreatedTime: post.createdTime,
@@ -9917,25 +9675,19 @@ for (const [currentProcessingType, processingMultiple] of [
                         references: {
                             ...emptyContentReferences,
                             accountById: new Map([
-                                [
-                                    scenario.session2.account.id,
-                                    await scenario.session2.account.get(),
-                                ],
+                                [scenario.session2.account.id, await scenario.session2.get()],
                             ]),
                         },
                     }),
                     latestComment: {
                         createdTime: comment.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -10005,23 +9757,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -10066,23 +9815,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -10116,7 +9862,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
-                    postAuthor: await scenario.session1.account.get(),
+                    postAuthor: await scenario.session1.get(),
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
@@ -10138,25 +9884,19 @@ for (const [currentProcessingType, processingMultiple] of [
                         references: {
                             ...emptyContentReferences,
                             accountById: new Map([
-                                [
-                                    scenario.session2.account.id,
-                                    await scenario.session2.account.get(),
-                                ],
+                                [scenario.session2.account.id, await scenario.session2.get()],
                             ]),
                         },
                     }),
                     latestComment: {
                         createdTime: comment.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -10272,7 +10012,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post1.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -10300,7 +10040,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post1.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -10328,7 +10068,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post1.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -10381,7 +10121,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -10409,7 +10149,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -10437,7 +10177,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -10481,7 +10221,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -10509,7 +10249,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -10537,14 +10277,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 2,
                     latestPost: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
                             references: emptyContentReferences,
                         }),
                     },
-                    otherPostAuthor: await scenario.session1.account.get(),
+                    otherPostAuthor: await scenario.session1.get(),
                 }),
             ]);
 
@@ -10565,14 +10305,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 2,
                     latestPost: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
                             references: emptyContentReferences,
                         }),
                     },
-                    otherPostAuthor: await scenario.session1.account.get(),
+                    otherPostAuthor: await scenario.session1.get(),
                 }),
             ]);
 
@@ -10609,7 +10349,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: post4.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -10627,7 +10367,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -10655,7 +10395,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -10683,7 +10423,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: post4.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -10701,14 +10441,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 2,
                     latestPost: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
                             references: emptyContentReferences,
                         }),
                     },
-                    otherPostAuthor: await scenario.session1.account.get(),
+                    otherPostAuthor: await scenario.session1.get(),
                 }),
             ]);
 
@@ -10729,7 +10469,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: post4.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
@@ -10747,14 +10487,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 3,
                     postAuthorCount: 2,
                     latestPost: {
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: emptyPostContent,
                             references: emptyContentReferences,
                         }),
                     },
-                    otherPostAuthor: await scenario.session1.account.get(),
+                    otherPostAuthor: await scenario.session1.get(),
                 }),
             ]);
 
@@ -10848,7 +10588,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet(
                             emptyPostContentWithReferences,
@@ -10875,7 +10615,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         channel,
                         createdTime: post2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         content: emptyPostContentWithReferences,
                         contentUpdatedTime: null,
                         commentCount: 0,
@@ -10888,7 +10628,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         channel,
                         createdTime: post1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         content: emptyPostContentWithReferences,
                         contentUpdatedTime: null,
                         commentCount: 0,
@@ -10934,7 +10674,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet(
                             emptyPostContentWithReferences,
@@ -10951,7 +10691,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet(
                             emptyPostContentWithReferences,
@@ -10978,7 +10718,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         channel,
                         createdTime: post2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         content: emptyPostContentWithReferences,
                         contentUpdatedTime: null,
                         commentCount: 0,
@@ -10991,7 +10731,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         channel,
                         createdTime: post1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         content: emptyPostContentWithReferences,
                         contentUpdatedTime: null,
                         commentCount: 0,
@@ -11019,7 +10759,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         channel,
                         createdTime: post3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         content: emptyPostContentWithReferences,
                         contentUpdatedTime: null,
                         commentCount: 0,
@@ -11054,7 +10794,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post4.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet(
                             emptyPostContentWithReferences,
@@ -11071,7 +10811,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet(
                             emptyPostContentWithReferences,
@@ -11088,7 +10828,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet(
                             emptyPostContentWithReferences,
@@ -11115,7 +10855,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         channel,
                         createdTime: post2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         content: emptyPostContentWithReferences,
                         contentUpdatedTime: null,
                         commentCount: 0,
@@ -11128,7 +10868,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         channel,
                         createdTime: post1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         content: emptyPostContentWithReferences,
                         contentUpdatedTime: null,
                         commentCount: 0,
@@ -11156,7 +10896,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         channel,
                         createdTime: post3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         content: emptyPostContentWithReferences,
                         contentUpdatedTime: null,
                         commentCount: 0,
@@ -11184,7 +10924,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         channel,
                         createdTime: post4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         content: emptyPostContentWithReferences,
                         contentUpdatedTime: null,
                         commentCount: 0,
@@ -11242,7 +10982,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet(
                             emptyPostContentWithReferences,
@@ -11278,7 +11018,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet(
                             emptyPostContentWithReferences,
@@ -11295,7 +11035,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet(
                             emptyPostContentWithReferences,
@@ -11322,7 +11062,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         channel,
                         createdTime: post2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         content: emptyPostContentWithReferences,
                         contentUpdatedTime: null,
                         commentCount: 0,
@@ -11335,7 +11075,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         channel,
                         createdTime: post1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         content: emptyPostContentWithReferences,
                         contentUpdatedTime: null,
                         commentCount: 0,
@@ -11370,7 +11110,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post4.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet(
                             emptyPostContentWithReferences,
@@ -11387,7 +11127,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet(
                             emptyPostContentWithReferences,
@@ -11414,7 +11154,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         channel,
                         createdTime: post2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         content: emptyPostContentWithReferences,
                         contentUpdatedTime: null,
                         commentCount: 0,
@@ -11427,7 +11167,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         channel,
                         createdTime: post1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         content: emptyPostContentWithReferences,
                         contentUpdatedTime: null,
                         commentCount: 0,
@@ -11455,7 +11195,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         channel,
                         createdTime: post4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         content: emptyPostContentWithReferences,
                         contentUpdatedTime: null,
                         commentCount: 0,
@@ -11468,7 +11208,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         spaceId: scenario.space.id,
                         channel,
                         createdTime: post3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         content: emptyPostContentWithReferences,
                         contentUpdatedTime: null,
                         commentCount: 0,
@@ -11548,7 +11288,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post1.createdTime,
-                author: await scenario.session1.account.get(),
+                author: await scenario.session1.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -11562,7 +11302,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post2.createdTime,
-                author: await scenario.session1.account.get(),
+                author: await scenario.session1.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -11576,7 +11316,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post3.createdTime,
-                author: await scenario.session1.account.get(),
+                author: await scenario.session1.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -11590,7 +11330,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post4.createdTime,
-                author: await scenario.session1.account.get(),
+                author: await scenario.session1.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -11604,7 +11344,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post5.createdTime,
-                author: await scenario.session1.account.get(),
+                author: await scenario.session1.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -11618,7 +11358,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post6.createdTime,
-                author: await scenario.session1.account.get(),
+                author: await scenario.session1.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -11632,7 +11372,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post7.createdTime,
-                author: await scenario.session1.account.get(),
+                author: await scenario.session1.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -11646,7 +11386,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 spaceId: scenario.space.id,
                 channel,
                 createdTime: post8.createdTime,
-                author: await scenario.session1.account.get(),
+                author: await scenario.session1.get(),
                 content: emptyPostContentWithReferences,
                 contentUpdatedTime: null,
                 commentCount: 0,
@@ -11866,7 +11606,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 postCount: 1,
                                 postAuthorCount: 1,
                                 latestPost: {
-                                    author: await scenario.session1.account.get(),
+                                    author: await scenario.session1.get(),
                                     createdTime: post.createdTime,
                                     contentTextSnippet: printContentSingleLineTextSnippet({
                                         doc: emptyPostContent,
@@ -11934,7 +11674,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 postCount: 1,
                                 postAuthorCount: 1,
                                 latestPost: {
-                                    author: await scenario.session1.account.get(),
+                                    author: await scenario.session1.get(),
                                     createdTime: post.createdTime,
                                     contentTextSnippet: printContentSingleLineTextSnippet({
                                         doc: emptyPostContent,
@@ -12064,14 +11804,14 @@ for (const [currentProcessingType, processingMultiple] of [
                 spaceId: space.id,
                 accountId: session2.account.id,
                 postId: post.id,
-                postAuthor: await session1.account.get(),
+                postAuthor: await session1.get(),
                 channel: expect.any(ChannelPreviewModel),
                 loudNotificationCount: 0,
                 postCreatedTime: post.createdTime,
                 postContentTextSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
-                    author: await session1.account.get(),
+                    author: await session1.get(),
                     contentTextSnippet: printContentSingleLineTextSnippet({
                         doc: createSimpleMessageContent("Test comment 2"),
                         references: emptyContentReferences,
@@ -12102,14 +11842,14 @@ for (const [currentProcessingType, processingMultiple] of [
                 spaceId: space.id,
                 accountId: session2.account.id,
                 postId: post.id,
-                postAuthor: await session1.account.get(),
+                postAuthor: await session1.get(),
                 channel: expect.any(ChannelPreviewModel),
                 loudNotificationCount: 0,
                 postCreatedTime: post.createdTime,
                 postContentTextSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
-                    author: await session1.account.get(),
+                    author: await session1.get(),
                     contentTextSnippet: printContentSingleLineTextSnippet({
                         doc: createSimpleMessageContent("Test comment 3"),
                         references: emptyContentReferences,
@@ -12149,14 +11889,14 @@ for (const [currentProcessingType, processingMultiple] of [
                 spaceId: space.id,
                 accountId: session2.account.id,
                 postId: post.id,
-                postAuthor: await session1.account.get(),
+                postAuthor: await session1.get(),
                 channel: expect.any(ChannelPreviewModel),
                 loudNotificationCount: 1,
                 postCreatedTime: post.createdTime,
                 postContentTextSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
-                    author: await session1.account.get(),
+                    author: await session1.get(),
                     contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
                     isStickyMention: true,
                 },
@@ -12184,14 +11924,14 @@ for (const [currentProcessingType, processingMultiple] of [
                 spaceId: space.id,
                 accountId: session2.account.id,
                 postId: post.id,
-                postAuthor: await session1.account.get(),
+                postAuthor: await session1.get(),
                 channel: expect.any(ChannelPreviewModel),
                 loudNotificationCount: 1,
                 postCreatedTime: post.createdTime,
                 postContentTextSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
-                    author: await session1.account.get(),
+                    author: await session1.get(),
                     contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
                     isStickyMention: true,
                 },
@@ -12219,14 +11959,14 @@ for (const [currentProcessingType, processingMultiple] of [
                 spaceId: space.id,
                 accountId: session2.account.id,
                 postId: post.id,
-                postAuthor: await session1.account.get(),
+                postAuthor: await session1.get(),
                 channel: expect.any(ChannelPreviewModel),
                 loudNotificationCount: 1,
                 postCreatedTime: post.createdTime,
                 postContentTextSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
-                    author: await session1.account.get(),
+                    author: await session1.get(),
                     contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
                     isStickyMention: true,
                 },
@@ -12263,14 +12003,14 @@ for (const [currentProcessingType, processingMultiple] of [
                 spaceId: space.id,
                 accountId: session2.account.id,
                 postId: post.id,
-                postAuthor: await session1.account.get(),
+                postAuthor: await session1.get(),
                 channel: expect.any(ChannelPreviewModel),
                 loudNotificationCount: 2,
                 postCreatedTime: post.createdTime,
                 postContentTextSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment7.createdTime,
-                    author: await session1.account.get(),
+                    author: await session1.get(),
                     contentTextSnippet: `Test comment 7 @${session2.account.initialName}`,
                     isStickyMention: true,
                 },
@@ -12298,14 +12038,14 @@ for (const [currentProcessingType, processingMultiple] of [
                 spaceId: space.id,
                 accountId: session2.account.id,
                 postId: post.id,
-                postAuthor: await session1.account.get(),
+                postAuthor: await session1.get(),
                 channel: expect.any(ChannelPreviewModel),
                 loudNotificationCount: 2,
                 postCreatedTime: post.createdTime,
                 postContentTextSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment7.createdTime,
-                    author: await session1.account.get(),
+                    author: await session1.get(),
                     contentTextSnippet: `Test comment 7 @${session2.account.initialName}`,
                     isStickyMention: true,
                 },
@@ -12349,14 +12089,14 @@ for (const [currentProcessingType, processingMultiple] of [
                 spaceId: space.id,
                 accountId: session2.account.id,
                 postId: post.id,
-                postAuthor: await session1.account.get(),
+                postAuthor: await session1.get(),
                 channel: expect.any(ChannelPreviewModel),
                 loudNotificationCount: 0,
                 postCreatedTime: post.createdTime,
                 postContentTextSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment9.createdTime,
-                    author: await session1.account.get(),
+                    author: await session1.get(),
                     contentTextSnippet: "Test comment 9",
                     isStickyMention: false,
                 },

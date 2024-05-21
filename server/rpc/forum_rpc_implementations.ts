@@ -21,6 +21,7 @@ import {
     updatePostContent,
 } from "~/server/forum/data/forum_table.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
+import {getAccount} from "~/server/spaces/spaces_table.js";
 import {PostCommentModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import * as definition from "~/shared/rpc/forum_rpc_definitions.js";
@@ -171,11 +172,13 @@ implementRpc(
     async (unknownContext, input) => {
         const context = unknownContext.actor.authorizeSession();
 
-        const [{index, createdTime}, author, contentReferences] = await runAllPromises([
+        const [{index, createdTime}, [author, contentReferences]] = await runAllPromises([
             createPostComment(context.actor.authorizeSession(), input),
-            context.actor.getAccount(),
             authorizePostAccess(context, input.postId).then(({spaceId}) =>
-                getContentReferencesForNode(context, spaceId, input.content),
+                runAllPromises([
+                    getAccount(context, spaceId, context.actor.getAccountId()),
+                    getContentReferencesForNode(context, spaceId, input.content),
+                ]),
             ),
         ]);
 

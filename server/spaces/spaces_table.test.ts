@@ -60,17 +60,21 @@ test("can get all accounts for our space", async () => {
     await expect(
         expensivelyGetAllSpaceAccounts(context.action(sessionA1), spaceA.id),
     ).resolves.toEqual(
-        [sessionA1.account, sessionA2.account, sessionA3.account].sort((account1, account2) =>
-            defaultCompareStrings(account1.id, account2.id),
-        ),
+        [
+            await getAccount(context.action(sessionA1), spaceA.id, sessionA1.account.id),
+            await getAccount(context.action(sessionA2), spaceA.id, sessionA2.account.id),
+            await getAccount(context.action(sessionA3), spaceA.id, sessionA3.account.id),
+        ].sort((account1, account2) => defaultCompareStrings(account1.id, account2.id)),
     );
 
     await expect(
         expensivelyGetAllSpaceAccounts(context.action(sessionB1), spaceB.id),
     ).resolves.toEqual(
-        [sessionB1.account, sessionB2.account, sessionB3.account].sort((account1, account2) =>
-            defaultCompareStrings(account1.id, account2.id),
-        ),
+        [
+            await getAccount(context.action(sessionB1), spaceB.id, sessionB1.account.id),
+            await getAccount(context.action(sessionB2), spaceB.id, sessionB2.account.id),
+            await getAccount(context.action(sessionB3), spaceB.id, sessionB3.account.id),
+        ].sort((account1, account2) => defaultCompareStrings(account1.id, account2.id)),
     );
 });
 
@@ -112,86 +116,70 @@ test("account name search matches names with slight typos", async () => {
 
     const accountNameIndex = await getSpaceAccountNameSearchIndex(session1.action(), space.id);
 
-    expect(accountNameIndex.searchShortNames("Caleb")).toEqual([await session1.account.get()]);
-    expect(accountNameIndex.searchShortNames("caleb")).toEqual([await session1.account.get()]);
-    expect(accountNameIndex.searchShortNames("Calebs")).toEqual([await session1.account.get()]);
-    expect(accountNameIndex.searchShortNames("Baleb")).toEqual([await session1.account.get()]);
-    expect(accountNameIndex.searchShortNames("baleb")).toEqual([await session1.account.get()]);
-    expect(accountNameIndex.searchShortNames("Siobahn")).toEqual([await session2.account.get()]);
-    expect(accountNameIndex.searchShortNames("siobahn")).toEqual([await session2.account.get()]);
-    expect(accountNameIndex.searchShortNames("Siobahns")).toEqual([await session2.account.get()]);
-    expect(accountNameIndex.searchShortNames("Siobahnn")).toEqual([await session2.account.get()]);
-    expect(accountNameIndex.searchShortNames("Soibahn")).toEqual([await session2.account.get()]);
-    expect(accountNameIndex.searchShortNames("Soobahn")).toEqual([await session2.account.get()]);
+    expect(accountNameIndex.searchShortNames("Caleb")).toEqual([await session1.get()]);
+    expect(accountNameIndex.searchShortNames("caleb")).toEqual([await session1.get()]);
+    expect(accountNameIndex.searchShortNames("Calebs")).toEqual([await session1.get()]);
+    expect(accountNameIndex.searchShortNames("Baleb")).toEqual([await session1.get()]);
+    expect(accountNameIndex.searchShortNames("baleb")).toEqual([await session1.get()]);
+    expect(accountNameIndex.searchShortNames("Siobahn")).toEqual([await session2.get()]);
+    expect(accountNameIndex.searchShortNames("siobahn")).toEqual([await session2.get()]);
+    expect(accountNameIndex.searchShortNames("Siobahns")).toEqual([await session2.get()]);
+    expect(accountNameIndex.searchShortNames("Siobahnn")).toEqual([await session2.get()]);
+    expect(accountNameIndex.searchShortNames("Soibahn")).toEqual([await session2.get()]);
+    expect(accountNameIndex.searchShortNames("Soobahn")).toEqual([await session2.get()]);
     expect(accountNameIndex.searchShortNames("Soibann")).toEqual([]);
     expect(accountNameIndex.searchShortNames("Soobann")).toEqual([]);
     expect(accountNameIndex.searchShortNames("Floorbhan")).toEqual([]);
-    expect(accountNameIndex.searchShortNames("Xue")).toEqual([await session3.account.get()]);
+    expect(accountNameIndex.searchShortNames("Xue")).toEqual([await session3.get()]);
     expect(accountNameIndex.searchShortNames("Xues")).toEqual([]);
     expect(accountNameIndex.searchShortNames("Xu")).toEqual([]);
     expect(accountNameIndex.searchShortNames("Xuu")).toEqual([]);
     expect(accountNameIndex.searchShortNames("Shue")).toEqual([]);
-    expect(accountNameIndex.searchShortNames("Vu")).toEqual([await session4.account.get()]);
+    expect(accountNameIndex.searchShortNames("Vu")).toEqual([await session4.get()]);
     expect(accountNameIndex.searchShortNames("Xu")).toEqual([]);
     expect(accountNameIndex.searchShortNames("vut")).toEqual([]);
-    expect(accountNameIndex.searchShortNames("l")).toEqual([await session5.account.get()]);
+    expect(accountNameIndex.searchShortNames("l")).toEqual([await session5.get()]);
     expect(accountNameIndex.searchShortNames("m")).toEqual([]);
     expect(accountNameIndex.searchShortNames("k")).toEqual([]);
 
-    expect(accountNameIndex.searchNames("Caleb")).toEqual([await session1.account.get()]);
-    expect(accountNameIndex.searchNames("Caleb Meredith")).toEqual([await session1.account.get()]);
-    expect(accountNameIndex.searchNames("Calebs Meredith")).toEqual([await session1.account.get()]);
-    expect(accountNameIndex.searchNames("Caleb Merediths")).toEqual([await session1.account.get()]);
-    expect(accountNameIndex.searchNames("Calebs Merediths")).toEqual([
-        await session1.account.get(),
-    ]);
-    expect(accountNameIndex.searchNames("caleb meredith")).toEqual([await session1.account.get()]);
-    expect(accountNameIndex.searchNames("Baleb Meredith")).toEqual([await session1.account.get()]);
-    expect(accountNameIndex.searchNames("baleb meredith")).toEqual([await session1.account.get()]);
-    expect(accountNameIndex.searchNames("Baleb Meredeth")).toEqual([await session1.account.get()]);
-    expect(accountNameIndex.searchNames("Baleb Merideth")).toEqual([await session1.account.get()]);
-    expect(accountNameIndex.searchNames("Siobahn McDonough")).toEqual([
-        await session2.account.get(),
-    ]);
-    expect(accountNameIndex.searchNames("siobahn mcdonough")).toEqual([
-        await session2.account.get(),
-    ]);
-    expect(accountNameIndex.searchNames("Siobahnn McDonough")).toEqual([
-        await session2.account.get(),
-    ]);
-    expect(accountNameIndex.searchNames("Soibahn McDonough")).toEqual([
-        await session2.account.get(),
-    ]);
-    expect(accountNameIndex.searchNames("Soobahn McDonough")).toEqual([
-        await session2.account.get(),
-    ]);
-    expect(accountNameIndex.searchNames("Soibann McDonough")).toEqual([
-        await session2.account.get(),
-    ]);
-    expect(accountNameIndex.searchNames("Soobann McDonough")).toEqual([
-        await session2.account.get(),
-    ]);
+    expect(accountNameIndex.searchNames("Caleb")).toEqual([await session1.get()]);
+    expect(accountNameIndex.searchNames("Caleb Meredith")).toEqual([await session1.get()]);
+    expect(accountNameIndex.searchNames("Calebs Meredith")).toEqual([await session1.get()]);
+    expect(accountNameIndex.searchNames("Caleb Merediths")).toEqual([await session1.get()]);
+    expect(accountNameIndex.searchNames("Calebs Merediths")).toEqual([await session1.get()]);
+    expect(accountNameIndex.searchNames("caleb meredith")).toEqual([await session1.get()]);
+    expect(accountNameIndex.searchNames("Baleb Meredith")).toEqual([await session1.get()]);
+    expect(accountNameIndex.searchNames("baleb meredith")).toEqual([await session1.get()]);
+    expect(accountNameIndex.searchNames("Baleb Meredeth")).toEqual([await session1.get()]);
+    expect(accountNameIndex.searchNames("Baleb Merideth")).toEqual([await session1.get()]);
+    expect(accountNameIndex.searchNames("Siobahn McDonough")).toEqual([await session2.get()]);
+    expect(accountNameIndex.searchNames("siobahn mcdonough")).toEqual([await session2.get()]);
+    expect(accountNameIndex.searchNames("Siobahnn McDonough")).toEqual([await session2.get()]);
+    expect(accountNameIndex.searchNames("Soibahn McDonough")).toEqual([await session2.get()]);
+    expect(accountNameIndex.searchNames("Soobahn McDonough")).toEqual([await session2.get()]);
+    expect(accountNameIndex.searchNames("Soibann McDonough")).toEqual([await session2.get()]);
+    expect(accountNameIndex.searchNames("Soobann McDonough")).toEqual([await session2.get()]);
     expect(accountNameIndex.searchNames("Floorbhan McDonough")).toEqual([]);
-    expect(accountNameIndex.searchNames("Xue Seng Tay")).toEqual([await session3.account.get()]);
-    expect(accountNameIndex.searchNames("Xue Seng")).toEqual([await session3.account.get()]);
+    expect(accountNameIndex.searchNames("Xue Seng Tay")).toEqual([await session3.get()]);
+    expect(accountNameIndex.searchNames("Xue Seng")).toEqual([await session3.get()]);
     expect(accountNameIndex.searchNames("Xue")).toEqual([]);
-    expect(accountNameIndex.searchNames("Xu Seng Tay")).toEqual([await session3.account.get()]);
-    expect(accountNameIndex.searchNames("Xuu Seng Tay")).toEqual([await session3.account.get()]);
-    expect(accountNameIndex.searchNames("Shue Seng Tay")).toEqual([await session3.account.get()]);
+    expect(accountNameIndex.searchNames("Xu Seng Tay")).toEqual([await session3.get()]);
+    expect(accountNameIndex.searchNames("Xuu Seng Tay")).toEqual([await session3.get()]);
+    expect(accountNameIndex.searchNames("Shue Seng Tay")).toEqual([await session3.get()]);
     expect(accountNameIndex.searchNames("Vu")).toEqual([]);
     expect(accountNameIndex.searchNames("Xu")).toEqual([]);
-    expect(accountNameIndex.searchNames("Vu Tran")).toEqual([await session4.account.get()]);
-    expect(accountNameIndex.searchNames("Vu T")).toEqual([await session4.account.get()]);
+    expect(accountNameIndex.searchNames("Vu Tran")).toEqual([await session4.get()]);
+    expect(accountNameIndex.searchNames("Vu T")).toEqual([await session4.get()]);
     expect(accountNameIndex.searchNames("vut")).toEqual([]);
-    expect(accountNameIndex.searchNames("Vu Tr")).toEqual([await session4.account.get()]);
+    expect(accountNameIndex.searchNames("Vu Tr")).toEqual([await session4.get()]);
     expect(accountNameIndex.searchNames("vutr")).toEqual([]);
     expect(accountNameIndex.searchNames("l")).toEqual([]);
     expect(accountNameIndex.searchNames("m")).toEqual([]);
     expect(accountNameIndex.searchNames("k")).toEqual([]);
     expect(accountNameIndex.searchNames("l l")).toEqual([]);
-    expect(accountNameIndex.searchNames("l la")).toEqual([await session5.account.get()]);
-    expect(accountNameIndex.searchNames("l law")).toEqual([await session5.account.get()]);
-    expect(accountNameIndex.searchNames("l lawl")).toEqual([await session5.account.get()]);
+    expect(accountNameIndex.searchNames("l la")).toEqual([await session5.get()]);
+    expect(accountNameIndex.searchNames("l law")).toEqual([await session5.get()]);
+    expect(accountNameIndex.searchNames("l lawl")).toEqual([await session5.get()]);
 });
 
 test("account name search can do some prefix matching", async () => {
@@ -214,10 +202,10 @@ test("account name search can do some prefix matching", async () => {
         accountNameIndex.searchNames("emily").sort((a, b) => defaultCompareStrings(a.id, b.id)),
     ).toEqual(
         [
-            await session3.account.get(),
-            await session4.account.get(),
-            await session5.account.get(),
-            await session6.account.get(),
+            await session3.get(),
+            await session4.get(),
+            await session5.get(),
+            await session6.get(),
         ].sort((a, b) => defaultCompareStrings(a.id, b.id)),
     );
 
@@ -227,10 +215,10 @@ test("account name search can do some prefix matching", async () => {
         accountNameIndex.searchNames("emily a").sort((a, b) => defaultCompareStrings(a.id, b.id)),
     ).toEqual(
         [
-            await session3.account.get(),
-            await session4.account.get(),
-            await session5.account.get(),
-            await session6.account.get(),
+            await session3.get(),
+            await session4.get(),
+            await session5.get(),
+            await session6.get(),
         ].sort((a, b) => defaultCompareStrings(a.id, b.id)),
     );
 
@@ -238,10 +226,10 @@ test("account name search can do some prefix matching", async () => {
         accountNameIndex.searchNames("emily b").sort((a, b) => defaultCompareStrings(a.id, b.id)),
     ).toEqual(
         [
-            await session3.account.get(),
-            await session4.account.get(),
-            await session5.account.get(),
-            await session6.account.get(),
+            await session3.get(),
+            await session4.get(),
+            await session5.get(),
+            await session6.get(),
         ].sort((a, b) => defaultCompareStrings(a.id, b.id)),
     );
 
@@ -249,10 +237,10 @@ test("account name search can do some prefix matching", async () => {
         accountNameIndex.searchNames("emily g").sort((a, b) => defaultCompareStrings(a.id, b.id)),
     ).toEqual(
         [
-            await session3.account.get(),
-            await session4.account.get(),
-            await session5.account.get(),
-            await session6.account.get(),
+            await session3.get(),
+            await session4.get(),
+            await session5.get(),
+            await session6.get(),
         ].sort((a, b) => defaultCompareStrings(a.id, b.id)),
     );
 
@@ -260,17 +248,17 @@ test("account name search can do some prefix matching", async () => {
         accountNameIndex.searchNames("emily d").sort((a, b) => defaultCompareStrings(a.id, b.id)),
     ).toEqual(
         [
-            await session3.account.get(),
-            await session4.account.get(),
-            await session5.account.get(),
-            await session6.account.get(),
+            await session3.get(),
+            await session4.get(),
+            await session5.get(),
+            await session6.get(),
         ].sort((a, b) => defaultCompareStrings(a.id, b.id)),
     );
 
     expect(
         accountNameIndex.searchNames("emily be").sort((a, b) => defaultCompareStrings(a.id, b.id)),
     ).toEqual(
-        [await session4.account.get(), await session6.account.get()].sort((a, b) =>
+        [await session4.get(), await session6.get()].sort((a, b) =>
             defaultCompareStrings(a.id, b.id),
         ),
     );
@@ -278,17 +266,15 @@ test("account name search can do some prefix matching", async () => {
     expect(
         accountNameIndex.searchNames("emily ba").sort((a, b) => defaultCompareStrings(a.id, b.id)),
     ).toEqual(
-        [
-            await session3.account.get(),
-            await session4.account.get(),
-            await session5.account.get(),
-        ].sort((a, b) => defaultCompareStrings(a.id, b.id)),
+        [await session3.get(), await session4.get(), await session5.get()].sort((a, b) =>
+            defaultCompareStrings(a.id, b.id),
+        ),
     );
 
     expect(
         accountNameIndex.searchNames("emily bet").sort((a, b) => defaultCompareStrings(a.id, b.id)),
     ).toEqual(
-        [await session4.account.get(), await session6.account.get()].sort((a, b) =>
+        [await session4.get(), await session6.get()].sort((a, b) =>
             defaultCompareStrings(a.id, b.id),
         ),
     );
@@ -296,11 +282,9 @@ test("account name search can do some prefix matching", async () => {
     expect(
         accountNameIndex.searchNames("emily bam").sort((a, b) => defaultCompareStrings(a.id, b.id)),
     ).toEqual(
-        [
-            await session3.account.get(),
-            await session4.account.get(),
-            await session5.account.get(),
-        ].sort((a, b) => defaultCompareStrings(a.id, b.id)),
+        [await session3.get(), await session4.get(), await session5.get()].sort((a, b) =>
+            defaultCompareStrings(a.id, b.id),
+        ),
     );
 
     expect(
@@ -308,12 +292,12 @@ test("account name search can do some prefix matching", async () => {
             .searchNames("emily beta")
             .sort((a, b) => defaultCompareStrings(a.id, b.id)),
     ).toEqual(
-        [await session4.account.get(), await session6.account.get()].sort((a, b) =>
+        [await session4.get(), await session6.get()].sort((a, b) =>
             defaultCompareStrings(a.id, b.id),
         ),
     );
 
-    expect(accountNameIndex.searchNames("emily bamma")).toEqual([await session5.account.get()]);
+    expect(accountNameIndex.searchNames("emily bamma")).toEqual([await session5.get()]);
 
     expect(accountNameIndex.searchShortNames("e")).toEqual([]);
 
@@ -325,10 +309,10 @@ test("account name search can do some prefix matching", async () => {
             .sort((a, b) => defaultCompareStrings(a.id, b.id)),
     ).toEqual(
         [
-            await session3.account.get(),
-            await session4.account.get(),
-            await session5.account.get(),
-            await session6.account.get(),
+            await session3.get(),
+            await session4.get(),
+            await session5.get(),
+            await session6.get(),
         ].sort((a, b) => defaultCompareStrings(a.id, b.id)),
     );
 });

@@ -58,6 +58,14 @@ export function useAccountClientStore(): AccountClientStore {
     );
 }
 
+export function useAccountClientStoreForSpaceId(spaceId: SpaceId): AccountClientStore {
+    return getOrSetDefaultMapValue(
+        useGlobalContext(AccountClientStoreContext),
+        spaceId,
+        () => new AccountClientStore(),
+    );
+}
+
 /**
  * Returns up-to-date data for the provided account that's the same as
  * everywhere else the account is presented. If we observe the account's data

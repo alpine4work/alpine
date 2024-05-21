@@ -1,5 +1,6 @@
 import {CalendarDate} from "@internationalized/date";
 import chalk from "chalk";
+import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
@@ -24,7 +25,6 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeHybridLogicalTime} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
@@ -4591,8 +4591,8 @@ export function testTaskActionPermutations({
     percent?: number;
     partitionNumber?: number;
     partitionCount?: number;
-    account1: AccountModel;
-    account2: AccountModel;
+    account1: AccountModelWithoutSpace;
+    account2: AccountModelWithoutSpace;
     applyTaskAction: (action: TaskAction, next: () => void) => MaybePromise<void>;
     getTask: (taskId: TaskId) => MaybePromise<TaskTestInterface>;
     getTaskCollection: (

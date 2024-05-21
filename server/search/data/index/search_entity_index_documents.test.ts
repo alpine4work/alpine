@@ -49,7 +49,9 @@ const context = createTestContext({
     processJob: async (actionContext, job, jobStartTime) => {
         switch (job.type) {
             case "IndexSearchEntity": {
-                indexSearchEntityJobCount++;
+                if (job.update.type !== "Account") {
+                    indexSearchEntityJobCount++;
+                }
 
                 await processIndexSearchEntityJob(actionContext, job, jobStartTime);
                 break;

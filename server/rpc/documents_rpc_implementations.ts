@@ -157,11 +157,13 @@ implementRpc(
     async (unknownContext, input) => {
         const context = unknownContext.actor.authorizeSession();
 
-        const [{index, createdTime}, author, contentReferences] = await runAllPromises([
+        const [{index, createdTime}, [author, contentReferences]] = await runAllPromises([
             createDocumentComment(context.actor.authorizeSession(), input),
-            context.actor.getAccount(),
             authorizeDocumentAccess(context, input.documentId).then(({spaceId}) =>
-                getContentReferencesForNode(context, spaceId, input.content),
+                runAllPromises([
+                    getAccount(context, spaceId, context.actor.getAccountId()),
+                    getContentReferencesForNode(context, spaceId, input.content),
+                ]),
             ),
         ]);
 

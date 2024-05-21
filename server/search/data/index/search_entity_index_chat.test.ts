@@ -35,7 +35,9 @@ const context = createTestContext({
     processJob: async (actionContext, job, jobStartTime) => {
         switch (job.type) {
             case "IndexSearchEntity": {
-                indexSearchEntityJobCount++;
+                if (job.update.type !== "Account") {
+                    indexSearchEntityJobCount++;
+                }
 
                 await processIndexSearchEntityJob(actionContext, job, jobStartTime);
                 break;
@@ -74,7 +76,9 @@ test("will not index chat until first message is sent", async () => {
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.id),
+        ).results
+            .map(result => result.id)
+            .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([]);
 
     await sendChatMessage(session2.action(), {
@@ -98,7 +102,9 @@ test("will not index chat until first message is sent", async () => {
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.id),
+        ).results
+            .map(result => result.id)
+            .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([`Chat:${chatId}`]);
 
     await sendChatMessage(session3.action(), {
@@ -122,7 +128,9 @@ test("will not index chat until first message is sent", async () => {
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.id),
+        ).results
+            .map(result => result.id)
+            .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([`Chat:${chatId}`]);
 
     await sendChatMessage(session1.action(), {
@@ -146,7 +154,9 @@ test("will not index chat until first message is sent", async () => {
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.id),
+        ).results
+            .map(result => result.id)
+            .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([`Chat:${chatId}`]);
 });
 
@@ -176,7 +186,9 @@ test("will not make chat searchable even if manually indexed until first message
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.id),
+        ).results
+            .map(result => result.id)
+            .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([]);
 
     await processIndexSearchEntityJob(
@@ -208,7 +220,9 @@ test("will not make chat searchable even if manually indexed until first message
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.id),
+        ).results
+            .map(result => result.id)
+            .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([]);
 
     await sendChatMessage(session2.action(), {
@@ -232,7 +246,9 @@ test("will not make chat searchable even if manually indexed until first message
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.id),
+        ).results
+            .map(result => result.id)
+            .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([`Chat:${chatId}`]);
 
     await sendChatMessage(session3.action(), {
@@ -256,7 +272,9 @@ test("will not make chat searchable even if manually indexed until first message
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.id),
+        ).results
+            .map(result => result.id)
+            .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([`Chat:${chatId}`]);
 
     await sendChatMessage(session1.action(), {
@@ -280,6 +298,8 @@ test("will not make chat searchable even if manually indexed until first message
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results.map(result => result.id),
+        ).results
+            .map(result => result.id)
+            .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([`Chat:${chatId}`]);
 });

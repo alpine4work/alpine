@@ -6,6 +6,7 @@ import {
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
+import {getAccount} from "~/server/spaces/spaces_table.js";
 import {
     FailedPreconditionError,
     InternalError,
@@ -590,7 +591,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -616,7 +621,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message1.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -638,7 +647,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message2.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content2,
                     hasContentUpdated: false,
@@ -660,7 +673,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message3.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content3,
                     hasContentUpdated: false,
@@ -684,7 +701,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session2.account,
+                    author: await getAccount(
+                        context.action(session2),
+                        space.id,
+                        session2.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -870,7 +891,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message1.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -884,7 +909,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message2.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: message1.index,
                     content: content2,
                     hasContentUpdated: false,
@@ -898,7 +927,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message3.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: message2.index,
                     content: content3,
                     hasContentUpdated: false,
@@ -912,7 +945,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message4.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: message2.index,
                     content: content4,
                     hasContentUpdated: false,
@@ -993,7 +1030,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -1013,7 +1054,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content2,
                     hasContentUpdated: true,
@@ -1059,7 +1104,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -1081,7 +1130,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -1105,7 +1158,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -1127,7 +1184,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -1152,7 +1213,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message.index,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
@@ -1174,7 +1239,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message.index,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
@@ -1206,7 +1275,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -1228,7 +1301,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -1252,7 +1329,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -1271,7 +1352,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     isDeleted: true,
                 },
             );
@@ -1313,7 +1398,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -1334,7 +1423,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -1358,7 +1451,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -1379,7 +1476,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -1404,7 +1505,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message.index,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
@@ -1425,7 +1530,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message.index,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
@@ -1450,7 +1559,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -1469,7 +1582,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     isDeleted: true,
                 },
             );
@@ -1498,7 +1615,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
                     hasContentUpdated: false,
@@ -1517,7 +1638,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                 },
                 {
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     isDeleted: true,
                 },
             );
@@ -1595,49 +1720,81 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -1761,7 +1918,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 1,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
@@ -1788,13 +1949,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 2,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
@@ -1821,19 +1990,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 3,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
@@ -1987,19 +2168,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
@@ -2020,31 +2213,51 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
@@ -2065,43 +2278,71 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -2122,49 +2363,81 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -2237,37 +2510,61 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -2288,19 +2585,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -2387,7 +2696,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
@@ -2408,25 +2721,41 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
@@ -2447,43 +2776,71 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -2556,19 +2913,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
@@ -2589,13 +2958,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -2616,19 +2993,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -2712,19 +3101,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
@@ -2745,25 +3146,41 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
@@ -2836,19 +3253,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
@@ -2869,25 +3298,41 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
@@ -2908,25 +3353,41 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
@@ -2999,49 +3460,81 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -3165,7 +3658,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 1,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
@@ -3192,13 +3689,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 2,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
@@ -3225,19 +3730,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 3,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
@@ -3391,19 +3908,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -3424,31 +3953,51 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -3469,43 +4018,71 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -3526,49 +4103,81 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -3641,7 +4250,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
@@ -3662,25 +4275,41 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
@@ -3701,43 +4330,71 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -3810,37 +4467,61 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -3861,19 +4542,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -3957,19 +4650,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
@@ -3990,13 +4695,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
@@ -4017,19 +4730,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
@@ -4113,13 +4838,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -4140,19 +4873,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -4225,19 +4970,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
@@ -4258,25 +5015,41 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
@@ -4297,25 +5070,41 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
@@ -4404,45 +5193,77 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         isDeleted: true,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         isDeleted: true,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: true,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -4531,45 +5352,77 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         isDeleted: true,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         isDeleted: true,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: true,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -5070,49 +5923,81 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: message3.index,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: message3.index,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: message6.index,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: message2.index,
                         content: content4,
                         hasContentUpdated: false,
@@ -5133,31 +6018,51 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: message3.index,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: message3.index,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: message6.index,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: message2.index,
                         content: content4,
                         hasContentUpdated: false,
@@ -5165,13 +6070,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ],
                 otherReferencedMessages: [
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
@@ -5192,19 +6105,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: message3.index,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: message3.index,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
@@ -5212,7 +6137,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ],
                 otherReferencedMessages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
@@ -5291,55 +6220,91 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 9,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: message3.index,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: message3.index,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: message6.index,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: message2.index,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -5360,31 +6325,51 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 9,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: message3.index,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: message3.index,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: message6.index,
                         content: content4,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: message2.index,
                         content: content4,
                         hasContentUpdated: false,
@@ -5392,13 +6377,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ],
                 otherReferencedMessages: [
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
@@ -5419,19 +6412,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 9,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: message3.index,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: message3.index,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
@@ -5439,7 +6444,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ],
                 otherReferencedMessages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
@@ -5460,37 +6469,61 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 9,
                 messages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: message3.index,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: message3.index,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
@@ -5979,19 +7012,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 lastMessageChangeTime: null,
                 newMessages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
@@ -6026,19 +7071,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
                 newMessages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: true,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: true,
@@ -6067,13 +7124,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                 lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
                 newMessages: [
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: true,
@@ -6143,7 +7208,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                 lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
                 newMessages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: true,
@@ -6180,23 +7249,39 @@ export function testMessagingImplementation<RoomKey extends string>(
                 lastMessageChangeTime: deletedMessage1.deletedTime,
                 newMessages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         isDeleted: true,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: true,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
@@ -6226,7 +7311,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                 lastMessageChangeTime: deletedMessage1.deletedTime,
                 newMessages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
@@ -6256,7 +7345,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                 lastMessageChangeTime: deletedMessage1.deletedTime,
                 newMessages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
@@ -6367,19 +7460,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                     lastMessageChangeTime: null,
                     newMessages: [
                         {
-                            author: session1.account,
+                            author: await getAccount(
+                                context.action(session1),
+                                space.id,
+                                session1.accountId,
+                            ),
                             parentMessageIndex: null,
                             content: content1,
                             hasContentUpdated: false,
                         },
                         {
-                            author: session2.account,
+                            author: await getAccount(
+                                context.action(session2),
+                                space.id,
+                                session2.accountId,
+                            ),
                             parentMessageIndex: null,
                             content: content1,
                             hasContentUpdated: false,
                         },
                         {
-                            author: session3.account,
+                            author: await getAccount(
+                                context.action(session3),
+                                space.id,
+                                session3.accountId,
+                            ),
                             parentMessageIndex: null,
                             content: content1,
                             hasContentUpdated: false,
@@ -6455,19 +7560,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 lastMessageChangeTime: null,
                 newMessages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
@@ -6493,19 +7610,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                 lastMessageChangeTime: null,
                 newMessages: [
                     {
-                        author: session3.account,
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content2,
                         hasContentUpdated: false,
@@ -6699,25 +7828,41 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: message3.index,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -6725,13 +7870,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ],
                 otherReferencedMessages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: message1.index,
                         content: content3,
                         hasContentUpdated: false,
@@ -6804,25 +7957,41 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageCount: 8,
                 messages: [
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: message3.index,
                         content: content2,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session2.account,
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content4,
                         hasContentUpdated: false,
@@ -6830,13 +7999,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ],
                 otherReferencedMessages: [
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
                     {
-                        author: session1.account,
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
                         parentMessageIndex: message1.index,
                         content: content3,
                         hasContentUpdated: false,

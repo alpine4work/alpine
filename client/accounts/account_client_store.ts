@@ -2,6 +2,7 @@ import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
+import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -108,7 +109,7 @@ export class AccountClientStore {
      * effect. Instead call `getAccountStore()` which schedules an update for
      * later.
      */
-    public getAndImmediatelyUpdateStore(newAccount: AccountModel): Store<AccountModelData> {
+    public getAndImmediatelyUpdateAccountStore(newAccount: AccountModel): Store<AccountModelData> {
         const accountStore = this._getAccountStoreWithoutUpdating(newAccount);
 
         accountStore.set(oldAccountData =>
@@ -116,6 +117,33 @@ export class AccountClientStore {
         );
 
         return accountStore;
+    }
+
+    /**
+     * If our store has seen the account but our `AccountModel` or
+     * `AccountModelWithoutSpace`'s `initialData` is newer than what's in the
+     * store, we will immediately update the store with the account's new data.
+     * Updating everywhere the account is visible in the product.
+     *
+     * You shouldn't call this in a React render method since it performs a side
+     * effect. Instead call `getAccountStore()` which schedules an update for
+     * later.
+     *
+     * This method supports `AccountModelWithoutSpace` whereas other methods on
+     * this class don't. That's because we don't need to return
+     * `Store<AccountModelData>`. So if we haven't seen an `AccountModel` for this
+     * account then it's fine if this method noops.
+     */
+    public immediatelyUpdateAccountStoreIfExists(
+        newAccount: AccountModel | AccountModelWithoutSpace,
+    ) {
+        const accountStore = this._accountDataStoreById.get(newAccount.id);
+
+        accountStore?.set(oldAccountData =>
+            newAccount instanceof AccountModel
+                ? AccountModel.mergeData(oldAccountData, newAccount.initialData)
+                : AccountModel.mergeDataWithoutSpace(oldAccountData, newAccount.initialData),
+        );
     }
 
     /**

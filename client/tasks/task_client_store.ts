@@ -806,7 +806,7 @@ export class TaskClientStoreInternal {
 
         // Incorporate referenced accounts into account store:
         for (const account of event.referencedAccounts) {
-            this.accountStore.getAndImmediatelyUpdateStore(account);
+            this.accountStore.getAndImmediatelyUpdateAccountStore(account);
         }
 
         // Backfill tasks:

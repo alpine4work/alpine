@@ -19,6 +19,7 @@ import {
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
+import {getAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {WebSocketServerTestConnection} from "~/server/web_socket/web_socket_server.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
@@ -496,7 +497,13 @@ test("will respond optimistically with a comment thread even if it has not been 
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -520,7 +527,13 @@ test("will respond optimistically with a comment thread even if it has not been 
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -620,7 +633,13 @@ test("will respond optimistically to backfills with a comment thread even if it 
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -655,7 +674,13 @@ test("will respond optimistically to backfills with a comment thread even if it 
                     commentThreadId,
                     {
                         commentCount: 1,
-                        commentAuthors: [session1.account],
+                        commentAuthors: [
+                            await getAccount(
+                                context.action(session1),
+                                space.id,
+                                session1.accountId,
+                            ),
+                        ],
                     },
                 ],
             ]),
@@ -787,7 +812,18 @@ test("when comment threads are added back to the document they will be loaded", 
                         commentThreadId,
                         {
                             commentCount: 2,
-                            commentAuthors: [session1.account, session3.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                                await getAccount(
+                                    context.action(session3),
+                                    space.id,
+                                    session3.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -820,7 +856,18 @@ test("when comment threads are added back to the document they will be loaded", 
                         commentThreadId,
                         {
                             commentCount: 2,
-                            commentAuthors: [session1.account, session3.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                                await getAccount(
+                                    context.action(session3),
+                                    space.id,
+                                    session3.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -933,7 +980,13 @@ test("comment thread can be optimistic at first and then loaded from the databas
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -964,7 +1017,18 @@ test("comment thread can be optimistic at first and then loaded from the databas
                         commentThreadId,
                         {
                             commentCount: 2,
-                            commentAuthors: [session1.account, session3.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                                await getAccount(
+                                    context.action(session3),
+                                    space.id,
+                                    session3.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -1007,7 +1071,13 @@ test("comment thread can be optimistic at first and then loaded from the databas
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -1038,7 +1108,18 @@ test("comment thread can be optimistic at first and then loaded from the databas
                         commentThreadId,
                         {
                             commentCount: 2,
-                            commentAuthors: [session1.account, session3.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                                await getAccount(
+                                    context.action(session3),
+                                    space.id,
+                                    session3.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -1122,7 +1203,13 @@ test("can create comments in comment threads", async () => {
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -1155,7 +1242,13 @@ test("can create comments in comment threads", async () => {
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -1183,7 +1276,11 @@ test("can create comments in comment threads", async () => {
                     documentId: document.id,
                     commentThreadId,
                     index: 1,
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     createdTime: expect.any(Date),
                     payload: {
                         type: "Content",
@@ -1210,7 +1307,11 @@ test("can create comments in comment threads", async () => {
                     documentId: document.id,
                     commentThreadId,
                     index: 1,
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     createdTime: expect.any(Date),
                     payload: {
                         type: "Content",
@@ -1244,7 +1345,11 @@ test("can create comments in comment threads", async () => {
             isResolved: false,
             commentCount: 2,
             lastCommentChangeTime: null,
-            firstCommentAuthor: session1.account,
+            firstCommentAuthor: await getAccount(
+                context.action(session1),
+                space.id,
+                session1.accountId,
+            ),
         }),
         commentCount: 2,
         lastCommentChangeTime: null,
@@ -1253,7 +1358,7 @@ test("can create comments in comment threads", async () => {
                 documentId: document.id,
                 commentThreadId,
                 index: 1,
-                author: session1.account,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
@@ -1288,7 +1393,11 @@ test("can create comments in comment threads", async () => {
             isResolved: false,
             commentCount: 2,
             lastCommentChangeTime: null,
-            firstCommentAuthor: session1.account,
+            firstCommentAuthor: await getAccount(
+                context.action(session1),
+                space.id,
+                session1.accountId,
+            ),
         }),
         commentCount: 2,
         lastCommentChangeTime: null,
@@ -1297,7 +1406,7 @@ test("can create comments in comment threads", async () => {
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
-                author: session1.account,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
@@ -1313,7 +1422,7 @@ test("can create comments in comment threads", async () => {
                 documentId: document.id,
                 commentThreadId,
                 index: 1,
-                author: session1.account,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
@@ -1351,7 +1460,11 @@ test("can create comments in comment threads", async () => {
                     documentId: document.id,
                     commentThreadId,
                     index: 2,
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     createdTime: expect.any(Date),
                     payload: {
                         type: "Content",
@@ -1378,7 +1491,11 @@ test("can create comments in comment threads", async () => {
                     documentId: document.id,
                     commentThreadId,
                     index: 2,
-                    author: session1.account,
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     createdTime: expect.any(Date),
                     payload: {
                         type: "Content",
@@ -1461,7 +1578,13 @@ test("if comment thread is persisting we will wait to create messages but respon
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -1485,7 +1608,13 @@ test("if comment thread is persisting we will wait to create messages but respon
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -1523,7 +1652,11 @@ test("if comment thread is persisting we will wait to create messages but respon
             isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            firstCommentAuthor: session1.account,
+            firstCommentAuthor: await getAccount(
+                context.action(session1),
+                space.id,
+                session1.accountId,
+            ),
         }),
         commentCount: 1,
         lastCommentChangeTime: null,
@@ -1550,7 +1683,11 @@ test("if comment thread is persisting we will wait to create messages but respon
             isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            firstCommentAuthor: session1.account,
+            firstCommentAuthor: await getAccount(
+                context.action(session1),
+                space.id,
+                session1.accountId,
+            ),
         }),
         commentCount: 1,
         lastCommentChangeTime: null,
@@ -1559,7 +1696,7 @@ test("if comment thread is persisting we will wait to create messages but respon
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
-                author: session1.account,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
@@ -1598,7 +1735,11 @@ test("if comment thread is persisting we will wait to create messages but respon
                     documentId: document.id,
                     commentThreadId,
                     index: 1,
-                    author: session2.account,
+                    author: await getAccount(
+                        context.action(session2),
+                        space.id,
+                        session2.accountId,
+                    ),
                     createdTime: expect.any(Date),
                     payload: {
                         type: "Content",
@@ -1630,7 +1771,11 @@ test("if comment thread is persisting we will wait to create messages but respon
                     documentId: document.id,
                     commentThreadId,
                     index: 1,
-                    author: session2.account,
+                    author: await getAccount(
+                        context.action(session2),
+                        space.id,
+                        session2.accountId,
+                    ),
                     createdTime: expect.any(Date),
                     payload: {
                         type: "Content",
@@ -1740,7 +1885,13 @@ test("if comment thread update message hasn't been processed we will wait to res
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -1764,7 +1915,13 @@ test("if comment thread update message hasn't been processed we will wait to res
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -1786,7 +1943,11 @@ test("if comment thread update message hasn't been processed we will wait to res
             isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            firstCommentAuthor: session1.account,
+            firstCommentAuthor: await getAccount(
+                context.action(session1),
+                space.id,
+                session1.accountId,
+            ),
         }),
         commentCount: 1,
         lastCommentChangeTime: null,
@@ -1818,7 +1979,11 @@ test("if comment thread update message hasn't been processed we will wait to res
             isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            firstCommentAuthor: session1.account,
+            firstCommentAuthor: await getAccount(
+                context.action(session1),
+                space.id,
+                session1.accountId,
+            ),
         }),
         commentCount: 1,
         lastCommentChangeTime: null,
@@ -1827,7 +1992,7 @@ test("if comment thread update message hasn't been processed we will wait to res
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
-                author: session1.account,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
@@ -1872,7 +2037,11 @@ test("if comment thread update message hasn't been processed we will wait to res
                     documentId: document.id,
                     commentThreadId,
                     index: 1,
-                    author: session2.account,
+                    author: await getAccount(
+                        context.action(session2),
+                        space.id,
+                        session2.accountId,
+                    ),
                     createdTime: expect.any(Date),
                     payload: {
                         type: "Content",
@@ -1904,7 +2073,11 @@ test("if comment thread update message hasn't been processed we will wait to res
                     documentId: document.id,
                     commentThreadId,
                     index: 1,
-                    author: session2.account,
+                    author: await getAccount(
+                        context.action(session2),
+                        space.id,
+                        session2.accountId,
+                    ),
                     createdTime: expect.any(Date),
                     payload: {
                         type: "Content",
@@ -1987,7 +2160,13 @@ test("while comment thread is persisting we will respond to comment load request
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -2011,7 +2190,13 @@ test("while comment thread is persisting we will respond to comment load request
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -2047,14 +2232,18 @@ test("while comment thread is persisting we will respond to comment load request
             isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            firstCommentAuthor: session1.account,
+            firstCommentAuthor: await getAccount(
+                context.action(session1),
+                space.id,
+                session1.accountId,
+            ),
         }),
         initialComments: [
             new DocumentCommentModel({
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
-                author: session1.account,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
                 createdTime,
                 payload: {
                     type: "Content",
@@ -2085,14 +2274,18 @@ test("while comment thread is persisting we will respond to comment load request
             isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            firstCommentAuthor: session1.account,
+            firstCommentAuthor: await getAccount(
+                context.action(session1),
+                space.id,
+                session1.accountId,
+            ),
         }),
         initialComments: [
             new DocumentCommentModel({
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
-                author: session1.account,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
                 createdTime,
                 payload: {
                     type: "Content",
@@ -2123,7 +2316,11 @@ test("while comment thread is persisting we will respond to comment load request
             isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            firstCommentAuthor: session1.account,
+            firstCommentAuthor: await getAccount(
+                context.action(session1),
+                space.id,
+                session1.accountId,
+            ),
         }),
         initialComments: [],
         initialOtherReferencedComments: [],
@@ -2144,7 +2341,11 @@ test("while comment thread is persisting we will respond to comment load request
             isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            firstCommentAuthor: session1.account,
+            firstCommentAuthor: await getAccount(
+                context.action(session1),
+                space.id,
+                session1.accountId,
+            ),
         }),
         initialComments: [],
         initialOtherReferencedComments: [],
@@ -2164,7 +2365,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
-                author: session1.account,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
                 createdTime,
                 payload: {
                     type: "Content",
@@ -2195,7 +2396,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
-                author: session1.account,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
                 createdTime,
                 payload: {
                     type: "Content",
@@ -2282,7 +2483,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
-                author: session1.account,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
                 createdTime,
                 payload: {
                     type: "Content",
@@ -2313,7 +2514,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
-                author: session1.account,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
                 createdTime,
                 payload: {
                     type: "Content",
@@ -2423,14 +2624,18 @@ test("while comment thread is persisting we will respond to comment load request
             isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            firstCommentAuthor: session1.account,
+            firstCommentAuthor: await getAccount(
+                context.action(session1),
+                space.id,
+                session1.accountId,
+            ),
         }),
         initialComments: [
             new DocumentCommentModel({
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
-                author: session1.account,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
                 createdTime,
                 payload: {
                     type: "Content",
@@ -2461,14 +2666,18 @@ test("while comment thread is persisting we will respond to comment load request
             isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            firstCommentAuthor: session1.account,
+            firstCommentAuthor: await getAccount(
+                context.action(session1),
+                space.id,
+                session1.accountId,
+            ),
         }),
         initialComments: [
             new DocumentCommentModel({
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
-                author: session1.account,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
                 createdTime,
                 payload: {
                     type: "Content",
@@ -2499,7 +2708,11 @@ test("while comment thread is persisting we will respond to comment load request
             isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            firstCommentAuthor: session1.account,
+            firstCommentAuthor: await getAccount(
+                context.action(session1),
+                space.id,
+                session1.accountId,
+            ),
         }),
         initialComments: [],
         initialOtherReferencedComments: [],
@@ -2520,7 +2733,11 @@ test("while comment thread is persisting we will respond to comment load request
             isResolved: false,
             commentCount: 1,
             lastCommentChangeTime: null,
-            firstCommentAuthor: session1.account,
+            firstCommentAuthor: await getAccount(
+                context.action(session1),
+                space.id,
+                session1.accountId,
+            ),
         }),
         initialComments: [],
         initialOtherReferencedComments: [],
@@ -2540,7 +2757,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
-                author: session1.account,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
                 createdTime,
                 payload: {
                     type: "Content",
@@ -2571,7 +2788,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
-                author: session1.account,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
                 createdTime,
                 payload: {
                     type: "Content",
@@ -2658,7 +2875,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
-                author: session1.account,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
                 createdTime,
                 payload: {
                     type: "Content",
@@ -2689,7 +2906,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
-                author: session1.account,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
                 createdTime,
                 payload: {
                     type: "Content",
@@ -2841,7 +3058,13 @@ test("will cleanup comment thread marks if from a different document", async () 
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -2874,7 +3097,13 @@ test("will cleanup comment thread marks if from a different document", async () 
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -2945,7 +3174,13 @@ test("will cleanup comment thread marks if from a different document", async () 
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -2993,7 +3228,13 @@ test("will cleanup comment thread marks if from a different document", async () 
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -3205,7 +3446,13 @@ test("can add comment thread marks back to document after they've been removed",
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -3238,7 +3485,13 @@ test("can add comment thread marks back to document after they've been removed",
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -3363,7 +3616,13 @@ test("can add comment thread marks back to document after they've been removed",
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -3410,7 +3669,13 @@ test("can add comment thread marks back to document after they've been removed",
                         commentThreadId,
                         {
                             commentCount: 1,
-                            commentAuthors: [session1.account],
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
                         },
                     ],
                 ]),
@@ -3468,7 +3733,7 @@ test("can resolve a comment thread", async () => {
                     isResolved: true,
                     commentCount: 1,
                     lastCommentChangeTime: null,
-                    firstCommentAuthor: await session1.account.get(),
+                    firstCommentAuthor: await session1.get(),
                 }),
             ],
         },
@@ -3504,7 +3769,7 @@ test("can resolve a comment thread", async () => {
                     isResolved: true,
                     commentCount: 1,
                     lastCommentChangeTime: null,
-                    firstCommentAuthor: await session1.account.get(),
+                    firstCommentAuthor: await session1.get(),
                 }),
             ],
         },
@@ -3570,7 +3835,7 @@ test("can unresolve a comment thread", async () => {
                     isResolved: false,
                     commentCount: 1,
                     lastCommentChangeTime: null,
-                    firstCommentAuthor: await session1.account.get(),
+                    firstCommentAuthor: await session1.get(),
                 }),
             ],
         },
@@ -3586,10 +3851,7 @@ test("can unresolve a comment thread", async () => {
             stepsContentReferences: {
                 ...emptyDocumentContentReferences,
                 commentThreadById: new Map([
-                    [
-                        commentThread.id,
-                        {commentCount: 1, commentAuthors: [await session1.account.get()]},
-                    ],
+                    [commentThread.id, {commentCount: 1, commentAuthors: [await session1.get()]}],
                 ]),
             },
             clientId: expect.any(String),
@@ -3617,7 +3879,7 @@ test("can unresolve a comment thread", async () => {
                     isResolved: false,
                     commentCount: 1,
                     lastCommentChangeTime: null,
-                    firstCommentAuthor: await session1.account.get(),
+                    firstCommentAuthor: await session1.get(),
                 }),
             ],
         },
@@ -3633,10 +3895,7 @@ test("can unresolve a comment thread", async () => {
             stepsContentReferences: {
                 ...emptyDocumentContentReferences,
                 commentThreadById: new Map([
-                    [
-                        commentThread.id,
-                        {commentCount: 1, commentAuthors: [await session1.account.get()]},
-                    ],
+                    [commentThread.id, {commentCount: 1, commentAuthors: [await session1.get()]}],
                 ]),
             },
             clientId: expect.any(String),

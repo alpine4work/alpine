@@ -10,7 +10,7 @@ import {
 } from "react-router";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
+import {useAccountClientStoreForSpaceId} from "~/client/accounts/account_client_store_context_provider.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {ContextMenuManager} from "~/client/design/context_menu.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
@@ -210,13 +210,13 @@ export default function SpaceLayoutRoute() {
         }
     }, [hasInternalAccess]);
 
-    const accountsStore = useAccountClientStore();
+    const accountsStore = useAccountClientStoreForSpaceId(space.id);
 
     useDevConsoleTool("accounts", () => ({
         store: accountsStore,
         updateOurName: async (name: string) => {
             const {account} = await updateSessionActorAccountName(context, {name});
-            accountsStore.getAndImmediatelyUpdateStore(account);
+            accountsStore.immediatelyUpdateAccountStoreIfExists(account);
         },
     }));
 

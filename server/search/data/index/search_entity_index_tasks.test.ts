@@ -48,7 +48,9 @@ const context = createTestContext({
     processJob: async (actionContext, job, jobStartTime) => {
         switch (job.type) {
             case "IndexSearchEntity": {
-                indexSearchEntityJobCount++;
+                if (job.update.type !== "Account") {
+                    indexSearchEntityJobCount++;
+                }
 
                 await processIndexSearchEntityJob(actionContext, job, jobStartTime);
                 break;
@@ -640,6 +642,7 @@ test(
 
             return results
                 .map(result => result.id)
+                .filter(resultId => !resultId.startsWith("Account:"))
                 .sort(
                     (id1, id2) =>
                         assertExists(taskSearchEntityIdOrder.findIndex(id => id === id1)) -
@@ -1456,7 +1459,7 @@ test("can get affinitive collections for an account", async () => {
         });
     }
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 7; i++) {
         await markSearchAffinityInteraction(session1.action(), {
             spaceId: space.id,
             affinityId: `TaskCollection:${collection4.id}`,
@@ -1464,7 +1467,7 @@ test("can get affinitive collections for an account", async () => {
         });
     }
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 8; i++) {
         await markSearchAffinityInteraction(session1.action(), {
             spaceId: space.id,
             affinityId: `TaskCollection:${collection5.id}`,
@@ -1472,7 +1475,7 @@ test("can get affinitive collections for an account", async () => {
         });
     }
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 9; i++) {
         await markSearchAffinityInteraction(session1.action(), {
             spaceId: space.id,
             affinityId: `TaskCollection:${collection6.id}`,
@@ -1484,7 +1487,7 @@ test("can get affinitive collections for an account", async () => {
         (
             await searchTaskCollectionsByAffinity(session1.action(), {spaceId: space.id, limit: 3})
         ).map(({collection}) => collection.id),
-    ).toEqual([collection6.id, collection5.id, collection2.id]);
+    ).toEqual([collection6.id, collection5.id]);
 
     expect(
         (
@@ -1501,7 +1504,7 @@ test("can get affinitive collections for an account", async () => {
         (
             await searchTaskCollectionsByAffinity(session1.action(), {spaceId: space.id, limit: 3})
         ).map(({collection}) => collection.id),
-    ).toEqual([collection6.id, collection2.id, collection3.id]);
+    ).toEqual([collection6.id]);
 
     expect(
         (
@@ -1511,6 +1514,23 @@ test("can get affinitive collections for an account", async () => {
             })
         ).map(({collection}) => collection.id),
     ).toEqual([collection6.id, collection2.id, collection3.id, collection1.id]);
+
+    await collection4.setPublicAccessPolicy(session2);
+
+    expect(
+        (
+            await searchTaskCollectionsByAffinity(session1.action(), {spaceId: space.id, limit: 3})
+        ).map(({collection}) => collection.id),
+    ).toEqual([collection6.id, collection4.id]);
+
+    expect(
+        (
+            await searchTaskCollectionsByAffinity(session1.action(), {
+                spaceId: space.id,
+                limit: 100,
+            })
+        ).map(({collection}) => collection.id),
+    ).toEqual([collection6.id, collection4.id, collection2.id, collection3.id, collection1.id]);
 
     import.meta.jest.runAllTimers();
     await ProcessContextModule.waitForTestTasks();
