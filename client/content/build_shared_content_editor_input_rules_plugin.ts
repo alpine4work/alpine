@@ -6,14 +6,14 @@ import {InputRule, inputRules} from "prosemirror-inputrules";
 // https://github.com/ProseMirror/prosemirror-inputrules/blob/8433778a3ce4e45c0188341b72fd71da3a440b5b/src/rules.ts#L7-L17
 /// “Smart” opening double quotes.
 const openDoubleQuote = new InputRule(
-    /(?:^|[\s\{\[\(\<'"\u2018\u201C])(")$/,
+    /(?:^|[\s{[(<'"\u2018\u201C])(")$/,
     handleSmartQuotesInCodeBlocks("“"),
 );
 // “Smart” closing double quotes.
 const closeDoubleQuote = new InputRule(/"$/, handleSmartQuotesInCodeBlocks("”"));
 // “Smart” opening single quotes.
 const openSingleQuote = new InputRule(
-    /(?:^|[\s\{\[\(\<'"\u2018\u201C])(')$/,
+    /(?:^|[\s{[(<'"\u2018\u201C])(')$/,
     handleSmartQuotesInCodeBlocks("‘"),
 );
 // “Smart” closing single quotes.

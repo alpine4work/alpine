@@ -5,17 +5,21 @@ const baseNoRestrictedImports = {
         {
             name: "react-router",
             importNames: ["useNavigate"],
-            message: "Import `useNavigate()` from `~/client/remix/use_navigate`",
+            message: "Import `useNavigate()` from `~/client/remix/use_navigate.js`",
         },
         {
             name: "react-router-dom",
             importNames: ["useNavigate"],
-            message: "Import `useNavigate()` from `~/client/remix/use_navigate`",
+            message: "Import `useNavigate()` from `~/client/remix/use_navigate.js`",
         },
         {
             name: "@remix-run/react",
             importNames: ["useNavigate"],
-            message: "Import `useNavigate()` from `~/client/remix/use_navigate`",
+            message: "Import `useNavigate()` from `~/client/remix/use_navigate.js`",
+        },
+        {
+            name: "assert",
+            message: "Import `assert()` from `~/shared/helpers/control/assert.js`",
         },
     ],
     patterns: [],

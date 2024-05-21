@@ -143,7 +143,6 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             content: "text*",
             defining: true,
             toDOM: () => ["span", {class: codeBlockLineClassName}, 0],
-            parseDOM: [{tag: "span"}],
         },
         codeBlock: {
             group: "block",

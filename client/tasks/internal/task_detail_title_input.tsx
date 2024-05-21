@@ -123,7 +123,7 @@ function TaskDetailTitleInput(
                         doc: titleRef.current.getProsemirrorNode(),
                         plugins: [
                             ySyncPlugin(titleYDoc.getXmlFragment("doc")),
-                            buildSharedContentEditorInputRulesPlugin(TaskTitleProsemirrorSchema),
+                            buildSharedContentEditorInputRulesPlugin(),
                             buildSharedContentEditorKeymapPlugin(),
                             // We install the Y.js undo plugin but we don't install the `undo`/`redo`
                             // commands from `y-prosemirror` in a keymap. Instead `useTaskTitleModelYDoc()`

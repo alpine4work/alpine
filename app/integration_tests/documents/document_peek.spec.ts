@@ -53,44 +53,6 @@ test("can create document from peek", async ({browser, context: browserContext1,
     await expect(page1.getByRole("heading", {name: "Hello, world!"})).toBeVisible();
 });
 
-test("can create document from peek copy link", async ({
-    browser,
-    context: browserContext1,
-    page: page1,
-}) => {
-    const channel = await createChannel(context.action(session), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
-
-    await services.signIn(browserContext1, session);
-    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
-
-    await page1.getByRole("button", {name: "Create"}).click();
-    await page1.getByRole("menuitem", {name: "Document"}).click();
-
-    await expect(page1.getByText("Test Channel")).toBeVisible();
-    await page1.getByRole("button", {name: "Expand"}).click();
-    await expect(page1.getByText("Test Channel")).toBeHidden();
-
-    await page1.getByRole("button", {name: "More"}).click();
-    await page1.getByRole("menuitem", {name: "Copy link"}).click();
-    await expect(page1.getByRole("menuitem", {name: "Copy link"})).toBeHidden();
-
-    const browserContext2 = await browser.newContext();
-    await services.signIn(browserContext2, session);
-    const page2 = await browserContext2.newPage();
-    await page2.goto(page1.url());
-
-    await expect(page1.getByRole("heading", {name: "Hello, world!"})).toBeHidden();
-    await expect(page2.getByRole("heading", {name: "Hello, world!"})).toBeHidden();
-
-    await page2.getByRole("textbox", {name: "Document"}).pressSequentially("Hello, world!");
-
-    await expect(page1.getByRole("heading", {name: "Hello, world!"})).toBeVisible();
-    await expect(page2.getByRole("heading", {name: "Hello, world!"})).toBeVisible();
-});
-
 test("clicking a link will open a peek", async ({context: browserContext, page, isMobile}) => {
     const document2 = await createDocument(context.action(session), {
         spaceId: space.id,

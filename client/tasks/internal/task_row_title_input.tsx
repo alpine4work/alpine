@@ -674,7 +674,7 @@ function TaskRowTitleInput(
                         doc: yXmlFragmentToProsemirror(TaskTitleProsemirrorSchema, yXmlFragment),
                         plugins: [
                             ySyncPlugin(yXmlFragment),
-                            buildSharedContentEditorInputRulesPlugin(TaskTitleProsemirrorSchema),
+                            buildSharedContentEditorInputRulesPlugin(),
                             buildSharedContentEditorKeymapPlugin(),
                             // We install the Y.js undo plugin but we don't install the `undo`/`redo`
                             // commands from `y-prosemirror` in a keymap. Instead `useTaskTitleModelYDoc()`
