@@ -9,32 +9,59 @@ type Command = (
     view?: EditorView,
 ) => boolean;
 
-function getClosingPunctuation(openingPunctuation: "(" | "{" | "[" | "“" | "‘"): string {
-    switch (openingPunctuation) {
-        case "(":
-            return ")";
-        case "{":
-            return "}";
-        case "[":
-            return "]";
-        case "“":
-            return "”";
-        case "‘":
-            return "’";
-        default:
-            throw exhaustive(openingPunctuation);
+function getPunctuation(
+    punctuation: "(" | "{" | "[" | '"' | "'",
+    isCodeBlock: boolean,
+): {openingPunctuation: string; closingPunctuation: string} {
+    // If we are in a code block, we do not want smart quotations to wrap
+    // our content
+    if (isCodeBlock) {
+        switch (punctuation) {
+            case "(":
+                return {openingPunctuation: "(", closingPunctuation: ")"};
+            case "{":
+                return {openingPunctuation: "{", closingPunctuation: "}"};
+            case "[":
+                return {openingPunctuation: "[", closingPunctuation: "]"};
+            case '"':
+                return {openingPunctuation: '"', closingPunctuation: '"'};
+            case "'":
+                return {openingPunctuation: "'", closingPunctuation: "'"};
+            default:
+                throw exhaustive(punctuation);
+        }
+    } else {
+        switch (punctuation) {
+            case "(":
+                return {openingPunctuation: "(", closingPunctuation: ")"};
+            case "{":
+                return {openingPunctuation: "{", closingPunctuation: "}"};
+            case "[":
+                return {openingPunctuation: "[", closingPunctuation: "]"};
+            case '"':
+                return {openingPunctuation: "“", closingPunctuation: "”"};
+            case "'":
+                return {openingPunctuation: "‘", closingPunctuation: "’"};
+            default:
+                throw exhaustive(punctuation);
+        }
     }
 }
 
-function wrapWithPunctuation(openingPunctuation: "(" | "{" | "[" | "“" | "‘"): Command {
+function wrapWithPunctuation(punctuation: "(" | "{" | "[" | '"' | "'"): Command {
     return (state, dispatch) => {
         const {$from, $to} = state.selection;
+        const nodeFrom = $from.node();
+        const nodeTo = $to.node();
 
-        // this checks if the selection spans across content nodes
-        if ($from.node() !== $to.node()) return false;
+        // This checks if the selection spans across content nodes
+        if (nodeFrom !== nodeTo) return false;
         if ($from.pos === $to.pos) return false;
 
-        const closingPunctuation = getClosingPunctuation(openingPunctuation);
+        const isCodeBlock = nodeFrom.type.name === "codeBlockLine";
+
+        const {openingPunctuation, closingPunctuation} = getPunctuation(punctuation, isCodeBlock);
+
         const tr = state.tr;
         tr.insertText(openingPunctuation, $from.pos);
         tr.insertText(closingPunctuation, $to.pos + 1);
@@ -56,8 +83,8 @@ export function addSharedContentEditorKeymapCommands(keys: Map<string, Command>)
     keys.set("(", wrapWithPunctuation("("));
     keys.set("[", wrapWithPunctuation("["));
     keys.set("{", wrapWithPunctuation("{"));
-    keys.set('"', wrapWithPunctuation("“"));
-    keys.set("'", wrapWithPunctuation("‘"));
+    keys.set('"', wrapWithPunctuation('"'));
+    keys.set("'", wrapWithPunctuation("'"));
 }
 
 export function buildSharedContentEditorKeymapPlugin() {

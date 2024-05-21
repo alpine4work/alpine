@@ -18,7 +18,7 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
     const rules: Array<InputRule> = [];
 
     // get "smart quotes" and emoji shared input rules
-    addSharedContentEditorInputRules(rules);
+    addSharedContentEditorInputRules(rules, schema);
 
     // `@` opens a mention search/selector interface
     rules.push(

@@ -1,3 +1,4 @@
+import assert from "assert";
 import {DOMOutputSpec, DOMSerializer, Fragment, Mark, Node, Schema} from "prosemirror-model";
 import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
@@ -90,6 +91,33 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             if (mention.isShort) dom.dataset.mentionShort = "true";
             dom.textContent = `@${mentionText}`;
             return dom;
+        }
+
+        if (node.type.name === "codeBlock") {
+            const preDom = document.createElement("pre");
+            const codeDom = document.createElement("code");
+
+            let isFirstChild = true;
+
+            node.forEach(childNode => {
+                assert(childNode.type.name === "codeBlockLine");
+
+                if (isFirstChild) {
+                    isFirstChild = false;
+                } else {
+                    codeDom.appendChild(document.createTextNode("\n"));
+                }
+
+                const childDom = this.serializeNodeInner(childNode, options);
+                assert(childDom instanceof HTMLSpanElement);
+
+                for (const grandChildDom of childDom.childNodes) {
+                    codeDom.appendChild(grandChildDom);
+                }
+            });
+
+            preDom.appendChild(codeDom);
+            return preDom;
         }
 
         const dom = super.serializeNodeInner(node, options);

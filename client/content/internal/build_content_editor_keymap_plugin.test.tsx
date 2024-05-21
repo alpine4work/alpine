@@ -567,7 +567,7 @@ test("will create a code block with ```", async () => {
 
     await simulateTyping("```");
 
-    expect(getDoc().toString()).toEqual("doc(codeBlock)");
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine))");
 });
 
 test("will create a divider with `---`", async () => {
@@ -910,13 +910,17 @@ test("pressing enter in an empty code block will create a new line in the block"
     render(<TestContentEditor />);
 
     await simulateTyping("```");
-    expect(getDoc().toString()).toEqual("doc(codeBlock)");
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine))");
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
-    expect(getDoc().toString()).toEqual('doc(codeBlock("\\n"))');
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine, codeBlockLine))");
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
-    expect(getDoc().toString()).toEqual('doc(codeBlock("\\n\\n"))');
+    expect(getDoc().toString()).toEqual(
+        "doc(codeBlock(codeBlockLine, codeBlockLine, codeBlockLine))",
+    );
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
-    expect(getDoc().toString()).toEqual('doc(codeBlock("\\n\\n\\n"))');
+    expect(getDoc().toString()).toEqual(
+        "doc(codeBlock(codeBlockLine, codeBlockLine, codeBlockLine, codeBlockLine))",
+    );
 });
 
 test("pressing enter in a non-empty code block will create a new line in the block", async () => {
@@ -924,13 +928,17 @@ test("pressing enter in a non-empty code block will create a new line in the blo
 
     await simulateTyping("```");
     await simulateTyping("hello");
-    expect(getDoc().toString()).toEqual('doc(codeBlock("hello"))');
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("hello")))');
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
-    expect(getDoc().toString()).toEqual('doc(codeBlock("hello\\n"))');
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("hello"), codeBlockLine))');
     await simulateTyping("world");
-    expect(getDoc().toString()).toEqual('doc(codeBlock("hello\\nworld"))');
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("hello"), codeBlockLine("world")))',
+    );
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
-    expect(getDoc().toString()).toEqual('doc(codeBlock("hello\\nworld\\n"))');
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("hello"), codeBlockLine("world"), codeBlockLine))',
+    );
 });
 
 test("pressing enter in the middle of a code block will add a line", async () => {
@@ -939,13 +947,15 @@ test("pressing enter in the middle of a code block will add a line", async () =>
     await simulateTyping("```");
     await simulateTyping("foobar");
 
-    expect(getDoc().toString()).toEqual('doc(codeBlock("foobar"))');
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("foobar")))');
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
 
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
-    expect(getDoc().toString()).toEqual('doc(codeBlock("foo\\nbar"))');
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("fo"), codeBlockLine("obar")))',
+    );
 });
 
 test("cannot create a heading in a quote block", async () => {
@@ -2254,6 +2264,26 @@ test("will use smart single quotes", async () => {
     expect(getDoc().toString()).toEqual('doc(paragraph("‘test’"))');
 });
 
+test("will not use smart double quotes in code block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+
+    await simulateTyping(`"test"`);
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("\\"test\\"")))');
+});
+
+test("will not use smart single quotes in code block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+
+    await simulateTyping("'test'");
+
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine(\"'test'\")))");
+});
+
 test("`--` becomes an em dash", async () => {
     render(<TestContentEditor />);
 
@@ -2531,7 +2561,7 @@ test("will paste a link text", async () => {
 
     fireEvent.paste(getTextbox(), pastePlainTextClipboardEvent("https://example.com"));
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("test https://example.com"))');
+    expect(getDoc().toString()).toEqual('doc(paragraph("test ", link("https://example.com")))');
 });
 
 test("when pasting a text when there's a selection we will linkify the selection", async () => {
