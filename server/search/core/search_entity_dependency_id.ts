@@ -36,6 +36,7 @@ import {SearchEntityId} from "~/shared/search/search_entity_id.js";
  */
 export type SearchEntityDependencyId =
     | `Account:${AccountId | ContentMentionAccountId}`
+    | `Account:${AccountId | ContentMentionAccountId}:WithoutSpace`
     | `Document:${DocumentId}:Title`
     | `Channel:${ChannelId}:Preview`
     | `Chat:${ChatId}`

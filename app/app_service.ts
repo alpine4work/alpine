@@ -37,7 +37,7 @@ import {registerGracefulServerShutdown} from "~/server/node/register_graceful_se
 import {runService} from "~/server/node/run_service.js";
 import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
-import {isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
+import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/spaces_table.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {TaskRealtimeServiceEcsRouter} from "~/server/tasks/data/task_realtime_service_ecs_router.js";
 import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
@@ -426,7 +426,7 @@ function createActorContextModule(
                 Session.getIfExists(context, sessionId, accountId),
                 // This function caches its result for the duration of the request. Which is
                 // why we can call it here and ignore the output.
-                isAccountMemberOfSpace(context, spaceIdHint, accountId),
+                isAccountMemberOfSpaceWithoutAuthorization(context, spaceIdHint, accountId),
             ]);
 
             return session;

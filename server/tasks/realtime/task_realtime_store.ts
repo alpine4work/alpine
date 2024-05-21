@@ -38,7 +38,6 @@ import {
     TaskRealtimeActionTransactionUpdateEventBuilder,
     TaskRealtimeUpdateEventBuilderBase,
 } from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {InternalError} from "~/shared/error/error.js";
 import {isNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
@@ -59,6 +58,7 @@ import {
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";

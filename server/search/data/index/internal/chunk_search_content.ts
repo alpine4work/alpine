@@ -1,7 +1,7 @@
 import nlp from "compromise/one";
 import {Fragment, Mark, Node} from "prosemirror-model";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
+import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
@@ -102,7 +102,7 @@ export async function chunkSearchContent(
         tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModel | null>;
+        ) => Promise<AccountModelWithoutSpace | null>;
         getChunkPreamble?: (options: {
             context: SearchContentChunkContext;
             isInitialChunk: boolean;
@@ -174,7 +174,7 @@ export async function getFullSearchContentChunk(
         tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModel | null>;
+        ) => Promise<AccountModelWithoutSpace | null>;
     },
 ) {
     // Take our content and divide it into structured chunks of any size. We use
@@ -815,7 +815,7 @@ async function chunkSearchContentBySentenceForBlockFragment(
         orderListItemNumberByNode: Map<Node, number>;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModel | null>;
+        ) => Promise<AccountModelWithoutSpace | null>;
     },
 ): Promise<{sentenceChunks: Array<string>; lineMarginTop: number; lineMarginBottom: number}> {
     const chunks = await runAllPromises(
@@ -854,7 +854,7 @@ async function chunkSearchContentBySentenceForBlockNode(
         orderListItemNumberByNode: Map<Node, number>;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModel | null>;
+        ) => Promise<AccountModelWithoutSpace | null>;
     },
 ): Promise<{sentenceChunks: Array<string>; lineMarginTop: number; lineMarginBottom: number}> {
     const typeName = node.type.name as ContentBlockNodeTypeName | "title";
@@ -1049,7 +1049,7 @@ async function chunkSearchContentBySentenceForTextblockNode(
     options: {
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModel | null>;
+        ) => Promise<AccountModelWithoutSpace | null>;
     },
 ): Promise<Array<string>> {
     assert(node.isTextblock);
@@ -1112,7 +1112,7 @@ async function printSearchTextForInlineFragment(
     options: {
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModel | null>;
+        ) => Promise<AccountModelWithoutSpace | null>;
         isHeading: boolean;
     },
 ): Promise<string> {
@@ -1179,7 +1179,7 @@ async function printSearchTextForInlineNode(
         isHeading: boolean;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModel | null>;
+        ) => Promise<AccountModelWithoutSpace | null>;
     },
 ): Promise<string> {
     assert(node.isInline);

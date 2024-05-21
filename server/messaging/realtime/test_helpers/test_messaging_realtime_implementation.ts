@@ -15,7 +15,7 @@ import {
     messagingRealtimeCreateMessageBeforeSendTestCheckpoint,
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
 import {RoomInterface} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
+import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -89,7 +89,7 @@ export function testMessagingRealtimeImplementation<
             roomKey: RoomKey;
             index: number;
             createdTime: Date;
-            author: AccountModel;
+            author: AccountModelWithoutSpace;
             payload: MessagePayloadModel;
         }) => MessageModel<RoomKey>;
         createMessage: CreateMessageFunction<RoomKey, MessageModel<RoomKey>>;

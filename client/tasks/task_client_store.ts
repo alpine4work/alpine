@@ -13,7 +13,6 @@ import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_colle
 import {TaskClientQuery, TaskClientQueryInternal} from "~/client/tasks/task_client_query.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
-import {AccountModelData} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
 import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
@@ -46,6 +45,7 @@ import {
     commitTaskActionTransaction,
     deleteTaskAndAllChildren,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
+import {AccountModelData} from "~/shared/spaces/account_model.js";
 import {
     TaskAction,
     TaskUpdateAccountNameAction,

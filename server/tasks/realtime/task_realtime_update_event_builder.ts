@@ -10,7 +10,6 @@ import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_c
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -31,6 +30,7 @@ import {
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {collectReferencedAccountIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_account_ids_from_task_model_data.js";

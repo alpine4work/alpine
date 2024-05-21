@@ -1,10 +1,11 @@
 import {DOMOutputSpec, DOMSerializer, Fragment, Mark, Node, Schema} from "prosemirror-model";
-import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
+import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {clampListItemIndentation} from "~/shared/content/content_schema.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 
 // Augment with types for some internal methods from:
 // https://github.com/ProseMirror/prosemirror-model/blob/26c634ffff8ad6544fda12ed70c99f12a65959f3/src/to_dom.ts#L27
@@ -31,28 +32,28 @@ declare module "prosemirror-model" {
 export class ContentEditorDomClipboardSerializer extends DOMSerializer {
     static fromSchemaWithContentReferences(
         schema: Schema,
-        accountStore: AccountClientStore,
+        getSpaceId: () => SpaceId,
         getContentReferences: () => ContentReferences,
     ): ContentEditorDomClipboardSerializer {
         return new ContentEditorDomClipboardSerializer(
             this.nodesFromSchema(schema),
             this.marksFromSchema(schema),
-            accountStore,
+            getSpaceId,
             getContentReferences,
         );
     }
 
-    private readonly _accountStore: AccountClientStore;
+    private readonly _getSpaceId: () => SpaceId;
     private readonly _getContentReferences: () => ContentReferences;
 
     protected constructor(
         nodes: {[node: string]: (node: Node) => DOMOutputSpec},
         marks: {[mark: string]: (mark: Mark, inline: boolean) => DOMOutputSpec},
-        accountStore: AccountClientStore,
+        getSpaceId: () => SpaceId,
         getContentReferences: () => ContentReferences,
     ) {
         super(nodes, marks);
-        this._accountStore = accountStore;
+        this._getSpaceId = getSpaceId;
         this._getContentReferences = getContentReferences;
     }
 
@@ -81,7 +82,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             const dom = document.createElement("span");
             const mention: ContentMention = node.attrs.mention;
             const mentionText = createContentMentionTextStore(
-                this._accountStore,
+                getAccountClientStoreForClient(this._getSpaceId()),
                 this._getContentReferences(),
                 mention,
             ).getSnapshot();

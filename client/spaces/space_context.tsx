@@ -3,9 +3,9 @@ import {useAccountClientStore} from "~/client/accounts/account_client_store_cont
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {InternalError} from "~/shared/error/error.js";
 import {MyAccountEvent, MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 const SpaceContext = createContext<{

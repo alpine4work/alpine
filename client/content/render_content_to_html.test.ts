@@ -2,6 +2,7 @@ import {getAccountClientStoreForClient} from "~/client/accounts/account_client_s
 import {renderContentToHtmlStore} from "~/client/content/render_content_to_html.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
+import {generateId} from "~/shared/id/id.js";
 
 test("will properly number list items", () => {
     expect(
@@ -33,7 +34,7 @@ test("will properly number list items", () => {
                 references: emptyContentReferences,
             },
             {
-                accountStore: getAccountClientStoreForClient(),
+                accountStore: getAccountClientStoreForClient(generateId()),
                 currentAccount: null,
             },
         ).getSnapshot(),
@@ -117,7 +118,7 @@ test("will properly number list items with indentation", () => {
                 references: emptyContentReferences,
             },
             {
-                accountStore: getAccountClientStoreForClient(),
+                accountStore: getAccountClientStoreForClient(generateId()),
                 currentAccount: null,
             },
         ).getSnapshot(),
@@ -159,7 +160,7 @@ test("will properly number list items in quote blocks", () => {
                 references: emptyContentReferences,
             },
             {
-                accountStore: getAccountClientStoreForClient(),
+                accountStore: getAccountClientStoreForClient(generateId()),
                 currentAccount: null,
             },
         ).getSnapshot(),

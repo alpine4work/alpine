@@ -1514,7 +1514,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
                         notifications: {
                             eventType: event.type,
                             eventId: event.id,
-                            inbox: {spaceId: event.spaceId, accountId: accountId},
+                            inbox: {spaceId: event.spaceId, accountId},
                         },
                     });
 

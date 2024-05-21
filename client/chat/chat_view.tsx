@@ -23,7 +23,6 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {
@@ -43,6 +42,7 @@ import {
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
 } from "~/shared/rpc/chat_rpc_definitions.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 export function ChatView({

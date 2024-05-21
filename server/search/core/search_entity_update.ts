@@ -86,7 +86,7 @@ const searchEntityUpdateSchemaDescription = {
             type: Schema.value("Account"),
             accountId: Schema.id<AccountId | ContentMentionAccountId>(),
         }),
-        updatableTraits: [],
+        updatableTraits: ["WithoutSpace"],
     },
     Document: {
         schema: Schema.object({

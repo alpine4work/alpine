@@ -2448,7 +2448,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             {
                 // Verify that the lock version was not changed by a concurrent writer.
                 updateLockVersion:
-                    typeof updateLockVersion === "number"
+                    typeof updateLockVersion === "number" && updateLockVersion !== 0
                         ? DynamoConditionExpression.eq(updateLockVersion)
                         : DynamoConditionExpression.exists().not(),
             },

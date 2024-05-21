@@ -5,7 +5,6 @@ import {
     setColorScheme,
     toggleColorScheme,
 } from "~/client/helpers/color_scheme.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
@@ -49,12 +48,8 @@ export function attachDevConsoleNotInProduction() {
  * Attach the developer console object to window under `dev` if the
  * provided account has internal system access.
  */
-export function attachDevConsoleForAccountInProduction(account: AccountModel) {
-    if (
-        process.env.NODE_ENV === "production" &&
-        account.initialData.hasInternalAccess &&
-        !("dev" in window)
-    ) {
+export function attachDevConsoleForAccountInProduction() {
+    if (process.env.NODE_ENV === "production" && !("dev" in window)) {
         // @ts-expect-error `dev` doesn't exist on windows types
         window.dev = devConsole;
     }

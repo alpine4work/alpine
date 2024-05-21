@@ -6,10 +6,10 @@ import {
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";

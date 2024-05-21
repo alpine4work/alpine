@@ -1,6 +1,5 @@
 import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {InternalError} from "~/shared/error/error.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
@@ -9,11 +8,12 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {testTaskActionPermutations} from "~/shared/tasks/test_helpers/test_task_action_permutations.js";
 
 const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
-const accountStore = getAccountClientStoreForClient();
+const accountStore = getAccountClientStoreForClient(generateId());
 
 const spaceId = generateId<SpaceId>();
 const currentAccountId = generateId<AccountId>();
@@ -83,18 +83,26 @@ afterEach(() => {
 
 const account1 = new AccountModel({
     id: generateId(),
+    version: 0,
     name: "Test Account 1",
     nameVersion: 0,
-    createdTime: new Date(),
-    version: 0,
+    space: {
+        version: 0,
+        joinedTime: new Date(),
+        wasRemoved: false,
+    },
 });
 
 const account2 = new AccountModel({
     id: generateId(),
+    version: 0,
     name: "Test Account 2",
     nameVersion: 0,
-    createdTime: new Date(),
-    version: 0,
+    space: {
+        version: 0,
+        joinedTime: new Date(),
+        wasRemoved: false,
+    },
 });
 
 // Make sure we hold a reference to the account stores for the entire test.

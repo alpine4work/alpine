@@ -1,18 +1,21 @@
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createGlobalContext, useGlobalContext} from "~/client/helpers/global_context.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
-import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 
-let accountClientStoreForClient: AccountClientStore | null = null;
+let accountClientStoreByIdForClient: Map<SpaceId, AccountClientStore> | null = null;
 
 const AccountClientStoreContext = createGlobalContext(() => {
     // On the server, there is no global access to the task realtime client.
     if (typeof window === "undefined") {
-        return new AccountClientStore();
+        return new Map<SpaceId, AccountClientStore>();
     } else {
-        accountClientStoreForClient ??= new AccountClientStore();
-        return accountClientStoreForClient;
+        accountClientStoreByIdForClient ??= new Map();
+        return accountClientStoreByIdForClient;
     }
 });
 
@@ -26,11 +29,16 @@ const AccountClientStoreContext = createGlobalContext(() => {
  *
  * Will throw an error if we're not running in a web browser.
  */
-export function getAccountClientStoreForClient(): AccountClientStore {
+export function getAccountClientStoreForClient(spaceId: SpaceId): AccountClientStore {
     assert(typeof window !== "undefined");
 
-    accountClientStoreForClient ??= new AccountClientStore();
-    return accountClientStoreForClient;
+    accountClientStoreByIdForClient ??= new Map();
+
+    return getOrSetDefaultMapValue(
+        accountClientStoreByIdForClient,
+        spaceId,
+        () => new AccountClientStore(),
+    );
 }
 
 /**
@@ -41,7 +49,13 @@ export function getAccountClientStoreForClient(): AccountClientStore {
  * If we're in a web browser we have one global store instance.
  */
 export function useAccountClientStore(): AccountClientStore {
-    return useGlobalContext(AccountClientStoreContext);
+    const {space} = useSpaceContext();
+
+    return getOrSetDefaultMapValue(
+        useGlobalContext(AccountClientStoreContext),
+        space.id,
+        () => new AccountClientStore(),
+    );
 }
 
 /**

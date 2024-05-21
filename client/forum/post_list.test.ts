@@ -5,7 +5,6 @@ import {
     PostListWithChannelHeader,
 } from "~/client/forum/post_list.js";
 import {MessageList} from "~/client/messaging/message_list.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
@@ -19,6 +18,7 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {emptyMessageContent} from "~/shared/messaging/message_content_schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 const spaceId = generateId<SpaceId>();
 const channelId = generateId<ChannelId>();
@@ -33,38 +33,58 @@ const channel = new ChannelPreviewModel({
 
 const account1 = new AccountModel({
     id: generateId(),
+    version: 0,
     name: "Test 1",
     nameVersion: 0,
-    createdTime,
-    version: 0,
+    space: {
+        version: 0,
+        joinedTime: createdTime,
+        wasRemoved: false,
+    },
 });
 const account2 = new AccountModel({
     id: generateId(),
+    version: 0,
     name: "Test 2",
     nameVersion: 0,
-    createdTime,
-    version: 0,
+    space: {
+        version: 0,
+        joinedTime: createdTime,
+        wasRemoved: false,
+    },
 });
 const account3 = new AccountModel({
     id: generateId(),
+    version: 0,
     name: "Test 3",
     nameVersion: 0,
-    createdTime,
-    version: 0,
+    space: {
+        version: 0,
+        joinedTime: createdTime,
+        wasRemoved: false,
+    },
 });
 const account4 = new AccountModel({
     id: generateId(),
+    version: 0,
     name: "Test 4",
     nameVersion: 0,
-    createdTime,
-    version: 0,
+    space: {
+        version: 0,
+        joinedTime: createdTime,
+        wasRemoved: false,
+    },
 });
 const account5 = new AccountModel({
     id: generateId(),
+    version: 0,
     name: "Test 5",
     nameVersion: 0,
-    createdTime,
-    version: 0,
+    space: {
+        version: 0,
+        joinedTime: createdTime,
+        wasRemoved: false,
+    },
 });
 
 const testContent1 = createSimplePostContent("test1");

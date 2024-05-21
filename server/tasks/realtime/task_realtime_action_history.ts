@@ -1,10 +1,10 @@
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {InternalError} from "~/shared/error/error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
     TaskAction,
     TaskUpdateAccountNameAction,

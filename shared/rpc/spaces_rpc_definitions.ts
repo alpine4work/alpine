@@ -1,7 +1,7 @@
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export const expensivelyGetAllSpaceAccounts = defineRpc({
     name: "expensivelyGetAllSpaceAccounts",
@@ -26,8 +26,17 @@ export const createAlphaSpaceAsAdmin = defineRpc({
     },
 });
 
-export const dangerouslyCreateSpaceAccountAsAdmin = defineRpc({
-    name: "dangerouslyCreateSpaceAccountAsAdmin",
+export const dangerouslyAddSpaceAccountAsAdmin = defineRpc({
+    name: "dangerouslyAddSpaceAccountAsAdmin",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        accountId: Schema.id<AccountId>(),
+    },
+    output: {},
+});
+
+export const removeSpaceAccountAsAdmin = defineRpc({
+    name: "removeSpaceAccountAsAdmin",
     input: {
         spaceId: Schema.id<SpaceId>(),
         accountId: Schema.id<AccountId>(),

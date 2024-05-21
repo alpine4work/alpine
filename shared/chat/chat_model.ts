@@ -1,8 +1,8 @@
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageModel, MessagePayloadModelSchema} from "~/shared/messaging/message_model.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**
  * A chat history between some accounts in a space.

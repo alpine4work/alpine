@@ -2,7 +2,8 @@ import {createAlphaSpaceAsAdmin} from "~/server/forum/data/forum_table.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import {getPossiblyStaleAccountSearchAffinityIds} from "~/server/search/data/table/search_entity_table.js";
 import {
-    dangerouslyCreateSpaceAccountAsAdmin,
+    dangerouslyAddSpaceAccountAsAdmin,
+    removeSpaceAccountAsAdmin,
     expensivelyGetAllSpaceAccounts,
 } from "~/server/spaces/spaces_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -50,10 +51,19 @@ implementRpc(definition.createAlphaSpaceAsAdmin, {visibility: ["AppClient"]}, (c
 });
 
 implementRpc(
-    definition.dangerouslyCreateSpaceAccountAsAdmin,
+    definition.dangerouslyAddSpaceAccountAsAdmin,
     {visibility: ["AppClient"]},
     async (context, input) => {
-        await dangerouslyCreateSpaceAccountAsAdmin(context, input);
+        await dangerouslyAddSpaceAccountAsAdmin(context, input);
+        return {};
+    },
+);
+
+implementRpc(
+    definition.removeSpaceAccountAsAdmin,
+    {visibility: ["AppClient"]},
+    async (context, input) => {
+        await removeSpaceAccountAsAdmin(context, input);
         return {};
     },
 );

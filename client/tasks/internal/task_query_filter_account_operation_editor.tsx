@@ -19,7 +19,6 @@ import {TaskCurrentAccountAvatar} from "~/client/tasks/internal/task_current_acc
 import {TaskMissingAccountAvatar} from "~/client/tasks/internal/task_missing_account_avatar.js";
 import {TaskQueryFilterEditorMultiSelectComboBox} from "~/client/tasks/internal/task_query_filter_editor_multi_select_combo_box.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
-import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -28,6 +27,7 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.j
 import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 import {TaskQueryFilterAccountOperation} from "~/shared/tasks/task_query_filter.js";
 import {
@@ -462,7 +462,13 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
             isLoading: false as const,
             searchedItems:
                 searchInputValue === ""
-                    ? allItems
+                    ? // Don't include removed accounts in the initial rendered account list.
+                      //
+                      // TODO(calebmer): When searching, removed accounts should rank lower. How do
+                      // we give them a lower score while still allowing users to find them?
+                      allItems.filter(
+                          item => item.type !== "Account" || !item.accountData.space.wasRemoved,
+                      )
                     : itemsSearchIndex.search(searchInputValue).map(({item}) => item),
         };
     }, [allItems, isLoading, itemsSearchIndex, searchInputValue]);

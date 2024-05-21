@@ -51,8 +51,7 @@ import {
 import {getInbox} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {getSpace} from "~/server/spaces/spaces_table.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
+import {getAccount, getSpace} from "~/server/spaces/spaces_table.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -69,7 +68,8 @@ import {
 } from "~/shared/rpc/accounts_rpc_definitions.js";
 import {
     createAlphaSpaceAsAdmin,
-    dangerouslyCreateSpaceAccountAsAdmin,
+    dangerouslyAddSpaceAccountAsAdmin,
+    removeSpaceAccountAsAdmin,
 } from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
@@ -77,6 +77,7 @@ import {
     SearchOptionsSchema,
     standardSearchOptions,
 } from "~/shared/search/search_options.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
@@ -84,6 +85,7 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 export const LoaderSchema = Schema.object({
     space: SpaceModel.schema(),
     currentAccount: AccountModel.schema,
+    hasInternalAccess: Schema.boolean,
     inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
 });
 
@@ -110,9 +112,10 @@ export async function loader({context: loaderContext, params}: LoaderArgs) {
 
     const context = (await loaderContext.actor.authenticate()).actor.authorizeSession();
 
-    const [space, currentAccount, inbox] = await runAllPromises([
+    const [space, currentAccount, {hasInternalAccess}, inbox] = await runAllPromises([
         getSpace(context, spaceId),
-        context.actor.getAccount(),
+        getAccount(context, spaceId, context.actor.getAccountId()),
+        context.actor.getAccountAndHasInternalAccess(),
         getInbox(context, {spaceId}),
     ]);
 
@@ -128,6 +131,7 @@ export async function loader({context: loaderContext, params}: LoaderArgs) {
         {
             space,
             currentAccount,
+            hasInternalAccess,
             inbox,
         },
         {propagateEventData},
@@ -198,11 +202,13 @@ export default function SpaceLayoutRoute() {
     // state chrome so let a parent error boundary handle it.
     if (!loaderData) throw error;
 
-    const {space, currentAccount, inbox} = loaderData;
+    const {space, currentAccount, hasInternalAccess, inbox} = loaderData;
 
     useEffect(() => {
-        attachDevConsoleForAccountInProduction(currentAccount);
-    }, [currentAccount]);
+        if (hasInternalAccess) {
+            attachDevConsoleForAccountInProduction();
+        }
+    }, [hasInternalAccess]);
 
     const accountsStore = useAccountClientStore();
 
@@ -227,11 +233,14 @@ export default function SpaceLayoutRoute() {
             const output = await createAlphaSpaceAsAdmin(context, input);
             return output;
         },
-        dangerouslyCreateSpaceAccountAsAdmin: async (input: {
+        dangerouslyAddSpaceAccountAsAdmin: async (input: {
             spaceId: SpaceId;
             accountId: AccountId;
         }) => {
-            await dangerouslyCreateSpaceAccountAsAdmin(context, input);
+            await dangerouslyAddSpaceAccountAsAdmin(context, input);
+        },
+        removeSpaceAccountAsAdmin: async (input: {spaceId: SpaceId; accountId: AccountId}) => {
+            await removeSpaceAccountAsAdmin(context, input);
         },
     }));
 

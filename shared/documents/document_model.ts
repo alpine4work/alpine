@@ -1,4 +1,3 @@
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {
     DocumentContentWithReferencesSchema,
     UncheckedDocumentContentWithReferencesSchema,
@@ -11,6 +10,7 @@ import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id
 import {MessageModel, MessagePayloadModelSchema} from "~/shared/messaging/message_model.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**
  * A thread of comments on a document.

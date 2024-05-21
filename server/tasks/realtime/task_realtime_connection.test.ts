@@ -3,6 +3,7 @@ import {ServerSessionActionContextModules} from "~/server/context/server_action_
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {removeSpaceAccountAsAdmin} from "~/server/spaces/spaces_table.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -12356,6 +12357,88 @@ test("will lose access to subscribed task upon reauthorization", async () => {
             referencedAccounts: [],
         },
     ]);
+
+    await task1.updatePriority(session1, "Medium");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([]);
+});
+
+test("will lose access to subscribed task upon reauthorization if account removed from space", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({hasInternalAccess: true});
+    const session2 = await space.createSession();
+
+    const server = createWebSocketServer(space);
+
+    const task1 = await TestTask.create(session1);
+    const collection1 = await TestTaskCollection.createPublic(session1);
+    await task1.addCollection(session1, collection1);
+
+    await server.wait();
+
+    const connection = await server.connectForTest(session2.action());
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    const {updateEvent} = await connection.procedures.subscribeToTask({
+        clientTime: testClock.nowLogical(),
+        taskId: task1.id,
+    });
+
+    expect(updateEvent).toEqual({
+        type: "Update",
+        originClientId: null,
+        defaultAuthorizationStateVersion: expect.any(Array),
+        actions: [],
+        backfillTasks: [expectAuthorizedTask(task1.id)],
+        backfillCollections: [expectAuthorizedCollection(collection1.id)],
+        referencedAccounts: [await session1.get()],
+    });
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await task1.updatePriority(session1, "High");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "High",
+                    },
+                },
+            ],
+            backfillTasks: [],
+            backfillCollections: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await connection.authorize();
+
+    expect(connection.isClosed()).toEqual(false);
+    expect(connection.takeEvents()).toEqual([]);
+
+    await removeSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    await expect(connection.authorize()).rejects.toThrow(PermissionDeniedError);
+
+    expect(connection.isClosed()).toEqual(true);
+    expect(connection.getCloseError()).toBeInstanceOf(PermissionDeniedError);
+
+    expect(connection.takeEvents()).toEqual([]);
 
     await task1.updatePriority(session1, "Medium");
     await server.wait();

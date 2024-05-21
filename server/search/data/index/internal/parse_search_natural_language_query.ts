@@ -3,7 +3,6 @@ import nlpDatePlugin from "compromise-dates";
 import levenshtein from "damerau-levenshtein";
 import {stemmer} from "stemmer";
 import {SpaceAccountNameSearchIndex} from "~/server/spaces/spaces_table.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -12,6 +11,7 @@ import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {SearchEntityIdObject} from "~/shared/search/search_entity_id.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 nlp.plugin(nlpDatePlugin);
 

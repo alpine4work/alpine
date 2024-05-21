@@ -7,7 +7,6 @@ import {
     setShouldDisableCommitTaskActionTransactionMutexForTest,
 } from "~/client/tasks/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {
@@ -24,6 +23,7 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionCreateAction} from "~/shared/tasks/actions/task_collection_action.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
@@ -48,14 +48,18 @@ afterAll(() => {
 
 const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
-const accountStore = getAccountClientStoreForClient();
+const accountStore = getAccountClientStoreForClient(generateId());
 
 const account1 = new AccountModel({
     id: generateId(),
+    version: 0,
     name: "Test Account 1",
     nameVersion: 0,
-    createdTime: new Date(),
-    version: 0,
+    space: {
+        version: 0,
+        joinedTime: new Date(),
+        wasRemoved: false,
+    },
 });
 
 // Make sure we hold a reference to the `account1` store for the entire test.

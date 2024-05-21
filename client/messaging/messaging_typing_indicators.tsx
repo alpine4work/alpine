@@ -6,7 +6,6 @@ import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
 import {messagingViewMarginBottom} from "~/client/messaging/messaging_view.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {easeInOutSin} from "~/shared/design/easing.js";
 import {
     Spacing,
@@ -24,6 +23,7 @@ import {
     messageViewBubbleBorderRadius,
     messageViewMarginY,
 } from "~/shared/messaging/messaging_shared_styles.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export const messagingTypingIndicatorsMinHeight = "3.875rem";
 

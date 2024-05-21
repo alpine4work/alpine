@@ -1,20 +1,21 @@
 import classNames from "classnames";
 import {NodeViewConstructor} from "prosemirror-view";
-import {AccountClientStore} from "~/client/accounts/account_client_store.js";
+import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 const {mentionClassName, currentAccountMentionClassName, mentionAtClassName, mentionTextClassName} =
     contentSchemaStyles;
 
 export function createContentEditorMentionNodeViewConstructor({
-    accountStore,
+    getSpaceId,
     getCurrentAccountIfExists,
 }: {
-    accountStore: AccountClientStore;
+    getSpaceId: () => SpaceId;
     getCurrentAccountIfExists: () => AccountModel | null;
 }): NodeViewConstructor {
     return (node, view) => {
@@ -23,7 +24,7 @@ export function createContentEditorMentionNodeViewConstructor({
         const contentReferences = getContentEditorReferences(view.state).references;
 
         const contentMentionTextStore = createContentMentionTextStore(
-            accountStore,
+            getAccountClientStoreForClient(getSpaceId()),
             contentReferences,
             mention,
         );

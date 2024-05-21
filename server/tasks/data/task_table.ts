@@ -19,7 +19,12 @@ import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
-import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
+import {
+    authorizeSpaceAccess,
+    getAccountIfExists,
+    isAccountMemberOfSpace,
+    isAccountMemberOfSpaceWithoutAuthorization,
+} from "~/server/spaces/spaces_table.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
 import {
@@ -79,6 +84,7 @@ import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_sch
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
     TaskAction,
     TaskActionSchema,
@@ -1412,6 +1418,10 @@ class TaskActionTransactionCommitState {
         return this._context.actor.getAccountId();
     }
 
+    public getAccountIfExists(accountId: AccountId): Promise<AccountModel | null> {
+        return getAccountIfExists(this._context, this._spaceId, accountId);
+    }
+
     public isAccountMemberOfSpace(accountId: AccountId): Promise<boolean> {
         return isAccountMemberOfSpace(this._context, this._spaceId, accountId);
     }
@@ -2600,7 +2610,11 @@ async function actuallyCommitTaskActionTransaction(
 
                                 if (
                                     taskAction.assignee &&
-                                    !(await state.isAccountMemberOfSpace(
+                                    // We intentionally use `getAccountIfExists()` instead of
+                                    // `isAccountMemberOfSpace()` here. If an account is removed from a
+                                    // space it should still be ok setting the removed account as a task
+                                    // assignee. Though it's probably unwise for a user to do so.
+                                    !(await state.getAccountIfExists(
                                         taskAction.assignee.assigneeId,
                                     ))
                                 ) {
@@ -3418,7 +3432,7 @@ async function evaluateTaskCollectionAccessPolicy(
         cast<"Space">(accessPolicy.defaultGrant.type);
 
         if (
-            (await isAccountMemberOfSpace(context, spaceId, accountId)) &&
+            (await isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId)) &&
             hasTaskCollectionAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
         ) {
             return true;
@@ -3473,7 +3487,13 @@ async function isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
     expectedAccessLevel: TaskCollectionAccessLevel,
 ) {
     // Check that the account has access to the space the collection is in.
-    if (!(await isAccountMemberOfSpace(context, collectionItem.spaceId, accountId))) {
+    if (
+        !(await isAccountMemberOfSpaceWithoutAuthorization(
+            context,
+            collectionItem.spaceId,
+            accountId,
+        ))
+    ) {
         return false;
     }
 
@@ -3631,7 +3651,7 @@ async function isTaskItemAccessAuthorizedAllowingDeletedTasks(
     },
 ): Promise<boolean> {
     // Check that the account has access to the space the task is in.
-    if (!(await isAccountMemberOfSpace(context, taskItem.spaceId, accountId))) {
+    if (!(await isAccountMemberOfSpaceWithoutAuthorization(context, taskItem.spaceId, accountId))) {
         return false;
     }
 

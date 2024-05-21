@@ -1,6 +1,7 @@
 import _Fuse from "fuse.js";
 import {
     authorizeInternalAccess,
+    checkAccountVersionConditionCheck,
     dangerouslyGetAccountIfExistsWithoutCaching,
     getAccountByIdAsAdmin,
 } from "~/server/accounts/accounts_table.js";
@@ -9,26 +10,31 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
+import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
-import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
+import {
+    AccountModelWithoutSpace,
+    AccountModelWithoutSpaceData,
+    AccountModelWithoutSpaceDataSchema,
+} from "~/shared/accounts/account_model_without_space.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
+    DataLossError,
     DeadlineExceededError,
     FailedPreconditionError,
-    InternalError,
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
@@ -49,6 +55,7 @@ import {
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 // Node.js ESM interop (#node-esm-migration)
@@ -111,6 +118,34 @@ const SpacesTable = DynamoTableSchema.new({
                          * The time at which the account joined the space.
                          */
                         joinedTime: Schema.date,
+
+                        /**
+                         * If non-null then the account was removed from the space. Removed accounts no
+                         * longer have access to the space but still show up everywhere in the space
+                         * they were previously referenced.
+                         */
+                        removal: Schema.object({
+                            /**
+                             * When was the account removed from the space?
+                             */
+                            time: Schema.date,
+
+                            /**
+                             * We maintain a copy of the account's data when they're removed from the space
+                             * since if the account updates any properties like their `name` or account
+                             * avatar we shouldn't update those properties in spaces the account was
+                             * removed from.
+                             *
+                             * This:
+                             *
+                             * 1. Prevents accounts from having any influence on spaces from which they
+                             *    were removed
+                             * 2. Preserve history for those who remain in the space
+                             */
+                            oldAccountData: AccountModelWithoutSpaceDataSchema,
+                        })
+                            .nullable()
+                            .default(null),
                     }),
                 },
             ],
@@ -139,6 +174,8 @@ const SpacesTable = DynamoTableSchema.new({
         },
     ],
 });
+
+type SpaceAccountItem = DynamoTableItemType<typeof SpacesTable, "Space", "Account">;
 
 /**
  * Scan every account by space pair in our database. Use when migrating data.
@@ -181,40 +218,15 @@ export async function createSpaceForTest(
 /**
  * Add an account to a space in a test environment.
  */
-export async function createSpaceAccountForTest(
-    context: DynamoContext,
+export async function addSpaceAccountForTest(
+    context: ServerProcessContext,
     {spaceId, accountId}: {spaceId: SpaceId; accountId: AccountId},
 ) {
     assert(process.env.NODE_ENV === "test");
 
-    // This is a test. We assume the `SpaceId` and `AccountId` exist.
-
-    await context.dynamo.retryTransaction(async context => {
-        const spacesItem = await SpacesTable.getItemIfExists(context, {
-            partitionType: "Account",
-            sortRangeType: "Spaces",
-            accountId,
-        });
-
-        const spaceIds: Set<SpaceId> = spacesItem ? new Set(spacesItem.spaceIds) : new Set();
-        spaceIds.add(spaceId);
-
-        await DynamoTableSchema.executeTransaction(context, [
-            SpacesTable.transactionCreateItem({
-                partitionType: "Space",
-                sortRangeType: "Account",
-                spaceId,
-                accountId,
-                joinedTime: new Date(),
-            }),
-            SpacesTable.transactionDirectlyUpdateItem({
-                ...spacesItem,
-                partitionType: "Account",
-                sortRangeType: "Spaces",
-                accountId,
-                spaceIds,
-            }),
-        ]);
+    await dangerouslyAddSpaceAccountWithoutAuthorization(context, {
+        spaceId,
+        accountId,
     });
 }
 
@@ -256,6 +268,7 @@ export async function seedTestSpaces(
                     spaceId: defaultSpaceId,
                     accountId: adminAccountId,
                     joinedTime: new Date(),
+                    removal: null,
                 }),
                 SpacesTable.transactionDirectlyUpdateItem({
                     ...adminAccountSpaceIds,
@@ -274,7 +287,7 @@ export async function seedTestSpaces(
                 update: {
                     type: "Account",
                     accountId: adminAccountId,
-                    updatedTraits: {type: "Any"},
+                    updatedTraits: {type: "Some", traits: []},
                 },
             });
         });
@@ -292,103 +305,13 @@ export async function seedTestSpaces(
 }
 
 /**
- * Transaction entries that add an account to a space.
- *
- * This is only meant for adding accounts to a space during closed alpha. We
- * will probably get rid of this afterwards.
- */
-export async function createSpaceAccountForAlphaTransactionEntries(
-    context: ServerActionContext,
-    options: {
-        spaceId: SpaceId;
-        accountId: AccountId;
-    },
-): Promise<Array<DynamoTransactionEntry>> {
-    return [
-        // Fail the transaction if the space does not exist.
-        SpacesTable.transactionConditionCheck({
-            partitionType: "Space",
-            sortRangeType: "Attributes",
-            spaceId: options.spaceId,
-        }),
-        ...(await createSpaceAccountForAlphaTransactionEntriesWithoutSpaceConditionCheck(
-            context,
-            options,
-        )),
-    ];
-}
-
-async function createSpaceAccountForAlphaTransactionEntriesWithoutSpaceConditionCheck(
-    context: ServerActionContext,
-    {
-        spaceId,
-        accountId,
-    }: {
-        spaceId: SpaceId;
-        accountId: AccountId;
-    },
-): Promise<Array<DynamoTransactionEntry>> {
-    // Only accounts with internal access can create alpha accounts. This adds an
-    // `AccountId` to an arbitrary `SpaceId`! Pretty dangerous.
-    await authorizeInternalAccess(context);
-
-    const spacesItem = await SpacesTable.getItemIfExists(context, {
-        partitionType: "Account",
-        sortRangeType: "Spaces",
-        accountId,
-    });
-
-    const spaceIds: Set<SpaceId> = spacesItem ? new Set(spacesItem.spaceIds) : new Set();
-
-    if (spaceIds.has(spaceId)) {
-        throw new FailedPreconditionError("Account is already a member of space");
-    }
-
-    spaceIds.add(spaceId);
-
-    return [
-        SpacesTable.transactionDirectlyUpdateItem({
-            ...spacesItem,
-            partitionType: "Account",
-            sortRangeType: "Spaces",
-            accountId,
-            spaceIds,
-        }),
-        SpacesTable.transactionCreateItem(
-            {
-                partitionType: "Space",
-                sortRangeType: "Account",
-                spaceId,
-                accountId,
-                joinedTime: new Date(),
-            },
-            {
-                onAfterTransactionExecutedSuccessfully: () => {
-                    // When an account is added to a space, index the account in the space so it
-                    // can be searched.
-                    context.jobs.send({
-                        type: "IndexSearchEntity",
-                        spaceId,
-                        update: {
-                            type: "Account",
-                            accountId,
-                            updatedTraits: {type: "Any"},
-                        },
-                    });
-                },
-            },
-        ),
-    ];
-}
-
-/**
  * To implement `createAlphaSpaceAsAdmin()` we need to update `SpacesTable`
  * and `ForumRealtimeTable`. However, `server/spaces` doesn't have access to
  * `ForumRealtimeTable`. So we implement `createAlphaSpaceAsAdmin()` in
  * `server/forum` and export this function which implements the `SpacesTable`
  * updates we need.
  */
-export async function createAlphaSpaceTransactionEntriesAsAdmin(
+export async function internalCreateAlphaSpaceAsAdmin(
     context: ServerActionContext,
     {
         name,
@@ -396,20 +319,22 @@ export async function createAlphaSpaceTransactionEntriesAsAdmin(
         createdTime,
         ownerAccountId,
         welcomeChannelId,
+        createWelcomeChannelTransactionEntries,
     }: {
         spaceId: SpaceId;
         createdTime: Date;
         name: string;
         ownerAccountId: AccountId;
         welcomeChannelId: ChannelId;
+        createWelcomeChannelTransactionEntries: Array<DynamoTransactionEntry>;
     },
-): Promise<Array<DynamoTransactionEntry>> {
+): Promise<void> {
     await authorizeInternalAccess(context);
 
     // Make sure the account exists before adding it to a space...
     await getAccountByIdAsAdmin(context, ownerAccountId);
 
-    return [
+    await DynamoTableSchema.executeTransaction(context, [
         SpacesTable.transactionCreateItem({
             partitionType: "Space",
             sortRangeType: "Attributes",
@@ -418,13 +343,13 @@ export async function createAlphaSpaceTransactionEntriesAsAdmin(
             createdTime,
             alphaAccessDefaultChannelId: welcomeChannelId,
         }),
-        // Don't check that the space exists since we create the space in this
-        // transaction.
-        ...(await createSpaceAccountForAlphaTransactionEntriesWithoutSpaceConditionCheck(context, {
-            spaceId,
-            accountId: ownerAccountId,
-        })),
-    ];
+        ...createWelcomeChannelTransactionEntries,
+    ]);
+
+    await dangerouslyAddSpaceAccountAsAdmin(context, {
+        spaceId,
+        accountId: ownerAccountId,
+    });
 }
 
 /**
@@ -433,20 +358,216 @@ export async function createAlphaSpaceTransactionEntriesAsAdmin(
  * to data within the space. Make sure you've been given permission by the
  * space owner before adding anyone new to their space.
  */
-export async function dangerouslyCreateSpaceAccountAsAdmin(
+export async function dangerouslyAddSpaceAccountAsAdmin(
     context: ServerActionContext,
     {spaceId, accountId}: {spaceId: SpaceId; accountId: AccountId},
 ) {
     await authorizeInternalAccess(context);
+    await dangerouslyAddSpaceAccountWithoutAuthorization(context, {spaceId, accountId});
+}
 
-    // Make sure the account exists before adding it to a space...
-    await getAccountByIdAsAdmin(context, accountId);
+/**
+ * Remove an account from some space. Only administrators may call this method.
+ *
+ * Administrators please make sure you've been given permission by the space
+ * owner before removing anyone from a space.
+ *
+ * This function is not as dangerous as `dangerouslyAddSpaceAccountAsAdmin()`
+ * which can enable privilege escalation attacks!
+ */
+export async function removeSpaceAccountAsAdmin(
+    context: ServerActionContext,
+    {spaceId, accountId}: {spaceId: SpaceId; accountId: AccountId},
+) {
+    await authorizeInternalAccess(context);
+    await dangerouslyRemoveSpaceAccountWithoutAuthorization(context, {spaceId, accountId});
+}
 
-    await context.dynamo.retryTransaction(async context => {
-        await DynamoTableSchema.executeTransaction(
-            context,
-            await createSpaceAccountForAlphaTransactionEntries(context, {spaceId, accountId}),
-        );
+/**
+ * Adds an account to a space without authorizing the actor has permission to
+ * add accounts to the space.
+ *
+ * This is a very very dangerous function! If arbitrary users got the ability
+ * to add any user to any space they could easily compromise the data privacy
+ * of spaces. You must authorize the actor is allowed to add accounts when
+ * calling this function from an exported function.
+ */
+async function dangerouslyAddSpaceAccountWithoutAuthorization(
+    context: ServerProcessContext,
+    {spaceId, accountId}: {spaceId: SpaceId; accountId: AccountId},
+) {
+    await context.dynamo.retryTransaction(async () => {
+        const currentTime = new Date();
+
+        const [spaceItem, account, spaceAccountItem, accountSpacesItem] = await runAllPromises([
+            SpacesTable.getItemIfExists(context, {
+                partitionType: "Space",
+                sortRangeType: "Attributes",
+                spaceId,
+            }),
+            dangerouslyGetAccountIfExistsWithoutCaching(context, accountId),
+            SpacesTable.getItemIfExists(context, {
+                partitionType: "Space",
+                sortRangeType: "Account",
+                spaceId,
+                accountId,
+            }),
+            SpacesTable.getItemIfExists(context, {
+                partitionType: "Account",
+                sortRangeType: "Spaces",
+                accountId,
+            }),
+        ]);
+
+        if (!spaceItem) {
+            throw new NotFoundError("Space not found");
+        }
+        if (!account) {
+            throw new NotFoundError("Account not found");
+        }
+
+        const accountSpaceIds: Set<SpaceId> = accountSpacesItem
+            ? new Set(accountSpacesItem.spaceIds)
+            : new Set();
+
+        if (accountSpaceIds.has(spaceId) || (spaceAccountItem && !spaceAccountItem.removal)) {
+            throw new FailedPreconditionError("Account is already a member of space");
+        }
+
+        accountSpaceIds.add(spaceId);
+
+        await DynamoTableSchema.executeTransaction(context, [
+            // Since this transaction is security sensitive, make sure the account and
+            // space didn't update when we commit. This also makes sure both the space and
+            // account exist.
+            SpacesTable.transactionUpdateLockVersionConditionCheck(
+                spaceItem,
+                spaceItem.updateLockVersion,
+            ),
+            checkAccountVersionConditionCheck(account),
+
+            SpacesTable.transactionDirectlyUpdateItem({
+                ...accountSpacesItem,
+                partitionType: "Account",
+                sortRangeType: "Spaces",
+                accountId,
+                spaceIds: accountSpaceIds,
+            }),
+            !spaceAccountItem
+                ? SpacesTable.transactionCreateItem({
+                      partitionType: "Space",
+                      sortRangeType: "Account",
+                      spaceId,
+                      accountId,
+                      joinedTime: currentTime,
+                      removal: null,
+                  })
+                : SpacesTable.transactionDirectlyUpdateItem({
+                      ...spaceAccountItem,
+                      // The account was previously a member of the space and is being added back.
+                      removal: null,
+                  }),
+        ]);
+    });
+
+    // When an account is added to a space, index the account in the space so it
+    // can be searched.
+    context.jobs.send({
+        type: "IndexSearchEntity",
+        spaceId,
+        update: {
+            type: "Account",
+            accountId,
+            updatedTraits: {type: "Some", traits: []},
+        },
+    });
+}
+
+/**
+ * Removes an account to a space without authorizing the actor has permission to
+ * remove accounts from the space.
+ */
+async function dangerouslyRemoveSpaceAccountWithoutAuthorization(
+    context: ServerProcessContext,
+    {spaceId, accountId}: {spaceId: SpaceId; accountId: AccountId},
+) {
+    await context.dynamo.retryTransaction(async () => {
+        const currentTime = new Date();
+
+        const [spaceItem, account, spaceAccountItem, accountSpacesItem] = await runAllPromises([
+            SpacesTable.getItemIfExists(context, {
+                partitionType: "Space",
+                sortRangeType: "Attributes",
+                spaceId,
+            }),
+            dangerouslyGetAccountIfExistsWithoutCaching(context, accountId),
+            SpacesTable.getItemIfExists(context, {
+                partitionType: "Space",
+                sortRangeType: "Account",
+                spaceId,
+                accountId,
+            }),
+            SpacesTable.getItemIfExists(context, {
+                partitionType: "Account",
+                sortRangeType: "Spaces",
+                accountId,
+            }),
+        ]);
+
+        if (!spaceItem) {
+            throw new NotFoundError("Space not found");
+        }
+        if (!account) {
+            throw new NotFoundError("Account not found");
+        }
+
+        const accountSpaceIds: Set<SpaceId> = accountSpacesItem
+            ? new Set(accountSpacesItem.spaceIds)
+            : new Set();
+
+        if (!accountSpaceIds.has(spaceId) || !spaceAccountItem || spaceAccountItem.removal) {
+            throw new FailedPreconditionError("Account is not a member of the space");
+        }
+
+        accountSpaceIds.delete(spaceId);
+
+        await DynamoTableSchema.executeTransaction(context, [
+            // Since this transaction is security sensitive, make sure the account and
+            // space didn't update when we commit. This also makes sure both the space and
+            // account exist.
+            SpacesTable.transactionUpdateLockVersionConditionCheck(
+                spaceItem,
+                spaceItem.updateLockVersion,
+            ),
+            checkAccountVersionConditionCheck(account),
+
+            SpacesTable.transactionDirectlyUpdateItem({
+                ...accountSpacesItem,
+                partitionType: "Account",
+                sortRangeType: "Spaces",
+                accountId,
+                spaceIds: accountSpaceIds,
+            }),
+            SpacesTable.transactionDirectlyUpdateItem({
+                ...spaceAccountItem,
+                removal: {
+                    time: currentTime,
+                    oldAccountData: account?.initialData,
+                },
+            }),
+        ]);
+    });
+
+    // When an account is removed from a space, index the account in the space so it
+    // can be searched.
+    context.jobs.send({
+        type: "IndexSearchEntity",
+        spaceId,
+        update: {
+            type: "Account",
+            accountId,
+            updatedTraits: {type: "Some", traits: []},
+        },
     });
 }
 
@@ -471,6 +592,31 @@ export const accountNameIndexFuseMinMatchCharLength = 4;
  * we need to demand a higher level of correctness.
  */
 export const accountNameIndexFuseScoreMatchCutoff = 0.35;
+
+function createAccountModelFromItem(
+    item: SpaceAccountItem,
+    account: AccountModelWithoutSpace | null,
+) {
+    // Shouldn't pass in an `AccountModel` if the space account member was removed.
+    // Instead we'll use the account data from the space account object.
+    let accountData: AccountModelWithoutSpaceData;
+    if (item.removal) {
+        assert(account === null);
+        accountData = item.removal.oldAccountData;
+    } else {
+        assert(account !== null);
+        accountData = account.initialData;
+    }
+
+    return new AccountModel({
+        ...accountData,
+        space: {
+            version: item.updateLockVersion ?? 0,
+            joinedTime: item.joinedTime,
+            wasRemoved: !!item.removal,
+        },
+    });
+}
 
 type SpaceAccountsCacheData = {
     readonly accounts: ReadonlyArray<AccountModel>;
@@ -538,6 +684,16 @@ class SpaceAccountsCache {
                 this._entryBySpaceId.clear();
             });
         }
+    }
+
+    public cleanForTest() {
+        assert(import.meta.jest);
+
+        for (const {timeout} of this._entryBySpaceId.values()) {
+            timeout.clear();
+        }
+
+        this._entryBySpaceId.clear();
     }
 
     /**
@@ -682,6 +838,10 @@ class SpaceAccountsCache {
                     limit: "All",
                 }),
                 async item => {
+                    if (item.removal) {
+                        return createAccountModelFromItem(item, null);
+                    }
+
                     let account = await dangerouslyGetAccountIfExistsWithoutCaching(
                         context,
                         item.accountId,
@@ -698,10 +858,12 @@ class SpaceAccountsCache {
                     }
 
                     if (!account) {
-                        throw new InternalError("Account not found");
+                        throw new DataLossError(
+                            "Space account item exists but account item doesn't",
+                        );
                     }
 
-                    return account;
+                    return createAccountModelFromItem(item, account);
                 },
             );
 
@@ -740,19 +902,120 @@ class SpaceAccountsCache {
             };
         });
     }
+
+    /**
+     * Get all the accounts in a space from our cache. If the data is not present
+     * in our cache we return null instead of loading the data.
+     */
+    public async getDataIfExistsWithoutLoading(
+        context: Context<{
+            process: ProcessContextModule;
+            tracer: TracerContextModule;
+            cache: CacheContextModule;
+            dynamo: DynamoContextModule;
+            actor: ActorContextModule;
+        }>,
+        spaceId: SpaceId,
+    ): Promise<SpaceAccountsCacheData | null> {
+        // Make sure we're allowed to read data from the space.
+        await authorizeSpaceAccess(context, spaceId);
+
+        const entry = this._entryBySpaceId.get(spaceId);
+        if (!entry) return null;
+
+        return entry.dataPromise;
+    }
+
+    /**
+     * Get all the accounts in a space from our cache. If the data is not present
+     * in our cache we return null instead of loading the data.
+     *
+     * We don't check that the actor is authorized to read this space! If you call
+     * this method, make sure you provide your own authorization mechanisms.
+     */
+    public async dangerouslyGetDataIfExistsWithoutLoadingOrAuthorizing(
+        context: Context<{
+            process: ProcessContextModule;
+            tracer: TracerContextModule;
+            cache: CacheContextModule;
+            dynamo: DynamoContextModule;
+        }>,
+        spaceId: SpaceId,
+    ): Promise<SpaceAccountsCacheData | null> {
+        const entry = this._entryBySpaceId.get(spaceId);
+        if (!entry) return null;
+
+        return entry.dataPromise;
+    }
 }
 
 const spaceAccountsCache = new SpaceAccountsCache();
 
-const SpaceAccountContextCache = new ContextCache<
-    `${SpaceId}:${AccountId | ContentMentionAccountId}`,
-    boolean
->({
-    // Allow sharing this cache because the results do not depend on anything in
-    // the context (like the `actor`). Whether we're using a session actor or a
-    // system actor does not affect wither an account is a member of a space.
-    dangerouslyAllowSharing: true,
-});
+export function getSpaceAccountsCacheForTest() {
+    assert(import.meta.jest);
+    return spaceAccountsCache;
+}
+
+/**
+ * Same as `isAccountMemberOfSpace()` except we don't authorize that the actor
+ * has access to the space. If an attacker had access to this function they
+ * could find out information they're not allowed to see! (e.g. Does account X
+ * work for company Y assuming they had the right `Id`s.) Use only when
+ * necessary. Prefer `isAccountMemberOfSpace()` wherever possible.
+ *
+ * This function is mostly strongly consistent so you can safely call it in a
+ * strongly consistent environment. It returns `true` with strong consistency
+ * but `false` with weak consistency. False positives are acceptable since it's
+ * ok if a user's access to a space lingers a bit after they've been removed
+ * from the space. But false negatives means the user gets an error when trying
+ * to access a space they just got access to which we want to avoid.
+ */
+export async function isAccountMemberOfSpaceWithoutAuthorization(
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+    }>,
+    spaceId: SpaceId,
+    accountId: AccountId | ContentMentionAccountId,
+): Promise<boolean> {
+    // Check if all accounts in the space are cached...
+    const accountsCacheData =
+        await spaceAccountsCache.dangerouslyGetDataIfExistsWithoutLoadingOrAuthorizing(
+            context,
+            spaceId,
+        );
+    const accountFromCache1 = accountsCacheData?.accountById.get(accountId as AccountId);
+    if (accountFromCache1 && !accountFromCache1.initialData.space.wasRemoved) return true;
+
+    // Check if `getAccountIfExists()` has loaded the account...
+    const accountFromCache2 = await AccountModelContextCache.getIfExists(
+        context,
+        `${spaceId}:${accountId}`,
+    );
+    if (accountFromCache2 && !accountFromCache2.initialData.space.wasRemoved) return true;
+
+    // Read the item with eventual consistency (and context caching). This function
+    // needs to return true with strong consistency but if the item exists an
+    // eventually consistent read will be cheaper and faster. We'll try again with
+    // strong consistency if this fails.
+    const item1 = await dangerouslyGetSpaceAccountItemIfExists(context, spaceId, accountId, {
+        consistency: "Eventual",
+    });
+    if (item1 && !item1.removal) return true;
+
+    // If the item wasn't present in any cache and wasn't present when we read with
+    // eventual consistency then trying finding the item again one last time with
+    // strong consistency. Since we want to return `true` from this function with
+    // strong consistency.
+    const item2 = await dangerouslyGetSpaceAccountItemIfExists(context, spaceId, accountId, {
+        consistency: "Strong",
+    });
+    if (item2 && !item2.removal) return true;
+
+    return false;
+}
 
 /**
  * Is the `accountId` a member of the provided `spaceId`?
@@ -767,9 +1030,10 @@ const SpaceAccountContextCache = new ContextCache<
  * from the space. But false negatives means the user gets an error when trying
  * to access a space they just got access to which we want to avoid.
  */
-export function isAccountMemberOfSpace(
+export async function isAccountMemberOfSpace(
     context: Context<{
         process: ProcessContextModule;
+        actor: ActorContextModule;
         tracer: TracerContextModule;
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
@@ -777,30 +1041,8 @@ export function isAccountMemberOfSpace(
     spaceId: SpaceId,
     accountId: AccountId | ContentMentionAccountId,
 ): Promise<boolean> {
-    return SpaceAccountContextCache.get(context, `${spaceId}:${accountId}`, async () => {
-        const {accountById} = await spaceAccountsCache.dangerouslyGetDataWithoutAuthorizing(
-            context,
-            spaceId,
-        );
-
-        // Account is definitely member of space...
-        if (accountById.has(accountId as AccountId)) return true;
-
-        // If the account wasn't present in our cache, maybe that's because of eventual
-        // consistency lag. Try again with strong consistency.
-        const item = await SpacesTable.getItemIfExists(
-            context,
-            {
-                partitionType: "Space",
-                sortRangeType: "Account",
-                spaceId,
-                accountId: accountId as AccountId,
-            },
-            {consistency: "Strong"},
-        );
-
-        return !!item;
-    });
+    await authorizeSpaceAccess(context, spaceId);
+    return isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId);
 }
 
 /**
@@ -823,7 +1065,13 @@ export async function authorizeSpaceAccess(
 ): Promise<void> {
     switch (context.actor.type) {
         case "Session": {
-            if (!(await isAccountMemberOfSpace(context, spaceId, context.actor.getAccountId()))) {
+            if (
+                !(await isAccountMemberOfSpaceWithoutAuthorization(
+                    context,
+                    spaceId,
+                    context.actor.getAccountId(),
+                ))
+            ) {
                 throw new PermissionDeniedError("Account does not have access to space", {
                     // TODO(calebmer): Add link to page that lists all spaces an account has access
                     // to in the help part of this error message.
@@ -843,7 +1091,75 @@ export async function authorizeSpaceAccess(
     }
 }
 
-const AccountContextCache = new ContextCache<
+const SpaceAccountItemContextCache = new ContextCache<
+    `${SpaceId}:${AccountId | ContentMentionAccountId}`,
+    SpaceAccountItem | null
+>({
+    // Allow sharing this cache because the results do not depend on anything in
+    // the context (like the `actor`). Whether we're using a session actor or a
+    // system actor does not affect wither an account is a member of a space.
+    dangerouslyAllowSharing: true,
+});
+
+/**
+ * Internal function to get a `SpaceAccountItem`. Caches the result in a
+ * context cache.
+ *
+ * Does not authorize the actor has access! Which is why the function is called
+ * "dangerous". You must do that yourself.
+ */
+async function dangerouslyGetSpaceAccountItemIfExists(
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+    }>,
+    spaceId: SpaceId,
+    // You may call this function `ContentMentionAccountId` since it does not throw
+    // when the account does not exist in the space.
+    accountId: AccountId | ContentMentionAccountId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+): Promise<SpaceAccountItem | null> {
+    switch (consistency) {
+        case "Eventual": {
+            return SpaceAccountItemContextCache.get(context, `${spaceId}:${accountId}`, () =>
+                SpacesTable.getItemIfExists(
+                    context,
+                    {
+                        partitionType: "Space",
+                        sortRangeType: "Account",
+                        spaceId,
+                        accountId: accountId as AccountId,
+                    },
+                    {consistency: "Eventual"},
+                ),
+            );
+        }
+        case "Strong": {
+            const item = await SpacesTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Space",
+                    sortRangeType: "Account",
+                    spaceId,
+                    accountId: accountId as AccountId,
+                },
+                {consistency: "Strong"},
+            );
+
+            // We can't read from the cache when using strong consistency, but we can add
+            // the item we read to the cache for future eventually consistent reads.
+            SpaceAccountItemContextCache.set(context, `${spaceId}:${accountId}`, item);
+
+            return item;
+        }
+        default:
+            throw exhaustive(consistency);
+    }
+}
+
+const AccountModelContextCache = new ContextCache<
     `${SpaceId}:${ContentMentionAccountId}`,
     AccountModel | null
 >();
@@ -854,11 +1170,17 @@ const AccountContextCache = new ContextCache<
  * are trying to read are members of the same space.
  *
  * If the account does not exist, we return null. If the account does exist but
- * is not a member of the provided space then we also return null.
+ * is not a member of the provided space we don't return null! Instead we
+ * return an `AccountModel` with `AccountModel.initialData.space.wasRemoved`
+ * set to true.
+ *
+ * Do not use this method for authorization purposes. Since we return an
+ * `AccountModel` even if the account is removed. Instead use
+ * `isAccountMemberOfSpace()` which returns false for removed accounts.
  */
 // This lives in `server/spaces` because it needs access to both the account
 // table and the space table.
-export function getAccountIfExists(
+export async function getAccountIfExists(
     context: Context<{
         process: ProcessContextModule;
         tracer: TracerContextModule;
@@ -872,39 +1194,54 @@ export function getAccountIfExists(
     accountId: AccountId | ContentMentionAccountId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<AccountModel | null> {
-    const get = async () => {
-        // Make sure we have access to the space being requested.
-        await authorizeSpaceAccess(context, spaceId);
+    // Make sure we have access to the space being requested.
+    await authorizeSpaceAccess(context, spaceId);
 
-        // If we are requesting the authenticated account then return the account model
-        // from our context which may already be cached.
-        if (
-            context.actor.type === "Session" &&
-            context.actor.getAccountId() === accountId &&
-            // If are reading with strong consistency then always read a new `AccountModel`
-            // instead of returning the initial, cached, version.
-            consistency !== "Strong"
-        ) {
-            return context.actor.getAccount();
+    const get = async (): Promise<AccountModel | null> => {
+        // If we have cached account data and we're loading with eventual consistency
+        // then we can use the cached data.
+        if (consistency === "Eventual") {
+            // We can't use `getDataIfExistsWithoutLoading()` because it calls
+            // `authorizeSpaceAccess()` which might get us stuck in a deadlock. Since
+            // `authorizeSpaceAccess()` looks at the cache result of this function.
+            //
+            // It's safe to skip authorization for this function, though, because we
+            // authorize space access above.
+            const accountsCacheData =
+                await spaceAccountsCache.dangerouslyGetDataIfExistsWithoutLoadingOrAuthorizing(
+                    context,
+                    spaceId,
+                );
+            if (accountsCacheData) {
+                return accountsCacheData.accountById.get(accountId as AccountId) ?? null;
+            }
         }
 
-        if (consistency === "Eventual") {
-            const {accountById} = await spaceAccountsCache.getData(context, spaceId);
+        // Otherwise load account data and space account data. If this is the current
+        // account, we may have already cached the account item.
+        const [account, spaceAccountItem] = await runAllPromises([
+            consistency === "Eventual" &&
+            context.actor.type === "Session" &&
+            context.actor.getAccountId() === accountId
+                ? context.actor.getAccount()
+                : dangerouslyGetAccountIfExistsWithoutCaching(context, accountId as AccountId, {
+                      consistency,
+                  }),
+            dangerouslyGetSpaceAccountItemIfExists(context, spaceId, accountId, {consistency}),
+        ]);
 
-            return accountById.get(accountId as AccountId) ?? null;
+        if (!spaceAccountItem) return null;
+
+        if (spaceAccountItem.removal) {
+            return createAccountModelFromItem(spaceAccountItem, null);
         } else {
-            const [account, isMemberOfSpace] = await runAllPromises([
-                dangerouslyGetAccountIfExistsWithoutCaching(context, accountId as AccountId, {
-                    consistency,
-                }),
-                isAccountMemberOfSpace(context, spaceId, accountId as AccountId),
-            ]);
+            // If we have a `SpaceAccountItem` then we must also have an `AccountItem` in
+            // our account table.
+            if (!account) {
+                throw new DataLossError("Space account item exists but account item doesn't");
+            }
 
-            // If the account exists but is not a member of the space provided to this
-            // function then you are not allowed to read the account.
-            if (!isMemberOfSpace) return null;
-
-            return account;
+            return createAccountModelFromItem(spaceAccountItem, account);
         }
     };
 
@@ -913,11 +1250,11 @@ export function getAccountIfExists(
     // consistency may use the cached account from a strong read.
     if (consistency === "Strong") {
         const getPromise = get();
-        AccountContextCache.set(context, `${spaceId}:${accountId}`, getPromise);
+        AccountModelContextCache.set(context, `${spaceId}:${accountId}`, getPromise);
         return getPromise;
     }
 
-    return AccountContextCache.get(context, `${spaceId}:${accountId}`, get);
+    return AccountModelContextCache.get(context, `${spaceId}:${accountId}`, get);
 }
 
 /**
@@ -1043,8 +1380,8 @@ export async function getSessionActorAccountSpaces(context: ServerSessionActionC
 }
 
 export type SpaceAccountNameSearchIndex = {
-    searchNames(queryText: string): Array<AccountModel>;
-    searchShortNames(queryText: string): Array<AccountModel>;
+    searchNames(queryText: string): Array<AccountModelWithoutSpace>;
+    searchShortNames(queryText: string): Array<AccountModelWithoutSpace>;
 };
 
 /**

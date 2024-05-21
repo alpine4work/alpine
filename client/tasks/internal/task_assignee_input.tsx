@@ -32,13 +32,13 @@ import {
     TaskAssigneeInputListBoxOptionItem,
 } from "~/client/tasks/internal/task_assignee_input_list_box.js";
 import {TaskMissingAccountAvatar} from "~/client/tasks/internal/task_missing_account_avatar.js";
-import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 // Node.js ESM interop (#node-esm-migration)
@@ -224,7 +224,11 @@ function TaskAssigneeInput(
     const searchedItems = useMemo(
         () =>
             inputValue === "" || inputState.type === "Selection" || !inputState.hasChanged
-                ? allItems
+                ? // Don't include removed accounts in the initial rendered account list.
+                  //
+                  // TODO(calebmer): When searching, removed accounts should rank lower. How do
+                  // we give them a lower score while still allowing users to find them?
+                  allItems.filter(item => !item.accountData || !item.accountData.space.wasRemoved)
                 : itemsSearchIndex.search(inputValue).map(({item}) => item),
 
         [allItems, inputState, inputValue, itemsSearchIndex],

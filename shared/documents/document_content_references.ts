@@ -1,4 +1,3 @@
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {
     ContentReferences,
     ContentReferencesSchema,
@@ -13,6 +12,7 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export type DocumentCommentThreadReference = SchemaType<
     typeof DocumentCommentThreadReferenceSchema

@@ -11,7 +11,6 @@ ts_project(
         "//:node_modules/@types/scheduler",
         "//:node_modules/react",
         "//:node_modules/scheduler",
-        "//client/accounts",
         "//client/context",
         "//client/design",
         "//client/dev",

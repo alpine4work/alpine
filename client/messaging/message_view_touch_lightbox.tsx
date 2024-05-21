@@ -10,6 +10,7 @@ import {
 import {Fragment, ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
 import {Box} from "~/client/design/box.js";
@@ -95,6 +96,7 @@ export function MessageViewTouchLightbox<
     onClose: () => void;
 }) {
     const {currentAccount} = useSpaceContext();
+    const accountStore = useAccountClientStore();
     const rootPortalElement = assertExists(
         useOverlayRootPortalElement(),
         "Can't server render `<MessageViewTouchLightbox>`",
@@ -367,7 +369,7 @@ export function MessageViewTouchLightbox<
                 onPress: async () => {
                     assert(message.payload.type === "Content");
 
-                    await writeContentToClipboard(message.payload.content);
+                    await writeContentToClipboard(accountStore, message.payload.content);
                 },
             });
         }

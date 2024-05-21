@@ -6,9 +6,9 @@ import {Box} from "~/client/design/box.js";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {PostModel} from "~/shared/forum/post_model.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {fontSizes, sprinkles} from "~/shared/styles/styles.js";
 
 export const postContentViewHeaderAvatarSize = "8";

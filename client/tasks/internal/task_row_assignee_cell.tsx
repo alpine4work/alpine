@@ -30,9 +30,9 @@ import {
     taskRowViewColumnWidth,
     taskRowViewMinHeight,
 } from "~/client/tasks/task_row_shared_styles.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";

@@ -1,17 +1,40 @@
-import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {internalUpdateSessionActorAccountNameWithoutUpdatingTasks} from "~/server/accounts/accounts_table.js";
+import {
+    ServerActionContext,
+    ServerSessionActionContext,
+} from "~/server/context/server_action_context.js";
+import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {
+    authorizeSpaceAccess,
+    dangerouslyAddSpaceAccountAsAdmin,
     expensivelyGetAllSpaceAccounts,
     getAccount,
     getAccountIfExists,
+    getSessionActorAccountSpaces,
     getSpaceAccountNameSearchIndex,
+    getSpaceAccountsCacheForTest,
+    isAccountMemberOfSpaceWithoutAuthorization,
+    removeSpaceAccountAsAdmin,
 } from "~/server/spaces/spaces_table.js";
+import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
+import {
+    FailedPreconditionError,
+    InternalError,
+    NotFoundError,
+    PermissionDeniedError,
+} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {generateId} from "~/shared/id/id.js";
 import {ContentMentionAccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 const context = createTestContext();
 const spaceA = createTestSpace(context);
@@ -307,5 +330,1690 @@ test("account name search can do some prefix matching", async () => {
             await session5.account.get(),
             await session6.account.get(),
         ].sort((a, b) => defaultCompareStrings(a.id, b.id)),
+    );
+});
+
+test("can remove account from space as admin", async () => {
+    const [space, otherSpace] = await runAllPromises([
+        TestSpace.create(context),
+        TestSpace.create(context),
+    ]);
+
+    const [session1, session2, session3, otherSession] = await runAllPromises([
+        space.createSession({hasInternalAccess: true}),
+        space.createSession(),
+        space.createSession(),
+        otherSpace.createSession(),
+    ]);
+
+    const isMember = async (space: TestSpace, session: TestSession) => {
+        const result1 = await isAccountMemberOfSpaceWithoutAuthorization(
+            context.withCache(),
+            space.id,
+            session.account.id,
+        );
+
+        // Make sure `authorizeSpaceAccess()` gives the same result as
+        // `isAccountMemberOfSpaceWithoutAuthorization()`.
+        const result2 = await captureResultPromise(() =>
+            authorizeSpaceAccess(session.action(), space.id),
+        );
+
+        if (result1) {
+            expect(result2).toEqual({ok: true});
+        } else {
+            expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+        }
+
+        return result1;
+    };
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(true);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+
+    await removeSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(false);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+
+    await removeSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session1.account.id,
+    });
+
+    expect(await isMember(space, session1)).toEqual(false);
+    expect(await isMember(space, session2)).toEqual(false);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+
+    await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
+        spaceId: otherSpace.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await isMember(space, session1)).toEqual(false);
+    expect(await isMember(space, session2)).toEqual(false);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(true);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+
+    await removeSpaceAccountAsAdmin(session1.action(), {
+        spaceId: otherSpace.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await isMember(space, session1)).toEqual(false);
+    expect(await isMember(space, session2)).toEqual(false);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+});
+
+test("can't remove account from space as non-admin", async () => {
+    const [space, otherSpace] = await runAllPromises([
+        TestSpace.create(context),
+        TestSpace.create(context),
+    ]);
+
+    const [session1, session2, session3, otherSession] = await runAllPromises([
+        space.createSession({hasInternalAccess: true}),
+        space.createSession(),
+        space.createSession(),
+        otherSpace.createSession(),
+    ]);
+
+    const isMember = async (space: TestSpace, session: TestSession) => {
+        const result1 = await isAccountMemberOfSpaceWithoutAuthorization(
+            context.withCache(),
+            space.id,
+            session.account.id,
+        );
+
+        // Make sure `authorizeSpaceAccess()` gives the same result as
+        // `isAccountMemberOfSpaceWithoutAuthorization()`.
+        const result2 = await captureResultPromise(() =>
+            authorizeSpaceAccess(session.action(), space.id),
+        );
+
+        if (result1) {
+            expect(result2).toEqual({ok: true});
+        } else {
+            expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+        }
+
+        return result1;
+    };
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(true);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+
+    await expect(
+        removeSpaceAccountAsAdmin(session2.action(), {
+            spaceId: space.id,
+            accountId: session2.account.id,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(true);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+});
+
+test("can't remove account from space that doesn't exist as admin", async () => {
+    const [space, otherSpace] = await runAllPromises([
+        TestSpace.create(context),
+        TestSpace.create(context),
+    ]);
+
+    const [session1, session2, session3, otherSession] = await runAllPromises([
+        space.createSession({hasInternalAccess: true}),
+        space.createSession(),
+        space.createSession(),
+        otherSpace.createSession(),
+    ]);
+
+    const isMember = async (space: TestSpace, session: TestSession) => {
+        const result1 = await isAccountMemberOfSpaceWithoutAuthorization(
+            context.withCache(),
+            space.id,
+            session.account.id,
+        );
+
+        // Make sure `authorizeSpaceAccess()` gives the same result as
+        // `isAccountMemberOfSpaceWithoutAuthorization()`.
+        const result2 = await captureResultPromise(() =>
+            authorizeSpaceAccess(session.action(), space.id),
+        );
+
+        if (result1) {
+            expect(result2).toEqual({ok: true});
+        } else {
+            expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+        }
+
+        return result1;
+    };
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(true);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+
+    await expect(
+        removeSpaceAccountAsAdmin(session1.action(), {
+            spaceId: generateId(),
+            accountId: session2.account.id,
+        }),
+    ).rejects.toThrow(NotFoundError);
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(true);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+});
+
+test("can't remove account that doesn't exist from space as admin", async () => {
+    const [space, otherSpace] = await runAllPromises([
+        TestSpace.create(context),
+        TestSpace.create(context),
+    ]);
+
+    const [session1, session2, session3, otherSession] = await runAllPromises([
+        space.createSession({hasInternalAccess: true}),
+        space.createSession(),
+        space.createSession(),
+        otherSpace.createSession(),
+    ]);
+
+    const isMember = async (space: TestSpace, session: TestSession) => {
+        const result1 = await isAccountMemberOfSpaceWithoutAuthorization(
+            context.withCache(),
+            space.id,
+            session.account.id,
+        );
+
+        // Make sure `authorizeSpaceAccess()` gives the same result as
+        // `isAccountMemberOfSpaceWithoutAuthorization()`.
+        const result2 = await captureResultPromise(() =>
+            authorizeSpaceAccess(session.action(), space.id),
+        );
+
+        if (result1) {
+            expect(result2).toEqual({ok: true});
+        } else {
+            expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+        }
+
+        return result1;
+    };
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(true);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+
+    await expect(
+        removeSpaceAccountAsAdmin(session1.action(), {
+            spaceId: space.id,
+            accountId: generateId(),
+        }),
+    ).rejects.toThrow(NotFoundError);
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(true);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+});
+
+test("can't remove account from space that account is not a member of as admin", async () => {
+    const [space, otherSpace] = await runAllPromises([
+        TestSpace.create(context),
+        TestSpace.create(context),
+    ]);
+
+    const [session1, session2, session3, otherSession] = await runAllPromises([
+        space.createSession({hasInternalAccess: true}),
+        space.createSession(),
+        space.createSession(),
+        otherSpace.createSession(),
+    ]);
+
+    const isMember = async (space: TestSpace, session: TestSession) => {
+        const result1 = await isAccountMemberOfSpaceWithoutAuthorization(
+            context.withCache(),
+            space.id,
+            session.account.id,
+        );
+
+        // Make sure `authorizeSpaceAccess()` gives the same result as
+        // `isAccountMemberOfSpaceWithoutAuthorization()`.
+        const result2 = await captureResultPromise(() =>
+            authorizeSpaceAccess(session.action(), space.id),
+        );
+
+        if (result1) {
+            expect(result2).toEqual({ok: true});
+        } else {
+            expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+        }
+
+        return result1;
+    };
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(true);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+
+    await expect(
+        removeSpaceAccountAsAdmin(session1.action(), {
+            spaceId: otherSpace.id,
+            accountId: session2.account.id,
+        }),
+    ).rejects.toThrow(FailedPreconditionError);
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(true);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+});
+
+test("can't remove account from space if it's already been removed as admin", async () => {
+    const [space, otherSpace] = await runAllPromises([
+        TestSpace.create(context),
+        TestSpace.create(context),
+    ]);
+
+    const [session1, session2, session3, otherSession] = await runAllPromises([
+        space.createSession({hasInternalAccess: true}),
+        space.createSession(),
+        space.createSession(),
+        otherSpace.createSession(),
+    ]);
+
+    const isMember = async (space: TestSpace, session: TestSession) => {
+        const result1 = await isAccountMemberOfSpaceWithoutAuthorization(
+            context.withCache(),
+            space.id,
+            session.account.id,
+        );
+
+        // Make sure `authorizeSpaceAccess()` gives the same result as
+        // `isAccountMemberOfSpaceWithoutAuthorization()`.
+        const result2 = await captureResultPromise(() =>
+            authorizeSpaceAccess(session.action(), space.id),
+        );
+
+        if (result1) {
+            expect(result2).toEqual({ok: true});
+        } else {
+            expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+        }
+
+        return result1;
+    };
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(true);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+
+    await removeSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(false);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+
+    await expect(
+        removeSpaceAccountAsAdmin(session1.action(), {
+            spaceId: space.id,
+            accountId: session2.account.id,
+        }),
+    ).rejects.toThrow(FailedPreconditionError);
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(false);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+});
+
+test("removing an account from a space updates the account's space ids", async () => {
+    const [space, otherSpace] = await runAllPromises([
+        TestSpace.create(context),
+        TestSpace.create(context),
+    ]);
+
+    const [session1, session2, session3, otherSession] = await runAllPromises([
+        space.createSession({hasInternalAccess: true}),
+        space.createSession(),
+        space.createSession(),
+        otherSpace.createSession(),
+    ]);
+
+    const isMember = async (space: TestSpace, session: TestSession) => {
+        const result1 = await isAccountMemberOfSpaceWithoutAuthorization(
+            context.withCache(),
+            space.id,
+            session.account.id,
+        );
+
+        // Make sure `authorizeSpaceAccess()` gives the same result as
+        // `isAccountMemberOfSpaceWithoutAuthorization()`.
+        const result2 = await captureResultPromise(() =>
+            authorizeSpaceAccess(session.action(), space.id),
+        );
+
+        if (result1) {
+            expect(result2).toEqual({ok: true});
+        } else {
+            expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+        }
+
+        return result1;
+    };
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(true);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+
+    expect(Array.from((await getSessionActorAccountSpaces(session1.action())).spaceIds)).toEqual([
+        space.id,
+    ]);
+    expect(Array.from((await getSessionActorAccountSpaces(session2.action())).spaceIds)).toEqual([
+        space.id,
+    ]);
+    expect(Array.from((await getSessionActorAccountSpaces(session3.action())).spaceIds)).toEqual([
+        space.id,
+    ]);
+    expect(
+        Array.from((await getSessionActorAccountSpaces(otherSession.action())).spaceIds),
+    ).toEqual([otherSpace.id]);
+
+    await removeSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(false);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+
+    expect(Array.from((await getSessionActorAccountSpaces(session1.action())).spaceIds)).toEqual([
+        space.id,
+    ]);
+    expect(Array.from((await getSessionActorAccountSpaces(session2.action())).spaceIds)).toEqual(
+        [],
+    );
+    expect(Array.from((await getSessionActorAccountSpaces(session3.action())).spaceIds)).toEqual([
+        space.id,
+    ]);
+    expect(
+        Array.from((await getSessionActorAccountSpaces(otherSession.action())).spaceIds),
+    ).toEqual([otherSpace.id]);
+
+    await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: otherSession.account.id,
+    });
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(false);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(true);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(true);
+
+    expect(Array.from((await getSessionActorAccountSpaces(session1.action())).spaceIds)).toEqual([
+        space.id,
+    ]);
+    expect(Array.from((await getSessionActorAccountSpaces(session2.action())).spaceIds)).toEqual(
+        [],
+    );
+    expect(Array.from((await getSessionActorAccountSpaces(session3.action())).spaceIds)).toEqual([
+        space.id,
+    ]);
+    expect(
+        Array.from((await getSessionActorAccountSpaces(otherSession.action())).spaceIds),
+    ).toEqual([otherSpace.id, space.id]);
+
+    await removeSpaceAccountAsAdmin(session1.action(), {
+        spaceId: otherSpace.id,
+        accountId: otherSession.account.id,
+    });
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(false);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(true);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(false);
+
+    expect(Array.from((await getSessionActorAccountSpaces(session1.action())).spaceIds)).toEqual([
+        space.id,
+    ]);
+    expect(Array.from((await getSessionActorAccountSpaces(session2.action())).spaceIds)).toEqual(
+        [],
+    );
+    expect(Array.from((await getSessionActorAccountSpaces(session3.action())).spaceIds)).toEqual([
+        space.id,
+    ]);
+    expect(
+        Array.from((await getSessionActorAccountSpaces(otherSession.action())).spaceIds),
+    ).toEqual([space.id]);
+
+    await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(true);
+    expect(await isMember(space, session3)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(true);
+    expect(await isMember(otherSpace, session1)).toEqual(false);
+    expect(await isMember(otherSpace, session2)).toEqual(false);
+    expect(await isMember(otherSpace, session3)).toEqual(false);
+    expect(await isMember(otherSpace, otherSession)).toEqual(false);
+
+    expect(Array.from((await getSessionActorAccountSpaces(session1.action())).spaceIds)).toEqual([
+        space.id,
+    ]);
+    expect(Array.from((await getSessionActorAccountSpaces(session2.action())).spaceIds)).toEqual([
+        space.id,
+    ]);
+    expect(Array.from((await getSessionActorAccountSpaces(session3.action())).spaceIds)).toEqual([
+        space.id,
+    ]);
+    expect(
+        Array.from((await getSessionActorAccountSpaces(otherSession.action())).spaceIds),
+    ).toEqual([space.id]);
+});
+
+test("`isAccountMemberOfSpace()` caches a true result in context", async () => {
+    const [space, otherSpace] = await runAllPromises([
+        TestSpace.create(context),
+        TestSpace.create(context),
+    ]);
+
+    const [session1, session2, otherSession] = await runAllPromises([
+        space.createSession({hasInternalAccess: true}),
+        space.createSession(),
+        otherSpace.createSession(),
+    ]);
+
+    const cacheContext = context.withCache();
+
+    const isMember = async (
+        context: Context<ServerProcessContextModules & {cache: CacheContextModule}>,
+        space: TestSpace,
+        session: TestSession,
+    ) => {
+        const result1 = await isAccountMemberOfSpaceWithoutAuthorization(
+            context,
+            space.id,
+            session.account.id,
+        );
+
+        // Make sure `authorizeSpaceAccess()` gives the same result as
+        // `isAccountMemberOfSpaceWithoutAuthorization()`.
+        const result2 = await captureResultPromise(() =>
+            authorizeSpaceAccess(
+                session.action().clone({cache: context.cache.dangerouslyForkWithSharedCaches()}),
+                space.id,
+            ),
+        );
+
+        if (result1) {
+            expect(result2).toEqual({ok: true});
+        } else {
+            expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+        }
+
+        return result1;
+    };
+
+    expect(await isMember(context.withCache(), space, session1)).toEqual(true);
+    expect(await isMember(context.withCache(), space, session2)).toEqual(true);
+    expect(await isMember(context.withCache(), space, otherSession)).toEqual(false);
+    expect(await isMember(cacheContext, space, session1)).toEqual(true);
+    expect(await isMember(cacheContext, space, session2)).toEqual(true);
+    expect(await isMember(cacheContext, space, otherSession)).toEqual(false);
+
+    await removeSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await isMember(context.withCache(), space, session1)).toEqual(true);
+    expect(await isMember(context.withCache(), space, session2)).toEqual(false);
+    expect(await isMember(context.withCache(), space, otherSession)).toEqual(false);
+    expect(await isMember(cacheContext, space, session1)).toEqual(true);
+    expect(await isMember(cacheContext, space, session2)).toEqual(true);
+    expect(await isMember(cacheContext, space, otherSession)).toEqual(false);
+
+    await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: otherSession.account.id,
+    });
+
+    expect(await isMember(context.withCache(), space, session1)).toEqual(true);
+    expect(await isMember(context.withCache(), space, session2)).toEqual(false);
+    expect(await isMember(context.withCache(), space, otherSession)).toEqual(true);
+    expect(await isMember(cacheContext, space, session1)).toEqual(true);
+    expect(await isMember(cacheContext, space, session2)).toEqual(true);
+    expect(await isMember(cacheContext, space, otherSession)).toEqual(true);
+});
+
+test("`isAccountMemberOfSpace()` uses the `getAccountIfExists()` cache in context to return true", async () => {
+    const [space, otherSpace] = await runAllPromises([
+        TestSpace.create(context),
+        TestSpace.create(context),
+    ]);
+
+    const [session1, session2, otherSession] = await runAllPromises([
+        space.createSession({hasInternalAccess: true}),
+        space.createSession(),
+        otherSpace.createSession(),
+    ]);
+
+    const cacheContext1 = session1.action();
+    const cacheContext2 = session2.action();
+    const cacheContext3 = otherSession.action();
+
+    const isMember = async (
+        context: ServerSessionActionContext,
+        space: TestSpace,
+        session: TestSession,
+    ) => {
+        const result1 = await isAccountMemberOfSpaceWithoutAuthorization(
+            context,
+            space.id,
+            session.account.id,
+        );
+
+        if (context.actor.getAccountId() === session.account.id) {
+            // Make sure `authorizeSpaceAccess()` gives the same result as
+            // `isAccountMemberOfSpaceWithoutAuthorization()`.
+            const result2 = await captureResultPromise(() =>
+                authorizeSpaceAccess(context, space.id),
+            );
+
+            if (result1) {
+                expect(result2).toEqual({ok: true});
+            } else {
+                expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+                expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+            }
+        }
+
+        return result1;
+    };
+
+    await getAccountIfExists(cacheContext1, space.id, session2.account.id);
+    await getAccountIfExists(cacheContext1, space.id, otherSession.account.id);
+
+    await getAccountIfExists(cacheContext2, space.id, session2.account.id);
+    await getAccountIfExists(cacheContext2, space.id, otherSession.account.id);
+
+    await expect(getAccountIfExists(cacheContext3, space.id, session2.account.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(
+        getAccountIfExists(cacheContext3, space.id, otherSession.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await removeSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await isMember(session1.action(), space, session1)).toEqual(true);
+    expect(await isMember(session1.action(), space, session2)).toEqual(false);
+    expect(await isMember(session1.action(), space, otherSession)).toEqual(false);
+    expect(await isMember(cacheContext1, space, session1)).toEqual(true);
+    expect(await isMember(cacheContext1, space, session2)).toEqual(true);
+    expect(await isMember(cacheContext1, space, otherSession)).toEqual(false);
+    expect(await isMember(cacheContext2, space, session1)).toEqual(true);
+    expect(await isMember(cacheContext2, space, session2)).toEqual(true);
+    expect(await isMember(cacheContext2, space, otherSession)).toEqual(false);
+    expect(await isMember(cacheContext3, space, session1)).toEqual(true);
+    expect(await isMember(cacheContext3, space, session2)).toEqual(false);
+    expect(await isMember(cacheContext3, space, otherSession)).toEqual(false);
+
+    await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: otherSession.account.id,
+    });
+
+    expect(await isMember(session1.action(), space, session1)).toEqual(true);
+    expect(await isMember(session1.action(), space, session2)).toEqual(false);
+    expect(await isMember(session1.action(), space, otherSession)).toEqual(true);
+    expect(await isMember(cacheContext1, space, session1)).toEqual(true);
+    expect(await isMember(cacheContext1, space, session2)).toEqual(true);
+    expect(await isMember(cacheContext1, space, otherSession)).toEqual(true);
+    expect(await isMember(cacheContext2, space, session1)).toEqual(true);
+    expect(await isMember(cacheContext2, space, session2)).toEqual(true);
+    expect(await isMember(cacheContext2, space, otherSession)).toEqual(true);
+    expect(await isMember(cacheContext3, space, session1)).toEqual(true);
+    expect(await isMember(cacheContext3, space, session2)).toEqual(false);
+    expect(await isMember(cacheContext3, space, otherSession)).toEqual(true);
+});
+
+test("`isAccountMemberOfSpace()` uses `spaceAccountsCache` to return true", async () => {
+    const [space, otherSpace] = await runAllPromises([
+        TestSpace.create(context),
+        TestSpace.create(context),
+    ]);
+
+    const [session1, session2, otherSession] = await runAllPromises([
+        space.createSession({hasInternalAccess: true}),
+        space.createSession(),
+        otherSpace.createSession(),
+    ]);
+
+    const isMember = async (space: TestSpace, session: TestSession) => {
+        const result1 = await isAccountMemberOfSpaceWithoutAuthorization(
+            context.withCache(),
+            space.id,
+            session.account.id,
+        );
+
+        // Make sure `authorizeSpaceAccess()` gives the same result as
+        // `isAccountMemberOfSpaceWithoutAuthorization()`.
+        const result2 = await captureResultPromise(() =>
+            authorizeSpaceAccess(session.action(), space.id),
+        );
+
+        if (result1) {
+            expect(result2).toEqual({ok: true});
+        } else {
+            expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+        }
+
+        return result1;
+    };
+
+    const spaceAccountsCache = getSpaceAccountsCacheForTest();
+    await spaceAccountsCache.dangerouslyGetDataWithoutAuthorizing(context.withCache(), space.id);
+
+    await removeSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+
+    await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: otherSession.account.id,
+    });
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(true);
+
+    spaceAccountsCache.cleanForTest();
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(false);
+    expect(await isMember(space, otherSession)).toEqual(true);
+});
+
+test("`isAccountMemberOfSpace()` ignores cached false result in context", async () => {
+    const [space, otherSpace] = await runAllPromises([
+        TestSpace.create(context),
+        TestSpace.create(context),
+    ]);
+
+    const [session1, session2, otherSession] = await runAllPromises([
+        space.createSession({hasInternalAccess: true}),
+        space.createSession(),
+        otherSpace.createSession(),
+    ]);
+
+    const cacheContext = context.withCache();
+
+    const isMember = async (
+        context: Context<ServerProcessContextModules & {cache: CacheContextModule}>,
+        space: TestSpace,
+        session: TestSession,
+    ) => {
+        const result1 = await isAccountMemberOfSpaceWithoutAuthorization(
+            context,
+            space.id,
+            session.account.id,
+        );
+
+        // Make sure `authorizeSpaceAccess()` gives the same result as
+        // `isAccountMemberOfSpaceWithoutAuthorization()`.
+        const result2 = await captureResultPromise(() =>
+            authorizeSpaceAccess(
+                session.action().clone({cache: context.cache.dangerouslyForkWithSharedCaches()}),
+                space.id,
+            ),
+        );
+
+        if (result1) {
+            expect(result2).toEqual({ok: true});
+        } else {
+            expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+        }
+
+        return result1;
+    };
+
+    await removeSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await isMember(context.withCache(), space, session1)).toEqual(true);
+    expect(await isMember(context.withCache(), space, session2)).toEqual(false);
+    expect(await isMember(context.withCache(), space, otherSession)).toEqual(false);
+    expect(await isMember(cacheContext, space, session1)).toEqual(true);
+    expect(await isMember(cacheContext, space, session2)).toEqual(false);
+    expect(await isMember(cacheContext, space, otherSession)).toEqual(false);
+
+    await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await isMember(context.withCache(), space, session1)).toEqual(true);
+    expect(await isMember(context.withCache(), space, session2)).toEqual(true);
+    expect(await isMember(context.withCache(), space, otherSession)).toEqual(false);
+    expect(await isMember(cacheContext, space, session1)).toEqual(true);
+    expect(await isMember(cacheContext, space, session2)).toEqual(true);
+    expect(await isMember(cacheContext, space, otherSession)).toEqual(false);
+});
+
+test("`isAccountMemberOfSpace()` ignores the `getAccountIfExists()` cache if account was removed", async () => {
+    const [space, otherSpace] = await runAllPromises([
+        TestSpace.create(context),
+        TestSpace.create(context),
+    ]);
+
+    const [session1, session2, otherSession] = await runAllPromises([
+        space.createSession({hasInternalAccess: true}),
+        space.createSession(),
+        otherSpace.createSession(),
+    ]);
+
+    const cacheContext1 = session1.action();
+    const cacheContext2 = session2.action();
+    const cacheContext3 = otherSession.action();
+
+    const isMember = async (
+        context: ServerSessionActionContext,
+        space: TestSpace,
+        session: TestSession,
+    ) => {
+        const result1 = await isAccountMemberOfSpaceWithoutAuthorization(
+            context,
+            space.id,
+            session.account.id,
+        );
+
+        if (context.actor.getAccountId() === session.account.id) {
+            // Make sure `authorizeSpaceAccess()` gives the same result as
+            // `isAccountMemberOfSpaceWithoutAuthorization()`.
+            const result2 = await captureResultPromise(() =>
+                authorizeSpaceAccess(context, space.id),
+            );
+
+            if (result1) {
+                expect(result2).toEqual({ok: true});
+            } else {
+                expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+                expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+            }
+        }
+
+        return result1;
+    };
+
+    await removeSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    await getAccountIfExists(cacheContext1, space.id, session2.account.id);
+    await getAccountIfExists(cacheContext1, space.id, otherSession.account.id);
+
+    await expect(getAccountIfExists(cacheContext2, space.id, session2.account.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(
+        getAccountIfExists(cacheContext2, space.id, otherSession.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(getAccountIfExists(cacheContext3, space.id, session2.account.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(
+        getAccountIfExists(cacheContext3, space.id, otherSession.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect(await isMember(session1.action(), space, session1)).toEqual(true);
+    expect(await isMember(session1.action(), space, session2)).toEqual(false);
+    expect(await isMember(session1.action(), space, otherSession)).toEqual(false);
+    expect(await isMember(cacheContext1, space, session1)).toEqual(true);
+    expect(await isMember(cacheContext1, space, session2)).toEqual(false);
+    expect(await isMember(cacheContext1, space, otherSession)).toEqual(false);
+    expect(await isMember(cacheContext2, space, session1)).toEqual(true);
+    expect(await isMember(cacheContext2, space, session2)).toEqual(false);
+    expect(await isMember(cacheContext2, space, otherSession)).toEqual(false);
+    expect(await isMember(cacheContext3, space, session1)).toEqual(true);
+    expect(await isMember(cacheContext3, space, session2)).toEqual(false);
+    expect(await isMember(cacheContext3, space, otherSession)).toEqual(false);
+
+    await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await isMember(session1.action(), space, session1)).toEqual(true);
+    expect(await isMember(session1.action(), space, session2)).toEqual(true);
+    expect(await isMember(session1.action(), space, otherSession)).toEqual(false);
+    expect(await isMember(cacheContext1, space, session1)).toEqual(true);
+    expect(await isMember(cacheContext1, space, session2)).toEqual(true);
+    expect(await isMember(cacheContext1, space, otherSession)).toEqual(false);
+    expect(await isMember(cacheContext2, space, session1)).toEqual(true);
+    expect(await isMember(cacheContext2, space, session2)).toEqual(true);
+    expect(await isMember(cacheContext2, space, otherSession)).toEqual(false);
+    expect(await isMember(cacheContext3, space, session1)).toEqual(true);
+    expect(await isMember(cacheContext3, space, session2)).toEqual(true);
+    expect(await isMember(cacheContext3, space, otherSession)).toEqual(false);
+});
+
+test("`isAccountMemberOfSpace()` ignores the `spaceAccountsCache` cache if account was removed", async () => {
+    const [space, otherSpace] = await runAllPromises([
+        TestSpace.create(context),
+        TestSpace.create(context),
+    ]);
+
+    const [session1, session2, otherSession] = await runAllPromises([
+        space.createSession({hasInternalAccess: true}),
+        space.createSession(),
+        otherSpace.createSession(),
+    ]);
+
+    const isMember = async (space: TestSpace, session: TestSession) => {
+        const result1 = await isAccountMemberOfSpaceWithoutAuthorization(
+            context.withCache(),
+            space.id,
+            session.account.id,
+        );
+
+        // Make sure `authorizeSpaceAccess()` gives the same result as
+        // `isAccountMemberOfSpaceWithoutAuthorization()`.
+        const result2 = await captureResultPromise(() =>
+            authorizeSpaceAccess(session.action(), space.id),
+        );
+
+        if (result1) {
+            expect(result2).toEqual({ok: true});
+        } else {
+            expect(result2).toEqual({ok: false, error: expect.any(PermissionDeniedError)});
+            expect(result2).not.toEqual({ok: false, error: expect.any(InternalError)});
+        }
+
+        return result1;
+    };
+
+    await removeSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    const spaceAccountsCache = getSpaceAccountsCacheForTest();
+    await spaceAccountsCache.dangerouslyGetDataWithoutAuthorizing(context.withCache(), space.id);
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(false);
+    expect(await isMember(space, otherSession)).toEqual(false);
+
+    await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+
+    spaceAccountsCache.cleanForTest();
+
+    expect(await isMember(space, session1)).toEqual(true);
+    expect(await isMember(space, session2)).toEqual(true);
+    expect(await isMember(space, otherSession)).toEqual(false);
+});
+
+test("`getAccountIfExists()` will return a removed account", async () => {
+    const [space, otherSpace] = await runAllPromises([
+        TestSpace.create(context),
+        TestSpace.create(context),
+    ]);
+
+    const [session1, session2, otherSession] = await runAllPromises([
+        space.createSession({hasInternalAccess: true}),
+        space.createSession(),
+        otherSpace.createSession(),
+    ]);
+
+    expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
+        new AccountModel({
+            id: session1.account.id,
+            version: 0,
+            name: session1.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 0,
+            name: session2.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
+        null,
+    );
+
+    await removeSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
+        new AccountModel({
+            id: session1.account.id,
+            version: 0,
+            name: session1.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 0,
+            name: session2.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 1,
+                joinedTime: expect.any(Date),
+                wasRemoved: true,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
+        null,
+    );
+
+    await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
+        new AccountModel({
+            id: session1.account.id,
+            version: 0,
+            name: session1.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 0,
+            name: session2.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 2,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
+        null,
+    );
+});
+
+test("`getAccountIfExists()` will cache eventually consistent reads in context", async () => {
+    const [space] = await runAllPromises([TestSpace.create(context)]);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession({hasInternalAccess: true}),
+        space.createSession(),
+    ]);
+
+    const cacheContext1 = session1.action();
+    const cacheContext2 = session1.action();
+
+    const cachedAccount1 = await getAccountIfExists(cacheContext1, space.id, session2.account.id);
+
+    expect(cachedAccount1).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 0,
+            name: session2.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(cacheContext1, space.id, session2.account.id)).toBe(
+        cachedAccount1,
+    );
+
+    await removeSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    const cachedAccount2 = await getAccountIfExists(cacheContext2, space.id, session2.account.id);
+
+    expect(await getAccountIfExists(cacheContext1, space.id, session2.account.id)).toBe(
+        cachedAccount1,
+    );
+    expect(cachedAccount2).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 0,
+            name: session2.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 1,
+                joinedTime: expect.any(Date),
+                wasRemoved: true,
+            },
+        }),
+    );
+
+    await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await getAccountIfExists(cacheContext1, space.id, session2.account.id)).toBe(
+        cachedAccount1,
+    );
+    expect(await getAccountIfExists(cacheContext2, space.id, session2.account.id)).toBe(
+        cachedAccount2,
+    );
+
+    const cachedAccount3 = await getAccountIfExists(cacheContext2, space.id, session2.account.id, {
+        consistency: "Strong",
+    });
+
+    expect(cachedAccount2).not.toBe(cachedAccount3);
+    expect(cachedAccount3).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 0,
+            name: session2.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 2,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+
+    expect(await getAccountIfExists(cacheContext1, space.id, session2.account.id)).toBe(
+        cachedAccount1,
+    );
+    expect(await getAccountIfExists(cacheContext2, space.id, session2.account.id)).toBe(
+        cachedAccount3,
+    );
+});
+
+test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCache`", async () => {
+    const [space, otherSpace] = await runAllPromises([
+        TestSpace.create(context),
+        TestSpace.create(context),
+    ]);
+
+    const [session1, session2, otherSession] = await runAllPromises([
+        space.createSession({hasInternalAccess: true}),
+        space.createSession(),
+        otherSpace.createSession(),
+    ]);
+
+    const spaceAccountsCache = getSpaceAccountsCacheForTest();
+
+    await spaceAccountsCache.dangerouslyGetDataWithoutAuthorizing(context.withCache(), space.id);
+
+    expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
+        new AccountModel({
+            id: session1.account.id,
+            version: 0,
+            name: session1.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 0,
+            name: session2.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
+        null,
+    );
+
+    await removeSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
+        new AccountModel({
+            id: session1.account.id,
+            version: 0,
+            name: session1.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 0,
+            name: session2.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
+        null,
+    );
+
+    spaceAccountsCache.cleanForTest();
+
+    expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
+        new AccountModel({
+            id: session1.account.id,
+            version: 0,
+            name: session1.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 0,
+            name: session2.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 1,
+                joinedTime: expect.any(Date),
+                wasRemoved: true,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
+        null,
+    );
+
+    await spaceAccountsCache.dangerouslyGetDataWithoutAuthorizing(context.withCache(), space.id);
+
+    expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
+        new AccountModel({
+            id: session1.account.id,
+            version: 0,
+            name: session1.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 0,
+            name: session2.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 1,
+                joinedTime: expect.any(Date),
+                wasRemoved: true,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
+        null,
+    );
+
+    await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
+        new AccountModel({
+            id: session1.account.id,
+            version: 0,
+            name: session1.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(
+        await getAccountIfExists(session1.action(), space.id, session2.account.id, {
+            consistency: "Strong",
+        }),
+    ).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 0,
+            name: session2.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 2,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 0,
+            name: session2.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 1,
+                joinedTime: expect.any(Date),
+                wasRemoved: true,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
+        null,
+    );
+
+    spaceAccountsCache.cleanForTest();
+
+    expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
+        new AccountModel({
+            id: session1.account.id,
+            version: 0,
+            name: session1.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 0,
+            name: session2.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 2,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
+        null,
+    );
+});
+
+test("`getAccountIfExists()` will keep returning an old name when account is removed", async () => {
+    const [space, otherSpace] = await runAllPromises([
+        TestSpace.create(context),
+        TestSpace.create(context),
+    ]);
+
+    const [session1, session2, otherSession] = await runAllPromises([
+        space.createSession({hasInternalAccess: true}),
+        space.createSession(),
+        otherSpace.createSession(),
+    ]);
+
+    expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
+        new AccountModel({
+            id: session1.account.id,
+            version: 0,
+            name: session1.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 0,
+            name: session2.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
+        null,
+    );
+
+    await internalUpdateSessionActorAccountNameWithoutUpdatingTasks(
+        session2.action(),
+        "Shawn Tyson",
+        {
+            getSessionActorAccountSpaces,
+            getTaskTransactionEntries: () => [],
+        },
+    );
+
+    expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
+        new AccountModel({
+            id: session1.account.id,
+            version: 0,
+            name: session1.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 1,
+            name: "Shawn Tyson",
+            nameVersion: 1,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
+        null,
+    );
+
+    await removeSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
+        new AccountModel({
+            id: session1.account.id,
+            version: 0,
+            name: session1.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 1,
+            name: "Shawn Tyson",
+            nameVersion: 1,
+            space: {
+                version: 1,
+                joinedTime: expect.any(Date),
+                wasRemoved: true,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
+        null,
+    );
+
+    await internalUpdateSessionActorAccountNameWithoutUpdatingTasks(
+        session2.action(),
+        "Shawn Meredith",
+        {
+            getSessionActorAccountSpaces,
+            getTaskTransactionEntries: () => [],
+        },
+    );
+
+    expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
+        new AccountModel({
+            id: session1.account.id,
+            version: 0,
+            name: session1.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 1,
+            name: "Shawn Tyson",
+            nameVersion: 1,
+            space: {
+                version: 1,
+                joinedTime: expect.any(Date),
+                wasRemoved: true,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
+        null,
+    );
+
+    await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+    });
+
+    expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
+        new AccountModel({
+            id: session1.account.id,
+            version: 0,
+            name: session1.account.initialName,
+            nameVersion: 0,
+            space: {
+                version: 0,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
+        new AccountModel({
+            id: session2.account.id,
+            version: 2,
+            name: "Shawn Meredith",
+            nameVersion: 2,
+            space: {
+                version: 2,
+                joinedTime: expect.any(Date),
+                wasRemoved: false,
+            },
+        }),
+    );
+    expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
+        null,
     );
 });

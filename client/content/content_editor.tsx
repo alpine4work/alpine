@@ -28,7 +28,6 @@ import {
     useState,
 } from "react";
 import {flushSync} from "react-dom";
-import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
 import {
     ContentEditorState,
     getContentEditorFloaterState,
@@ -596,10 +595,10 @@ function ContentEditor<Content extends ContentWithReferences>(
     const navigateRef = useRef(navigate);
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
-    const currentAccount =
+    const spaceContext =
         // eslint-disable-next-line react-hooks/rules-of-hooks
-        !import.meta.jest ? useSpaceContext().currentAccount : null;
-    const currentAccountRef = useRef(currentAccount);
+        !import.meta.jest ? useSpaceContext() : null;
+    const spaceContextRef = useRef(spaceContext);
     useInsertionEffect(() => {
         propsRef.current = props;
         isMobileRef.current = isMobile;
@@ -607,7 +606,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         canPrimaryInputHoverRef.current = canPrimaryInputHover;
         isDualModalityRef.current = isDualModality;
         navigateRef.current = navigate;
-        currentAccountRef.current = currentAccount;
+        spaceContextRef.current = spaceContext;
     });
 
     const viewRef = useRef<EditorView | null>(null);
@@ -738,8 +737,6 @@ function ContentEditor<Content extends ContentWithReferences>(
     useInsertionEffect((rootElement?: HTMLDivElement) => {
         assert(rootElement);
 
-        const accountStore = getAccountClientStoreForClient();
-
         const initialState = unwrap(propsRef.current.state);
         const schema = initialState.doc.type.schema;
 
@@ -777,13 +774,13 @@ function ContentEditor<Content extends ContentWithReferences>(
             clipboardSerializer:
                 ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
                     schema,
-                    accountStore,
+                    () => assertExists(spaceContextRef.current).space.id,
                     () => propsRef.current.state.getContent().references,
                 ),
             clipboardTextSerializer: slice =>
                 contentEditorTextClipboardSerializer(
                     slice,
-                    accountStore,
+                    () => assertExists(spaceContextRef.current).space.id,
                     () => propsRef.current.state.getContent().references,
                 ),
 
@@ -794,8 +791,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 orderedListItem: createContentEditorOrderedListItemNodeView,
                 checkListItem: createContentEditorCheckListItemNodeView,
                 mention: createContentEditorMentionNodeViewConstructor({
-                    accountStore,
-                    getCurrentAccountIfExists: () => currentAccountRef.current,
+                    getSpaceId: () => assertExists(spaceContextRef.current).space.id,
+                    getCurrentAccountIfExists: () =>
+                        spaceContextRef.current?.currentAccount ?? null,
                 }),
             },
 

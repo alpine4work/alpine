@@ -15,7 +15,6 @@ import {
     massageInboxEntriesQuery,
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -28,6 +27,7 @@ import {
     createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 import {InboxChatEntryModel} from "~/shared/notifications/inbox_model.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 let processingType: "Once" | "TwiceSerially" | "ThriceConcurrently" = "Once";
 
@@ -146,14 +146,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
             ]);
 
@@ -182,14 +182,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.account.get(),
+                    otherChatAccount: await scenario.session1.get(),
                 }),
             ]);
 
@@ -217,14 +217,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message2"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
             ]);
 
@@ -244,14 +244,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message2"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.account.get(),
+                    otherChatAccount: await scenario.session1.get(),
                 }),
             ]);
 
@@ -297,14 +297,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
             ]);
 
@@ -324,14 +324,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
             ]);
 
@@ -400,14 +400,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
             ]);
 
@@ -436,14 +436,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.account.get(),
+                    otherChatAccount: await scenario.session1.get(),
                 }),
             ]);
 
@@ -471,22 +471,19 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount3MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session3.account.id,
-                                        await scenario.session3.account.get(),
-                                    ],
+                                    [scenario.session3.account.id, await scenario.session3.get()],
                                 ]),
                             },
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
             ]);
 
@@ -515,22 +512,19 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 2,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount3MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session3.account.id,
-                                        await scenario.session3.account.get(),
-                                    ],
+                                    [scenario.session3.account.id, await scenario.session3.get()],
                                 ]),
                             },
                         }),
                         isStickyMention: true,
                     },
-                    otherChatAccount: await scenario.session1.account.get(),
+                    otherChatAccount: await scenario.session1.get(),
                 }),
             ]);
 
@@ -558,22 +552,19 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 2,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
                         isStickyMention: true,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
             ]);
 
@@ -602,22 +593,19 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 2,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount3MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session3.account.id,
-                                        await scenario.session3.account.get(),
-                                    ],
+                                    [scenario.session3.account.id, await scenario.session3.get()],
                                 ]),
                             },
                         }),
                         isStickyMention: true,
                     },
-                    otherChatAccount: await scenario.session1.account.get(),
+                    otherChatAccount: await scenario.session1.get(),
                 }),
             ]);
 
@@ -645,22 +633,19 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 3,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
                         isStickyMention: true,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
             ]);
 
@@ -680,22 +665,19 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.account.get(),
+                    otherChatAccount: await scenario.session1.get(),
                 }),
             ]);
 
@@ -777,14 +759,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
             ]);
 
@@ -804,14 +786,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
             ]);
 
@@ -839,22 +821,19 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
             ]);
 
@@ -883,22 +862,19 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.account.get(),
+                    otherChatAccount: await scenario.session1.get(),
                 }),
             ]);
 
@@ -935,14 +911,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.account.get(),
+                    otherChatAccount: await scenario.session1.get(),
                 }),
             ]);
 
@@ -962,14 +938,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
             ]);
 
@@ -997,22 +973,19 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
             ]);
 
@@ -1041,22 +1014,19 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.account.get(),
+                    otherChatAccount: await scenario.session1.get(),
                 }),
             ]);
         });
@@ -1119,7 +1089,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
@@ -1163,7 +1133,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
@@ -1190,7 +1160,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.otherSession.account.get(),
+                        author: await scenario.otherSession.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message2"),
                             references: emptyContentReferences,
@@ -1265,22 +1235,19 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount3MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session3.account.id,
-                                        await scenario.session3.account.get(),
-                                    ],
+                                    [scenario.session3.account.id, await scenario.session3.get()],
                                 ]),
                             },
                         }),
                         isStickyMention: true,
                     },
-                    otherChatAccount: await scenario.session1.account.get(),
+                    otherChatAccount: await scenario.session1.get(),
                 }),
             ]);
 
@@ -1317,22 +1284,19 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount3MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session3.account.id,
-                                        await scenario.session3.account.get(),
-                                    ],
+                                    [scenario.session3.account.id, await scenario.session3.get()],
                                 ]),
                             },
                         }),
                         isStickyMention: true,
                     },
-                    otherChatAccount: await scenario.session1.account.get(),
+                    otherChatAccount: await scenario.session1.get(),
                 }),
             ]);
 
@@ -1369,22 +1333,19 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount3MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session3.account.id,
-                                        await scenario.session3.account.get(),
-                                    ],
+                                    [scenario.session3.account.id, await scenario.session3.get()],
                                 ]),
                             },
                         }),
                         isStickyMention: true,
                     },
-                    otherChatAccount: await scenario.session1.account.get(),
+                    otherChatAccount: await scenario.session1.get(),
                 }),
             ]);
 
@@ -1471,14 +1432,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
             ]);
 
@@ -1498,14 +1459,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.account.get(),
+                    otherChatAccount: await scenario.session1.get(),
                 }),
             ]);
 
@@ -1528,14 +1489,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
             ]);
 
@@ -1555,14 +1516,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 2,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.account.get(),
+                    otherChatAccount: await scenario.session1.get(),
                 }),
             ]);
         });
@@ -1640,7 +1601,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
@@ -1679,7 +1640,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
@@ -1753,7 +1714,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
@@ -1788,16 +1749,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -1813,7 +1771,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
@@ -1848,14 +1806,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -1865,16 +1823,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -1890,7 +1845,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
@@ -1925,14 +1880,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -1942,16 +1897,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -1967,7 +1919,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message4"),
                             references: emptyContentReferences,
@@ -2002,14 +1954,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -2019,16 +1971,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2044,7 +1993,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message4"),
                             references: emptyContentReferences,
@@ -2079,16 +2028,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 2,
                     latestMessage: {
                         createdTime: message6.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2104,14 +2050,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -2121,16 +2067,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2164,16 +2107,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 2,
                     latestMessage: {
                         createdTime: message6.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2189,14 +2129,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -2206,16 +2146,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2249,16 +2186,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 2,
                     latestMessage: {
                         createdTime: message8.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2274,16 +2208,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 2,
                     latestMessage: {
                         createdTime: message6.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2299,14 +2230,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
             ]);
         });
@@ -2377,7 +2308,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
@@ -2412,16 +2343,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2437,7 +2365,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
@@ -2472,14 +2400,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -2489,16 +2417,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2514,7 +2439,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
@@ -2543,14 +2468,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -2560,16 +2485,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2585,7 +2507,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
@@ -2620,14 +2542,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message4"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.sharedSession.account.get(),
+                    otherChatAccount: await scenario.sharedSession.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -2637,14 +2559,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -2654,16 +2576,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2679,7 +2598,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
@@ -2714,14 +2633,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message4"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.sharedSession.account.get(),
+                    otherChatAccount: await scenario.sharedSession.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -2731,14 +2650,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -2748,16 +2667,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2773,7 +2689,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
@@ -2808,14 +2724,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message4"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.sharedSession.account.get(),
+                    otherChatAccount: await scenario.sharedSession.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -2825,14 +2741,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message6.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message6"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -2842,16 +2758,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2867,7 +2780,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
@@ -2902,22 +2815,19 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 2,
                     latestMessage: {
                         createdTime: message8.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
                         isStickyMention: true,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -2927,14 +2837,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message4"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.sharedSession.account.get(),
+                    otherChatAccount: await scenario.sharedSession.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -2944,16 +2854,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount1MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session1.account.id,
-                                        await scenario.session1.account.get(),
-                                    ],
+                                    [scenario.session1.account.id, await scenario.session1.get()],
                                 ]),
                             },
                         }),
@@ -2969,7 +2876,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
@@ -3040,14 +2947,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
             ]);
 
@@ -3075,14 +2982,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message2"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
             ]);
 
@@ -3102,14 +3009,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message2"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.account.get(),
+                    otherChatAccount: await scenario.session1.get(),
                 }),
             ]);
 
@@ -3137,14 +3044,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
             ]);
 
@@ -3164,14 +3071,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.account.get(),
+                    otherChatAccount: await scenario.session1.get(),
                 }),
             ]);
 
@@ -3209,14 +3116,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 2,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message4"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
             ]);
 
@@ -3236,14 +3143,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 2,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session3.account.get(),
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message4"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.account.get(),
+                    otherChatAccount: await scenario.session1.get(),
                 }),
             ]);
         });
@@ -3327,16 +3234,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -3352,14 +3256,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
             ]);
 
@@ -3379,16 +3283,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -3404,14 +3305,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
             ]);
 
@@ -3445,16 +3346,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -3470,14 +3368,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
             ]);
 
@@ -3497,16 +3395,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -3546,14 +3441,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
             ]);
 
@@ -3573,16 +3468,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -3631,16 +3523,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -3751,16 +3640,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message5.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -3776,16 +3662,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -3801,14 +3684,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
             ]);
 
@@ -3828,16 +3711,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -3853,14 +3733,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
             ]);
 
@@ -3904,16 +3784,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message5.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -3939,16 +3816,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -3988,16 +3862,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message5.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4023,14 +3894,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 0,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -4040,16 +3911,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4089,16 +3957,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 0,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4114,16 +3979,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message5.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4149,14 +4011,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 0,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -4166,16 +4028,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4215,14 +4074,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 0,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -4232,16 +4091,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 0,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4257,16 +4113,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message5.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4292,14 +4145,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 0,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -4309,16 +4162,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4349,14 +4199,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 0,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
             ]);
 
@@ -4376,14 +4226,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 0,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.account.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -4393,16 +4243,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 0,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4418,16 +4265,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message5.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4453,14 +4297,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 0,
                     latestMessage: {
                         createdTime: message3.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message3"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
                 new InboxChatEntryModel({
                     spaceId: scenario.space.id,
@@ -4470,16 +4314,13 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message4.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: scenario.mentionAccount2MessageContent,
                             references: {
                                 ...emptyContentReferences,
                                 accountById: new Map([
-                                    [
-                                        scenario.session2.account.id,
-                                        await scenario.session2.account.get(),
-                                    ],
+                                    [scenario.session2.account.id, await scenario.session2.get()],
                                 ]),
                             },
                         }),
@@ -4533,7 +4374,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
@@ -4582,7 +4423,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message2"),
                             references: emptyContentReferences,
@@ -4637,7 +4478,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 1,
                     latestMessage: {
                         createdTime: message1.createdTime,
-                        author: await scenario.session2.account.get(),
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
@@ -4700,14 +4541,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     loudNotificationCount: 0,
                     latestMessage: {
                         createdTime: message2.createdTime,
-                        author: await scenario.session1.account.get(),
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
                             doc: createSimpleMessageContent("message2"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.account.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
             ]);
         });
@@ -4759,7 +4600,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
-                    author: await session1.account.get(),
+                    author: await session1.get(),
                     contentTextSnippet: printContentSingleLineTextSnippet({
                         doc: createSimpleMessageContent("Test comment 2"),
                         references: emptyContentReferences,
@@ -4794,7 +4635,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
-                    author: await session1.account.get(),
+                    author: await session1.get(),
                     contentTextSnippet: printContentSingleLineTextSnippet({
                         doc: createSimpleMessageContent("Test comment 3"),
                         references: emptyContentReferences,
@@ -4838,7 +4679,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message4.createdTime,
-                    author: await session1.account.get(),
+                    author: await session1.get(),
                     contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
                     isStickyMention: true,
                 },
@@ -4870,7 +4711,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message4.createdTime,
-                    author: await session1.account.get(),
+                    author: await session1.get(),
                     contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
                     isStickyMention: true,
                 },
@@ -4902,7 +4743,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message4.createdTime,
-                    author: await session1.account.get(),
+                    author: await session1.get(),
                     contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
                     isStickyMention: true,
                 },
@@ -4943,7 +4784,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 loudNotificationCount: 3,
                 latestMessage: {
                     createdTime: message7.createdTime,
-                    author: await session1.account.get(),
+                    author: await session1.get(),
                     contentTextSnippet: `Test comment 7 @${session2.account.initialName}`,
                     isStickyMention: true,
                 },
@@ -4975,7 +4816,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 loudNotificationCount: 3,
                 latestMessage: {
                     createdTime: message7.createdTime,
-                    author: await session1.account.get(),
+                    author: await session1.get(),
                     contentTextSnippet: `Test comment 7 @${session2.account.initialName}`,
                     isStickyMention: true,
                 },
@@ -5023,7 +4864,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message9.createdTime,
-                    author: await session1.account.get(),
+                    author: await session1.get(),
                     contentTextSnippet: "Test comment 9",
                     isStickyMention: false,
                 },

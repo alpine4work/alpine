@@ -1,4 +1,3 @@
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ContentReferencedIdsSchema} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
@@ -12,6 +11,7 @@ import {
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskActionSchema, TaskUpdateTaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModelSearchResultSchema} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";

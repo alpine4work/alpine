@@ -1,9 +1,9 @@
 import GraphemeSplitter from "grapheme-splitter";
 import {useMemo} from "react";
 import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
-import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 const avatarClassName = sprinkles({

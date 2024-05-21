@@ -24,7 +24,7 @@ import {
     updatePostContent,
 } from "~/server/forum/data/forum_table.js";
 import {
-    dangerouslyCreateSpaceAccountAsAdmin,
+    dangerouslyAddSpaceAccountAsAdmin,
     getSessionActorAccountSpaces,
 } from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
@@ -3033,42 +3033,42 @@ test("can add accounts to spaces as admin", async () => {
     );
 
     await expect(
-        dangerouslyCreateSpaceAccountAsAdmin(session3.action(), {
+        dangerouslyAddSpaceAccountAsAdmin(session3.action(), {
             spaceId: space1.id,
             accountId: session3.account.id,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        dangerouslyCreateSpaceAccountAsAdmin(session3.action(), {
+        dangerouslyAddSpaceAccountAsAdmin(session3.action(), {
             spaceId: space1.id,
             accountId: session4.account.id,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        dangerouslyCreateSpaceAccountAsAdmin(session3.action(), {
+        dangerouslyAddSpaceAccountAsAdmin(session3.action(), {
             spaceId: space1.id,
             accountId: session1.account.id,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        dangerouslyCreateSpaceAccountAsAdmin(session3.action(), {
+        dangerouslyAddSpaceAccountAsAdmin(session3.action(), {
             spaceId: space1.id,
             accountId: session2.account.id,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        dangerouslyCreateSpaceAccountAsAdmin(session2.action(), {
+        dangerouslyAddSpaceAccountAsAdmin(session2.action(), {
             spaceId: space2.id,
             accountId: session2.account.id,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        dangerouslyCreateSpaceAccountAsAdmin(session2.action(), {
+        dangerouslyAddSpaceAccountAsAdmin(session2.action(), {
             spaceId: space2.id,
             accountId: session1.account.id,
         }),
@@ -3106,20 +3106,20 @@ test("can add accounts to spaces as admin", async () => {
     );
 
     await expect(
-        dangerouslyCreateSpaceAccountAsAdmin(adminSession.action(), {
+        dangerouslyAddSpaceAccountAsAdmin(adminSession.action(), {
             spaceId: space1.id,
             accountId: generateId(),
         }),
     ).rejects.toThrow(NotFoundError);
 
     await expect(
-        dangerouslyCreateSpaceAccountAsAdmin(adminSession.action(), {
+        dangerouslyAddSpaceAccountAsAdmin(adminSession.action(), {
             spaceId: generateId(),
             accountId: session3.account.id,
         }),
     ).rejects.toThrow(FailedPreconditionError);
 
-    await dangerouslyCreateSpaceAccountAsAdmin(adminSession.action(), {
+    await dangerouslyAddSpaceAccountAsAdmin(adminSession.action(), {
         spaceId: space1.id,
         accountId: session3.account.id,
     });
@@ -3144,7 +3144,7 @@ test("can add accounts to spaces as admin", async () => {
         PermissionDeniedError,
     );
 
-    await dangerouslyCreateSpaceAccountAsAdmin(adminSession.action(), {
+    await dangerouslyAddSpaceAccountAsAdmin(adminSession.action(), {
         spaceId: space1.id,
         accountId: adminSession.account.id,
     });
@@ -3166,14 +3166,14 @@ test("can add accounts to spaces as admin", async () => {
     );
 
     await expect(
-        dangerouslyCreateSpaceAccountAsAdmin(adminSession.action(), {
+        dangerouslyAddSpaceAccountAsAdmin(adminSession.action(), {
             spaceId: space1.id,
             accountId: session3.account.id,
         }),
     ).rejects.toThrow(FailedPreconditionError);
 
     await expect(
-        dangerouslyCreateSpaceAccountAsAdmin(adminSession.action(), {
+        dangerouslyAddSpaceAccountAsAdmin(adminSession.action(), {
             spaceId: space2.id,
             accountId: session2.account.id,
         }),
@@ -3195,7 +3195,7 @@ test("can add accounts to spaces as admin", async () => {
 
     await expect(getChannel(session2.action(), channel1.id)).rejects.toThrow(PermissionDeniedError);
 
-    await dangerouslyCreateSpaceAccountAsAdmin(adminSession.action(), {
+    await dangerouslyAddSpaceAccountAsAdmin(adminSession.action(), {
         spaceId: space1.id,
         accountId: session2.account.id,
     });

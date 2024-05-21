@@ -96,6 +96,17 @@ export type TestContext = ServerProcessContext & {
     ): ServerSystemActionContext;
 
     /**
+     * Add a `CacheContextModule` to our test context. Each time you call
+     * `withCache()` we create a new cache for the returned context object.
+     */
+    withCache(): Context<
+        ServerProcessContextModules & {
+            cache: CacheContextModule;
+            dynamoBatchContext: DynamoBatchContextModule;
+        }
+    >;
+
+    /**
      * Escalate one of our existing test contexts to a system context.
      */
     readonly escalateToSystemContext: <Value>(
@@ -288,6 +299,13 @@ export function createTestContext({
         });
     };
 
+    const withCache = () => {
+        return processContext.clone({
+            cache: new CacheContextModule(),
+            dynamoBatchContext: new DynamoBatchContextModule(),
+        });
+    };
+
     const dynamoContextModule = DynamoContextModule.test();
     const opensearchContextModule = OpensearchContextModule.test();
     const jobsContextModule = JobsContextModule.test();
@@ -312,6 +330,7 @@ export function createTestContext({
         unauthenticatedAction: createUnauthenticatedSessionContext,
         action: createSessionContext,
         systemAction: createSystemContext,
+        withCache,
         escalateToSystemContext,
     });
 

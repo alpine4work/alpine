@@ -35,7 +35,6 @@ import {
     useExpensivelyLoadAllSpaceAccounts,
     useExpensivelyPreloadAllSpaceAccounts,
 } from "~/client/spaces/use_expensively_load_all_space_accounts.js";
-import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
 import {
@@ -52,6 +51,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
+import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {
     backgroundColorVar,
     colorSchemeVars,
@@ -233,7 +233,13 @@ export function ChatAccountPicker({
     const searchedItems = useMemo(
         () =>
             searchQuery === ""
-                ? itemsWithoutSelection
+                ? // Don't include removed accounts in the initial rendered account list.
+                  //
+                  // TODO(calebmer): When searching, removed accounts should rank lower. How do
+                  // we give them a lower score while still allowing users to find them?
+                  itemsWithoutSelection.filter(
+                      item => item.type !== "Account" || !item.accountData.space.wasRemoved,
+                  )
                 : itemsSearchIndex.search(searchQuery).map(({item}) => item),
 
         [itemsSearchIndex, itemsWithoutSelection, searchQuery],

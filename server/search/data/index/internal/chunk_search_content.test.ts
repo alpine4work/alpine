@@ -9,7 +9,6 @@ import {chunkDocumentSearchContent} from "~/server/search/data/index/internal/ge
 import {parseSearchContent} from "~/server/search/data/index/internal/parse_search_content.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
@@ -23,6 +22,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, ContentMentionAccountId} from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 

@@ -60,11 +60,11 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/spacing.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
     inputPlaceholderStyles,
     invertSelectionColorsClassName,

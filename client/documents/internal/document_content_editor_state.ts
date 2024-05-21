@@ -10,7 +10,6 @@ import {
     ContentEditorReferencesAction,
     createCommentThreadMetaKey,
 } from "~/client/content/content_editor_state.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
 import {
     DocumentContentReferences,
@@ -35,6 +34,7 @@ import {
     MessageContent,
     MessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export type DocumentContentEditorState = CollaborativeContentEditorState<
     DocumentContentWithReferences,

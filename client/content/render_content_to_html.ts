@@ -4,7 +4,6 @@ import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {Store} from "~/client/helpers/store/store.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
 import {contentCheckListItemIconSvg} from "~/shared/content/content_check_list_item_icon_svg.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
@@ -22,6 +21,7 @@ import {
     renderProsemirrorDomOutputSpec,
     serializeProsemirrorFragmentToHtml,
 } from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 const {

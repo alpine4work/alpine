@@ -26,14 +26,14 @@ import {
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {truncateTokens} from "~/server/search/data/index/internal/truncate_tokens.js";
 import {SearchEntityIndexSystemActionContext} from "~/server/search/data/index/search_entity_index_system_action_context.js";
-import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
+import {getAccount, getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {getTaskCollectionFromIndex, getTaskFromIndex} from "~/server/tasks/data/task_index.js";
 import {TaskApproximateActionCountByAccountId} from "~/server/tasks/data/task_index_doc.js";
 import {
     TaskStepCountByAccountId,
     getTaskNotesContentWithoutReferences,
 } from "~/server/tasks/data/task_table.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
+import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
 import {InternalError, NotFoundError} from "~/shared/error/error.js";
@@ -48,6 +48,7 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {
     AccountId,
@@ -67,6 +68,7 @@ import {
     SearchEntityIdObject,
     printSearchEntityId,
 } from "~/shared/search/search_entity_id.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
@@ -156,7 +158,7 @@ class SearchEntityReadState {
     // from the `getAccount()` cache we don't have that guarantee.
     private readonly _accountPromiseById = new Map<
         AccountId | ContentMentionAccountId,
-        Promise<AccountModel | null>
+        Promise<AccountModelWithoutSpace | null>
     >();
 
     constructor(
@@ -206,24 +208,46 @@ class SearchEntityReadState {
         return this._dependencyIds;
     }
 
+    /**
+     * Get an account by `AccountId`. Returns `AccountModelWithoutSpace` instead
+     * of `AccountModel` so that if space properties change (e.g. account is
+     * removed or account permission level changes) we don't need to re-index all
+     * content that references the account.
+     */
     // Arrow function form so we can pass as a function parameter
     // (e.g. `chunkSearchContent(content, {getAccountIfExists: state.getAccountIfExists}))`)
     public readonly getAccountIfExists = (
         accountId: AccountId | ContentMentionAccountId,
-    ): Promise<AccountModel | null> => {
-        this._recordDependencyId(`Account:${accountId}`);
+    ): Promise<AccountModelWithoutSpace | null> => {
+        this._recordDependencyId(`Account:${accountId}:WithoutSpace`);
 
-        return getOrSetDefaultMapValue(this._accountPromiseById, accountId, () =>
-            getAccountIfExists(this._context, this._context.actor.getSpaceId(), accountId, {
-                consistency: "Strong",
-            }),
-        );
+        return getOrSetDefaultMapValue(this._accountPromiseById, accountId, async () => {
+            const account = await getAccountIfExists(
+                this._context,
+                this._context.actor.getSpaceId(),
+                accountId,
+                {
+                    consistency: "Strong",
+                },
+            );
+            if (!account) return null;
+
+            return new AccountModelWithoutSpace(omitObject(account.initialData, ["space"]));
+        });
     };
 
-    public async getAccount(accountId: AccountId): Promise<AccountModel> {
+    public async getAccount(accountId: AccountId): Promise<AccountModelWithoutSpace> {
         const account = await this.getAccountIfExists(accountId);
         if (!account) throw new NotFoundError("Account not found");
         return account;
+    }
+
+    public async getAccountWithSpace(accountId: AccountId): Promise<AccountModel> {
+        this._recordDependencyId(`Account:${accountId}`);
+
+        return getAccount(this._context, this._context.actor.getSpaceId(), accountId, {
+            consistency: "Strong",
+        });
     }
 
     public getDocumentContent(documentId: DocumentId): Promise<{
@@ -475,7 +499,7 @@ async function getAccountSearchEntity(
     state: SearchEntityReadState,
     accountId: AccountId | ContentMentionAccountId,
 ): Promise<SearchEntity> {
-    const account = await state.getAccount(accountId as AccountId);
+    const account = await state.getAccountWithSpace(accountId as AccountId);
 
     return {
         id: `Account:${accountId}`,
@@ -486,9 +510,7 @@ async function getAccountSearchEntity(
             defaultGrantType: "Space",
         },
 
-        // TODO(calebmer): Maybe this should be when the account was added to the space
-        // instead of when the account itself was created?
-        createdTime: account.initialData.createdTime,
+        createdTime: account.initialData.space.joinedTime,
 
         title: account.initialData.name,
         body: null,
@@ -565,7 +587,7 @@ export async function chunkDocumentSearchContent(
         tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModel | null>;
+        ) => Promise<AccountModelWithoutSpace | null>;
     },
 ) {
     const title = getDocumentContentTitle(content);

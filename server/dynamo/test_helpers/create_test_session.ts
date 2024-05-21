@@ -2,8 +2,8 @@ import {createAccountForTest, createSessionForTest} from "~/server/accounts/acco
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpaceItem} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
-import {createSpaceAccountForTest} from "~/server/spaces/spaces_table.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
+import {addSpaceAccountForTest} from "~/server/spaces/spaces_table.js";
+import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
@@ -13,7 +13,7 @@ export type TestSessionItem = {
     readonly sessionId: SessionId;
     readonly accountId: AccountId;
     readonly createdTime: Date;
-    readonly account: AccountModel;
+    readonly account: AccountModelWithoutSpace;
 };
 
 let accountNameCounter = 1;
@@ -43,13 +43,11 @@ export function createTestSession(
 
     const createdTime = new Date();
 
-    const account = new AccountModel({
+    const account = new AccountModelWithoutSpace({
         id: accountId,
+        version: 0,
         name,
         nameVersion: 0,
-        createdTime,
-        hasInternalAccess,
-        version: 0,
     });
 
     let sessionCreatedTime: Date | null = null;
@@ -67,7 +65,7 @@ export function createTestSession(
                 id: sessionId,
                 accountId,
             }),
-            await createSpaceAccountForTest(context, {
+            await addSpaceAccountForTest(context, {
                 spaceId: space.id,
                 accountId,
             }),

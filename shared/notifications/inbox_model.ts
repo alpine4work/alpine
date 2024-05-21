@@ -1,4 +1,3 @@
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {DocumentPreviewModel} from "~/shared/documents/document_model.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
@@ -13,6 +12,7 @@ import {
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export class InboxModel extends Model(
     Schema.object({

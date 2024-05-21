@@ -1,5 +1,5 @@
 import {EditorView, serializeForClipboard} from "prosemirror-view";
-import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
+import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
@@ -9,11 +9,12 @@ import {ContentWithReferences} from "~/shared/content/content_references.js";
 /**
  * Write some content including its rich styles to the clipboard.
  */
-export async function writeContentToClipboard(content: ContentWithReferences) {
+export async function writeContentToClipboard(
+    accountStore: AccountClientStore,
+    content: ContentWithReferences,
+) {
     const state = ContentEditorState.create(content)._getInternalState();
     const {schema} = state.doc.type;
-
-    const accountStore = getAccountClientStoreForClient();
 
     const view = new EditorView(null, {
         state,

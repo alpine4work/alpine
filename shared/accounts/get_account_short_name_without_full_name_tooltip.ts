@@ -1,4 +1,4 @@
-import {AccountModelData} from "~/shared/accounts/account_model.js";
+import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
@@ -11,7 +11,9 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * hover. Account short names may not be reliable so it's important to give the
  * user access to the account's full name.
  */
-export function getAccountShortNameWithoutFullNameTooltip(accountData: AccountModelData): string {
+export function getAccountShortNameWithoutFullNameTooltip(
+    accountData: AccountModelWithoutSpaceData,
+): string {
     const {givenName} = parseAccountNameAssumingWesternNameOrder(accountData);
     return givenName;
 }
@@ -32,7 +34,9 @@ export function getAccountShortNameWithoutFullNameTooltip(accountData: AccountMo
  *
  * [1]: https://en.wikipedia.org/wiki/Personal_name#Western_name_order
  */
-export function parseAccountNameAssumingWesternNameOrder(accountData: AccountModelData): {
+export function parseAccountNameAssumingWesternNameOrder(
+    accountData: AccountModelWithoutSpaceData,
+): {
     givenName: string;
     familyName: string | null;
 } {

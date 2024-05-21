@@ -4,11 +4,11 @@ import {
     accountNameIndexFuseMinMatchCharLength,
     accountNameIndexFuseScoreMatchCutoff,
 } from "~/server/spaces/spaces_table.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assertTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 // Node.js ESM interop (#node-esm-migration)
 type Fuse<T> = _Fuse.default<T>;
@@ -22,35 +22,55 @@ const accounts = [
         version: 0,
         name: "Budd Deey",
         nameVersion: 0,
-        createdTime,
+        space: {
+            version: 0,
+            joinedTime: createdTime,
+            wasRemoved: false,
+        },
     }),
     new AccountModel({
         id: generateId(),
         version: 0,
         name: "John Smith",
         nameVersion: 0,
-        createdTime,
+        space: {
+            version: 0,
+            joinedTime: createdTime,
+            wasRemoved: false,
+        },
     }),
     new AccountModel({
         id: generateId(),
         version: 0,
         name: "Emily Smith",
         nameVersion: 0,
-        createdTime,
+        space: {
+            version: 0,
+            joinedTime: createdTime,
+            wasRemoved: false,
+        },
     }),
     new AccountModel({
         id: generateId(),
         version: 0,
         name: "Anthony Mose",
         nameVersion: 0,
-        createdTime,
+        space: {
+            version: 0,
+            joinedTime: createdTime,
+            wasRemoved: false,
+        },
     }),
     new AccountModel({
         id: generateId(),
         version: 0,
         name: "Emily Lin",
         nameVersion: 0,
-        createdTime,
+        space: {
+            version: 0,
+            joinedTime: createdTime,
+            wasRemoved: false,
+        },
     }),
 ];
 

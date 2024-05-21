@@ -3,7 +3,6 @@ import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/task_client_store.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
 import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
 import {
@@ -22,6 +21,7 @@ import {
     deleteTaskAndAllChildren,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
@@ -49,22 +49,30 @@ afterEach(() => {
     assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
 });
 
-const accountStore = getAccountClientStoreForClient();
+const accountStore = getAccountClientStoreForClient(generateId());
 
 const account1 = new AccountModel({
     id: generateId(),
     name: "Test Account 1",
     nameVersion: 0,
-    createdTime: new Date(),
     version: 0,
+    space: {
+        version: 0,
+        joinedTime: new Date(),
+        wasRemoved: false,
+    },
 });
 
 const account2 = new AccountModel({
     id: generateId(),
     name: "Test Account 2",
     nameVersion: 0,
-    createdTime: new Date(),
     version: 0,
+    space: {
+        version: 0,
+        joinedTime: new Date(),
+        wasRemoved: false,
+    },
 });
 
 // Make sure we hold a reference to the `account1` store for the entire test.

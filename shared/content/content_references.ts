@@ -1,9 +1,9 @@
 import {Node} from "prosemirror-model";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {ContentMentionAccountId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export type ContentReferences = SchemaType<typeof ContentReferencesSchema>;
 

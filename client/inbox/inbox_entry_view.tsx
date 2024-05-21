@@ -12,7 +12,6 @@ import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Spacing} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -25,6 +24,7 @@ import {
     InboxEntryModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/notifications/inbox_model.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {backgroundColorVar, colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 export const inboxEntryViewMinHeight = "4rem";

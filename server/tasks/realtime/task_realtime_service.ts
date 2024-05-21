@@ -26,7 +26,10 @@ import {
 import {createStandardizedServerWithWebSockets} from "~/server/node/create_standardized_server.js";
 import {runService} from "~/server/node/run_service.js";
 import {registerShutdownListenerForIngressTraffic} from "~/server/node/shutdown_manager.js";
-import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
+import {
+    authorizeSpaceAccess,
+    isAccountMemberOfSpaceWithoutAuthorization,
+} from "~/server/spaces/spaces_table.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
@@ -529,7 +532,11 @@ async function createActorContextModule(
                 // Optimization: When loading our session from the database, also attempt to
                 // load whether the account associated with the session is a member of the
                 // space we're in.
-                isAccountMemberOfSpace(context, spaceId, authorizationHeaderPayload.accountId),
+                isAccountMemberOfSpaceWithoutAuthorization(
+                    context,
+                    spaceId,
+                    authorizationHeaderPayload.accountId,
+                ),
             ]);
 
             if (!session) {

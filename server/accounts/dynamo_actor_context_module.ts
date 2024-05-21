@@ -8,7 +8,7 @@ import {
 } from "~/server/helpers/actor_context_module.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {TokenPayload} from "~/server/tokens/token_payload.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
+import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
@@ -212,8 +212,18 @@ export class DynamoSessionActorContextModule
     /**
      * Returns the account connected to our service.
      */
-    public getAccount(): Promise<AccountModel> {
+    public getAccount(): Promise<AccountModelWithoutSpace> {
         return this._session.getAccount(this._context);
+    }
+
+    /**
+     * Returns the account connected to our service.
+     */
+    public getAccountAndHasInternalAccess(): Promise<{
+        readonly account: AccountModelWithoutSpace;
+        readonly hasInternalAccess: boolean;
+    }> {
+        return this._session.getAccountAndHasInternalAccess(this._context);
     }
 
     public fork() {

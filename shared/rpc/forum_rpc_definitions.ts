@@ -1,4 +1,3 @@
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {
     createDynamoGeneralRealtimeBackfillResultSchema,
@@ -15,6 +14,7 @@ import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export const createChannel = defineRpc({
     name: "createChannel",

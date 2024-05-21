@@ -16,7 +16,7 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condit
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {FromEmailAddress} from "~/server/emails/from_email_address.js";
-import {createSpaceAccountForAlphaTransactionEntries} from "~/server/spaces/spaces_table.js";
+import {dangerouslyAddSpaceAccountAsAdmin} from "~/server/spaces/spaces_table.js";
 import {
     AlphaAccessRequestDecisionSchema,
     AlphaAccessRequestModel,
@@ -292,11 +292,12 @@ export async function approveAlphaAccessRequest(
             name: requestItem.name,
             emailAddress: requestItem.emailAddress,
         }),
-        ...(await createSpaceAccountForAlphaTransactionEntries(context, {
-            spaceId: defaultSpaceId,
-            accountId,
-        })),
     ]);
+
+    await dangerouslyAddSpaceAccountAsAdmin(context, {
+        spaceId: defaultSpaceId,
+        accountId,
+    });
 
     // TODO(calebmer): For now I am sending alpha request approval emails manually
     // so they don't get trapped in a junk email folder.

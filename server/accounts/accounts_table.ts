@@ -15,7 +15,7 @@ import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.
 import {FromEmailAddress} from "~/server/emails/from_email_address.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
+import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {Context} from "~/shared/context/context.js";
 import {
     FailedPreconditionError,
@@ -359,6 +359,24 @@ export async function seedTestAccounts(context: DynamoContext) {
  * Transaction entry that checks to make sure an account email address does not
  * already exist.
  */
+export function checkAccountVersionConditionCheck(
+    account: AccountModelWithoutSpace,
+): DynamoTransactionEntry {
+    return AccountsTable.transactionUpdateLockVersionConditionCheck(
+        {
+            partitionType: "Account",
+            sortRangeType: "Attributes",
+            accountId: account.id,
+        },
+        // `AccountModel.initialData.version` is the same as `updateLockVersion`.
+        account.initialData.version,
+    );
+}
+
+/**
+ * Transaction entry that checks to make sure an account email address does not
+ * already exist.
+ */
 export function checkAccountEmailAddressDoesNotExistTransactionEntry(
     emailAddress: EmailAddress,
 ): DynamoTransactionEntry {
@@ -404,13 +422,13 @@ export function createAccountForAlphaTransactionEntries({
 }
 
 /**
- * Get any `AccountModel` by `AccountId`. The actor must have internal access
- * to make this request.
+ * Get any `AccountModelWithoutSpace` by `AccountId`. The actor must have
+ * internal access to make this request.
  */
 export async function getAccountByIdAsAdmin(
     context: Context<{actor: DynamoActorContextModule} & DynamoContextModules>,
     accountId: AccountId,
-): Promise<AccountModel> {
+): Promise<AccountModelWithoutSpace> {
     await authorizeInternalAccess(context);
 
     const accountItem = await AccountsTable.getItem(context, {
@@ -423,13 +441,13 @@ export async function getAccountByIdAsAdmin(
 }
 
 /**
- * Get any `AccountModel` by `EmailAddress`. The actor must have internal access
- * to make this request.
+ * Get any `AccountModelWithoutSpace` by `EmailAddress`. The actor must have
+ * internal access to make this request.
  */
 export async function getAccountByEmailAddressAsAdmin(
     context: Context<{actor: DynamoActorContextModule} & DynamoContextModules>,
     emailAddress: string,
-): Promise<AccountModel> {
+): Promise<AccountModelWithoutSpace> {
     await authorizeInternalAccess(context);
 
     const accountEmailAddressItem = await AccountsTable.getItem(context, {
@@ -814,13 +832,19 @@ export class Session {
     public readonly id: SessionId;
     public readonly accountId: AccountId;
     public readonly createdTime: Date;
-    private readonly _preloadedAccount: AccountModel | null;
+    private readonly _preloadedAccount: {
+        readonly account: AccountModelWithoutSpace;
+        readonly hasInternalAccess: boolean;
+    } | null;
 
     private constructor(
         id: SessionId,
         accountId: AccountId,
         createdTime: Date,
-        preloadedAccount: AccountModel | null,
+        preloadedAccount: {
+            readonly account: AccountModelWithoutSpace;
+            readonly hasInternalAccess: boolean;
+        } | null,
     ) {
         this.id = id;
         this.accountId = accountId;
@@ -862,7 +886,12 @@ export class Session {
             sessionId,
             sessionItem.accountId,
             sessionItem.createdTime,
-            accountItem ? createAccountModelFromItem(accountItem) : null,
+            accountItem
+                ? {
+                      account: createAccountModelFromItem(accountItem),
+                      hasInternalAccess: accountItem.hasInternalAccess ?? false,
+                  }
+                : null,
         );
     }
 
@@ -896,31 +925,43 @@ export class Session {
         }
     }
 
-    private _accountPromise: Promise<AccountModel> | null = null;
+    private _accountPromise: Promise<{
+        readonly account: AccountModelWithoutSpace;
+        readonly hasInternalAccess: boolean;
+    }> | null = null;
 
-    public getAccount(context: DynamoContext): Promise<AccountModel> {
+    public getAccountAndHasInternalAccess(context: DynamoContext): Promise<{
+        readonly account: AccountModelWithoutSpace;
+        readonly hasInternalAccess: boolean;
+    }> {
         if (this._preloadedAccount !== null) return Promise.resolve(this._preloadedAccount);
 
         if (this._accountPromise === null) {
             this._accountPromise = (async () =>
                 assertExists(
-                    await dangerouslyGetAccountIfExistsWithoutCaching(context, this.accountId),
+                    await dangerouslyGetAccountAndHasInternalAccessIfExistsWithoutCaching(
+                        context,
+                        this.accountId,
+                    ),
                     "Expected account referenced by session to exist",
                 ))();
         }
 
         return this._accountPromise;
     }
+
+    public async getAccount(context: DynamoContext): Promise<AccountModelWithoutSpace> {
+        const {account} = await this.getAccountAndHasInternalAccess(context);
+        return account;
+    }
 }
 
 function createAccountModelFromItem(accountItem: AccountItem) {
-    return new AccountModel({
+    return new AccountModelWithoutSpace({
         id: accountItem.accountId,
+        version: accountItem.updateLockVersion ?? 0,
         name: accountItem.name,
         nameVersion: accountItem.nameVersion ?? 0,
-        createdTime: accountItem.createdTime,
-        hasInternalAccess: accountItem.hasInternalAccess,
-        version: accountItem.updateLockVersion ?? 0,
     });
 }
 
@@ -931,13 +972,13 @@ function createAccountModelFromItem(accountItem: AccountItem) {
 export async function authorizeInternalAccess(context: Context<{actor: DynamoActorContextModule}>) {
     switch (context.actor.type) {
         case "Session": {
-            const account = await context.actor.getAccount();
+            const {hasInternalAccess} = await context.actor.getAccountAndHasInternalAccess();
 
-            if (!account.initialData.hasInternalAccess)
+            if (!hasInternalAccess) {
                 throw new PermissionDeniedError("Account does not have internal access", {
                     displayMessage: errorDisplayMessage`Only members of our team may access internal tools.`,
                 });
-
+            }
             break;
         }
         case "System": {
@@ -946,6 +987,36 @@ export async function authorizeInternalAccess(context: Context<{actor: DynamoAct
         default:
             throw exhaustive(context.actor);
     }
+}
+
+/**
+ * Get an account without authorizing whether the current context has
+ * access or not.
+ *
+ * You should not call this function! It does not authorize that you are
+ * allowed to access the account and does not cache accounts. Instead use
+ * `getAccountIfExists()` in `server/spaces/spaces_table.ts`.
+ */
+async function dangerouslyGetAccountAndHasInternalAccessIfExistsWithoutCaching(
+    context: DynamoContext,
+    accountId: AccountId | ContentMentionAccountId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+) {
+    const accountItem = await AccountsTable.getItemIfExists(
+        context,
+        {
+            partitionType: "Account",
+            sortRangeType: "Attributes",
+            accountId: accountId as AccountId,
+        },
+        {consistency},
+    );
+    if (!accountItem) return null;
+
+    return {
+        account: createAccountModelFromItem(accountItem),
+        hasInternalAccess: accountItem.hasInternalAccess ?? false,
+    };
 }
 
 /**
@@ -1019,7 +1090,7 @@ export async function internalUpdateSessionActorAccountNameWithoutUpdatingTasks<
             },
         ) => Array<DynamoTransactionEntry>;
     },
-): Promise<AccountModel> {
+): Promise<AccountModelWithoutSpace> {
     return context.dynamo.retryTransaction(async context => {
         const accountItem = await AccountsTable.getItem(context, {
             partitionType: "Account",
@@ -1074,7 +1145,7 @@ export async function internalUpdateSessionActorAccountNameWithoutUpdatingTasks<
                 update: {
                     type: "Account",
                     accountId: newAccountItem.accountId,
-                    updatedTraits: {type: "Some", traits: []},
+                    updatedTraits: {type: "Some", traits: ["WithoutSpace"]},
                 },
             });
         }

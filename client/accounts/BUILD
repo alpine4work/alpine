@@ -16,6 +16,7 @@ ts_project(
         "//client/context",
         "//client/design",
         "//client/helpers",
+        "//client/spaces",
         "//shared/accounts",
         "//shared/helpers",
     ],

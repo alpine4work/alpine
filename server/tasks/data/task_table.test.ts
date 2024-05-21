@@ -11,7 +11,7 @@ import {
     createTestSession,
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {createSpaceAccountForTest} from "~/server/spaces/spaces_table.js";
+import {addSpaceAccountForTest} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
@@ -149,7 +149,7 @@ describe("old style", () => {
     const sharedSession = createTestSession(context, space);
 
     beforeAll(async () => {
-        await createSpaceAccountForTest(context, {
+        await addSpaceAccountForTest(context, {
             spaceId: otherSpace.id,
             accountId: sharedSession.accountId,
         });
@@ -193,15 +193,15 @@ describe("old style", () => {
         const space = await TestSpace.create(context);
 
         await runAllPromises([
-            createSpaceAccountForTest(context, {
+            addSpaceAccountForTest(context, {
                 spaceId: space.id,
                 accountId: session1.accountId,
             }),
-            createSpaceAccountForTest(context, {
+            addSpaceAccountForTest(context, {
                 spaceId: space.id,
                 accountId: session2.accountId,
             }),
-            createSpaceAccountForTest(context, {
+            addSpaceAccountForTest(context, {
                 spaceId: space.id,
                 accountId: session3.accountId,
             }),

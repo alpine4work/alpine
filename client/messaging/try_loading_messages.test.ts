@@ -1,19 +1,23 @@
 import {MessageList} from "~/client/messaging/message_list.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 const account = new AccountModel({
     id: generateId(),
+    version: 0,
     name: "Test",
     nameVersion: 0,
-    createdTime: new Date(),
-    version: 0,
+    space: {
+        version: 0,
+        joinedTime: new Date(),
+        wasRemoved: false,
+    },
 });
 
 const loadFromStart = (options: {

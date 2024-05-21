@@ -1,4 +1,3 @@
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ContentReferencedIdsSchema} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {DocumentContentReferencedIdsSchema} from "~/shared/documents/document_content_referenced_ids.js";
@@ -21,6 +20,7 @@ import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export const authorizeDocumentAccess = defineRpc({
     name: "authorizeDocumentAccess",

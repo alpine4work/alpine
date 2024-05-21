@@ -25,12 +25,12 @@ import {selectChatForAccounts} from "~/server/chat/data/chat_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({

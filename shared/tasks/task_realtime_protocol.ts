@@ -1,4 +1,3 @@
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {
@@ -12,6 +11,7 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";

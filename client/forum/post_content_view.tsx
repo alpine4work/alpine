@@ -32,7 +32,6 @@ import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/clien
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {
     RemLength,
@@ -59,6 +58,7 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {messageInputPaddingY} from "~/shared/messaging/messaging_shared_styles.js";
 import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
     colorSchemeVars,
     contentSchemaStyles,

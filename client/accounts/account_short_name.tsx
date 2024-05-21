@@ -2,8 +2,8 @@ import {useMemo} from "react";
 import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {OverlayPlacement} from "~/client/design/overlay.js";
 import {Tooltip} from "~/client/design/tooltip.js";
-import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 
 export function AccountShortName({
     account,

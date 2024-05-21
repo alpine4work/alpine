@@ -5,7 +5,7 @@ import {
 } from "~/server/accounts/accounts_table.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
+import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -74,7 +74,7 @@ export class TestAccount {
         return emailAddress;
     }
 
-    public async get(): Promise<AccountModel> {
+    public async get(): Promise<AccountModelWithoutSpace> {
         return assertExists(
             await dangerouslyGetAccountIfExistsWithoutCaching(this.context, this.id),
         );

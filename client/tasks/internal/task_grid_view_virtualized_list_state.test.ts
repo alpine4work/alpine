@@ -5,7 +5,6 @@ import {
     TaskGridViewVirtualizedListStateItem,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list_state.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {InternalError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {shuffleArray} from "~/shared/helpers/array/shuffle_array.js";
@@ -15,6 +14,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -36,22 +36,30 @@ afterEach(() => {
     assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
 });
 
-const accountStore = getAccountClientStoreForClient();
+const accountStore = getAccountClientStoreForClient(generateId());
 
 const account1 = new AccountModel({
     id: generateId(),
+    version: 0,
     name: "Test Account 1",
     nameVersion: 0,
-    createdTime: new Date(),
-    version: 0,
+    space: {
+        version: 0,
+        joinedTime: new Date(),
+        wasRemoved: false,
+    },
 });
 
 const account2 = new AccountModel({
     id: generateId(),
+    version: 0,
     name: "Test Account 2",
     nameVersion: 0,
-    createdTime: new Date(),
-    version: 0,
+    space: {
+        version: 0,
+        joinedTime: new Date(),
+        wasRemoved: false,
+    },
 });
 
 // Make sure we hold a reference to the `account1` store for the entire test.

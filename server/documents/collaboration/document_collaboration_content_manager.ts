@@ -6,7 +6,6 @@ import {
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {DocumentCollaborationStepCache} from "~/server/documents/collaboration/document_collaboration_step_cache.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {
     DocumentCollaborationEvent,
@@ -58,6 +57,7 @@ import {
     getDocumentContentReferences,
     updateDocumentContent,
 } from "~/shared/rpc/documents_rpc_definitions.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export const documentCollaborationContentManagerBeforeUpdateTestCheckpoint =
     new TestCheckpoint<DocumentId>();

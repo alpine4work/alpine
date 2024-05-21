@@ -49,7 +49,6 @@ import {
     TaskIndexSearchEntityJob,
 } from "~/server/tasks/data/task_index_doc.js";
 import {getTaskCollectionSearchResultIfExists} from "~/server/tasks/data/task_table.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -72,6 +71,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
 import {
     TaskAction,
@@ -904,7 +904,12 @@ class TaskActionTransactionIndexState {
                             newReferencedAccountById.get(accountId)!.initialData.nameVersion,
                     )
                 ) {
-                    referencedAccountById = newReferencedAccountById;
+                    referencedAccountById = new Map(
+                        mapIterable(referencedAccountById, ([accountId, account]) => [
+                            accountId,
+                            account.mergeWithoutSpace(newReferencedAccountById.get(accountId)!),
+                        ]),
+                    );
                     retry();
                 }
             }

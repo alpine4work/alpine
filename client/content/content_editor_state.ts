@@ -17,7 +17,6 @@ import {
     ContentEditorFloaterState,
     initialContentEditorFloaterState,
 } from "~/client/content/internal/content_editor_floater.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {
     ContentReferences,
     ContentWithReferences,
@@ -31,6 +30,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export const createCommentThreadMetaKey = "createCommentThread";
 

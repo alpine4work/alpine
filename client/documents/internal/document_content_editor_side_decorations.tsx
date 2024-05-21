@@ -4,11 +4,11 @@ import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {Box} from "~/client/design/box.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {convertRemLengthToPx} from "~/shared/design/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 export type DocumentContentEditorSideDecoration = {

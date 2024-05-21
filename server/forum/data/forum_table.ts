@@ -29,11 +29,10 @@ import {
 import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
-    createAlphaSpaceTransactionEntriesAsAdmin,
     getAccount,
+    internalCreateAlphaSpaceAsAdmin,
     isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_table.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {
@@ -95,6 +94,7 @@ import {MessagePayload, MessagePayloadSchema} from "~/shared/messaging/message_m
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
     // Disable table-level realtime queries
@@ -734,15 +734,13 @@ export async function createAlphaSpaceAsAdmin(
     const welcomeChannelId = generateId<ChannelId>();
     const createdTime = new Date();
 
-    await context.dynamo.retryTransaction(async context => {
-        await DynamoTableSchema.executeTransaction(context, [
-            ...(await createAlphaSpaceTransactionEntriesAsAdmin(context, {
-                name,
-                spaceId,
-                createdTime,
-                ownerAccountId,
-                welcomeChannelId,
-            })),
+    await internalCreateAlphaSpaceAsAdmin(context, {
+        name,
+        spaceId,
+        createdTime,
+        ownerAccountId,
+        welcomeChannelId,
+        createWelcomeChannelTransactionEntries: [
             // We use this when creating an alpha space. So it's ok that we don't send a
             // realtime event since there'll be no one around to subscribe to the event.
             ForumRealtimeTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheckAndWithoutEvent(
@@ -772,7 +770,7 @@ export async function createAlphaSpaceAsAdmin(
                     },
                 },
             ),
-        ]);
+        ],
     });
 
     return {

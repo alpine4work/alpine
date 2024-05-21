@@ -1,9 +1,9 @@
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskCollectionModelSearchResultSchema} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 

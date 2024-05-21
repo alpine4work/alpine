@@ -34,7 +34,6 @@ import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
-import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {spacing} from "~/shared/design/spacing.js";
@@ -42,6 +41,7 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {
     greyElevated2ClassName,
     overlayFadeOutAnimationDurationMs,
@@ -120,7 +120,13 @@ export function ContentEditorMentionFloater({
 
     const searchedAccountDatas = useMemo(() => {
         if (!allAccountDatas || !allAccountsFuse) return null;
-        if (searchQuery.length === 0) return allAccountDatas;
+        if (searchQuery.length === 0) {
+            // Don't include removed accounts in the initial rendered account list.
+            //
+            // TODO(calebmer): When searching, removed accounts should rank lower. How do
+            // we give them a lower score while still allowing users to find them?
+            return allAccountDatas.filter(item => !item.space.wasRemoved);
+        }
         return allAccountsFuse.search(searchQuery).map(({item}) => item);
     }, [allAccountDatas, allAccountsFuse, searchQuery]);
 
