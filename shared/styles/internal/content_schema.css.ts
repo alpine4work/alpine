@@ -348,7 +348,7 @@ const codeNumberWidth = spacing["6"];
 const codeBlockMargin = spacing["4"];
 const codeTextIndentation = spacing["10"];
 
-export const codeBlockClassName = style({
+export const codeBlockWrapperClassName = style({
     ...blockStyles,
     position: "relative",
     marginTop: `${codeBlockMargin}`,
@@ -356,6 +356,19 @@ export const codeBlockClassName = style({
     padding: codeBlockIndentation,
     backgroundColor: colorSchemeVars["grey-5"],
     counterReset: "code-block-line-number",
+});
+
+export const codeBlockClassName = style({
+    display: "block",
+
+    // The reason use `&&&` is to beat the CSS set by ProseMirror since
+    // ProseMirror automatically sets white space to pre-wrap.
+    selectors: {
+        "&&&": {
+            overflowX: "auto",
+            whiteSpace: "pre",
+        },
+    },
 });
 
 export const codeBlockLineClassName = style({

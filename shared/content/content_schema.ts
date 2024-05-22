@@ -34,6 +34,7 @@ const {
     paragraphClassName,
     quoteBlockClassName,
     strikeClassName,
+    codeBlockWrapperClassName,
     codeBlockClassName,
     codeBlockLineClassName,
 } = contentSchemaStyles;
@@ -148,7 +149,11 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             group: "block",
             content: "codeBlockLine+",
             defining: true,
-            toDOM: () => ["pre", {class: codeBlockClassName}, ["code", 0]],
+            toDOM: () => [
+                "pre",
+                {class: codeBlockWrapperClassName},
+                ["code", {class: codeBlockClassName}, 0],
+            ],
             parseDOM: [{tag: "pre"}],
         },
 

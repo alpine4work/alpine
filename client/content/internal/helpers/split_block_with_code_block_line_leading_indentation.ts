@@ -46,7 +46,7 @@ function defaultBlockAt(match: ContentMatch) {
     return null;
 }
 
-function splitWithCodeBlockLineLeadingIdentation(
+function splitWithCodeBlockLineLeadingIndentation(
     tr: Transform,
     pos: number,
     depth = 1,
@@ -91,7 +91,7 @@ function splitBlockAsWithCodeBlockLineLeadingIndentation(
             if (!$from.parentOffset || !canSplit(state.doc, $from.pos)) return false;
             if (dispatch) {
                 const transaction = state.tr;
-                splitWithCodeBlockLineLeadingIdentation(transaction, $from.pos);
+                splitWithCodeBlockLineLeadingIndentation(transaction, $from.pos);
                 dispatch(transaction.scrollIntoView());
             }
             return true;
@@ -120,7 +120,7 @@ function splitBlockAsWithCodeBlockLineLeadingIndentation(
                 can = true;
             }
             if (can) {
-                splitWithCodeBlockLineLeadingIdentation(tr, tr.mapping.map($from.pos), 1, types);
+                splitWithCodeBlockLineLeadingIndentation(tr, tr.mapping.map($from.pos), 1, types);
                 if (!atEnd && !$from.parentOffset && $from.parent.type != deflt) {
                     const first = tr.mapping.map($from.before()),
                         $first = tr.doc.resolve(first);
