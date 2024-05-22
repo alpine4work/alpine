@@ -13,7 +13,7 @@ import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagat
 import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
-const globalFetch = fetch;
+const globalFetch = typeof fetch !== "undefined" ? fetch : undefined;
 
 /**
  * External service names are not PascalCase like our internal service names
@@ -58,7 +58,7 @@ export async function fetchWithTracer<ResponseData>(
     {
         serviceName,
         route,
-        fetch = globalFetch,
+        fetch = globalFetch!,
         sign,
         cookieJar,
         ...requestInit

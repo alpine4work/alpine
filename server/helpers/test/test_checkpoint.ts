@@ -21,7 +21,9 @@ export class TestCheckpoint<
         //
         // Rejecting the checkpoints can cause unhandled promise exceptions we don't
         // want tests to need to think about.
-        if (import.meta.jest) {
+        if (typeof afterEach !== "undefined") {
+            assert(import.meta.jest);
+
             afterEach(() => {
                 for (const [, promiseResolver1] of this._promiseResolverByKey) {
                     if (!promiseResolver1.isSettled()) {

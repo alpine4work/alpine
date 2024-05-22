@@ -664,7 +664,9 @@ class SpaceAccountsCache {
     private readonly _entryBySpaceId = new Map<SpaceId, SpaceAccountsCacheEntry>();
 
     constructor() {
-        if (import.meta.jest) {
+        if (typeof afterEach !== "undefined") {
+            assert(import.meta.jest);
+
             afterEach(() => {
                 for (const {timeout} of this._entryBySpaceId.values()) {
                     timeout.clear();

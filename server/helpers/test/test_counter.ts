@@ -16,7 +16,9 @@ export class TestCounter<
 
     constructor() {
         // After each test, clear our counts so we don't have a memory leak.
-        if (import.meta.jest) {
+        if (typeof afterEach !== "undefined") {
+            assert(import.meta.jest);
+
             afterEach(() => {
                 this._countByKey.clear();
             });

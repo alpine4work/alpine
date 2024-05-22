@@ -1822,7 +1822,9 @@ class DocumentContentCacheForUpdateEntries {
         // In our test environment, add a hook to evict all cached content at the end
         // of every test. That way we don't have timeouts sitting around and firing
         // randomly.
-        if (import.meta.jest) {
+        if (typeof afterEach !== "undefined") {
+            assert(import.meta.jest);
+
             afterEach(() => {
                 this.evictAllEntriesForTest();
             });

@@ -2,13 +2,36 @@ import fs from "fs-extra";
 import path from "path";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 
-test("every peek route has a corresponding space route", async () => {
+const originalBeforeEach = globalThis.beforeEach;
+const originalAfterEach = globalThis.afterEach;
+const originalBeforeAll = globalThis.beforeAll;
+const originalAfterAll = globalThis.afterAll;
+
+beforeEach(() => {
+    // When dynamically importing modules in a test we can't be registering
+    // before/after hooks.
+    (globalThis as any).beforeEach = undefined;
+    (globalThis as any).afterEach = undefined;
+    (globalThis as any).beforeAll = undefined;
+    (globalThis as any).afterAll = undefined;
+});
+
+afterEach(() => {
+    globalThis.beforeEach = originalBeforeEach;
+    globalThis.afterEach = originalAfterEach;
+    globalThis.beforeAll = originalBeforeAll;
+    globalThis.afterAll = originalAfterAll;
+});
+
+test("every peek route has a corresponding space route and exports the same things the space route exports", async () => {
     const workspacePath = process.cwd();
     const routesPath = path.join(workspacePath, "app/routes");
 
     const routes = (await fs.readdir(routesPath)).filter(route => !route.endsWith(".map"));
 
-    const peekRoutes = routes.filter(route => route.startsWith("s.$spaceId.peek."));
+    const peekRoutes = routes.filter(
+        route => route.startsWith("s.$spaceId.peek.") && route !== "s.$spaceId.peek.js",
+    );
 
     // Make sure we have the right directory by verifying there is at least one
     // peek route.
@@ -16,28 +39,74 @@ test("every peek route has a corresponding space route", async () => {
 
     peekRoutes.sort();
 
-    expect(
-        Object.fromEntries(
-            await runAllPromises(
-                peekRoutes.map(async peekRoute => [
+    // Allow importing many files asynchronously.
+    {
+        const {
+            setWillManuallyFinishInitializingAllDynamoTableSchemas,
+        }: typeof import("~/server/dynamo/core/dynamo_table_schema.js") = await import(
+            path.join(workspacePath, "server/dynamo/core/dynamo_table_schema.js")
+        );
+
+        setWillManuallyFinishInitializingAllDynamoTableSchemas();
+    }
+
+    const actual = Object.fromEntries(
+        await runAllPromises(
+            peekRoutes.map(async peekRoute => {
+                let spacePath: string | null = path.join(
+                    routesPath,
+                    peekRoute.replace(".peek.", "."),
+                );
+                if (!(await fs.pathExists(spacePath))) {
+                    // Remix route naming convention means you could have a route ending with
+                    // `._index.js` for the same route. This isn't a perfect implementation of the
+                    // Remix route naming convention but good enough.
+                    spacePath = path.join(
+                        routesPath,
+                        peekRoute.replace(".peek.", ".").slice(0, -path.extname(peekRoute).length) +
+                            `._index${path.extname(peekRoute)}`,
+                    );
+                    if (!(await fs.pathExists(spacePath))) {
+                        spacePath = null;
+                    }
+                }
+
+                const spaceModule = spacePath ? await import(spacePath) : null;
+
+                return [
                     peekRoute,
-                    (await fs.pathExists(
-                        path.join(routesPath, peekRoute.replace(".peek.", ".")),
-                    )) ||
-                        // Remix route naming convention means you could have a route ending with
-                        // `._index.js` for the same route. This isn't a perfect implementation of the
-                        // Remix route naming convention but good enough.
-                        (await fs.pathExists(
-                            path.join(
-                                routesPath,
-                                peekRoute
-                                    .replace(".peek.", ".")
-                                    .slice(0, -path.extname(peekRoute).length) +
-                                    `._index${path.extname(peekRoute)}`,
-                            ),
-                        )),
-                ]),
-            ),
+                    spaceModule
+                        ? {
+                              // The peek module loader function must be exactly equal to the space module
+                              // loader function. This way we can use the data between the two
+                              // interchangeably.
+                              loader: spaceModule.loader,
+                              exportNames: Object.keys(spaceModule).sort(),
+                          }
+                        : null,
+                ];
+            }),
         ),
-    ).toEqual(Object.fromEntries(peekRoutes.map(peekRoute => [peekRoute, true])));
+    );
+
+    const expected = Object.fromEntries(
+        await runAllPromises(
+            peekRoutes.map(async peekRoute => {
+                const peekModule = await import(path.join(routesPath, peekRoute));
+
+                return [
+                    peekRoute,
+                    {
+                        // The peek module loader function must be exactly equal to the space module
+                        // loader function. This way we can use the data between the two
+                        // interchangeably.
+                        loader: peekModule.loader,
+                        exportNames: Object.keys(peekModule).sort(),
+                    },
+                ];
+            }),
+        ),
+    );
+
+    expect(actual).toEqual(expected);
 });
