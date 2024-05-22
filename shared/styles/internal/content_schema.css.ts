@@ -363,6 +363,7 @@ export const codeBlockLineClassName = style({
     paddingLeft: codeTextIndentation,
     position: "relative",
     counterIncrement: "code-block-line-number",
+    minHeight: "1lh",
 
     selectors: {
         "&::before": {
