@@ -1,12 +1,15 @@
 import {createClientRoutes, loadRouteModuleWithBlockingLinks} from "@remix-run/react";
+import jsonStableStringify from "json-stable-stringify";
 import {DataRouteObject, LazyRouteFunction} from "react-router";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {createLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
+import {processLoaderResult} from "~/client/remix/process_loader_result.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {assertId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -28,6 +31,7 @@ export function createAppClientRoutes() {
     );
 
     const routeById = new Map<string, DataRouteObject>();
+    const inflightResponsePromiseByRequestKey = new Map<string, Promise<unknown>>();
 
     let hasUpdatedSpaceLayoutDataRoute = false;
     let hasUpdatedSpacePeekLayoutDataRoute = false;
@@ -75,6 +79,14 @@ export function createAppClientRoutes() {
             hasUpdatedSpacePeekLayoutDataRoute = true;
         } else if (route.id.startsWith("routes/s.$spaceId.")) {
             hasUpdatedSpaceDataRoute = true;
+
+            // The ordering here is important. Inflight request reuse handling should be
+            // BEFORE our loading indicator handling since if a request takes 5s we want to
+            // be able to reuse the request for all 5s. However request reuse handling
+            // should be AFTER our task/inbox route updates since they may do extra data
+            // processing which should only happen once when a request is reused.
+            makeSpaceDataRouteReuseInflightRequest(route, inflightResponsePromiseByRequestKey);
+
             makeSpaceDataRouteShowLoadingIndicator(route);
         }
 
@@ -114,17 +126,7 @@ function updateInboxDataRoute(route: DataRouteObject, routeById: Map<string, Dat
         const result = await originalRouteLoader(...args);
         assert(result instanceof Response);
 
-        // Implement same unwrapping logic as `@remix-run/router`:
-        // https://github.com/remix-run/react-router/blob/4b494b935d62cd1244fe5c091db920d3f0315e9e/packages/router/router.ts#L3764-L3772
-        let data: unknown;
-        const contentType = result.headers.get("Content-Type");
-        // Check between word boundaries instead of startsWith() due to the last
-        // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
-        if (contentType && /\bapplication\/json\b/.test(contentType)) {
-            data = await result.json();
-        } else {
-            data = await result.text();
-        }
+        const data = await processLoaderResult(result);
 
         if (
             isObject(data) &&
@@ -187,17 +189,7 @@ function updateTaskDataRoute(route: DataRouteObject) {
         ]);
         assert(result instanceof Response);
 
-        // Implement same unwrapping logic as `@remix-run/router`:
-        // https://github.com/remix-run/react-router/blob/4b494b935d62cd1244fe5c091db920d3f0315e9e/packages/router/router.ts#L3764-L3772
-        let data: unknown;
-        const contentType = result.headers.get("Content-Type");
-        // Check between word boundaries instead of startsWith() due to the last
-        // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
-        if (contentType && /\bapplication\/json\b/.test(contentType)) {
-            data = await result.json();
-        } else {
-            data = await result.text();
-        }
+        const data = await processLoaderResult(result);
 
         const spaceId = assertId<SpaceId>(args[0].params.spaceId ?? "");
         assert(
@@ -209,6 +201,52 @@ function updateTaskDataRoute(route: DataRouteObject) {
 
         // Headers and status code are lost for task routes.
         return data;
+    };
+}
+
+/**
+ * This is an optimization. If you open the search modal and double click on a
+ * result we will start loading the peek on the first click then start
+ * navigating the full screen on the second click. We don't want to send two
+ * network requests for the same data! So instead, while a `loader` is running
+ * if another `loader` for the same `routeId` (peek `routeId`s are normalized),
+ * `params`, and `url.search` is called we'll reuse the inflight promise for
+ * both `loader` calls.
+ *
+ * Again, this only happens if a second `loader` request is made BEFORE an
+ * identical `loader` request finishes.
+ *
+ * This optimization relies on the fact that peeks have the exact same loader
+ * function as their complementary full route version. We have a test to
+ * guarantee that this is the case in
+ * `app/tests/peek_route_has_corresponding_space_route.test.ts`.
+ */
+function makeSpaceDataRouteReuseInflightRequest(
+    route: DataRouteObject,
+    inflightResponsePromiseByRequestKey: Map<string, Promise<unknown>>,
+) {
+    assert(typeof route.loader === "function");
+
+    const originalRouteLoader = route.loader;
+    const normalizedRouteId = route.id.replace(".peek.", ".");
+
+    route.loader = (...args) => {
+        const requestKey = jsonStableStringify([
+            normalizedRouteId,
+            args[0].params,
+            new URL(args[0].request.url).search,
+        ]);
+
+        return getOrSetDefaultMapValue(inflightResponsePromiseByRequestKey, requestKey, () => {
+            const responsePromise = Promise.resolve(originalRouteLoader(...args))
+                // We need to process the loader result so if we reuse this request we don't
+                // end up parsing the `Response` body twice.
+                .then(processLoaderResult);
+
+            responsePromise.finally(() => inflightResponsePromiseByRequestKey.delete(requestKey));
+
+            return responsePromise;
+        });
     };
 }
 
@@ -261,26 +299,10 @@ function makeSpaceDataRouteShowLoadingIndicator(route: DataRouteObject) {
             return result;
         } else {
             return createLoadingIndicatorLoaderData(
-                PromiseImmediate.resolve(routeLoaderPromise).then(async result => {
-                    if (!(result instanceof Response)) return result;
-
-                    // Implement same unwrapping logic as `@remix-run/router`:
-                    // https://github.com/remix-run/react-router/blob/4b494b935d62cd1244fe5c091db920d3f0315e9e/packages/router/router.ts#L3764-L3772
-                    //
+                PromiseImmediate.resolve(routeLoaderPromise)
                     // Since `@remix-run/router` won't get a chance to unwrap the response we have
                     // to do it here.
-                    let data: unknown;
-                    const contentType = result.headers.get("Content-Type");
-                    // Check between word boundaries instead of startsWith() due to the last
-                    // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
-                    if (contentType && /\bapplication\/json\b/.test(contentType)) {
-                        data = await result.json();
-                    } else {
-                        data = await result.text();
-                    }
-
-                    return data;
-                }),
+                    .then(processLoaderResult),
             );
         }
     };

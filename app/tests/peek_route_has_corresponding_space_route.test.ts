@@ -53,22 +53,15 @@ test("every peek route has a corresponding space route and exports the same thin
     const actual = Object.fromEntries(
         await runAllPromises(
             peekRoutes.map(async peekRoute => {
+                // NOTE(calebmer): If you update this route ID normalization logic, look for
+                // other places that normalize route IDs. Like
+                // `makeSpaceDataRouteReuseInflightRequest()`.
                 let spacePath: string | null = path.join(
                     routesPath,
                     peekRoute.replace(".peek.", "."),
                 );
                 if (!(await fs.pathExists(spacePath))) {
-                    // Remix route naming convention means you could have a route ending with
-                    // `._index.js` for the same route. This isn't a perfect implementation of the
-                    // Remix route naming convention but good enough.
-                    spacePath = path.join(
-                        routesPath,
-                        peekRoute.replace(".peek.", ".").slice(0, -path.extname(peekRoute).length) +
-                            `._index${path.extname(peekRoute)}`,
-                    );
-                    if (!(await fs.pathExists(spacePath))) {
-                        spacePath = null;
-                    }
+                    spacePath = null;
                 }
 
                 const spaceModule = spacePath ? await import(spacePath) : null;

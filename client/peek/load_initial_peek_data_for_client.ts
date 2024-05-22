@@ -1,5 +1,6 @@
 import {AgnosticRouteMatch, Path, matchRoutes} from "@remix-run/router";
 import {DataRouteObject} from "react-router";
+import {processLoaderResult} from "~/client/remix/process_loader_result.js";
 import {CancelledError, NotFoundError} from "~/shared/error/error.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -80,20 +81,6 @@ export async function loadInitialPeekDataForClient(
         loaderData,
         errors,
     };
-}
-
-async function processLoaderResult(result: unknown): Promise<unknown> {
-    if (!(result instanceof Response)) return result;
-
-    const contentType = result.headers.get("Content-Type");
-
-    // Derived from:
-    // https://github.com/remix-run/react-router/blob/bc2552840147206716544e5cdcdb54f649f9193f/packages/router/router.ts#L3649-L3656
-    if (contentType && /\bapplication\/json\b/.test(contentType)) {
-        return result.json();
-    } else {
-        return result.text();
-    }
 }
 
 function findNearestBoundary(
