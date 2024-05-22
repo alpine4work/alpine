@@ -1546,6 +1546,7 @@ function VirtualizedScrollView(
             ? {startIndex: renderedRange.startIndex, endIndex: renderedRange.endIndex}
             : null,
     );
+
     useLayoutEffectWithoutServerSideWarning(() => {
         // Make sure we only take effect dependencies on the start and end index. We
         // don't care about other properties of the rendered range changing.
@@ -1570,16 +1571,12 @@ function VirtualizedScrollView(
         renderedRangeRef.current = range;
 
         events.onRenderedRangeLayoutChange(range);
+    }, [events, renderedRange?.endIndex, renderedRange?.startIndex]);
 
-        // Don't call our callback until after the browser gets a chance to paint. We
-        // want to update our `renderedRangeRef` in a layout effect but we don't want
-        // `onRenderedRangeChange()` to block layout. Instead of moving
-        // `onRenderedRangeChange()` to a passive effect (`useEffect()`) we simulate
-        // React's behavior of calling passive effects after a browser paint with
-        // `scheduleAfterNextBrowserPaint()`.
-        scheduleAfterNextBrowserPaint(() => {
-            events.onRenderedRangeChange(range);
-        });
+    useEffect(() => {
+        // Use the updated rendered range from the layout effect above. We need to call
+        // a rendered range change in both a layout effect and regular effect.
+        events.onRenderedRangeChange(renderedRangeRef.current);
     }, [events, renderedRange?.endIndex, renderedRange?.startIndex]);
 
     useImperativeHandle(

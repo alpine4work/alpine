@@ -688,8 +688,6 @@ export function useTaskGridViewVirtualizedList({
                 // child items.
                 const parentTaskIdsToLoad = new Set<TaskId>();
 
-                let hasResetRowNumberCounter = false;
-
                 for (
                     let i = Math.max(renderedRange.startIndex, itemCountBeforeState);
                     i < Math.min(renderedRange.endIndex, stateItemCount + itemCountBeforeState);
@@ -703,24 +701,6 @@ export function useTaskGridViewVirtualizedList({
                                 item.parents[item.parents.length - 1]!.cursor,
                             ),
                         );
-                    } else if (item.parents.length === 0) {
-                        // Reset the row number counter to start with the first row in our
-                        // rendered range.
-                        if (!hasResetRowNumberCounter) {
-                            hasResetRowNumberCounter = true;
-
-                            // NOTE(calebmer): It's important that we set this style on the virtualized
-                            // view's `contentElement` and not the `viewElement`! This is because
-                            // `useScrollbar()` listens for mutations on scrollable elements and will
-                            // measure the height to see if the scrollbar needs to be adjusted. Measuring
-                            // height triggers a browser layout. Browser layouts are expensive so we avoid
-                            // triggering a browser layout by updating the content element instead.
-                            assertExists(
-                                viewRef.current,
-                            ).getContentElement().style.counterReset = `${
-                                tasksStyles.rowNumberCounterName
-                            } ${item.query.getLoadedTaskIndex(item.cursor)}`;
-                        }
                     }
                 }
 
