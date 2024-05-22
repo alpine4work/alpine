@@ -16,6 +16,14 @@ import {tracerPropagationContextHeaderName} from "~/shared/tracer/tracer_propaga
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
+export function createTraceServerResponseSpanName(
+    tracer: TracerRoot,
+    request: Request,
+    route: string,
+) {
+    return `Handle: ${tracer.serviceName} ${request.method} ${route}`;
+}
+
 /**
  * Create a span for the server request handler using the WhatWG HTTP API. Used
  * with `createStandardizedServer()`.
@@ -59,7 +67,7 @@ export async function traceServerResponse(
     // `context.handler` is the span name after "Handle:".
     const {span, finishSpan} = startSpanFromTracerPropagationContextHeader(
         tracer,
-        `Handle: ${tracer.serviceName} ${request.method} ${route}`,
+        createTraceServerResponseSpanName(tracer, request, route),
         request,
     );
 

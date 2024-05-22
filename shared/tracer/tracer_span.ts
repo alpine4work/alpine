@@ -212,6 +212,21 @@ export class TracerSpan extends TracerBase {
     }
 
     /**
+     * Completely change this span's name.
+     *
+     * Ideally, we want the creator of the span to control the span's name.
+     * However, there are some cases where it's reasonable to let the consumer of
+     * a span change the name. This method is "reckless" because you are throwing
+     * away the creator's span name.
+     *
+     * Prefer using `appendName()` which keeps the name the span creator intended
+     * while allowing span consumers to modify it.
+     */
+    public recklesslyOverrideName(name: string) {
+        this._name = name;
+    }
+
+    /**
      * Add some data to this span.
      *
      * Nested objects are recursively merged in.

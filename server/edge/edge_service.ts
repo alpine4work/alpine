@@ -6,7 +6,10 @@ import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {TokenAgentPublicSide} from "~/server/tokens/token_agent_public_side.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
-import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
+import {
+    createTraceServerResponseSpanName,
+    traceServerResponse,
+} from "~/server/tracer/trace_server_response.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -400,6 +403,20 @@ function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: Ex
         //
         // eslint-disable-next-line no-global-fetch
         const response = await fetch(request, {headers});
+
+        // Replace the `/*` route string with the route parsed by `AppService`. Given
+        // the edge service span is usually the root span in our trace, having a more
+        // specific span name is nice for our instrumentation tools.
+        const actualRoute = response.headers.get("cyberworlds-route");
+        if (actualRoute?.startsWith("/")) {
+            span.addData({
+                http: {route: actualRoute},
+            });
+
+            span.recklesslyOverrideName(
+                createTraceServerResponseSpanName(tracer, request, actualRoute),
+            );
+        }
 
         // For HTML requests, include edge server timing information. We use this on
         // the client to synchronize our client time with the server time. See

@@ -317,6 +317,23 @@ runService({
 
                     loaderContextModule.addResponseHeaders(response.headers);
 
+                    // Include the route in an HTTP header so our edge service can use the route in
+                    // its HTTP span name.
+                    {
+                        let route = "";
+                        if (matches === null) {
+                            route = "/*";
+                        } else {
+                            for (const match of matches) {
+                                if (match.route.id === "root") continue;
+                                if (match.route.path === undefined) continue;
+                                route = `${route}/${match.route.path}`;
+                            }
+                        }
+
+                        response.headers.set("cyberworlds-route", route);
+                    }
+
                     return response;
                 });
             },
