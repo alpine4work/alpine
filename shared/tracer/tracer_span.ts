@@ -52,7 +52,7 @@ export class TracerSpan extends TracerBase {
     /**
      * This span's ID.
      */
-    public readonly spanId: TraceSpanId;
+    private readonly _spanId: TraceSpanId;
 
     /**
      * The time at which the span started.
@@ -84,6 +84,22 @@ export class TracerSpan extends TracerBase {
      */
     private _propagatedEventFlatData: TracerEventFlatData | null;
 
+    /**
+     * Was this span referenced by some other span? For example a child span, a
+     * log, or a link. If we generated a propagation context for this span we also
+     * treat it as referenced since we can't know for sure whether the propagation
+     * context is used by a different process.
+     *
+     * Used to only send spans if they're referenced by some other send.
+     */
+    private _isReferenced = false;
+
+    /**
+     * If true, we won't send the event to our observability provider if the span
+     * wasn't referenced. Useful for recurring events that are usually noops.
+     */
+    private _willNotSendIfNotReferenced = false;
+
     private constructor(
         tracer: TracerRoot,
         clock: MonotonicClock,
@@ -109,7 +125,7 @@ export class TracerSpan extends TracerBase {
         this.clock = clock;
         this._name = name;
         this.traceId = parentSpan?.traceId ?? generateId();
-        this.spanId = generateId();
+        this._spanId = generateId();
         this._startTime = this.clock.now();
         this._propagatedEventData = parentSpan
             ? parentSpan.propagatedEventData ?? null
@@ -122,7 +138,7 @@ export class TracerSpan extends TracerBase {
             value: {
                 trace: {
                     traceId: this.traceId,
-                    spanId: this.spanId,
+                    spanId: this._spanId,
                     parentId: parentSpan?.parentId,
                 },
             },
@@ -157,6 +173,8 @@ export class TracerSpan extends TracerBase {
      * See documentation for this method on `TracerBase.startSpan()`.
      */
     public startSpan(name: string) {
+        this._isReferenced = true;
+
         return TracerSpan._start(
             this._tracer,
             // Inherit the parent span's clock (not the tracer clock) for consistent times.
@@ -164,7 +182,7 @@ export class TracerSpan extends TracerBase {
             name,
             {
                 traceId: this.traceId,
-                parentId: this.spanId,
+                parentId: this._spanId,
                 propagatedEventData: this._propagatedEventData,
                 propagatedEventFlatData: this._propagatedEventFlatData,
             },
@@ -175,6 +193,8 @@ export class TracerSpan extends TracerBase {
      * See documentation for this method on `TracerBase.startSpanAsLinked()`.
      */
     public startSpanAsLinked(name: string) {
+        this._isReferenced = true;
+
         const {span, finishSpan} = TracerSpan._start(
             this._tracer,
             // Inherit the parent span's clock (not the tracer clock) for consistent times.
@@ -188,7 +208,7 @@ export class TracerSpan extends TracerBase {
 
         span.link({
             traceId: this.traceId,
-            spanId: this.spanId,
+            spanId: this._spanId,
         });
 
         return {span, finishSpan};
@@ -208,6 +228,7 @@ export class TracerSpan extends TracerBase {
      * code to add extra information to the name.
      */
     public appendName(name: string) {
+        assert(!this._isFinished);
         this._name += name;
     }
 
@@ -223,6 +244,7 @@ export class TracerSpan extends TracerBase {
      * while allowing span consumers to modify it.
      */
     public recklesslyOverrideName(name: string) {
+        assert(!this._isFinished);
         this._name = name;
     }
 
@@ -285,9 +307,11 @@ export class TracerSpan extends TracerBase {
      * trace.
      */
     public getPropagationContext(): TracerSpanPropagationContext {
+        this._isReferenced = true;
+
         return {
             traceId: this.traceId,
-            parentId: this.spanId,
+            parentId: this._spanId,
             data: buildTracerEventFlatData(
                 this._propagatedEventData,
                 this._propagatedEventFlatData,
@@ -315,6 +339,15 @@ export class TracerSpan extends TracerBase {
     }
 
     /**
+     * If set to true, we won't send the event to our observability provider if the
+     * span wasn't referenced. Useful for recurring events that are usually noops.
+     */
+    public setWillNotSendIfNotReferenced(willNotSendIfNotReferenced: boolean) {
+        assert(!this._isFinished);
+        this._willNotSendIfNotReferenced = willNotSendIfNotReferenced;
+    }
+
+    /**
      * Finishes the span. Finished spans will be sent to our observability service.
      */
     private _finish() {
@@ -329,6 +362,10 @@ export class TracerSpan extends TracerBase {
             next: this._eventData,
         };
 
+        if (this._willNotSendIfNotReferenced && !this._isReferenced) {
+            return;
+        }
+
         this._tracer._sendEvent(
             new TracerEvent(this._startTime, this._eventData, this._propagatedEventFlatData),
         );
@@ -341,7 +378,10 @@ export class TracerSpan extends TracerBase {
      * processing from many spans. You may use the link function to express a
      * causal relationship between these spans.
      */
-    public link({traceId, spanId}: {traceId: TraceId; spanId: TraceSpanId}) {
+    public link(span: {traceId: TraceId; spanId: TraceSpanId} | TracerSpan) {
+        this._isReferenced = true;
+        if (span instanceof TracerSpan) span._isReferenced = true;
+
         const time = this.clock.now();
 
         // Link this span with another using the Honeycomb link event format:
@@ -349,11 +389,11 @@ export class TracerSpan extends TracerBase {
         const data: TracerEventFullData = {
             meta: {annotationType: "link"},
             trace: {
-                parentId: this.spanId,
+                parentId: this._spanId,
                 traceId: this.traceId,
                 link: {
-                    traceId,
-                    spanId,
+                    traceId: span.traceId,
+                    spanId: span instanceof TracerSpan ? span._spanId : span.spanId,
                 },
             },
         };
@@ -377,6 +417,8 @@ export class TracerSpan extends TracerBase {
      * See documentation for this method on `TracerBase.log()`.
      */
     public log(name: string, data: TracerEventData = {}) {
+        this._isReferenced = true;
+
         const time = this.clock.now();
 
         this._tracer._sendEvent(
@@ -391,7 +433,7 @@ export class TracerSpan extends TracerBase {
                             name,
                             meta: {annotationType: "span_event"},
                             trace: {
-                                parentId: this.spanId,
+                                parentId: this._spanId,
                                 traceId: this.traceId,
                             },
                         },

@@ -10,7 +10,6 @@ import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {UnavailableError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
-import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
@@ -182,17 +181,16 @@ export class DynamoClientInternal {
                 },
             });
 
-            const linkedTracerKeys = new Set<`${TraceId}:${TraceSpanId}`>();
+            const linkedTracers = new Set<TracerSpan>();
 
-            if (tracer instanceof TracerSpan)
-                linkedTracerKeys.add(`${tracer.traceId}:${tracer.spanId}`);
+            if (tracer instanceof TracerSpan) linkedTracers.add(tracer);
 
             // Link our other tracers to the batch span so we can see they are related.
             for (const otherTracer of otherTracers) {
                 if (!(otherTracer instanceof TracerSpan)) continue;
-                const otherTracerKey: `${TraceId}:${TraceSpanId}` = `${otherTracer.traceId}:${otherTracer.spanId}`;
-                if (!linkedTracerKeys.has(otherTracerKey)) {
-                    linkedTracerKeys.add(otherTracerKey);
+
+                if (!linkedTracers.has(otherTracer)) {
+                    linkedTracers.add(otherTracer);
                     otherTracer.link(span);
                 }
             }
@@ -323,17 +321,16 @@ export class DynamoClientInternal {
                 },
             });
 
-            const linkedTracerKeys = new Set<`${TraceId}:${TraceSpanId}`>();
+            const linkedTracers = new Set<TracerSpan>();
 
-            if (tracer instanceof TracerSpan)
-                linkedTracerKeys.add(`${tracer.traceId}:${tracer.spanId}`);
+            if (tracer instanceof TracerSpan) linkedTracers.add(tracer);
 
             // Link our other tracers to the batch span so we can see they are related.
             for (const otherTracer of otherTracers) {
                 if (!(otherTracer instanceof TracerSpan)) continue;
-                const otherTracerKey: `${TraceId}:${TraceSpanId}` = `${otherTracer.traceId}:${otherTracer.spanId}`;
-                if (!linkedTracerKeys.has(otherTracerKey)) {
-                    linkedTracerKeys.add(otherTracerKey);
+
+                if (!linkedTracers.has(otherTracer)) {
+                    linkedTracers.add(otherTracer);
                     otherTracer.link(span);
                 }
             }

@@ -214,7 +214,12 @@ export class WebSocketServer<
 
             void this._processContext.tracer.withSpan(
                 "Expiring idle WebSocket connections",
-                async context => {
+                async (context, span) => {
+                    // Don't send this span if a connection wasn't closed. If a connection is closed
+                    // then we'll send a "close" event which references the parent span. If a
+                    // connection is not closed then this span will have no references.
+                    span.setWillNotSendIfNotReferenced(true);
+
                     for (const connection of this._connections.values()) {
                         connection.maybeExpire(
                             context as Context<ProcessContextModules>,
@@ -1706,5 +1711,6 @@ class WebSocketServerTestConnectionWrapper<
 
     public maybeExpire() {
         // Test connections never expire...
+        return {wasClosed: false};
     }
 }
