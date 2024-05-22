@@ -34,9 +34,11 @@ import {
 import {useGlobalContextProvider} from "~/client/helpers/global_context.js";
 import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down_event.js";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {usePromise} from "~/client/helpers/use_promise.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {ClientInfoContextProvider} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
+import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {CurrentTimeContextProvider} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {IsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
 import {WaitForNavigationContextProvider} from "~/client/remix/use_navigate.js";
@@ -46,7 +48,7 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {NotFoundError, UnknownError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
@@ -117,22 +119,48 @@ export default function Root() {
     const dataRouterStateContext = useContext(DataRouterStateContext);
     assert(dataRouterStateContext, "Expected data router state context");
 
+    // Incidentally, re-rendering when loader data is fulfilled here also causes
+    // our `<Meta>` to re-render which fills in the right HTML document title.
+    const loadingIndicatorLoaderDataResult = usePromise(
+        useMemo(() => {
+            const loaderData = Object.values(dataRouterStateContext.loaderData).filter(
+                isLoadingIndicatorLoaderData,
+            );
+            if (loaderData.length === 0) return null;
+            return PromiseImmediate.allSettled(loaderData.map(({promise}) => promise));
+        }, [dataRouterStateContext.loaderData]),
+    );
+
     let context = useAppContext();
 
     // Add propagated event data to our tracer so that child React components
     // log events with the right context.
     context = useMemo(() => {
-        const loaderData = Object.values(dataRouterStateContext.loaderData);
+        const propagatedEventData: Array<TracerEventFullData> = [];
 
-        const propagatedEventData = filterMapArray(loaderData, data => {
-            if (!data) return null;
-            if (!hasOwnProperty(data, propagateEventDataKey)) return null;
-            return data[propagateEventDataKey] as TracerEventFullData;
-        });
+        const loaderData = Object.values(dataRouterStateContext.loaderData);
+        for (const data of loaderData) {
+            if (!data) continue;
+            if (!hasOwnProperty(data, propagateEventDataKey)) continue;
+            propagatedEventData.push(data[propagateEventDataKey] as TracerEventFullData);
+        }
+
+        if (!loadingIndicatorLoaderDataResult.isPending && loadingIndicatorLoaderDataResult.value) {
+            for (const data of loadingIndicatorLoaderDataResult.value) {
+                if (data.status !== "fulfilled") continue;
+                if (!hasOwnProperty(data.value, propagateEventDataKey)) continue;
+                propagatedEventData.push(data.value[propagateEventDataKey] as TracerEventFullData);
+            }
+        }
 
         if (propagatedEventData.length === 0) return context;
         return context.tracer.withPropagatedData(mergeTracerEventData(propagatedEventData));
-    }, [dataRouterStateContext.loaderData, context]);
+    }, [
+        dataRouterStateContext.loaderData,
+        loadingIndicatorLoaderDataResult.isPending,
+        loadingIndicatorLoaderDataResult.value,
+        context,
+    ]);
 
     // If there are any unhandled browser errors then report them with our tracer.
     // We put uncaught error handling here because we want it to include propagated

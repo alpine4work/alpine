@@ -23,11 +23,10 @@ import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_op
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {usePromise} from "~/client/helpers/use_promise.js";
 import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
 import {
     PeekSwitcherStatePeek,
-    PeekSwitcherStatePeekContent,
+    PeekSwitcherStatePeekBase,
     usePeekSwitcherState,
 } from "~/client/peek/use_peek_switcher_state.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
@@ -49,7 +48,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {PeekId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {markSearchAffinityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
 import {isSearchAffinityId} from "~/shared/search/search_affinity_id.js";
@@ -141,7 +140,7 @@ export function SearchModal({
         };
     }, []);
 
-    const {selectedPeek, activePeek, switchPeek} = usePeekSwitcherState<{
+    const {selectedPeek, activePeek, switchPeek, holdPeekTransition} = usePeekSwitcherState<{
         resultId: SearchResultId;
     }>({
         // Reset our peek state if the search response changes.
@@ -308,12 +307,12 @@ export function SearchModal({
                             event.preventDefault();
 
                             // If nothing is selected, there's nothing to open.
-                            if (!selectedPeek?.content) break;
+                            if (!selectedPeek) break;
 
                             // Open the selected peek when `Enter` is pressed. You've probably just
                             // selected a peek with the keyboard.
                             const spacePath = convertPeekPathToSpacePath(
-                                selectedPeek.content.history.location,
+                                selectedPeek.history.location,
                             );
                             if (!spacePath) throw new InternalError("Can only expand peek routes");
 
@@ -403,6 +402,7 @@ export function SearchModal({
                                     results={output.results}
                                     selectedPeek={selectedPeek}
                                     switchPeek={switchPeek}
+                                    holdPeekTransition={holdPeekTransition}
                                     markResultSelectAffinityInteraction={
                                         markResultSelectAffinityInteraction
                                     }
@@ -416,13 +416,11 @@ export function SearchModal({
                             overflow="hidden"
                             borderLeft="grey-10"
                         >
-                            {activePeek?.content ? (
+                            {activePeek ? (
                                 <SearchModalPeekContent
                                     // Fully remount whenever the peek changes...
                                     key={activePeek.id}
-                                    resultId={activePeek.extra.resultId}
-                                    peekId={activePeek.id}
-                                    peekContent={activePeek.content}
+                                    peek={activePeek}
                                     onClose={onClose}
                                     pushPeekStack={pushPeekStack}
                                     switchPeek={switchPeek}
@@ -573,19 +571,21 @@ function SearchModalResultList({
     results,
     selectedPeek,
     switchPeek,
+    holdPeekTransition,
     markResultSelectAffinityInteraction,
 }: {
     searchKey: string;
     results: ReadonlyArray<SearchResult>;
-    selectedPeek: PeekSwitcherStatePeek<{resultId: SearchResultId}> | null;
+    selectedPeek: PeekSwitcherStatePeekBase<{resultId: SearchResultId}> | null;
     switchPeek: Memo<
         (
             peekData: {
-                spacePath: string | null;
+                spacePath: string;
                 extra: {resultId: SearchResultId};
             } | null,
         ) => Promise<void>
     >;
+    holdPeekTransition: Memo<(promise: Promise<void>) => void>;
     markResultSelectAffinityInteraction: (resultId: SearchResultId) => void;
 }) {
     const navigate = useNavigate();
@@ -608,23 +608,37 @@ function SearchModalResultList({
     }, [selectedPeek?.extra.resultId]);
 
     const handleDoubleClick = useEvent((result: SearchResult) => {
-        if (result.id !== selectedPeek?.extra.resultId || !selectedPeek?.content) {
+        if (result.id !== selectedPeek?.extra.resultId) {
             const destinationPath = getSearchResultDestinationPath(space.id, result.id, searchKey);
 
+            // If the user double clicked there may be an ongoing pending transition
+            // started by `onPressStart`. Don't switch to that transition while we're
+            // waiting on a navigation. That'll look janky since the search modal will
+            // flash the new content right before the full page navigation.
+            //
             // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
             // Eventually switch to new page with a loading spinner?
-            void navigate(destinationPath).then(() => {
-                markResultSelectAffinityInteraction(result.id);
-            });
+            holdPeekTransition(
+                navigate(destinationPath).then(() => {
+                    markResultSelectAffinityInteraction(result.id);
+                }),
+            );
         } else {
-            const spacePath = convertPeekPathToSpacePath(selectedPeek.content.history.location);
+            const spacePath = convertPeekPathToSpacePath(selectedPeek.history.location);
             if (!spacePath) throw new InternalError("Can only expand peek routes");
 
+            // If the user double clicked there may be an ongoing pending transition
+            // started by `onPressStart`. Don't switch to that transition while we're
+            // waiting on a navigation. That'll look janky since the search modal will
+            // flash the new content right before the full page navigation.
+            //
             // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
             // Eventually switch to new page with a loading spinner?
-            void navigate(spacePath).then(() => {
-                markResultSelectAffinityInteraction(result.id);
-            });
+            holdPeekTransition(
+                navigate(spacePath).then(() => {
+                    markResultSelectAffinityInteraction(result.id);
+                }),
+            );
         }
     });
 
@@ -924,17 +938,13 @@ function getSearchEntityPath(spaceId: SpaceId, entityId: SearchEntityIdObject): 
 }
 
 function SearchModalPeekContent({
-    resultId,
-    peekId,
-    peekContent,
+    peek,
     onClose,
     pushPeekStack,
     switchPeek,
     markResultSelectAffinityInteraction,
 }: {
-    resultId: SearchResultId;
-    peekId: PeekId;
-    peekContent: PeekSwitcherStatePeekContent;
+    peek: PeekSwitcherStatePeek<{resultId: SearchResultId}>;
     onClose: () => void;
     pushPeekStack: (to: To, options?: {focus?: boolean}) => Promise<void>;
     switchPeek: Memo<
@@ -947,22 +957,22 @@ function SearchModalPeekContent({
     >;
     markResultSelectAffinityInteraction: (resultId: SearchResultId) => void;
 }) {
+    if (!peek.routerResult.ok) throw peek.routerResult.error;
+    const router = peek.routerResult.value;
+
     const navigate = useNavigate();
-    const routerResult = usePromise(peekContent.routerPromise);
 
     const [historyPosition, setHistoryPosition] = useState(() => ({
-        index: peekContent.history.index,
-        entriesLength: peekContent.history.entries.length,
+        index: peek.history.index,
+        entriesLength: peek.history.entries.length,
     }));
 
     useEffect(() => {
-        if (routerResult.isPending) return;
-
         const update = () => {
             setHistoryPosition(historyPosition => {
                 const newHistoryPosition = {
-                    index: peekContent.history.index,
-                    entriesLength: peekContent.history.entries.length,
+                    index: peek.history.index,
+                    entriesLength: peek.history.entries.length,
                 };
                 return !isDeepEqual(historyPosition, newHistoryPosition)
                     ? newHistoryPosition
@@ -972,8 +982,8 @@ function SearchModalPeekContent({
 
         update();
 
-        return routerResult.value.subscribe(update);
-    }, [peekContent.history, routerResult.isPending, routerResult.value]);
+        return router.subscribe(update);
+    }, [peek.history, router]);
 
     return (
         <Box
@@ -990,131 +1000,114 @@ function SearchModalPeekContent({
                 "--safe-area-inset-top": spacing[searchModalPeekControlsHeight],
             }}
         >
-            {!routerResult.isPending && (
+            <Box
+                position="absolute"
+                top="0"
+                left="0"
+                right="0"
+                // Render over overlays at `zIndex="50"`
+                zIndex="60"
+                height={searchModalPeekControlsHeight}
+                display="flex"
+                alignItems="center"
+            >
                 <Box
-                    position="absolute"
-                    top="0"
-                    left="0"
-                    right="0"
-                    // Render over overlays at `zIndex="50"`
-                    zIndex="60"
-                    height={searchModalPeekControlsHeight}
+                    flexShrink="0"
+                    paddingX="1"
                     display="flex"
+                    justifyContent="flex-start"
                     alignItems="center"
+                    gap="1"
                 >
-                    <Box
-                        flexShrink="0"
-                        paddingX="1"
-                        display="flex"
-                        justifyContent="flex-start"
-                        alignItems="center"
-                        gap="1"
+                    <IconButton
+                        size="xs"
+                        description="Go back"
+                        tooltipPlacement="top"
+                        isDisabled={!(historyPosition.index > 0)}
+                        onPress={() => peek.history.go(-1)}
                     >
-                        <IconButton
-                            size="xs"
-                            description="Go back"
-                            tooltipPlacement="top"
-                            isDisabled={!(historyPosition.index > 0)}
-                            onPress={() => peekContent.history.go(-1)}
-                        >
-                            <ArrowLeft />
-                        </IconButton>
-                        <IconButton
-                            size="xs"
-                            description="Go forwards"
-                            tooltipPlacement="top"
-                            isDisabled={
-                                !(historyPosition.index < historyPosition.entriesLength - 1)
-                            }
-                            onPress={() => peekContent.history.go(1)}
-                        >
-                            <ArrowRight />
-                        </IconButton>
-                    </Box>
-                    <Box flexGrow="1" />
-                    <Box
-                        flexShrink="0"
-                        paddingX="1"
-                        display="flex"
-                        justifyContent="flex-start"
-                        alignItems="center"
-                        gap="1"
+                        <ArrowLeft />
+                    </IconButton>
+                    <IconButton
+                        size="xs"
+                        description="Go forwards"
+                        tooltipPlacement="top"
+                        isDisabled={!(historyPosition.index < historyPosition.entriesLength - 1)}
+                        onPress={() => peek.history.go(1)}
                     >
-                        <IconButton
-                            size="xs"
-                            description="Expand"
-                            // TODO(calebmer): I think this is the only place in the product we name the
-                            // peek concept. For now, I'm calling it "preview". We should make sure
-                            // documentation, marketing, and other copy in the product align with this name.
-                            // If we decide to call it something else publicly, this needs to be renamed.
-                            tooltipContentOverride="Shift-click to open preview"
-                            pressErrorTitle="Couldn’t expand"
-                            onPress={async event => {
-                                const spacePath = convertPeekPathToSpacePath(
-                                    peekContent.history.location,
-                                );
-                                if (!spacePath)
-                                    throw new InternalError("Can only expand peek routes");
+                        <ArrowRight />
+                    </IconButton>
+                </Box>
+                <Box flexGrow="1" />
+                <Box
+                    flexShrink="0"
+                    paddingX="1"
+                    display="flex"
+                    justifyContent="flex-start"
+                    alignItems="center"
+                    gap="1"
+                >
+                    <IconButton
+                        size="xs"
+                        description="Expand"
+                        // TODO(calebmer): I think this is the only place in the product we name the
+                        // peek concept. For now, I'm calling it "preview". We should make sure
+                        // documentation, marketing, and other copy in the product align with this name.
+                        // If we decide to call it something else publicly, this needs to be renamed.
+                        tooltipContentOverride="Shift-click to open preview"
+                        pressErrorTitle="Couldn’t expand"
+                        onPress={async event => {
+                            const spacePath = convertPeekPathToSpacePath(peek.history.location);
+                            if (!spacePath) throw new InternalError("Can only expand peek routes");
 
-                                if (
-                                    isOpenLinkInSeparateTabPointerEvent(
-                                        event,
-                                        getClientInfoWithoutListening(),
-                                    )
-                                ) {
-                                    window.open(
-                                        createPath(spacePath),
-                                        "_blank",
-                                        // Important security measure. See:
-                                        // https://mathiasbynens.github.io/rel-noopener
-                                        "noopener noreferrer",
-                                    );
-                                } else if (event.shiftKey) {
-                                    await pushPeekStack(spacePath).finally(onClose);
-                                    markResultSelectAffinityInteraction(resultId);
-                                } else {
-                                    await navigate(spacePath);
-                                    markResultSelectAffinityInteraction(resultId);
-                                }
-                            }}
-                        >
-                            <ArrowsOutSimple />
-                        </IconButton>
-                        <IconButton
-                            size="xs"
-                            description="Dismiss"
-                            withoutTooltip={true}
-                            pressErrorTitle="Couldn’t dismiss"
-                            onPress={() => switchPeek(null)}
-                        >
-                            <X />
-                        </IconButton>
-                    </Box>
+                            if (
+                                isOpenLinkInSeparateTabPointerEvent(
+                                    event,
+                                    getClientInfoWithoutListening(),
+                                )
+                            ) {
+                                window.open(
+                                    createPath(spacePath),
+                                    "_blank",
+                                    // Important security measure. See:
+                                    // https://mathiasbynens.github.io/rel-noopener
+                                    "noopener noreferrer",
+                                );
+                            } else if (event.shiftKey) {
+                                await pushPeekStack(spacePath).finally(onClose);
+                                markResultSelectAffinityInteraction(peek.extra.resultId);
+                            } else {
+                                await navigate(spacePath);
+                                markResultSelectAffinityInteraction(peek.extra.resultId);
+                            }
+                        }}
+                    >
+                        <ArrowsOutSimple />
+                    </IconButton>
+                    <IconButton
+                        size="xs"
+                        description="Dismiss"
+                        withoutTooltip={true}
+                        pressErrorTitle="Couldn’t dismiss"
+                        onPress={() => switchPeek(null)}
+                    >
+                        <X />
+                    </IconButton>
                 </Box>
-            )}
-            {!routerResult.isPending ? (
-                <PeekRemixEmbed
-                    peekId={peekId}
-                    withMobileLayout={true}
-                    // Don't record view interactions when looking at a search entity in the search
-                    // modal. The user is discovering an entity to open so may have pretty low
-                    // intent when looking at an entity.
-                    //
-                    // This also means the "last opened" time we show for affinitive search entities
-                    // won't change.
-                    withoutSearchAffinityViewInteraction={true}
-                    router={routerResult.value}
-                    onGoBackOverflow={onClose}
-                />
-            ) : (
-                <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
-                    <SpinnerGap
-                        className={spinAnimationClassName}
-                        color={colorSchemeVars["grey-70"]}
-                        size={spacing["6"]}
-                    />
-                </Box>
-            )}
+            </Box>
+            <PeekRemixEmbed
+                peekId={peek.id}
+                withMobileLayout={true}
+                // Don't record view interactions when looking at a search entity in the search
+                // modal. The user is discovering an entity to open so may have pretty low
+                // intent when looking at an entity.
+                //
+                // This also means the "last opened" time we show for affinitive search entities
+                // won't change.
+                withoutSearchAffinityViewInteraction={true}
+                router={router}
+                onGoBackOverflow={onClose}
+            />
         </Box>
     );
 }

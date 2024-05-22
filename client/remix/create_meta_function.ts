@@ -1,6 +1,7 @@
 import {MetaArgs, MetaDescriptor} from "@remix-run/react";
 import {Location, Params} from "react-router-dom";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
+import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {metaDefaultTitle, metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -32,6 +33,23 @@ export function createMetaFunction<Data>(
         if (!args.data || args.data instanceof Error) {
             return [
                 // Ask Google to not index error pages.
+                {name: "robots", content: "noindex"},
+                {title: metaDefaultTitle},
+            ];
+        }
+
+        // If we're still loading some data, we can't render the proper HTML title.
+        // The `<Root>` component re-renders when loading indicator loader data
+        // resolves which causes the meta function to re-run and show the right value.
+        if (
+            args.matches.some(
+                ({data}) =>
+                    isLoadingIndicatorLoaderData(data) &&
+                    data.promise.getStateWithoutListening().status !== "fulfilled",
+            )
+        ) {
+            return [
+                // Ask Google to not index loading or error pages.
                 {name: "robots", content: "noindex"},
                 {title: metaDefaultTitle},
             ];

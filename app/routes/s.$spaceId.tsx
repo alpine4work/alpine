@@ -8,6 +8,7 @@ import {
     useParams,
     useRouteError,
 } from "react-router";
+import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicator_space_outlet_container.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {useAccountClientStoreForSpaceId} from "~/client/accounts/account_client_store_context_provider.js";
@@ -27,6 +28,7 @@ import {disableMobileWebKitDefaultScroll} from "~/client/helpers/disable_mobile_
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useLocalStorage} from "~/client/helpers/use_local_storage.js";
 import {PeekStackContextProvider, PeekStackContextProviderRef} from "~/client/peek/peek_stack.js";
@@ -287,7 +289,7 @@ export default function SpaceLayoutRoute() {
 
     // On initial render, if there's a `search` query parameter then open our
     // search modal.
-    useEffect(() => {
+    useLayoutEffectWithoutServerSideWarning(() => {
         if (isInitialAppRender) return;
 
         // Don't open the search modal on mobile.
@@ -457,7 +459,12 @@ export default function SpaceLayoutRoute() {
                         {error !== undefined ? (
                             <SpaceRouteErrorRenderer error={error} />
                         ) : (
-                            <Outlet />
+                            <LoadingIndicatorSpaceOutletContainer
+                                routeId="routes/s.$spaceId"
+                                withMobileLayout={isMobile}
+                            >
+                                <Outlet />
+                            </LoadingIndicatorSpaceOutletContainer>
                         )}
                     </div>
                 </RootOverlayScopeContextProvider>
@@ -496,6 +503,14 @@ export default function SpaceLayoutRoute() {
                     onUpdateMetaTitle={updateMetaTitle}
                     className={outletContainerClassName}
                     style={outletContainerStyle}
+                    renderOutlet={outlet => (
+                        <LoadingIndicatorSpaceOutletContainer
+                            routeId="routes/s.$spaceId"
+                            withMobileLayout={isMobile}
+                        >
+                            {outlet}
+                        </LoadingIndicatorSpaceOutletContainer>
+                    )}
                 />,
             );
         }
@@ -522,6 +537,14 @@ export default function SpaceLayoutRoute() {
                     onUpdateMetaTitle={updateMetaTitle}
                     className={outletContainerClassName}
                     style={outletContainerStyle}
+                    renderOutlet={outlet => (
+                        <LoadingIndicatorSpaceOutletContainer
+                            routeId="routes/s.$spaceId"
+                            withMobileLayout={isMobile}
+                        >
+                            {outlet}
+                        </LoadingIndicatorSpaceOutletContainer>
+                    )}
                 />
             ),
         );

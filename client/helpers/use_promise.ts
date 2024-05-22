@@ -34,19 +34,22 @@ export function usePromise<Value>(
         return {promise, state: pendingState};
     });
 
+    let state: PromiseState<Value | null> = stateWithPromise?.state ?? nullState;
+
     if (
         promise === null
             ? stateWithPromise !== null
             : stateWithPromise === null || stateWithPromise.promise !== promise
     ) {
-        setStateWithPromise(() => {
-            if (promise === null) return null;
+        const newStateWithPromise =
+            promise === null
+                ? null
+                : promise instanceof PromiseImmediate
+                ? {promise, state: promise.getStateWithoutListening()}
+                : {promise, state: pendingState};
 
-            if (promise instanceof PromiseImmediate)
-                return {promise, state: promise.getStateWithoutListening()};
-
-            return {promise, state: pendingState};
-        });
+        state = newStateWithPromise?.state ?? nullState;
+        setStateWithPromise(newStateWithPromise);
     }
 
     useEffect(() => {
@@ -76,15 +79,6 @@ export function usePromise<Value>(
             isCancelled = true;
         };
     }, [promise]);
-
-    const state: PromiseState<Value> =
-        promise === null
-            ? nullState
-            : stateWithPromise?.promise === promise
-            ? stateWithPromise.state
-            : promise instanceof PromiseImmediate
-            ? promise.getStateWithoutListening()
-            : pendingState;
 
     // Memoize the result so we can use it in dependency arrays.
     return useMemo(() => {

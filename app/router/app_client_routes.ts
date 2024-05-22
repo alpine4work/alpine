@@ -1,6 +1,10 @@
 import {createClientRoutes, loadRouteModuleWithBlockingLinks} from "@remix-run/react";
 import {DataRouteObject, LazyRouteFunction} from "react-router";
+import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {createLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -25,6 +29,9 @@ export function createAppClientRoutes() {
 
     const routeById = new Map<string, DataRouteObject>();
 
+    let hasUpdatedSpaceLayoutDataRoute = false;
+    let hasUpdatedSpacePeekLayoutDataRoute = false;
+    let hasUpdatedSpaceDataRoute = false;
     let hasUpdatedInboxDataRoute = false;
     let hasUpdatedTaskDataRoute = false;
     let hasUpdatedPeekTaskDataRoute = false;
@@ -56,10 +63,28 @@ export function createAppClientRoutes() {
             updateTaskDataRoute(route);
         }
 
+        if (route.id === "routes/s.$spaceId") {
+            // Don't add a loader timeout for our space layout route. The space layout
+            // route will conditionally render `<Outlet>`s based on whether they're done
+            // loading or not.
+            hasUpdatedSpaceLayoutDataRoute = true;
+        } else if (route.id === "routes/s.$spaceId.peek") {
+            // Don't add a loader timeout for our peek route. The peek layout
+            // route will conditionally render `<Outlet>`s based on whether they're done
+            // loading or not.
+            hasUpdatedSpacePeekLayoutDataRoute = true;
+        } else if (route.id.startsWith("routes/s.$spaceId.")) {
+            hasUpdatedSpaceDataRoute = true;
+            makeSpaceDataRouteShowLoadingIndicator(route);
+        }
+
         makeLazyDataRouteSelfUpdating(route);
     }
 
-    // Make sure our route updates were applied.
+    // Sanity check: Make sure our route updates were applied.
+    assert(hasUpdatedSpaceLayoutDataRoute);
+    assert(hasUpdatedSpacePeekLayoutDataRoute);
+    assert(hasUpdatedSpaceDataRoute);
     assert(hasUpdatedInboxDataRoute);
     assert(hasUpdatedTaskDataRoute);
     assert(hasUpdatedPeekTaskDataRoute);
@@ -184,6 +209,80 @@ function updateTaskDataRoute(route: DataRouteObject) {
 
         // Headers and status code are lost for task routes.
         return data;
+    };
+}
+
+const makeSpaceDataRouteShowLoadingIndicatorSymbol = Symbol(
+    "makeSpaceDataRouteShowLoadingIndicator",
+);
+
+/**
+ * When navigating within a space, if the network request to load data is
+ * taking a long time (maybe some backend system is slow) we want to navigate
+ * to the new route but show a fullscreen loading spinner while waiting on
+ * data.
+ *
+ * To accomplish this we modify the Remix route object's client loader
+ * function for routes under `/s/:spaceId` to wait at most
+ * `delayScreenTransitionLoadingIndicatorLimitMs` for the server loader. If we
+ * don't have server data back before then we finish the navigation anyway and
+ * depend on `s.$spaceId.tsx` or `s.$spaceId.peek.tsx` to render a fullscreen
+ * loading spinner.
+ *
+ * This is coordinated by "loading indicator loader data". Instead of returning
+ * a loader data object, we return an object created by
+ * `createLoadingIndicatorLoaderData()` which contains a promise to the loader
+ * data. If `s.$spaceId.tsx` sees this as any child route's loader data it'll
+ * render a fullscreen loading indicator until the promise has resolved.
+ */
+function makeSpaceDataRouteShowLoadingIndicator(route: DataRouteObject) {
+    // TODO(calebmer): This won't work for routes with a `clientLoader()`. We don't
+    // currently have any routes that use `clientLoader()` since the performance is
+    // worse than a server loader (client code must be downloaded before data
+    // loading can start). However, it shouldn't be too bad to add support for
+    // `clientLoader()`. Instead we'd need to update `lazy()` and add our custom
+    // timeout support into the loader returned from `lazy()`.
+    assert(typeof route.loader === "function");
+
+    const originalRouteLoader = route.loader;
+
+    route.loader = async (...args) => {
+        const routeLoaderPromise = originalRouteLoader(...args);
+
+        const result = await Promise.race([
+            routeLoaderPromise,
+            wait(delayScreenTransitionLoadingIndicatorLimitMs).then(
+                (): typeof makeSpaceDataRouteShowLoadingIndicatorSymbol =>
+                    makeSpaceDataRouteShowLoadingIndicatorSymbol,
+            ),
+        ]);
+
+        if (result !== makeSpaceDataRouteShowLoadingIndicatorSymbol) {
+            return result;
+        } else {
+            return createLoadingIndicatorLoaderData(
+                PromiseImmediate.resolve(routeLoaderPromise).then(async result => {
+                    if (!(result instanceof Response)) return result;
+
+                    // Implement same unwrapping logic as `@remix-run/router`:
+                    // https://github.com/remix-run/react-router/blob/4b494b935d62cd1244fe5c091db920d3f0315e9e/packages/router/router.ts#L3764-L3772
+                    //
+                    // Since `@remix-run/router` won't get a chance to unwrap the response we have
+                    // to do it here.
+                    let data: unknown;
+                    const contentType = result.headers.get("Content-Type");
+                    // Check between word boundaries instead of startsWith() due to the last
+                    // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
+                    if (contentType && /\bapplication\/json\b/.test(contentType)) {
+                        data = await result.json();
+                    } else {
+                        data = await result.text();
+                    }
+
+                    return data;
+                }),
+            );
+        }
     };
 }
 

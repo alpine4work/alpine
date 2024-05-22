@@ -1,16 +1,19 @@
 import {Outlet} from "@remix-run/react";
 import {useContext, useMemo} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext, useRouteError} from "react-router";
+import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicator_space_outlet_container.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
+import {usePromise} from "~/client/helpers/use_promise.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {usePeekContext} from "~/client/peek/peek_remix_embed.js";
+import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {propagateEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
@@ -30,13 +33,21 @@ export default function PeekLayout() {
     const dataRouterStateContext = useContext(DataRouterStateContext);
     assert(dataRouterStateContext, "Expected data router state context");
 
+    const loadingIndicatorLoaderDataResult = usePromise(
+        useMemo(() => {
+            const loaderData = Object.values(dataRouterStateContext.loaderData).filter(
+                isLoadingIndicatorLoaderData,
+            );
+            if (loaderData.length === 0) return null;
+            return PromiseImmediate.allSettled(loaderData.map(({promise}) => promise));
+        }, [dataRouterStateContext.loaderData]),
+    );
+
     let context = useAppContext();
 
     // Add propagated event data to our tracer so that child React components
     // log events with the right context.
     context = useMemo(() => {
-        const loaderData = Object.values(dataRouterStateContext.loaderData);
-
         const tracer = context.tracer.getTracer();
 
         // While server-side rendering we will have a tracer that's part of a span.
@@ -76,25 +87,44 @@ export default function PeekLayout() {
             }
         }
 
-        const propagatedEventData = [
-            replacePropagatedEventData,
-            ...filterMapIterable(loaderData, data => {
-                if (!data) return null;
-                if (!hasOwnProperty(data, propagateEventDataKey)) return null;
-                return data[propagateEventDataKey] as TracerEventFullData;
-            }),
-        ];
+        const propagatedEventData = [replacePropagatedEventData];
+
+        const loaderData = Object.values(dataRouterStateContext.loaderData);
+        for (const data of loaderData) {
+            if (!data) continue;
+            if (!hasOwnProperty(data, propagateEventDataKey)) continue;
+            propagatedEventData.push(data[propagateEventDataKey] as TracerEventFullData);
+        }
+
+        if (!loadingIndicatorLoaderDataResult.isPending && loadingIndicatorLoaderDataResult.value) {
+            for (const data of loadingIndicatorLoaderDataResult.value) {
+                if (data.status !== "fulfilled") continue;
+                if (!hasOwnProperty(data.value, propagateEventDataKey)) continue;
+                propagatedEventData.push(data.value[propagateEventDataKey] as TracerEventFullData);
+            }
+        }
 
         return context.clone({
             tracer: new TracerContextModule(
                 tracer.withReplacedPropagatedData(mergeTracerEventData(propagatedEventData)),
             ),
         });
-    }, [dataRouterStateContext.loaderData, context, peekContext.id]);
+    }, [
+        context,
+        peekContext.id,
+        dataRouterStateContext.loaderData,
+        loadingIndicatorLoaderDataResult.isPending,
+        loadingIndicatorLoaderDataResult.value,
+    ]);
 
     return (
         <AppContextProvider value={context}>
-            <Outlet />
+            <LoadingIndicatorSpaceOutletContainer
+                routeId="routes/s.$spaceId.peek"
+                withMobileLayout={true}
+            >
+                <Outlet />
+            </LoadingIndicatorSpaceOutletContainer>
         </AppContextProvider>
     );
 }

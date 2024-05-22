@@ -1,5 +1,13 @@
 import {IDLE_BLOCKER, IDLE_FETCHER, Router, RouterState, stripBasename} from "@remix-run/router";
-import {CSSProperties, ContextType, Memo, useContext, useMemo} from "react";
+import {
+    CSSProperties,
+    ContextType,
+    Memo,
+    ReactElement,
+    ReactNode,
+    useContext,
+    useMemo,
+} from "react";
 import {
     UNSAFE_DataRouterContext as DataRouterContext,
     UNSAFE_DataRouterStateContext as DataRouterStateContext,
@@ -27,6 +35,7 @@ export function NativeMobileOutlet({
     onUpdateMetaTitle,
     className,
     style,
+    renderOutlet = outlet => outlet,
 }: {
     parentRouteIds: ReadonlyArray<string>;
     tracer: TracerRoot;
@@ -35,6 +44,7 @@ export function NativeMobileOutlet({
     onUpdateMetaTitle: Memo<(title: string) => void>;
     className?: string;
     style?: CSSProperties;
+    renderOutlet?: (outlet: ReactElement | null) => ReactNode;
 }) {
     const isInert = isInertFromProps || inertRouterState !== null;
 
@@ -320,7 +330,7 @@ export function NativeMobileOutlet({
                                         isInert ? (noop as Memo<() => void>) : onUpdateMetaTitle
                                     }
                                 >
-                                    {outlet}
+                                    {renderOutlet(outlet)}
                                 </UpdateMetaTitleContextProvider>
                             </GlobalKeyDownEvent>
                         </LocationContext.Provider>

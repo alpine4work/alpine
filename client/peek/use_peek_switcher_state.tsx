@@ -1,7 +1,6 @@
 import {deserializeErrors} from "@remix-run/react";
 import {HydrationState, MemoryHistory, createMemoryHistory, resolvePath} from "@remix-run/router";
-import {Key, Memo, useEffect} from "react";
-import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {Key, Memo, useEffect, useRef} from "react";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client.js";
@@ -9,28 +8,31 @@ import {PeekRemixEmbedRouter, usePeekRemixEmbedRouter} from "~/client/peek/peek_
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {Result} from "~/shared/helpers/control/result.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {generateId} from "~/shared/id/id.js";
 import {PeekId} from "~/shared/id/types/id_types.js";
 import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
 
-export type PeekSwitcherStatePeek<Extra> = {
+export type PeekSwitcherStatePeekBase<Extra> = {
     readonly id: PeekId;
-    readonly content: PeekSwitcherStatePeekContent | null;
+    readonly initialSpacePath: string;
+    readonly history: MemoryHistory;
     readonly extra: Extra;
     readonly setExtra: (extra: Extra) => void;
 };
 
-export type PeekSwitcherStatePeekContent = {
-    readonly initialSpacePath: string;
-    readonly history: MemoryHistory;
-    readonly routerPromise: PromiseImmediate<PeekRemixEmbedRouter>;
+export type PeekSwitcherStatePeek<Extra> = PeekSwitcherStatePeekBase<Extra> & {
+    readonly routerResult: Result<PeekRemixEmbedRouter>;
 };
 
 type PeekSwitcherState<Extra> = {
     readonly activePeek: PeekSwitcherStatePeek<Extra> | null;
     readonly transition: {
-        readonly peek: PeekSwitcherStatePeek<Extra>;
+        readonly peek: PeekSwitcherStatePeekBase<Extra> & {
+            readonly routerPromise: PromiseImmediate<PeekRemixEmbedRouter>;
+        };
         readonly pendingPromiseResolver: PromiseResolver<void>;
     } | null;
 };
@@ -65,14 +67,15 @@ export function usePeekSwitcherState<Extra>({
 }: {
     key?: Key | null;
     initialPeekData: MaybeThunk<{
-        spacePath: string | null;
+        spacePath: string;
         hydrationData: HydrationState;
         extra: Extra;
     } | null>;
 }): {
-    selectedPeek: PeekSwitcherStatePeek<Extra> | null;
+    selectedPeek: PeekSwitcherStatePeekBase<Extra> | null;
     activePeek: PeekSwitcherStatePeek<Extra> | null;
-    switchPeek: Memo<(peekData: {spacePath: string | null; extra: Extra} | null) => Promise<void>>;
+    switchPeek: Memo<(peekData: {spacePath: string; extra: Extra} | null) => Promise<void>>;
+    holdPeekTransition: Memo<(promise: Promise<unknown>) => void>;
 } {
     const {peekRoutes, createPeekRouter} = usePeekRemixEmbedRouter();
 
@@ -118,18 +121,6 @@ export function usePeekSwitcherState<Extra>({
 
             const peekId = generateId<PeekId>();
 
-            if (peekData.spacePath === null) {
-                return {
-                    activePeek: {
-                        id: peekId,
-                        content: null,
-                        extra: peekData.extra,
-                        setExtra: createSetPeekExtra(peekId),
-                    },
-                    transition: null,
-                };
-            }
-
             const spacePath = resolvePath(peekData.spacePath);
             const peekPath = convertSpacePathToPeekPath(spacePath);
             if (!peekPath) throw new InternalError("Invalid space path");
@@ -138,21 +129,20 @@ export function usePeekSwitcherState<Extra>({
 
             const peek: PeekSwitcherStatePeek<Extra> = {
                 id: peekId,
-                content: {
-                    initialSpacePath: peekData.spacePath,
-                    history,
-                    routerPromise: PromiseImmediate.resolve(
-                        createPeekRouter({
-                            history,
-                            hydrationData: {
-                                ...peekData.hydrationData,
-                                errors: deserializeErrors(peekData.hydrationData.errors ?? null),
-                            },
-                        }),
-                    ),
-                },
+                initialSpacePath: peekData.spacePath,
+                history,
                 extra: peekData.extra,
                 setExtra: createSetPeekExtra(peekId),
+                routerResult: {
+                    ok: true,
+                    value: createPeekRouter({
+                        history,
+                        hydrationData: {
+                            ...peekData.hydrationData,
+                            errors: deserializeErrors(peekData.hydrationData.errors ?? null),
+                        },
+                    }),
+                },
             };
 
             return {
@@ -166,7 +156,7 @@ export function usePeekSwitcherState<Extra>({
 
     const switchPeek = useEvent(
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        (peekData: {spacePath: string | null; extra: Extra} | null): Promise<void> => {
+        (peekData: {spacePath: string; extra: Extra} | null): Promise<void> => {
             if (!peekData) {
                 setPeekState({
                     activePeek: null,
@@ -176,19 +166,6 @@ export function usePeekSwitcherState<Extra>({
             }
 
             const peekId = generateId<PeekId>();
-
-            if (peekData.spacePath === null) {
-                setPeekState({
-                    activePeek: {
-                        id: peekId,
-                        content: null,
-                        extra: peekData.extra,
-                        setExtra: createSetPeekExtra(peekId),
-                    },
-                    transition: null,
-                });
-                return Promise.resolve();
-            }
 
             const abortController = new AbortController();
 
@@ -213,21 +190,17 @@ export function usePeekSwitcherState<Extra>({
 
             const pendingPromiseResolver = createPromiseResolver();
 
-            const peek: PeekSwitcherStatePeek<Extra> = {
-                id: peekId,
-                content: {
-                    initialSpacePath: peekData.spacePath,
-                    history,
-                    routerPromise: PromiseImmediate.resolve(routerPromise),
-                },
-                extra: peekData.extra,
-                setExtra: createSetPeekExtra(peekId),
-            };
-
             setPeekState({
                 activePeek: peekState.activePeek,
                 transition: {
-                    peek,
+                    peek: {
+                        id: peekId,
+                        initialSpacePath: peekData.spacePath,
+                        history,
+                        extra: peekData.extra,
+                        setExtra: createSetPeekExtra(peekId),
+                        routerPromise: PromiseImmediate.resolve(routerPromise),
+                    },
                     pendingPromiseResolver,
                 },
             });
@@ -236,6 +209,8 @@ export function usePeekSwitcherState<Extra>({
         },
     );
 
+    const holdPeekTransitionPromisesRef = useRef<Set<Promise<void>>>(new Set());
+
     useEffect(() => {
         const {transition} = peekState;
         if (!transition) return;
@@ -243,46 +218,61 @@ export function usePeekSwitcherState<Extra>({
         let isCancelled = false;
         let isAccepted = false;
 
-        const acceptTransition = () => {
+        const acceptTransition = (routerResult: Result<PeekRemixEmbedRouter>) => {
             if (isCancelled) return;
 
             if (isAccepted) return;
             isAccepted = true;
 
-            timeout.clear();
-
             transition.pendingPromiseResolver.resolve();
 
             setPeekState({
-                activePeek: transition.peek,
+                activePeek: {
+                    ...omitObject(transition.peek, ["routerPromise"]),
+                    routerResult,
+                },
                 transition: null,
             });
         };
 
-        // Accept the transition with whatever comes first:
-        //
-        // - Our loading indicator delay finishes
-        // - Our data promise resolves
-        const timeout = createTimeout(
-            acceptTransition,
-            delayScreenTransitionLoadingIndicatorLimitMs,
+        (async () => {
+            const router = await transition.peek.routerPromise;
+
+            // Don't accept the transition if we were asked to hold.
+            while (holdPeekTransitionPromisesRef.current.size > 0) {
+                await runAllPromises(holdPeekTransitionPromisesRef.current);
+            }
+
+            return router;
+        })().then(
+            router => acceptTransition({ok: true, value: router}),
+            error => acceptTransition({ok: false, error}),
         );
-        if (!transition.peek.content) {
-            acceptTransition();
-        } else {
-            transition.peek.content.routerPromise.then(acceptTransition, acceptTransition);
-        }
 
         return () => {
             isCancelled = true;
-            timeout.clear();
             transition.pendingPromiseResolver.resolve();
         };
     }, [peekState, setPeekState]);
+
+    const holdPeekTransition = useEvent((promise: Promise<unknown>) => {
+        // Ignore errors from holding promise.
+        const actualPromise = promise.then(
+            () => {},
+            () => {},
+        );
+
+        holdPeekTransitionPromisesRef.current.add(actualPromise);
+
+        promise.finally(() => {
+            holdPeekTransitionPromisesRef.current.delete(actualPromise);
+        });
+    });
 
     return {
         selectedPeek: peekState.transition?.peek ?? peekState.activePeek,
         activePeek: peekState.activePeek,
         switchPeek,
+        holdPeekTransition,
     };
 }

@@ -244,4 +244,70 @@ export class PromiseImmediate<Value> implements PromiseLike<Value> {
     ): PromiseImmediate<Value | NewValue> {
         return this.then(null, onRejected);
     }
+
+    /**
+     * Same behavior as `Promise.allSettled()` except if all the promises resolve
+     * synchronously then the `PromiseImmediate` will also be marked as having
+     * synchronously resolved.
+     */
+    public static allSettled<T extends ReadonlyArray<unknown> | []>(
+        values: T,
+    ): PromiseImmediate<{-readonly [P in keyof T]: PromiseSettledResult<Awaited<T[P]>>}>;
+    public static allSettled<T>(
+        values: Iterable<T | PromiseLike<T>>,
+    ): PromiseImmediate<Array<PromiseSettledResult<Awaited<T>>>>;
+    public static allSettled(
+        values: Iterable<unknown>,
+    ): PromiseImmediate<Array<PromiseSettledResult<unknown>>> {
+        return new PromiseImmediate(resolve => {
+            let hasFinishedIterating = false;
+            let count = 0;
+            let settledCount = 0;
+
+            const results: Array<PromiseSettledResult<unknown>> = [];
+
+            for (const value of values) {
+                const index = count;
+                count++;
+
+                if (!isPromiseLike(value)) {
+                    settledCount++;
+                    results[index] = {status: "fulfilled", value};
+                } else {
+                    let hasCalledResolveOrReject = false;
+
+                    value.then(
+                        value => {
+                            if (hasCalledResolveOrReject) return;
+                            hasCalledResolveOrReject = true;
+
+                            settledCount++;
+                            results[index] = {status: "fulfilled", value};
+
+                            if (hasFinishedIterating && count === settledCount) {
+                                resolve(results);
+                            }
+                        },
+                        value => {
+                            if (hasCalledResolveOrReject) return;
+                            hasCalledResolveOrReject = true;
+
+                            settledCount++;
+                            results[index] = {status: "rejected", reason: value};
+
+                            if (hasFinishedIterating && count === settledCount) {
+                                resolve(results);
+                            }
+                        },
+                    );
+                }
+            }
+
+            hasFinishedIterating = true;
+
+            if (count === settledCount) {
+                resolve(results);
+            }
+        });
+    }
 }

@@ -1,5 +1,7 @@
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
 import {Result} from "~/shared/helpers/control/result.js";
 
 async function wait(ms: number = 0) {
@@ -697,4 +699,88 @@ test("will resolve a rejected chained promise with a new value from the callback
     expect(result).toEqual(null);
     await wait();
     expect(result).toEqual({ok: true, value: 42});
+});
+
+test("all settled with no values resolves immediately", async () => {
+    expect(PromiseImmediate.allSettled([]).getStateWithoutListening()).toEqual({
+        status: "fulfilled",
+        value: [],
+    });
+});
+
+test("all settled with non-promise values resolves immediately", async () => {
+    expect(PromiseImmediate.allSettled([1, 2, 3]).getStateWithoutListening()).toEqual({
+        status: "fulfilled",
+        value: [
+            {status: "fulfilled", value: 1},
+            {status: "fulfilled", value: 2},
+            {status: "fulfilled", value: 3},
+        ],
+    });
+});
+
+test("all settled with immediately resolving promises resolves immediately", async () => {
+    expect(
+        PromiseImmediate.allSettled([
+            PromiseImmediate.resolve(1),
+            PromiseImmediate.reject(2),
+            PromiseImmediate.resolve(3),
+            4,
+            5,
+        ]).getStateWithoutListening(),
+    ).toEqual({
+        status: "fulfilled",
+        value: [
+            {status: "fulfilled", value: 1},
+            {status: "rejected", reason: 2},
+            {status: "fulfilled", value: 3},
+            {status: "fulfilled", value: 4},
+            {status: "fulfilled", value: 5},
+        ],
+    });
+});
+
+test("all settled will only resolve once all promises have resolved", async () => {
+    const promiseResolver1 = createPromiseResolver<number>();
+    const promiseResolver2 = createPromiseResolver<number>();
+    const promiseResolver3 = createPromiseResolver<number>();
+
+    const promise = PromiseImmediate.allSettled([
+        PromiseImmediate.resolve(1),
+        PromiseImmediate.reject(2),
+        3,
+        promiseResolver1.promise,
+        promiseResolver2.promise,
+        promiseResolver3.promise,
+    ]);
+
+    expect(promise.getStateWithoutListening()).toEqual({status: "pending"});
+
+    promiseResolver1.resolve(4);
+
+    expect(promise.getStateWithoutListening()).toEqual({status: "pending"});
+    await waitMacrotask();
+    expect(promise.getStateWithoutListening()).toEqual({status: "pending"});
+
+    promiseResolver2.reject(5);
+
+    expect(promise.getStateWithoutListening()).toEqual({status: "pending"});
+    await waitMacrotask();
+    expect(promise.getStateWithoutListening()).toEqual({status: "pending"});
+
+    promiseResolver3.resolve(6);
+
+    expect(promise.getStateWithoutListening()).toEqual({status: "pending"});
+    await waitMacrotask();
+    expect(promise.getStateWithoutListening()).toEqual({
+        status: "fulfilled",
+        value: [
+            {status: "fulfilled", value: 1},
+            {status: "rejected", reason: 2},
+            {status: "fulfilled", value: 3},
+            {status: "fulfilled", value: 4},
+            {status: "rejected", reason: 5},
+            {status: "fulfilled", value: 6},
+        ],
+    });
 });
