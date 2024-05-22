@@ -11,6 +11,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {WebSocketProcedureRequestId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
+import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {webSocketExpirationTimeoutMs} from "~/shared/web_socket/web_socket_expiration_timeout_ms.js";
 import {
     WebSocketProtocolBase,
@@ -38,10 +39,6 @@ type WebsocketClientConnectionState =
     | {
           readonly type: "Closed";
       };
-
-function getSendWebSocketMessageSpanName(messageType: string) {
-    return `Sent WebSocket message ${messageType}`;
-}
 
 function resolveWebSocketUrl(url: string) {
     // If this is an absolute URL, add our current domain's origin. This will
@@ -79,6 +76,7 @@ function resolveWebSocketUrl(url: string) {
  */
 export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
     private readonly _getContext: () => AppContext;
+    private readonly _serviceName: TracerServiceName;
     private readonly _messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
     private readonly _messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
     private readonly _events = new EventEmitter<WebSocketProtocolEventType<Protocol>>();
@@ -93,8 +91,14 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
         PromiseResolver<{}>
     >();
 
-    constructor(getContext: () => AppContext, protocol: Protocol, url: string) {
+    constructor(
+        getContext: () => AppContext,
+        serviceName: TracerServiceName,
+        protocol: Protocol,
+        url: string,
+    ) {
         this._getContext = getContext;
+        this._serviceName = serviceName;
         this._messageFromClientSchema = createWebSocketMessageFromClientSchema(protocol);
         this._messageFromServerSchema = createWebSocketMessageFromServerSchema(protocol);
 
@@ -112,7 +116,7 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
             const messageType = "Ping";
 
             void this._getContext().tracer.withSpan(
-                getSendWebSocketMessageSpanName(messageType),
+                `${this._serviceName} message ${messageType}`,
                 async (context, span) => {
                     span.addData({webSocket: {messageType}});
 
@@ -320,7 +324,7 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
         const spanMessageType = `ProcedureRequest:${name}`;
 
         return this._getContext().tracer.withSpan(
-            getSendWebSocketMessageSpanName(spanMessageType),
+            `${this._serviceName} procedure ${name}`,
             async (context, span) => {
                 assert(
                     this._state.type === "Connecting" || this._state.type === "Open",
@@ -407,7 +411,7 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
         const messageType = "SoftCloseWhileWaitingForProcedureResponses";
 
         return this._getContext().tracer.withSpan(
-            getSendWebSocketMessageSpanName(messageType),
+            `${this._serviceName} message ${messageType}`,
             (context, span) => {
                 span.addData({
                     webSocket: {messageType},

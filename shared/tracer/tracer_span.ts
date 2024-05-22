@@ -293,6 +293,26 @@ export class TracerSpan extends TracerBase {
     }
 
     /**
+     * Add some data to all child spans created after this function call. We also
+     * send this data over the network so that spans in distributed services also
+     * add our propagated data.
+     *
+     * We will not added this propagated data to spans created before this
+     * function call.
+     *
+     * Unlike `addPropagatedData()`, we do not add the propagated data to this span
+     * as well.
+     */
+    public addPropagatedDataForChildrenOnly(data: TracerEventData) {
+        assert(!this._isFinished);
+
+        this._propagatedEventData = {
+            value: data,
+            next: this._propagatedEventData,
+        };
+    }
+
+    /**
      * Implementation of `TracerBase.withPropagatedData()`. Directly calls
      * `TracerSpan.addPropagatedData()`.
      */

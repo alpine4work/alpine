@@ -146,6 +146,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         isBlocking: Schema.boolean,
     },
     context: {
+        handler: Schema.string,
         accountId: Schema.id(),
         spaceId: Schema.id(),
         webSocketConnectionId: Schema.id(),

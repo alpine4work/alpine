@@ -94,6 +94,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
         this.taskId = taskId;
         this._client = new WebSocketClient(
             getContext,
+            "TaskNotesCollaborationService",
             TaskNotesCollaborationProtocol,
             `/api/durable-objects/task-notes/${taskId}`,
         );

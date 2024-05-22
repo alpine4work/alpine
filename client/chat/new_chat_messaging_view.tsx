@@ -32,6 +32,7 @@ function NewChatMessagingView(
     const context = useAppContext();
 
     const {isConnected, procedures, subscribeToEvents} = useWebSocket(
+        "ChatRealtimeService",
         ChatRealtimeProtocol,
         selectedChat ? `/api/durable-objects/chat/${selectedChat.chat.id}` : null,
     );

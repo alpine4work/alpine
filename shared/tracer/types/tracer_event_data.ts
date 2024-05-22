@@ -365,6 +365,17 @@ export type TracerEventData = {
      * in the client's web browser then propagated.
      */
     readonly context?: {
+        /**
+         * The nearest span name starting with `Handle:`. This property is useful for
+         * grouping/filtering spans by the action in which they occur. For instance, if
+         * you want to sum all DynamoDB capacity consumed by a route you would filter
+         * by this handle.
+         *
+         * If many OpenSearch requests were being made and you wanted to see where from,
+         * you'd filter by this handle.
+         */
+        readonly handler?: string;
+
         /** Information about the account who caused this event. */
         readonly accountId?: AccountId;
 

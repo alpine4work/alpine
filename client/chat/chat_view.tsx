@@ -291,6 +291,7 @@ function ChatMessagingView({
     const messagingRef = useRef<MessagingViewRef>(null);
 
     const {isConnected, procedures, subscribeToEvents} = useWebSocket(
+        "ChannelRealtimeService",
         ChatRealtimeProtocol,
         `/api/durable-objects/chat/${chat.id}`,
     );

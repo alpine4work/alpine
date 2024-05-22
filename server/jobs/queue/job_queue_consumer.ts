@@ -406,9 +406,11 @@ export class JobQueueConsumer {
 
             const messageBody = JobQueueMessageBodySchema.deserialize(serializedMessageBody);
 
-            const spanName = `Process${
-                messageBody.type === "Maintenance" ? " maintenance " : " "
-            }job ${messageBody.job.type}`;
+            const handleSpanName = `${
+                messageBody.type === "Maintenance" ? "Process maintenance job" : "Process job"
+            } ${messageBody.job.type}`;
+
+            const spanName = `Handle: ${handleSpanName}`;
 
             ({span, finishSpan} =
                 messageBody.tracerContext !== null
@@ -441,6 +443,12 @@ export class JobQueueConsumer {
                         // time). The delay is intentional. We want to measure overall queue health.
                         // Ideally the queue duration should be as close to zero as possible.
                         jobStartTime.getTime(),
+                },
+            });
+
+            span.addPropagatedDataForChildrenOnly({
+                context: {
+                    handler: handleSpanName,
                 },
             });
 

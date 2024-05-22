@@ -8,6 +8,7 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {
     WebSocketProtocolBase,
     WebSocketProtocolEventType,
@@ -129,6 +130,7 @@ export type WebSocketClientProcedures<
  */
 export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
     private readonly _getContext: () => AppContext;
+    private readonly _serviceName: TracerServiceName;
     private readonly _protocol: Protocol;
     private readonly _url: string;
 
@@ -141,8 +143,14 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
         WebSocketProtocolProceduresType<Protocol>
     >;
 
-    constructor(getContext: () => AppContext, protocol: Protocol, url: string) {
+    constructor(
+        getContext: () => AppContext,
+        serviceName: TracerServiceName,
+        protocol: Protocol,
+        url: string,
+    ) {
         this._getContext = getContext;
+        this._serviceName = serviceName;
         this._protocol = protocol;
         this._url = url;
 
@@ -225,6 +233,7 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
         const connect = () => {
             const connection = new WebSocketClientConnection(
                 this._getContext,
+                this._serviceName,
                 this._protocol,
                 this._url,
             );

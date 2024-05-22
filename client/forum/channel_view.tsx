@@ -62,6 +62,7 @@ export function ChannelView({
     const channelId = initialChannel.model.id;
 
     const {isConnected, subscribeToEvents, toggleShouldConnect} = useWebSocket(
+        "ChannelRealtimeService",
         ChannelRealtimeProtocol,
         `/api/durable-objects/channels/${channelId}`,
     );

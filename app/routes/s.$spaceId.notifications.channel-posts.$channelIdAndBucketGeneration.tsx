@@ -171,6 +171,7 @@ function ChannelPostsRoute({withMobileLayout: withMobileLayoutProp}: {withMobile
     const channelId = initialChannel.model.id;
 
     const {isConnected, subscribeToEvents} = useWebSocket(
+        "ChannelRealtimeService",
         ChannelRealtimeProtocol,
         `/api/durable-objects/channels/${channelId}`,
     );

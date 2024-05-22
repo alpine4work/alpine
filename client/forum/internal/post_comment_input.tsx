@@ -70,6 +70,7 @@ export function PostCommentInput({
     // are open this component is always rendered and we only want to connect to
     // realtime when comments are open so works out.
     const {isConnected, procedures, subscribeToEvents} = useWebSocket(
+        "PostRealtimeService",
         PostRealtimeProtocol,
         `/api/durable-objects/posts/${post.id}`,
     );

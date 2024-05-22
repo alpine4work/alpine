@@ -55,7 +55,13 @@ export function implementRpc<Input, Output>(
         context: RpcServerActionContext,
         input: Input,
     ): Promise<Output> => {
-        return context.tracer.withSpan(`Handle: RPC ${definition.name}`, async context => {
+        return context.tracer.withSpan(`Handle: RPC ${definition.name}`, async (context, span) => {
+            span.addPropagatedDataForChildrenOnly({
+                context: {
+                    handler: `RPC ${definition.name}`,
+                },
+            });
+
             // RPCs may only be executed from specific services. For instance, you can only
             // call `updateDocumentContent()` from `DocumentCollaborationService`. If
             // anyone else was able to call `updateDocumentContent()` then it would break

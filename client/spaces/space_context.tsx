@@ -54,6 +54,7 @@ export function SpaceContextProvider({
     children?: ReactNode;
 }) {
     const {isConnected, subscribeToEvents, toggleShouldConnect} = useWebSocket(
+        "MyAccountService",
         MyAccountProtocol,
         `/api/durable-objects/my-account/${currentAccount.id}`,
     );

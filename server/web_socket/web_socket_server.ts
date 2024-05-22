@@ -880,7 +880,8 @@ class WebSocketServerConnectionWrapper<
                     return;
                 }
 
-                const spanName = "Received WebSocket message";
+                const serviceName = this._processContext.tracer.getRoot().serviceName;
+                const spanName = `Handle: ${serviceName} message`;
                 let span: TracerSpan;
                 let finishSpan: () => void;
                 if (!message.tracerContext) {
@@ -913,17 +914,25 @@ class WebSocketServerConnectionWrapper<
                     {span, finishSpan},
                     async (context, span) => {
                         try {
-                            const spanMessageType =
+                            const handleSpanName =
                                 message.type === "ProcedureRequest"
-                                    ? `ProcedureRequest:${message.input.type}`
-                                    : message.type;
+                                    ? `${serviceName} procedure ${message.input.type}`
+                                    : `${serviceName} message ${message.type}`;
 
-                            span.appendName(` ${spanMessageType}`);
+                            span.recklesslyOverrideName(`Handle: ${handleSpanName}`);
+
                             span.addData({
                                 webSocket: {
                                     connectionId: this.id,
-                                    messageType: spanMessageType,
+                                    messageType:
+                                        message.type === "ProcedureRequest"
+                                            ? `ProcedureRequest:${message.input.type}`
+                                            : message.type,
                                 },
+                            });
+
+                            span.addPropagatedDataForChildrenOnly({
+                                context: {handler: handleSpanName},
                             });
 
                             // If the client soft closed our connection we won't accept new procedures. We
@@ -1603,7 +1612,7 @@ class WebSocketServerTestConnectionWrapper<
         if (this._isClosed) throw new CancelledError("WebSocket connection closed");
 
         const output = await this._actionContext.fork.withFork(
-            "Received test WebSocket message",
+            "Handle: Test WebSocket message",
             async (context, span) => {
                 // Thrown errors should be handled by the test. We do not send acknowledgement
                 // messages in test connections.

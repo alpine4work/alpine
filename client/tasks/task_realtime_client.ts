@@ -86,6 +86,7 @@ export class TaskRealtimeClient {
 
         this._client = new WebSocketClient(
             getContext,
+            "TaskRealtimeService",
             TaskRealtimeProtocol,
             `/api/task-realtime/${this.spaceId}`,
         );

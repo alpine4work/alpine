@@ -7,6 +7,7 @@ import {WebSocketClient, WebSocketClientProcedures} from "~/client/web_socket/we
 import {InternalError} from "~/shared/error/error.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {
     WebSocketProtocolBase,
     WebSocketProtocolEventType,
@@ -34,6 +35,7 @@ type MemoObject<Value> = Memo<{
  *   `/hello/world`.
  */
 export function useWebSocket<Protocol extends WebSocketProtocolBase>(
+    serviceName: TracerServiceName,
     protocol: Protocol,
     url: string | null,
     handleEvent?: (message: WebSocketProtocolEventType<Protocol>) => void,
@@ -53,8 +55,8 @@ export function useWebSocket<Protocol extends WebSocketProtocolBase>(
 
     const client = useMemo(() => {
         if (!url) return null;
-        return new WebSocketClient(() => contextRef.current, protocol, url);
-    }, [protocol, url]);
+        return new WebSocketClient(() => contextRef.current, serviceName, protocol, url);
+    }, [protocol, serviceName, url]);
 
     const clientState = useStore(client?.state ?? null);
 

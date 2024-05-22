@@ -7,7 +7,7 @@ import {TokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js
 import {TokenAgentPublicSide} from "~/server/tokens/token_agent_public_side.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {
-    createTraceServerResponseSpanName,
+    createTraceServerResponseHandleSpanName,
     traceServerResponse,
 } from "~/server/tracer/trace_server_response.js";
 import {Context} from "~/shared/context/context.js";
@@ -414,7 +414,7 @@ function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: Ex
             });
 
             span.recklesslyOverrideName(
-                createTraceServerResponseSpanName(tracer, request, actualRoute),
+                `Handle: ${createTraceServerResponseHandleSpanName(tracer, request, actualRoute)}`,
             );
         }
 

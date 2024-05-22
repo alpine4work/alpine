@@ -2122,6 +2122,8 @@ export async function updateDocumentContent(
      */
     updatedCommentThreads: ReadonlyArray<DocumentCommentThreadModel>;
 }> {
+    console.log(JSON.stringify(context.tracer._tracer._eventData, null, 2));
+
     const result = await context.dynamo.retryTransaction(async context => {
         if (!Number.isSafeInteger(clientVersion) || clientVersion < 0)
             throw new InvalidArgumentError("Expected a positive integer version number");

@@ -16,12 +16,12 @@ import {tracerPropagationContextHeaderName} from "~/shared/tracer/tracer_propaga
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
-export function createTraceServerResponseSpanName(
+export function createTraceServerResponseHandleSpanName(
     tracer: TracerRoot,
     request: Request,
     route: string,
 ) {
-    return `Handle: ${tracer.serviceName} ${request.method} ${route}`;
+    return `${tracer.serviceName} ${request.method} ${route}`;
 }
 
 /**
@@ -54,20 +54,11 @@ export async function traceServerResponse(
         );
     }
 
-    // TODO(calebmer, #tracer): The "Handle:" convention is growing on me as the
-    // span name for the implementation part of some process communication
-    // protocol. Adopt the same convention for WebSocket messages and the job queue
-    // which are both also process communication protocols.
-    //
-    // TODO(calebmer, #tracer): Related to the above, I've wanted for some
-    // propagated tracer data (names I've considered include `context.action`,
-    // `context.route`, and `context.handler`) to answer questions like "sum
-    // DynamoDB capacity units by route" or "which route calls OpenSearch the
-    // most". I think we can extend the handler convention into this. Where
-    // `context.handler` is the span name after "Handle:".
+    const handleSpanName = createTraceServerResponseHandleSpanName(tracer, request, route);
+
     const {span, finishSpan} = startSpanFromTracerPropagationContextHeader(
         tracer,
-        createTraceServerResponseSpanName(tracer, request, route),
+        `Handle: ${handleSpanName}`,
         request,
     );
 
@@ -110,6 +101,12 @@ export async function traceServerResponse(
                     ),
                     obfuscatedCookieHeader: obfuscateCookieHeader(request.headers),
                 },
+            },
+        });
+
+        span.addPropagatedDataForChildrenOnly({
+            context: {
+                handler: handleSpanName,
             },
         });
 
