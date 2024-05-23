@@ -34,7 +34,9 @@ be used to implement E.
 
 Avoid acronyms and abbreviations unless they are common across the software engineering industry
 (e.g. HTML or Int). Acronyms and abbreviations are confusing for folks without context on what they
-stand for. Generally avoid acronyms and abbreviations in written communication as well.
+stand for. Acronyms are alao often ambiguous. For example, does IR mean Incident Response or
+Intermediate Representation? Generally avoid acronyms and abbreviations in written communication as
+well.
 
 **Why?** Variable names are visible not just at the point where you declare the variable but also
 everywhere you use the variable. Meaning you put in a variable name can not be missed by future
