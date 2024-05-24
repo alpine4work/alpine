@@ -42,9 +42,22 @@ function isNodeSpacesOnly(node: Node): boolean {
     return true;
 }
 
+function indentationToRemove(lineText: string): number {
+    let indentationToRemove = 0;
+    for (let i = 0; i < lineText.length; i++) {
+        if (lineText[i] === " " && indentationToRemove < contentCodeBlockIndentationSpaceCount) {
+            indentationToRemove++;
+        } else {
+            break;
+        }
+    }
+    return indentationToRemove;
+}
+
 export const openKeyboardHighlightFloaterMetaKey = "openKeyboardHighlightFloater";
 export const openKeyboardLinkFloaterMetaKey = "openKeyboardLinkFloater";
 export const openCommentInputFloaterMetaKey = "openCommentInputFloater";
+const contentCodeBlockIndentationSpaceCount = 2;
 
 export function buildContentEditorKeymapPlugin(
     schema: ContentProsemirrorSchema,
@@ -712,6 +725,9 @@ export function buildContentEditorKeymapPlugin(
                 const previousTopLevelPos = $from.before(1);
                 if (previousTopLevelPos === 0) return false;
 
+                // 3. We do not want shift-tab to work at top level while inside code block
+                if ($from.node().type.name === "codeBlockLine") return false;
+
                 // 3. If the last node is a title...
                 const $previousTopLevelPos = state.doc.resolve(previousTopLevelPos - 1);
                 if ($previousTopLevelPos.node().type.name !== "title") return false;
@@ -720,6 +736,65 @@ export function buildContentEditorKeymapPlugin(
                 const $nextAnchor = state.doc.resolve($previousTopLevelPos.before() + 1);
                 const selection = TextSelection.between($nextAnchor, $nextAnchor);
                 if (dispatch) dispatch(state.tr.setSelection(selection));
+                return true;
+            },
+
+            // When the user hits shift-tab inside of a code block, we remove 2 spaces
+            // of indentation to the current selection.
+            (state, dispatch) => {
+                const {from, to, $from, $to} = state.selection;
+                const fromNode = $from.node();
+                const toNode = $to.node();
+                const fromParentNode = $from.node($from.depth - 1);
+                const toParentNode = $to.node($to.depth - 1);
+                const isSelectionInsideSameCodeBlock =
+                    fromNode.type.name === "codeBlockLine" &&
+                    toNode.type.name === "codeBlockLine" &&
+                    fromParentNode.type.name === "codeBlock" &&
+                    toParentNode.type.name === "codeBlock" &&
+                    fromParentNode === toParentNode;
+
+                if (!isSelectionInsideSameCodeBlock) return false;
+
+                if (dispatch) {
+                    const transaction = state.tr;
+                    let removedCharacters = 0;
+
+                    // Loop through the nodes of the selection and determine
+                    // start and end positions of the codeBlockLine
+                    state.doc.nodesBetween(from, to, (node, pos) => {
+                        if (node.type.name !== "codeBlockLine") return;
+
+                        const codeBlockLineIndentationStart = pos + removedCharacters + 1;
+                        const codeBlocklineIndentationEnd =
+                            codeBlockLineIndentationStart + contentCodeBlockIndentationSpaceCount;
+
+                        const lineText = transaction.doc.textBetween(
+                            codeBlockLineIndentationStart,
+                            codeBlocklineIndentationEnd,
+                        );
+
+                        // If lineText does not start with spaces don't de-dent
+                        if (!lineText.startsWith(" ")) {
+                            return false;
+                        }
+
+                        // Calculate how many spaces to remove from beginning
+                        // of codeBlockLine, either remove two space indentation
+                        // or one space.
+                        const numberOfIndentationToRemove = indentationToRemove(lineText);
+
+                        transaction.delete(
+                            codeBlockLineIndentationStart,
+                            codeBlockLineIndentationStart + numberOfIndentationToRemove,
+                        );
+
+                        // Update removedCharacters, in order to maintain
+                        // codeBlockLine start position
+                        removedCharacters -= numberOfIndentationToRemove;
+                    });
+                    dispatch(transaction);
+                }
                 return true;
             },
 

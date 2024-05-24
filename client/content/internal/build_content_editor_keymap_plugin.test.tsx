@@ -1465,6 +1465,85 @@ test("shift-tab removes another item from a list", async () => {
     );
 });
 
+test("shift-tab de-dents lines in code block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test 1");
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  test 1")))');
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("test 1")))');
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("    test 1")))');
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("test 1")))');
+});
+
+test("shift-tab de-dents odd number spaces in code block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+    await simulateTyping(" test 1");
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine(" test 1")))');
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("test 1")))');
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(2))));
+    dispatch(state => state.tr.insertText("   "));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("   test 1")))');
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine(" test 1")))');
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("test 1")))');
+});
+
+test("shift-tab de-dents multiple lines inside a code block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test 1");
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test 2");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  test 1"), codeBlockLine("  "), codeBlockLine("      test 2")))',
+    );
+
+    const startPos = 2;
+    const endPos = startPos + "  test 1\n  \n    test2".length;
+    dispatch(state => state.tr.setSelection(TextSelection.create(state.doc, startPos, endPos)));
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("test 1"), codeBlockLine, codeBlockLine("    test 2")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("test 1"), codeBlockLine, codeBlockLine("  test 2")))',
+    );
+});
+
 test("delete at the beginning of the first nested list item", async () => {
     render(<TestContentEditor />);
 
