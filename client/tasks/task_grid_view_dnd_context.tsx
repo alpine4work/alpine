@@ -38,7 +38,6 @@ import {
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
-import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -46,6 +45,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {contentSchemaStyles, fontSizesByPlatform} from "~/shared/styles/styles.js";
+import {taskRowViewMinHeight} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";

@@ -16,8 +16,8 @@ import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
-import {messageInputMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
 import {getPostWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitions.js";
+import {messageInputMinHeight} from "~/shared/styles/messaging_shared_styles.js";
 
 export const postCommentInputMinHeight = messageInputMinHeight;
 
@@ -27,6 +27,7 @@ export type PostRealtimeProcedures = {
 };
 
 export function PostCommentInput({
+    withMobileLayout,
     isStickyPositioned,
     post,
     viewRef,
@@ -41,6 +42,7 @@ export function PostCommentInput({
     shouldBeConnectedToChannelRealtime,
     onPostRealtimeEventTransaction,
 }: {
+    withMobileLayout: boolean;
     isStickyPositioned: boolean;
     post: PostModel;
     viewRef: RefObject<VirtualizedScrollViewRef>;
@@ -224,6 +226,7 @@ export function PostCommentInput({
     return (
         <MessageInput
             ref={inputRef}
+            withMobileLayout={withMobileLayout}
             data-testid={`PostCommentInput:${post.id}`}
             messageNoun="comment"
             // NOCOMMIT: Sticky positioned message inputs on mobile? Probably should mount

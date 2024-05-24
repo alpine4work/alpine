@@ -17,13 +17,11 @@ import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spac
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
+import {taskCardViewMaxWidth, taskCardViewMinHeight} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
-
-export const taskCardViewMinHeight = "5.375rem";
-export const taskCardViewMaxWidth = "96";
 
 const TaskCardViewContentForwardRef = forwardRef(TaskCardViewContent);
 export {TaskCardViewContentForwardRef as TaskCardViewContent};

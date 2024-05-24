@@ -92,14 +92,14 @@ import {assertId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
+import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {
     messageInputAccountAvatarPaddingY,
     messageInputAccountAvatarSize,
     messageInputMinHeight,
     messageViewBubbleBorderRadius,
     messageViewBubbleMinHeight,
-} from "~/shared/messaging/messaging_shared_styles.js";
-import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
+} from "~/shared/styles/messaging_shared_styles.js";
 import {
     colorSchemeVars,
     contentEditorStyles,
@@ -1552,11 +1552,6 @@ export function DocumentContentEditor({
                         scrollViewRef,
                     )}
                     id={editorContainerId}
-                    className={
-                        withMobileLayout
-                            ? contentSchemaStyles.docMobileLayoutContainerClassName
-                            : undefined
-                    }
                     data-testid="DocumentContentEditorMain"
                     flexGrow="1"
                     position="relative"
@@ -2262,6 +2257,7 @@ function DocumentContentEditorSidebar({
                             <DocumentCommentThreadListView
                                 key={commentThreadId}
                                 ref={commentThreadListViewRef}
+                                withMobileLayout={withMobileLayout}
                                 documentId={documentId}
                                 content={content}
                                 onCommentThreadSnippetPress={onCommentThreadSnippetPress}

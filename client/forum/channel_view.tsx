@@ -9,10 +9,6 @@ import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_r
 import {ChannelMobileEditor} from "~/client/forum/channel_mobile_editor.js";
 import {ChannelViewAside} from "~/client/forum/internal/channel_view_aside.js";
 import {ChannelViewNameEditor} from "~/client/forum/internal/channel_view_name_editor.js";
-import {
-    postContentViewMinHeightWithClosedCommentSection,
-    postViewMaxWidth,
-} from "~/client/forum/post_content_view.js";
 import {createPostEventEmitter} from "~/client/forum/post_creator.js";
 import {
     PostListChannelHeader,
@@ -42,6 +38,10 @@ import {
     updateChannelName,
     updateChannelNameAndDescription,
 } from "~/shared/rpc/forum_rpc_definitions.js";
+import {
+    postContentViewMinHeightWithClosedCommentSection,
+    postViewMaxWidth,
+} from "~/shared/styles/forum_shared_styles.js";
 
 export {newChannelNamePlaceholder} from "~/client/forum/internal/channel_view_name_editor.js";
 

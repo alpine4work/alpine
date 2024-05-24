@@ -117,6 +117,7 @@ for (const blockTestCase of blockTestCases) {
         render(
             <ContentEditor
                 aria-label="Test"
+                withMobileLayout={false}
                 state={ContentEditorState.create({
                     doc: content,
                     references: emptyContentReferences,
@@ -145,6 +146,7 @@ for (const blockTestCase of blockTestCases) {
         render(
             <ContentEditor
                 aria-label="Test"
+                withMobileLayout={false}
                 state={ContentEditorState.create({
                     doc: content,
                     references: emptyContentReferences,
@@ -175,6 +177,7 @@ for (const blockTestCase of blockTestCases) {
             render(
                 <ContentEditor
                     aria-label="Test"
+                    withMobileLayout={false}
                     state={ContentEditorState.create({
                         doc: content,
                         references: emptyContentReferences,
@@ -204,6 +207,7 @@ for (const inlineTestCase of inlineTestCases) {
         render(
             <ContentEditor
                 aria-label="Test"
+                withMobileLayout={false}
                 state={ContentEditorState.create({
                     doc: content,
                     references: emptyContentReferences,
@@ -240,7 +244,14 @@ function expectClipboardRoundtripToWork() {
                 references: emptyContentReferences,
             }),
         );
-        return <ContentEditor aria-label="Test" state={state} onChange={setState} />;
+        return (
+            <ContentEditor
+                aria-label="Test"
+                withMobileLayout={false}
+                state={state}
+                onChange={setState}
+            />
+        );
     }
 
     const {container, unmount} = render(<TestContentEditor />);
@@ -270,6 +281,7 @@ test("heading cannot have a level lower than 1", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("heading", {level: 0}, [schema.text("Test")]),
@@ -285,6 +297,7 @@ test("heading cannot have a level lower than 1", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("heading", {level: -42}, [schema.text("Test")]),
@@ -302,6 +315,7 @@ test("heading cannot have a level greater than 3", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("heading", {level: 4}, [schema.text("Test")]),
@@ -317,6 +331,7 @@ test("heading cannot have a level greater than 3", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("heading", {level: 42}, [schema.text("Test")]),
@@ -334,6 +349,7 @@ test("heading cannot be the wrong type", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("heading", {level: ""}, [schema.text("Test")]),
@@ -349,6 +365,7 @@ test("heading cannot be the wrong type", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("heading", {level: "secondary"}, [schema.text("Test")]),
@@ -364,6 +381,7 @@ test("heading cannot be the wrong type", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("heading", {level: true}, [schema.text("Test")]),
@@ -381,6 +399,7 @@ test("heading is converted into an integer", () => {
     render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("heading", {level: 2.5}, [schema.text("Test")]),
@@ -398,6 +417,7 @@ test("link with a non-HTTP scheme is blocked", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("paragraph", {}, [
@@ -420,6 +440,7 @@ test("link with a non-HTTP scheme is blocked", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("paragraph", {}, [
@@ -441,6 +462,7 @@ test("link with a non-HTTP scheme is blocked", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("paragraph", {}, [
@@ -477,6 +499,7 @@ test("bullet list with multiple items", () => {
     render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
         />,
@@ -496,6 +519,7 @@ test("ordered list with multiple items", () => {
     render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
         />,
@@ -527,6 +551,7 @@ test("check list with multiple items", () => {
     render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
         />,
@@ -563,6 +588,7 @@ test("bullet list with sub-list", () => {
     render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
         />,
@@ -599,6 +625,7 @@ test("ordered list with sub-list", () => {
     render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
         />,
@@ -635,6 +662,7 @@ test("check list with sub-list", () => {
     render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
         />,
@@ -671,6 +699,7 @@ test("bullet list with sub-list of another type", () => {
     render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
         />,
@@ -707,6 +736,7 @@ test("ordered list with sub-list of another type", () => {
     render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
         />,
@@ -743,6 +773,7 @@ test("check list with sub-list of another type", () => {
     render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
         />,
@@ -764,6 +795,7 @@ test("can put hard breaks inside paragraphs", () => {
     render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
         />,
@@ -787,6 +819,7 @@ test("can put hard breaks inside list items", () => {
     render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
         />,
@@ -807,6 +840,7 @@ test("can put multiple paragraphs inside list items", () => {
     render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
         />,

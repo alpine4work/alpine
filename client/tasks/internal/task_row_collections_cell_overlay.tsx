@@ -8,14 +8,14 @@ import {
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
-import {
-    taskRowViewCollectionsColumnCellOverlayWidth,
-    taskRowViewMinHeight,
-} from "~/client/tasks/task_row_shared_styles.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
+import {
+    taskRowViewCollectionsColumnCellOverlayWidth,
+    taskRowViewMinHeight,
+} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";

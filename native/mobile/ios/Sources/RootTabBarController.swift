@@ -66,7 +66,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             // initialPath: "/s/\(spaceId)/tasks/view",
             // initialPath: "/s/\(spaceId)/chat/new",
             // initialPath: "/s/\(spaceId)/posts/sjb6kfpyxyew5yytwhq4fpmcjc",
-            // initialPath: "/s/\(spaceId)/posts/r4tahf9swd0zrn0p4c5e6s68v0",
+            initialPath: "/s/\(spaceId)/posts/r4tahf9swd0zrn0p4c5e6s68v0",
             // initialPath:
             //     "/s/\(spaceId)/notifications/channel-posts/qk8jepk9epmb48b3fbaykw4vk0-8546",  // 10 posts
             // initialPath:
@@ -77,8 +77,8 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             //     "/s/\(spaceId)/notifications/document-comment-threads/qyzzez8e4814wwk2axaaagwp3w-8856",  // 11 threads
             // initialPath:
             //     "/s/\(spaceId)/notifications/document-comment-threads/2v1kz5r5w3tdb7zv6xt98wm7qg-8306",  // 1 thread
-            initialPath:
-                "/s/\(spaceId)/documents/2v1kz5r5w3tdb7zv6xt98wm7qg/comments/h2wjjg78958c16j5bm42cphwy4",
+            // initialPath:
+            //     "/s/\(spaceId)/documents/2v1kz5r5w3tdb7zv6xt98wm7qg/comments/h2wjjg78958c16j5bm42cphwy4",
             initialPathByTab: WebNavigationController.InitialPathByTab(
                 home: "/s/\(spaceId)",
                 search: "/s/\(spaceId)/search",

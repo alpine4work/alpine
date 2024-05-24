@@ -6,7 +6,6 @@ import {resolvePath} from "react-router";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
-import {inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view.js";
 import {InboxView} from "~/client/inbox/inbox_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -27,6 +26,7 @@ import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 
 const LoaderSchema = Schema.object({
     filter: Schema.enum(["New", "Archive"]),

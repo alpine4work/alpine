@@ -40,7 +40,6 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStoreTaskEntry} from "~/client/tasks/task_client_store.js";
-import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -54,6 +53,7 @@ import {
     sprinkles,
     tasksStyles,
 } from "~/shared/styles/styles.js";
+import {taskRowViewMinHeight} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {emptyTaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {

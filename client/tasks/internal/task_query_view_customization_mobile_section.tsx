@@ -22,6 +22,14 @@ import {screenPaddingX} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
+import {
+    taskQueryViewCustomizationMobileSectionGap,
+    taskQueryViewCustomizationMobileSectionHeaderFontSize,
+    taskQueryViewCustomizationMobileSectionHeaderHeight,
+    taskQueryViewCustomizationMobileSectionHeaderMarginBottom,
+    taskQueryViewCustomizationMobileSectionMarginBottom,
+    taskQueryViewCustomizationMobileSectionOptionHeight,
+} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
@@ -130,8 +138,8 @@ function TaskQueryViewCustomizationMobileSection(
             paddingX={screenPaddingX}
             display="flex"
             flexDirection="column"
-            gap="4"
-            paddingBottom="7"
+            gap={taskQueryViewCustomizationMobileSectionGap}
+            paddingBottom={taskQueryViewCustomizationMobileSectionMarginBottom}
         >
             {areFiltersVisible && (
                 <TaskQueryViewCustomizationMobileSectionFilters
@@ -183,9 +191,14 @@ function TaskQueryViewCustomizationMobileSectionFilters({
                 display="flex"
                 justifyContent="space-between"
                 alignItems="center"
-                paddingBottom="0.5"
+                height={taskQueryViewCustomizationMobileSectionHeaderHeight}
+                marginBottom={taskQueryViewCustomizationMobileSectionHeaderMarginBottom}
             >
-                <Box fontSize="100" color="grey-80" fontStyle="semi-bold">
+                <Box
+                    fontSize={taskQueryViewCustomizationMobileSectionHeaderFontSize}
+                    color="grey-80"
+                    fontStyle="semi-bold"
+                >
                     Filter
                 </Box>
                 <TaskQueryAddFilterMenuButton
@@ -202,7 +215,7 @@ function TaskQueryViewCustomizationMobileSectionFilters({
                         // wouldn't be flush with the right border of our filters.
                         iconPlacement="end"
                         paddingX="1.5"
-                        height="6"
+                        height={taskQueryViewCustomizationMobileSectionHeaderHeight}
                     >
                         Add
                     </Button>
@@ -210,7 +223,7 @@ function TaskQueryViewCustomizationMobileSectionFilters({
             </Box>
             {filters.length === 0 ? (
                 <Box
-                    height="9"
+                    height={taskQueryViewCustomizationMobileSectionOptionHeight}
                     paddingX="3"
                     display="flex"
                     alignItems="center"
@@ -316,9 +329,14 @@ function TaskQueryViewCustomizationMobileSectionSorts({
                 display="flex"
                 justifyContent="space-between"
                 alignItems="center"
-                paddingBottom="0.5"
+                height={taskQueryViewCustomizationMobileSectionHeaderHeight}
+                marginBottom={taskQueryViewCustomizationMobileSectionHeaderMarginBottom}
             >
-                <Box fontSize="100" color="grey-80" fontStyle="semi-bold">
+                <Box
+                    fontSize={taskQueryViewCustomizationMobileSectionHeaderFontSize}
+                    color="grey-80"
+                    fontStyle="semi-bold"
+                >
                     Sort
                 </Box>
                 <TaskQueryAddSortMenuButton
@@ -333,7 +351,7 @@ function TaskQueryViewCustomizationMobileSectionSorts({
                         // wouldn't be flush with the right border of our filters.
                         iconPlacement="end"
                         paddingX="1.5"
-                        height="6"
+                        height={taskQueryViewCustomizationMobileSectionHeaderHeight}
                         isDisabled={sortsWithId.length >= 5}
                     >
                         Add

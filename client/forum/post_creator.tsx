@@ -20,13 +20,6 @@ import {
     PostCreatorChannelSelectorInput,
     PostCreatorChannelSelectorInputRef,
 } from "~/client/forum/internal/post_creator_channel_selector_input.js";
-import {
-    desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    postContentViewInnerMarginY,
-    postViewMaxWidth,
-} from "~/client/forum/post_content_view.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useSessionStorage} from "~/client/helpers/use_local_storage.js";
@@ -55,6 +48,13 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {Id} from "~/shared/id/id.js";
 import {createPost} from "~/shared/rpc/forum_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {
+    desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
+    mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
+    mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
+    postContentViewInnerMarginY,
+    postViewMaxWidth,
+} from "~/shared/styles/forum_shared_styles.js";
 import {contentSchemaStyles, forumStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export const createPostEventEmitter = new EventEmitter<{
@@ -334,6 +334,7 @@ export function PostCreator({
                     <ContentEditor
                         ref={editorRef}
                         aria-label="New post"
+                        withMobileLayout={withMobileLayout}
                         state={state}
                         onChange={(state, transaction) => {
                             setState({

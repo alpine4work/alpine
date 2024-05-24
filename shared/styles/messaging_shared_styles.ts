@@ -28,6 +28,7 @@ export const messageViewBubbleMinHeight: RemLength = addRemLengths(
 export const messageViewMarginY: Spacing = "3";
 export const messageViewMergedMarginY: Spacing = "0.5";
 export const messageViewTimestampDividerMarginTop: Spacing = "8";
+export const messageViewTimestampDividerMarginBottom: Spacing = "2";
 
 export const messageViewMinHeight: RemLength = addRemLengths(
     messageViewBubbleMinHeight,

@@ -13,7 +13,14 @@ function TestContentEditor() {
             references: emptyContentReferences,
         }),
     );
-    return <ContentEditor aria-label="Test" state={state} onChange={setState} />;
+    return (
+        <ContentEditor
+            aria-label="Test"
+            withMobileLayout={false}
+            state={state}
+            onChange={setState}
+        />
+    );
 }
 
 // Get the textbox `HTMLElement`.

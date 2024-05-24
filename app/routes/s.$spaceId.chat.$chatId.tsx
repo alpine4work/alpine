@@ -5,6 +5,7 @@ import {Box} from "~/client/design/box.js";
 import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
@@ -74,11 +75,19 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentDa
     ];
 });
 
-export default function ChatRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
+export default function ChatRoute({
+    withMobileLayout: withMobileLayoutProp = false,
+}: {
+    withMobileLayout?: boolean;
+}) {
     const [searchParams] = useSearchParams();
     const {chat, initialMessages, initialOtherReferencedMessages} =
         useLoaderDataWithSchema(LoaderSchema);
+
+    const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
+
+    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const messageIndexString = searchParams.get("message");
     const messageIndex = messageIndexString ? parseInt(messageIndexString, 10) : null;
@@ -100,6 +109,7 @@ export default function ChatRoute({withMobileLayout}: {withMobileLayout?: boolea
             <ChatView
                 // Remount whenever we navigate to a different chat.
                 key={chat.id}
+                withMobileLayout={withMobileLayout}
                 chat={chat}
                 initialMessages={initialMessages}
                 initialOtherReferencedMessages={initialOtherReferencedMessages}

@@ -66,24 +66,24 @@ import {
 
 const {
     desktopNavigationBarHeight,
+    desktopNavigationBarHeightRem,
     mobileNavigationBarHeight,
+    mobileNavigationBarHeightRem,
     navigationBarBackgroundFadeOutAnimationClassName,
     navigationBarTitleFadeOutAnimationClassName,
 } = navigationBarStyles;
 
-export {desktopNavigationBarHeight, mobileNavigationBarHeight};
+export {
+    desktopNavigationBarHeight,
+    desktopNavigationBarHeightRem,
+    mobileNavigationBarHeight,
+    mobileNavigationBarHeightRem,
+};
 
 export const navigationBarHeight = {
     desktop: desktopNavigationBarHeight,
     mobile: mobileNavigationBarHeight,
 } as const;
-
-export const desktopNavigationBarHeightRem = parseRemLengthNumber(
-    spacing[desktopNavigationBarHeight],
-);
-export const mobileNavigationBarHeightRem = parseRemLengthNumber(
-    spacing[mobileNavigationBarHeight],
-);
 
 export function getNavigationBarHeightRemWithoutListening(): number {
     if (getIsMobileWithoutListening()) {
@@ -110,7 +110,7 @@ export function getNavigationBarHeightPxWithoutListening(): number {
 }
 
 const navigationBarActionsFlexBasis: Spacing = "10";
-const mobileNavigationBarGap: Spacing = "3";
+export const mobileNavigationBarGap: Spacing = "3";
 
 const navigationBarDoneButtonActionFlexBasis: Spacing = "16";
 const navigationBarDoneButtonActionWidth = subtractRemLengths(

@@ -49,7 +49,7 @@ import {
     messageViewReplyPreviewBubbleOpacity,
     messageViewReplyPreviewOpacity,
     messageViewReplyPreviewScale,
-} from "~/shared/messaging/messaging_shared_styles.js";
+} from "~/shared/styles/messaging_shared_styles.js";
 import {
     contentViewStyles,
     emojiFontFamily,
@@ -330,6 +330,8 @@ export function MessageViewTouchLightbox<
                             isInert={true}
                             isTruncated={true}
                             withUserSelectNone={true}
+                            // Only rendered on mobile layouts.
+                            withMobileLayout={true}
                             content={truncatedContent}
                             className={sprinkles({minWidth: messageViewBubbleMinWidth})}
                         />
@@ -551,6 +553,8 @@ export function MessageViewTouchLightbox<
                                 isInert={true}
                                 withUserSelectNone={true}
                                 className={sprinkles({minWidth: messageViewBubbleMinWidth})}
+                                // Only rendered on mobile layouts.
+                                withMobileLayout={true}
                                 content={
                                     // Should only be able to open a lightbox for a message with content. If a
                                     // message is deleted then show nothing. (Message may be deleted in realtime.)

@@ -10,7 +10,7 @@ import {Overlay} from "~/client/design/overlay.js";
 import {defaultTooltipOffset, tooltipDelayMs} from "~/client/design/tooltip.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {inboxEntryViewMinHeight, inboxEntryWidth} from "~/client/inbox/inbox_entry_view.js";
+import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
@@ -34,6 +34,7 @@ import {
     getInboxEntries,
     getInboxWithStrongReadConsistency,
 } from "~/shared/rpc/notifications_rpc_definitions.js";
+import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {
     backgroundColorVar,
     greyElevated1ClassName,

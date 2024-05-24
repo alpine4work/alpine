@@ -30,7 +30,12 @@ function TestContentEditor({initialContent}: {initialContent?: Node}) {
     return (
         <OverlayScopeContextProvider>
             <TooltipCoordinationContextProvider>
-                <ContentEditor aria-label="Test" state={state} onChange={setState} />
+                <ContentEditor
+                    aria-label="Test"
+                    withMobileLayout={false}
+                    state={state}
+                    onChange={setState}
+                />
             </TooltipCoordinationContextProvider>
         </OverlayScopeContextProvider>
     );

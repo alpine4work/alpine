@@ -4,7 +4,7 @@ import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_sc
 import {convertRemLengthToPx} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
-import {messageViewMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
+import {messageViewMinHeight} from "~/shared/styles/messaging_shared_styles.js";
 
 /**
  * Helper function for loading messages in a given range for a messaging view.

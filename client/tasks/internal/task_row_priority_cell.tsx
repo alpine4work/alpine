@@ -22,14 +22,14 @@ import {
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
+import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 import {
     taskRowViewColumnPaddingX,
     taskRowViewColumnWidth,
     taskRowViewMinHeight,
-} from "~/client/tasks/task_row_shared_styles.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
-import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
+} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";

@@ -6,16 +6,16 @@ import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/interna
 import {isTaskQueryManuallySorted} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskGridViewDroppableData} from "~/client/tasks/task_grid_view_dnd_context.js";
-import {
-    desktopTaskRowViewIndentationRem,
-    mobileTaskRowViewIndentationRem,
-    taskRowViewMinHeight,
-} from "~/client/tasks/task_row_shared_styles.js";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {sprinkles} from "~/shared/styles/styles.js";
+import {
+    desktopTaskRowViewIndentationRem,
+    mobileTaskRowViewIndentationRem,
+    taskRowViewMinHeight,
+} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {

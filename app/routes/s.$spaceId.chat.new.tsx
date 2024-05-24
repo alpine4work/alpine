@@ -102,11 +102,16 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     return nextUrl.toString() !== currentUrl.toString();
 };
 
-export default function NewChatRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
+export default function NewChatRoute({
+    withMobileLayout: withMobileLayoutProp = false,
+}: {
+    withMobileLayout?: boolean;
+}) {
     const loaderData = useLoaderDataWithSchema(LoaderSchema);
 
     const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
+    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -259,7 +264,11 @@ export default function NewChatRoute({withMobileLayout = false}: {withMobileLayo
                     />
                 </Box>
             </Box>
-            <NewChatMessagingView ref={messagingViewRef} selectedChat={loaderData.selectedChat} />
+            <NewChatMessagingView
+                ref={messagingViewRef}
+                withMobileLayout={withMobileLayout}
+                selectedChat={loaderData.selectedChat}
+            />
         </Box>
     );
 }

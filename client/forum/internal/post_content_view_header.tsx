@@ -9,10 +9,11 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {
+    postContentViewHeaderAvatarSize,
+    postContentViewHeaderHeight,
+} from "~/shared/styles/forum_shared_styles.js";
 import {fontSizes, sprinkles} from "~/shared/styles/styles.js";
-
-export const postContentViewHeaderAvatarSize = "8";
-export const postContentViewHeaderHeight = "8";
 
 export function PostContentViewHeader({
     post,

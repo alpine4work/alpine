@@ -503,8 +503,8 @@ function TaskAssigneeInput(
 
     const insetMarginY = isMobile
         ? avatarSize === "5"
-            ? "2"
-            : "2.5"
+            ? "2.5"
+            : "2"
         : avatarSize === "5"
         ? "0.5"
         : undefined;
@@ -517,7 +517,7 @@ function TaskAssigneeInput(
                 //
                 // [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
                 height: isMobile ? "9" : avatarSize,
-                marginY: insetMarginY ? `-${insetMarginY}` : undefined,
+                marginTop: insetMarginY ? `-${insetMarginY}` : undefined,
                 marginLeft: avatarSize === "5" ? "-0.5" : undefined,
             })}
             onKeyDown={event => {

@@ -18,12 +18,12 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
     getMessageBubbleMarginLeft,
     messageViewBubbleBorderRadius,
     messageViewMarginY,
-} from "~/shared/messaging/messaging_shared_styles.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+} from "~/shared/styles/messaging_shared_styles.js";
 
 export const messagingTypingIndicatorsMinHeight = "3.875rem";
 

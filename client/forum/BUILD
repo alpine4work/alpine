@@ -17,6 +17,7 @@ ts_project(
         "//client/design",
         "//client/icons",
         "//client/messaging",
+        "//client/shimmer",
         "//client/spaces",
         "//client/web_socket",
         "//shared/forum",

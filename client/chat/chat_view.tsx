@@ -35,22 +35,24 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {
-    messageViewMarginY,
-    messageViewTimestampDividerMarginTop,
-} from "~/shared/messaging/messaging_shared_styles.js";
-import {
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
 } from "~/shared/rpc/chat_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {
+    messageViewMarginY,
+    messageViewTimestampDividerMarginTop,
+} from "~/shared/styles/messaging_shared_styles.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 export function ChatView({
+    withMobileLayout,
     chat,
     initialMessages,
     initialOtherReferencedMessages,
     initialScrollToMessageIndex,
 }: {
+    withMobileLayout: boolean;
     chat: ChatModel;
     initialMessages: ReadonlyArray<ChatMessageModel>;
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
@@ -60,6 +62,7 @@ export function ChatView({
         <Box width="full" height="full" display="flex" flexDirection="column">
             <ChatViewTopBar chat={chat} />
             <ChatMessagingView
+                withMobileLayout={withMobileLayout}
                 chat={chat}
                 initialMessages={initialMessages}
                 initialOtherReferencedMessages={initialOtherReferencedMessages}
@@ -277,11 +280,13 @@ function ChatMessagingViewHeader({
 }
 
 function ChatMessagingView({
+    withMobileLayout,
     chat,
     initialMessages,
     initialOtherReferencedMessages,
     initialScrollToMessageIndex,
 }: {
+    withMobileLayout: boolean;
     chat: ChatModel;
     initialMessages: ReadonlyArray<ChatMessageModel>;
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
@@ -314,6 +319,7 @@ function ChatMessagingView({
     return (
         <MessagingView
             ref={messagingRef}
+            withMobileLayout={withMobileLayout}
             initialScrollOffset="bottom"
             initialMessagesResult={{
                 messageCount: chat.messageCount,

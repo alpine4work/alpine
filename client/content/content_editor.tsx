@@ -99,6 +99,7 @@ const {
     commentClassName,
     phantomSelectionClassName,
     emojiClassName,
+    withMobileLayoutClassName,
 } = contentSchemaStyles;
 
 const {
@@ -106,7 +107,6 @@ const {
     shiftKeyOrAltKeyDownClassName,
     inlineMentionInputClassName,
     canNotPrimaryInputHoverContainerClassName,
-    withMobileLayoutClassName,
 } = contentEditorStyles;
 
 // NOTE(calebmer): The following are bugs I'd like to fix in the native mobile
@@ -235,6 +235,16 @@ export {ContentEditorForwardRef as ContentEditor};
 
 export type ContentEditorProps<Content extends ContentWithReferences> = {
     /**
+     * Whether the content editor should use a mobile layout without actually being
+     * on a mobile device. This is true for some peeks on desktop.
+     *
+     * Not all mobile behaviors are enabled by this flag. For instance, mobile
+     * keyboard toolbars are reserved for mobile devices. You still get floaters if
+     * `withMobileLayout` is true on desktop.
+     */
+    withMobileLayout: boolean;
+
+    /**
      * The current state of our content editor.
      *
      * Mostly the content editor state is a wrapper around ProseMirror's immutable
@@ -296,16 +306,6 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * component.
      */
     containerClassName?: string;
-
-    /**
-     * Whether the content editor should use a mobile layout without actually being
-     * on a mobile device. This is true for some peeks on desktop.
-     *
-     * Not all mobile behaviors are enabled by this flag. For instance, mobile
-     * keyboard toolbars are reserved for mobile devices. You still get floaters if
-     * `withMobileLayout` is true on desktop.
-     */
-    withMobileLayout?: boolean;
 
     /**
      * Don't render the mobile keyboard toolbar with this content editor. Use this
@@ -442,6 +442,7 @@ function ContentEditorWrapper<Content extends ContentWithReferences>(
 }
 
 function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
+    withMobileLayout,
     state,
     placeholder,
     className,
@@ -503,6 +504,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     return (
         <div className={classNames(containerClassName, customContainerClassName)}>
             <ContentView
+                withMobileLayout={withMobileLayout}
                 content={state.getContent()}
                 placeholder={placeholder}
                 className={className}
@@ -1240,6 +1242,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         const classList = classNames(
             docClassName,
+            withMobileLayout ? withMobileLayoutClassName : undefined,
             isMessageContentSchema(view.state.doc.type.schema) ? messageDocClassName : undefined,
             className,
         ).split(" ");
@@ -1248,7 +1251,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         return () => {
             viewElement.classList.remove(...classList);
         };
-    }, [className]);
+    }, [className, withMobileLayout]);
 
     // Adds the `emptyTitleClassName` class if the editor document is empty and
     // removes the class when the editor document is not empty.
@@ -1770,7 +1773,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             className={classNames(
                 containerClassName,
                 !canPrimaryInputHover ? canNotPrimaryInputHoverContainerClassName : undefined,
-                withMobileLayout ? withMobileLayoutClassName : undefined,
                 customContainerClassName,
             )}
             onFocus={onFocus}
@@ -1804,6 +1806,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         >
             <ContentEditorFloater
                 isMobile={isMobile}
+                withMobileLayout={withMobileLayout}
                 state={unwrappedState}
                 viewRef={viewRef}
                 floaterState={floaterState}

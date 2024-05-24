@@ -1,18 +1,18 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
-import {
-    desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
-    getPostMoreActions,
-    mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
-    postViewMaxWidth,
-} from "~/client/forum/post_content_view.js";
+import {getPostMoreActions} from "~/client/forum/post_content_view.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView, PostListViewRef} from "~/client/forum/post_list_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {
+    desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
+    mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
+    postViewMaxWidth,
+} from "~/shared/styles/forum_shared_styles.js";
 
 export function PostView({
     initialPost,

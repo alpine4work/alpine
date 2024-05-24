@@ -40,18 +40,7 @@ import {
 } from "~/client/forum/internal/post_comment_input.js";
 import {PostEditing, usePostEditing} from "~/client/forum/internal/post_editing.js";
 import {PostMobileEditor} from "~/client/forum/internal/post_mobile_editor.js";
-import {PostShimmer} from "~/client/forum/internal/post_shimmer.js";
-import {
-    PostContentView,
-    PostContentViewEditingActions,
-    desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
-    mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
-    mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
-    postCommentSectionGuidelineOffset,
-    postContentViewMinHeightWithClosedCommentSection,
-    postContentViewMinHeightWithOpenCommentSection,
-    postViewMaxWidth,
-} from "~/client/forum/post_content_view.js";
+import {PostContentView, PostContentViewEditingActions} from "~/client/forum/post_content_view.js";
 import {
     PostListChannelHeader,
     PostListChannelHeaderItem,
@@ -66,7 +55,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
-import {MessageShimmer} from "~/client/messaging/message_shimmer.js";
+import {MessageListMessageShimmer} from "~/client/messaging/message_list_message_shimmer.js";
 import {MessageView} from "~/client/messaging/message_view.js";
 import {
     MessagingTypingIndicators,
@@ -79,6 +68,7 @@ import {
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {PostShimmer} from "~/client/shimmer/post_shimmer.js";
 import {renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll} from "~/client/virtualized/helpers/render_virtualized_scroll_view_item_with_expensive_features_disabled_during_scroll.js";
 import {
     VirtualizedScrollView,
@@ -105,14 +95,23 @@ import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 import {
-    messageViewMinHeight,
-    messageViewTimestampDividerMarginTop,
-} from "~/shared/messaging/messaging_shared_styles.js";
-import {
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
     updatePostContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
+import {
+    desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
+    mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
+    mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
+    postCommentSectionGuidelineOffset,
+    postContentViewMinHeightWithClosedCommentSection,
+    postContentViewMinHeightWithOpenCommentSection,
+    postViewMaxWidth,
+} from "~/shared/styles/forum_shared_styles.js";
+import {
+    messageViewMinHeight,
+    messageViewTimestampDividerMarginTop,
+} from "~/shared/styles/messaging_shared_styles.js";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 export const postListViewAsideMaxWidth: Spacing = "96";
@@ -1020,6 +1019,7 @@ function PostListView(
                                     item.type === "LoadedPostComment" ||
                                     item.type === "OptimisticPostComment" ? (
                                         <MessageView
+                                            withMobileLayout={withMobileLayout}
                                             messageNoun="comment"
                                             message={item.postComment}
                                             previousMessage={previousComment}
@@ -1082,7 +1082,7 @@ function PostListView(
                                             roomDisplayedCreatedTime={item.post.createdTime}
                                         />
                                     ) : (
-                                        <MessageShimmer
+                                        <MessageListMessageShimmer
                                             randomSeed={item.post.id}
                                             index={item.postCommentIndex}
                                             previousMessage={previousComment}
@@ -1290,6 +1290,7 @@ function PostListView(
                     // `render()` function is called since it's referentially stable.
                     const inputNode = (
                         <PostCommentInput
+                            withMobileLayout={withMobileLayout}
                             isStickyPositioned={true}
                             post={item.post}
                             viewRef={viewRef}
@@ -1834,6 +1835,7 @@ function PostListView(
 
                         return (
                             <PostCommentInput
+                                withMobileLayout={withMobileLayout}
                                 isStickyPositioned={false}
                                 post={lastPostContentItem.post}
                                 viewRef={viewRef}

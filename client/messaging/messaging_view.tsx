@@ -23,7 +23,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {MessageEditing, useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageInput} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
-import {MessageShimmer} from "~/client/messaging/message_shimmer.js";
+import {MessageListMessageShimmer} from "~/client/messaging/message_list_message_shimmer.js";
 import {MessageView, bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
 import {
     MessagingTypingIndicators,
@@ -57,11 +57,8 @@ import {
     StopTypingInMessageInputProcedure,
     UpdateMessageContentProcedure,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
-import {
-    messageViewMarginY,
-    messageViewMinHeight,
-} from "~/shared/messaging/messaging_shared_styles.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
+import {messageViewMarginY, messageViewMinHeight} from "~/shared/styles/messaging_shared_styles.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 export const messagingViewMarginBottomCalcExpression =
@@ -199,6 +196,7 @@ export {MessagingViewForwardRef as MessagingView};
  */
 function MessagingView<RoomKey extends string, Message extends MessageModel<RoomKey>>(
     {
+        withMobileLayout,
         messageNoun = "message",
         messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
         initialScrollOffset,
@@ -220,6 +218,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         inputRestoreStateRef,
         roomDisplayedCreatedTime,
     }: {
+        withMobileLayout: boolean;
+
         /**
          * What we call messages in UI copy. Defaults to "message". For example
          * "Successfully deleted message". You may want that message to ready
@@ -641,6 +641,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 }
                 default: {
                     return renderMessageListItem({
+                        withMobileLayout,
                         messageNoun,
                         messageStartOfSentenceNoun,
                         messages: state.messages,
@@ -681,6 +682,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             randomSeedForShimmer,
             roomDisplayedCreatedTime,
             state,
+            withMobileLayout,
         ],
     );
 
@@ -706,6 +708,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 />
                 <MessageInput
                     ref={inputRef}
+                    withMobileLayout={withMobileLayout}
                     messages={state.messages}
                     isMessageCreationDisabled={isMessageCreationDisabled}
                     onUpdateMessages={update => setMessages(update)}
@@ -770,6 +773,7 @@ export function renderMessageListItem<
     RoomKey extends string,
     Message extends MessageModel<RoomKey>,
 >({
+    withMobileLayout,
     messageNoun,
     messageStartOfSentenceNoun,
     messages,
@@ -789,6 +793,7 @@ export function renderMessageListItem<
     paddingX,
     render: customRender,
 }: {
+    withMobileLayout: boolean;
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
     messages: MessageList<Message>;
@@ -830,6 +835,7 @@ export function renderMessageListItem<
             ): ReactElement => {
                 return item.type === "Loaded" || item.type === "Optimistic" ? (
                     <MessageView
+                        withMobileLayout={withMobileLayout}
                         messageNoun={messageNoun}
                         messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                         message={item.message}
@@ -854,7 +860,7 @@ export function renderMessageListItem<
                         paddingX={paddingX}
                     />
                 ) : (
-                    <MessageShimmer
+                    <MessageListMessageShimmer
                         randomSeed={randomSeedForShimmer}
                         index={item.messageIndex}
                         previousMessage={previousMessage}

@@ -10,7 +10,7 @@ import {convertRemLengthToPx} from "~/shared/design/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
-import {messageViewMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
+import {messageViewMinHeight} from "~/shared/styles/messaging_shared_styles.js";
 
 export function useScrollToNewMessages<Message extends MessageModel>({
     viewRef,

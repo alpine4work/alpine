@@ -462,6 +462,7 @@ export default function SpaceLayoutRoute() {
                             <LoadingIndicatorSpaceOutletContainer
                                 routeId="routes/s.$spaceId"
                                 withMobileLayout={isMobile}
+                                hasSpaceLayoutSidebar={!isMobile}
                             >
                                 <Outlet />
                             </LoadingIndicatorSpaceOutletContainer>

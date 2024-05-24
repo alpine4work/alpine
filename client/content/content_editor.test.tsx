@@ -21,7 +21,14 @@ function TestContentEditor() {
             references: emptyContentReferences,
         }),
     );
-    return <ContentEditor aria-label="Test" state={state} onChange={setState} />;
+    return (
+        <ContentEditor
+            aria-label="Test"
+            withMobileLayout={false}
+            state={state}
+            onChange={setState}
+        />
+    );
 }
 
 // Get the textbox `HTMLElement`.
@@ -52,6 +59,7 @@ test("renders an empty document", () => {
     render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: emptyDocumentWithoutTitleContent,
                 references: emptyContentReferences,
@@ -77,6 +85,7 @@ test("renders an initial editor state", () => {
     render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
         />,
@@ -102,6 +111,7 @@ test("rerenders with a changed document", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({doc: doc1, references: emptyContentReferences})}
             onChange={onTransaction}
         />,
@@ -112,6 +122,7 @@ test("rerenders with a changed document", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
+            withMobileLayout={false}
             state={ContentEditorState.create({doc: doc2, references: emptyContentReferences})}
             onChange={onTransaction}
         />,
@@ -159,7 +170,12 @@ test("will revert optimistic update if it doesn't match props", () => {
             }),
         );
         return (
-            <ContentEditor aria-label="Test" state={state} onChange={useCallback(() => {}, [])} />
+            <ContentEditor
+                aria-label="Test"
+                withMobileLayout={false}
+                state={state}
+                onChange={useCallback(() => {}, [])}
+            />
         );
     }
 

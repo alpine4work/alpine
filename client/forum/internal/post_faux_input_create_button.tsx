@@ -2,14 +2,12 @@ import {useRef} from "react";
 import {useButton} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {generateId} from "~/shared/id/id.js";
+import {postFauxInputCreateButtonHeight} from "~/shared/styles/forum_shared_styles.js";
 import {inputPlaceholderStyles, pressOpacityOverlayClassName} from "~/shared/styles/styles.js";
-
-export const postFauxInputCreateButtonHeight = "12";
 
 export function PostFauxInputCreateButton({
     withMobileLayout,

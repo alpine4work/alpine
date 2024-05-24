@@ -136,6 +136,8 @@ export function ContentEditorMobileCommentInputBottomBar({
                 >
                     <MessageInputBase
                         ref={inputRef}
+                        // Only rendered on mobile layouts.
+                        withMobileLayout={true}
                         messageNoun="comment"
                         isBottomBar={true}
                         // We're replacing `<ContentEditorMobileKeyboardToolbar>`. This makes it so

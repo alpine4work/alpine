@@ -30,19 +30,19 @@ import {
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
-import {
-    maxTaskRowViewCollectionsColumnWidth,
-    taskRowViewCollectionsColumnWidth,
-    taskRowViewColumnPaddingX,
-    taskRowViewLastColumnPaddingRight,
-    taskRowViewMinHeight,
-} from "~/client/tasks/task_row_shared_styles.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
+import {
+    maxTaskRowViewCollectionsColumnWidth,
+    taskRowViewCollectionsColumnWidth,
+    taskRowViewColumnPaddingX,
+    taskRowViewLastColumnPaddingRight,
+    taskRowViewMinHeight,
+} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";

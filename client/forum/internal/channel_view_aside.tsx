@@ -24,6 +24,7 @@ import {
     MessageContent,
     MessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
+import {channelViewAsidePaddingY} from "~/shared/styles/forum_shared_styles.js";
 import {
     colorSchemeVars,
     contentSchemaStyles,
@@ -31,7 +32,6 @@ import {
     sprinkles,
 } from "~/shared/styles/styles.js";
 
-export const channelViewAsidePaddingY = "4";
 const channelViewAsideSectionTitleFontSize = "75";
 
 const channelViewAsideEditingDescriptionOffsetTop = `${
@@ -84,7 +84,11 @@ export function ChannelViewAside({
                     />
                 ) : (
                     <Box paddingY="1">
-                        <ContentView content={channel.description} />
+                        <ContentView
+                            // Only rendered on desktop layouts.
+                            withMobileLayout={false}
+                            content={channel.description}
+                        />
                     </Box>
                 )}
             </Box>
@@ -195,6 +199,8 @@ function ChannelViewAsideDescriptionEditor({
                     <ContentEditor
                         ref={editorRef}
                         aria-label="Description"
+                        // Channel view aside is only rendered in desktop layouts.
+                        withMobileLayout={false}
                         state={state}
                         onChange={(state, transaction) => {
                             if (isSaving && transaction.docChanged) return;

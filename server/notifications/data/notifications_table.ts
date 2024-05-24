@@ -81,7 +81,6 @@ import {
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
-import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/messaging/messaging_shared_styles.js";
 import {
     InboxChannelPostsEntryModel,
     InboxChatEntryModel,
@@ -95,6 +94,7 @@ import {
 } from "~/shared/notifications/inbox_model.js";
 import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/styles/messaging_shared_styles.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**

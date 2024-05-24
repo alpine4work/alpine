@@ -59,9 +59,10 @@ import {
     messageViewReplyPreviewBubbleOpacity,
     messageViewReplyPreviewOpacity,
     messageViewReplyPreviewScale,
+    messageViewTimestampDividerMarginBottom,
     messageViewTimestampDividerMarginTop,
     minMessageViewTimestampDividerElapsedMinutes,
-} from "~/shared/messaging/messaging_shared_styles.js";
+} from "~/shared/styles/messaging_shared_styles.js";
 import {
     colorSchemeVars,
     contentSchemaStyles,
@@ -125,6 +126,7 @@ export function shouldMergeMessages(
 }
 
 export function MessageView<RoomKey extends string, Message extends MessageModel<RoomKey>>({
+    withMobileLayout,
     messageNoun = "message",
     messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
     message,
@@ -143,6 +145,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     paddingX = screenPaddingX,
     centeringMarginRight,
 }: {
+    withMobileLayout: boolean;
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
     message: Message | OptimisticMessageModel;
@@ -763,6 +766,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 })}
             >
                 <ContentView
+                    withMobileLayout={withMobileLayout}
                     content={message.payload.content}
                     contentUpdatedTime={message.payload.contentUpdatedTime}
                     className={sprinkles({minWidth: messageViewBubbleMinWidth})}
@@ -777,6 +781,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         shouldMergeWithNextMessage,
         shouldMergeWithPreviousMessage,
         touchLightboxState,
+        withMobileLayout,
     ]);
 
     const deletedPayloadNode = useMemo(() => {
@@ -940,6 +945,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             />
                             <div className={sprinkles({overflow: "hidden", pointerEvents: "none"})}>
                                 <ContentView
+                                    withMobileLayout={withMobileLayout}
                                     isInert={true}
                                     isTruncated={true}
                                     withUserSelectNone={true}
@@ -960,6 +966,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         paddingX,
         parentMessage,
         touchLightboxState,
+        withMobileLayout,
     ]);
 
     const timestampDividerNode = useMemo(() => {
@@ -982,7 +989,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             <div
                 className={sprinkles({
                     paddingTop: !isFirstMessage ? messageViewTimestampDividerMarginTop : undefined,
-                    paddingBottom: "2",
+                    paddingBottom: messageViewTimestampDividerMarginBottom,
                     display: "flex",
                     justifyContent: "center",
                     fontSize: "50",
@@ -1253,6 +1260,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         ) : (
                             <MessageViewEditor
                                 ref={messageEditorRef}
+                                withMobileLayout={withMobileLayout}
                                 messageNoun={messageNoun}
                                 messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                                 shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}

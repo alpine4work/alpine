@@ -19,8 +19,10 @@ export {NewChatMessagingViewForwardRef as NewChatMessagingView};
 
 function NewChatMessagingView(
     {
+        withMobileLayout,
         selectedChat,
     }: {
+        withMobileLayout: boolean;
         selectedChat: {
             chat: ChatModel;
             initialMessages: ReadonlyArray<ChatMessageModel>;
@@ -46,6 +48,7 @@ function NewChatMessagingView(
         <MessagingView
             ref={ref}
             key={selectedChat?.chat.id ?? "unknown"}
+            withMobileLayout={withMobileLayout}
             initialScrollOffset="bottom"
             initialMessagesResult={
                 selectedChat

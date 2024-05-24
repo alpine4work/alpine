@@ -1,43 +1,49 @@
-import {SpinnerGap} from "phosphor-react";
 import {ReactElement, useContext, useMemo} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
 import {Box} from "~/client/design/box.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {RouteShimmer} from "~/client/shimmer/route_shimmer.js";
+import {spaceLayoutSideBarWidth} from "~/client/spaces/layout/space_layout_side_bar.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
+
+const shouldDebugRouteShimmer = false;
+
+// Only allow `shouldDebugRouteShimmer` to be true in development.
+if (process.env.NODE_ENV !== "development") {
+    assert(!shouldDebugRouteShimmer);
+}
 
 export function LoadingIndicatorSpaceOutletContainer({
     routeId,
     withMobileLayout,
+    hasSpaceLayoutSidebar,
     children,
 }: {
     routeId: string;
     withMobileLayout: boolean;
+    hasSpaceLayoutSidebar?: boolean;
     children: ReactElement | null;
 }) {
-    const dataRouterStateContext = assertExists(useContext(DataRouterStateContext));
+    const {matches, loaderData} = assertExists(useContext(DataRouterStateContext));
 
     const promise = useMemo(() => {
-        const index = dataRouterStateContext.matches.findIndex(match => {
-            return match.route.id === routeId;
-        });
+        const index = matches.findIndex(match => match.route.id === routeId);
         assert(index !== -1);
 
         const promises: Array<PromiseImmediate<unknown>> = [];
 
-        for (const match of dataRouterStateContext.matches.slice(index + 1)) {
-            const loaderData = dataRouterStateContext.loaderData[match.route.id];
-            if (isLoadingIndicatorLoaderData(loaderData)) {
-                promises.push(loaderData.promise);
+        for (const match of matches.slice(index + 1)) {
+            const data = loaderData[match.route.id];
+            if (isLoadingIndicatorLoaderData(data)) {
+                promises.push(data.promise);
             }
         }
 
         return PromiseImmediate.allSettled(promises);
-    }, [dataRouterStateContext.loaderData, dataRouterStateContext.matches, routeId]);
+    }, [loaderData, matches, routeId]);
 
     const promiseState = usePromise(promise);
 
@@ -45,13 +51,40 @@ export function LoadingIndicatorSpaceOutletContainer({
     // rendering a shimmer for each route. That's a much better user experience.
     if (promiseState.isPending) {
         return (
-            <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
-                <SpinnerGap
-                    className={spinAnimationClassName}
-                    color={colorSchemeVars["grey-70"]}
-                    size={spacing[withMobileLayout ? "6" : "8"]}
+            <Box flexGrow="1" overflow="hidden" position="relative" zIndex="0">
+                <RouteShimmer
+                    routeId={matches[matches.length - 1]?.route.id ?? null}
+                    withMobileLayout={withMobileLayout}
                 />
             </Box>
+        );
+    }
+
+    if (shouldDebugRouteShimmer) {
+        return (
+            <>
+                <Box
+                    position="absolute"
+                    zIndex="90"
+                    inset="0"
+                    opacity="90"
+                    pointerEvents="none"
+                    style={{left: hasSpaceLayoutSidebar ? spaceLayoutSideBarWidth : undefined}}
+                >
+                    <Box
+                        position="absolute"
+                        inset="0"
+                        zIndex="-10"
+                        backgroundColor="grey-0"
+                        opacity="60"
+                    />
+                    <RouteShimmer
+                        routeId={matches[matches.length - 1]?.route.id ?? null}
+                        withMobileLayout={withMobileLayout}
+                    />
+                </Box>
+                {children}
+            </>
         );
     }
 

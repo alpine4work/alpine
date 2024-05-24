@@ -2,9 +2,9 @@ import {style} from "@vanilla-extract/css";
 import {mobilePlatformMediaQuery} from "~/shared/design/spacing.js";
 import {
     desktopTitlePaddingTop,
-    docMobileLayoutContainerClassName,
     mobileLayoutTitlePaddingTop,
     mobilePlatformTitlePaddingTop,
+    withMobileLayoutClassName,
 } from "~/shared/styles/internal/content_schema.css.js";
 
 export const blobsClassName = style({
@@ -19,14 +19,14 @@ export const blobsClassName = style({
         [mobilePlatformMediaQuery]: {
             top: `calc(${mobilePlatformTitlePaddingTop} - ${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px)))`,
             selectors: {
-                [`${docMobileLayoutContainerClassName} &`]: {
+                [`${withMobileLayoutClassName} &`]: {
                     top: `calc(${mobilePlatformTitlePaddingTop} - ${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px)))`,
                 },
             },
         },
     },
     selectors: {
-        [`${docMobileLayoutContainerClassName} &`]: {
+        [`${withMobileLayoutClassName} &`]: {
             top: `calc(${mobileLayoutTitlePaddingTop} - ${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px)))`,
         },
     },

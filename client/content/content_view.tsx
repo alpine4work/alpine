@@ -35,6 +35,7 @@ const {
     emptyBodyClassName,
     paragraphClassName,
     emojiClassName,
+    withMobileLayoutClassName,
 } = contentSchemaStyles;
 
 /**
@@ -42,6 +43,7 @@ const {
  * you want to disable editing of content and only allow reading the content.
  */
 export function ContentView({
+    withMobileLayout,
     content,
     contentUpdatedTime,
     placeholder,
@@ -55,6 +57,15 @@ export function ContentView({
     onSeeMoreContent,
     onSeeLessContent,
 }: {
+    /**
+     * Are we rendering with a mobile layout? True on the mobile platform and true
+     * in peeks on the desktop platform.
+     */
+    withMobileLayout: boolean;
+
+    /**
+     * The content to render.
+     */
     content: ContentWithReferences;
 
     /**
@@ -543,8 +554,7 @@ export function ContentView({
                 ref={ref}
                 className={classNames(
                     docClassName,
-                    // NOCOMMIT: I'm not sure if we should use message content styles for channel
-                    // descriptions?
+                    withMobileLayout ? withMobileLayoutClassName : undefined,
                     isMessageContentSchema(content.doc.type.schema)
                         ? messageDocClassName
                         : undefined,

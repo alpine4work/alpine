@@ -39,6 +39,7 @@ ts_project(
         "//client/peek",
         "//client/remix",
         "//client/rpc",
+        "//client/shimmer",
         "//client/spaces",
         "//client/spaces/layout",
         "//client/tasks",

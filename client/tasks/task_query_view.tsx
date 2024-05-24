@@ -70,6 +70,10 @@ import {
     invertSelectionColorsClassName,
     tasksStyles,
 } from "~/shared/styles/styles.js";
+import {
+    taskQueryViewCustomizationMobileLayoutMarginTop,
+    taskQueryViewCustomizationMobileSectionMarginBottom,
+} from "~/shared/styles/tasks_shared_styles.js";
 import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
@@ -676,7 +680,13 @@ export function TaskQueryView({
                                     onSortsChange={setSorts}
                                 />
                             ) : (
-                                <Box paddingX={screenPaddingX} paddingTop="1" paddingBottom="6">
+                                <Box
+                                    paddingX={screenPaddingX}
+                                    paddingTop={taskQueryViewCustomizationMobileLayoutMarginTop}
+                                    paddingBottom={
+                                        taskQueryViewCustomizationMobileSectionMarginBottom
+                                    }
+                                >
                                     <TaskQueryViewCustomizationBar
                                         ref={desktopCustomizationSectionRef}
                                         withMobileLayout={withMobileLayout}

@@ -13,12 +13,15 @@ import {usePreloadAffinitiveSearchEntities} from "~/client/search/search_modal.j
 import {SpaceLayoutSideBarCreateButton} from "~/client/spaces/layout/internal/space_layout_side_bar_create_button.js";
 import {SpaceLayoutSideBarInboxButton} from "~/client/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {RemLength} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
+
+export const spaceLayoutSideBarWidth: RemLength = "4.5rem";
 
 export function SpaceLayoutSideBar({
     space,
@@ -45,7 +48,7 @@ export function SpaceLayoutSideBar({
             alignItems="center"
             backgroundColor="grey-0"
             borderRight="grey-10"
-            style={{width: "4.5rem"}}
+            style={{width: spaceLayoutSideBarWidth}}
         >
             <Box paddingTop="5" display="flex" flexDirection="column" alignItems="center" gap="5">
                 <Box

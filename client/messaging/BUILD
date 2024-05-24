@@ -17,6 +17,7 @@ ts_project(
         "//client/content",
         "//client/inbox",
         "//client/peek",
+        "//client/shimmer",
         "//client/spaces",
         "//client/virtualized",
         "//shared/helpers",

@@ -23,6 +23,7 @@ import {
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export function DocumentCommentInput({
+    withMobileLayout,
     isStickyPositioned,
     inputRef: inputRefProp,
     viewRef,
@@ -40,6 +41,7 @@ export function DocumentCommentInput({
     paddingX,
     withMobileMaxHeight,
 }: {
+    withMobileLayout: boolean;
     isStickyPositioned: boolean;
     inputRef?: Ref<MessageInputRef>;
     viewRef: RefObject<VirtualizedScrollViewRef>;
@@ -171,9 +173,8 @@ export function DocumentCommentInput({
     return (
         <MessageInput
             ref={useMergedRefs(inputRef, inputRefProp ?? null)}
+            withMobileLayout={withMobileLayout}
             messageNoun="comment"
-            // NOCOMMIT: Sticky positioned message inputs on mobile? Probably should mount
-            // a brand new input instead of trying to animate this one.
             isNotBottomBar={isStickyPositioned}
             messages={comments}
             onUpdateMessages={update =>

@@ -109,6 +109,7 @@ export const initialContentEditorFloaterState: ContentEditorFloaterState = {type
 
 export function ContentEditorFloater({
     isMobile,
+    withMobileLayout,
     state,
     viewRef,
     floaterState,
@@ -117,6 +118,7 @@ export function ContentEditorFloater({
     lastSelectionChangeTransactionTime,
 }: {
     isMobile: boolean;
+    withMobileLayout: boolean;
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
     floaterState: ContentEditorFloaterState;
@@ -192,6 +194,7 @@ export function ContentEditorFloater({
         case "CommentInput": {
             return (
                 <ContentEditorCommentInputFloater
+                    withMobileLayout={withMobileLayout}
                     state={state}
                     viewRef={viewRef}
                     range={floaterState.range}

@@ -36,6 +36,7 @@ import {
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 
 export type MessageInputProps<RoomKey extends string, Message extends MessageModel<RoomKey>> = {
+    withMobileLayout: boolean;
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
     placeholder?: string;
@@ -73,6 +74,7 @@ export {MessageInputForwardRef as MessageInput};
 
 function MessageInput<RoomKey extends string, Message extends MessageModel<RoomKey>>(
     {
+        withMobileLayout,
         messageNoun = "message",
         messageStartOfSentenceNoun,
         placeholder,
@@ -253,6 +255,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         <>
             <MessageInputBase
                 ref={useMergedRefs(inputRef, externalRef)}
+                withMobileLayout={withMobileLayout}
                 messageNoun={messageNoun}
                 messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                 placeholder={placeholder}

@@ -79,15 +79,6 @@ import {
     TaskGridViewDraggableData,
     useHasTaskGridViewDndContext,
 } from "~/client/tasks/task_grid_view_dnd_context.js";
-import {
-    taskRowViewCollectionsColumnWidth,
-    taskRowViewColumnPaddingX,
-    taskRowViewColumnWidth,
-    taskRowViewFirstColumnPaddingLeft,
-    taskRowViewFirstColumnWidth,
-    taskRowViewLastColumnPaddingRight,
-    taskRowViewMinHeight,
-} from "~/client/tasks/task_row_shared_styles.js";
 import {renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll} from "~/client/virtualized/helpers/render_virtualized_scroll_view_item_with_expensive_features_disabled_during_scroll.js";
 import {
     VirtualizedScrollViewItem,
@@ -122,6 +113,17 @@ import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {Id, generateId, unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars, spinAnimationClassName, tasksStyles} from "~/shared/styles/styles.js";
+import {
+    taskGridViewColumnHeaderExtraPaddingBottomPx,
+    taskGridViewColumnHeaderHeight,
+    taskRowViewCollectionsColumnWidth,
+    taskRowViewColumnPaddingX,
+    taskRowViewColumnWidth,
+    taskRowViewFirstColumnPaddingLeft,
+    taskRowViewFirstColumnWidth,
+    taskRowViewLastColumnPaddingRight,
+    taskRowViewMinHeight,
+} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
@@ -2406,14 +2408,6 @@ type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly setTaskRowZIndex: (gridKey: TaskGridViewTaskKey, zIndex: number) => () => void;
 }>;
 
-export const taskGridViewColumnHeaderHeight = "5";
-
-// It takes 2px to render the bottom borders on our column header. 1px for the
-// border itself and 1px below that to avoid covering the first row's bottom
-// border. We don't want to take those 2px from the column header's height so
-// we need to add back some extra padding bottom height.
-const taskGridViewColumnHeaderExtraPaddingBottom = 2;
-
 export function getTaskGridViewColumnHeaderWithControlsHeight(
     remPx: number,
     capabilities: TaskGridViewCapabilities,
@@ -2426,7 +2420,7 @@ export function getTaskGridViewColumnHeaderWithControlsHeight(
         (capabilities.hasColumns
             ? convertRemLengthToPx(spacing[taskGridViewColumnHeaderHeight], remPx)
             : 0) +
-        taskGridViewColumnHeaderExtraPaddingBottom
+        taskGridViewColumnHeaderExtraPaddingBottomPx
     );
 }
 
@@ -2611,7 +2605,7 @@ function TaskGridViewColumnHeader(
                     style={{
                         top: !shouldRenderWithRelativePositioning ? 0 : undefined,
                         minHeight,
-                        paddingBottom: taskGridViewColumnHeaderExtraPaddingBottom,
+                        paddingBottom: taskGridViewColumnHeaderExtraPaddingBottomPx,
                     }}
                 >
                     <Box

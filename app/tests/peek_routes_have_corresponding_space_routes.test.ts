@@ -1,5 +1,5 @@
 import fs from "fs-extra";
-import path from "path";
+import {join as joinPath} from "path";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 
 const originalBeforeEach = globalThis.beforeEach;
@@ -25,7 +25,7 @@ afterEach(() => {
 
 test("every peek route has a corresponding space route and exports the same things the space route exports", async () => {
     const workspacePath = process.cwd();
-    const routesPath = path.join(workspacePath, "app/routes");
+    const routesPath = joinPath(workspacePath, "app/routes");
 
     const routes = (await fs.readdir(routesPath)).filter(route => !route.endsWith(".map"));
 
@@ -44,7 +44,7 @@ test("every peek route has a corresponding space route and exports the same thin
         const {
             setWillManuallyFinishInitializingAllDynamoTableSchemas,
         }: typeof import("~/server/dynamo/core/dynamo_table_schema.js") = await import(
-            path.join(workspacePath, "server/dynamo/core/dynamo_table_schema.js")
+            joinPath(workspacePath, "server/dynamo/core/dynamo_table_schema.js")
         );
 
         setWillManuallyFinishInitializingAllDynamoTableSchemas();
@@ -56,7 +56,7 @@ test("every peek route has a corresponding space route and exports the same thin
                 // NOTE(calebmer): If you update this route ID normalization logic, look for
                 // other places that normalize route IDs. Like
                 // `makeSpaceDataRouteReuseInflightRequest()`.
-                let spacePath: string | null = path.join(
+                let spacePath: string | null = joinPath(
                     routesPath,
                     peekRoute.replace(".peek.", "."),
                 );
@@ -85,7 +85,7 @@ test("every peek route has a corresponding space route and exports the same thin
     const expected = Object.fromEntries(
         await runAllPromises(
             peekRoutes.map(async peekRoute => {
-                const peekModule = await import(path.join(routesPath, peekRoute));
+                const peekModule = await import(joinPath(routesPath, peekRoute));
 
                 return [
                     peekRoute,

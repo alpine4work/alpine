@@ -9,18 +9,11 @@ import {Button} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {
-    desktopNavigationBarHeightRem,
-    mobileNavigationBarHeightRem,
-} from "~/client/design/navigation_bar.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
-import {
-    PostContentViewHeader,
-    postContentViewHeaderHeight,
-} from "~/client/forum/internal/post_content_view_header.js";
+import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
 import {PostEditing} from "~/client/forum/internal/post_editing.js";
 import {PostCommentsState} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -33,15 +26,7 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
-import {
-    RemLength,
-    Spacing,
-    addRemLengths,
-    parseRemLengthNumber,
-    screenPaddingX,
-    spacing,
-    subtractRemLengths,
-} from "~/shared/design/spacing.js";
+import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
@@ -54,147 +39,30 @@ import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {messageInputPaddingY} from "~/shared/messaging/messaging_shared_styles.js";
 import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
-    colorSchemeVars,
-    contentSchemaStyles,
-    fontSizes,
-    sprinkles,
-} from "~/shared/styles/styles.js";
-
-export const postViewMaxWidth: Spacing = "160";
-
-export const postContentViewFooterHeight = "8";
-const postContentViewFooterButtonHeight = "7";
-
-export const postContentViewOuterMarginY = "6";
-export const postContentViewInnerMarginY = "4";
-
-const contentEditorPaddingY = "1.5";
-
-const postContentViewInnerMarginYWithoutContentEditorPaddingY = subtractRemLengths(
-    spacing[postContentViewInnerMarginY],
-    spacing[contentEditorPaddingY],
-);
-
-const fontSize75LineHeightRem = parseRemLengthNumber(fontSizes["75"].lineHeight);
-const postContentViewFooterHeightRem = parseRemLengthNumber(spacing[postContentViewFooterHeight]);
-const postContentViewFooterButtonHeightRem = parseRemLengthNumber(
-    spacing[postContentViewFooterButtonHeight],
-);
-const postContentViewOuterMarginYRem = parseRemLengthNumber(spacing[postContentViewOuterMarginY]);
-
-// Visually, we want `postContentViewOuterMarginY` of space from the bottom of
-// the button text. So adjust our outer padding bottom to exclude footer
-// height we already have.
-const postContentViewOuterMarginBottomRem =
-    postContentViewOuterMarginYRem - (postContentViewFooterHeightRem - fontSize75LineHeightRem) / 2;
-
-export const postContentViewOuterMarginBottom: RemLength = `${postContentViewOuterMarginBottomRem}rem`;
-
-const postContentViewOuterOpenCommentSectionMarginBottomRem =
-    postContentViewOuterMarginBottomRem - parseRemLengthNumber(spacing[messageInputPaddingY]);
-
-const postContentViewOuterOpenCommentSectionMarginBottom: RemLength = `${postContentViewOuterOpenCommentSectionMarginBottomRem}rem`;
-
-const postContentViewFooterButtonIconSize = "4";
-
-export const postCommentSectionGuidelineOffset = mapObjectValues(
-    screenPaddingX,
-    (paddingX): RemLength =>
-        `${
-            parseRemLengthNumber(spacing[paddingX]) +
-            parseRemLengthNumber(spacing[postContentViewFooterButtonIconSize]) / 2
-        }rem`,
-);
-
-const postCommentSectionGuidelineStartHeightRem =
-    postContentViewOuterOpenCommentSectionMarginBottomRem +
-    (postContentViewFooterHeightRem - postContentViewFooterButtonHeightRem) / 2;
-
-const postCommentSectionGuidelineStartHeight = `${postCommentSectionGuidelineStartHeightRem}rem`;
-
-const postContentViewHeaderHeightRem = parseRemLengthNumber(spacing[postContentViewHeaderHeight]);
-
-// Don't add more space to the top of a single post so when switching between a
-// list of posts (probably from a channel posts notification) and a single post
-// in inbox the header is in the same place.
-export const desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput =
-    postContentViewOuterMarginYRem;
-
-export const desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar =
-    desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput -
-    (desktopNavigationBarHeightRem - postContentViewHeaderHeightRem) / 2;
-
-export const mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar = 0;
-
-export const mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput =
-    (mobileNavigationBarHeightRem - postContentViewHeaderHeightRem) / 2 +
-    mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar;
-
-export const mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput =
-    (desktopNavigationBarHeightRem - postContentViewHeaderHeightRem) / 2 +
-    mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar;
-
-const desktopPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput =
-    desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput +
-    postContentViewHeaderHeightRem;
-
-const mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput =
-    mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput +
-    postContentViewHeaderHeightRem;
-
-const mobileLayoutPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput =
-    mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput +
-    postContentViewHeaderHeightRem;
-
-const postContentViewMinHeightWithoutHeaderBase = addRemLengths(
-    spacing[postContentViewInnerMarginY],
-    contentSchemaStyles.paragraphLineHeight,
-    spacing[postContentViewInnerMarginY],
-    spacing[postContentViewFooterHeight],
-);
-
-const postContentViewMinHeightBase = addRemLengths(
-    spacing[postContentViewOuterMarginY],
-    spacing[postContentViewHeaderHeight],
-    postContentViewMinHeightWithoutHeaderBase,
-);
-
-export const postContentViewMinHeightWithOpenCommentSection = addRemLengths(
-    postContentViewMinHeightBase,
-    postContentViewOuterOpenCommentSectionMarginBottom,
-);
-
-export const postContentViewMinHeightWithClosedCommentSection = addRemLengths(
-    postContentViewMinHeightBase,
+    desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
+    desktopPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput,
+    mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
+    mobileLayoutPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput,
+    mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
+    mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput,
+    postCommentSectionGuidelineOffset,
+    postCommentSectionGuidelineStartHeight,
+    postContentEditorPaddingY,
+    postContentViewFooterButtonHeight,
+    postContentViewFooterButtonIconSize,
+    postContentViewFooterHeight,
+    postContentViewInnerMarginYWithoutContentEditorPaddingY,
+    postContentViewMinHeightWithClosedCommentSection,
+    postContentViewMinHeightWithOpenCommentSection,
     postContentViewOuterMarginBottom,
-);
-
-export const mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput =
-    addRemLengths(
-        `${mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput}rem`,
-        postContentViewMinHeightWithoutHeaderBase,
-        postContentViewOuterMarginBottom,
-    );
-
-export const mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput =
-    addRemLengths(
-        `${mobileLayoutPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput}rem`,
-        postContentViewMinHeightWithoutHeaderBase,
-        postContentViewOuterMarginBottom,
-    );
-
-export const desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput =
-    addRemLengths(
-        `${desktopPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput}rem`,
-        postContentViewMinHeightWithoutHeaderBase,
-        postContentViewOuterMarginBottom,
-    );
+    postContentViewOuterMarginY,
+    postContentViewOuterOpenCommentSectionMarginBottom,
+} from "~/shared/styles/forum_shared_styles.js";
+import {colorSchemeVars, contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export function PostContentView({
     withMobileLayout,
@@ -352,14 +220,16 @@ export function PostContentView({
                 {!isEditingPost ? (
                     isSingleLayoutWithPinnedCommentInput ? (
                         <ContentView
+                            withMobileLayout={withMobileLayout}
                             content={post.content}
                             contentUpdatedTime={post.contentUpdatedTime}
-                            className={sprinkles({paddingY: contentEditorPaddingY})}
+                            className={sprinkles({paddingY: postContentEditorPaddingY})}
                         />
                     ) : (
                         <ContentView
+                            withMobileLayout={withMobileLayout}
                             contentUpdatedTime={post.contentUpdatedTime}
-                            className={sprinkles({paddingY: contentEditorPaddingY})}
+                            className={sprinkles({paddingY: postContentEditorPaddingY})}
                             content={
                                 isPostSnippetTruncated && !isShowingAllContent && postSnippet
                                     ? postSnippet
@@ -379,6 +249,7 @@ export function PostContentView({
                     )
                 ) : (
                     <PostContentViewEditor
+                        withMobileLayout={withMobileLayout}
                         idBase={idBase}
                         postEditingForThisPost={postEditingForThisPost}
                     />
@@ -681,9 +552,11 @@ function PostCommentsAccountAvatarPile({
 }
 
 function PostContentViewEditor({
+    withMobileLayout,
     idBase,
     postEditingForThisPost,
 }: {
+    withMobileLayout: boolean;
     idBase: string;
     postEditingForThisPost: PostEditing & {state: {isEditing: true}};
 }) {
@@ -724,6 +597,7 @@ function PostContentViewEditor({
                 <ContentEditor
                     ref={editorRef}
                     aria-label="Post"
+                    withMobileLayout={withMobileLayout}
                     state={postEditingForThisPost.state.contentEditorState}
                     onChange={(contentEditorState, transaction) => {
                         if (postEditingForThisPost.state.isSaving && transaction.docChanged) return;
@@ -737,7 +611,7 @@ function PostContentViewEditor({
                     // editing modality.
                     withoutMobileDualModality={true}
                     placeholder="Share your ideas…"
-                    className={sprinkles({paddingY: contentEditorPaddingY})}
+                    className={sprinkles({paddingY: postContentEditorPaddingY})}
                     onModEnter={event => {
                         event.preventDefault();
                         event.stopPropagation();

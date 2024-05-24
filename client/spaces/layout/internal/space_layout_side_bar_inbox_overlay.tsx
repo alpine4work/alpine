@@ -5,7 +5,7 @@ import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
-import {InboxEntryView, inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view.js";
+import {InboxEntryView} from "~/client/inbox/inbox_entry_view.js";
 import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js";
 import {InboxViewTopBarModeToggleButton} from "~/client/inbox/inbox_view_top_bar_mode_toggle_button.js";
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
@@ -21,6 +21,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
 const spaceLayoutSideBarInboxOverlayHeaderHeight: Spacing = "9";

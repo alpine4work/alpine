@@ -14,6 +14,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {fontSizes, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
+import {taskDetailViewTitleFontSize} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskTitleProsemirrorSchema, TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
@@ -25,7 +26,7 @@ export type TaskDetailTitleInputRef = {
 const taskDetailTitleInputAriaLabel = "Title";
 
 const taskDetailTitleInputClassName = `ProseMirror ${sprinkles({
-    fontSize: "300",
+    fontSize: taskDetailViewTitleFontSize,
     fontStyle: "semi-bold",
     userSelect: "text",
 })} ${tasksStyles.detailTitleInputPlaceholderClassName}`;

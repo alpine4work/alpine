@@ -28,6 +28,7 @@ import {
     MessageContentWithReferences,
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
+import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {
     messageInputAccountAvatarPaddingY,
     messageInputAccountAvatarSize,
@@ -35,8 +36,7 @@ import {
     messageViewBubbleMinHeight,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
-} from "~/shared/messaging/messaging_shared_styles.js";
-import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
+} from "~/shared/styles/messaging_shared_styles.js";
 import {
     greyElevated2ClassName,
     overlayFadeOutAnimationDurationMs,
@@ -60,11 +60,13 @@ const contentEditorCommentInputFloaterAccountAvatarPaddingY: RemLength = `${
 }rem`;
 
 export function ContentEditorCommentInputFloater({
+    withMobileLayout,
     state,
     viewRef,
     range,
     onClose: _onCloseWithoutAnimation,
 }: {
+    withMobileLayout: boolean;
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
     range: {from: number; to: number};
@@ -116,6 +118,7 @@ export function ContentEditorCommentInputFloater({
             overlay={
                 <Box>
                     <ContentEditorCommentInput
+                        withMobileLayout={withMobileLayout}
                         state={state}
                         viewRef={viewRef}
                         range={range}
@@ -136,12 +139,14 @@ export function ContentEditorCommentInputFloater({
 }
 
 function ContentEditorCommentInput({
+    withMobileLayout,
     state: documentState,
     viewRef: documentViewRef,
     range: documentRange,
     onCloseWithoutAnimation,
     onCloseWithAnimation,
 }: {
+    withMobileLayout: boolean;
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
     range: {from: number; to: number};
@@ -281,6 +286,7 @@ function ContentEditorCommentInput({
                         >
                             <ContentEditor
                                 ref={editorRef}
+                                withMobileLayout={withMobileLayout}
                                 state={commentState}
                                 onChange={setCommentState}
                                 aria-label="New comment"

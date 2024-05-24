@@ -78,7 +78,7 @@ import {
     messageViewReplyPreviewBubbleOpacity,
     messageViewReplyPreviewOpacity,
     messageViewReplyPreviewScale,
-} from "~/shared/messaging/messaging_shared_styles.js";
+} from "~/shared/styles/messaging_shared_styles.js";
 import {
     borderRadius,
     colorSchemeVars,
@@ -99,6 +99,7 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
     placeholder?: string;
+    withMobileLayout: boolean;
     state: ContentEditorState<MessageContentWithReferences>;
     onChange: (state: ContentEditorState<MessageContentWithReferences>) => void;
     onSend: () => void;
@@ -145,6 +146,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     {
         messageNoun = "message",
         messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
+        withMobileLayout,
         state,
         onChange,
         onSend: onSendProp,
@@ -721,6 +723,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                     <ContentView
                                                         isInert={true}
                                                         isTruncated={true}
+                                                        withMobileLayout={withMobileLayout}
                                                         content={replyingToMessage.truncatedContent}
                                                     />
                                                 </Box>
@@ -770,6 +773,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 >
                                     <ContentEditor
                                         ref={editorRef}
+                                        withMobileLayout={withMobileLayout}
                                         state={state}
                                         onChange={(state, transaction) => {
                                             onChange(state);

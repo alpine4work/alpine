@@ -4,7 +4,6 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
@@ -21,6 +20,7 @@ import {
     getInboxEntries,
     observeInbox,
 } from "~/shared/rpc/notifications_rpc_definitions.js";
+import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 
 type InboxState = {
     readonly queryWithoutOptimisticUpdates: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;

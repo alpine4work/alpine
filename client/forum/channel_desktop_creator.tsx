@@ -1,7 +1,6 @@
 import {useCallback, useMemo, useRef} from "react";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {ChannelViewNameEditor} from "~/client/forum/internal/channel_view_name_editor.js";
-import {postViewMaxWidth} from "~/client/forum/post_content_view.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
@@ -12,6 +11,7 @@ import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
+import {postViewMaxWidth} from "~/shared/styles/forum_shared_styles.js";
 
 export function ChannelDesktopCreator({
     withMobileLayout,

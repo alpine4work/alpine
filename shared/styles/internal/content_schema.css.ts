@@ -76,9 +76,13 @@ export const screenPaddingXWithoutBlockPaddingX = mapObjectValues(screenPaddingX
     assertSpacing(`${parseInt(paddingX, 10) - parseInt(blockPaddingXSpacing, 10)}`),
 );
 
-export const defaultParagraphMargin = spacing["2"];
+const defaultParagraphMarginSpacing = "2";
+const defaultParagraphMargin = spacing[defaultParagraphMarginSpacing];
+export {defaultParagraphMarginSpacing as defaultParagraphMargin};
 
-const defaultBlockMaxWidthWithoutPadding = spacing["160"];
+const defaultBlockMaxWidthWithoutPaddingSpacing = "160";
+const defaultBlockMaxWidthWithoutPadding = spacing[defaultBlockMaxWidthWithoutPaddingSpacing];
+export {defaultBlockMaxWidthWithoutPaddingSpacing as defaultBlockMaxWidthWithoutPadding};
 
 export const defaultBlockMaxWidth = addRemLengths(
     blockPaddingX,
@@ -130,7 +134,7 @@ export const messageDocClassName = style({
     },
 });
 
-export const docMobileLayoutContainerClassName = style({});
+export const withMobileLayoutClassName = style({});
 
 const blockStyles = {
     width: "100%",
@@ -166,43 +170,43 @@ export const paragraphClassName = style({
 // Header sizes are smaller on mobile than desktop because mobile has less
 // horizontal space than desktop. So we want to fit more header on a
 // single line.
-const desktopTitleFontSize = fontSizes["800"];
-const mobileTitleFontSize = fontSizes["700"];
+export const desktopTitleFontSize = fontSizes["800"];
+export const mobileTitleFontSize = fontSizes["700"];
 
-const desktopHeadingLevel1FontSize = fontSizes["600"];
-const mobileHeadingLevel1FontSize = fontSizes["500"];
+export const desktopHeadingLevel1FontSize = fontSizes["600"];
+export const mobileHeadingLevel1FontSize = fontSizes["500"];
 
-const desktopHeadingLevel2FontSize = fontSizes["400"];
-const mobileHeadingLevel2FontSize = fontSizes["mobile-heading-350"];
+export const desktopHeadingLevel2FontSize = fontSizes["400"];
+export const mobileHeadingLevel2FontSize = fontSizes["mobile-heading-350"];
 
-const desktopHeadingLevel3FontSize = fontSizes["200"];
-const mobileHeadingLevel3FontSize = fontSizes["200"];
+export const desktopHeadingLevel3FontSize = fontSizes["200"];
+export const mobileHeadingLevel3FontSize = fontSizes["200"];
 
-const desktopHeading1TopMargin = spacing["10"];
-const mobileHeading1TopMargin = spacing["8"];
+export const desktopHeading1TopMargin = "10";
+export const mobileHeading1TopMargin = "8";
 
-const desktopHeading2TopMargin = spacing["8"];
-const mobileHeading2TopMargin = spacing["6"];
+export const desktopHeading2TopMargin = "8";
+export const mobileHeading2TopMargin = "6";
 
-const desktopHeading3TopMargin = spacing["6"];
-const mobileHeading3TopMargin = spacing["5"];
+export const desktopHeading3TopMargin = "6";
+export const mobileHeading3TopMargin = "5";
 
-const desktopHeading4TopMargin = spacing["4"];
-const mobileHeading4TopMargin = spacing["4"];
+export const desktopHeading4TopMargin = "4";
+export const mobileHeading4TopMargin = "4";
 
 const headingMarginVars = createGlobalTheme(":root", {
-    heading1TopMargin: desktopHeading1TopMargin,
-    heading2TopMargin: desktopHeading2TopMargin,
-    heading3TopMargin: desktopHeading3TopMargin,
-    heading4TopMargin: desktopHeading4TopMargin,
+    heading1TopMargin: spacing[desktopHeading1TopMargin],
+    heading2TopMargin: spacing[desktopHeading2TopMargin],
+    heading3TopMargin: spacing[desktopHeading3TopMargin],
+    heading4TopMargin: spacing[desktopHeading4TopMargin],
 });
 
-globalStyle(docMobileLayoutContainerClassName, {
+globalStyle(withMobileLayoutClassName, {
     vars: assignVars(headingMarginVars, {
-        heading1TopMargin: mobileHeading1TopMargin,
-        heading2TopMargin: mobileHeading2TopMargin,
-        heading3TopMargin: mobileHeading3TopMargin,
-        heading4TopMargin: mobileHeading4TopMargin,
+        heading1TopMargin: spacing[mobileHeading1TopMargin],
+        heading2TopMargin: spacing[mobileHeading2TopMargin],
+        heading3TopMargin: spacing[mobileHeading3TopMargin],
+        heading4TopMargin: spacing[mobileHeading4TopMargin],
     }),
 });
 
@@ -210,10 +214,10 @@ globalStyle(`:root`, {
     "@media": {
         [mobilePlatformMediaQuery]: {
             vars: assignVars(headingMarginVars, {
-                heading1TopMargin: mobileHeading1TopMargin,
-                heading2TopMargin: mobileHeading2TopMargin,
-                heading3TopMargin: mobileHeading3TopMargin,
-                heading4TopMargin: mobileHeading4TopMargin,
+                heading1TopMargin: spacing[mobileHeading1TopMargin],
+                heading2TopMargin: spacing[mobileHeading2TopMargin],
+                heading3TopMargin: spacing[mobileHeading3TopMargin],
+                heading4TopMargin: spacing[mobileHeading4TopMargin],
             }),
         },
     },
@@ -249,7 +253,7 @@ export const titleClassName = style({
             paddingTop: `calc(${mobilePlatformTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
             minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobilePlatformTitlePaddingTop})`,
             selectors: {
-                [`${docMobileLayoutContainerClassName} &`]: {
+                [`${withMobileLayoutClassName} &`]: {
                     ...mobileTitleFontSize,
                     paddingTop: `calc(${mobilePlatformTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
                     minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobilePlatformTitlePaddingTop})`,
@@ -258,7 +262,7 @@ export const titleClassName = style({
         },
     },
     selectors: {
-        [`${docMobileLayoutContainerClassName} &`]: {
+        [`${withMobileLayoutClassName} &`]: {
             ...mobileTitleFontSize,
             paddingTop: `calc(${mobileLayoutTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
             minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobileLayoutTitlePaddingTop})`,
@@ -278,7 +282,7 @@ export const headingLevel1ClassName = style({
         [mobilePlatformMediaQuery]: {...mobileHeadingLevel1FontSize},
     },
     selectors: {
-        [`${docMobileLayoutContainerClassName} &`]: {...mobileHeadingLevel1FontSize},
+        [`${withMobileLayoutClassName} &`]: {...mobileHeadingLevel1FontSize},
         [`${titleClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
     },
 });
@@ -295,7 +299,7 @@ export const headingLevel2ClassName = style({
         [mobilePlatformMediaQuery]: {...mobileHeadingLevel2FontSize},
     },
     selectors: {
-        [`${docMobileLayoutContainerClassName} &`]: {...mobileHeadingLevel2FontSize},
+        [`${withMobileLayoutClassName} &`]: {...mobileHeadingLevel2FontSize},
         [`${titleClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
         [`${headingLevel1ClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
     },
@@ -313,7 +317,7 @@ export const headingLevel3ClassName = style({
         [mobilePlatformMediaQuery]: {...mobileHeadingLevel3FontSize},
     },
     selectors: {
-        [`${docMobileLayoutContainerClassName} &`]: {...mobileHeadingLevel3FontSize},
+        [`${withMobileLayoutClassName} &`]: {...mobileHeadingLevel3FontSize},
         [`${titleClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
         [`${headingLevel1ClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
         [`${headingLevel2ClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
@@ -400,17 +404,28 @@ export const codeBlockLineClassName = style({
 // In the ordered list case, numbers are easier to understand than letters or
 // roman numerals.
 
-export const listItemIndentation = spacing["8"];
+const listItemIndentationSpacing = "8";
+const listItemIndentation = spacing[listItemIndentationSpacing];
+export {listItemIndentationSpacing as listItemIndentation};
 export const listItemIndentationRem = parseRemLengthNumber(listItemIndentation);
 export const listItemIndentationVar: CssVarFunction = createVar("list-item-indent");
 
-const bulletListItemBulletSize = spacing["1.5"];
+const bulletListItemBulletSizeSpacing = "1.5";
+const bulletListItemBulletSize = spacing[bulletListItemBulletSizeSpacing];
+export {bulletListItemBulletSizeSpacing as bulletListItemBulletSize};
 
 export const listItemClassName = style({
     ...blockStyles,
     position: "relative",
     paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation} + ${listItemOffsetVar})`,
 });
+
+export const bulletListItemBulletTop = "0.5rem";
+
+export const bulletListItemBulletLeft = `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${
+    parseRemLengthNumber(listItemIndentation) / 2 -
+    parseRemLengthNumber(bulletListItemBulletSize) / 2
+}rem + ${listItemOffsetVar})`;
 
 export const bulletListItemClassName = style({
     selectors: {
@@ -422,11 +437,8 @@ export const bulletListItemClassName = style({
             pointerEvents: "none",
             width: bulletListItemBulletSize,
             height: bulletListItemBulletSize,
-            top: "0.5rem",
-            left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${
-                parseRemLengthNumber(listItemIndentation) / 2 -
-                parseRemLengthNumber(bulletListItemBulletSize) / 2
-            }rem + ${listItemOffsetVar})`,
+            top: bulletListItemBulletTop,
+            left: bulletListItemBulletLeft,
         },
     },
 });
@@ -560,19 +572,19 @@ export const dividerClassName = style({
     maxWidth: `calc(${blockMaxWidthVar} - ${blockPaddingX} * 2)`,
     paddingLeft: 0,
     paddingRight: 0,
-    marginTop: desktopHeading1TopMargin,
-    marginBottom: desktopHeading1TopMargin,
+    marginTop: spacing[desktopHeading1TopMargin],
+    marginBottom: spacing[desktopHeading1TopMargin],
     borderColor: colorSchemeVars["grey-10"],
     "@media": {
         [mobilePlatformMediaQuery]: {
-            marginTop: mobileHeading1TopMargin,
-            marginBottom: mobileHeading1TopMargin,
+            marginTop: spacing[mobileHeading1TopMargin],
+            marginBottom: spacing[mobileHeading1TopMargin],
         },
     },
     selectors: {
-        [`${docMobileLayoutContainerClassName} &`]: {
-            marginTop: mobileHeading1TopMargin,
-            marginBottom: mobileHeading1TopMargin,
+        [`${withMobileLayoutClassName} &`]: {
+            marginTop: spacing[mobileHeading1TopMargin],
+            marginBottom: spacing[mobileHeading1TopMargin],
         },
     },
 });
@@ -727,6 +739,14 @@ export const commentClassName = style({
             backgroundColor: nestedCommentBackgroundColors.dark.default,
         },
     },
+});
+
+// Use a pointer cursor for comments in a mobile layout since the comment opens
+// in a bottom sheet and disables interactivity with the document. Since
+// clicking a comment is a more disruptive state shift in mobile layouts, we
+// find it useful to give a pointer cursor affordance.
+globalStyle(`${withMobileLayoutClassName} ${commentClassName}`, {
+    cursor: "pointer",
 });
 
 const highlightOpacity = 0.8;

@@ -25,6 +25,10 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {contentSchemaStyles, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
+import {
+    taskDetailNotesFieldLabelPaddingBottom,
+    taskDetailViewFieldLabelFontSize,
+} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 
 export type TaskDetailNotesFieldRef = {
@@ -38,6 +42,7 @@ export {TaskDetailNotesFieldForwardRef as TaskDetailNotesField};
 
 function TaskDetailNotesField(
     {
+        withMobileLayout,
         taskId,
         initialNotesVersion,
         initialNotesContent,
@@ -46,6 +51,7 @@ function TaskDetailNotesField(
         pushUndoStackEntryFromRedo,
         pushRedoStackEntry,
     }: {
+        withMobileLayout: boolean;
         taskId: TaskId;
         initialNotesVersion: number;
         initialNotesContent: TaskNotesContentWithReferences;
@@ -130,7 +136,8 @@ function TaskDetailNotesField(
                 className={sprinkles({
                     display: "inline-block",
                     paddingX: screenPaddingX,
-                    paddingBottom: "1",
+                    paddingBottom: taskDetailNotesFieldLabelPaddingBottom,
+                    fontSize: taskDetailViewFieldLabelFontSize,
                     color: "grey-60",
                 })}
                 // Affordance for mouse users. Clicking on a label focuses the editor.
@@ -148,6 +155,7 @@ function TaskDetailNotesField(
                     <Box className={tasksStyles.detailNotesContentEditorClassName}>
                         <ContentView
                             aria-labelledby={labelId}
+                            withMobileLayout={withMobileLayout}
                             content={state.editorState.getContent()}
                             placeholder="Add more details…"
                             className={sprinkles({
@@ -160,6 +168,7 @@ function TaskDetailNotesField(
                         <ContentEditor
                             ref={editorRef}
                             aria-labelledby={labelId}
+                            withMobileLayout={withMobileLayout}
                             state={state.editorState}
                             onChange={state => client.changeEditorState(state)}
                             placeholder="Add more details…"

@@ -192,6 +192,7 @@ export function ChannelMobileEditor({
                                 <ContentEditor
                                     ref={descriptionEditorRef}
                                     aria-labelledby={descriptionLabelId}
+                                    withMobileLayout={true}
                                     state={descriptionState}
                                     onChange={(state, transaction) => {
                                         setDescriptionState(({hasDescriptionChanged}) => ({

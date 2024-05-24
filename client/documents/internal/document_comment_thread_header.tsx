@@ -6,15 +6,15 @@ import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {useShowToast} from "~/client/design/toast.js";
-import {
-    documentCommentThreadActionsHeight,
-    documentCommentThreadHeaderPaddingY,
-} from "~/client/documents/document_shared_styles.js";
 import {DocumentCommentThreadPreview} from "~/client/documents/internal/document_comment_thread_preview.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {
+    documentCommentThreadActionsHeight,
+    documentCommentThreadHeaderPaddingY,
+} from "~/shared/styles/document_shared_styles.js";
 
 // NOCOMMIT: Integration test comment resolution.
 //
@@ -26,6 +26,7 @@ import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 // Desktop and mobile and peek
 
 export function DocumentCommentThreadHeader({
+    withMobileLayout,
     commentThread,
     unpersistedIsResolved,
     resolveCommentThread,
@@ -35,6 +36,7 @@ export function DocumentCommentThreadHeader({
     contentReferences,
     onCommentThreadSnippetPress,
 }: {
+    withMobileLayout: boolean;
     commentThread: DocumentCommentThreadModel;
     unpersistedIsResolved: boolean | null;
     resolveCommentThread: () => Promise<void>;
@@ -117,6 +119,7 @@ export function DocumentCommentThreadHeader({
                 <>
                     <Spacer space={documentCommentThreadHeaderPaddingY} />
                     <DocumentCommentThreadPreview
+                        withMobileLayout={withMobileLayout}
                         commentThread={commentThread}
                         unpersistedIsResolved={unpersistedIsResolved}
                         contentSnippet={contentSnippet}

@@ -9,9 +9,7 @@ import {useShowToast} from "~/client/design/toast.js";
 import {
     DocumentCommentThreadListView,
     DocumentCommentThreadListViewRef,
-    documentCommentThreadListViewMaxWidth,
 } from "~/client/documents/document_comment_thread_list_view.js";
-import {documentCommentThreadCountAgainstLimit} from "~/client/documents/document_shared_styles.js";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
@@ -35,8 +33,12 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
-import {messageViewMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {
+    documentCommentThreadCountAgainstLimit,
+    documentCommentThreadListViewMaxWidth,
+} from "~/shared/styles/document_shared_styles.js";
+import {messageViewMinHeight} from "~/shared/styles/messaging_shared_styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
@@ -328,6 +330,7 @@ function DocumentNewCommentThreadsRouteInner({
             // rendering them all in a list. Since our sticky comment input UI pattern
             // doesn't work particularly well on mobile.
             key={isMobile ? `mobile-${mobileCommentThreadIndex}` : "desktop"}
+            withMobileLayout={withMobileLayout}
             documentId={initialDocument.id}
             content={documentContent}
             isConnected={isConnected}

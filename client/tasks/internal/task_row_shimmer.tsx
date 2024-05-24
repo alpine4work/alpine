@@ -4,15 +4,15 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {
-    desktopTaskRowViewIndentationRem,
-    mobileTaskRowViewIndentationRem,
-    taskRowViewMinHeight,
-} from "~/client/tasks/task_row_shared_styles.js";
 import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {colorSchemeVars, pulseAnimationClassName} from "~/shared/styles/styles.js";
+import {
+    desktopTaskRowViewIndentationRem,
+    mobileTaskRowViewIndentationRem,
+    taskRowViewMinHeight,
+} from "~/shared/styles/tasks_shared_styles.js";
 
 const taskRowShimmerWidths: Array<Spacing> = [
     // 2x frequency

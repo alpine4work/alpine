@@ -219,7 +219,7 @@ function updateTaskDataRoute(route: DataRouteObject) {
  * This optimization relies on the fact that peeks have the exact same loader
  * function as their complementary full route version. We have a test to
  * guarantee that this is the case in
- * `app/tests/peek_route_has_corresponding_space_route.test.ts`.
+ * `app/tests/peek_routes_have_corresponding_space_routes.test.ts`.
  */
 function makeSpaceDataRouteReuseInflightRequest(
     route: DataRouteObject,

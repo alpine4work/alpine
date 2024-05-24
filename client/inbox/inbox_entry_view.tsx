@@ -25,9 +25,9 @@ import {
     InboxPostCommentsEntryModel,
 } from "~/shared/notifications/inbox_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {backgroundColorVar, colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
-export const inboxEntryViewMinHeight = "4rem";
 export const inboxEntryWidth: Spacing = "96";
 
 const inboxEntryDeleteAnimationFadeDurationMs = 150;

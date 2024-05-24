@@ -14,7 +14,6 @@ import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_wit
 import {
     InboxEntryView,
     inboxEntryDeleteAnimationDurationMs,
-    inboxEntryViewMinHeight,
     inboxEntryWidth,
 } from "~/client/inbox/inbox_entry_view.js";
 import {InboxPeekContextProvider} from "~/client/inbox/inbox_peek_context.js";
@@ -42,6 +41,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {PeekId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
 export function InboxView({
@@ -288,7 +288,7 @@ export function InboxView({
                 </Box>
                 {useMemo(
                     () => (
-                        <Box flexGrow="1" overflow="hidden">
+                        <Box position="relative" flexGrow="1" overflow="hidden">
                             {activePeek && (
                                 <InboxViewPeekContent
                                     // Fully remount whenever the peek changes...

@@ -16,12 +16,6 @@ import {NavigationBarResult} from "~/client/design/navigation_bar.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
-import {
-    documentCommentInputMinHeight,
-    documentCommentThreadActionsHeight,
-    documentCommentThreadHeaderMinHeightWithoutPaddingTop,
-    documentCommentThreadHeaderPaddingY,
-} from "~/client/documents/document_shared_styles.js";
 import {DocumentCommentInput} from "~/client/documents/internal/document_comment_input.js";
 import {DocumentCommentThreadHeader} from "~/client/documents/internal/document_comment_thread_header.js";
 import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client.js";
@@ -76,12 +70,18 @@ import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
+    documentCommentInputMinHeight,
+    documentCommentThreadActionsHeight,
+    documentCommentThreadHeaderMinHeightWithoutPaddingTop,
+    documentCommentThreadHeaderPaddingY,
+    documentCommentThreadListViewMaxWidth,
+} from "~/shared/styles/document_shared_styles.js";
+import {
     documentCommentThreadsStyles,
     inputPlaceholderStyles,
     sprinkles,
 } from "~/shared/styles/styles.js";
 
-export const documentCommentThreadListViewMaxWidth: Spacing = "160";
 const documentCommentThreadListViewMarginY: Spacing = "24";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -220,6 +220,7 @@ const UnpersistedIsResolvedByCommentThreadIdSchema = Schema.map(
  */
 function DocumentCommentThreadListView(
     {
+        withMobileLayout,
         documentId,
         content,
         onCommentThreadSnippetPress,
@@ -238,6 +239,7 @@ function DocumentCommentThreadListView(
         isNativeMobileTabBarDisabled = false,
         backgroundSlopBottomIfPinnedCommentInput,
     }: {
+        withMobileLayout: boolean;
         documentId: DocumentId;
         content: DocumentContentWithReferences;
         onCommentThreadSnippetPress: Memo<(commentThreadId: DocumentCommentThreadId) => void>;
@@ -879,6 +881,7 @@ function DocumentCommentThreadListView(
                                     })}
                                 >
                                     <DocumentCommentThreadHeader
+                                        withMobileLayout={withMobileLayout}
                                         commentThread={item.commentThread}
                                         unpersistedIsResolved={
                                             unpersistedIsResolvedByCommentThreadId.get(
@@ -915,6 +918,7 @@ function DocumentCommentThreadListView(
                         DocumentCommentRoomKey,
                         DocumentCommentModel
                     >({
+                        withMobileLayout,
                         messageNoun: "comment",
                         messages: item.comments,
                         groupKey: item.commentThread.id,
@@ -1036,6 +1040,7 @@ function DocumentCommentThreadListView(
                     // `render()` function is called since it's referentially stable.
                     const inputNode = (
                         <DocumentCommentInput
+                            withMobileLayout={withMobileLayout}
                             isStickyPositioned={true}
                             viewRef={viewRef}
                             commentThread={item.commentThread}
@@ -1177,6 +1182,7 @@ function DocumentCommentThreadListView(
             isSingleCommentThreadWithPinnedCommentInput,
             withSafeAreaInsetTop,
             paddingX,
+            withMobileLayout,
             unpersistedIsResolvedByCommentThreadId,
             contentSnippetByCommentThreadId,
             content.references,
@@ -1264,6 +1270,7 @@ function DocumentCommentThreadListView(
 
                         return (
                             <DocumentCommentInput
+                                withMobileLayout={withMobileLayout}
                                 isStickyPositioned={false}
                                 inputRef={pinnedCommentInputRef}
                                 viewRef={viewRef}

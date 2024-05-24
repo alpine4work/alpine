@@ -2,19 +2,19 @@ import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spac
 import {
     messageInputMinHeight,
     messageViewMinHeight,
-} from "~/shared/messaging/messaging_shared_styles.js";
+} from "~/shared/styles/messaging_shared_styles.js";
 
-export const documentCommentThreadPreviewMinHeight = spacing["48"];
+export const documentCommentThreadPreviewHeight = "48";
 export const documentCommentInputMinHeight = messageInputMinHeight;
 
+export const documentCommentThreadListViewMaxWidth = "160";
 export const documentCommentThreadActionsHeight = "7";
-
 export const documentCommentThreadHeaderPaddingY = "5";
 
 export const documentCommentThreadHeaderMinHeightWithoutPaddingTop = addRemLengths(
     spacing[documentCommentThreadActionsHeight],
     spacing[documentCommentThreadHeaderPaddingY],
-    documentCommentThreadPreviewMinHeight,
+    spacing[documentCommentThreadPreviewHeight],
     spacing[documentCommentThreadHeaderPaddingY],
 );
 

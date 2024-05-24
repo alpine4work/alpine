@@ -18,7 +18,7 @@ import {
     messageViewBubbleMinWidth,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
-} from "~/shared/messaging/messaging_shared_styles.js";
+} from "~/shared/styles/messaging_shared_styles.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 export type MessageViewEditorRef = {
@@ -30,6 +30,7 @@ export {MessageViewEditorForwardRef as MessageViewEditor};
 
 function MessageViewEditor<RoomKey extends string>(
     {
+        withMobileLayout,
         messageNoun,
         messageStartOfSentenceNoun,
         shouldMergeWithPreviousMessage,
@@ -37,6 +38,7 @@ function MessageViewEditor<RoomKey extends string>(
         messageEditing,
     }: {
         ref?: Ref<MessageViewEditorRef>;
+        withMobileLayout: boolean;
         messageNoun: string;
         messageStartOfSentenceNoun: string;
         shouldMergeWithPreviousMessage: boolean;
@@ -96,6 +98,7 @@ function MessageViewEditor<RoomKey extends string>(
                     }}
                 >
                     <MessageContentEditor
+                        withMobileLayout={withMobileLayout}
                         parentRef={ref}
                         messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                         state={state.contentEditorState}
@@ -126,6 +129,7 @@ function MessageViewEditor<RoomKey extends string>(
 }
 
 function MessageContentEditor({
+    withMobileLayout,
     parentRef,
     messageStartOfSentenceNoun,
     state,
@@ -134,6 +138,7 @@ function MessageContentEditor({
     onCancel,
     onSave,
 }: {
+    withMobileLayout: boolean;
     parentRef: Ref<MessageViewEditorRef>;
     messageStartOfSentenceNoun: string;
     state: ContentEditorState<MessageContentWithReferences>;
@@ -169,6 +174,7 @@ function MessageContentEditor({
     return (
         <ContentEditor
             ref={editorRef}
+            withMobileLayout={withMobileLayout}
             state={state}
             onChange={(state, transaction) => {
                 if (isSaving && transaction.docChanged) return;

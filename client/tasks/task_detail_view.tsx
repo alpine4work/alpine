@@ -83,7 +83,7 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Context} from "~/shared/context/context.js";
-import {Spacing, convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/spacing.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -96,6 +96,18 @@ import {
     invertSelectionColorsClassName,
     sprinkles,
 } from "~/shared/styles/styles.js";
+import {
+    desktopTaskDetailViewNavigationBarSpacerMarginBottom,
+    desktopTaskDetailViewStatusButtonSize,
+    mobileTaskDetailViewStatusButtonPaddingBottom,
+    mobileTaskDetailViewStatusButtonPaddingTop,
+    mobileTaskDetailViewStatusButtonSize,
+    taskDetailViewDenseFieldGap,
+    taskDetailViewFieldLabelFontSize,
+    taskDetailViewMaxWidth,
+    taskDetailViewSectionGap,
+    taskDetailViewSubtasksFieldLabelPaddingBottom,
+} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {
     addFallbackToTaskTitle,
@@ -107,8 +119,6 @@ import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
-
-export const taskDetailViewMaxWidth: Spacing = "160";
 
 const taskDetailViewReadOnlyReasonStickyBannerHeight = "8";
 
@@ -703,7 +713,7 @@ export function TaskDetailView({
         desktopControls: (
             <TaskDetailViewStatusButton
                 elementRef={statusButtonRef}
-                size="6"
+                size={desktopTaskDetailViewStatusButtonSize}
                 taskSubscription={taskSubscription}
                 undoManager={undoManager}
                 affinityManager={affinityManager}
@@ -776,6 +786,7 @@ export function TaskDetailView({
                                     node: (
                                         <TaskDetailViewMainMemo
                                             ref={mainRef}
+                                            withMobileLayout={withMobileLayout}
                                             taskSubscription={taskSubscription}
                                             undoManager={undoManager}
                                             affinityManager={affinityManager}
@@ -808,6 +819,7 @@ export function TaskDetailView({
                         },
                         [
                             renderChildrenGridViewItem,
+                            withMobileLayout,
                             taskSubscription,
                             undoManager,
                             affinityManager,
@@ -899,6 +911,7 @@ const TaskDetailViewMainMemo = memo(forwardRef(TaskDetailViewMain));
 
 function TaskDetailViewMain(
     {
+        withMobileLayout,
         taskSubscription,
         undoManager,
         affinityManager,
@@ -923,6 +936,7 @@ function TaskDetailViewMain(
         setDueDateInputState,
         focusDueDateInput,
     }: {
+        withMobileLayout: boolean;
         taskSubscription: TaskClientTaskSubscription;
         undoManager: TaskClientStoreUndoManager;
         affinityManager: TaskClientStoreSearchAffinityManager;
@@ -1100,20 +1114,23 @@ function TaskDetailViewMain(
                     <Spacer space={navigationBarHeight} />
                 )}
                 <ContextMenuActions actions={contextMenuActions}>
-                    <Box paddingBottom="10" paddingX={screenPaddingX}>
+                    <Box paddingBottom={taskDetailViewSectionGap} paddingX={screenPaddingX}>
                         {!isMobile ? (
-                            <Box height={navigationBarHeight} marginBottom="-1" />
+                            <Box
+                                height={navigationBarHeight}
+                                marginBottom={desktopTaskDetailViewNavigationBarSpacerMarginBottom}
+                            />
                         ) : (
                             <Box
                                 // The `paddingTop` of `3` happens to align with the
                                 // `<DocumentCommentThreadHeader>`'s resolve button on mobile.
-                                paddingTop="3"
-                                paddingBottom="2"
+                                paddingTop={mobileTaskDetailViewStatusButtonPaddingTop}
+                                paddingBottom={mobileTaskDetailViewStatusButtonPaddingBottom}
                             >
                                 {isMobile && (
                                     <TaskDetailViewStatusButton
                                         elementRef={statusButtonRef}
-                                        size="7"
+                                        size={mobileTaskDetailViewStatusButtonSize}
                                         taskSubscription={taskSubscription}
                                         undoManager={undoManager}
                                         affinityManager={affinityManager}
@@ -1166,7 +1183,7 @@ function TaskDetailViewMain(
                 <Box
                     paddingX={screenPaddingX}
                     display="grid"
-                    gap="5"
+                    gap={taskDetailViewDenseFieldGap}
                     style={{
                         gridTemplateColumns: "auto minmax(0, 1fr)",
                         gridTemplateRows: "repeat(auto-fill, auto)",
@@ -1355,9 +1372,10 @@ function TaskDetailViewMain(
                         </TaskDetailViewDenseField>
                     )}
                 </Box>
-                <Spacer space="10" />
+                <Spacer space={taskDetailViewSectionGap} />
                 <TaskDetailNotesField
                     ref={notesFieldRef}
+                    withMobileLayout={withMobileLayout}
                     taskId={taskId}
                     initialNotesVersion={initialNotesVersion}
                     initialNotesContent={initialNotesContent}
@@ -1368,7 +1386,7 @@ function TaskDetailViewMain(
                 />
                 {showSubtasks ? (
                     <>
-                        <Spacer space="10" />
+                        <Spacer space={taskDetailViewSectionGap} />
                         <Box>
                             <span
                                 className={sprinkles({
@@ -1376,13 +1394,13 @@ function TaskDetailViewMain(
                                     alignItems: "center",
                                     gap: "3",
                                     paddingX: screenPaddingX,
-                                    paddingBottom: "2",
+                                    paddingBottom: taskDetailViewSubtasksFieldLabelPaddingBottom,
                                     color: "grey-60",
                                 })}
                                 // Affordance for mouse users. Clicking on a label focuses child tasks.
                                 onClick={focusChildrenGridViewStart}
                             >
-                                <Box>Subtasks</Box>
+                                <Box fontSize={taskDetailViewFieldLabelFontSize}>Subtasks</Box>
                                 {task && task.getChildTaskCount() > 0 && (
                                     <Box display="flex" alignItems="center" gap="1">
                                         <TaskChildTasksProgressWheel
@@ -1434,6 +1452,7 @@ function TaskDetailViewDenseField({
                 className={sprinkles({
                     display: "block",
                     maxWidth: "24",
+                    fontSize: taskDetailViewFieldLabelFontSize,
                     fontStyle: "truncate",
                     color: "grey-60",
                 })}
@@ -1458,7 +1477,7 @@ function TaskDetailViewDenseField({
             >
                 {label}
             </span>
-            <Box ref={valueRef}>
+            <Box ref={valueRef} height="4">
                 {typeof children === "function" ? children({"aria-labelledby": labelId}) : children}
             </Box>
         </>

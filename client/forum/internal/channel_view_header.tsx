@@ -9,12 +9,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
-import {channelViewAsidePaddingY} from "~/client/forum/internal/channel_view_aside.js";
-import {
-    PostFauxInputCreateButton,
-    postFauxInputCreateButtonHeight,
-} from "~/client/forum/internal/post_faux_input_create_button.js";
-import {postContentViewOuterMarginY} from "~/client/forum/post_content_view.js";
+import {PostFauxInputCreateButton} from "~/client/forum/internal/post_faux_input_create_button.js";
 import {PostListChannelHeader} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
@@ -25,6 +20,11 @@ import {
     MessageContent,
     MessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
+import {
+    channelViewAsidePaddingY,
+    postContentViewOuterMarginY,
+    postFauxInputCreateButtonHeight,
+} from "~/shared/styles/forum_shared_styles.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 export const channelViewHeaderMinHeight = addRemLengths(
@@ -113,6 +113,8 @@ function ChannelViewHeaderMobileDescription({
     return (
         <Box paddingY="1">
             <ContentView
+                // Only rendered in mobile layouts.
+                withMobileLayout={true}
                 content={
                     isDescriptionSnippetTruncated && !isShowingAllContent
                         ? descriptionSnippet
@@ -236,6 +238,8 @@ function ChannelViewHeaderMobileDescriptionEditor({
                     <ContentEditor
                         ref={editorRef}
                         aria-label="Description"
+                        // Only rendered in mobile layouts.
+                        withMobileLayout={true}
                         state={state}
                         onChange={(state, transaction) => {
                             if (isSaving && transaction.docChanged) return;

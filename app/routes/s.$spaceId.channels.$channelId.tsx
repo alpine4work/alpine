@@ -6,7 +6,6 @@ import {Box} from "~/client/design/box.js";
 import {ChannelDesktopCreator} from "~/client/forum/channel_desktop_creator.js";
 import {ChannelMobileEditor} from "~/client/forum/channel_mobile_editor.js";
 import {ChannelView, newChannelNamePlaceholder} from "~/client/forum/channel_view.js";
-import {postContentViewMinHeightWithClosedCommentSection} from "~/client/forum/post_content_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -39,6 +38,7 @@ import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {createChannel as createChannelRpc} from "~/shared/rpc/forum_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {postContentViewMinHeightWithClosedCommentSection} from "~/shared/styles/forum_shared_styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({

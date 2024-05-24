@@ -3,7 +3,6 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {printPrettySmallNumberSummary} from "~/client/design/pretty_number.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
-import {postContentViewMinHeightWithClosedCommentSection} from "~/client/forum/post_content_view.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
 import {PostView} from "~/client/forum/post_view.js";
@@ -32,6 +31,7 @@ import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getChannelWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitions.js";
 import {getInboxChannelPostsEntryPosts} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {postContentViewMinHeightWithClosedCommentSection} from "~/shared/styles/forum_shared_styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({

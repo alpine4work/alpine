@@ -16,12 +16,6 @@ import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_n
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
-import {
-    mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    postContentViewInnerMarginY,
-    postViewMaxWidth,
-} from "~/client/forum/post_content_view.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -38,6 +32,12 @@ import {PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {updatePostContent} from "~/shared/rpc/forum_rpc_definitions.js";
+import {
+    mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
+    mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
+    postContentViewInnerMarginY,
+    postViewMaxWidth,
+} from "~/shared/styles/forum_shared_styles.js";
 import {contentSchemaStyles, forumStyles, sprinkles} from "~/shared/styles/styles.js";
 
 const postContentEditorBlockMaxWidth = mapObjectValues(screenPaddingX, paddingX =>
@@ -219,6 +219,8 @@ export function PostMobileEditor({
                     <ContentEditor
                         ref={editorRef}
                         aria-label="Post"
+                        // Only rendered in mobile layouts.
+                        withMobileLayout={true}
                         state={state}
                         onChange={onChange}
                         // On mobile, don't allow interactions when unfocused. We're already in an

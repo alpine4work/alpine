@@ -82,12 +82,6 @@ import {
 } from "~/client/tasks/task_client_store.js";
 import {TaskGridViewDraggableData} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
-    desktopTaskRowViewIndentationRem,
-    mobileTaskRowViewIndentationRem,
-    taskRowViewFirstColumnExtraPaddingLeft,
-    taskRowViewMinHeight,
-} from "~/client/tasks/task_row_shared_styles.js";
-import {
     RemLength,
     Spacing,
     parseRemLengthNumber,
@@ -107,6 +101,12 @@ import {
     sprinkles,
     tasksStyles,
 } from "~/shared/styles/styles.js";
+import {
+    desktopTaskRowViewIndentationRem,
+    mobileTaskRowViewIndentationRem,
+    taskRowViewFirstColumnExtraPaddingLeft,
+    taskRowViewMinHeight,
+} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";

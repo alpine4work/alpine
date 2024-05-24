@@ -2,11 +2,7 @@ import {useMemo} from "react";
 import {Box} from "~/client/design/box.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {useShowToast} from "~/client/design/toast.js";
-import {
-    DocumentCommentThreadListView,
-    documentCommentThreadListViewMaxWidth,
-} from "~/client/documents/document_comment_thread_list_view.js";
-import {documentCommentThreadCountAgainstLimit} from "~/client/documents/document_shared_styles.js";
+import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view.js";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
@@ -29,6 +25,10 @@ import {
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {
+    documentCommentThreadCountAgainstLimit,
+    documentCommentThreadListViewMaxWidth,
+} from "~/shared/styles/document_shared_styles.js";
 
 const LoaderSchema = Schema.object({
     document: DocumentModel.schema(),
@@ -82,13 +82,15 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) =
 });
 
 export default function DocumentCommentThreadRoute({
-    withMobileLayout = false,
+    withMobileLayout: withMobileLayoutProp = false,
 }: {
     withMobileLayout?: boolean;
 }) {
     const isMobile = useIsMobile();
     const rootNavigate = useRootNavigate();
     const showToast = useShowToast();
+
+    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const {
         document: initialDocument,
@@ -119,6 +121,7 @@ export default function DocumentCommentThreadRoute({
 
     return (
         <DocumentCommentThreadListView
+            withMobileLayout={withMobileLayout}
             documentId={initialDocument.id}
             content={editorState.getContent()}
             isConnected={isConnected}

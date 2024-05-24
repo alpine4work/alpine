@@ -173,10 +173,12 @@ export const rowTitleInputMultilineAfterClassName = style({
     },
 });
 
+export const detailNotesContentEditorMinHeight = `${
+    parseRemLengthNumber(paragraphLineHeight) * 2 +
+    parseRemLengthNumber(spacing[defaultParagraphMargin]) * 1
+}rem`;
+
 export const detailNotesContentEditorClassName = style({
     height: "100%",
-    minHeight: `${
-        parseRemLengthNumber(paragraphLineHeight) * 2 +
-        parseRemLengthNumber(defaultParagraphMargin) * 1
-    }rem`,
+    minHeight: detailNotesContentEditorMinHeight,
 });

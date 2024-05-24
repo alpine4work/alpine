@@ -5,7 +5,6 @@ import {ContentView} from "~/client/content/content_view.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
-import {documentCommentThreadPreviewMinHeight} from "~/client/documents/document_shared_styles.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {convertRemLengthToPx, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
@@ -18,6 +17,7 @@ import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_documen
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {safe, safeAlphanumericString, safeNumber} from "~/shared/helpers/string/safe_string.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {documentCommentThreadPreviewHeight} from "~/shared/styles/document_shared_styles.js";
 import {
     fontSizesByPlatform,
     invertSelectionColorsClassName,
@@ -28,6 +28,7 @@ const documentCommentThreadPreviewScale =
     fontSizesByPlatform["75"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
 
 export function DocumentCommentThreadPreview({
+    withMobileLayout,
     commentThread,
     unpersistedIsResolved,
     contentSnippet,
@@ -35,6 +36,7 @@ export function DocumentCommentThreadPreview({
     onCommentThreadSnippetPress,
     isResolveButtonPending,
 }: {
+    withMobileLayout: boolean;
     commentThread: DocumentCommentThreadModel;
     unpersistedIsResolved: boolean | null;
     contentSnippet: Node | null;
@@ -173,7 +175,7 @@ export function DocumentCommentThreadPreview({
                 <Box
                     ref={previewRef}
                     overflow="hidden"
-                    style={{height: documentCommentThreadPreviewMinHeight}}
+                    style={{height: spacing[documentCommentThreadPreviewHeight]}}
                 >
                     <Box
                         ref={previewContentRef}
@@ -191,6 +193,7 @@ export function DocumentCommentThreadPreview({
                             // to visible is better than flashing content with the wrong scroll position
                             // to the right scroll position.
                             <ContentView
+                                withMobileLayout={withMobileLayout}
                                 content={content}
                                 // Don't allow interacting with the content at all. (Like clicking links.)
                                 // Clicking on the preview opens it in the document.

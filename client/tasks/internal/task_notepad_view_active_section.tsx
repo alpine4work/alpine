@@ -11,10 +11,6 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
-import {
-    taskCardViewMaxWidth,
-    taskCardViewMinHeight,
-} from "~/client/tasks/internal/task_card_view_content.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {TaskNotepadCardView} from "~/client/tasks/internal/task_notepad_card_view.js";
@@ -25,7 +21,6 @@ import {
     TaskGridViewDroppableData,
 } from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
-    Spacing,
     addRemLengths,
     parseRemLengthNumber,
     screenPaddingX,
@@ -41,17 +36,24 @@ import {
     pressOpacityOverlayClassName,
     pulseAnimationClassName,
 } from "~/shared/styles/styles.js";
+import {
+    desktopTaskNotepadViewActiveSectionMarginBottom,
+    mobileTaskNotepadViewActiveSectionMarginBottom,
+    taskCardViewMaxWidth,
+    taskCardViewMinHeight,
+    taskNotepadViewActiveSectionCardGap,
+    taskNotepadViewActiveSectionInstructionalPlaceholderCardHeight,
+    taskNotepadViewActiveSectionMarginBottom,
+    taskNotepadViewActiveSectionMarginTop,
+    taskNotepadViewActiveSectionPaddingY,
+    taskNotepadViewActiveSectionTitleFontSize,
+} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
-
-const taskNotepadViewActiveSectionMarginTop = {desktop: "4", mobile: "2"} as const;
-const taskNotepadViewActiveSectionMarginBottom = "8";
-const taskNotepadViewActiveSectionPaddingY = "2";
-const taskNotepadViewActiveSectionTitleFontSize = {desktop: "200", mobile: "100"} as const;
 
 export const taskNotepadViewActiveSectionMinHeight = {
     desktop: addRemLengths(
@@ -91,7 +93,6 @@ export const taskNotepadAssigneeActiveMinLimit = 25;
  */
 export const taskNotepadAssigneeActiveLoadLimit = taskNotepadAssigneeActiveMinLimit + 10;
 
-export const taskNotepadViewActiveSectionCardGap: Spacing = "3";
 export const taskNotepadViewActiveSectionCardTranslateDurationMs = 200;
 
 const TaskNotepadViewActiveSectionMemo = memo(TaskNotepadViewActiveSection);
@@ -193,13 +194,13 @@ function TaskNotepadViewActiveSection({
         (shouldRenderTruncatedExplainerCard ? 1 : 0);
 
     // There's less horizontal space on mobile for cards than in peeks on desktop.
-    const taskCountAboveTheFold = isMobile ? 1 : withMobileLayout ? 2 : 3;
+    const cardCountAboveTheFold = isMobile ? 1 : withMobileLayout ? 2 : 3;
 
-    const cardWidthStyle = `calc(${(1 / taskCountAboveTheFold) * 100}% - ${
+    const cardWidthStyle = `calc(${(1 / cardCountAboveTheFold) * 100}% - ${
         parseRemLengthNumber(spacing[taskNotepadViewActiveSectionCardGap]) *
-            ((taskCountAboveTheFold - 1) / taskCountAboveTheFold) +
-        (Math.max(cardCount, taskCountAboveTheFold) > taskCountAboveTheFold
-            ? parseRemLengthNumber(spacing[taskCountAboveTheFold <= 1 ? "16" : "4"])
+            ((cardCountAboveTheFold - 1) / cardCountAboveTheFold) +
+        (Math.max(cardCount, cardCountAboveTheFold) > cardCountAboveTheFold
+            ? parseRemLengthNumber(spacing[cardCountAboveTheFold <= 1 ? "16" : "4"])
             : 0)
     }rem)`;
 
@@ -216,8 +217,8 @@ function TaskNotepadViewActiveSection({
                 // area inset top as margin for when it acts as a sticky header, remove a
                 // corresponding amount of space from our active section padding bottom.
                 paddingBottom: !isMobile
-                    ? `max(${spacing[taskNotepadViewActiveSectionMarginBottom]} - var(--safe-area-inset-top, 0px), 0px)`
-                    : spacing[taskNotepadViewActiveSectionMarginBottom],
+                    ? desktopTaskNotepadViewActiveSectionMarginBottom
+                    : mobileTaskNotepadViewActiveSectionMarginBottom,
             }}
         >
             <Box
@@ -353,7 +354,7 @@ function TaskNotepadViewActiveSection({
                     {taskCardCount > 0 &&
                         activeDraggableData?.type === "Row" &&
                         createArrayWithLength(
-                            cardCount < taskCountAboveTheFold ? 1 : cardCount - taskCardCount + 1,
+                            cardCount < cardCountAboveTheFold ? 1 : cardCount - taskCardCount + 1,
                             (index, length) => (
                                 <TaskNotepadViewActiveSectionDroppable
                                     key={index}
@@ -369,7 +370,7 @@ function TaskNotepadViewActiveSection({
                                     nextAssigneeActivePosition={
                                         allTasks[taskCardCount + 1]?.assigneeActivePosition ?? null
                                     }
-                                    {...(cardCount < taskCountAboveTheFold && index === length - 1
+                                    {...(cardCount < cardCountAboveTheFold && index === length - 1
                                         ? {
                                               flexGrow: "1",
                                           }
@@ -657,13 +658,7 @@ function TaskNotepadViewActiveSectionInstructionalPlaceholderCard({
                 boxShadow: `0 0 0 1px ${colorSchemeVars["grey-5"]}`,
             }}
         >
-            <Box
-                style={{
-                    // Height of a card with an extra field (e.g. assignee) and two lines of text
-                    // in the title.
-                    height: "6.5rem",
-                }}
-            />
+            <Box style={{height: taskNotepadViewActiveSectionInstructionalPlaceholderCardHeight}} />
             <Box
                 position="absolute"
                 left="0"
