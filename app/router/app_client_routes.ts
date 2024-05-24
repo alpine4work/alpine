@@ -284,6 +284,9 @@ function makeSpaceDataRouteShowLoadingIndicator(route: DataRouteObject) {
 
     const originalRouteLoader = route.loader;
 
+    // TODO(calebmer): I think this also needs to return early for `route.lazy` in
+    // case it's taking a long time to download the code bundle. Usually the code
+    // bundle is fast to download but on mobile devices that might not be true.
     route.loader = async (...args) => {
         const routeLoaderPromise = originalRouteLoader(...args);
 
