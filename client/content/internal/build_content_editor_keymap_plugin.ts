@@ -400,14 +400,15 @@ export function buildContentEditorKeymapPlugin(
                 $from.pos === $to.pos &&
                 $from.parentOffset === 0 &&
                 currentNode.type.name === "codeBlockLine";
+
+            if (!isSelectionAtFirstOffsetOfCodeBlockLine) {
+                return false;
+            }
+
             const isCodeBlockLineEmpty = currentNode.textContent.length === 0;
             const isCodeBlockEmpty = parentNode.childCount === 1;
 
-            if (
-                !isCodeBlockEmpty ||
-                !isCodeBlockLineEmpty ||
-                !isSelectionAtFirstOffsetOfCodeBlockLine
-            ) {
+            if (!isCodeBlockEmpty || !isCodeBlockLineEmpty) {
                 return false;
             }
 
