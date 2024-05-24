@@ -1304,6 +1304,77 @@ test("tab creates a level of indentation", async () => {
     );
 });
 
+test("tab at the start of a code block line with content adds indentation", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+    await simulateTyping("test 1");
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(2))));
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  test 1")))');
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("    test 1")))');
+});
+
+test("tab in the middle of a code block line with content adds indentation to the start", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+    await simulateTyping("foobar");
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(5))));
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  foobar")))');
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(10))));
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("    foobar")))');
+});
+
+test("tab twice at the start of line without content adds indentation", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  ")))');
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("    ")))');
+});
+
+test("tab indents the selected lines, but not on empty lines", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+    await simulateTyping("test 1");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("test 2");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("test 1"), codeBlockLine, codeBlockLine("test 2")))',
+    );
+
+    const startPos = 2;
+    const endPos = startPos + "test 1\n\ntest2".length;
+    dispatch(state => state.tr.setSelection(TextSelection.create(state.doc, startPos, endPos)));
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  test 1"), codeBlockLine, codeBlockLine("  test 2")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("    test 1"), codeBlockLine, codeBlockLine("    test 2")))',
+    );
+});
+
 test("shift-tab removes a level of indentation from first sub-item", async () => {
     render(<TestContentEditor />);
 

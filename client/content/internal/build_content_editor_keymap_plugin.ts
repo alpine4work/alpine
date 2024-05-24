@@ -33,6 +33,15 @@ type Command = (
     view?: EditorView,
 ) => boolean;
 
+function isNodeSpacesOnly(node: Node): boolean {
+    for (let i = 0; i < node.childCount; i++) {
+        const childNode = node.child(i);
+        if (!childNode.isText) return false;
+        if (/[^ ]/.test(childNode.text!)) return false;
+    }
+    return true;
+}
+
 export const openKeyboardHighlightFloaterMetaKey = "openKeyboardHighlightFloater";
 export const openKeyboardLinkFloaterMetaKey = "openKeyboardLinkFloater";
 export const openCommentInputFloaterMetaKey = "openCommentInputFloater";
@@ -405,7 +414,7 @@ export function buildContentEditorKeymapPlugin(
                 return false;
             }
 
-            const isCodeBlockLineEmpty = currentNode.textContent.length === 0;
+            const isCodeBlockLineEmpty = currentNode.childCount === 0;
             const isCodeBlockEmpty = parentNode.childCount === 1;
 
             if (!isCodeBlockEmpty || !isCodeBlockLineEmpty) {
@@ -616,23 +625,59 @@ export function buildContentEditorKeymapPlugin(
             // When the user hits tab inside of a code block line, we insert 2 spaces
             // of indentation to the current selection.
             (state, dispatch) => {
-                const {$from} = state.selection;
-                const node = $from.node();
-                const parentNode = $from.node($from.depth - 1);
-                const isSelectionInsideCodeBlock =
-                    node.type.name === "codeBlockLine" && parentNode.type.name === "codeBlock";
+                const {$from, $to, to, from} = state.selection;
+                const fromNode = $from.node();
+                const toNode = $to.node();
+                const fromParentNode = $from.node($from.depth - 1);
+                const toParentNode = $to.node($to.depth - 1);
+                const isSelectionInsideSameCodeBlock =
+                    fromNode.type.name === "codeBlockLine" &&
+                    toNode.type.name === "codeBlockLine" &&
+                    fromParentNode.type.name === "codeBlock" &&
+                    toParentNode.type.name === "codeBlock" &&
+                    fromParentNode === toParentNode;
 
-                if (!isSelectionInsideCodeBlock) return false;
+                if (!isSelectionInsideSameCodeBlock) return false;
 
                 const spaces = "  ";
 
                 if (dispatch) {
-                    const transaction = state.tr.insertText(spaces, $from.pos);
-                    const selection = TextSelection.create(
-                        transaction.doc,
-                        $from.pos + spaces.length,
-                    );
-                    transaction.setSelection(selection);
+                    const transaction = state.tr;
+                    const lineStartPos = $from.start($from.depth);
+                    let addedChars = 0;
+                    let newSelectionTo = to;
+
+                    // If there is no selection and the cursor is in a empty code block line or
+                    // in between content inside of a code block line, we still want to insert
+                    // indentation to the line start
+                    if ($from.pos === $to.pos) {
+                        transaction.insertText(spaces, lineStartPos);
+                        const selection = TextSelection.create(
+                            transaction.doc,
+                            $from.pos + spaces.length,
+                        );
+                        transaction.setSelection(selection);
+                    } else {
+                        // `nodesBetween` lets us loop through each node and find
+                        // the node to add spaces. `addedChars` let's us account for inserted spaces to
+                        // ensure the subsequent node inserts are positioned accurately.
+                        state.doc.nodesBetween(from, to, (node, pos) => {
+                            if (node.type.name === "codeBlockLine" && !isNodeSpacesOnly(node)) {
+                                const insertPos = pos + 1 + addedChars;
+                                transaction.insertText(spaces, insertPos);
+                                addedChars += spaces.length;
+                                newSelectionTo += spaces.length;
+                            }
+                        });
+
+                        const selection = TextSelection.create(
+                            transaction.doc,
+                            from,
+                            newSelectionTo,
+                        );
+                        transaction.setSelection(selection);
+                    }
+
                     dispatch(transaction);
                 }
                 return true;
