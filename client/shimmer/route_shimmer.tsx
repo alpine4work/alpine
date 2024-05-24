@@ -543,35 +543,7 @@ function DocumentRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                 <Box height={contentSchemaStyles.defaultParagraphMargin} />
                 <ContentParagraphShimmer2 />
                 <Box height={contentSchemaStyles.defaultParagraphMargin} />
-                <ContentListItemShimmer>
-                    <TextShimmer
-                        width="64"
-                        fontSize={contentParagraphShimmerFontSize}
-                        // So when screen shrinks last line isn't longer than other lines with
-                        // `ragRight`.
-                        ragRight="20"
-                    />
-                </ContentListItemShimmer>
-                <Box height={contentSchemaStyles.defaultParagraphMargin} />
-                <ContentListItemShimmer>
-                    <TextShimmer
-                        width="96"
-                        fontSize={contentParagraphShimmerFontSize}
-                        // So when screen shrinks last line isn't longer than other lines with
-                        // `ragRight`.
-                        ragRight="20"
-                    />
-                </ContentListItemShimmer>
-                <Box height={contentSchemaStyles.defaultParagraphMargin} />
-                <ContentListItemShimmer>
-                    <TextShimmer
-                        width="64"
-                        fontSize={contentParagraphShimmerFontSize}
-                        // So when screen shrinks last line isn't longer than other lines with
-                        // `ragRight`.
-                        ragRight="16"
-                    />
-                </ContentListItemShimmer>
+                <ContentParagraphShimmer3 />
                 {!withMobileLayout && (
                     <>
                         <Box
@@ -590,7 +562,7 @@ function DocumentRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                             }
                         />
                         <Box height={contentSchemaStyles.defaultParagraphMargin} />
-                        <ContentParagraphShimmer3 />
+                        <ContentParagraphShimmer1 />
                         <Box
                             height={
                                 isMobile
@@ -607,7 +579,7 @@ function DocumentRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                             }
                         />
                         <Box height={contentSchemaStyles.defaultParagraphMargin} />
-                        <ContentParagraphShimmer1 />
+                        <ContentParagraphShimmer3 />
                         <Box height={contentSchemaStyles.defaultParagraphMargin} />
                         <ContentParagraphShimmer2 />
                     </>
