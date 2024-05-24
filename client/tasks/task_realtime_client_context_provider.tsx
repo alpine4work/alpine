@@ -10,6 +10,7 @@ import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_wit
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {useBrowserId} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
+import {unwrapLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
@@ -165,7 +166,7 @@ export function useTaskStoreLoaderDataWithoutRetaining(): {
 } {
     const store = useTaskStoreLoaderDataWithoutRetainingButOnlyStore();
 
-    const loaderData = useLoaderData<any>();
+    const loaderData = unwrapLoadingIndicatorLoaderData(useLoaderData<any>());
 
     const {queries, taskSubscriptions, collectionSubscriptions} = (loaderData ?? {})[
         taskStoreLoaderDataSymbol
