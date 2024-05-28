@@ -7,11 +7,9 @@ import {Spacer} from "~/client/design/spacer.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
-    ContentListItemShimmer,
     ContentParagraphShimmer1,
     ContentParagraphShimmer2,
     ContentParagraphShimmer3,
-    contentParagraphShimmerFontSize,
 } from "~/client/shimmer/content_shimmer.js";
 import {MessageShimmer} from "~/client/shimmer/message_shimmer.js";
 import {PostShimmer, PostShimmerHeader} from "~/client/shimmer/post_shimmer.js";
