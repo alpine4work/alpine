@@ -2,6 +2,7 @@ import {ArrowRight, IconContext, SpinnerGap} from "phosphor-react";
 import {ReactNode, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
+import {MobileSettingsRow} from "~/client/design/mobile_settings_row.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {ChatBrandBigIcon} from "~/client/icons/brand/chat_brand_big_icon.js";
@@ -13,9 +14,9 @@ import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view.js";
-import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/spacing.js";
 import {generateId} from "~/shared/id/id.js";
-import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
+import {borderRadius, colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
 export function meta() {
     return [{title: `Create${metaTitlePostfix}`}];
@@ -40,8 +41,8 @@ export default function CreateRoute() {
             withoutMobileBackButton={true}
         >
             <Box width="full" maxWidth={maxWidth} paddingX={screenPaddingX} marginX="center">
-                <CreateRouteDivider />
                 <CreateRouteButton
+                    withBorderTop
                     icon={<PostBrandBigIcon />}
                     label="Post"
                     description="Share your ideas in a channel"
@@ -52,7 +53,6 @@ export default function CreateRoute() {
                         await rootNavigate(`/s/${space.id}/posts/new/${draftId}?focus=channel`);
                     }}
                 />
-                <CreateRouteDivider />
                 <CreateRouteButton
                     icon={<ChatBrandBigIcon />}
                     label="Message"
@@ -62,7 +62,6 @@ export default function CreateRoute() {
                         await rootNavigate(`/s/${space.id}/chat/new?focus=picker`);
                     }}
                 />
-                <CreateRouteDivider />
                 <CreateRouteButton
                     icon={<DocumentBrandBigIcon />}
                     label="Document"
@@ -74,7 +73,6 @@ export default function CreateRoute() {
                         await rootNavigate(`/s/${space.id}/documents/${documentId}?create&focus`);
                     }}
                 />
-                <CreateRouteDivider />
                 <CreateRouteButton
                     icon={<TaskBrandBigIcon />}
                     label="Task"
@@ -84,22 +82,16 @@ export default function CreateRoute() {
                         await rootNavigate(`/s/${space.id}/tasks?focus=create`);
                     }}
                 />
-                <CreateRouteDivider />
-                <CreateRouteMoreButton
-                    onPress={async () => {
-                        await rootNavigate(`/s/${space.id}/create/more`);
-                    }}
+                <MobileSettingsRow
+                    withoutBorderBottom
+                    icon={<ArrowRight />}
+                    iconPlacement="trailing"
+                    label="More"
+                    pressErrorTitle="Couldn’t open more create options"
+                    onPress={() => rootNavigate(`/s/${space.id}/create/more`)}
                 />
             </Box>
         </SpaceRouteScrollView>
-    );
-}
-
-function CreateRouteDivider() {
-    return (
-        <Box paddingY="1">
-            <Box width="full" borderBottom="grey-5" />
-        </Box>
     );
 }
 
@@ -109,12 +101,14 @@ function CreateRouteButton({
     description,
     pressErrorTitle,
     onPress,
+    withBorderTop,
 }: {
     icon: ReactNode;
     label: string;
     description: string;
     pressErrorTitle: string;
     onPress: () => Promise<void>;
+    withBorderTop?: boolean;
 }) {
     const showToast = useShowToast();
 
@@ -151,15 +145,43 @@ function CreateRouteButton({
     return (
         <Box
             {...mergeProps(pressProps, hoverProps)}
+            position="relative"
+            zIndex="0"
             paddingX="1.5"
-            paddingY="2.5"
             display="flex"
             alignItems="center"
             gap="3"
-            borderRadius="base"
             aria-label={label}
-            backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
+            style={{
+                // Optically center by including a little less padding top. The icon color
+                // splash makes the icon leads to more whitespace near the top of the icon.
+                paddingTop: addRemLengths(spacing["3"], spacing["0.5"]),
+                paddingBottom: spacing["4"],
+                boxShadow:
+                    !isPressed && !isHovered
+                        ? [
+                              `inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                              ...(withBorderTop
+                                  ? [`inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`]
+                                  : []),
+                          ].join(", ")
+                        : undefined,
+            }}
         >
+            <Box
+                position="absolute"
+                zIndex="-10"
+                borderRadius="base"
+                backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
+                style={{
+                    // Cover the previous button's border bottom. If the top border is rendered by
+                    // our element then we don't need to go into the above sibling element's space.
+                    top: withBorderTop ? 0 : -1,
+                    bottom: 0,
+                    left: `-${borderRadius.base}`,
+                    right: `-${borderRadius.base}`,
+                }}
+            />
             <Box flexShrink="0">
                 <IconContext.Provider
                     value={{
@@ -182,66 +204,6 @@ function CreateRouteButton({
                     <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
                 )}
             </Box>
-        </Box>
-    );
-}
-
-function CreateRouteMoreButton({onPress}: {onPress: () => Promise<void>}) {
-    const showToast = useShowToast();
-
-    const [isPending, setIsPending] = useState(false);
-    const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
-
-    const {isPressed, pressProps} = usePress({
-        onPress: () => {
-            setIsPending(true);
-
-            // Wrap in an async function so if `onPress` throws synchronously we get a
-            // rejected promise that we handle below.
-            const promise = (async () => await onPress())();
-
-            promise.then(
-                () => {
-                    setIsPending(false);
-                },
-                error => {
-                    setIsPending(false);
-
-                    showToast({
-                        type: "Error",
-                        title: "Couldn’t show more create options",
-                        error,
-                    });
-                },
-            );
-        },
-    });
-
-    const {isHovered, hoverProps} = useHover({});
-
-    return (
-        <Box
-            {...mergeProps(pressProps, hoverProps)}
-            height="9"
-            paddingX="2.5"
-            display="flex"
-            alignItems="center"
-            gap="2.5"
-            borderRadius="base"
-            backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
-        >
-            <Box flexGrow="1">More</Box>
-            {shouldShowPendingSpinner ? (
-                <Box flexShrink="0" width="4" color="grey-70">
-                    {shouldShowPendingSpinner && (
-                        <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
-                    )}
-                </Box>
-            ) : (
-                <Box flexShrink="0" width="4" color={isPressed ? "grey-100" : "grey-70"}>
-                    <ArrowRight size={spacing["4"]} />
-                </Box>
-            )}
         </Box>
     );
 }

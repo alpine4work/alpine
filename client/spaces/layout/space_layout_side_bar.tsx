@@ -12,6 +12,7 @@ import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {usePreloadAffinitiveSearchEntities} from "~/client/search/search_modal.js";
 import {SpaceLayoutSideBarCreateButton} from "~/client/spaces/layout/internal/space_layout_side_bar_create_button.js";
 import {SpaceLayoutSideBarInboxButton} from "~/client/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
+import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {RemLength} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -51,24 +52,7 @@ export function SpaceLayoutSideBar({
             style={{width: spaceLayoutSideBarWidth}}
         >
             <Box paddingTop="5" display="flex" flexDirection="column" alignItems="center" gap="5">
-                <Box
-                    backgroundColor="grey-30-const"
-                    width="8"
-                    height="8"
-                    borderRadius="base"
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                    color="grey-80-const"
-                >
-                    <Box fontSize="75" style={{transform: `scale(${8 / 8})`}} aria-hidden="true">
-                        {useMemo(() => {
-                            const splitter = new GraphemeSplitter();
-                            const graphemes = splitter.iterateGraphemes(space.name);
-                            return graphemes.next().value;
-                        }, [space.name])}
-                    </Box>
-                </Box>
+                <SpaceAvatar space={space} size="8" />
                 <Box display="flex" flexDirection="column" alignItems="center" gap="3">
                     <IconButton
                         size="lg"

@@ -137,6 +137,28 @@ export default function DocumentCommentThreadRoute({
                 // - Navigate the peek we are rendered in
                 //
                 // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+                //
+                // NOTE(calebmer, #global-loading-indicator, 2024-05-28): I think for
+                // navigations within `/s/:spaceId` we can remove the
+                // #global-loading-indicator comments. After
+                // `delayScreenTransitionLoadingIndicatorLimitMs` (current 1s), we navigate to
+                // the new page and show a loading spinner. This is sufficient as a loading
+                // indicator for navigations. As I'm writing this comment, though, `lazy`
+                // bundle doesn't transition to a route shimmer after 1s. We should fix that
+                // before calling global loading indicators addressed for navigations.
+                //
+                // This note comment is here since it's the first
+                // TODO(#global-loading-indicator) comment on a navigation call when you sort
+                // files alphabetically as of 2024-05-28.
+                //
+                // Once navigation loading indicators are addressed, do we even need a generic
+                // global loading indicator? When I first had the idea in my head for a global
+                // loading indicator, I was imagining it in the space layout top bar. Since
+                // then, space navigation has moved into a side bar and we have mobile which
+                // only has a tab bar as consistent navigation across the app. So it's less
+                // clear where a global loading indicator would go. Local loading indicators
+                // are better, can we replace non-navigation #global-loading-indicator TODOs
+                // with local loading indicators?
                 rootNavigate(
                     `/s/${initialDocument.spaceId}/documents/${initialDocument.id}?${
                         isMobile

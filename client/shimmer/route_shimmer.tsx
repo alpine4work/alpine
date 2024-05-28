@@ -136,7 +136,7 @@ const shimmerComponentByRouteId: {
     // TODO(calebmer): We don't currently have a design for these routes. Once we
     // implement these routes we should add appropriate shimmers.
     "routes/s.$spaceId._index": false,
-    "routes/s.$spaceId.more": false,
+    "routes/s.$spaceId.more._index": false,
     "routes/s.$spaceId.search": false,
 };
 

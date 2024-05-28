@@ -21,7 +21,7 @@ export function SpaceRouteScrollView({
     children,
     ...navigationBarProps
 }: {
-    children: ReactNode;
+    children?: ReactNode;
 } & Omit<NavigationBarProps, "ref">) {
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar(navigationBarProps);
 
