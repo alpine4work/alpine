@@ -22,19 +22,23 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {Tooltip} from "~/client/design/tooltip.js";
+import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {usePromise} from "~/client/helpers/use_promise.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {
     colorSchemeVars,
     greyElevated2ClassName,
@@ -55,6 +59,16 @@ export type MenuStandardAction = {
      * internally, as the key for our actions.
      */
     readonly label: string;
+
+    /**
+     * Font size of the label. Defaults to `75`.
+     */
+    readonly labelFontSize?: "75" | "100";
+
+    /**
+     * Font style of the label. Defaults to `normal`.
+     */
+    readonly labelFontStyle?: "normal" | "semi-bold";
 
     /**
      * An optional icon element rendered next to the action label.
@@ -190,9 +204,24 @@ export type MenuChildrenAction = {
     readonly label: string;
 
     /**
-     * The child actions of this menu which will be displayed in a submenu.
+     * Override the size of the sub-menu. By default we inherit the size of the
+     * parent menu.
      */
-    readonly actions: MenuActions;
+    readonly size?: MenuSize;
+
+    /**
+     * An optional icon element rendered next to the action label.
+     */
+    readonly icon?: ReactNode | ((props: {size: "3" | "4"; isDisabled: boolean}) => ReactNode);
+
+    /**
+     * The child actions of this menu which will be displayed in a submenu.
+     *
+     * If you provide a function, you may load the actions asynchronously. The
+     * actions will be loaded once when you open the submenu and cached while the
+     * menu is open.
+     */
+    readonly actions: MenuActions | (() => MaybePromise<MenuActions>);
 };
 
 export type MenuSize = "base" | "lg" | "xl" | "brand-icons";
@@ -279,6 +308,7 @@ export const Menu = forwardRef(function Menu(
         onCloseWithAnimation,
         onCloseWithoutAnimation,
         shouldNotCloseAfterActionPress,
+        extraTop,
         extraBottom,
         onArrowLeftKeyDown,
     }: {
@@ -328,6 +358,12 @@ export const Menu = forwardRef(function Menu(
          * behavior.
          */
         shouldNotCloseAfterActionPress?: boolean;
+
+        /**
+         * Some extra DOM to put at the top of the menu overlay. Useful if you
+         * need some particularly custom in your menu.
+         */
+        extraTop?: ReactNode;
 
         /**
          * Some extra DOM to put at the bottom of the menu overlay. Useful if you
@@ -638,6 +674,7 @@ export const Menu = forwardRef(function Menu(
                 }
             }}
         >
+            {extraTop}
             {flattenedActions.map((action, index) => {
                 switch (action.type) {
                     case "Divider": {
@@ -941,7 +978,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                         ? colorSchemeVars["grey-40"]
                         : isPressed
                         ? colorSchemeVars["grey-100"]
-                        : colorSchemeVars["grey-70"],
+                        : colorSchemeVars["grey-80"],
                     size: spacing[iconSize],
                     weight: "regular",
                 }}
@@ -989,12 +1026,24 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                 gap="2"
             >
                 {(!action.iconPlacement || action.iconPlacement === "start") && icon}
-                <Box flexGrow="1" fontStyle="truncate">
+                <Box
+                    flexGrow="1"
+                    fontSize={action.labelFontSize ?? "75"}
+                    fontStyle={
+                        action.labelFontStyle === undefined || action.labelFontStyle === "normal"
+                            ? "truncate"
+                            : `truncate-${action.labelFontStyle}`
+                    }
+                >
                     {action.label}
                 </Box>
                 {pendingState.shouldShowPendingSpinner && (
                     <Box flexShrink="0">
-                        <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
+                        <SpinnerGap
+                            className={spinAnimationClassName}
+                            size={spacing["4"]}
+                            color={colorSchemeVars["grey-70"]}
+                        />
                     </Box>
                 )}
                 {!isMobile && action.keyboardShortcutHint && (
@@ -1014,9 +1063,9 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                 {action.isSelected && (
                     <Box flexShrink="0">
                         <Check
-                            size={spacing["3"]}
+                            size={spacing[iconSize]}
                             color={
-                                isPressed ? colorSchemeVars["grey-100"] : colorSchemeVars["grey-70"]
+                                isPressed ? colorSchemeVars["grey-100"] : colorSchemeVars["grey-80"]
                             }
                         />
                     </Box>
@@ -1185,12 +1234,11 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
         action,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
-        skipTooltipHoverDelay,
         isNotFocusable,
         isFocusRingVisible,
         shouldNotCloseAfterPress,
-        isOpened,
-        onOpen,
+        isOpened: shouldOpen,
+        onOpen: onOpenFromProps,
         onClose,
     }: {
         size: MenuSize;
@@ -1198,7 +1246,6 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
         action: MenuChildrenAction;
         onCloseWithAnimation: () => void;
         onCloseWithoutAnimation: () => void;
-        skipTooltipHoverDelay?: () => void;
         isNotFocusable: boolean;
         isFocusRingVisible: boolean;
         shouldNotCloseAfterPress: boolean;
@@ -1209,6 +1256,39 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
     ref: Ref<HTMLDivElement>,
 ) {
     const isMobile = useIsMobile();
+
+    const [actionsPromise, setActionsPromise] = useState<PromiseImmediate<MenuActions> | null>(() =>
+        typeof action.actions !== "function" ? PromiseImmediate.resolve(action.actions) : null,
+    );
+
+    const onOpen = () => {
+        if (actionsPromise === null) {
+            setActionsPromise(
+                PromiseImmediate.resolve(
+                    typeof action.actions !== "function" ? action.actions : action.actions(),
+                ),
+            );
+        }
+
+        onOpenFromProps();
+    };
+
+    // Fallback in case the `shouldOpen` prop is set to true without `onOpen()`
+    // having been called.
+    useEffect(() => {
+        if (shouldOpen && actionsPromise === null) {
+            setActionsPromise(
+                PromiseImmediate.resolve(
+                    typeof action.actions !== "function" ? action.actions : action.actions(),
+                ),
+            );
+        }
+    }, [action, actionsPromise, shouldOpen]);
+
+    const {value: actions} = usePromise(actionsPromise);
+
+    const isOpened = shouldOpen && !!actions;
+    const shouldShowPendingSpinner = useDelayLoadingIndicator(shouldOpen && !isOpened);
 
     const itemRef = useRef<HTMLDivElement>(null);
     const overlayRef = useRef<HTMLDivElement>(null);
@@ -1221,13 +1301,22 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
     const [isHovered, setIsHovered] = useState(false);
 
     const [shouldInitiallyFocus, setShouldInitiallyFocus] = useState(false);
-    if (!isOpened && shouldInitiallyFocus) setShouldInitiallyFocus(false);
+    if (shouldInitiallyFocus && !isOpened && !shouldOpen) setShouldInitiallyFocus(false);
 
     const hasInitiallyFocusedRef = useRef(false);
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (!isOpened || !shouldInitiallyFocus) {
+        if (!shouldInitiallyFocus) {
             hasInitiallyFocusedRef.current = false;
+            return;
+        }
+
+        if (!isOpened) {
+            // If `shouldOpen` is true but `isOpened` is false, then we want to focus when
+            // `isOpened` becomes true. So we can't clear this ref.
+            if (!shouldOpen) {
+                hasInitiallyFocusedRef.current = false;
+            }
             return;
         }
 
@@ -1239,13 +1328,13 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
         getNextFocusableElementIfExists(null, {
             withinElement: overlayMenuElement,
         })?.focus({preventScroll: true});
-    }, [isOpened, shouldInitiallyFocus]);
+    }, [isOpened, shouldInitiallyFocus, shouldOpen]);
 
     const [hoverTriangleState, setHoverTriangleState] = useState<{
         readonly initialX: number;
         readonly initialY: number;
     } | null>(null);
-    if (!isOpened && hoverTriangleState) setHoverTriangleState(null);
+    if (!shouldOpen && hoverTriangleState) setHoverTriangleState(null);
 
     const {isPressed, pressProps} = usePress({
         onPress: event => {
@@ -1255,8 +1344,12 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             if (event.pointerType === "keyboard") {
                 if (!isOpened) {
-                    setShouldInitiallyFocus(true);
-                    onOpen();
+                    // If we should open but haven't opened yet, that's because we're waiting on
+                    // asynchronous actions to load.
+                    if (!shouldOpen) {
+                        setShouldInitiallyFocus(true);
+                        onOpen();
+                    }
                 } else {
                     const overlayMenuElement = assertExists(overlayMenuRef.current);
 
@@ -1269,7 +1362,7 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
     });
 
     const [isHoverTrianglePressed, setIsHoverTrianglePressed] = useState(false);
-    if (isHoverTrianglePressed && (!isOpened || !hoverTriangleState))
+    if (isHoverTrianglePressed && (!shouldOpen || !hoverTriangleState))
         setIsHoverTrianglePressed(false);
 
     const onCloseEvent = useEvent(onClose);
@@ -1281,7 +1374,7 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
     // hovered over it. If the submenu opened after keyboard interaction then
     // `hoverTriangleState` will not be set.
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (!isOpened || !hoverTriangleState) return;
+        if (!shouldOpen || !hoverTriangleState) return;
 
         const element = assertExists(itemRef.current);
 
@@ -1310,7 +1403,7 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
         return () => {
             document.removeEventListener("pointermove", handlePointerMove);
         };
-    }, [hoverTriangleState, isOpened, onCloseEvent]);
+    }, [hoverTriangleState, onCloseEvent, shouldOpen]);
 
     // Submenu dropdowns, if not implemented properly, can be quite user hostile.
     // Since when the user hovers over a menu item and tries to move their cursor
@@ -1418,6 +1511,22 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
         };
     }, [hoverTriangleState, isOpened, onCloseEvent]);
 
+    const icon = action.icon && (
+        <Box flexShrink="0" minWidth={iconSize} minHeight={iconSize}>
+            <IconContext.Provider
+                value={{
+                    color: isPressed ? colorSchemeVars["grey-100"] : colorSchemeVars["grey-80"],
+                    size: spacing[iconSize],
+                    weight: "regular",
+                }}
+            >
+                {typeof action.icon === "function"
+                    ? action.icon({size: iconSize, isDisabled: false})
+                    : action.icon}
+            </IconContext.Provider>
+        </Box>
+    );
+
     return (
         <OverlayAnimated
             isVisible={isOpened}
@@ -1439,8 +1548,8 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
                     )}
                     <Menu
                         ref={overlayMenuRef}
-                        size={size}
-                        actions={action.actions}
+                        size={action.size ?? size}
+                        actions={actions ?? emptyArray}
                         placement="right-start"
                         onCloseWithAnimation={onCloseWithAnimation}
                         onCloseWithoutAnimation={onCloseWithoutAnimation}
@@ -1539,22 +1648,38 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
                     alignItems="center"
                     gap="2"
                 >
+                    {icon}
                     <Box flexGrow="1" fontStyle="truncate">
                         {action.label}
                     </Box>
-                    <Box flexShrink="0" width={iconSize} height={iconSize}>
-                        <IconContext.Provider
-                            value={{
-                                color:
-                                    isPressed || isHoverTrianglePressed
-                                        ? colorSchemeVars["grey-100"]
-                                        : colorSchemeVars["grey-70"],
-                                size: spacing[iconSize],
-                                weight: "regular",
-                            }}
-                        >
-                            <CaretRight />
-                        </IconContext.Provider>
+                    <Box
+                        flexShrink="0"
+                        width={iconSize}
+                        height={iconSize}
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                    >
+                        {shouldShowPendingSpinner ? (
+                            <SpinnerGap
+                                className={spinAnimationClassName}
+                                size={spacing["4"]}
+                                color={colorSchemeVars["grey-70"]}
+                            />
+                        ) : (
+                            <IconContext.Provider
+                                value={{
+                                    color:
+                                        isPressed || isHoverTrianglePressed
+                                            ? colorSchemeVars["grey-100"]
+                                            : colorSchemeVars["grey-80"],
+                                    size: spacing[iconSize],
+                                    weight: "regular",
+                                }}
+                            >
+                                <CaretRight />
+                            </IconContext.Provider>
+                        )}
                     </Box>
                 </Box>
             </FocusRing>

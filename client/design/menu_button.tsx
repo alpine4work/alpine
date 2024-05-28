@@ -32,6 +32,7 @@ function MenuButton(
         children,
         onStateChange,
         shouldNotCloseAfterActionPress,
+        extraOverlayTop,
         extraOverlayBottom,
     }: {
         /**
@@ -88,6 +89,12 @@ function MenuButton(
         shouldNotCloseAfterActionPress?: boolean;
 
         /**
+         * Some extra DOM to put at the top of the menu overlay. Useful if you
+         * need some particularly custom in your menu.
+         */
+        extraOverlayTop?: ReactNode;
+
+        /**
          * Some extra DOM to put at the bottom of the menu overlay. Useful if you
          * need some particularly custom in your menu.
          */
@@ -123,6 +130,7 @@ function MenuButton(
                     onCloseWithAnimation={onCloseWithAnimation}
                     onCloseWithoutAnimation={onCloseWithoutAnimation}
                     shouldNotCloseAfterActionPress={shouldNotCloseAfterActionPress}
+                    extraTop={extraOverlayTop}
                     extraBottom={extraOverlayBottom}
                 />
             )}

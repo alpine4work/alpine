@@ -1,7 +1,6 @@
 import {Action} from "@remix-run/router";
-import GraphemeSplitter from "grapheme-splitter";
-import {ArrowLeft, ArrowRight, House, MagnifyingGlass} from "phosphor-react";
-import {useEffect, useMemo, useState} from "react";
+import {ArrowLeft, ArrowRight, House, MagnifyingGlass, SignOut} from "phosphor-react";
+import {useEffect, useState} from "react";
 import {useLocation, useNavigationType} from "react-router";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
@@ -12,7 +11,7 @@ import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {usePreloadAffinitiveSearchEntities} from "~/client/search/search_modal.js";
 import {SpaceLayoutSideBarCreateButton} from "~/client/spaces/layout/internal/space_layout_side_bar_create_button.js";
 import {SpaceLayoutSideBarInboxButton} from "~/client/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
-import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
+import {SpaceLayoutSideBarSpaceButton} from "~/client/spaces/layout/internal/space_layout_side_bar_space_button.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {RemLength} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -52,7 +51,7 @@ export function SpaceLayoutSideBar({
             style={{width: spaceLayoutSideBarWidth}}
         >
             <Box paddingTop="5" display="flex" flexDirection="column" alignItems="center" gap="5">
-                <SpaceAvatar space={space} size="8" />
+                <SpaceLayoutSideBarSpaceButton space={space} />
                 <Box display="flex" flexDirection="column" alignItems="center" gap="3">
                     <IconButton
                         size="lg"
@@ -199,9 +198,10 @@ function SpaceLayoutSideBarAccountButton() {
 
     return (
         <MenuButton
-            placement="bottom-end"
+            placement="right-end"
             actions={[
                 {
+                    icon: <SignOut />,
                     label: "Sign out",
                     onPress: () => navigate("/sign-out"),
                 },

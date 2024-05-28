@@ -1,4 +1,4 @@
-import {IconContext, SpinnerGap} from "phosphor-react";
+import {Check, IconContext, SpinnerGap} from "phosphor-react";
 import {ReactNode, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
@@ -8,6 +8,7 @@ import {spacing} from "~/shared/design/spacing.js";
 import {borderRadius, colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
 export function MobileSettingsRow({
+    isSelected = false,
     icon,
     iconPlacement = "leading",
     label,
@@ -16,6 +17,7 @@ export function MobileSettingsRow({
     withBorderTop = false,
     withoutBorderBottom = false,
 }: {
+    isSelected?: boolean;
     icon?: ReactNode;
     iconPlacement?: "leading" | "trailing";
     label: ReactNode;
@@ -124,25 +126,26 @@ export function MobileSettingsRow({
                 <Box flexShrink="0" color="grey-70">
                     <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
                 </Box>
-            ) : (
-                icon &&
-                iconPlacement === "trailing" && (
-                    <Box flexShrink="0" color={isPressed ? "grey-100" : "grey-80"}>
-                        <IconContext.Provider
-                            value={{
-                                size: spacing["4"],
-                                // We need `<IconContext.Provider>` to set the actual color since brand icons
-                                // (e.g. `<ChannelBrandIcon>`) need the actual color in context.
-                                color: isPressed
-                                    ? colorSchemeVars["grey-100"]
-                                    : colorSchemeVars["grey-80"],
-                            }}
-                        >
-                            {icon}
-                        </IconContext.Provider>
-                    </Box>
-                )
-            )}
+            ) : icon && iconPlacement === "trailing" ? (
+                <Box flexShrink="0" color={isPressed ? "grey-100" : "grey-80"}>
+                    <IconContext.Provider
+                        value={{
+                            size: spacing["4"],
+                            // We need `<IconContext.Provider>` to set the actual color since brand icons
+                            // (e.g. `<ChannelBrandIcon>`) need the actual color in context.
+                            color: isPressed
+                                ? colorSchemeVars["grey-100"]
+                                : colorSchemeVars["grey-80"],
+                        }}
+                    >
+                        {icon}
+                    </IconContext.Provider>
+                </Box>
+            ) : isSelected ? (
+                <Box flexShrink="0" color={isPressed ? "grey-100" : "grey-70"}>
+                    <Check size={spacing["4"]} />
+                </Box>
+            ) : null}
         </Box>
     );
 }

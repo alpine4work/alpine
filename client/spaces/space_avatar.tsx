@@ -4,13 +4,15 @@ import {Box} from "~/client/design/box.js";
 import {Spacing} from "~/shared/design/spacing.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
+export const spaceAvatarBorderRadius = "base";
+
 export function SpaceAvatar({space, size}: {space: SpaceModel; size: Spacing}) {
     return (
         <Box
             backgroundColor="grey-30-const"
             width={size}
             height={size}
-            borderRadius="base"
+            borderRadius={spaceAvatarBorderRadius}
             display="flex"
             justifyContent="center"
             alignItems="center"

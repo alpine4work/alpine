@@ -1,9 +1,12 @@
 import {createAlphaSpaceAsAdmin} from "~/server/forum/data/forum_table.js";
+import {getInbox} from "~/server/notifications/data/notifications_table.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import {getPossiblyStaleAccountSearchAffinityIds} from "~/server/search/data/table/search_entity_table.js";
 import {
     dangerouslyAddSpaceAccountAsAdmin,
     expensivelyGetAllSpaceAccounts,
+    getSessionActorAccountSpaceIds,
+    getSpace,
     removeSpaceAccountAsAdmin,
 } from "~/server/spaces/spaces_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -65,5 +68,25 @@ implementRpc(
     async (context, input) => {
         await removeSpaceAccountAsAdmin(context, input);
         return {};
+    },
+);
+
+implementRpc(
+    definition.getSessionActorAccountSpaces,
+    {visibility: ["AppClient"]},
+    async (unauthenticatedContext, input) => {
+        const context = unauthenticatedContext.actor.authorizeSession();
+
+        const {spaceIds} = await getSessionActorAccountSpaceIds(context);
+
+        const spaces = await runAllPromises(
+            Array.from(spaceIds, async spaceId =>
+                runAllPromises([getSpace(context, spaceId), getInbox(context, {spaceId})]).then(
+                    ([space, inbox]) => ({space, inbox}),
+                ),
+            ),
+        );
+
+        return {spaces};
     },
 );

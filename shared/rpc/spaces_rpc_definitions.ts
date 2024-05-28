@@ -1,7 +1,10 @@
+import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 export const expensivelyGetAllSpaceAccounts = defineRpc({
     name: "expensivelyGetAllSpaceAccounts",
@@ -42,4 +45,17 @@ export const removeSpaceAccountAsAdmin = defineRpc({
         accountId: Schema.id<AccountId>(),
     },
     output: {},
+});
+
+export const getSessionActorAccountSpaces = defineRpc({
+    name: "getSessionActorAccountSpaces",
+    input: {},
+    output: {
+        spaces: Schema.array(
+            Schema.object({
+                space: SpaceModel.schema(),
+                inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
+            }),
+        ),
+    },
 });

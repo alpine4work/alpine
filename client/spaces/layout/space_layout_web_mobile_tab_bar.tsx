@@ -75,7 +75,9 @@ export function SpaceLayoutWebMobileTabBar() {
     );
 
     const [selectedTab, setSelectedTab] = useSessionStorage(
-        "cyberworlds/webMobileTab",
+        // If you go to the space switcher, the selected tab should be different in the
+        // new space.
+        `cyberworlds/webMobileTab/${space.id}`,
         WebMobileTabSchema,
         matchedTab ?? "Home",
     );
