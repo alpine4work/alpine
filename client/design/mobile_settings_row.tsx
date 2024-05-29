@@ -68,7 +68,6 @@ export function MobileSettingsRow({
             display="flex"
             alignItems="center"
             gap="2.5"
-            aria-label={label}
             style={{
                 boxShadow:
                     !isPressed && !isHovered

@@ -25,6 +25,7 @@ export const NativeMobileBridgeForTest: typeof NativeMobileBridge & {
     },
     session: {
         signOut: () => {},
+        switchSpace: () => {},
     },
     navigation: {
         preparePush: () => {},
