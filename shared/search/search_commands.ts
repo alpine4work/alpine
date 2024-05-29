@@ -43,6 +43,7 @@ const searchCommandById: {
 } = {
     CreateChat: {
         title: "Create chat",
+        otherHitTexts: ["new chat"],
     },
     CreateChatMessage: {
         title: "Send chat message",

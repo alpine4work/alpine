@@ -4,15 +4,15 @@ import {
     brandIconSplashColorOpacity,
     brandIconSplashColorShade,
 } from "~/client/icons/brand/internal/brand_icon_splash_color.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
-const TaskViewBrandIconMemo = memo(TaskViewBrandIcon);
-export {TaskViewBrandIconMemo as TaskViewBrandIcon};
+const TaskBrandIconMemo = memo(TaskBrandIcon);
+export {TaskBrandIconMemo as TaskBrandIcon};
 
-function TaskViewBrandIcon() {
-    const {color: contextColor} = useContext(IconContext);
+function TaskBrandIcon({size}: {size?: Spacing}) {
+    const {size: contextSize, color: contextColor} = useContext(IconContext);
 
     const color =
         contextColor === colorSchemeVars["grey-90"] || contextColor === colorSchemeVars["grey-100"]
@@ -24,6 +24,8 @@ function TaskViewBrandIcon() {
         opacity: brandIconSplashColorOpacity,
     });
 
+    const actualSize = size ? spacing[size] : contextSize ?? spacing["5"];
+
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -31,28 +33,28 @@ function TaskViewBrandIcon() {
             viewBox="0 0 20 20"
             // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
             // set to rem units so use `style` instead.
-            style={{width: spacing["5"], height: spacing["5"]}}
+            style={{width: actualSize, height: actualSize}}
         >
             <path
                 className={splashColorClassName}
-                d="M6.75 6.02084H18.4167V18.1042C18.4167 19.0246 17.6705 19.7708 16.75 19.7708H8.41667C7.49621 19.7708 6.75 19.0246 6.75 18.1042V6.02084Z"
+                d="M6.25 5.52h11.667v12.084c0 .92-.747 1.667-1.667 1.667H7.917c-.92 0-1.667-.746-1.667-1.667V5.521Z"
             />
             <path
                 fill={color}
                 fillRule="evenodd"
-                d="M8.457 8.375h10.085a1.086 1.086 0 0 1 .99.641 1.076 1.076 0 0 1-.19 1.166l-.007.008-3.835 4.059v3.084a1.078 1.078 0 0 1-.485.9l-1.833 1.212a1.086 1.086 0 0 1-1.683-.898v-4.298l-3.84-4.066a1.078 1.078 0 0 1 .797-1.808h.001Zm.394 1.25 3.728 3.946c.11.116.17.27.17.43v4.231l1.5-.991V14c0-.16.062-.314.171-.43l3.729-3.946H8.85Zm3.641 8.777Z"
+                d="M6.875 10c0-.345.28-.625.625-.625h5a.625.625 0 1 1 0 1.25h-5A.625.625 0 0 1 6.875 10ZM6.875 12.5c0-.345.28-.625.625-.625H10a.625.625 0 1 1 0 1.25H7.5a.625.625 0 0 1-.625-.625Z"
                 clipRule="evenodd"
             />
             <path
                 fill={color}
                 fillRule="evenodd"
-                d="M3.125 3.125c0-.345.28-.625.625-.625h12.5c.345 0 .625.28.625.625V6.25a.625.625 0 1 1-1.25 0v-2.5H4.375v11.875a1.25 1.25 0 0 0 1.25 1.25H9.25a.625.625 0 1 1 0 1.25H5.625a2.5 2.5 0 0 1-2.5-2.5v-12.5Z"
+                d="M3.125 3.125c0-.345.28-.625.625-.625h12.5c.345 0 .625.28.625.625V11a.625.625 0 1 1-1.25 0V3.75H4.375v11.875a1.25 1.25 0 0 0 1.25 1.25h4.833a.625.625 0 1 1 0 1.25H5.625a2.5 2.5 0 0 1-2.5-2.5v-12.5Z"
                 clipRule="evenodd"
             />
             <path
                 fill={color}
                 fillRule="evenodd"
-                d="M6.25 1.25c.345 0 .625.28.625.625v2.5a.625.625 0 1 1-1.25 0v-2.5c0-.345.28-.625.625-.625ZM10 1.25c.345 0 .625.28.625.625v2.5a.625.625 0 1 1-1.25 0v-2.5c0-.345.28-.625.625-.625ZM13.75 1.25c.345 0 .625.28.625.625v2.5a.625.625 0 1 1-1.25 0v-2.5c0-.345.28-.625.625-.625Z"
+                d="M6.25 1.25c.345 0 .625.28.625.625v2.5a.625.625 0 1 1-1.25 0v-2.5c0-.345.28-.625.625-.625ZM10 1.25c.345 0 .625.28.625.625v2.5a.625.625 0 1 1-1.25 0v-2.5c0-.345.28-.625.625-.625ZM13.75 1.25c.345 0 .625.28.625.625v2.5a.625.625 0 1 1-1.25 0v-2.5c0-.345.28-.625.625-.625ZM19.395 12.891a.625.625 0 0 1 0 .884L15.02 18.15a.625.625 0 0 1-.884 0l-1.875-1.875a.625.625 0 1 1 .884-.884l1.433 1.433 3.933-3.933a.625.625 0 0 1 .884 0Z"
                 clipRule="evenodd"
             />
         </svg>

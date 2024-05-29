@@ -1,20 +1,20 @@
 import escapeHtml from "escape-html";
-import {
-    ChatsCircle,
-    EnvelopeOpen,
-    FileText,
-    Funnel,
-    Hash,
-    IconContext,
-    ListChecks,
-    Table,
-} from "phosphor-react";
+import {IconContext} from "phosphor-react";
 import {Fragment, ReactNode, useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
+import {ChannelBrandIcon} from "~/client/icons/brand/channel_brand_icon.js";
+import {ChatBrandIcon} from "~/client/icons/brand/chat_brand_icon.js";
+import {DocumentBrandIcon} from "~/client/icons/brand/document_brand_icon.js";
+import {DocumentCommentBrandIcon} from "~/client/icons/brand/document_comment_brand_icon.js";
+import {PostBrandIcon} from "~/client/icons/brand/post_brand_icon.js";
+import {PostCommentBrandIcon} from "~/client/icons/brand/post_comment_brand_icon.js";
+import {TaskBrandIcon} from "~/client/icons/brand/task_brand_icon.js";
+import {TaskCollectionBrandIcon} from "~/client/icons/brand/task_collection_brand_icon.js";
+import {TaskQueryBrandIcon} from "~/client/icons/brand/task_query_brand_icon.js";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -29,6 +29,7 @@ import {
     colorSchemeVars,
     fontSizes,
     greyElevated2ClassName,
+    searchStyles,
     sprinkles,
 } from "~/shared/styles/styles.js";
 
@@ -41,15 +42,14 @@ import {
  * latency. At least 2 lines means we need to load less data to fill the
  * virtualization window.
  */
-const minSearchBodyTextSnippetLineCount = 2;
+const minSearchBodyTextSnippetLineCount = 1;
 const minSearchBodyTextSnippetLineCountWithTitle = 0;
 
 const paddingY = "4";
-const searchTypeDisplayNameFontSize = "50";
 const searchBodyTextSnippetFontSize = "75";
 const searchTitleFontSize = "100";
-const searchTypeDisplayMarginBottom = "1";
 const searchTitleMarginBottom = "1";
+const searchResultMediaViewSize = "9";
 
 const minSearchBodyTextSnippetHeight: RemLength = `${
     parseRemLengthNumber(fontSizes[searchBodyTextSnippetFontSize].lineHeight) *
@@ -62,21 +62,16 @@ const minSearchBodyTextSnippetHeightWithTitle: RemLength = `${
 }rem`;
 
 const minSearchResultViewHeightWithoutPaddingY: RemLength = `${Math.min(
-    parseRemLengthNumber(
-        addRemLengths(
-            fontSizes[searchTypeDisplayNameFontSize].lineHeight,
-            spacing[searchTypeDisplayMarginBottom],
-            fontSizes[searchTitleFontSize].lineHeight,
-            minSearchBodyTextSnippetHeightWithTitle,
+    Math.max(
+        parseRemLengthNumber(spacing[searchResultMediaViewSize]),
+        parseRemLengthNumber(
+            addRemLengths(
+                fontSizes[searchTitleFontSize].lineHeight,
+                minSearchBodyTextSnippetHeightWithTitle,
+            ),
         ),
     ),
-    parseRemLengthNumber(
-        addRemLengths(
-            fontSizes[searchTypeDisplayNameFontSize].lineHeight,
-            spacing[searchTypeDisplayMarginBottom],
-            minSearchBodyTextSnippetHeight,
-        ),
-    ),
+    parseRemLengthNumber(addRemLengths(minSearchBodyTextSnippetHeight)),
 )}rem`;
 
 export const minSearchResultViewHeight = addRemLengths(
@@ -101,6 +96,32 @@ export function SearchResultView({
     onDoubleClick: () => void;
 }) {
     const typeDisplay = useMemo(() => getSearchResultTypeDisplay(result.id), [result.id]);
+
+    const typeDisplayIcon = (
+        <Box
+            // Brand icons only render in the `grey-80` shade and above. So we can maintain
+            // proper contrast between the icon line and color splash. However, here we
+            // want to render a lighter line color (e.g. `grey-60`) to not distract from
+            // the result title. We calculate the opacity to get us from `grey-80` to a
+            // lighter line color (e.g. `grey-60`) and apply it. By applying opacity the
+            // color splash also gets lighter to maintain proper contrast between the lines
+            // and the color splash.
+            className={searchStyles.brandIconOpacityClassName}
+            display="inline-flex"
+            alignItems="center"
+            marginRight="1.5"
+            style={{height: "1lh", verticalAlign: "top"}}
+        >
+            <IconContext.Provider
+                value={{
+                    color: searchStyles.brandIconColor,
+                    size: spacing["4"],
+                }}
+            >
+                {typeDisplay.icon}
+            </IconContext.Provider>
+        </Box>
+    );
 
     return (
         <Box
@@ -155,54 +176,12 @@ export function SearchResultView({
                     }}
                 >
                     <Box display="flex" gap="3" alignItems="center">
-                        {result.media ? (
-                            <SearchResultMediaView media={result.media} />
-                        ) : typeDisplay.iconMedia ? (
-                            <Box
-                                flexShrink="0"
-                                position="relative"
-                                width={searchResultMediaViewSize}
-                                height={searchResultMediaViewSize}
-                                display="flex"
-                                alignItems="center"
-                                justifyContent="center"
-                            >
-                                <Box
-                                    width="9"
-                                    height="9"
-                                    borderRadius="full"
-                                    border={isSelected ? "grey-10" : "grey-5"}
-                                    color="grey-70"
-                                    display="flex"
-                                    justifyContent="center"
-                                    alignItems="center"
-                                >
-                                    <IconContext.Provider
-                                        value={{
-                                            size: spacing["5"],
-                                            color: "currentColor",
-                                        }}
-                                    >
-                                        {typeDisplay.iconMedia}
-                                    </IconContext.Provider>
-                                </Box>
-                            </Box>
-                        ) : null}
+                        {result.media && <SearchResultMediaView media={result.media} />}
                         <Box
                             flexGrow="1"
                             overflow="hidden"
                             style={{minHeight: minSearchResultViewHeightWithoutPaddingY}}
                         >
-                            <Box
-                                fontSize={searchTypeDisplayNameFontSize}
-                                color="grey-40"
-                                paddingBottom={searchTypeDisplayMarginBottom}
-                                display="flex"
-                                alignItems="center"
-                                gap="1"
-                            >
-                                <Box>{typeDisplay.name}</Box>
-                            </Box>
                             {result.title !== null && (
                                 <Box
                                     overflow="hidden"
@@ -228,16 +207,19 @@ export function SearchResultView({
                                         fontFeatureSettings: '"calt" on',
                                     }}
                                 >
-                                    {result.media?.type === "TaskCollectionColor" ? (
+                                    {typeDisplayIcon}
+                                    {result.media?.type === "TaskCollectionColor" &&
+                                    result.media.color !== null ? (
                                         <Box
                                             display="inline-flex"
                                             alignItems="center"
+                                            marginLeft="1"
+                                            marginRight="1.5"
                                             style={{height: "1lh", verticalAlign: "top"}}
                                         >
                                             <Box
                                                 width="2"
                                                 height="2"
-                                                marginRight="1.5"
                                                 borderRadius="full"
                                                 backgroundColor={getTaskCollectionColor(
                                                     result.media.color,
@@ -270,6 +252,7 @@ export function SearchResultView({
                                             : minSearchBodyTextSnippetHeight,
                                 }}
                             >
+                                {result.title === null && typeDisplayIcon}
                                 {typeDisplay.isAccountMediaAuthor &&
                                 result.media?.type === "Account" ? (
                                     <>
@@ -292,7 +275,7 @@ export function SearchResultView({
                                             <span
                                                 key={index}
                                                 className={sprinkles({
-                                                    color: "grey-100",
+                                                    color: "grey-90",
                                                     fontStyle: "semi-bold",
                                                 })}
                                             >
@@ -323,9 +306,8 @@ export function SearchResultView({
  *   result body snippet to communicate authorship.
  */
 type SearchResultTypeDisplay = {
-    name: string;
+    icon: ReactNode;
     isAccountMediaAuthor?: boolean;
-    iconMedia?: ReactNode;
 };
 
 // NOTE(calebmer): The icons used here for create actions are the same icons
@@ -335,46 +317,25 @@ function getSearchResultTypeDisplay(resultId: SearchResultId): SearchResultTypeD
     switch (resultId) {
         case "CreateChat":
         case "CreateChatMessage": {
-            return {
-                name: "Action",
-                iconMedia: <ChatsCircle />,
-            };
+            return {icon: <ChatBrandIcon />};
         }
         case "CreatePost": {
-            return {
-                name: "Action",
-                iconMedia: <EnvelopeOpen />,
-            };
+            return {icon: <PostBrandIcon />};
         }
         case "CreateDocument": {
-            return {
-                name: "Action",
-                iconMedia: <FileText />,
-            };
+            return {icon: <DocumentBrandIcon />};
         }
         case "CreateTask": {
-            return {
-                name: "Action",
-                iconMedia: <ListChecks />,
-            };
+            return {icon: <TaskBrandIcon />};
         }
         case "CreateChannel": {
-            return {
-                name: "Action",
-                iconMedia: <Hash />,
-            };
+            return {icon: <ChannelBrandIcon />};
         }
         case "CreateTaskCollection": {
-            return {
-                name: "Action",
-                iconMedia: <Table />,
-            };
+            return {icon: <TaskCollectionBrandIcon />};
         }
         case "CreateTaskView": {
-            return {
-                name: "Action",
-                iconMedia: <Funnel />,
-            };
+            return {icon: <TaskQueryBrandIcon />};
         }
         case "TaskNotepad": {
             // We label the task notepad as a task "collection" since it is a collection of
@@ -386,7 +347,7 @@ function getSearchResultTypeDisplay(resultId: SearchResultId): SearchResultTypeD
         case "TaskQueryFilteredToAssigneeIsCurrentAccount":
         case "TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive":
         case "TaskQueryFilteredToAssignerIsCurrentAccount": {
-            return {name: "Task view"};
+            return {icon: <TaskQueryBrandIcon />};
         }
         default: {
             const entityIdObject = parseSearchEntityId(resultId);
@@ -400,53 +361,51 @@ function getSearchResultTypeDisplayForEntity(
 ): SearchResultTypeDisplay {
     switch (type) {
         case "Account": {
-            return {name: "Person"};
+            return {icon: <ChatBrandIcon />};
         }
         case "Document": {
-            return {name: "Document"};
+            return {icon: <DocumentBrandIcon />};
         }
         case "DocumentComment": {
             return {
-                name: "Document comment",
+                icon: <DocumentCommentBrandIcon />,
                 isAccountMediaAuthor: true,
             };
         }
         case "Channel": {
-            return {name: "Channel"};
+            return {icon: <ChannelBrandIcon />};
         }
         case "Post": {
             return {
-                name: "Post",
+                icon: <PostBrandIcon />,
                 isAccountMediaAuthor: true,
             };
         }
         case "PostComment": {
             return {
-                name: "Post comment",
+                icon: <PostCommentBrandIcon />,
                 isAccountMediaAuthor: true,
             };
         }
         case "Chat": {
-            return {name: "Chat"};
+            return {icon: <ChatBrandIcon />};
         }
         case "ChatMessage": {
             return {
-                name: "Chat message",
+                icon: <ChatBrandIcon />,
                 isAccountMediaAuthor: true,
             };
         }
         case "Task": {
-            return {name: "Task"};
+            return {icon: <TaskBrandIcon />};
         }
         case "TaskCollection": {
-            return {name: "Task collection"};
+            return {icon: <TaskCollectionBrandIcon />};
         }
         default:
             throw exhaustive(type);
     }
 }
-
-const searchResultMediaViewSize = "9";
 
 function SearchResultMediaView({media}: {media: SearchResultMedia}) {
     let node: ReactNode;

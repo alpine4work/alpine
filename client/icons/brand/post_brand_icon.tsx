@@ -8,10 +8,10 @@ import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
-const TaskCollectionBrandIconMemo = memo(TaskCollectionBrandIcon);
-export {TaskCollectionBrandIconMemo as TaskCollectionBrandIcon};
+const PostBrandIconMemo = memo(PostBrandIcon);
+export {PostBrandIconMemo as PostBrandIcon};
 
-function TaskCollectionBrandIcon({size}: {size?: Spacing}) {
+function PostBrandIcon({size}: {size?: Spacing}) {
     const {size: contextSize, color: contextColor} = useContext(IconContext);
 
     const color =
@@ -20,7 +20,7 @@ function TaskCollectionBrandIcon({size}: {size?: Spacing}) {
             : colorSchemeVars["grey-80"];
 
     const splashColorClassName = sprinkles({
-        fill: mapObjectValues(brandIconSplashColorShade, shade => `green-${shade}` as const),
+        fill: mapObjectValues(brandIconSplashColorShade, shade => `orange-${shade}` as const),
         opacity: brandIconSplashColorOpacity,
     });
 
@@ -37,30 +37,30 @@ function TaskCollectionBrandIcon({size}: {size?: Spacing}) {
         >
             <path
                 className={splashColorClassName}
-                d="M6.25 5.52h11.667v12.084c0 .92-.747 1.667-1.667 1.667H7.917c-.92 0-1.667-.746-1.667-1.667V5.521Z"
+                d="M4.896 8.02c0-.23.187-.416.417-.416h13.542c.23 0 .416.187.416.417v10.417c0 .23-.186.416-.416.416H5.313a.417.417 0 0 1-.417-.416V8.02Z"
             />
             <path
                 fill={color}
                 fillRule="evenodd"
-                d="M3.125 3.125c0-.345.28-.625.625-.625h12.5c.345 0 .625.28.625.625V6.5a.625.625 0 1 1-1.25 0V3.75H4.375v11.875c0 .332.132.65.366.884a.625.625 0 0 1-.884.884 2.5 2.5 0 0 1-.732-1.768v-12.5Z"
+                d="M15 16.25c-.925 0-1.683.611-1.896 1.41a.625.625 0 0 1-1.208-.32C12.257 15.982 13.52 15 15 15c1.482 0 2.743.983 3.104 2.34a.625.625 0 1 1-1.208.32c-.213-.799-.971-1.41-1.896-1.41Z"
                 clipRule="evenodd"
             />
             <path
                 fill={color}
                 fillRule="evenodd"
-                d="M6.25 1.25c.345 0 .625.28.625.625v2.5a.625.625 0 1 1-1.25 0v-2.5c0-.345.28-.625.625-.625ZM10 1.25c.345 0 .625.28.625.625v2.5a.625.625 0 1 1-1.25 0v-2.5c0-.345.28-.625.625-.625ZM13.75 1.25c.345 0 .625.28.625.625v2.5a.625.625 0 1 1-1.25 0v-2.5c0-.345.28-.625.625-.625ZM6.375 9c0-.345.28-.625.625-.625h12c.345 0 .625.28.625.625v8.5a1.125 1.125 0 0 1-1.125 1.125h-11A1.125 1.125 0 0 1 6.375 17.5V9Zm1.25.625v7.75h10.75v-7.75H7.625Z"
+                d="M15 12.5a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5Zm-2.5 1.25a2.5 2.5 0 1 1 5 0 2.5 2.5 0 0 1-5 0Z"
                 clipRule="evenodd"
             />
             <path
                 fill={color}
                 fillRule="evenodd"
-                d="M6.375 12c0-.345.28-.625.625-.625h12a.625.625 0 1 1 0 1.25H7A.625.625 0 0 1 6.375 12Z"
+                d="M2.241 4.116a1.25 1.25 0 0 1 .884-.366h13.75A1.25 1.25 0 0 1 18.125 5v4.375a.625.625 0 1 1-1.25 0V5H3.125v10.625h6.25a.625.625 0 1 1 0 1.25h-6.25a1.25 1.25 0 0 1-1.25-1.25V5c0-.332.132-.65.366-.884Z"
                 clipRule="evenodd"
             />
             <path
                 fill={color}
                 fillRule="evenodd"
-                d="M11 11.375c.345 0 .625.28.625.625v6a.625.625 0 1 1-1.25 0v-6c0-.345.28-.625.625-.625Z"
+                d="M5.625 8.542c0-.345.28-.625.625-.625h5a.625.625 0 1 1 0 1.25h-5a.625.625 0 0 1-.625-.625ZM5.625 11.042c0-.345.28-.625.625-.625h2.5a.625.625 0 0 1 0 1.25h-2.5a.625.625 0 0 1-.625-.625Z"
                 clipRule="evenodd"
             />
         </svg>

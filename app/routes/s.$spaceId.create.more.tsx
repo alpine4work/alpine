@@ -2,7 +2,7 @@ import {Box} from "~/client/design/box.js";
 import {MobileSettingsRow} from "~/client/design/mobile_settings_row.js";
 import {ChannelBrandIcon} from "~/client/icons/brand/channel_brand_icon.js";
 import {TaskCollectionBrandIcon} from "~/client/icons/brand/task_collection_brand_icon.js";
-import {TaskViewBrandIcon} from "~/client/icons/brand/task_view_brand_icon.js";
+import {TaskQueryBrandIcon} from "~/client/icons/brand/task_query_brand_icon.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
@@ -55,7 +55,7 @@ export default function CreateMoreRoute() {
                     }}
                 />
                 <MobileSettingsRow
-                    icon={<TaskViewBrandIcon />}
+                    icon={<TaskQueryBrandIcon />}
                     label="Task view"
                     pressErrorTitle="Couldn’t create task view"
                     onPress={async () => {

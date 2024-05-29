@@ -4,15 +4,15 @@ import {
     brandIconSplashColorOpacity,
     brandIconSplashColorShade,
 } from "~/client/icons/brand/internal/brand_icon_splash_color.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 const ChannelBrandIconMemo = memo(ChannelBrandIcon);
 export {ChannelBrandIconMemo as ChannelBrandIcon};
 
-function ChannelBrandIcon() {
-    const {color: contextColor} = useContext(IconContext);
+function ChannelBrandIcon({size}: {size?: Spacing}) {
+    const {size: contextSize, color: contextColor} = useContext(IconContext);
 
     const color =
         contextColor === colorSchemeVars["grey-90"] || contextColor === colorSchemeVars["grey-100"]
@@ -24,6 +24,8 @@ function ChannelBrandIcon() {
         opacity: brandIconSplashColorOpacity,
     });
 
+    const actualSize = size ? spacing[size] : contextSize ?? spacing["5"];
+
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -31,7 +33,7 @@ function ChannelBrandIcon() {
             viewBox="0 0 20 20"
             // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
             // set to rem units so use `style` instead.
-            style={{width: spacing["5"], height: spacing["5"]}}
+            style={{width: actualSize, height: actualSize}}
         >
             <path
                 className={splashColorClassName}

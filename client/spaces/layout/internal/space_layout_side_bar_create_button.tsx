@@ -9,7 +9,7 @@ import {DocumentBrandBigIcon} from "~/client/icons/brand/document_brand_big_icon
 import {PostBrandBigIcon} from "~/client/icons/brand/post_brand_big_icon.js";
 import {TaskBrandBigIcon} from "~/client/icons/brand/task_brand_big_icon.js";
 import {TaskCollectionBrandIcon} from "~/client/icons/brand/task_collection_brand_icon.js";
-import {TaskViewBrandIcon} from "~/client/icons/brand/task_view_brand_icon.js";
+import {TaskQueryBrandIcon} from "~/client/icons/brand/task_query_brand_icon.js";
 import {usePeekStackContext} from "~/client/peek/peek_stack.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {spacing} from "~/shared/design/spacing.js";
@@ -112,7 +112,7 @@ export function SpaceLayoutSideBarCreateButton() {
                         actions: [
                             {
                                 label: "Channel",
-                                icon: <ChannelBrandIcon />,
+                                icon: <ChannelBrandIcon size="5" />,
                                 pressErrorTitle: "Couldn’t create channel",
                                 onPress: async () => {
                                     const channelId = generateId();
@@ -124,7 +124,7 @@ export function SpaceLayoutSideBarCreateButton() {
                             },
                             {
                                 label: "Task collection",
-                                icon: <TaskCollectionBrandIcon />,
+                                icon: <TaskCollectionBrandIcon size="5" />,
                                 pressErrorTitle: "Couldn’t create task collection",
                                 onPress: async () => {
                                     const collectionId = generateId();
@@ -136,7 +136,7 @@ export function SpaceLayoutSideBarCreateButton() {
                             },
                             {
                                 label: "Task view",
-                                icon: <TaskViewBrandIcon />,
+                                icon: <TaskQueryBrandIcon size="5" />,
                                 pressErrorTitle: "Couldn’t create task view",
                                 onPress: async () => {
                                     await peekStackContext.push(`/s/${space.id}/tasks/view`);

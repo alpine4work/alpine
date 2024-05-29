@@ -36,6 +36,7 @@ export * from "~/shared/styles/internal/pointer_events.css.js";
 export * from "~/shared/styles/internal/overlay_animated.css.js";
 export * from "~/shared/styles/internal/press_opacity_overlay.css.js";
 export * as scrollbarStyles from "~/shared/styles/internal/scrollbar.css.js";
+export * as searchStyles from "~/shared/styles/internal/search.css.js";
 export * as spaceLayoutStyles from "~/shared/styles/internal/space_layout.css.js";
 export * from "~/shared/styles/internal/sprinkles.css.js";
 export * as tasksStyles from "~/shared/styles/internal/tasks.css.js";
