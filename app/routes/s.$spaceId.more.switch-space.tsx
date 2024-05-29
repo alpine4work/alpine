@@ -1,6 +1,7 @@
 import {Box} from "~/client/design/box.js";
 import {MobileSettingsRow} from "~/client/design/mobile_settings_row.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
@@ -86,14 +87,21 @@ export default function MoreSwitchSpaceRoute() {
                         pressErrorTitle="Couldn’t switch to space"
                         onPress={async () => {
                             if (otherSpace.id === space.id) return;
-                            // NOCOMMIT: Native mobile implementation!
 
-                            if (otherSpace.alphaAccessDefaultChannelId) {
-                                await rootNavigate(
-                                    `/s/${otherSpace.id}/channels/${otherSpace.alphaAccessDefaultChannelId}`,
-                                );
+                            if (NativeMobileBridge) {
+                                NativeMobileBridge.session.switchSpace(otherSpace.id);
+
+                                // `switchSpace()` should destroy the current web browsing context and create a
+                                // new one.
+                                await new Promise(() => {});
                             } else {
-                                await rootNavigate(`/s/${otherSpace.id}`);
+                                if (otherSpace.alphaAccessDefaultChannelId) {
+                                    await rootNavigate(
+                                        `/s/${otherSpace.id}/channels/${otherSpace.alphaAccessDefaultChannelId}`,
+                                    );
+                                } else {
+                                    await rootNavigate(`/s/${otherSpace.id}`);
+                                }
                             }
                         }}
                     />

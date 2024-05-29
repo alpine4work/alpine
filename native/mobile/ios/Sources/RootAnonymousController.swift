@@ -4,6 +4,8 @@ import WebKit
 
 // NOCOMMIT: Top bars and back buttons on sign in routes
 class RootAnonymousController: WebNavigationController, SceneDelegateRootController {
+    var webNavigationController: WebNavigationController { self }
+
     private let signIn: (String, String) -> Void
 
     init(signIn: @escaping (String, String) -> Void) {

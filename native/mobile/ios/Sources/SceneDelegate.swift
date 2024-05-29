@@ -6,6 +6,8 @@ import WebKit
 private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "SceneDelegate")
 
 protocol SceneDelegateRootController: UIViewController {
+    var webNavigationController: WebNavigationController { get }
+
     func setWindowSafeAreaInsets(_ windowSafeAreaInsets: UIEdgeInsets)
 }
 
@@ -54,7 +56,10 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         if let session = Session.get() {
             rootViewController = RootTabBarController(
                 session: session,
-                signOut: { [weak self] in self?.signOut() }
+                signOut: { [weak self] in self?.signOut() },
+                switchSpace: { [weak self] (spaceId, session) in
+                    self?.switchSpace(spaceId: spaceId, session: session)
+                }
             )
         } else {
             rootViewController = RootAnonymousController(signIn: { [weak self] (token, spaceId) in
@@ -94,15 +99,48 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         // they were in.
         let session = Session.set(token: token, spaceId: spaceId)
 
-        guard let window = self.state?.window else { return }
+        let newRootViewController = RootTabBarController(
+            session: session,
+            signOut: { [weak self] in self?.signOut() },
+            switchSpace: { [weak self] (spaceId, session) in
+                self?.switchSpace(spaceId: spaceId, session: session)
+            }
+        )
 
-        let oldRootViewController = self.state!.rootViewController
+        transitionRootViewController(newRootViewController)
+    }
+
+    private func signOut() {
+        Session.delete()
+
+        let newRootViewController = RootAnonymousController(signIn: {
+            [weak self] (token, spaceId) in self?.signIn(token: token, spaceId: spaceId)
+        })
+
+        transitionRootViewController(newRootViewController)
+    }
+
+    private func switchSpace(spaceId: String, session: Session) {
+        let session = Session.set(token: session.token, spaceId: spaceId)
 
         let newRootViewController = RootTabBarController(
             session: session,
-            signOut: { [weak self] in self?.signOut() }
+            signOut: { [weak self] in self?.signOut() },
+            switchSpace: { [weak self] (spaceId, session) in
+                self?.switchSpace(spaceId: spaceId, session: session)
+            }
         )
+
+        transitionRootViewController(newRootViewController)
+    }
+
+    private func transitionRootViewController(_ newRootViewController: SceneDelegateRootController)
+    {
+        guard let window = self.state?.window else { return }
+
         newRootViewController.setWindowSafeAreaInsets(window.safeAreaInsets)
+
+        let oldRootViewController = self.state!.rootViewController
 
         let action = { [weak self] in
             guard let this = self, this.state?.window == window else { return }
@@ -160,88 +198,6 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
 
                 // Make sure we've actually stopped loading...
                 guard !newRootViewController.webNavigationController.isLoading else { return }
-
-                this.transitionStateById[transitionStateId]?.timer.invalidate()
-                this.transitionStateById[transitionStateId]?.observation.invalidate()
-                this.transitionStateById.removeValue(forKey: transitionStateId)
-
-                action()
-            }
-
-            transitionStateById[transitionStateId] = TransitionState(
-                timer: timer,
-                observation: observation
-            )
-        }
-
-    }
-
-    private func signOut() {
-        Session.delete()
-
-        guard let window = self.state?.window else { return }
-
-        let oldRootViewController = self.state!.rootViewController
-
-        let newRootViewController = RootAnonymousController(signIn: {
-            [weak self] (token, spaceId) in self?.signIn(token: token, spaceId: spaceId)
-        })
-        newRootViewController.setWindowSafeAreaInsets(window.safeAreaInsets)
-
-        let action = { [weak self] in
-            guard let this = self, this.state?.window == window else { return }
-
-            UIView.transition(
-                with: window,
-                duration: 0.35,
-                options: [.transitionFlipFromLeft],
-                animations: {
-                    this.state!.rootViewController = newRootViewController
-                    window.rootViewController = newRootViewController
-                },
-                completion: { (_) in
-                    let oldRootViewControllerRetainCount =
-                        CFGetRetainCount(oldRootViewController) - 2
-                    if oldRootViewControllerRetainCount > 0 {
-                        logger.warning(
-                            "Old root view controller had \(oldRootViewControllerRetainCount, privacy: .public) more references than expected, there may be a memory cycle preventing deinitialization!"
-                        )
-                    }
-                }
-            )
-        }
-
-        if !newRootViewController.isLoading {
-            action()
-        }
-        // Race to see whether `delayScreenTransitionLoadingIndicatorLimitSeconds`
-        // completes first or `isLoading` is set to false first.
-        else {
-            let transitionStateId = nextTransitionStateId
-            nextTransitionStateId += 1
-
-            let timer = Timer.scheduledTimer(
-                withTimeInterval: delayScreenTransitionLoadingIndicatorLimitSeconds,
-                repeats: false
-            ) { [weak self] _ in
-                guard let this = self else { return }
-
-                this.transitionStateById[transitionStateId]?.timer.invalidate()
-                this.transitionStateById[transitionStateId]?.observation.invalidate()
-                this.transitionStateById.removeValue(forKey: transitionStateId)
-
-                action()
-            }
-
-            // Add some tolerance to reduce timer energy impact.
-            timer.tolerance = 0.1
-
-            let observation = newRootViewController.observe(\.isLoading, options: []) {
-                [weak self] _, _ in
-                guard let this = self else { return }
-
-                // Make sure we've actually stopped loading...
-                guard !newRootViewController.isLoading else { return }
 
                 this.transitionStateById[transitionStateId]?.timer.invalidate()
                 this.transitionStateById[transitionStateId]?.observation.invalidate()

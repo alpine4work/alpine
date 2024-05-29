@@ -44,6 +44,10 @@ private let logger = Logger(
     )
     @objc optional func webNavigationController(
         _ webNavigationController: WebNavigationController,
+        switchSpace spaceId: String
+    )
+    @objc optional func webNavigationController(
+        _ webNavigationController: WebNavigationController,
         didAddWebScrollView webScrollView: UIScrollView,
         navigationEntry webNavigationEntry: WebNavigationEntry,
         isMain: Bool,
@@ -618,7 +622,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     required init(coder: NSCoder) { fatalError("Unimplemented") }
 
     deinit {
-        logger.info("Deinitializing")
+        let url = webView.url
+        logger.info("Deinitializing at: \(url?.absoluteString ?? "nil", privacy: .public)")
 
         webViewHealthTimer?.invalidate()
         webViewHealthTimer = nil
@@ -1485,6 +1490,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             webView.tintColor = initThemeTintColor()
         } else if messageBody == "session.signOut" {
             webDelegate?.webNavigationController?(signOut: self)
+        } else if messageBody.starts(with: "session.switchSpace:") {
+            let spaceId = messageBody.suffix(
+                from: messageBody.index(messageBody.startIndex, offsetBy: 20)
+            )
+
+            webDelegate?.webNavigationController?(self, switchSpace: String(spaceId))
         } else if messageBody.starts(with: "modal.presentDialog:") {
             let optionsString = messageBody.suffix(
                 from: messageBody.index(messageBody.startIndex, offsetBy: 20)
@@ -3396,6 +3407,9 @@ private let webBridgeSource = """
             session: {
                 signOut: () => {
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage("session.signOut");
+                },
+                switchSpace: spaceId => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`session.switchSpace:${spaceId}`);
                 },
             },
             navigation: {

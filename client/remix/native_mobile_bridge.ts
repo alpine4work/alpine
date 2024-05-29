@@ -1,4 +1,5 @@
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * Each of the tabs in our mobile app's tab bar.
@@ -95,6 +96,12 @@ export const NativeMobileBridge: {
          * with a new one.
          */
         signOut(): void;
+
+        /**
+         * Switch to a different space in the native mobile app. This function destroys
+         * the current web browsing context and replaces it with a new one.
+         */
+        switchSpace(spaceId: SpaceId): void;
     };
 
     /**

@@ -4,10 +4,12 @@ import WebKit
 class RootTabBarController: UITabBarController, SceneDelegateRootController,
     UITabBarControllerDelegate, WebNavigationControllerDelegate
 {
-    let spaceId: String
+    var spaceId: String { session.spaceId }
     let webNavigationController: WebNavigationController
 
+    private let session: Session
     private let signOut: () -> Void
+    private let switchSpace: (String, Session) -> Void
 
     private weak var mainScrollView: UIScrollView?
     private weak var mainNavigationEntry: WebNavigationEntry?
@@ -27,9 +29,14 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     /// keyboard substitute.
     private var isWebDisablingTabBar = false
 
-    init(session: Session, signOut: @escaping () -> Void) {
-        self.spaceId = session.spaceId
+    init(
+        session: Session,
+        signOut: @escaping () -> Void,
+        switchSpace: @escaping (String, Session) -> Void
+    ) {
+        self.session = session
         self.signOut = signOut
+        self.switchSpace = switchSpace
 
         // We use a non-persistent store while the user is signed out, but once they're
         // signed in we remember their `localStorage`, cookies, etc.
@@ -69,7 +76,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             // initialPath: "/s/\(spaceId)/tasks/view",
             // initialPath: "/s/\(spaceId)/chat/new",
             // initialPath: "/s/\(spaceId)/posts/sjb6kfpyxyew5yytwhq4fpmcjc",
-            initialPath: "/s/\(spaceId)/posts/r4tahf9swd0zrn0p4c5e6s68v0",
+            initialPath: "/s/\(session.spaceId)/posts/r4tahf9swd0zrn0p4c5e6s68v0",
             // initialPath:
             //     "/s/\(spaceId)/notifications/channel-posts/qk8jepk9epmb48b3fbaykw4vk0-8546",  // 10 posts
             // initialPath:
@@ -83,11 +90,11 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             // initialPath:
             //     "/s/\(spaceId)/documents/2v1kz5r5w3tdb7zv6xt98wm7qg/comments/h2wjjg78958c16j5bm42cphwy4",
             initialPathByTab: WebNavigationController.InitialPathByTab(
-                home: "/s/\(spaceId)",
-                search: "/s/\(spaceId)/search",
-                create: "/s/\(spaceId)/create",
-                inbox: "/s/\(spaceId)/inbox",
-                more: "/s/\(spaceId)/more"
+                home: "/s/\(session.spaceId)",
+                search: "/s/\(session.spaceId)/search",
+                create: "/s/\(session.spaceId)/create",
+                inbox: "/s/\(session.spaceId)/inbox",
+                more: "/s/\(session.spaceId)/more"
             ),
             websiteDataStore: websiteDataStore
         )
@@ -194,6 +201,11 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     func webNavigationController(signOut webNavigationController: WebNavigationController) {
         signOut()
     }
+
+    func webNavigationController(
+        _ webNavigationController: WebNavigationController,
+        switchSpace spaceId: String
+    ) { switchSpace(spaceId, session) }
 
     func webNavigationController(
         _ navigationController: WebNavigationController,
