@@ -71,6 +71,7 @@ export function parseSearchContent(
         extensions: [gfmStrikethrough()],
         mdastExtensions: [gfmStrikethroughFromMarkdown()],
     });
+
     const firstInputRootChildNode = inputRootNode.children[0];
 
     const titleInputRootChildNode =
@@ -320,9 +321,76 @@ export function parseSearchContent(
             }
 
             case "inlineCode": {
-                if (inputNode.value.length > 0) {
-                    yield schema.text(inputNode.value, [schema.marks.code.create()]);
+                if (inputNode.value.length === 0) break;
+
+                let emphasisTagOpenCount = 0;
+                let startIndex = 0;
+                let length = 0;
+
+                const parts = inputNode.value.split(/(\\?<\/?em\s*>)/g);
+
+                const print = () => {
+                    if (length === 0) return [];
+
+                    if (emphasisTagOpenCount === 0) {
+                        return [
+                            schema.text(inputNode.value.slice(startIndex, startIndex + length), [
+                                schema.marks.code.create(),
+                            ]),
+                        ];
+                    } else {
+                        return [
+                            schema.text(inputNode.value.slice(startIndex, startIndex + length), [
+                                schema.marks.code.create(),
+                                schema.marks.highlight.create({
+                                    color: HighlightColor.Orange,
+                                }),
+                            ]),
+                        ];
+                    }
+                };
+
+                // Manually implement support for `<em>` tags in inline code
+                for (let i = 0; i < parts.length; i++) {
+                    const part = parts[i]!;
+
+                    if (i % 2 === 0) {
+                        length += part.length;
+                        continue;
+                    }
+
+                    if (part.startsWith("\\")) {
+                        yield* print();
+
+                        startIndex = startIndex + length + 1;
+                        length = part.length - 1;
+                        continue;
+                    }
+
+                    if (shouldParseEmphasisHtmlTagAsHighlight) {
+                        if (part.startsWith("<em")) {
+                            yield* print();
+
+                            emphasisTagOpenCount += 1;
+                            startIndex = startIndex + length + part.length;
+                            length = 0;
+                            continue;
+                        }
+
+                        if (part.startsWith("</em")) {
+                            yield* print();
+
+                            emphasisTagOpenCount = Math.max(0, emphasisTagOpenCount - 1);
+                            startIndex = startIndex + length + part.length;
+                            length = 0;
+                            continue;
+                        }
+                    }
+
+                    length += part.length;
                 }
+
+                yield* print();
                 break;
             }
 

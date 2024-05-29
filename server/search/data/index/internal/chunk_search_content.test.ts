@@ -2853,7 +2853,13 @@ test("prints chunk text with inline styles", async () => {
                     schema.text(" "),
                     schema.text("test7", [schema.mark("code"), schema.mark("italic")]),
                     schema.text(" "),
-                    schema.text("test7.5", [schema.mark("italic"), schema.mark("code")]),
+                    schema.text("test7.1", [schema.mark("italic"), schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("test7.2", [
+                        schema.mark("italic"),
+                        schema.mark("code"),
+                        schema.mark("bold"),
+                    ]),
                     schema.text(" "),
                     schema.text("test8", [schema.mark("strike")]),
                     schema.text(" "),
@@ -2866,19 +2872,47 @@ test("prints chunk text with inline styles", async () => {
                     schema.text("test", [schema.mark("bold")]),
                     schema.text("test", [schema.mark("bold"), schema.mark("italic")]),
                     schema.text("test", [schema.mark("bold")]),
+                    schema.text(" "),
+                    schema.text("foo", [schema.mark("code")]),
+                    schema.text("bar", [
+                        schema.mark("code"),
+                        schema.mark("link", {url: "https://alpine.inc"}),
+                    ]),
+                    schema.text("qux", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("foo", [schema.mark("code")]),
+                    schema.text("bar", [schema.mark("code"), schema.mark("italic")]),
+                    schema.text("qux", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("foo", [schema.mark("code")]),
+                    schema.text("bar", [schema.mark("code"), schema.mark("bold")]),
+                    schema.text("qux", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("fo", [schema.mark("code")]),
+                    schema.text("o", [schema.mark("code"), schema.mark("bold")]),
+                    schema.text("b", [
+                        schema.mark("code"),
+                        schema.mark("link", {url: "https://alpine.inc"}),
+                        schema.mark("bold"),
+                    ]),
+                    schema.text("ar", [
+                        schema.mark("code"),
+                        schema.mark("link", {url: "https://alpine.inc"}),
+                    ]),
+                    schema.text("qux", [schema.mark("code")]),
                 ]),
             ]),
             {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
-        text: "test1 **test2** *test3* ***test4*** `test5` **`test6`** *`test7`* *`test7.5`* ~~test8~~ **~~test9~~** \\*test10\\* `test`**`test`**`test` **test*****test*****test**",
+        text: "test1 **test2** *test3* ***test4*** `test5` **`test6`** *`test7`* *`test7.1`* ***`test7.2`*** ~~test8~~ **~~test9~~** \\*test10\\* `test`**`test`**`test` **test*****test*****test** `foobarqux` `foo`*`bar`*`qux` `foo`**`bar`**`qux` `fo`**`ob`**`arqux`",
         isGroup: false,
-        tokenCount: 98,
+        tokenCount: 158,
         context: {sectionHeading: null},
         sentenceChunks: [
             {
-                text: "test1 **test2** *test3* ***test4*** `test5` **`test6`** *`test7`* *`test7.5`* ~~test8~~ **~~test9~~** \\*test10\\* `test`**`test`**`test` **test*****test*****test**",
-                tokenCount: 98,
+                text: "test1 **test2** *test3* ***test4*** `test5` **`test6`** *`test7`* *`test7.1`* ***`test7.2`*** ~~test8~~ **~~test9~~** \\*test10\\* `test`**`test`**`test` **test*****test*****test** `foobarqux` `foo`*`bar`*`qux` `foo`**`bar`**`qux` `fo`**`ob`**`arqux`",
+                tokenCount: 158,
             },
         ],
         lineMarginTop: 2,
@@ -4539,5 +4573,156 @@ where 1 ≤ i ≤ m and 1 ≤ j ≤ p. For example, the underlined entry 2340 in
                 lineMarginBottom: 2,
             },
         ],
+    });
+});
+
+test("properly escapes the ampersand character", async () => {
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    const getAccountIfExists = async () => null;
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [
+                    schema.text("a & b &amp; c &#38; d &#x0026; e"),
+                    schema.text(" "),
+                    schema.text("a & b &amp; c &#38; d &#x0026; e", [schema.mark("code")]),
+                ]),
+            ]),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: "a & b \\&amp; c \\&#38; d \\&#x0026; e `a & b &amp; c &#38; d &#x0026; e`",
+        isGroup: false,
+        tokenCount: 43,
+        context: {sectionHeading: null},
+        sentenceChunks: [
+            {
+                text: "a & b \\&amp; c \\&#38; d \\&#x0026; e `a & b &amp; c &#38; d &#x0026; e`",
+                tokenCount: 43,
+            },
+        ],
+        lineMarginTop: 2,
+        lineMarginBottom: 2,
+    });
+});
+
+test("properly escapes content in inline code", async () => {
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    const getAccountIfExists = async () => null;
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [
+                    schema.text("content_view.tsx", [schema.mark("code")]),
+                    schema.text(" is the main entrypoint into the view-only code. It calls into "),
+                    schema.text("renderContentFragmentToHtmlStore()", [schema.mark("code")]),
+                    schema.text(" (in the file "),
+                    schema.text("render_content_to_html.ts", [schema.mark("code")]),
+                    schema.text(") which is actually generating the view-only HTML."),
+                ]),
+            ]),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: "`content_view.tsx` is the main entrypoint into the view-only code. It calls into `renderContentFragmentToHtmlStore()` (in the file `render_content_to_html.ts`) which is actually generating the view-only HTML.",
+        isGroup: false,
+        tokenCount: 64,
+        context: {sectionHeading: null},
+        sentenceChunks: [
+            {
+                text: "`content_view.tsx` is the main entrypoint into the view-only code.",
+                tokenCount: 20,
+            },
+            {
+                text: "It calls into `renderContentFragmentToHtmlStore()` (in the file `render_content_to_html.ts`) which is actually generating the view-only HTML.",
+                tokenCount: 44,
+            },
+        ],
+        lineMarginTop: 2,
+        lineMarginBottom: 2,
+    });
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [
+                    schema.text("_", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("*", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("`", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("``", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("```", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("\\", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("foo_bar", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("foo*bar", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("foo`bar", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("foo``bar", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("foo```bar", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("fo`o```b`ar", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("foo\\bar", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("[]()", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("[foo](bar)", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("foo[]()bar", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("foo[foo](bar)bar", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("<em>content</em>", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("<em>content</em>_view.tsx", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("<strong>content</strong>", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("<strong>content</strong>_view.tsx", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text(" ", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text(" starts with space", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("ends with space ", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("   starts with 3 spaces", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("ends with 3 spaces   ", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text(" `starts with space`", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("`ends with space` ", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("   `starts with 3 spaces`", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("`ends with 3 spaces`   ", [schema.mark("code")]),
+                ]),
+            ]),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: "`_` `*` `` ` `` ``` `` ``` ```` ``` ```` `\\` `foo_bar` `foo*bar` ``foo`bar`` ```foo``bar``` ````foo```bar```` ````fo`o```b`ar```` `foo\\bar` `[]()` `[foo](bar)` `foo[]()bar` `foo[foo](bar)bar` `\\<em>content</em>` `\\<em>content</em>_view.tsx` `<strong>content</strong>` `<strong>content</strong>_view.tsx` ` ` ` starts with space` `ends with space ` `   starts with 3 spaces` `ends with 3 spaces   ` ``  `starts with space` `` `` `ends with space`  `` ``    `starts with 3 spaces` `` `` `ends with 3 spaces`    ``",
+        isGroup: false,
+        tokenCount: 242,
+        context: {sectionHeading: null},
+        sentenceChunks: [
+            {
+                text: "`_` `*` `` ` `` ``` `` ``` ```` ``` ```` `\\` `foo_bar` `foo*bar` ``foo`bar`` ```foo``bar``` ````foo```bar```` ````fo`o```b`ar```` `foo\\bar` `[]()` `[foo](bar)` `foo[]()bar` `foo[foo](bar)bar` `\\<em>content</em>` `\\<em>content</em>_view.tsx` `<strong>content</strong>` `<strong>content</strong>_view.tsx` ` ` ` starts with space` `ends with space ` `   starts with 3 spaces` `ends with 3 spaces   ` ``  `starts with space` `` `` `ends with space`  `` ``    `starts with 3 spaces` `` `` `ends with 3 spaces`    ``",
+                tokenCount: 242,
+            },
+        ],
+        lineMarginTop: 2,
+        lineMarginBottom: 2,
     });
 });

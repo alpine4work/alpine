@@ -22,6 +22,7 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {AccountId, ContentMentionAccountId} from "~/shared/id/types/id_types.js";
 
@@ -1110,14 +1111,36 @@ async function chunkSearchContentBySentenceForTextblockNode(
 async function printSearchTextForInlineFragment(
     fragment: Fragment,
     options: {
+        isHeading: boolean;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModelWithoutSpace | null>;
-        isHeading: boolean;
     },
 ): Promise<string> {
+    const content: Array<Node> = [];
+
+    // Remove `link` marks and merge text nodes with the same marks together.
+    for (let node of fragment.content) {
+        assert(node.isInline);
+
+        if (node.marks.some(mark => mark.type.name === "link")) {
+            node = node.mark(node.marks.filter(mark => mark.type.name !== "link"));
+        }
+
+        const lastNode = content[content.length - 1];
+
+        if (!node.isText || !lastNode?.isText || !lastNode.sameMarkup(node)) {
+            content.push(node);
+        } else {
+            content[content.length - 1] = lastNode.type.schema.text(
+                `${lastNode.text!}${node.text!}`,
+                lastNode.marks,
+            );
+        }
+    }
+
     const texts = await runAllPromises(
-        fragment.content.map(node => printSearchTextForInlineNode(node, options)),
+        content.map(node => printSearchTextForInlineNode(node, options)),
     );
 
     return texts.join("");
@@ -1209,21 +1232,37 @@ async function printSearchTextForInlineNode(
             return `@${accountName}`;
         }
         case "text": {
+            const codeMark = node.marks.find(mark => mark.type.name === "code");
+
             // Escape any Markdown characters in the text content so the LLM model doesn't
             // get it confused with our own markdown styling.
-            let textContent = escapeMarkdown(node.textContent);
-
-            const codeMark = node.marks.find(mark => mark.type.name === "code");
+            let textContent = codeMark
+                ? escapeMarkdownInInlineCode(node.textContent)
+                : escapeMarkdown(node.textContent);
 
             // The code mark must always be applied first. CommonMark specifies that
             // asterisks or other characters within code are treated as literal characters.
             if (codeMark) {
-                const printSearchEmbeddingTextForMark =
-                    printSearchEmbeddingTextForMarkByTypeName[
-                        codeMark.type.name as ContentMarkTypeName
-                    ];
+                const maxBacktickCount = reduceIterable(
+                    textContent.matchAll(/`+/g),
+                    (count, match) => Math.max(count, match[0].length),
+                    0,
+                );
 
-                textContent = printSearchEmbeddingTextForMark(textContent, codeMark);
+                const delimeter = "`".repeat(maxBacktickCount + 1);
+
+                const startingSpace =
+                    textContent.startsWith("`") ||
+                    (maxBacktickCount > 0 && textContent.startsWith(" "))
+                        ? " "
+                        : "";
+
+                const endingSpace =
+                    textContent.endsWith("`") || (maxBacktickCount > 0 && textContent.endsWith(" "))
+                        ? " "
+                        : "";
+
+                textContent = `${delimeter}${startingSpace}${textContent}${endingSpace}${delimeter}`;
             }
 
             textContent = node.marks.reduceRight((textContent, mark) => {
@@ -1260,11 +1299,26 @@ async function printSearchTextForInlineNode(
  */
 function escapeMarkdown(textContent: string): string {
     return textContent.replaceAll(
-        /^\s*[>+\-#]|(?<=^\s*\d+)\.|[\\`*_~]|]\(|<[/!?a-zA-Z]/gm,
+        /^\s*[>+\-#]|(?<=^\s*\d+)\.|[\\`*_~]|]\(|<[/!?a-zA-Z]|&#?[a-zA-Z0-9]+;/gm,
         substring => {
             const match = substring.match(/^(\s*?)(\S.*)$/);
             assert(match);
             return `${match[1]!}\\${match[2]!}`;
         },
     );
+}
+
+/**
+ * Escape markdown characters in some inline code content.
+ *
+ * You can put any character in inline code and it'll render. With the
+ * exception of the `<em>` tag which the OpenSearch highlighter inserts. We
+ * manually handle `<em>` tag parsing in inline code in `parseSearchContent()`.
+ */
+function escapeMarkdownInInlineCode(textContent: string): string {
+    return textContent.replaceAll(/<em\s*>/gm, substring => {
+        const match = substring.match(/^(\s*?)(\S.*)$/);
+        assert(match);
+        return `${match[1]!}\\${match[2]!}`;
+    });
 }

@@ -117,6 +117,62 @@ test("properly highlights content with `<em>` HTML tags", () => {
     });
 });
 
+test("properly highlights content with `<em>` HTML tags in inline code", () => {
+    expect(
+        parseSearchContent(
+            "test `<em>content</em>_view.tsx` test `content_<em>view.tsx</em>` test `</em>content<em>_view.tsx` test `content_</em>view.tsx<em>` test `\\<em>content</em>_view.tsx` test `<em>content\\</em>_view.tsx` test `<em>co<em>nte</em>nt</em>_view.tsx`",
+            {shouldParseEmphasisHtmlTagAsHighlight: true},
+        ).toJSON(),
+    ).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "paragraph",
+                content: [
+                    {type: "text", text: "test "},
+                    {
+                        type: "text",
+                        marks: [{type: "code"}, {type: "highlight", attrs: {color: "orange"}}],
+                        text: "content",
+                    },
+                    {type: "text", marks: [{type: "code"}], text: "_view.tsx"},
+                    {type: "text", text: " test "},
+                    {type: "text", marks: [{type: "code"}], text: "content_"},
+                    {
+                        type: "text",
+                        marks: [{type: "code"}, {type: "highlight", attrs: {color: "orange"}}],
+                        text: "view.tsx",
+                    },
+                    {type: "text", text: " test "},
+                    {type: "text", marks: [{type: "code"}], text: "content"},
+                    {
+                        type: "text",
+                        marks: [{type: "code"}, {type: "highlight", attrs: {color: "orange"}}],
+                        text: "_view.tsx",
+                    },
+                    {type: "text", text: " test "},
+                    {type: "text", marks: [{type: "code"}], text: "content_view.tsx"},
+                    {type: "text", text: " test "},
+                    {type: "text", marks: [{type: "code"}], text: "\\<em>content_view.tsx"},
+                    {type: "text", text: " test "},
+                    {
+                        type: "text",
+                        marks: [{type: "code"}, {type: "highlight", attrs: {color: "orange"}}],
+                        text: "content\\</em>_view.tsx",
+                    },
+                    {type: "text", text: " test "},
+                    {
+                        type: "text",
+                        marks: [{type: "code"}, {type: "highlight", attrs: {color: "orange"}}],
+                        text: "content",
+                    },
+                    {type: "text", marks: [{type: "code"}], text: "_view.tsx"},
+                ],
+            },
+        ],
+    });
+});
+
 // NOTE(calebmer): Reproduces an error I saw in development with a Wikipedia
 // dataset I downloaded to my computer.
 //
