@@ -193,7 +193,7 @@ function SpaceLayoutSideBarNavigationButtons() {
 }
 
 function SpaceLayoutSideBarAccountButton() {
-    const navigate = useNavigate();
+    const rootNavigate = useRootNavigate();
     const {currentAccount} = useSpaceContext();
 
     return (
@@ -203,7 +203,7 @@ function SpaceLayoutSideBarAccountButton() {
                 {
                     icon: <SignOut />,
                     label: "Sign out",
-                    onPress: () => navigate("/sign-out"),
+                    onPress: () => rootNavigate("/sign-out"),
                 },
             ]}
         >

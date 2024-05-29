@@ -86,6 +86,18 @@ export const NativeMobileBridge: {
     };
 
     /**
+     * Methods for managing the native mobile app session.
+     */
+    readonly session: {
+        /**
+         * Sign out the stored session in the native mobile app. If the user is signed
+         * in, this function destroys the current web browsing context and replaces it
+         * with a new one.
+         */
+        signOut(): void;
+    };
+
+    /**
      * Properly managing navigation for our native mobile apps is a challenging
      * problem. Since navigation responsibilities are shared between web code and
      * native code. Native code is responsible for animating between routes and

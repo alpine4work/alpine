@@ -3,9 +3,12 @@ import UIKit
 import WebKit
 
 // NOCOMMIT: Top bars and back buttons on sign in routes
-// NOCOMMIT: Safe area inset should include top bar?
 class RootAnonymousController: WebNavigationController, SceneDelegateRootController {
-    init() {
+    private let signIn: (String, String) -> Void
+
+    init(signIn: @escaping (String, String) -> Void) {
+        self.signIn = signIn
+
         let initialPath = "/sign-in"
 
         super
@@ -47,51 +50,13 @@ class RootAnonymousController: WebNavigationController, SceneDelegateRootControl
             let sessionQueryItem = requestUrlComponents?.queryItems?
                 .first(where: { $0.name == "session" })
 
-            if let spaceId = spaceIdQueryItem?.value, let session = sessionQueryItem?.value {
-                // Save session to keychain and `SpaceId` to user defaults. On next launch of
-                // the app the user will still be signed in and will return to the last space
-                // they were in.
-                setSessionToken(session)
-                UserDefaults.standard.set(spaceId, forKey: "spaceId")
-
-                // NOCOMMIT: Navigate to `RootTabBarController()`
+            if let spaceId = spaceIdQueryItem?.value, let token = sessionQueryItem?.value {
+                signIn(token, spaceId)
             }
+
+            return .cancel
         }
 
         return await super.webView(webView, decidePolicyFor: navigationAction)
-    }
-
-    private func setSessionToken(_ sessionToken: String) {
-        let sessionTokenData = sessionToken.data(using: .utf8)!
-
-        // Save the session token to iOS keychain.
-        var status = SecItemAdd(
-            [
-                kSecValueData: sessionTokenData, kSecClass: kSecClassGenericPassword,
-                kSecAttrService: "cyberworlds.dev", kSecAttrAccount: "primary",
-                kSecAttrSynchronizable: false,
-                kSecAttrAccessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
-                kSecAttrDescription: "Alpine session token",
-            ] as CFDictionary,
-            nil
-        )
-
-        // If we already had a session token then instead update our keychain with the
-        // new session token.
-        if status == errSecDuplicateItem {
-            status = SecItemUpdate(
-                [
-                    kSecClass: kSecClassGenericPassword, kSecAttrService: "cyberworlds.dev",
-                    kSecAttrAccount: "primary", kSecAttrSynchronizable: false,
-                ] as CFDictionary,
-                [kSecValueData: sessionTokenData] as CFDictionary
-            )
-        }
-
-        guard status == errSecSuccess else {
-            fatalError(
-                "Failed to set session secret in keychain: \(SecCopyErrorMessageString(status, nil) ?? "unknown status \(status)" as CFString)"
-            )
-        }
     }
 }

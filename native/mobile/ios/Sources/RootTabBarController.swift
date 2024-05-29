@@ -7,6 +7,8 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     let spaceId: String
     let webNavigationController: WebNavigationController
 
+    private let signOut: () -> Void
+
     private weak var mainScrollView: UIScrollView?
     private weak var mainNavigationEntry: WebNavigationEntry?
     private var lastScrollOffset = 0.0
@@ -25,16 +27,17 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     /// keyboard substitute.
     private var isWebDisablingTabBar = false
 
-    init(spaceId: String, session: String) {
-        self.spaceId = spaceId
+    init(session: Session, signOut: @escaping () -> Void) {
+        self.spaceId = session.spaceId
+        self.signOut = signOut
 
         // We use a non-persistent store while the user is signed out, but once they're
         // signed in we remember their `localStorage`, cookies, etc.
         let websiteDataStore = WKWebsiteDataStore.default()
 
         let sessionCookieProperties: [HTTPCookiePropertyKey: Any] = [
-            .name: "session", .value: session, .domain: WebNavigationController.baseUrl.host()!,
-            .path: "/",
+            .name: "session", .value: session.token,
+            .domain: WebNavigationController.baseUrl.host()!, .path: "/",
             // iOS doesn't have a constant for the `HttpOnly` key so manually initialize.
             // https://forums.developer.apple.com/forums/thread/701770
             .init(rawValue: "HttpOnly"): true, .sameSitePolicy: HTTPCookieStringPolicy.sameSiteLax,
@@ -186,6 +189,10 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         tabViewController.view.addSubview(webNavigationController.view)
 
         webNavigationController.switchTab(tabViewController.tab)
+    }
+
+    func webNavigationController(signOut webNavigationController: WebNavigationController) {
+        signOut()
     }
 
     func webNavigationController(

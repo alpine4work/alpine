@@ -1,3 +1,34 @@
+// IMPORTANT: You have to be very careful about reference counting in this
+// file! We've very carefully audited this code to make sure there are no
+// reference cycles. When `SceneDelegate` changes its
+// `window.rootViewController` the old `WebNavigationController` needs to be
+// deinitialized.
+//
+// Every time you pass `self` as a reference to another function or capture
+// `self` as a variable for your closure, you need to think carefully about
+// whether you're extending the lifetime of `WebNavigationController`.
+//
+// A convention we've adopted in this file is to always capture a weak
+// reference to self in closures. e.g.
+//
+// ```
+// let timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { [weak self] (_) in
+//     guard let this = self else { return }
+//
+//     this.callSomething()
+// }
+// ```
+//
+// If we don't capture a weak reference in a closure (`[self]` instead of
+// `[weak self]`) we explicitly document why. This convention helps you think
+// less about memory cycles. A closure should never contribute to a memory
+// cycle.
+//
+// If you're observing `WebNavigationController` is not deinitializing when
+// you'd expect it to, one process for debugging is to literally search through
+// every instance of `self` in this file and determine whether it could
+// plausibly cause a memory cycle or not.
+
 import OSLog
 import UIKit
 import WebKit
@@ -8,6 +39,9 @@ private let logger = Logger(
 )
 
 @objc protocol WebNavigationControllerDelegate {
+    @objc optional func webNavigationController(
+        signOut webNavigationController: WebNavigationController
+    )
     @objc optional func webNavigationController(
         _ webNavigationController: WebNavigationController,
         didAddWebScrollView webScrollView: UIScrollView,
@@ -60,6 +94,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private let initialPath: String
     private let initialPathByTab: InitialPathByTab
     private let webConfiguration: WKWebViewConfiguration
+    private let weakScriptMessageHandler: WeakScriptMessageHandler
 
     struct InitialPathByTab {
         let home: String
@@ -152,8 +187,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                         healthState: newValue
                     )
             }
+
+            if oldValue.isLoading != newValue.isLoading { isLoading = newValue.isLoading }
         }
     }
+
+    // Same as `webViewHealthState.isLoading`. Only `webViewHealthState`'s `didSet`
+    // callback should update it.
+    @objc private(set) dynamic var isLoading: Bool = true
 
     private var webViewHealthTimer: Timer?
 
@@ -163,7 +204,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         var provisionalNavigation: WKNavigation?
         var isHealthy: Bool
 
-        var isLoading: Bool { self.provisionalNavigation != nil || self.readyTime == nil }
+        var isLoading: Bool { provisionalNavigation != nil || readyTime == nil }
     }
 
     private var webScrollViews = [UIScrollView: WebScrollViewState]()
@@ -231,9 +272,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         }
 
         func withLock(_ action: @escaping (_ completionHandler: @escaping () -> Void) -> Void) {
+            // Strong reference to `self`. We call everything in `actionQueue` even when
+            // all other references to this class are released.
             let actualAction = { [self] in
                 isAwaiting = true
 
+                // Strong reference to `self`. We call everything in `actionQueue` even when
+                // all other references to this class are released.
                 action { [self] in
                     guard isAwaiting else { return }
                     isAwaiting = false
@@ -480,6 +525,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         webConfiguration.websiteDataStore.httpCookieStore.setCookie(clientInfoCookie)
 
+        weakScriptMessageHandler = WeakScriptMessageHandler()
+
         super.init(nibName: nil, bundle: nil)
 
         // Web code is responsible for displaying a navigation bar.
@@ -489,9 +536,17 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // isn't hidden by opaque bars in web code.
         extendedLayoutIncludesOpaqueBars = true
 
-        webConfiguration.userContentController.add(self, name: "NativeMobileBridge")
+        // `webConfiguration.userContentController.add()` creates a strong reference to
+        // the script handler object. So we have an intermediate
+        // `weakScriptMessageHandler` that holds a weak reference to `self` to avoid a
+        // retain cycle.
+        weakScriptMessageHandler.delegate = self
+        webConfiguration.userContentController.add(
+            weakScriptMessageHandler,
+            name: "NativeMobileBridge"
+        )
         webConfiguration.userContentController.addScriptMessageHandler(
-            self,
+            weakScriptMessageHandler,
             contentWorld: WKContentWorld.page,
             name: "NativeMobileBridgeWithReply"
         )
@@ -563,6 +618,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     required init(coder: NSCoder) { fatalError("Unimplemented") }
 
     deinit {
+        logger.info("Deinitializing")
+
         webViewHealthTimer?.invalidate()
         webViewHealthTimer = nil
 
@@ -621,6 +678,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // view.
         webView.scrollView.isScrollEnabled = false
         if #available(iOS 17.0, *) { webView.scrollView.allowsKeyboardScrolling = false }
+
+        // Don't detect data in the web view and don't show previews on long press.
+        // This is not standard behavior for iOS native apps (but is a common behavior
+        // in Safari). If we want link preview behavior on long press we should
+        // implement our own logic since we only want external links to get long press
+        // preview treatment.
+        webView.allowsLinkPreview = false
 
         // As a final fallback, we set ourselves as the scroll view delegate and reset
         // scroll position to 0 if it ever changes.
@@ -698,8 +762,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     private func initThemeTintColor() -> UIColor {
-        return UIColor { [self] (traits) in
-            traits.userInterfaceStyle == .dark ? theme60Color : theme40Color
+        // NOTE(calebmer): Captures `self` weakly out of an abundance of caution to try
+        // avoid creating a retain cycle. It's unclear to me whether or not a strong
+        // reference would actually cause issues.
+        return UIColor { [weak self] (traits) in
+            traits.userInterfaceStyle == .dark
+                ? self?.theme60Color ?? UIColor(named: "theme-60")!
+                : self?.theme40Color ?? UIColor(named: "theme-40")!
         }
     }
 
@@ -711,12 +780,18 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // web view unhealthy and ask the user to reload. If we aren't getting pings it
         // means our JavaScript code or React code has crashed. We should receive a
         // ping from our web view every 0.5s.
-        let webViewHealthTimer = Timer(timeInterval: 0.5, repeats: true) { [self] (_) in
-            if let lastPingTime = webViewHealthState.lastPingTime {
+        let webViewHealthTimer = Timer(timeInterval: 0.5, repeats: true) {
+            [weak self] (thisTimer) in
+            guard let this = self else {
+                thisTimer.invalidate()
+                return
+            }
+
+            if let lastPingTime = this.webViewHealthState.lastPingTime {
                 if lastPingTime.distance(to: DispatchTime.now()).toSeconds() > 1 {
-                    webViewHealthState.isHealthy = false
+                    this.webViewHealthState.isHealthy = false
                 }
-            } else if let readyTime = webViewHealthState.readyTime {
+            } else if let readyTime = this.webViewHealthState.readyTime {
                 let currentTime = DispatchTime.now()
 
                 let hasReadyTimeExpired = readyTime.distance(to: currentTime).toSeconds() > 5
@@ -725,13 +800,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 // application becomes active again, wait a bit for pings from the web view to
                 // resume.
                 let hasApplicationRecentlyBecameActive =
-                    if let notificationTime = lastApplicationDidBecomeActiveNotificationTime {
+                    if let notificationTime = this.lastApplicationDidBecomeActiveNotificationTime {
                         notificationTime > readyTime
                             && notificationTime.distance(to: currentTime).toSeconds() <= 2
                     } else { false }
 
                 if hasReadyTimeExpired && !hasApplicationRecentlyBecameActive {
-                    webViewHealthState.isHealthy = false
+                    this.webViewHealthState.isHealthy = false
                 }
             }
         }
@@ -827,8 +902,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         cleanupModalPresentedViewController()
 
-        // Dismiss any other presented view controllers (like alerts) on reload.
-        dismiss(animated: false)
+        // Dismiss any other presented view controllers (like alerts) on reload. Except
+        // the loading indicator. We wait until `health.ready` is called before
+        // dismissing the loading indicator.
+        if !(presentedViewController is WebLoadingIndicatorController) { dismiss(animated: false) }
 
         webViewHealthState.provisionalNavigation = navigation
     }
@@ -987,6 +1064,31 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         }
     }
 
+    @objc
+    private class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler,
+        WKScriptMessageHandlerWithReply
+    {
+        weak var delegate: (WKScriptMessageHandler & WKScriptMessageHandlerWithReply)?
+
+        func userContentController(
+            _ userContentController: WKUserContentController,
+            didReceive message: WKScriptMessage
+        ) { delegate?.userContentController(userContentController, didReceive: message) }
+
+        func userContentController(
+            _ userContentController: WKUserContentController,
+            didReceive message: WKScriptMessage,
+            replyHandler: @escaping (Any?, String?) -> Void
+        ) {
+            delegate?
+                .userContentController(
+                    userContentController,
+                    didReceive: message,
+                    replyHandler: replyHandler
+                )
+        }
+    }
+
     func userContentController(
         _ userContentController: WKUserContentController,
         didReceive message: WKScriptMessage
@@ -1033,12 +1135,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
             super.pushViewController(viewController, animated: true)
 
-            let completion = { [self] in
-                isNavigationAnimating = false
+            let completion = { [weak self] in
+                guard let this = self else { return }
 
-                if isAfterNavigationAnimationCallbackScheduled {
-                    isAfterNavigationAnimationCallbackScheduled = false
-                    webView.evaluateJavaScript(
+                this.isNavigationAnimating = false
+
+                if this.isAfterNavigationAnimationCallbackScheduled {
+                    this.isAfterNavigationAnimationCallbackScheduled = false
+                    this.webView.evaluateJavaScript(
                         "window.__NativeMobileBridge.navigation._callScheduledAfterAnimationCallbacks()"
                     )
                 }
@@ -1091,12 +1195,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             preparingNavigationEntry = nil
             hasAddedMainScrollViewWhilePreparingNavigation = false
 
-            let completion = { [self] in
-                isNavigationAnimating = false
+            let completion = { [weak self] in
+                guard let this = self else { return }
 
-                if isAfterNavigationAnimationCallbackScheduled {
-                    isAfterNavigationAnimationCallbackScheduled = false
-                    webView.evaluateJavaScript(
+                this.isNavigationAnimating = false
+
+                if this.isAfterNavigationAnimationCallbackScheduled {
+                    this.isAfterNavigationAnimationCallbackScheduled = false
+                    this.webView.evaluateJavaScript(
                         "window.__NativeMobileBridge.navigation._callScheduledAfterAnimationCallbacks()"
                     )
                 }
@@ -1186,12 +1292,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
             super.setViewControllers(newViewControllers, animated: true)
 
-            let completion = { [self] in
-                isNavigationAnimating = false
+            let completion = { [weak self] in
+                guard let this = self else { return }
 
-                if isAfterNavigationAnimationCallbackScheduled {
-                    isAfterNavigationAnimationCallbackScheduled = false
-                    webView.evaluateJavaScript(
+                this.isNavigationAnimating = false
+
+                if this.isAfterNavigationAnimationCallbackScheduled {
+                    this.isAfterNavigationAnimationCallbackScheduled = false
+                    this.webView.evaluateJavaScript(
                         "window.__NativeMobileBridge.navigation._callScheduledAfterAnimationCallbacks()"
                     )
                 }
@@ -1225,12 +1333,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             hasAddedMainScrollViewWhilePreparingNavigation = false
 
             (modalPresentedViewController ?? (topViewController as! WebNavigationEntryController))
-                .present(viewController, animated: true) { [self] in
-                    isNavigationAnimating = false
+                .present(viewController, animated: true) { [weak self] in
+                    guard let this = self else { return }
 
-                    if isAfterNavigationAnimationCallbackScheduled {
-                        isAfterNavigationAnimationCallbackScheduled = false
-                        webView.evaluateJavaScript(
+                    this.isNavigationAnimating = false
+
+                    if this.isAfterNavigationAnimationCallbackScheduled {
+                        this.isAfterNavigationAnimationCallbackScheduled = false
+                        this.webView.evaluateJavaScript(
                             "window.__NativeMobileBridge.navigation._callScheduledAfterAnimationCallbacks()"
                         )
                     }
@@ -1252,12 +1362,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             hasAddedMainScrollViewWhilePreparingNavigation = false
 
             (previousModalPresentedViewController ?? topViewController!)
-                .dismiss(animated: true) { [self] in
-                    isNavigationAnimating = false
+                .dismiss(animated: true) { [weak self] in
+                    guard let this = self else { return }
 
-                    if isAfterNavigationAnimationCallbackScheduled {
-                        isAfterNavigationAnimationCallbackScheduled = false
-                        webView.evaluateJavaScript(
+                    this.isNavigationAnimating = false
+
+                    if this.isAfterNavigationAnimationCallbackScheduled {
+                        this.isAfterNavigationAnimationCallbackScheduled = false
+                        this.webView.evaluateJavaScript(
                             "window.__NativeMobileBridge.navigation._callScheduledAfterAnimationCallbacks()"
                         )
                     }
@@ -1371,6 +1483,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             //
             // We set it again here so the web view re-renders?
             webView.tintColor = initThemeTintColor()
+        } else if messageBody == "session.signOut" {
+            webDelegate?.webNavigationController?(signOut: self)
         } else if messageBody.starts(with: "modal.presentDialog:") {
             let optionsString = messageBody.suffix(
                 from: messageBody.index(messageBody.startIndex, offsetBy: 20)
@@ -1393,8 +1507,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     UIAlertAction(
                         title: options.cancelButtonLabel ?? "Cancel",
                         style: .cancel,
-                        handler: { [self] (_) in
-                            webView.evaluateJavaScript(
+                        handler: { [weak self] (_) in
+                            guard let this = self else { return }
+
+                            this.webView.evaluateJavaScript(
                                 "window.__NativeMobileBridge._callCallbackById(\(options.onCancelButtonPressCallbackId))"
                             )
                         }
@@ -1405,8 +1521,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             let primaryAction = UIAlertAction(
                 title: options.primaryButtonLabel,
                 style: .default,
-                handler: { [self] (_) in
-                    webView.evaluateJavaScript(
+                handler: { [weak self] (_) in
+                    guard let this = self else { return }
+
+                    this.webView.evaluateJavaScript(
                         "window.__NativeMobileBridge._callCallbackById(\(options.onPrimaryButtonPressCallbackId))"
                     )
                 }
@@ -1420,10 +1538,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         } else if messageBody == "editMenu.enableAddCommentAction" {
             setSwizzledWKWebViewAddCommentEditMenuAction(
                 webView,
-                action: { [self] in
-                    webView.evaluateJavaScript(
-                        "window.__NativeMobileBridge.editMenu._callAddCommentActionListeners()"
-                    )
+                action: { [weak self] in
+                    self?.webView
+                        .evaluateJavaScript(
+                            "window.__NativeMobileBridge.editMenu._callAddCommentActionListeners()"
+                        )
                 }
             )
         } else if messageBody == "editMenu.disableAddCommentAction" {
@@ -1522,6 +1641,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 )
             )
 
+            // We're ok with a strong reference to `self` since this runs on the next turn
+            // of the run loop.
             schedule { [self] in
                 // Make sure scroll view wasn't removed.
                 guard webScrollViews[webScrollView] != nil else { return }
@@ -1614,6 +1735,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         if type(of: webSubview).description() == "WKCompositingView" {
             let webBottomBarView = webSubview
 
+            // We're ok with a strong reference to `self` since this runs on the next turn
+            // of the run loop.
             schedule { [self] in
                 // Make sure view wasn't removed while waiting for the `schedule` to run.
                 guard webSubview.isDescendant(of: webView) else { return }
@@ -1858,9 +1981,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // navigation) so set a timer for when the keyboard animation completes and
         // call `keyboardDidHide()` ourselves if it hasn't been called yet.
         let timer = Timer.scheduledTimer(withTimeInterval: animationDuration, repeats: false) {
-            [self] (_) in
-            keyboardWillHideAnimationTimer = nil
-            actuallyKeyboardDidHide()
+            [weak self] (_) in
+            guard let this = self else { return }
+
+            this.keyboardWillHideAnimationTimer = nil
+            this.actuallyKeyboardDidHide()
         }
 
         // Add some tolerance to reduce timer energy impact.
@@ -1919,13 +2044,15 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             self.temporarilyPreservedKeyboardOffset = temporarilyPreservedKeyboardOffset
 
             let reconcileTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) {
-                [self] (_) in
-                self.temporarilyPreservedKeyboardOffset = nil
-                self.temporarilyPreservedKeyboardOffsetReconcileTimer = nil
+                [weak self] (_) in
+                guard let this = self else { return }
+
+                this.temporarilyPreservedKeyboardOffset = nil
+                this.temporarilyPreservedKeyboardOffsetReconcileTimer = nil
 
                 // After our preserved keyboard offset is cleared, we need to update safe
                 // area insets.
-                updateWebViewSafeAreaInsets()
+                this.updateWebViewSafeAreaInsets()
             }
 
             // Add some tolerance to reduce timer energy impact.
@@ -2322,7 +2449,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             if !transitionCoordinator.isInteractive {
                 callNavigationExternalPopListeners(delta: delta, url: url)
             } else {
-                transitionCoordinator.notifyWhenInteractionChanges { [self] (context) in
+                transitionCoordinator.notifyWhenInteractionChanges { [weak self] (context) in
+                    guard let this = self else { return }
+
                     // Wait until the transition has finished.
                     if context.isInteractive { return }
 
@@ -2330,11 +2459,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     // view back. (Unless the web view has found a new home. e.g. Because a push
                     // navigation happened.)
                     if context.isCancelled {
-                        if webView.superview == nil || webView.superview == view {
-                            lastTopViewController.moveWebViewInto(webView)
+                        if this.webView.superview == nil || this.webView.superview == this.view {
+                            lastTopViewController.moveWebViewInto(this.webView)
                         }
                     } else {
-                        callNavigationExternalPopListeners(delta: delta, url: url)
+                        this.callNavigationExternalPopListeners(delta: delta, url: url)
                     }
                 }
             }
@@ -2390,8 +2519,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             // debounce with a duration of 100ms.
             timeInterval: max(0.1, UIView.inheritedAnimationDuration),
             repeats: false
-        ) { [self] (_) in
-            webView.evaluateJavaScript(
+        ) { [weak self] (_) in
+            guard let this = self else { return }
+
+            this.webView.evaluateJavaScript(
                 "window.__NativeMobileBridge.tabBar._scrollOffset = \(tabBarScrollOffset)"
             )
         }
@@ -2440,7 +2571,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 )
             }
 
-        webBottomBarViewState.withLock { [self] in
+        webBottomBarViewState.withLock { [weak self] in
+            guard let this = self else { return }
+
             // If we update the bottom bar position while the keyboard is animating
             // (`keyboardAnimationState` is non-null) but are not inheriting an animation
             // (`UIView.inheritedAnimationDuration` is 0) then animate with the same
@@ -2449,7 +2582,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             // Comment" from the edit menu. The bottom bar `WKCompositingView` is
             // discovered in a way that doesn't automatically inherit the keyboard
             // animation.
-            if let keyboardAnimationState = keyboardAnimationState,
+            if let keyboardAnimationState = this.keyboardAnimationState,
                 keyboardAnimationState.animationDuration != 0
                     && UIView.inheritedAnimationDuration == 0
             {
@@ -2499,11 +2632,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     : keyboardAnimationState?.animationDuration ?? 0
             ),
             repeats: false
-        ) { [self] (_) in
+        ) { [weak self] (_) in
             // To avoid race conditions, if JavaScript hasn't returned yet we don't want to
             // update `layer.transform`.
-            webBottomBarViewState.withLock { [self] (completionHandler) in
-                webView.evaluateJavaScript(
+            webBottomBarViewState.withLock { [weak self] (completionHandler) in
+                guard let this = self else { return }
+
+                this.webView.evaluateJavaScript(
                     #"{ const element = document.getElementById("\#(webBottomBarViewState.id)"); if (element) element.style.transform = "translateY(\#(translateY)px)" }"#,
                     completionHandler: { (_, _) in completionHandler() }
                 )
@@ -2573,11 +2708,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         // We observe the keyboard hide animation takes 0.25s. The animation
         // automatically runs when we call `reloadInputViews()`.
-        let timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: false) { [self] (_) in
-            shouldDisableScrollFromKeyboardFrameChange -= 1
+        let timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: false) {
+            [weak self] (_) in
+            guard let this = self else { return }
 
-            keyboardWebSubstituteState = .opened(oldKeyboardOffset: oldKeyboardOffset)
-            updateAllWebMaskedViewMasks()
+            this.shouldDisableScrollFromKeyboardFrameChange -= 1
+
+            this.keyboardWebSubstituteState = .opened(oldKeyboardOffset: oldKeyboardOffset)
+            this.updateAllWebMaskedViewMasks()
 
             completion?()
         }
@@ -2614,8 +2752,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         // We observe the keyboard hide animation takes 0.25s. The animation
         // automatically runs when we call `reloadInputViews()`.
-        Timer.scheduledTimer(withTimeInterval: 0.25, repeats: false) { [self] (_) in
-            shouldDisableScrollFromKeyboardFrameChange -= 1
+        Timer.scheduledTimer(withTimeInterval: 0.25, repeats: false) { [weak self] (_) in
+            guard let this = self else { return }
+
+            this.shouldDisableScrollFromKeyboardFrameChange -= 1
 
             completion?()
         }
@@ -2687,7 +2827,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 private class WebNavigationEntryController: UIViewController {
     let entry: WebNavigationEntry
     var url: URL
-    private weak var webNavigationController: WebNavigationController?
+    private unowned let webNavigationController: WebNavigationController
     private var loadingIndicatorTimer: Timer?
     private var loadingIndicatorTimerGeneration: Int = 0
     private var hasViewAppeared: Bool = false
@@ -2771,7 +2911,7 @@ private class WebNavigationEntryController: UIViewController {
             // assume `true` is potentially expensive? It may force the screen to
             // paint.
             afterScreenUpdates: !(webView.window?.isHidden ?? true)
-        )!
+        )
 
         if presentedViewController is WebLoadingIndicatorController { dismiss(animated: false) }
         for subview in view.subviews {
@@ -2781,11 +2921,15 @@ private class WebNavigationEntryController: UIViewController {
             // continue receiving `requestAnimationFrame()` events.
             if subview === webView {
                 webView.isHidden = true
-                webNavigationController!.view.addSubview(webView)
+                webNavigationController.view.addSubview(webView)
             }
         }
 
-        view.addSubview(snapshotView)
+        // NOTE(calebmer): `snapshotView` may be nil if `webView` is not part of our
+        // key/visible `UIWindow`. While we should promptly deinitialize
+        // `WebNavigationController`s that aren't visible, just in case tolerate a
+        // nil `snapshotView`.
+        if let snapshotView = snapshotView { view.addSubview(snapshotView) }
 
         resetLoadingIndicatorTimer()
     }
@@ -2908,7 +3052,7 @@ private class WebNavigationEntryController: UIViewController {
 
         // If there's a modal view controller (that's not ourself), don't show
         // loading indicator. Since our view is hidden under the modal.
-        if let modalPresentedViewController = webNavigationController?.modalPresentedViewController,
+        if let modalPresentedViewController = webNavigationController.modalPresentedViewController,
             modalPresentedViewController != self
         {
             return
@@ -2920,8 +3064,8 @@ private class WebNavigationEntryController: UIViewController {
         // controller.
         let transitionCoordinator =
             self.transitionCoordinator
-            ?? (webNavigationController?.modalPresentedViewController
-            ?? webNavigationController?.topViewController)!
+            ?? (webNavigationController.modalPresentedViewController
+            ?? webNavigationController.topViewController)!
             .transitionCoordinator
 
         // Wait to show a loading indicator until any active transition is done.
@@ -2929,14 +3073,18 @@ private class WebNavigationEntryController: UIViewController {
             if !transitionCoordinator.isInteractive {
                 startLoadingIndicatorTimer()
             } else {
-                transitionCoordinator.notifyWhenInteractionChanges { [self] (context) in
+                transitionCoordinator.notifyWhenInteractionChanges { [weak self] (context) in
+                    guard let this = self else { return }
+
                     if context.isInteractive { return }
                     if context.isCancelled { return }
 
                     // If `resetLoadingIndicatorTimer()` was called since the notify callback was
                     // attached then we shouldn't start a new loading indicator timer.
-                    if loadingIndicatorTimerGeneration == currentLoadingIndicatorTimerGeneration {
-                        startLoadingIndicatorTimer()
+                    if this.loadingIndicatorTimerGeneration
+                        == currentLoadingIndicatorTimerGeneration
+                    {
+                        this.startLoadingIndicatorTimer()
                     }
                 }
             }
@@ -2949,9 +3097,11 @@ private class WebNavigationEntryController: UIViewController {
         loadingIndicatorTimer = Timer.scheduledTimer(
             withTimeInterval: delayScreenTransitionLoadingIndicatorLimitSeconds,
             repeats: false
-        ) { [self] timer in
-            loadingIndicatorTimer = nil
-            presentLoadingIndicator()
+        ) { [weak self] timer in
+            guard let this = self else { return }
+
+            this.loadingIndicatorTimer = nil
+            this.presentLoadingIndicator()
         }
 
         // Add some tolerance to reduce timer energy impact.
@@ -2969,7 +3119,7 @@ private class WebNavigationEntryController: UIViewController {
         //
         // A modal may have opened while waiting for the timer. We don't call
         // `resetLoadingIndicatorTimer()` if the modal view controller changes.
-        if let modalPresentedViewController = webNavigationController?.modalPresentedViewController,
+        if let modalPresentedViewController = webNavigationController.modalPresentedViewController,
             modalPresentedViewController != self
         {
             return
@@ -3003,7 +3153,10 @@ private class WebNavigationEntryController: UIViewController {
             UIAlertAction(
                 title: "Retry",
                 style: .default,
-                handler: { [self] (_) in webNavigationController!.forceReloadWebView() }
+                handler: { [weak self] (_) in
+                    guard let this = self else { return }
+                    this.webNavigationController.forceReloadWebView()
+                }
             )
         )
 
@@ -3238,6 +3391,11 @@ private let webBridgeSource = """
             colors: {
                 setThemeColors: options => {
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage(`colors.setThemeColors:${options["theme-10"]},${options["theme-20"]},${options["theme-30"]},${options["theme-40"]},${options["theme-50"]},${options["theme-60"]},${options["theme-70"]},${options["theme-80"]},${options["theme-90"]}`);
+                },
+            },
+            session: {
+                signOut: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("session.signOut");
                 },
             },
             navigation: {

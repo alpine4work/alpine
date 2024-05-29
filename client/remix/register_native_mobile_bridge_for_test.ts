@@ -23,6 +23,9 @@ export const NativeMobileBridgeForTest: typeof NativeMobileBridge & {
     colors: {
         setThemeColors: () => {},
     },
+    session: {
+        signOut: () => {},
+    },
     navigation: {
         preparePush: () => {},
         push: () => {},

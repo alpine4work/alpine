@@ -1,12 +1,13 @@
-import {ArrowsLeftRight, PencilSimple, SignOut} from "phosphor-react";
+import {ArrowsLeftRight, PencilSimple, Recycle, SignOut} from "phosphor-react";
 import {usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {Box} from "~/client/design/box.js";
 import {MobileSettingsRow} from "~/client/design/mobile_settings_row.js";
 import {Spacer} from "~/client/design/spacer.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -19,7 +20,7 @@ export function meta() {
 
 export default function MoreRoute() {
     const isMobile = useIsMobile();
-    const navigate = useNavigate();
+    const rootNavigate = useRootNavigate();
     const {space, currentAccount} = useSpaceContext();
 
     const maxWidth = !isMobile ? "96" : undefined;
@@ -27,7 +28,7 @@ export default function MoreRoute() {
     const {isPressed: isSpacePressed, pressProps: spacePressProps} = usePress({
         onPress: () => {
             // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-            void navigate(`/s/${space.id}/more/switch-space`);
+            void rootNavigate(`/s/${space.id}/more/switch-space`);
         },
     });
 
@@ -108,9 +109,29 @@ export default function MoreRoute() {
                     label="Sign out"
                     pressErrorTitle="Couldn’t sign out"
                     onPress={async () => {
-                        // NOCOMMIT: Implement
+                        if (NativeMobileBridge) {
+                            NativeMobileBridge.session.signOut();
+
+                            // `signOut()` should destroy the current web browsing context and create a
+                            // new one.
+                            await new Promise(() => {});
+                        } else {
+                            await rootNavigate("/sign-out");
+                        }
                     }}
                 />
+                {process.env.NODE_ENV !== "production" && (
+                    <MobileSettingsRow
+                        icon={<Recycle />}
+                        label="[Debug] Unresponsive crash"
+                        pressErrorTitle="Couldn’t crash"
+                        onPress={async () => {
+                            while (true) {
+                                // Intentionally crash the main thread.
+                            }
+                        }}
+                    />
+                )}
             </Box>
         </SpaceRouteScrollView>
     );
