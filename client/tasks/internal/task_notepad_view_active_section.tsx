@@ -238,6 +238,11 @@ function TaskNotepadViewActiveSection({
                 gap={taskNotepadViewActiveSectionCardGap}
                 position="relative"
                 zIndex="0"
+                style={{
+                    // Override `overscroll-behavior`. We want the parent task view to be scrollable
+                    // on the Y axis.
+                    overscrollBehaviorY: "auto",
+                }}
             >
                 {allTasks.slice(0, taskCardCount).map(({id: taskId, assigneeActivePosition}) => (
                     <TaskNotepadCardView
