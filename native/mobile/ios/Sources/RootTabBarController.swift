@@ -310,11 +310,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                 let newTabBarIsHidden =
                     isWebDisablingTabBar || navigationBarScrollOffset >= navigationBarHeight
 
-                // Never animate when hiding the tab bar. We mostly want this when popping back
-                // to a screen that has the tab bar hidden (since the snapshot was rendered
-                // with a hidden tab bar). Maybe we can refine this to say if we're animating a
-                // pop disable any tab bar change animation.
-                if !isAnimated || newTabBarIsHidden {
+                if !isAnimated {
                     tabBar.frame.origin.y = tabBarFrameOriginY
                     if !isWebDisablingTabBar {
                         webNavigationController.setTabBarScrollOffset(
@@ -339,10 +335,18 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                         animations: { [self] in
                             tabBar.frame.origin.y = tabBarFrameOriginY
                             if !isWebDisablingTabBar {
+                                // Never animate bottom bars when hiding the tab bar. We want this when
+                                // popping back to a screen that has the tab bar hidden (since the snapshot was
+                                // rendered with a hidden tab bar). It's weird for the bottom bar to jump up
+                                // then animate down with the tab bar.
+                                if newTabBarIsHidden { UIView.setAnimationsEnabled(false) }
+
                                 webNavigationController.setTabBarScrollOffset(
                                     tabBarScrollOffset,
                                     navigationBarScrollOffset: navigationBarScrollOffset
                                 )
+
+                                if newTabBarIsHidden { UIView.setAnimationsEnabled(true) }
                             }
                         },
                         completion: { [self] (finished) in
