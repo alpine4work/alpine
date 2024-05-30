@@ -1,0 +1,38 @@
+// Derived from:
+// https://github.com/ProseMirror/prosemirror-model/blob/d61616994c1907f6856aa2cf027a0e4944fc8023/src/from_dom.ts#L305-L311
+//
+// Ideally we could import it from `prosemirror-model`.
+export const htmlBlockTagNames = new Set([
+    "address",
+    "article",
+    "aside",
+    "blockquote",
+    "canvas",
+    "dd",
+    "div",
+    "dl",
+    "fieldset",
+    "figcaption",
+    "figure",
+    "footer",
+    "form",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "header",
+    "hgroup",
+    "hr",
+    "li",
+    "noscript",
+    "ol",
+    "output",
+    "p",
+    "pre",
+    "section",
+    "table",
+    "tfoot",
+    "ul",
+]);

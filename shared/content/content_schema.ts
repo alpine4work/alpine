@@ -1,8 +1,18 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
-import {Node, ParseRule, Schema as ProsemirrorSchema, SchemaSpec} from "prosemirror-model";
+import {
+    DOMParser,
+    Fragment,
+    Node,
+    NodeSpec,
+    ParseRule,
+    Schema as ProsemirrorSchema,
+    SchemaSpec,
+} from "prosemirror-model";
 import {ContentMention, ContentMentionSchema} from "~/shared/content/content_mention.js";
+import {htmlBlockTagNames} from "~/shared/helpers/html/html_block_tag_names.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -66,7 +76,7 @@ export type ContentProsemirrorSchema = ProsemirrorSchema<
     keyof (typeof contentBaseProsemirrorSchemaSpec)["marks"]
 >;
 
-export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
+const contentBaseWithoutCodeBlockProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {
         /**
          * Document root, every ProseMirror schema requires this.
@@ -96,10 +106,22 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                     tag: "div",
                     priority: 50,
                     getAttrs: node => {
-                        // If this is a wrapper `<div>` with `<p>` tags inside, then we want to use our
-                        // `<p>` rule to parse the DOM instead of our `<div>` rule.
                         if (!(node instanceof HTMLElement)) return {};
-                        if (node.querySelector("p")) return false;
+
+                        // If this is a wrapper `<div>` with `<p>` or `<div>` or `<table>` or any block
+                        // tags inside, then we want to use our `<p>` rule to parse the DOM instead of
+                        // our `<div>` rule.
+                        let hasBlockChildNode = false;
+                        for (const childNode of node.childNodes) {
+                            if (!(childNode instanceof HTMLElement)) continue;
+
+                            if (htmlBlockTagNames.has(childNode.tagName.toLowerCase())) {
+                                hasBlockChildNode = true;
+                                break;
+                            }
+                        }
+
+                        if (hasBlockChildNode) return false;
                         return {};
                     },
                 },
@@ -450,6 +472,63 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     },
 });
 
+const contentBaseCodeBlockLineProsemirrorSchemaSpec = {
+    content: "text*",
+    defining: true,
+    toDOM: () => ["span", {class: codeBlockLineClassName}, 0],
+    // If we're in a code block, parse anything that would have been parsed as a
+    // `paragraph` (`<p>` elements or `<div>` elements) as a `codeBlockLine`.
+    // That way if you paste multiple lines of plain text into a code block they're
+    // treated as `codeBlockLine`s.
+    parseDOM: contentBaseWithoutCodeBlockProsemirrorSchemaSpec.nodes.paragraph.parseDOM.map(
+        parseRule => ({
+            ...parseRule,
+            context: "codeBlock//",
+            // Make sure the priority is higher than `paragraph` parse rules.
+            priority: parseRule.priority + 50,
+        }),
+    ),
+} satisfies NodeSpec;
+
+export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
+    nodes: {
+        ...contentBaseWithoutCodeBlockProsemirrorSchemaSpec.nodes,
+
+        /**
+         * Text formatted with a monospace font that is horizontally scrollable
+         * (instead of letting the text wrap). Useful for code, but also useful for
+         * drawing ASCII diagrams since all characters are of equal width. Text in a
+         * code block may not have inline formatting since in the future we'll want
+         * to add syntax highlighting.
+         */
+        // TODO(calebmer): Implement styling for code blocks.
+
+        // TODO(calebmer): Syntax highlighting for code. Allow user to pick the
+        // language.
+
+        // TODO(calebmer): Some nice keyboard shortcuts for code editing. For
+        // example, "newline" on a line with indentation should preserve that
+        // indentation. Another example, typing balanced characters (`(`, `{`, `[`)
+        // should add the other side.
+
+        // NOTE(maximchen): we remove `code: true` from codeBlock and codeBlock
+        // line because, `code: true` defaults white-space property to `pre`
+        // which preserves new lines. However, we don't want to keep
+        // new lines, only keep spaces.
+        codeBlockLine: contentBaseCodeBlockLineProsemirrorSchemaSpec,
+        codeBlock: {
+            group: "block",
+            content: "codeBlockLine+",
+            defining: true,
+            toDOM: () => ["pre", {class: codeBlockClassName}, ["code", 0]],
+            parseDOM: createCodeBlockParseRules(),
+        },
+    },
+    marks: {
+        ...contentBaseWithoutCodeBlockProsemirrorSchemaSpec.marks,
+    },
+});
+
 export function toDebugStringWithIndent(node: Node) {
     const args = [];
 
@@ -494,4 +573,187 @@ export function createListItemParseRule(firstListParentTagName: "ul" | "ol"): Pa
             return {indent};
         },
     };
+}
+
+/**
+ * Our `codeBlock` is structured with one `codeBlockLine` child node for each
+ * line of code. However, this is not how code blocks are typically structured
+ * in HTML. In HTML code blocks look more like this:
+ *
+ * ```
+ * <pre><code>
+ * function main() {
+ *     let a = 1;
+ *     let b = 1;
+ *     console.log(a + b);
+ * }
+ * </code></pre>
+ * ```
+ *
+ * Where newlines are separated by the `\n` character and whitespace is
+ * preserved (unlike in regular HTML where whitespace is collapsed).
+ *
+ * To parse this standard DOM format for code blocks, we create an intermediate
+ * ProseMirror schema that parses a code block _without_ `codeBlockLine`
+ * children. Then we take that result, look for `\n` characters, and create a
+ * `codeBlockLine` for each new line we find.
+ */
+function createCodeBlockParseRules(): Array<ParseRule> {
+    const CodeBlockIntermediateProsemirrorSchema = new ProsemirrorSchema({
+        topNode: "codeBlock",
+        nodes: {
+            ...omitObject(contentBaseWithoutCodeBlockProsemirrorSchemaSpec.nodes, ["doc"]),
+
+            codeBlock: {
+                // Make sure we have the same content that can go in a code block line.
+                ...contentBaseCodeBlockLineProsemirrorSchemaSpec,
+
+                // White-space should not be collapsed in this intermediate schema. Newlines
+                // should be included between lines of text.
+                whitespace: "pre",
+
+                // Ignore `codeBlockLine`'s DOM parsing/serialization logic. We're implementing
+                // custom logic here.
+                toDOM: undefined,
+                parseDOM: undefined,
+            },
+        },
+        marks: {
+            ...omitObject(contentBaseWithoutCodeBlockProsemirrorSchemaSpec.marks, [
+                // Don't parse `<code>` elements as the `code` mark. The `code` mark may not be
+                // used inside of code blocks.
+                "code",
+            ]),
+        },
+    });
+
+    const getContent = (node: globalThis.Node, schema: ProsemirrorSchema): Fragment => {
+        const parser = DOMParser.fromSchema(CodeBlockIntermediateProsemirrorSchema);
+
+        // Convert...
+        //
+        // ```
+        // <div>
+        // <div>for (let i = 0; i < n; i++) {</div>
+        // <div>    console.log(i);</div>
+        // <div>}</div>
+        // </div>
+        // ```
+        //
+        // ...to...
+        //
+        // ```
+        // <div>
+        // <div>for (let i = 0; i < n; i++) {<br/></div>
+        // <div>    console.log(i);<br/></div>
+        // <div>}<br/></div>
+        // </div>
+        // ```
+        //
+        // Since ProseMirror doesn't understand that the `<div>`s create new lines in
+        // the code block but does understand `<br>` tags.
+        normalizeCodeBlock(node, true);
+
+        const intermediateNode = parser.parse(node, {preserveWhitespace: "full"});
+
+        const newNodesByLine: Array<Array<Node>> = [[]];
+
+        intermediateNode.content.forEach(intermediateChildNode => {
+            if (!intermediateChildNode.isText) {
+                // Convert from our intermediate schema type to the correct schema type.
+                const newChildNode = schema.nodeFromJSON(intermediateChildNode.toJSON());
+
+                newNodesByLine[newNodesByLine.length - 1]!.push(newChildNode);
+                return;
+            }
+
+            const newChildNodeMarks = intermediateChildNode.marks.map(mark =>
+                // Convert from our intermediate schema type to the correct schema type.
+                schema.marks[mark.type.name]!.create(mark.attrs),
+            );
+
+            // ProseMirror replaces other newline characters (like `\r\n`) with `\n`.
+            // https://github.com/ProseMirror/prosemirror-model/blob/d61616994c1907f6856aa2cf027a0e4944fc8023/src/from_dom.ts#L482
+            const childNodeTextLines = intermediateChildNode.textContent.split("\n");
+
+            let isFirstChildNodeTextLine = true;
+
+            for (const childNodeTextLine of childNodeTextLines) {
+                if (isFirstChildNodeTextLine) {
+                    isFirstChildNodeTextLine = false;
+                } else {
+                    newNodesByLine.push([]);
+                }
+
+                if (childNodeTextLine.length === 0) {
+                    continue;
+                }
+
+                const newChildNode = schema.text(childNodeTextLine, newChildNodeMarks);
+                newNodesByLine[newNodesByLine.length - 1]!.push(newChildNode);
+            }
+        });
+
+        return new Fragment(
+            newNodesByLine.map(newNodes => schema.nodes.codeBlockLine!.create(null, newNodes)),
+        );
+    };
+
+    return [
+        {
+            tag: "pre",
+            getContent,
+        },
+        {
+            tag: '[style*="white-space: pre"]',
+            // Beat `<div>` rule for paragraphs.
+            priority: 200,
+            getContent,
+        },
+
+        // NOTE(calebmer): Bit of a hack, but GitHub gist has code blocks in the
+        // format:
+        //
+        // ```
+        // <table style="tab-size: 8">
+        //    <tr>
+        //        <td style="white-space: pre">...</td>
+        //    </tr>
+        //    <tr>
+        //        <td style="white-space: pre">...</td>
+        //    </tr>
+        //    <tr>
+        //        <td style="white-space: pre">...</td>
+        //    </tr>
+        // </table>
+        // ```
+        //
+        // We want to parse the `table` as a code block. Given it has the `tab-size`
+        // style set and only `white-space: pre` elements even support `tab-size`
+        // property we consider `table` elements with `tab-size` set to be code blocks.
+        {
+            tag: 'table[style*="tab-size"]',
+            getContent,
+        },
+    ];
+}
+
+function normalizeCodeBlock(node: globalThis.Node, isRoot: boolean) {
+    for (const childNode of node.childNodes) {
+        normalizeCodeBlock(childNode, false);
+    }
+
+    if (
+        !isRoot &&
+        node instanceof HTMLElement &&
+        (htmlBlockTagNames.has(node.tagName.toLowerCase()) ||
+            // Handle `<table>`s as code blocks
+            node.tagName === "TR")
+    ) {
+        // NOTE(calebmer): While ProseMirror doesn't understand that block HTML tags
+        // create new lines when parsing a code block, it does understand that `<br>`
+        // elements create a new line. So insert a `<br>` element at the end of
+        // elements that create new code block lines.
+        node.appendChild(document.createElement("br"));
+    }
 }
