@@ -15,7 +15,13 @@ import {PostCommentBrandIcon} from "~/client/icons/brand/post_comment_brand_icon
 import {TaskBrandIcon} from "~/client/icons/brand/task_brand_icon.js";
 import {TaskCollectionBrandIcon} from "~/client/icons/brand/task_collection_brand_icon.js";
 import {TaskQueryBrandIcon} from "~/client/icons/brand/task_query_brand_icon.js";
-import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {
+    RemLength,
+    Spacing,
+    addRemLengths,
+    parseRemLengthNumber,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
@@ -25,6 +31,7 @@ import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_
 import {SearchResult, SearchResultId, SearchResultMedia} from "~/shared/search/search_result.js";
 import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {
+    Sprinkles,
     backgroundColorVar,
     colorSchemeVars,
     fontSizes,
@@ -82,18 +89,26 @@ export const minSearchResultViewHeight = addRemLengths(
 
 export function SearchResultView({
     result,
-    isSelected,
+    isSelected = false,
+    isPressed = false,
     isFirstEntry,
     isLastEntry,
     onPressStart,
     onDoubleClick,
+    marginX = "1",
+    paddingX = "4",
+    withBorderTop = false,
 }: {
     result: SearchResult;
-    isSelected: boolean;
+    isSelected?: boolean;
+    isPressed?: boolean;
     isFirstEntry: boolean;
     isLastEntry: boolean;
-    onPressStart: () => void;
-    onDoubleClick: () => void;
+    onPressStart?: () => void;
+    onDoubleClick?: () => void;
+    marginX?: Spacing;
+    paddingX?: Sprinkles["paddingX"];
+    withBorderTop?: boolean;
 }) {
     const typeDisplay = useMemo(() => getSearchResultTypeDisplay(result.id), [result.id]);
 
@@ -125,7 +140,7 @@ export function SearchResultView({
 
     return (
         <Box
-            paddingX="1"
+            paddingX={marginX}
             paddingTop={isFirstEntry ? "1" : undefined}
             paddingBottom={isLastEntry ? "1" : undefined}
             style={{minHeight: minSearchResultViewHeight}}
@@ -142,24 +157,18 @@ export function SearchResultView({
                 // result. This happens when clicking to close an overlay opened by
                 // `<SearchResultViewExplainDebugWidget>`.
                 if (event.target instanceof Element && event.currentTarget.contains(event.target)) {
-                    onDoubleClick();
+                    onDoubleClick?.();
                 }
             }}
         >
-            <Box
-                paddingX="4"
-                position="relative"
-                zIndex="0"
-                borderRadius="md"
-                backgroundColor={isSelected ? "grey-5" : undefined}
-            >
-                {isSelected && (
+            <Box paddingX={paddingX} position="relative" zIndex="0">
+                {(isSelected || isPressed) && (
                     <Box
                         position="absolute"
                         inset="0"
                         zIndex="-10"
-                        borderRadius="md"
-                        backgroundColor="grey-5"
+                        borderRadius={marginX !== "0" ? "md" : undefined}
+                        backgroundColor={isPressed ? "grey-10" : "grey-5"}
                         style={{
                             // Make sure background covers border of the entry below.
                             bottom: -1,
@@ -172,7 +181,15 @@ export function SearchResultView({
                         // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
                         // 1px to layout. Layout needs to be precise since this is rendered in a
                         // virtualized list.
-                        boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                        boxShadow:
+                            !isSelected && !isPressed
+                                ? [
+                                      `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                                      ...(withBorderTop
+                                          ? [`inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`]
+                                          : []),
+                                  ].join(", ")
+                                : undefined,
                     }}
                 >
                     <Box display="flex" gap="3" alignItems="center">

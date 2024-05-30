@@ -23,11 +23,9 @@ export {SpaceRouteScrollViewForwardRef as SpaceRouteScrollView};
 function SpaceRouteScrollView(
     {
         children,
-        directChildren,
         ...navigationBarProps
     }: {
         children?: ReactNode;
-        directChildren?: ReactNode;
     } & Omit<NavigationBarProps, "ref">,
     ref: Ref<HTMLDivElement>,
 ) {
@@ -54,7 +52,6 @@ function SpaceRouteScrollView(
                     {children}
                 </OverlayScopeContextProvider>
             </Box>
-            {directChildren}
         </Box>
     );
 }

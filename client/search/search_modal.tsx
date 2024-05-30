@@ -28,29 +28,26 @@ import {
 } from "~/client/peek/use_peek_switcher_state.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
+import {SearchInstructionalPlaceholder} from "~/client/search/internal/search_instructional_placeholder.js";
 import {
     SearchResultView,
     minSearchResultViewHeight,
 } from "~/client/search/internal/search_result_view.js";
-import {useSearchState} from "~/client/search/use_search_state.js";
-import {SearchInstructionalPlaceholder} from "~/client/search/search_instructional_placeholder.js";
+import {useSearchState} from "~/client/search/internal/use_search_state.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     VirtualizedScrollView,
+    VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {markSearchAffinityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
 import {isSearchAffinityId} from "~/shared/search/search_affinity_id.js";
-import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchOptions} from "~/shared/search/search_options.js";
 import {SearchResult, SearchResultId} from "~/shared/search/search_result.js";
 import {
@@ -59,8 +56,6 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/shared/styles/styles.js";
-import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
-import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 
 const searchModalInputHeight = "16";
 const searchModalPeekContentMaxHeight = "160";
@@ -74,7 +69,7 @@ const searchModalPeekControlsHeight = "6";
 
 // Export the preload hook from our internal folder so it can be used by code
 // depending on `//client/search`.
-export {usePreloadSearchByAffinity as usePreloadAffinitiveSearchEntities} from "~/client/search/use_search_state.js";
+export {usePreloadSearchByAffinity as usePreloadAffinitiveSearchEntities} from "~/client/search/internal/use_search_state.js";
 
 export function SearchModal({
     initialQueryText,
@@ -601,59 +596,54 @@ function SearchModalResultList({
         }
     });
 
+    const renderItem = useCallback(
+        (index: number): VirtualizedScrollViewItem => {
+            const result = results[index]!;
+
+            const isFirstEntry = index === 0;
+            const isLastEntry = index === results.length - 1;
+
+            return {
+                key: `Loaded:${result.id}`,
+                minHeight: minSearchResultViewHeight,
+                node: (
+                    <SearchResultView
+                        result={result}
+                        isSelected={result.id === selectedPeek?.extra.resultId}
+                        isFirstEntry={isFirstEntry}
+                        isLastEntry={isLastEntry}
+                        // We use `onPressStart` to select so the selected style is applied immediately.
+                        // We use the selected style to indicate interaction to the user instead of an
+                        // `isPressed` style. The benefit of using selection is the previous item loses
+                        // its style.
+                        onPressStart={() => {
+                            if (result.id !== selectedPeek?.extra.resultId) {
+                                const destinationPath = getSearchResultDestinationPath(
+                                    space.id,
+                                    result.id,
+                                    searchKey,
+                                );
+
+                                void switchPeek({
+                                    spacePath: destinationPath,
+                                    extra: {resultId: result.id},
+                                });
+                            }
+                        }}
+                        onDoubleClick={() => handleDoubleClick(result)}
+                    />
+                ),
+            };
+        },
+        [handleDoubleClick, results, searchKey, selectedPeek?.extra.resultId, space.id, switchPeek],
+    );
+
     return (
         <VirtualizedScrollView
             ref={viewRef}
             itemCount={results.length}
             bufferedItemHeight={minSearchResultViewHeight}
-            renderItem={useCallback(
-                (index: number) => {
-                    const result = results[index]!;
-
-                    const isFirstEntry = index === 0;
-                    const isLastEntry = index === results.length - 1;
-
-                    return {
-                        key: `Loaded:${result.id}`,
-                        minHeight: minSearchResultViewHeight,
-                        node: (
-                            <SearchResultView
-                                result={result}
-                                isSelected={result.id === selectedPeek?.extra.resultId}
-                                isFirstEntry={isFirstEntry}
-                                isLastEntry={isLastEntry}
-                                // We use `onPressStart` to select so the selected style is applied immediately.
-                                // We use the selected style to indicate interaction to the user instead of an
-                                // `isPressed` style. The benefit of using selection is the previous item loses
-                                // its style.
-                                onPressStart={() => {
-                                    if (result.id !== selectedPeek?.extra.resultId) {
-                                        const destinationPath = getSearchResultDestinationPath(
-                                            space.id,
-                                            result.id,
-                                            searchKey,
-                                        );
-
-                                        void switchPeek({
-                                            spacePath: destinationPath,
-                                            extra: {resultId: result.id},
-                                        });
-                                    }
-                                }}
-                                onDoubleClick={() => handleDoubleClick(result)}
-                            />
-                        ),
-                    };
-                },
-                [
-                    handleDoubleClick,
-                    results,
-                    searchKey,
-                    selectedPeek?.extra.resultId,
-                    space.id,
-                    switchPeek,
-                ],
-            )}
+            renderItem={renderItem}
             extraChildrenOutsideContentElement={({contentHeight}) => (
                 // Our items all have a bottom border. This is good when there's less content
                 // than room to scroll since it creates a clear shape for the last item in the
@@ -687,213 +677,6 @@ function SearchModalResultList({
             )}
         />
     );
-}
-
-function getSearchResultDestinationPath(
-    spaceId: SpaceId,
-    resultId: SearchResultId,
-    searchKey: string,
-): string {
-    const getStableRandom = () => new StableRandom(`getSearchResultDestinationPath:${searchKey}`);
-
-    switch (resultId) {
-        case "CreateChat":
-        case "CreateChatMessage": {
-            return `/s/${spaceId}/chat/new`;
-        }
-        case "CreatePost": {
-            // Make sure we use the same `draftId` consistently for the current search
-            // result list.
-            const draftId = unsafelyGenerateStableId(getStableRandom(), resultId);
-
-            return `/s/${spaceId}/posts/new/${draftId}`;
-        }
-        case "CreateChannel": {
-            // Make sure we use the same `channelId` consistently for the current search
-            // result list.
-            const channelId = unsafelyGenerateStableId(getStableRandom(), resultId);
-
-            return `/s/${spaceId}/channels/${channelId}?create&focus=none`;
-        }
-        case "CreateDocument": {
-            // Make sure we use the same `channelId` consistently for the current search
-            // result list.
-            const documentId = unsafelyGenerateStableId(getStableRandom(), resultId);
-
-            // Documents are only created once the user starts typing in them. The user
-            // doesn't create a document every time they navigate to this search route.
-            return `/s/${spaceId}/documents/${documentId}?create`;
-        }
-        case "CreateTaskCollection": {
-            // Make sure we use the same `collectionId` consistently for the current search
-            // result list.
-            const collectionId = unsafelyGenerateStableId(getStableRandom(), resultId);
-
-            return `/s/${spaceId}/tasks/collections/${collectionId}?create&focus=none`;
-        }
-        case "CreateTaskView": {
-            return `/s/${spaceId}/tasks/view`;
-        }
-        case "CreateTask":
-        case "TaskNotepad": {
-            return `/s/${spaceId}/tasks`;
-        }
-        case "TaskQueryFilteredToCreatorIsCurrentAccount": {
-            const nameSearchParam = encodeURIComponent("Tasks I’ve created");
-
-            const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
-                {
-                    type: "Creator",
-                    operation: {
-                        type: "OneOf",
-                        accounts: [{type: "CurrentAccount"}],
-                    },
-                },
-            ]);
-
-            const sortsSearchParam = serializeTaskQuerySortsSearchParam([
-                {
-                    type: "CreatedTime",
-                    direction: "Descending",
-                },
-            ]);
-
-            return `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
-        }
-        case "TaskQueryFilteredToAssigneeIsCurrentAccount": {
-            const nameSearchParam = encodeURIComponent("Tasks assigned to me");
-
-            const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
-                {
-                    type: "Assignee",
-                    operation: {
-                        type: "OneOf",
-                        accounts: [{type: "CurrentAccount"}],
-                    },
-                },
-            ]);
-
-            const sortsSearchParam = serializeTaskQuerySortsSearchParam([
-                {
-                    type: "CreatedTime",
-                    direction: "Descending",
-                },
-            ]);
-
-            return `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
-        }
-        case "TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive": {
-            const nameSearchParam = encodeURIComponent("Active tasks assigned to me");
-
-            const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
-                {
-                    type: "Assignee",
-                    operation: {
-                        type: "OneOf",
-                        accounts: [{type: "CurrentAccount"}],
-                    },
-                },
-                {
-                    type: "DisplayStatus",
-                    operation: {
-                        type: "OneOf",
-                        displayStatuses: new Set(["OpenActive"]),
-                    },
-                },
-            ]);
-
-            const sortsSearchParam = serializeTaskQuerySortsSearchParam([
-                {
-                    type: "ActivatedTime",
-                    direction: "Descending",
-                },
-            ]);
-
-            return `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
-        }
-        case "TaskQueryFilteredToAssignerIsCurrentAccount": {
-            const nameSearchParam = encodeURIComponent("Tasks I’ve assigned to others");
-
-            const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
-                {
-                    type: "Creator",
-                    operation: {
-                        type: "OneOf",
-                        accounts: [{type: "CurrentAccount"}],
-                    },
-                },
-                {
-                    type: "Assigner",
-                    operation: {
-                        type: "OneOf",
-                        accounts: [{type: "CurrentAccount"}],
-                    },
-                },
-                {
-                    type: "Assignee",
-                    operation: {
-                        type: "NoneOf",
-                        accounts: [{type: "CurrentAccount"}],
-                    },
-                },
-            ]);
-
-            const sortsSearchParam = serializeTaskQuerySortsSearchParam([
-                {
-                    type: "CreatedTime",
-                    direction: "Descending",
-                },
-            ]);
-
-            return `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
-        }
-        default: {
-            const entityIdObject = parseSearchEntityId(resultId);
-            return getSearchEntityPath(spaceId, entityIdObject);
-        }
-    }
-}
-
-function getSearchEntityPath(spaceId: SpaceId, entityId: SearchEntityIdObject): string {
-    switch (entityId.type) {
-        case "Account": {
-            // NOTE(calebmer): Eventually I'd like to have a profile page for accounts.
-            // Since we don't currently have that, route to a 1:1 chat with the account.
-            //
-            // Though even if we had a profile page for accounts, routing to the 1:1 chat
-            // in search may be more useful.
-            return `/s/${spaceId}/chat/with/${entityId.accountId}`;
-        }
-        case "Document": {
-            return `/s/${spaceId}/documents/${entityId.documentId}`;
-        }
-        case "DocumentComment": {
-            return `/s/${spaceId}/documents/${entityId.documentId}?comments=${entityId.commentThreadId}&comment=${entityId.commentIndex}`;
-        }
-        case "Channel": {
-            return `/s/${spaceId}/channels/${entityId.channelId}`;
-        }
-        case "Post": {
-            return `/s/${spaceId}/posts/${entityId.postId}`;
-        }
-        case "PostComment": {
-            return `/s/${spaceId}/posts/${entityId.postId}?comment=${entityId.commentIndex}`;
-        }
-        case "Chat": {
-            return `/s/${spaceId}/chat/${entityId.chatId}`;
-        }
-        case "ChatMessage": {
-            return `/s/${spaceId}/chat/${entityId.chatId}?message=${entityId.messageIndex}`;
-        }
-        case "Task": {
-            return `/s/${spaceId}/tasks/${entityId.taskId}`;
-        }
-        case "TaskCollection": {
-            return `/s/${spaceId}/tasks/collections/${entityId.collectionId}`;
-        }
-        default:
-            throw exhaustive(entityId);
-    }
 }
 
 function SearchModalPeekContent({

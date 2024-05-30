@@ -1,4 +1,4 @@
-import {Memo, useEffect, useMemo, useReducer} from "react";
+import {Memo, useCallback, useEffect, useMemo, useReducer} from "react";
 import {split as splitUnicodeDefaultWordBoundary} from "unicode-default-word-boundary";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
@@ -225,7 +225,7 @@ export function useSearchState({
 }): {
     output: ExecuteSearchOutput & {readonly key: string};
     queryText: string;
-    onQueryTextChange: (queryText: string) => void;
+    onQueryTextChange: Memo<(queryText: string) => void>;
 } {
     const context = useAppContext();
     const {space} = useSpaceContext();
@@ -430,15 +430,18 @@ export function useSearchState({
     return {
         output,
         queryText: searchState.queryText,
-        onQueryTextChange: (queryText: string) =>
-            dispatch({
-                type: "ChangeQueryText",
-                time: Date.now(),
-                queryText,
-                wordTypingDebounceMs: isMobile
-                    ? mobileSearchWordTypingDebounceMs
-                    : desktopSearchWordTypingDebounceMs,
-            }),
+        onQueryTextChange: useCallback(
+            (queryText: string) =>
+                dispatch({
+                    type: "ChangeQueryText",
+                    time: Date.now(),
+                    queryText,
+                    wordTypingDebounceMs: isMobile
+                        ? mobileSearchWordTypingDebounceMs
+                        : desktopSearchWordTypingDebounceMs,
+                }),
+            [isMobile],
+        ),
     };
 }
 
