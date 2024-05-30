@@ -1,4 +1,4 @@
-import {RefObject, useEffect, useMemo, useReducer} from "react";
+import {Memo, useEffect, useMemo, useReducer} from "react";
 import {split as splitUnicodeDefaultWordBoundary} from "unicode-default-word-boundary";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
@@ -8,6 +8,7 @@ import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {
     ExecuteSearchOutput,
@@ -22,7 +23,6 @@ import {convertRemLengthToPx} from "~/shared/design/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {generateId} from "~/shared/id/id.js";
@@ -42,13 +42,32 @@ import {SearchResult, SearchResultId} from "~/shared/search/search_result.js";
  * word they usually type which may make them faster. We may have some weird
  * intermediate results but that's accepted.
  */
-const searchWordTypingDebounceMs = (() => {
+export const desktopSearchWordTypingDebounceMs = (() => {
     // This is p50 typing speed according to the distribution here:
     // https://humanbenchmark.com/tests/typing
     //
     // Percentile calculator here:
     // https://docs.google.com/spreadsheets/d/1_FiahHiNpEqFG7KrtRYOcKWRG8LYIcuHZWBAX2X4nFQ/edit?usp=sharing
     const wordsPerMinute = 44;
+
+    const charactersPerMinute = wordsPerMinute * 5;
+    const charactersPerSecond = charactersPerMinute / 60;
+    const charactersPerMillisecond = charactersPerSecond / 1000;
+    const millisecondsPerCharacter = 1 / charactersPerMillisecond;
+
+    return Math.floor(millisecondsPerCharacter);
+})();
+
+/**
+ * The debounce timeout before we'll send a new search request for mobile.
+ * Picked so that >50% of typists will be done typing by the time this debounce
+ * fires. Slower than `desktopSearchWordTypingDebounceMs` since the average
+ * typing speed on mobile devices is slower than on desktop devices.
+ */
+export const mobileSearchWordTypingDebounceMs = (() => {
+    // This is average typing speed according to:
+    // https://wordsrated.com/typing-speed-statistics/
+    const wordsPerMinute = 38;
 
     const charactersPerMinute = wordsPerMinute * 5;
     const charactersPerSecond = charactersPerMinute / 60;
@@ -86,6 +105,7 @@ type SearchAction =
           readonly type: "ChangeQueryText";
           readonly time: number;
           readonly queryText: string;
+          readonly wordTypingDebounceMs: number;
       }
     | {
           readonly type: "FireWordTypingTimeout";
@@ -135,13 +155,13 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
                 newExecutionStack = state.executionStack.push(
                     createSearchStateExecution(oldTrimmedQueryText),
                 );
-                newWordTypingTimeoutTime = action.time + searchWordTypingDebounceMs;
+                newWordTypingTimeoutTime = action.time + action.wordTypingDebounceMs;
             }
             // For other edits, wait for a debounce timeout so we know the user is done
             // typing before sending a request to the server.
             else {
                 newExecutionStack = state.executionStack;
-                newWordTypingTimeoutTime = action.time + searchWordTypingDebounceMs;
+                newWordTypingTimeoutTime = action.time + action.wordTypingDebounceMs;
             }
 
             return {
@@ -196,11 +216,11 @@ export function usePreloadSearchByAffinity() {
  */
 export function useSearchState({
     initialQueryText,
-    resultListContainerRef,
+    getResultListHeight,
     debugOptions,
 }: {
     initialQueryText: string;
-    resultListContainerRef: RefObject<HTMLDivElement>;
+    getResultListHeight: Memo<() => number>;
     debugOptions: SearchOptions | null;
 }): {
     output: ExecuteSearchOutput & {readonly key: string};
@@ -209,6 +229,7 @@ export function useSearchState({
 } {
     const context = useAppContext();
     const {space} = useSpaceContext();
+    const isMobile = useIsMobile();
     const {timeZone} = useClientInfo();
 
     const options = debugOptions ?? standardSearchOptions;
@@ -236,8 +257,6 @@ export function useSearchState({
     );
 
     useEffect(() => {
-        const resultListContainerElement = assertExists(resultListContainerRef.current);
-
         // Load enough items to fill the virtualization window once. This gives the
         // user some space to scroll and read before we need to load more messages.
         //
@@ -246,7 +265,7 @@ export function useSearchState({
         const limit = Math.max(
             20,
             Math.ceil(
-                getVirtualizationWindowHeight(resultListContainerElement.clientHeight) /
+                getVirtualizationWindowHeight(getResultListHeight()) /
                     convertRemLengthToPx(minSearchResultViewHeight, getRemPxWithoutListening()),
             ),
         );
@@ -260,7 +279,7 @@ export function useSearchState({
     }, [
         context,
         debugOptions,
-        resultListContainerRef,
+        getResultListHeight,
         searchState.executionStack.latestExecution,
         searchState.wordTypingTimeoutTime,
         space.id,
@@ -412,7 +431,14 @@ export function useSearchState({
         output,
         queryText: searchState.queryText,
         onQueryTextChange: (queryText: string) =>
-            dispatch({type: "ChangeQueryText", time: Date.now(), queryText}),
+            dispatch({
+                type: "ChangeQueryText",
+                time: Date.now(),
+                queryText,
+                wordTypingDebounceMs: isMobile
+                    ? mobileSearchWordTypingDebounceMs
+                    : desktopSearchWordTypingDebounceMs,
+            }),
     };
 }
 

@@ -38,6 +38,8 @@ private let logger = Logger(
     category: "WebNavigationController"
 )
 
+private let tabBarHeight = UITabBarController().tabBar.frame.height
+
 @objc protocol WebNavigationControllerDelegate {
     @objc optional func webNavigationController(
         signOut webNavigationController: WebNavigationController
@@ -2118,9 +2120,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         // Include the tab bar in our safe area insets.
         let safeAreaInsetBottom = max(
-            windowSafeAreaInsets.bottom,
-            withoutPreserving && disableTabBarCount > 0
-                ? 0 : tabBarController?.tabBar.frame.height ?? 0,
+            windowSafeAreaInsets.bottom
+                // NOTE(calebmer): We can't use `tabBarController?.frame.size.height` because
+                // that'll only include safe area when `WebNavigationController` has been added
+                // to a `UIWindow`. When switching spaces, we create a
+                // `WebNavigationController` and wait for it to load before making it the root
+                // view controller.
+                + (tabBarController == nil || withoutPreserving && disableTabBarCount > 0
+                    ? 0 : tabBarHeight),
             keyboardSafeAreaInsetBottom
         )
 
@@ -2175,6 +2182,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 --safe-area-inset-right: \(safeAreaInsets.right)px;
                 --window-safe-area-inset-bottom: \(windowSafeAreaInsets.bottom)px;
                 --keyboard-safe-area-inset-bottom: \(max(keyboardOffset, windowSafeAreaInsets.bottom))px;
+                --safe-area-inset-bottom-without-keyboard: \(windowSafeAreaInsets.bottom + (tabBarController != nil ? tabBarHeight : 0))px;
             }
             """
 
@@ -2490,7 +2498,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     func setTabBarScrollOffset(_ tabBarScrollOffset: Double, navigationBarScrollOffset: Double) {
-        let tabBarHeight = tabBarController?.tabBar.frame.height ?? 0
+        let actualTabBarHeight =
+            (tabBarController != nil ? tabBarHeight + windowSafeAreaInsets.bottom : 0)
 
         let lastTabBarScrollOffset = self.tabBarScrollOffset
         self.tabBarScrollOffset = tabBarScrollOffset
@@ -2503,7 +2512,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // Optimization: If the keyboard is open, we don't need to update bottom bar
         // frames since bottom bar position will be dominated by the keyboard.
         if lastTabBarScrollOffset != tabBarScrollOffset
-            && keyboardOffsetWithoutToolbar < tabBarHeight
+            && keyboardOffsetWithoutToolbar < actualTabBarHeight
         {
             // This may be called in the context of a `UIView.animate()` which will cause
             // our frame change to update as well.
@@ -2562,14 +2571,15 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         _ webBottomBarView: UIView,
         _ webBottomBarViewState: WebBottomBarViewState
     ) {
-        let tabBarHeight = tabBarController?.tabBar.frame.height ?? 0
+        let actualTabBarHeight =
+            (tabBarController != nil ? tabBarHeight + windowSafeAreaInsets.bottom : 0)
 
         let translateY =
             switch webBottomBarViewState.type {
             case .normal(let withKeyboardToolbar):
                 -max(
                     0,
-                    (tabBarHeight - tabBarScrollOffset) - windowSafeAreaInsets.bottom,
+                    (actualTabBarHeight - tabBarScrollOffset) - windowSafeAreaInsets.bottom,
                     keyboardOffsetWithoutToolbar - windowSafeAreaInsets.bottom
                         + (withKeyboardToolbar && keyboardOffsetWithoutToolbar > 0
                             ? bottomBarKeyboardToolbarHeight : 0)
@@ -3524,7 +3534,7 @@ private let webBridgeSource = """
                 },
             },
             tabBar: {
-                height: \(UITabBarController().tabBar.frame.height),
+                height: \(tabBarHeight),
                 _scrollOffset: 0,
                 getDeferredScrollOffset: () => {
                     return NativeMobileBridge.tabBar._scrollOffset;

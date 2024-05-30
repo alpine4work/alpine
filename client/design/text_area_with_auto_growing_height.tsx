@@ -1,0 +1,68 @@
+import {Ref, TextareaHTMLAttributes, forwardRef, useRef} from "react";
+import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {safe} from "~/shared/helpers/string/safe_string.js";
+
+const TextAreaWithAutoGrowingHeightForwardRef = forwardRef(TextAreaWithAutoGrowingHeight);
+export {TextAreaWithAutoGrowingHeightForwardRef as TextAreaWithAutoGrowingHeight};
+
+function TextAreaWithAutoGrowingHeight(
+    props: TextareaHTMLAttributes<HTMLTextAreaElement>,
+    externalRef: Ref<HTMLTextAreaElement>,
+) {
+    const isMobile = useIsMobile();
+
+    const internalRef = useRef<HTMLTextAreaElement>(null);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        // Make sure we update the input's height whenever the text within changes.
+        //
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        props.value;
+
+        // If we switch between desktop and mobile then update the input's height.
+        // Since font sizes will change.
+        //
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        isMobile;
+
+        const element = assertExists(internalRef.current);
+
+        // Set the height to 0px so `scrollHeight` recomputes to fit the content
+        // instead of retaining the previous height. This makes sure when you delete
+        // content the `<textarea>` shrinks.
+        element.style.height = "0px";
+
+        element.style.height = `${element.scrollHeight}px`;
+
+        // Undo any scroll the browser may have made. We've observed on iOS WebKit will
+        // sometimes scroll the `<textarea>` when you input a character.
+        element.scrollTop = 0;
+    }, [isMobile, props.value]);
+
+    return (
+        <>
+            <textarea
+                {...props}
+                ref={useMergedRefs(internalRef, externalRef)}
+                style={{
+                    ...props.style,
+                    display: "block",
+                    overflow: "hidden",
+                    // The `<textarea>` will resize on its own. Don't render resize handles.
+                    resize: "none",
+                }}
+                // Suppress hydration warning since `<ScriptBeforeAppInitialRender>` will set
+                // the `height` inline style which disagrees with the initial React render.
+                suppressHydrationWarning={true}
+            />
+            <ScriptBeforeAppInitialRender
+                // Make sure the `<textarea>` has the proper height on server render.
+                script={safe`var element = document.currentScript.previousElementSibling; element.style.height = "0px"; element.style.height = element.scrollHeight + "px"`}
+            />
+        </>
+    );
+}

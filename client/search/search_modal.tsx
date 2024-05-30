@@ -1,11 +1,8 @@
-import {assignInlineVars} from "@vanilla-extract/dynamic";
-import classNames from "classnames";
 import {
     ArrowLeft,
     ArrowRight,
     ArrowsOutSimple,
     MagnifyingGlass,
-    Sparkle,
     SpinnerGap,
     X,
 } from "phosphor-react";
@@ -35,7 +32,8 @@ import {
     SearchResultView,
     minSearchResultViewHeight,
 } from "~/client/search/internal/search_result_view.js";
-import {useSearchState} from "~/client/search/internal/use_search_state.js";
+import {useSearchState} from "~/client/search/use_search_state.js";
+import {SearchInstructionalPlaceholder} from "~/client/search/search_instructional_placeholder.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     VirtualizedScrollView,
@@ -58,7 +56,6 @@ import {SearchResult, SearchResultId} from "~/shared/search/search_result.js";
 import {
     colorSchemeVars,
     contentSchemaStyles,
-    inputPlaceholderStyles,
     spinAnimationClassName,
     sprinkles,
 } from "~/shared/styles/styles.js";
@@ -77,7 +74,7 @@ const searchModalPeekControlsHeight = "6";
 
 // Export the preload hook from our internal folder so it can be used by code
 // depending on `//client/search`.
-export {usePreloadSearchByAffinity as usePreloadAffinitiveSearchEntities} from "~/client/search/internal/use_search_state.js";
+export {usePreloadSearchByAffinity as usePreloadAffinitiveSearchEntities} from "~/client/search/use_search_state.js";
 
 export function SearchModal({
     initialQueryText,
@@ -114,7 +111,10 @@ export function SearchModal({
 
     const {output, queryText, onQueryTextChange} = useSearchState({
         initialQueryText,
-        resultListContainerRef,
+        getResultListHeight: useCallback(
+            () => assertExists(resultListContainerRef.current).clientHeight,
+            [],
+        ),
         debugOptions,
     });
 
@@ -437,50 +437,9 @@ export function SearchModal({
                                     flexDirection="column"
                                     justifyContent="flex-end"
                                     alignItems="center"
+                                    padding="10"
                                 >
-                                    <Box
-                                        padding="10"
-                                        fontSize="100"
-                                        userSelect="text"
-                                        color="grey-40"
-                                        width="full"
-                                        style={{fontWeight: inputPlaceholderStyles.fontWeight}}
-                                    >
-                                        <Box
-                                            display="flex"
-                                            alignItems="center"
-                                            gap="2"
-                                            paddingBottom="3"
-                                        >
-                                            <Sparkle size={spacing["4"]} />
-                                            <Box>Try advanced searches like…</Box>
-                                        </Box>
-                                        <Box>
-                                            {[
-                                                "my documents",
-                                                "messages from alex last week",
-                                                "tasks I updated yesterday",
-                                                "posts by jordan",
-                                            ].map((example, i) => (
-                                                <Box
-                                                    key={i}
-                                                    className={classNames(
-                                                        contentSchemaStyles.listItemClassName,
-                                                        contentSchemaStyles.bulletListItemClassName,
-                                                    )}
-                                                    style={{
-                                                        ...assignInlineVars({
-                                                            [contentSchemaStyles.listItemIndentationVar]:
-                                                                "0",
-                                                        }),
-                                                    }}
-                                                    paddingBottom="1.5"
-                                                >
-                                                    <Box paddingLeft="2">{example}</Box>
-                                                </Box>
-                                            ))}
-                                        </Box>
-                                    </Box>
+                                    <SearchInstructionalPlaceholder />
                                 </Box>
                             )}
                         </Box>

@@ -1696,7 +1696,8 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         // Don't show done button on web mobile, only native mobile. Web mobile (e.g.
         // Safari) renders an accessory view with the input that comes with a done
         // button.
-        isDisabled: !isMobile || !isNativeMobile || withoutFocusedTextInputDoneButton,
+        // NOCOMMIT
+        isDisabled: !isMobile || withoutFocusedTextInputDoneButton,
     });
 
     useImperativeHandle(
@@ -1799,7 +1800,10 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                     <Box
                         style={{
                             flexShrink: 1000,
-                            width: navigationBarDoneButtonActionSpacerWidth,
+                            width:
+                                !onMobileCancel && withoutMobileBackButton
+                                    ? spacing[navigationBarDoneButtonActionFlexBasis]
+                                    : navigationBarDoneButtonActionSpacerWidth,
                         }}
                     />
                 )}
