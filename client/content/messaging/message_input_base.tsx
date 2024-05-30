@@ -89,6 +89,7 @@ import {
 export type MessageInputRef = {
     isFocused(): boolean;
     focus(options?: FocusOptions): void;
+    blur(): void;
     isEmpty(): boolean;
     clear(): void;
     getBoundingClientRect(): DOMRect;
@@ -108,6 +109,7 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     isSendBottomArrowRight?: boolean;
     isSendButtonDisabled?: boolean;
     isSendButtonPending?: boolean;
+    isNativeMobileRefocusHackDisabled?: boolean;
     messageEditingForThisInput?: {
         state: {isEditing: true; messageIndex: number};
         dispatch: (action: {type: "CancelEditing"}) => void;
@@ -155,6 +157,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         isSendBottomArrowRight,
         isSendButtonDisabled: isSendButtonDisabledProp,
         isSendButtonPending,
+        isNativeMobileRefocusHackDisabled,
         messageEditingForThisInput = null,
         replyingToMessage: replyingToMessageProp,
         onClearReplyingToMessage,
@@ -203,6 +206,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         () => ({
             isFocused: () => assertExists(editorRef.current).isFocused(),
             focus: options => assertExists(editorRef.current).focus(options),
+            blur: () => assertExists(editorRef.current).blur(),
             isEmpty: () => isContentEmpty(assertExists(editorRef.current).getState().getDoc()),
             clear,
             getBoundingClientRect: () => assertExists(inputRef.current).getBoundingClientRect(),
@@ -384,6 +388,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         //
         // [1]: https://developer.apple.com/documentation/uikit/uitextinputdelegate
         if (
+            !isNativeMobileRefocusHackDisabled &&
             NativeMobileBridge &&
             isBottomBar &&
             isMobileWebKit &&

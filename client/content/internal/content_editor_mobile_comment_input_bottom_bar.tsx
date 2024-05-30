@@ -24,7 +24,7 @@ import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_f
 export function ContentEditorMobileCommentInputBottomBar({
     state: documentState,
     viewRef: documentViewRef,
-    onClose,
+    onClose: onCloseProp,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
@@ -61,6 +61,16 @@ export function ContentEditorMobileCommentInputBottomBar({
     useEffect(() => {
         setIsInitialRender(false);
     }, []);
+
+    const onClose = () => {
+        // Courtesy blur call. Useful on mobile Safari since if the focused element is
+        // removed from the DOM there won't be a `focusout` event. So
+        // `useIsTextInputFocused()` won't update and the "Done" button will continue
+        // to show in the navigation bar.
+        assertExists(inputRef.current).blur();
+
+        onCloseProp();
+    };
 
     const sendComment = () => {
         const content = state.getContent();
@@ -144,6 +154,11 @@ export function ContentEditorMobileCommentInputBottomBar({
                         // `useScrollToAvoidBottomBarsAndMobileKeyboard()` doesn't ignore the initial
                         // mount of this bottom bar.
                         isReplacingOtherBottomBar={true}
+                        // The refocus hack calls `blur()` ~0.3s after focusing. Calling blur causes us
+                        // to close the comment input. Ideally we could get rid of the hack and find
+                        // a different way to achieve the same effect. See the comment above the hack
+                        // for more info.
+                        isNativeMobileRefocusHackDisabled={true}
                         state={state}
                         onChange={setState}
                         onSend={sendComment}

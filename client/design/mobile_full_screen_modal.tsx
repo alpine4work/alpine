@@ -187,7 +187,8 @@ export function MobileFullScreenModal({
         ({withoutFocus = false}: {withoutFocus?: boolean} = {}) => {
             // Courtesy blur call if the focused element is in the overlay. Useful on
             // mobile Safari since if the focused element is removed from the DOM there
-            // won't be a `focusout` event.
+            // won't be a `focusout` event. So `useIsTextInputFocused()` won't update and
+            // the "Done" button will continue to show in the navigation bar.
             //
             // Instead of calling `blur()` on the focused element, we call `focus()` on the
             // `<FocusScope contain>` container since otherwise `<FocusScope contain>` will
