@@ -1696,8 +1696,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         // Don't show done button on web mobile, only native mobile. Web mobile (e.g.
         // Safari) renders an accessory view with the input that comes with a done
         // button.
-        // NOCOMMIT
-        isDisabled: !isMobile || withoutFocusedTextInputDoneButton,
+        isDisabled: !isMobile || !isNativeMobile || withoutFocusedTextInputDoneButton,
     });
 
     useImperativeHandle(
