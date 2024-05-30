@@ -1,15 +1,26 @@
 import {fireEvent, render, screen} from "@testing-library/react";
+import {Node} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
-import React, {useState} from "react";
+import {useState} from "react";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {emptyDocumentWithoutTitleContent} from "~/shared/documents/document_content_schema.js";
+import {
+    DocumentWithoutTitleContent,
+    DocumentWithoutTitleContentProsemirrorSchema,
+    emptyDocumentWithoutTitleContent,
+} from "~/shared/documents/document_content_schema.js";
 
-function TestContentEditor() {
+const schema = DocumentWithoutTitleContentProsemirrorSchema;
+
+function TestContentEditor({
+    initialContent = emptyDocumentWithoutTitleContent,
+}: {
+    initialContent?: Node;
+}) {
     const [state, setState] = useState(() =>
         ContentEditorState.create({
-            doc: emptyDocumentWithoutTitleContent,
+            doc: initialContent as DocumentWithoutTitleContent,
             references: emptyContentReferences,
         }),
     );
@@ -109,4 +120,127 @@ test("will copy/paste nested list HTML", async () => {
     const element = document.createElement("div");
     element.appendChild(fragment);
     expect(element.innerHTML).toEqual(html);
+});
+
+test("will paste plain text code as code block lines", async () => {
+    render(
+        <TestContentEditor
+            initialContent={
+                schema.node("doc", null, [
+                    schema.node("codeBlock", null, [schema.node("codeBlockLine", null, [])]),
+                ]) as DocumentWithoutTitleContent
+            }
+        />,
+    );
+
+    fireEvent.paste(getTextbox(), {
+        clipboardData: {
+            getData: (type: string) => {
+                return type === "text/plain"
+                    ? `\
+function main() {
+  let a = 1;
+  let b = 2;
+  return a + b;
+}`
+                    : null;
+            },
+        },
+    });
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("function main() {"), codeBlockLine("  let a = 1;"), codeBlockLine("  let b = 2;"), codeBlockLine("  return a + b;"), codeBlockLine("}")))',
+    );
+});
+
+test("will copy/paste from vscode as code block lines", async () => {
+    render(
+        <TestContentEditor
+            initialContent={
+                schema.node("doc", null, [
+                    schema.node("codeBlock", null, [schema.node("codeBlockLine", null, [])]),
+                ]) as DocumentWithoutTitleContent
+            }
+        />,
+    );
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<div style="color: #cccccc;background-color: #1f1f1f;font-family: Menlo, Monaco, 'Courier New', monospace;font-weight: normal;font-size: 12px;line-height: 18px;white-space: pre;"><div><span style="color: #569cd6;">function</span><span style="color: #cccccc;"> </span><span style="color: #dcdcaa;">addNumbers</span><span style="color: #cccccc;">() {</span></div><div><span style="color: #cccccc;">    </span><span style="color: #569cd6;">const</span><span style="color: #cccccc;"> </span><span style="color: #4fc1ff;">a</span><span style="color: #cccccc;"> </span><span style="color: #d4d4d4;">=</span><span style="color: #cccccc;"> </span><span style="color: #b5cea8;">1</span><span style="color: #cccccc;">;</span></div><div><span style="color: #cccccc;">    </span><span style="color: #569cd6;">const</span><span style="color: #cccccc;"> </span><span style="color: #4fc1ff;">b</span><span style="color: #cccccc;"> </span><span style="color: #d4d4d4;">=</span><span style="color: #cccccc;"> </span><span style="color: #b5cea8;">2</span><span style="color: #cccccc;">;</span></div><div><span style="color: #cccccc;">    </span><span style="color: #c586c0;">return</span><span style="color: #cccccc;"> </span><span style="color: #4fc1ff;">a</span><span style="color: #cccccc;"> </span><span style="color: #d4d4d4;">+</span><span style="color: #cccccc;"> </span><span style="color: #4fc1ff;">b</span><span style="color: #cccccc;">;</span></div><div><span style="color: #cccccc;">}</span></div></div>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("function addNumbers() {"), codeBlockLine("    const a = 1;"), codeBlockLine("    const b = 2;"), codeBlockLine("    return a + b;"), codeBlockLine("}"), codeBlockLine))',
+    );
+});
+
+test("will copy/paste from gist as code block lines", async () => {
+    render(
+        <TestContentEditor
+            initialContent={
+                schema.node("doc", null, [
+                    schema.node("codeBlock", null, [schema.node("codeBlockLine", null, [])]),
+                ]) as DocumentWithoutTitleContent
+            }
+        />,
+    );
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<table data-hpc="" style="tab-size="8"" class="highlight tab-size js-file-line-container js-code-nav-container js-tagsearch-file" data-tab-size="8" data-paste-markdown-skip="" data-tagsearch-lang="JavaScript" data-tagsearch-path="gistfile1.js"><tbody><tr><td id="file-gistfile1-js-L1" class="blob-num js-line-number js-code-nav-line-number js-blob-rnum" data-line-number="1"></td><td id="file-gistfile1-js-LC1" class="blob-code blob-code-inner js-file-line"><span class="pl-k">const</span> <span class="pl-en">addNumbers</span> <span class="pl-c1">=</span> <span class="pl-kos">(</span><span class="pl-kos">)</span> <span class="pl-c1">=&gt;</span> <span class="pl-kos">{</span></td></tr><tr><td id="file-gistfile1-js-L2" class="blob-num js-line-number js-code-nav-line-number js-blob-rnum" data-line-number="2"></td><td id="file-gistfile1-js-LC2" class="blob-code blob-code-inner js-file-line">  <span class="pl-k">const</span> <span class="pl-s1">a</span> <span class="pl-c1">=</span> <span class="pl-c1">1</span><span class="pl-kos">;</span></td></tr><tr><td id="file-gistfile1-js-L3" class="blob-num js-line-number js-code-nav-line-number js-blob-rnum" data-line-number="3"></td><td id="file-gistfile1-js-LC3" class="blob-code blob-code-inner js-file-line">  <span class="pl-k">const</span> <span class="pl-s1">b</span> <span class="pl-c1">=</span> <span class="pl-c1">2</span><span class="pl-kos">;</span></td></tr><tr><td id="file-gistfile1-js-L4" class="blob-num js-line-number js-code-nav-line-number js-blob-rnum" data-line-number="4"></td><td id="file-gistfile1-js-LC4" class="blob-code blob-code-inner js-file-line">  <span class="pl-k">return</span> <span class="pl-s1">a</span> <span class="pl-c1">+</span> <span class="pl-s1">b</span><span class="pl-kos">;</span></td></tr><tr><td id="file-gistfile1-js-L5" class="blob-num js-line-number js-code-nav-line-number js-blob-rnum" data-line-number="5"></td><td id="file-gistfile1-js-LC5" class="blob-code blob-code-inner js-file-line"><span class="pl-kos">}</span></td></tr></tbody></table>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("const addNumbers = () => {"), codeBlockLine("  const a = 1;"), codeBlockLine("  const b = 2;"), codeBlockLine("  return a + b;"), codeBlockLine("}"), codeBlockLine))',
+    );
+});
+
+test("will copy/paste from alpine as span code block lines", async () => {
+    render(
+        <TestContentEditor
+            initialContent={
+                schema.node("doc", null, [
+                    schema.node("codeBlock", null, [schema.node("codeBlockLine", null, [])]),
+                ]) as DocumentWithoutTitleContent
+            }
+        />,
+    );
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<pre><code><span>const addNumbers = () => {\n  const a = 1;\n  const b = 2;\n  return a + b;\n}</span></code></pre>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("const addNumbers = () => {"), codeBlockLine("  const a = 1;"), codeBlockLine("  const b = 2;"), codeBlockLine("  return a + b;"), codeBlockLine("}")))',
+    );
+});
+
+test("will copy/paste from alpine as div code block lines", async () => {
+    render(
+        <TestContentEditor
+            initialContent={
+                schema.node("doc", null, [
+                    schema.node("codeBlock", null, [schema.node("codeBlockLine", null, [])]),
+                ]) as DocumentWithoutTitleContent
+            }
+        />,
+    );
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<pre><code><div>const addNumbers = () => {</div><div>  const a = 1;</div><div>  const b = 2;</div><div>  return a + b;</div><div>}</div></code></pre>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("const addNumbers = () => {"), codeBlockLine("  const a = 1;"), codeBlockLine("  const b = 2;"), codeBlockLine("  return a + b;"), codeBlockLine("}"), codeBlockLine))',
+    );
 });
