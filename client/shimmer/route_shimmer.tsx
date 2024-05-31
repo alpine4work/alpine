@@ -13,6 +13,7 @@ import {
 } from "~/client/shimmer/content_shimmer.js";
 import {MessageShimmer} from "~/client/shimmer/message_shimmer.js";
 import {PostShimmer, PostShimmerHeader} from "~/client/shimmer/post_shimmer.js";
+import {SearchResultShimmer} from "~/client/shimmer/search_result_shimmer.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {useCoordinatedShimmerAnimations} from "~/client/shimmer/use_coordinated_shimmer_animations.js";
 import {
@@ -50,6 +51,12 @@ import {
     messageViewTimestampDividerMarginBottom,
     messageViewTimestampDividerMarginTop,
 } from "~/shared/styles/messaging_shared_styles.js";
+import {
+    minSearchMobileInputHeight,
+    searchMobileInputBorderRadius,
+    searchMobileInputMarginBottom,
+    searchMobileInputMarginTop,
+} from "~/shared/styles/search_shared_styles.js";
 import {
     colorSchemeVars,
     contentSchemaStyles,
@@ -123,6 +130,7 @@ const shimmerComponentByRouteId: {
         DocumentCommentThreadRouteShimmer,
     "routes/s.$spaceId.posts.$postId": PostRouteShimmer,
     "routes/s.$spaceId.posts.new.$draftId": NewPostRouteShimmer,
+    "routes/s.$spaceId.search": SearchRouteShimmer,
     "routes/s.$spaceId.tasks.$taskId": TaskDetailRouteShimmer,
     "routes/s.$spaceId.tasks._index": TaskNotepadRouteShimmer,
     "routes/s.$spaceId.tasks.collections.$collectionId": TaskGridRouteShimmer,
@@ -137,7 +145,6 @@ const shimmerComponentByRouteId: {
     // implement these routes we should add appropriate shimmers.
     "routes/s.$spaceId._index": false,
     "routes/s.$spaceId.more._index": false,
-    "routes/s.$spaceId.search": false,
 };
 
 export function getRouteIdsWithDefinedShimmerForTest() {
@@ -859,6 +866,64 @@ function NewPostRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                 />
                 <PostShimmerHeader />
             </Box>
+        </Box>
+    );
+}
+
+function SearchRouteShimmer() {
+    const isMobile = useIsMobile();
+
+    const maxWidth = !isMobile ? "96" : undefined;
+
+    return (
+        <Box width="full" maxWidth={maxWidth} marginX="center">
+            <Box paddingX={screenPaddingX}>
+                <Box height="safe-area-inset-top" />
+                <Box
+                    height={navigationBarHeight}
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    paddingX={mobileNavigationBarGap}
+                >
+                    <TextShimmer fontSize="100" width="16" />
+                </Box>
+                <Box height={searchMobileInputMarginTop} />
+                <Box
+                    border="grey-10"
+                    style={{
+                        height: minSearchMobileInputHeight,
+                        borderRadius: searchMobileInputBorderRadius,
+                    }}
+                />
+                <Box height={searchMobileInputMarginBottom} />
+                <Box height="1" />
+            </Box>
+            <SearchResultShimmer
+                withBorderTop
+                paddingX={screenPaddingX}
+                marginX="0"
+                titleWidth="64"
+            />
+            <SearchResultShimmer
+                paddingX={screenPaddingX}
+                marginX="0"
+                titleWidth="32"
+                bodySnippetRagRight="6"
+            />
+            <SearchResultShimmer
+                paddingX={screenPaddingX}
+                marginX="0"
+                titleWidth="48"
+                bodySnippetRagRight="4"
+            />
+            <SearchResultShimmer paddingX={screenPaddingX} marginX="0" titleWidth="96" />
+            <SearchResultShimmer
+                paddingX={screenPaddingX}
+                marginX="0"
+                titleWidth="64"
+                bodySnippetRagRight="5"
+            />
         </Box>
     );
 }

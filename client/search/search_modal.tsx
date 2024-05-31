@@ -30,10 +30,7 @@ import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
 import {SearchInstructionalPlaceholder} from "~/client/search/internal/search_instructional_placeholder.js";
-import {
-    SearchResultView,
-    minSearchResultViewHeight,
-} from "~/client/search/internal/search_result_view.js";
+import {SearchResultView} from "~/client/search/internal/search_result_view.js";
 import {useSearchState} from "~/client/search/use_search_state.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -50,6 +47,7 @@ import {markSearchAffinityInteraction} from "~/shared/rpc/search_rpc_definitions
 import {isSearchAffinityId} from "~/shared/search/search_affinity_id.js";
 import {SearchOptions} from "~/shared/search/search_options.js";
 import {SearchResult, SearchResultId} from "~/shared/search/search_result.js";
+import {minSearchResultViewHeight} from "~/shared/styles/search_shared_styles.js";
 import {
     colorSchemeVars,
     contentSchemaStyles,

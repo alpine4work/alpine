@@ -15,13 +15,7 @@ import {PostCommentBrandIcon} from "~/client/icons/brand/post_comment_brand_icon
 import {TaskBrandIcon} from "~/client/icons/brand/task_brand_icon.js";
 import {TaskCollectionBrandIcon} from "~/client/icons/brand/task_collection_brand_icon.js";
 import {TaskQueryBrandIcon} from "~/client/icons/brand/task_query_brand_icon.js";
-import {
-    RemLength,
-    Spacing,
-    addRemLengths,
-    parseRemLengthNumber,
-    spacing,
-} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
@@ -31,6 +25,17 @@ import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_
 import {SearchResult, SearchResultId, SearchResultMedia} from "~/shared/search/search_result.js";
 import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {
+    minSearchResultViewBodyTextSnippetHeight,
+    minSearchResultViewBodyTextSnippetHeightWithTitle,
+    minSearchResultViewHeight,
+    minSearchResultViewHeightWithoutPaddingY,
+    searchResultMediaViewSize,
+    searchResultViewBodyTextSnippetFontSize,
+    searchResultViewPaddingY,
+    searchResultViewTitleFontSize,
+    searchResultViewTitleMarginBottom,
+} from "~/shared/styles/search_shared_styles.js";
+import {
     Sprinkles,
     backgroundColorVar,
     colorSchemeVars,
@@ -39,53 +44,6 @@ import {
     searchStyles,
     sprinkles,
 } from "~/shared/styles/styles.js";
-
-/**
- * Minimum height of the body text snippet in a search result. We show at least
- * two lines when there's no title and zero lines when there is a title.
- *
- * The minimum height of our `<SearchResultView>` determines the size of our
- * search request. More items in our search request means higher search
- * latency. At least 2 lines means we need to load less data to fill the
- * virtualization window.
- */
-const minSearchBodyTextSnippetLineCount = 1;
-const minSearchBodyTextSnippetLineCountWithTitle = 0;
-
-const paddingY = "4";
-const searchBodyTextSnippetFontSize = "75";
-const searchTitleFontSize = "100";
-const searchTitleMarginBottom = "1";
-const searchResultMediaViewSize = "9";
-
-const minSearchBodyTextSnippetHeight: RemLength = `${
-    parseRemLengthNumber(fontSizes[searchBodyTextSnippetFontSize].lineHeight) *
-    minSearchBodyTextSnippetLineCount
-}rem`;
-
-const minSearchBodyTextSnippetHeightWithTitle: RemLength = `${
-    parseRemLengthNumber(fontSizes[searchBodyTextSnippetFontSize].lineHeight) *
-    minSearchBodyTextSnippetLineCountWithTitle
-}rem`;
-
-const minSearchResultViewHeightWithoutPaddingY: RemLength = `${Math.min(
-    Math.max(
-        parseRemLengthNumber(spacing[searchResultMediaViewSize]),
-        parseRemLengthNumber(
-            addRemLengths(
-                fontSizes[searchTitleFontSize].lineHeight,
-                minSearchBodyTextSnippetHeightWithTitle,
-            ),
-        ),
-    ),
-    parseRemLengthNumber(addRemLengths(minSearchBodyTextSnippetHeight)),
-)}rem`;
-
-export const minSearchResultViewHeight = addRemLengths(
-    spacing[paddingY],
-    minSearchResultViewHeightWithoutPaddingY,
-    spacing[paddingY],
-);
 
 export function SearchResultView({
     result,
@@ -176,7 +134,7 @@ export function SearchResultView({
                     />
                 )}
                 <Box
-                    paddingY={paddingY}
+                    paddingY={searchResultViewPaddingY}
                     style={{
                         // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
                         // 1px to layout. Layout needs to be precise since this is rendered in a
@@ -202,15 +160,16 @@ export function SearchResultView({
                             {result.title !== null && (
                                 <Box
                                     overflow="hidden"
-                                    fontSize={searchTitleFontSize}
+                                    fontSize={searchResultViewTitleFontSize}
                                     fontStyle="semi-bold"
                                     paddingBottom={
                                         result.bodyTextSnippet.length > 0
-                                            ? searchTitleMarginBottom
+                                            ? searchResultViewTitleMarginBottom
                                             : undefined
                                     }
                                     style={{
-                                        minHeight: fontSizes[searchTitleFontSize].lineHeight,
+                                        minHeight:
+                                            fontSizes[searchResultViewTitleFontSize].lineHeight,
                                         // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
                                         // except IE.
                                         // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
@@ -250,7 +209,7 @@ export function SearchResultView({
                             <Box
                                 overflow="hidden"
                                 color="grey-60"
-                                fontSize={searchBodyTextSnippetFontSize}
+                                fontSize={searchResultViewBodyTextSnippetFontSize}
                                 style={{
                                     // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
                                     // except IE.
@@ -265,8 +224,8 @@ export function SearchResultView({
                                     fontFeatureSettings: '"calt" on',
                                     minHeight:
                                         result.title !== null
-                                            ? minSearchBodyTextSnippetHeightWithTitle
-                                            : minSearchBodyTextSnippetHeight,
+                                            ? minSearchResultViewBodyTextSnippetHeightWithTitle
+                                            : minSearchResultViewBodyTextSnippetHeight,
                                 }}
                             >
                                 {result.title === null && typeDisplayIcon}

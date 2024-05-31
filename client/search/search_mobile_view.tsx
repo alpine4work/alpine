@@ -6,10 +6,7 @@ import {TextAreaWithAutoGrowingHeight} from "~/client/design/text_area_with_auto
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
-import {
-    SearchResultView,
-    minSearchResultViewHeight,
-} from "~/client/search/internal/search_result_view.js";
+import {SearchResultView} from "~/client/search/internal/search_result_view.js";
 import {useSearchState} from "~/client/search/use_search_state.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -17,27 +14,20 @@ import {
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {
-    addRemLengths,
-    parseRemLengthNumber,
-    screenPaddingX,
-    spacing,
-} from "~/shared/design/spacing.js";
+import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/spacing.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchResult} from "~/shared/search/search_result.js";
-import {fontSizes, sprinkles} from "~/shared/styles/styles.js";
-
-const searchInputFontSize = "100";
-const searchInputPaddingX = "3";
-const searchInputPaddingY = "2";
-
-const minSearchInputHeight = addRemLengths(
-    spacing[searchInputPaddingY],
-    fontSizes[searchInputFontSize].lineHeight,
-    spacing[searchInputPaddingY],
-);
-
-const searchInputBorderRadius = `${parseRemLengthNumber(minSearchInputHeight) / 2}rem`;
+import {
+    minSearchMobileInputHeight,
+    minSearchResultViewHeight,
+    searchMobileInputBorderRadius,
+    searchMobileInputFontSize,
+    searchMobileInputMarginBottom,
+    searchMobileInputMarginTop,
+    searchMobileInputPaddingX,
+    searchMobileInputPaddingY,
+} from "~/shared/styles/search_shared_styles.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export function SearchMobileView({
     affinityResults,
@@ -71,26 +61,19 @@ export function SearchMobileView({
     const renderItem = useCallback(
         (index: number): VirtualizedScrollViewItem => {
             if (index === 0) {
-                const navigationBarMarginBottom = "1";
-                const inputMarginBottom = "3";
-
                 return {
                     key: "Header",
                     minHeight: addRemLengths(
                         spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
-                        spacing[navigationBarMarginBottom],
-                        minSearchInputHeight,
-                        spacing[inputMarginBottom],
+                        spacing[searchMobileInputMarginTop],
+                        minSearchMobileInputHeight,
+                        spacing[searchMobileInputMarginBottom],
                     ),
                     node: (
                         <>
                             <Box height="safe-area-inset-top" />
                             <Box height={navigationBarHeight} />
-                            <Box
-                                // Make sure the iOS text selection lollipops the cursor doesn't get clipped by
-                                // the navbar.
-                                height={navigationBarMarginBottom}
-                            />
+                            <Box height={searchMobileInputMarginTop} />
                             <Box
                                 width="full"
                                 maxWidth={maxWidth}
@@ -100,22 +83,22 @@ export function SearchMobileView({
                                 <TextAreaWithAutoGrowingHeight
                                     className={sprinkles({
                                         width: "full",
-                                        paddingX: searchInputPaddingX,
-                                        paddingY: searchInputPaddingY,
+                                        paddingX: searchMobileInputPaddingX,
+                                        paddingY: searchMobileInputPaddingY,
                                         backgroundColor: "grey-0",
                                         border: "grey-20",
-                                        fontSize: searchInputFontSize,
+                                        fontSize: searchMobileInputFontSize,
                                         fontStyle: "normal",
                                     })}
                                     style={{
-                                        borderRadius: searchInputBorderRadius,
+                                        borderRadius: searchMobileInputBorderRadius,
                                     }}
                                     placeholder={`Search ${space.name}…`}
                                     value={queryText}
                                     onChange={event => onQueryTextChange(event.currentTarget.value)}
                                 />
                             </Box>
-                            <Box height={inputMarginBottom} />
+                            <Box height={searchMobileInputMarginBottom} />
                         </>
                     ),
                 };
