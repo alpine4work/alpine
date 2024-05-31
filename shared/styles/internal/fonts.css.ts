@@ -34,6 +34,7 @@ const interFontFace = fontFace({
     // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
     src: "url(/fonts/inter.woff2) format('woff2 supports variations'), url(/fonts/inter.woff2) format('woff2-variations'), url(/fonts/inter.woff2) format('woff2')",
     fontWeight: "100 900",
+    fontDisplay: "swap",
     // It appears browsers add an extra descent to the font's ascent metric.
     // Presumably so that `background-color` appears centered around the text.
     ascentOverride: formatPercentage(interFontAscenderPercentage + interFontDescenderPercentage),
@@ -45,6 +46,7 @@ const firaCodeFontFace = fontFace({
     // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
     src: "url(/fonts/fira-code.woff2) format('woff2 supports variations'), url(/fonts/fira-code.woff2) format('woff2-variations'), url(/fonts/fira-code.woff2) format('woff2')",
     fontWeight: "100 900",
+    fontDisplay: "swap",
     // Give Fira Code the same ascent/descent metrics as Inter. This means
     // `background-color`s, font sizes, line heights, everything set on the two
     // fonts line up when next to each other.
