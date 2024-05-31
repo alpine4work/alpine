@@ -93,6 +93,25 @@ export const LoaderSchema = Schema.object({
 
 export function links(): Array<LinkDescriptor> {
     return [
+        // Preload our monospace font Fira Code. This means it'll load before it's
+        // referenced in the HTML. If we don't do this the user may see a flash of
+        // unstyled monospace text on initial load.
+        //
+        // Many users won't need the monospace font since they aren't writing code.
+        // We'd like the font to be available to much improve the first load
+        // experience for users who will see monospace fonts though. Otherwise code
+        // can feel janky as the monospace font flashes in.
+        //
+        // We preload at the space level since usage of the monospace font in our
+        // marketing pages is rare.
+        //
+        // https://web.dev/articles/codelab-preload-web-fonts
+        {
+            rel: "preload",
+            href: "/fonts/fira-code.woff2",
+            as: "font",
+            crossOrigin: "anonymous",
+        },
         // Rationale for the styles here:
         //
         // - `overflow: hidden`: Turn off scrolling on `body` when in a space which
