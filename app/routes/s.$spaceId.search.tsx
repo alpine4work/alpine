@@ -9,10 +9,6 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchResultSchema} from "~/shared/search/search_result.js";
 
-// NOCOMMIT:
-//
-// - Clear search button?
-
 const LoaderSchema = Schema.object({
     affinityResults: Schema.array(SearchResultSchema),
 });

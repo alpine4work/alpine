@@ -13,6 +13,7 @@ import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {Modal} from "~/client/design/modal.js";
+import {Spacer} from "~/client/design/spacer.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
@@ -32,6 +33,7 @@ import {getSearchResultDestinationPath} from "~/client/search/internal/get_searc
 import {SearchInstructionalPlaceholder} from "~/client/search/internal/search_instructional_placeholder.js";
 import {SearchResultView} from "~/client/search/internal/search_result_view.js";
 import {useSearchState} from "~/client/search/use_search_state.js";
+import {SearchResultShimmer} from "~/client/shimmer/search_result_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     VirtualizedScrollView,
@@ -47,13 +49,11 @@ import {markSearchAffinityInteraction} from "~/shared/rpc/search_rpc_definitions
 import {isSearchAffinityId} from "~/shared/search/search_affinity_id.js";
 import {SearchOptions} from "~/shared/search/search_options.js";
 import {SearchResult, SearchResultId} from "~/shared/search/search_result.js";
-import {minSearchResultViewHeight} from "~/shared/styles/search_shared_styles.js";
 import {
-    colorSchemeVars,
-    contentSchemaStyles,
-    spinAnimationClassName,
-    sprinkles,
-} from "~/shared/styles/styles.js";
+    minSearchResultViewHeight,
+    searchResultViewPaddingY,
+} from "~/shared/styles/search_shared_styles.js";
+import {contentSchemaStyles, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 const searchModalInputHeight = "16";
 const searchModalPeekContentMaxHeight = "160";
@@ -352,32 +352,39 @@ export function SearchModal({
                                     />
                                 </Box>
                             ) : !output.results ? (
-                                <Box
-                                    width="full"
-                                    height="full"
-                                    display="flex"
-                                    justifyContent="center"
-                                    alignItems="center"
-                                >
-                                    <SpinnerGap
-                                        className={spinAnimationClassName}
-                                        color={colorSchemeVars["grey-70"]}
-                                        size={spacing["6"]}
-                                    />
+                                <Box width="full">
+                                    <Spacer space="1" />
+                                    <SearchResultShimmer titleWidth="64" />
+                                    <SearchResultShimmer titleWidth="32" bodySnippetRagRight="6" />
+                                    <SearchResultShimmer titleWidth="48" bodySnippetRagRight="4" />
+                                    <SearchResultShimmer titleWidth="96" />
+                                    <SearchResultShimmer titleWidth="64" bodySnippetRagRight="5" />
                                 </Box>
                             ) : output.results.length === 0 ? (
                                 <Box
                                     color="grey-50"
-                                    padding="4"
+                                    padding={searchResultViewPaddingY}
                                     style={contentSchemaStyles.paragraphFontSize}
                                 >
-                                    Couldn’t find anything matching “
-                                    <span
-                                        className={sprinkles({color: "grey-70", fontStyle: "bold"})}
-                                    >
-                                        {queryText}
-                                    </span>
-                                    .” Try a different search?
+                                    {queryText.trim().length === 0 ? (
+                                        <>
+                                            As you explore, content you’ve recently visited will
+                                            show up here. For now, try searching.
+                                        </>
+                                    ) : (
+                                        <>
+                                            Couldn’t find anything matching “
+                                            <span
+                                                className={sprinkles({
+                                                    color: "grey-70",
+                                                    fontStyle: "bold",
+                                                })}
+                                            >
+                                                {queryText}
+                                            </span>
+                                            .” Try a different search?
+                                        </>
+                                    )}
                                 </Box>
                             ) : (
                                 <SearchModalResultList

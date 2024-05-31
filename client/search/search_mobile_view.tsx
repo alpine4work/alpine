@@ -1,8 +1,11 @@
+import {SpinnerGap, X} from "phosphor-react";
 import {useCallback, useRef} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
+import {IconButton} from "~/client/design/icon_button.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {TextAreaWithAutoGrowingHeight} from "~/client/design/text_area_with_auto_growing_height.js";
+import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
@@ -15,6 +18,7 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchResult} from "~/shared/search/search_result.js";
 import {
@@ -27,7 +31,12 @@ import {
     searchMobileInputPaddingX,
     searchMobileInputPaddingY,
 } from "~/shared/styles/search_shared_styles.js";
-import {sprinkles} from "~/shared/styles/styles.js";
+import {
+    colorSchemeVars,
+    contentSchemaStyles,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/shared/styles/styles.js";
 
 export function SearchMobileView({
     affinityResults,
@@ -46,6 +55,9 @@ export function SearchMobileView({
         debugOptions: null,
         affinityResults,
     });
+
+    const results = output.results ?? emptyArray;
+    const shouldShowLoadingIndicator = useDelayLoadingIndicator(output.isPending);
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         withMobileLayout: isMobile,
@@ -80,25 +92,98 @@ export function SearchMobileView({
                                 paddingX={screenPaddingX}
                                 marginX="center"
                             >
-                                <TextAreaWithAutoGrowingHeight
-                                    className={sprinkles({
-                                        width: "full",
-                                        paddingX: searchMobileInputPaddingX,
-                                        paddingY: searchMobileInputPaddingY,
-                                        backgroundColor: "grey-0",
-                                        border: "grey-20",
-                                        fontSize: searchMobileInputFontSize,
-                                        fontStyle: "normal",
-                                    })}
-                                    style={{
-                                        borderRadius: searchMobileInputBorderRadius,
-                                    }}
-                                    placeholder={`Search ${space.name}…`}
-                                    value={queryText}
-                                    onChange={event => onQueryTextChange(event.currentTarget.value)}
-                                />
+                                <Box position="relative">
+                                    <TextAreaWithAutoGrowingHeight
+                                        className={sprinkles({
+                                            width: "full",
+                                            paddingLeft: searchMobileInputPaddingX,
+                                            paddingRight: "9",
+                                            paddingY: searchMobileInputPaddingY,
+                                            backgroundColor: "grey-0",
+                                            border: "grey-20",
+                                            fontSize: searchMobileInputFontSize,
+                                            fontStyle: "normal",
+                                        })}
+                                        style={{
+                                            borderRadius: searchMobileInputBorderRadius,
+                                        }}
+                                        placeholder={`Search ${space.name}…`}
+                                        value={queryText}
+                                        onChange={event =>
+                                            onQueryTextChange(event.currentTarget.value)
+                                        }
+                                    />
+                                    {shouldShowLoadingIndicator && (
+                                        <Box
+                                            position="absolute"
+                                            zIndex="30"
+                                            width="4"
+                                            height="4"
+                                            right="2.5"
+                                            top="2.5"
+                                            // Cover clear button while loading with loading indicator. If we are on two
+                                            // lines then the loading indicator will show at the top and the clear button
+                                            // will show at the bottom.
+                                            backgroundColor="grey-0"
+                                            display="flex"
+                                            justifyContent="center"
+                                            alignItems="center"
+                                        >
+                                            <SpinnerGap
+                                                className={spinAnimationClassName}
+                                                color={colorSchemeVars["grey-70"]}
+                                                size={spacing["6"]}
+                                            />
+                                        </Box>
+                                    )}
+                                    {queryText.length > 0 && (
+                                        <Box
+                                            position="absolute"
+                                            zIndex="20"
+                                            right="2.5"
+                                            bottom="2.5"
+                                        >
+                                            <IconButton
+                                                size="xs"
+                                                withTouchSlop
+                                                description="Clear"
+                                                onPress={() => onQueryTextChange("")}
+                                            >
+                                                <X />
+                                            </IconButton>
+                                        </Box>
+                                    )}
+                                </Box>
                             </Box>
                             <Box height={searchMobileInputMarginBottom} />
+                            {results.length === 0 && (
+                                <Box
+                                    color="grey-50"
+                                    paddingX={screenPaddingX}
+                                    paddingTop="1"
+                                    style={contentSchemaStyles.paragraphFontSize}
+                                >
+                                    {queryText.trim().length === 0 ? (
+                                        <>
+                                            As you explore, content you’ve recently visited will
+                                            show up here. For now, try searching.
+                                        </>
+                                    ) : (
+                                        <>
+                                            Couldn’t find anything matching “
+                                            <span
+                                                className={sprinkles({
+                                                    color: "grey-70",
+                                                    fontStyle: "bold",
+                                                })}
+                                            >
+                                                {queryText}
+                                            </span>
+                                            .” Try a different search?
+                                        </>
+                                    )}
+                                </Box>
+                            )}
                         </>
                     ),
                 };
@@ -106,10 +191,10 @@ export function SearchMobileView({
 
             index -= 1;
 
-            const result = (output.results ?? [])[index]!;
+            const result = results[index]!;
 
             const isFirstEntry = index === 0;
-            const isLastEntry = index === (output.results ?? []).length - 1;
+            const isLastEntry = index === results.length - 1;
 
             return {
                 key: `Loaded:${result.id}`,
@@ -133,8 +218,9 @@ export function SearchMobileView({
             maxWidth,
             onQueryTextChange,
             output.key,
-            output.results,
             queryText,
+            results,
+            shouldShowLoadingIndicator,
             space.id,
             space.name,
         ],
@@ -146,7 +232,7 @@ export function SearchMobileView({
             elementRef={scrollViewRef}
             scrollbarInsetTop={scrollbarInsetTop}
             extraChildren={navigationBar}
-            itemCount={1 + (output.results?.length ?? 0)}
+            itemCount={1 + results.length}
             bufferedItemHeight={minSearchResultViewHeight}
             renderItem={renderItem}
             extraChildrenOutsideContentElement={({contentHeight}) => (
