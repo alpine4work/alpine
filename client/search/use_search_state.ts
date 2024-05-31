@@ -35,7 +35,7 @@ import {SearchResult, SearchResultId} from "~/shared/search/search_result.js";
  * searches a result matches something from their affinity list we boost that
  * result to the top.
  */
-const affinitySearchResultLimit = 30;
+export const affinitySearchResultLimit = 30;
 
 /**
  * The debounce timeout before we'll send a new search request. Picked so that
@@ -219,9 +219,11 @@ export function usePreloadSearchByAffinity() {
 export function useSearchState({
     initialQueryText,
     debugOptions,
+    affinityResults: affinityResultsFromProps,
 }: {
     initialQueryText: string;
     debugOptions: SearchOptions | null;
+    affinityResults?: ReadonlyArray<SearchResult>;
 }): {
     output: ExecuteSearchOutput & {readonly key: string};
     queryText: string;
@@ -234,11 +236,32 @@ export function useSearchState({
 
     const options = debugOptions ?? standardSearchOptions;
 
-    const affinityOutput = useLazyLoadRpc(searchByAffinity, {
-        spaceId: space.id,
-        limit: affinitySearchResultLimit,
-        timeZone,
-    });
+    const lazyLoadAffinityOutput = useLazyLoadRpc(
+        searchByAffinity,
+        !affinityResultsFromProps
+            ? {
+                  spaceId: space.id,
+                  limit: affinitySearchResultLimit,
+                  timeZone,
+              }
+            : null,
+    );
+
+    const affinityOutput: {
+        isLoading: boolean;
+        isValidating: boolean;
+        output: {results: ReadonlyArray<SearchResult>} | null;
+    } = useMemo(() => {
+        if (affinityResultsFromProps) {
+            return {
+                isLoading: false,
+                isValidating: false,
+                output: {results: affinityResultsFromProps},
+            };
+        }
+
+        return lazyLoadAffinityOutput;
+    }, [affinityResultsFromProps, lazyLoadAffinityOutput]);
 
     const affinityResultById = useMemo(() => {
         const affinityResultById = new Map<SearchResultId, SearchResult>();

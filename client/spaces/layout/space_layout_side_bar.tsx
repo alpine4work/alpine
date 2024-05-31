@@ -8,7 +8,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
-import {usePreloadAffinitiveSearchEntities} from "~/client/search/search_modal.js";
+import {usePreloadSearchByAffinity} from "~/client/search/use_search_state.js";
 import {SpaceLayoutSideBarCreateButton} from "~/client/spaces/layout/internal/space_layout_side_bar_create_button.js";
 import {SpaceLayoutSideBarInboxButton} from "~/client/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
 import {SpaceLayoutSideBarSpaceButton} from "~/client/spaces/layout/internal/space_layout_side_bar_space_button.js";
@@ -38,7 +38,7 @@ export function SpaceLayoutSideBar({
     // Preload affinitive search entities so they're ready when the search modal
     // opens. We expect search to be the primary way users navigate around the
     // product.
-    usePreloadAffinitiveSearchEntities();
+    usePreloadSearchByAffinity();
 
     return (
         <Box

@@ -10,7 +10,7 @@ import {
     SearchResultView,
     minSearchResultViewHeight,
 } from "~/client/search/internal/search_result_view.js";
-import {useSearchState} from "~/client/search/internal/use_search_state.js";
+import {useSearchState} from "~/client/search/use_search_state.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     VirtualizedScrollView,
@@ -39,7 +39,11 @@ const minSearchInputHeight = addRemLengths(
 
 const searchInputBorderRadius = `${parseRemLengthNumber(minSearchInputHeight) / 2}rem`;
 
-export function SearchMobileView() {
+export function SearchMobileView({
+    affinityResults,
+}: {
+    affinityResults: ReadonlyArray<SearchResult>;
+}) {
     const isMobile = useIsMobile();
     const {space} = useSpaceContext();
 
@@ -50,6 +54,7 @@ export function SearchMobileView() {
     const {output, queryText, onQueryTextChange} = useSearchState({
         initialQueryText: "",
         debugOptions: null,
+        affinityResults,
     });
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({

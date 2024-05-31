@@ -34,7 +34,7 @@ import {
     SearchResultView,
     minSearchResultViewHeight,
 } from "~/client/search/internal/search_result_view.js";
-import {useSearchState} from "~/client/search/internal/use_search_state.js";
+import {useSearchState} from "~/client/search/use_search_state.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     VirtualizedScrollView,
@@ -66,10 +66,6 @@ const searchModalMaxHeight = addRemLengths(
 );
 
 const searchModalPeekControlsHeight = "6";
-
-// Export the preload hook from our internal folder so it can be used by code
-// depending on `//client/search`.
-export {usePreloadSearchByAffinity as usePreloadAffinitiveSearchEntities} from "~/client/search/internal/use_search_state.js";
 
 export function SearchModal({
     initialQueryText,

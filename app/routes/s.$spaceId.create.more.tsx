@@ -31,6 +31,12 @@ export default function CreateMoreRoute() {
             desktopMaxWidth={maxWidth}
         >
             <Box width="full" maxWidth={maxWidth} paddingX={screenPaddingX} marginX="center">
+                <Box
+                    // For consistency with `/s/:spaceId/search` which needs some space between the
+                    // search input and nav bar to avoid selection lollipop clipping in our native
+                    // mobile app.
+                    height="1"
+                />
                 <MobileSettingsRow
                     withBorderTop
                     icon={<ChannelBrandIcon />}

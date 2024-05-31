@@ -106,6 +106,20 @@ function IconButton(
         size?: IconButtonSize;
 
         /**
+         * Forces touch slop even for small button sizes. By default, larger
+         * button sizes like `base` get touch slop but smaller buttons like `xs` don't
+         * get touch slop. Since generally if you're using an `xs` button there are
+         * multiple small buttons next to each other and touch slop would leave you
+         * with conflicting touch areas.
+         *
+         * However, if for design reasons you have one lone `xs` button on mobile you
+         * should give it touch slop.
+         *
+         * If set to false, `base` buttons will still get touch slop.
+         */
+        withTouchSlop?: boolean;
+
+        /**
          * A keyboard shortcut that will display alongside the description in the tooltip.
          */
         keyboardShortcutHint?: ReactNode;
@@ -231,6 +245,7 @@ function IconButton(
         pressErrorTitle,
         variant = "quiet",
         size = "base",
+        withTouchSlop = false,
         keyboardShortcutHint,
         isPending: isPendingFromProps,
         isPressed: isPressedFromProps,
@@ -405,9 +420,10 @@ function IconButton(
     )[size];
 
     const defaultTouchSlop = useTouchSlop(buttonSize);
-    const touchSlop = withoutTouchSlop
-        ? ({slop: "0", sizeWithSlop: buttonSize} as const)
-        : defaultTouchSlop;
+    const touchSlop =
+        withTouchSlop || !withoutTouchSlop
+            ? defaultTouchSlop
+            : ({slop: "0", sizeWithSlop: buttonSize} as const);
 
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
