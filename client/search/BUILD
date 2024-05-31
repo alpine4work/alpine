@@ -17,6 +17,7 @@ ts_project(
         "//client/design",
         "//client/peek",
         "//client/rpc",
+        "//client/shimmer",
         "//client/spaces",
         "//client/virtualized",
         "//shared/accounts",

@@ -964,6 +964,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             </div>
         );
     }, [
+        canPrimaryInputHover,
         isMobile,
         messageStartOfSentenceNoun,
         messageTextForBigEmojiMessage,
