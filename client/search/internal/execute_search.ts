@@ -100,12 +100,10 @@ export function executeSearch(
     {
         spaceId,
         queryText,
-        limit,
         debugOptions,
     }: {
         spaceId: SpaceId;
         queryText: string;
-        limit: number;
         debugOptions: SearchOptions | null;
     },
 ): Store<ExecuteSearchOutput> & {

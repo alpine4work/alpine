@@ -23,7 +23,6 @@ import {
     screenPaddingX,
     spacing,
 } from "~/shared/design/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchResult} from "~/shared/search/search_result.js";
 import {fontSizes, sprinkles} from "~/shared/styles/styles.js";
@@ -50,7 +49,6 @@ export function SearchMobileView() {
 
     const {output, queryText, onQueryTextChange} = useSearchState({
         initialQueryText: "",
-        getResultListHeight: useCallback(() => assertExists(viewRef.current).getHeight(), []),
         debugOptions: null,
     });
 

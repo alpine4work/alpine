@@ -87,7 +87,6 @@ export function SearchModal({
     const navigate = useNavigate();
 
     const inputRef = useRef<HTMLInputElement>(null);
-    const resultListContainerRef = useRef<HTMLDivElement>(null);
 
     // Immediately focus the search input.
     //
@@ -106,10 +105,6 @@ export function SearchModal({
 
     const {output, queryText, onQueryTextChange} = useSearchState({
         initialQueryText,
-        getResultListHeight: useCallback(
-            () => assertExists(resultListContainerRef.current).clientHeight,
-            [],
-        ),
         debugOptions,
     });
 
@@ -345,7 +340,6 @@ export function SearchModal({
                         <Box
                             // Reset our result list if the search response changes.
                             key={output.key}
-                            ref={resultListContainerRef}
                             flexGrow="1"
                             height="full"
                             overflow="hidden"

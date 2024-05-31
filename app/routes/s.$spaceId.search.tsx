@@ -4,7 +4,6 @@ import {SearchMobileView} from "~/client/search/search_mobile_view.js";
 // NOCOMMIT:
 //
 // - Server load affinity list
-// - Don't use virtualization height for picking limit
 // - Clear search button?
 
 export function meta() {

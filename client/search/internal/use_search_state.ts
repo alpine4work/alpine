@@ -1,7 +1,6 @@
 import {Memo, useCallback, useEffect, useMemo, useReducer} from "react";
 import {split as splitUnicodeDefaultWordBoundary} from "unicode-default-word-boundary";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
@@ -16,10 +15,7 @@ import {
     executeSearch,
     pendingExecuteSearchOutput,
 } from "~/client/search/internal/execute_search.js";
-import {minSearchResultViewHeight} from "~/client/search/internal/search_result_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
-import {convertRemLengthToPx} from "~/shared/design/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -32,6 +28,14 @@ import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 import {SearchCommandId, searchCommandIndex} from "~/shared/search/search_commands.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
 import {SearchResult, SearchResultId} from "~/shared/search/search_result.js";
+
+/**
+ * The maximum number of affinity search results we look for. When the user has
+ * not entered a search query we show affinity search results. If when the user
+ * searches a result matches something from their affinity list we boost that
+ * result to the top.
+ */
+const affinitySearchResultLimit = 30;
 
 /**
  * The debounce timeout before we'll send a new search request. Picked so that
@@ -190,8 +194,6 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
     }
 }
 
-const affinitiveSearchEntitiesLimit = 40;
-
 /**
  * Preload affinitive search entities when we have some idle time so that they
  * are immediately available when the search modal opens.
@@ -202,7 +204,7 @@ export function usePreloadSearchByAffinity() {
 
     useIdlyPreloadRpc(searchByAffinity, {
         spaceId: space.id,
-        limit: affinitiveSearchEntitiesLimit,
+        limit: affinitySearchResultLimit,
         timeZone,
     });
 }
@@ -216,11 +218,9 @@ export function usePreloadSearchByAffinity() {
  */
 export function useSearchState({
     initialQueryText,
-    getResultListHeight,
     debugOptions,
 }: {
     initialQueryText: string;
-    getResultListHeight: Memo<() => number>;
     debugOptions: SearchOptions | null;
 }): {
     output: ExecuteSearchOutput & {readonly key: string};
@@ -236,7 +236,7 @@ export function useSearchState({
 
     const affinityOutput = useLazyLoadRpc(searchByAffinity, {
         spaceId: space.id,
-        limit: affinitiveSearchEntitiesLimit,
+        limit: affinitySearchResultLimit,
         timeZone,
     });
 
@@ -257,29 +257,14 @@ export function useSearchState({
     );
 
     useEffect(() => {
-        // Load enough items to fill the virtualization window once. This gives the
-        // user some space to scroll and read before we need to load more messages.
-        //
-        // If the user did a jump scroll then we load 50% more messages so we have some
-        // buffer above and below the virtualization window.
-        const limit = Math.max(
-            20,
-            Math.ceil(
-                getVirtualizationWindowHeight(getResultListHeight()) /
-                    convertRemLengthToPx(minSearchResultViewHeight, getRemPxWithoutListening()),
-            ),
-        );
-
         searchState.executionStack.latestExecution.execute(context, {
             spaceId: space.id,
-            limit,
             debugOptions,
             isTyping: searchState.wordTypingTimeoutTime !== null,
         });
     }, [
         context,
         debugOptions,
-        getResultListHeight,
         searchState.executionStack.latestExecution,
         searchState.wordTypingTimeoutTime,
         space.id,
@@ -460,7 +445,6 @@ type SearchStateExecution = Store<SearchStateExecutionOutput> & {
         context: AppContext,
         options: {
             spaceId: SpaceId;
-            limit: number;
             debugOptions: SearchOptions | null;
             isTyping: boolean;
         },
@@ -506,12 +490,10 @@ function createSearchStateExecution(queryText: string): SearchStateExecution {
         context: AppContext,
         {
             spaceId,
-            limit,
             debugOptions,
             isTyping,
         }: {
             spaceId: SpaceId;
-            limit: number;
             debugOptions: SearchOptions | null;
             isTyping: boolean;
         },
@@ -522,7 +504,6 @@ function createSearchStateExecution(queryText: string): SearchStateExecution {
             const nextStore = executeSearch(context, {
                 spaceId,
                 queryText,
-                limit,
                 debugOptions,
             });
 
@@ -543,7 +524,6 @@ function createSearchStateExecution(queryText: string): SearchStateExecution {
                 const nextStore = executeSearch(context, {
                     spaceId,
                     queryText,
-                    limit,
                     debugOptions,
                 });
 
