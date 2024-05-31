@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import {Memo, Ref, forwardRef} from "react";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
     Spacing,
     addRemLengths,
@@ -11,6 +11,7 @@ import {
 import {
     getMessageBubbleMarginLeft,
     messageViewActionsWidth,
+    messageViewActionsWidthWithoutHoveringPrimaryInput,
     messageViewBubbleBorderRadius,
     messageViewBubbleMergedBorderRadius,
     messageViewBubblePaddingX,
@@ -59,6 +60,7 @@ function MessageShimmer(
     ref: Ref<HTMLDivElement>,
 ) {
     const isMobile = useIsMobile();
+    const canPrimaryInputHover = useCanPrimaryInputHover();
 
     return (
         <div
@@ -137,7 +139,14 @@ function MessageShimmer(
                         )}
                     </div>
                 </div>
-                <div className={sprinkles({flexGrow: "1", paddingRight: messageViewActionsWidth})}>
+                <div
+                    className={sprinkles({
+                        flexGrow: "1",
+                        paddingRight: canPrimaryInputHover
+                            ? messageViewActionsWidth
+                            : messageViewActionsWidthWithoutHoveringPrimaryInput,
+                    })}
+                >
                     <div
                         className={sprinkles({
                             paddingX: messageViewBubblePaddingX,

@@ -49,6 +49,7 @@ import {
 import {
     getMessageBubbleMarginLeft,
     messageViewActionsWidth,
+    messageViewActionsWidthWithoutHoveringPrimaryInput,
     messageViewBubbleBorderRadius,
     messageViewBubbleMergedBorderRadius,
     messageViewBubbleMinWidth,
@@ -864,7 +865,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     ),
                     paddingRight: addRemLengths(
                         spacing["3"],
-                        spacing[messageViewActionsWidth],
+                        spacing[
+                            canPrimaryInputHover
+                                ? messageViewActionsWidth
+                                : messageViewActionsWidthWithoutHoveringPrimaryInput
+                        ],
                         spacing[
                             typeof paddingX === "string"
                                 ? paddingX
@@ -1205,7 +1210,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 >
                                     <div
                                         className={sprinkles({
-                                            width: messageViewActionsWidth,
+                                            width: canPrimaryInputHover
+                                                ? messageViewActionsWidth
+                                                : messageViewActionsWidthWithoutHoveringPrimaryInput,
                                             position: "relative",
                                             zIndex: "20",
                                         })}

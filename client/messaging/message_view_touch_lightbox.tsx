@@ -40,7 +40,7 @@ import {emptyMessageContentWithReferences} from "~/shared/messaging/message_cont
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {
     getMessageBubbleMarginLeft,
-    messageViewActionsWidth,
+    messageViewActionsWidthWithoutHoveringPrimaryInput,
     messageViewBubbleBorderRadius,
     messageViewBubbleMergedBorderRadius,
     messageViewBubbleMinWidth,
@@ -288,7 +288,8 @@ export function MessageViewTouchLightbox<
                     paddingLeft: getMessageBubbleMarginLeft(screenPaddingX.mobile),
                     paddingRight: addRemLengths(
                         spacing["3"],
-                        spacing[messageViewActionsWidth],
+                        // The lightbox should only open if the primary input can't hover.
+                        spacing[messageViewActionsWidthWithoutHoveringPrimaryInput],
                         spacing[screenPaddingX.mobile],
                     ),
                 }}
@@ -571,7 +572,7 @@ export function MessageViewTouchLightbox<
                         </Box>
                     )}
                     <Box pointerEvents="none" flexShrink="0" paddingLeft="3">
-                        <Box width={messageViewActionsWidth} />
+                        <Box width={messageViewActionsWidthWithoutHoveringPrimaryInput} />
                     </Box>
                 </Box>
                 <Box

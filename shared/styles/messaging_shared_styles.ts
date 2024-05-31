@@ -36,6 +36,7 @@ export const messageViewMinHeight: RemLength = addRemLengths(
 );
 
 export const messageViewActionsWidth: Spacing = "10";
+export const messageViewActionsWidthWithoutHoveringPrimaryInput: Spacing = "5";
 
 /**
  * The minimum number of minutes between when we insert timestamp dividers into
