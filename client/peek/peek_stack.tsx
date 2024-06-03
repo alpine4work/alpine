@@ -67,7 +67,7 @@ import {
     PeekRemixEmbedRouter,
     usePeekRemixEmbedRouter,
 } from "~/client/peek/peek_remix_embed.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {NavigationEventContextProvider, useNavigate} from "~/client/remix/use_navigate.js";
 import {
@@ -1372,9 +1372,11 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
     },
     ref: Ref<PeekStackOverlayContentRef>,
 ) {
+    const {isAppleDevice} = useClientInfo();
+    const navigate = useNavigate();
+
     const contentRef = useRef<HTMLDivElement>(null);
     const closeButtonRef = useRef<HTMLElement>(null);
-    const navigate = useNavigate();
 
     useImperativeHandle(
         ref,
@@ -1463,15 +1465,35 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
-                if (event.key === "Escape" && state.stack.length > 0) {
-                    if (event.shiftKey) {
+                switch (event.key) {
+                    case "Escape": {
+                        if (state.stack.length === 0) break;
+
+                        if (event.shiftKey) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            dispatch({type: "PopAll"});
+                        } else {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            dispatch({type: "Pop"});
+                        }
+                        break;
+                    }
+                    case "e": {
+                        if (state.stack.length === 0) break;
+                        if (!(isAppleDevice ? event.metaKey : event.ctrlKey)) break;
+
                         event.preventDefault();
                         event.stopPropagation();
-                        dispatch({type: "PopAll"});
-                    } else {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        dispatch({type: "Pop"});
+
+                        const spacePath = convertPeekPathToSpacePath(entry.history.location);
+                        if (!spacePath) throw new InternalError("Can only expand peek routes");
+
+                        // TODO(calebmer, #global-loading-indicator): Global navigation loading
+                        // indicator?
+                        void navigate(spacePath);
+                        break;
                     }
                 }
             }}
@@ -1563,8 +1585,8 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                     >
                         <IconButton
                             size="xs"
-                            // TODO(calebmer): Give expand a global keyboard shortcut.
                             description="Expand"
+                            keyboardShortcutHint={isAppleDevice ? "⌘+E" : "Ctrl+E"}
                             tooltipPlacement="top"
                             pressErrorTitle="Couldn’t expand"
                             onPress={async event => {
