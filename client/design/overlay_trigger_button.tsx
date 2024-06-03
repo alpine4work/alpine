@@ -1,5 +1,6 @@
 import {
     AriaAttributes,
+    Memo,
     ReactElement,
     Ref,
     forwardRef,
@@ -21,7 +22,6 @@ import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_eleme
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
 import {OverlayPlacement, useIsWaitingForOverlayPortalElement} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
-import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {
     TooltipCoordinationContextProvider,
     defaultTooltipOffset,
@@ -30,7 +30,7 @@ import {
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -38,9 +38,10 @@ import {Spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 
 export type OverlayTriggerButtonRef = {
-    open(): void;
+    open(options?: {stopPropagation?: boolean}): void;
 };
 
 export type OverlayTriggerButtonState =
@@ -68,21 +69,9 @@ export type OverlayTriggerButtonChildrenProps = {
 };
 
 export type OverlayTriggerButtonOverlayProps = {
-    onCloseWithAnimation: () => void;
-    onCloseWithoutAnimation: () => void;
+    onCloseWithAnimation: Memo<() => void>;
+    onCloseWithoutAnimation: Memo<() => void>;
 };
-
-let recentOverlayTransitionCoordination:
-    | {
-          time: number;
-          type: "PointerExpand";
-      }
-    | {
-          time: number;
-          type: "OutsidePress";
-          cancelFadeOut: () => void;
-      }
-    | null = null;
 
 export const onTriggeredOverlayOpenSymbol = Symbol("onTriggeredOverlayOpen");
 export const onTriggeredOverlayCloseSymbol = Symbol("onTriggeredOverlayClose");
@@ -111,6 +100,8 @@ function OverlayTriggerButton(
         offset = defaultTooltipOffset,
         offsetAlong,
         children: actualChildren,
+        onOpen: _onOpen,
+        onClose: _onClose,
         onStateChange: _onStateChange,
     }: {
         /**
@@ -164,7 +155,22 @@ function OverlayTriggerButton(
         children: ReactElement | ((props: OverlayTriggerButtonChildrenProps) => ReactElement);
 
         /**
-         * Observe the overlay trigger's internal state.
+         * Called before the overlay opens. Like when the button is clicked with a
+         * mouse or focused and had "Enter" pressed. You can stop the overlay from
+         * opening by returning `{preventDefault: true}`. For example, if you need to
+         * load some data.
+         */
+        onOpen?: () => {preventDefault: boolean} | void;
+
+        /**
+         * Called before the overlay closes. Like when a click happens outside the
+         * overlay.
+         */
+        onClose?: (options: {withoutAnimation: boolean}) => void;
+
+        /**
+         * Observe the overlay trigger's internal state after the state has changed.
+         * Different from `onOpen` which is only called before the overlay opens.
          */
         onStateChange?: (state: OverlayTriggerButtonState) => void;
     },
@@ -175,18 +181,82 @@ function OverlayTriggerButton(
 
     const [state, setState] = useState(initialOverlayTriggerButtonState);
 
-    const onStateChange = useEvent(_onStateChange);
+    const {onOpen, onClose, onStateChange, open, close, closeWithoutAnimation} = useEvents({
+        onOpen: _onOpen ?? noop,
+        onClose: _onClose ?? noop,
+        onStateChange: _onStateChange ?? noop,
+
+        open: ({stopPropagation = false} = {}) => {
+            if (state.isExpanded) return;
+
+            // Borrowing the language of DOM event handling here. `onOpen` may
+            // `preventDefault` stopping expansion from actually happening. But when you
+            // call `open()` you may `stopPropagation` to prevent the `onOpen` callback
+            // (which may `preventDefault`) from being called.
+            if (stopPropagation) {
+                setState({isExpanded: true});
+            } else {
+                const result = _onOpen?.();
+                if (typeof result === "object" && result.preventDefault) {
+                    // Do nothing if default was prevented...
+                } else {
+                    setState({isExpanded: true});
+                }
+            }
+        },
+
+        close: ({
+            returnFocusTo,
+            withoutAnimation = false,
+        }: {
+            returnFocusTo?: "TriggerElement" | "NextElement" | "PreviousElement";
+            withoutAnimation?: boolean;
+        } = {}) => {
+            if (!state.isExpanded) return;
+
+            onClose({withoutAnimation});
+
+            setState({isExpanded: false, disableAnimationOut: withoutAnimation});
+
+            // If we unmounted before calling `onClose` (due to some async race condition)
+            // don't focus anything.
+            if (!overlayTriggerRef.current) return;
+
+            const overlayTriggerElement = overlayTriggerRef.current;
+
+            switch (returnFocusTo) {
+                case "TriggerElement": {
+                    overlayTriggerElement.focus({preventScroll: true});
+                    break;
+                }
+                case "NextElement": {
+                    getNextFocusableElementIfExists(overlayTriggerElement)?.focus({
+                        preventScroll: true,
+                    });
+                    break;
+                }
+                case "PreviousElement": {
+                    getPreviousFocusableElementIfExists(overlayTriggerElement)?.focus({
+                        preventScroll: true,
+                    });
+                    break;
+                }
+                case undefined: {
+                    break;
+                }
+                default:
+                    throw exhaustive(returnFocusTo);
+            }
+        },
+        closeWithoutAnimation: () => {
+            close({withoutAnimation: true});
+        },
+    });
     useEffect(() => {
         onStateChange(state);
     }, [onStateChange, state]);
 
-    useImperativeHandle(
-        ref,
-        () => ({
-            open: () => setState({isExpanded: true}),
-        }),
-        [],
-    );
+    useImperativeHandle(ref, () => ({open}), [open]);
 
     const isWaitingForOverlayPortalElement = useIsWaitingForOverlayPortalElement(state.isExpanded);
 
@@ -213,31 +283,56 @@ function OverlayTriggerButton(
             //
             // https://www.w3.org/TR/wai-aria-practices-1.2/#keyboard-interaction-13
             function handleKeyDown(event: KeyboardEvent) {
+                if (state.isExpanded) return;
                 if (overlayTriggerElement.disabled) return;
 
                 switch (event.key) {
                     case "ArrowDown": {
                         event.preventDefault(); // Don’t scroll
                         event.stopPropagation();
-                        setState({isExpanded: true, initiallyFocus: "FirstFocusableElement"});
+
+                        const result = onOpen();
+                        if (typeof result === "object" && result.preventDefault) {
+                            // Do nothing if default was prevented...
+                        } else {
+                            setState({isExpanded: true, initiallyFocus: "FirstFocusableElement"});
+                        }
                         break;
                     }
                     case "ArrowUp": {
                         event.preventDefault(); // Don’t scroll
                         event.stopPropagation();
-                        setState({isExpanded: true, initiallyFocus: "LastFocusableElement"});
+
+                        const result = onOpen();
+                        if (typeof result === "object" && result.preventDefault) {
+                            // Do nothing if default was prevented...
+                        } else {
+                            setState({isExpanded: true, initiallyFocus: "LastFocusableElement"});
+                        }
                         break;
                     }
                     case "Enter": {
                         event.preventDefault();
                         event.stopPropagation();
-                        setState({isExpanded: true, initiallyFocus: "FirstFocusableElement"});
+
+                        const result = onOpen();
+                        if (typeof result === "object" && result.preventDefault) {
+                            // Do nothing if default was prevented...
+                        } else {
+                            setState({isExpanded: true, initiallyFocus: "FirstFocusableElement"});
+                        }
                         break;
                     }
                     case " ": {
                         event.preventDefault(); // Don’t scroll
                         event.stopPropagation();
-                        setState({isExpanded: true, initiallyFocus: "FirstFocusableElement"});
+
+                        const result = onOpen();
+                        if (typeof result === "object" && result.preventDefault) {
+                            // Do nothing if default was prevented...
+                        } else {
+                            setState({isExpanded: true, initiallyFocus: "FirstFocusableElement"});
+                        }
                         break;
                     }
                     default:
@@ -248,40 +343,14 @@ function OverlayTriggerButton(
             let isPointerDown = false;
 
             function pointerExpand() {
-                // If we expand an overlay by clicking then other overlays that go away on
-                // outside press should not animate out.
-                if (!state.isExpanded) {
-                    // TODO(calebmer, 2024-05-15): I think this
-                    // `recentOverlayTransitionCoordination` business predates making
-                    // `<OverlayTriggerButton>` overlays blocking? And it's unnecessary now so could
-                    // be deleted. Since you can't click to open a different overlay while another
-                    // overlay is open (since a blocking cover is over the DOM).
-                    if (
-                        recentOverlayTransitionCoordination?.type === "OutsidePress" &&
-                        Date.now() - recentOverlayTransitionCoordination.time <
-                            perceivedAsInstantLimitMs
-                    ) {
-                        recentOverlayTransitionCoordination.cancelFadeOut();
-                    }
+                if (state.isExpanded) return;
 
-                    recentOverlayTransitionCoordination = {
-                        time: Date.now(),
-                        type: "PointerExpand",
-                    };
+                const result = onOpen();
+                if (typeof result === "object" && result.preventDefault) {
+                    // Do nothing if default was prevented...
+                } else {
+                    setState({isExpanded: true});
                 }
-
-                setState(oldState => {
-                    if (!oldState.isExpanded) {
-                        return {isExpanded: true};
-                    } else {
-                        return {
-                            isExpanded: false,
-                            // Don't animate the menu out when the user took a direct action to close
-                            // the menu.
-                            disableAnimationOut: true,
-                        };
-                    }
-                });
             }
 
             function handlePointerDown(event: PointerEvent) {
@@ -385,7 +454,7 @@ function OverlayTriggerButton(
                 overlayTriggerElement.removeEventListener("keydown", handleKeyDown);
             };
         },
-        [ariaHasPopup, isWaitingForOverlayPortalElement, state.isExpanded],
+        [ariaHasPopup, isWaitingForOverlayPortalElement, onOpen, state.isExpanded],
     );
 
     // Close the overlay if there’s a click somewhere else in the document outside
@@ -411,27 +480,12 @@ function OverlayTriggerButton(
             document.activeElement.blur();
         }
 
+        onClose({withoutAnimation: false});
+
         setState({
             isExpanded: false,
-            // If we expanded an overlay trigger with a pointer click recently, we don't
-            // want to fade out our overlay.
-            disableAnimationOut:
-                recentOverlayTransitionCoordination?.type === "PointerExpand" &&
-                Date.now() - recentOverlayTransitionCoordination.time < perceivedAsInstantLimitMs,
+            disableAnimationOut: false,
         });
-
-        // In case the outside press event happens first, allow a pointer expand to
-        // cancel our fade out animation.
-        recentOverlayTransitionCoordination = {
-            time: Date.now(),
-            type: "OutsidePress",
-            cancelFadeOut: () => {
-                setState(state => {
-                    if (state.isExpanded || state.disableAnimationOut) return state;
-                    return {isExpanded: false, disableAnimationOut: true};
-                });
-            },
-        };
     });
 
     const children = useElementWithRef(
@@ -444,46 +498,6 @@ function OverlayTriggerButton(
         }, [actualChildren, state.isExpanded]),
         useMergedRefs(overlayTriggerRef, useLifecycleRef(overlayTriggerLifecycleRef)),
     );
-
-    const onClose = ({
-        returnFocusTo,
-        withoutAnimation = false,
-    }: {
-        returnFocusTo?: "TriggerElement" | "NextElement" | "PreviousElement";
-        withoutAnimation?: boolean;
-    } = {}) => {
-        setState({isExpanded: false, disableAnimationOut: withoutAnimation});
-
-        // If we unmounted before calling `onClose` (due to some async race condition)
-        // don't focus anything.
-        if (!overlayTriggerRef.current) return;
-
-        const overlayTriggerElement = overlayTriggerRef.current;
-
-        switch (returnFocusTo) {
-            case "TriggerElement": {
-                overlayTriggerElement.focus({preventScroll: true});
-                break;
-            }
-            case "NextElement": {
-                getNextFocusableElementIfExists(overlayTriggerElement)?.focus({
-                    preventScroll: true,
-                });
-                break;
-            }
-            case "PreviousElement": {
-                getPreviousFocusableElementIfExists(overlayTriggerElement)?.focus({
-                    preventScroll: true,
-                });
-                break;
-            }
-            case undefined: {
-                break;
-            }
-            default:
-                throw exhaustive(returnFocusTo);
-        }
-    };
 
     const pendingTriggeredOverlayCloseRef = useRef<(() => void) | null>(null);
 
@@ -506,12 +520,12 @@ function OverlayTriggerButton(
                         typeof overlay !== "function"
                             ? overlay
                             : overlay({
-                                  onCloseWithAnimation: onClose,
-                                  onCloseWithoutAnimation: () => onClose({withoutAnimation: true}),
+                                  onCloseWithAnimation: close,
+                                  onCloseWithoutAnimation: closeWithoutAnimation,
                               })
                     }
                     initiallyFocus={state.initiallyFocus ?? "OverlayElement"}
-                    onClose={onClose}
+                    onClose={close}
                 />
             }
             onActuallyVisibleChange={isActuallyVisible => {

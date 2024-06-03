@@ -12,7 +12,7 @@ export function InboxViewTopBarModeToggleButton({
     onArchivePress: () => MaybePromise<void>;
 }) {
     return (
-        <Box display="flex" gap="1.5">
+        <Box display="flex" gap="1">
             <Button
                 variant={filter === "New" ? "quiet-on" : "quiet-off"}
                 height="6"

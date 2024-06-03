@@ -1,5 +1,6 @@
-import {SpinnerGap} from "phosphor-react";
+import {ArrowUpRight, SpinnerGap} from "phosphor-react";
 import {Memo, useCallback, useEffect, useRef, useState} from "react";
+import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {useShowToast} from "~/client/design/toast.js";
@@ -10,19 +11,23 @@ import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js"
 import {InboxViewTopBarModeToggleButton} from "~/client/inbox/inbox_view_top_bar_mode_toggle_button.js";
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
 import {usePeekStackContext} from "~/client/peek/peek_stack.js";
+import {useRootNavigate} from "~/client/remix/use_navigate.js";
+import {InboxEntryShimmer} from "~/client/shimmer/inbox_entry_shimmer.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {Spacing, addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeIndexQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
-import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
+import {colorSchemeVars, inboxStyles, spinAnimationClassName} from "~/shared/styles/styles.js";
 
 const spaceLayoutSideBarInboxOverlayHeaderHeight: Spacing = "9";
 
@@ -53,12 +58,17 @@ export function SpaceLayoutSideBarInboxOverlay({
                 borderBottom="grey-10"
                 display="flex"
                 alignItems="center"
-                paddingLeft="2.5"
                 paddingRight="1.5"
             >
-                <Box flexGrow="1" fontSize="100" fontStyle="semi-bold">
-                    Inbox
-                </Box>
+                <SpaceLayoutSideBarInboxOverlayExpandButton
+                    filter={filter}
+                    withoutAnimation={
+                        initialEntriesResult.isPending ||
+                        initialEntriesResult.value.items.length <= 3
+                    }
+                    onClose={onClose}
+                />
+                <Box flexGrow="1" />
                 <Box flexShrink="0">
                     <InboxViewTopBarModeToggleButton
                         filter={filter}
@@ -68,12 +78,12 @@ export function SpaceLayoutSideBarInboxOverlay({
                 </Box>
             </Box>
             {initialEntriesResult.isPending ? (
-                <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
-                    <SpinnerGap
-                        className={spinAnimationClassName}
-                        color={colorSchemeVars["grey-70"]}
-                        size={spacing["6"]}
-                    />
+                <Box flexGrow="1" width="full" height="full" overflow="hidden" padding="1">
+                    <InboxEntryShimmer titleRagRight="0" subtitleRagRight="8" />
+                    <InboxEntryShimmer titleRagRight="6" subtitleRagRight="4" />
+                    <InboxEntryShimmer titleRagRight="4" subtitleRagRight="6" />
+                    <InboxEntryShimmer titleRagRight="0" subtitleRagRight="2" />
+                    <InboxEntryShimmer titleRagRight="6" subtitleRagRight="4" />
                 </Box>
             ) : (
                 <SpaceLayoutTopBarInboxOverlayEntries
@@ -83,6 +93,94 @@ export function SpaceLayoutSideBarInboxOverlay({
                 />
             )}
         </>
+    );
+}
+
+function SpaceLayoutSideBarInboxOverlayExpandButton({
+    filter,
+    withoutAnimation,
+    onClose,
+}: {
+    filter: "New" | "Archive";
+    withoutAnimation: boolean;
+    onClose: () => void;
+}) {
+    const rootNavigate = useRootNavigate();
+    const {space} = useSpaceContext();
+
+    const {isPressed, pressProps} = usePress({
+        onPress: () => {
+            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+            if (filter === "New") {
+                void rootNavigate(`/s/${space.id}/inbox`).then(onClose);
+            } else {
+                void rootNavigate(`/s/${space.id}/inbox?tab=old`).then(onClose);
+            }
+        },
+    });
+
+    const [withAnimation, setWithAnimation] = useState(false);
+
+    // Keep re-applying the animation CSS class so the user notices the inbox arrow
+    // bounce encouraging them to open the fullscreen inbox. We believe the
+    // fullscreen inbox is a better UX when managing many notifications. If the
+    // user is spending a lot of time in the overlay when they have many
+    // notifications, we hope the animation will subtly prompt them into opening
+    // the fullscreen inbox.
+    useEffect(() => {
+        if (withoutAnimation) {
+            setWithAnimation(false);
+            return;
+        }
+
+        if (!withAnimation) {
+            const timeout = createTimeout(() => {
+                setWithAnimation(true);
+            }, inboxStyles.overlayArrowUpRightAnimationDelay);
+
+            return () => {
+                timeout.clear();
+            };
+        } else {
+            const timeout = createTimeout(() => {
+                setWithAnimation(false);
+            }, inboxStyles.overlayArrowUpRightAnimationDuration);
+
+            return () => {
+                timeout.clear();
+            };
+        }
+    }, [withAnimation, withoutAnimation]);
+
+    return (
+        <Box
+            {...pressProps}
+            flexShrink="0"
+            paddingX="3"
+            paddingY="2"
+            display="flex"
+            alignItems="center"
+            gap="0.5"
+            // Pointer to indicate this is a clickable link. Otherwise it's not entirely
+            // clear this element is clickable.
+            cursor="pointer"
+            opacity={isPressed ? "60" : undefined}
+        >
+            <Box fontSize="100" fontStyle="semi-bold">
+                Inbox
+            </Box>
+            <ArrowUpRight
+                className={
+                    withAnimation ? inboxStyles.overlayArrowUpRightAnimationClassName : undefined
+                }
+                size={addRemLengths(spacing["3"], spacing["0.5"])}
+                weight="bold"
+                style={{
+                    position: "relative",
+                    top: "0.0625rem",
+                }}
+            />
+        </Box>
     );
 }
 

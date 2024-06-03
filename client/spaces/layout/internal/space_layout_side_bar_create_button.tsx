@@ -25,7 +25,9 @@ export function SpaceLayoutSideBarCreateButton() {
 
     return (
         <MenuButton
-            placement="left-start"
+            placement="right-start"
+            // Centers the first item with the create button.
+            offsetAlong="-5"
             size="brand-icons"
             actions={[
                 [

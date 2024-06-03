@@ -134,6 +134,12 @@ function IconButton(
         isPending?: boolean;
 
         /**
+         * Never show loading indicator even if `isPending` is true. Useful if when
+         * `isPending` is set to true, some other loading indicator is visible.
+         */
+        withoutLoadingIndicator?: boolean;
+
+        /**
          * Should we show the pressed style even if the button isn't currently pressed?
          * Useful if there's some secondary press target for this icon button.
          */
@@ -248,6 +254,7 @@ function IconButton(
         withTouchSlop = false,
         keyboardShortcutHint,
         isPending: isPendingFromProps,
+        withoutLoadingIndicator = false,
         isPressed: isPressedFromProps,
         borderRadius = "full",
         backgroundColor: backgroundColorFromProps,
@@ -427,7 +434,8 @@ function IconButton(
 
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
-    const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
+    const shouldShowPendingSpinner =
+        useDelayLoadingIndicator(isPending) && !withoutLoadingIndicator;
 
     const isQuietVariant =
         variant === "quiet" ||

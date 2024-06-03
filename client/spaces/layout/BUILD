@@ -18,6 +18,7 @@ ts_project(
         "//client/inbox",
         "//client/remix",
         "//client/search",
+        "//client/shimmer",
         "//client/spaces",
         "//shared/design",
         "//shared/dynamo",

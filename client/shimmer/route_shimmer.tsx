@@ -11,6 +11,7 @@ import {
     ContentParagraphShimmer2,
     ContentParagraphShimmer3,
 } from "~/client/shimmer/content_shimmer.js";
+import {InboxEntryShimmer} from "~/client/shimmer/inbox_entry_shimmer.js";
 import {MessageShimmer} from "~/client/shimmer/message_shimmer.js";
 import {PostShimmer, PostShimmerHeader} from "~/client/shimmer/post_shimmer.js";
 import {SearchResultShimmer} from "~/client/shimmer/search_result_shimmer.js";
@@ -42,7 +43,6 @@ import {
     postFauxInputCreateButtonHeight,
     postViewMaxWidth,
 } from "~/shared/styles/forum_shared_styles.js";
-import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {
     messageInputAccountAvatarSize,
     messageInputMinHeight,
@@ -688,55 +688,6 @@ function InboxRouteShimmer() {
                     <ChannelPostsNotificationRouteShimmer />
                 </Box>
             </Box>
-        </Box>
-    );
-}
-
-function InboxEntryShimmer({
-    titleRagRight,
-    subtitleRagRight,
-}: {
-    titleRagRight: Spacing;
-    subtitleRagRight: Spacing;
-}) {
-    return (
-        <Box
-            position="relative"
-            paddingX="4"
-            display="flex"
-            alignItems="center"
-            gap="3"
-            style={{height: inboxEntryViewMinHeight}}
-        >
-            <Box
-                flexShrink="0"
-                width="10"
-                height="full"
-                display="flex"
-                justifyContent="center"
-                alignItems="center"
-            >
-                <Box
-                    className={pulseAnimationClassName}
-                    flexShrink="0"
-                    width="9"
-                    height="9"
-                    backgroundColor="grey-10"
-                    borderRadius="full"
-                />
-            </Box>
-            <Box flexGrow="1">
-                <TextShimmer fontSize="75" width="64" ragRight={titleRagRight} />
-                <Box height="0.5" />
-                <TextShimmer fontSize="50" width="32" ragRight={subtitleRagRight} />
-            </Box>
-            <Box
-                position="absolute"
-                left="4"
-                right="4"
-                borderBottom="grey-5"
-                style={{bottom: -1}}
-            />
         </Box>
     );
 }
