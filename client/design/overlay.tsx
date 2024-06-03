@@ -218,6 +218,7 @@ function Overlay(
 
     const overlayRef = useRef<HTMLDivElement>(null);
     const popperRef = useRef<Instance | null>(null);
+    const blockingCoverRef = useRef<HTMLDivElement>(null);
 
     useImperativeHandle(
         ref,
@@ -277,6 +278,7 @@ function Overlay(
                 "Expected the overlay prop of an `<Overlay>` component to render an element with a ref to an HTML element",
             );
             const overlayElement = overlayRef.current;
+            const blockingCoverElement = isBlocking ? assertExists(blockingCoverRef.current) : null;
 
             const getOptions = () => {
                 // Getting the value of 1rem without subscribing so that all our `<Overlay>`
@@ -463,6 +465,14 @@ function Overlay(
                 },
             );
 
+            const cleanupBlockingCoverElementAttributes = blockingCoverElement
+                ? setElementAttributesWithCleanup(blockingCoverElement, {
+                      "data-ownedby": originalOverlayElementId
+                          ? originalOverlayElementId
+                          : `${defaultTargetElementId}-overlay`,
+                  })
+                : null;
+
             // If the mobile keyboard frame changes while our overlay is visible then
             // update the overlay's options with the new covered height (read in
             // `getOptions()`).
@@ -481,12 +491,14 @@ function Overlay(
                 }
                 cleanupTargetElementAttributes();
                 cleanupOverlayElementAttributes();
+                cleanupBlockingCoverElementAttributes?.();
                 unsubscribeFromMobileKeyboardFrameChange();
             };
         },
         [
             isVisible,
             portalElement,
+            isBlocking,
             sameWidth,
             sameHeight,
             defaultTargetElementId,
@@ -538,13 +550,20 @@ function Overlay(
                 )}
             {isVisible &&
                 isBlocking &&
-                portalElement?.parentElement &&
+                portalElement &&
                 // When we have a blocking overlay add a cover to the document to prevent
                 // scrolling, hover effects, and any other interaction while the context menu
-                // is open. Renders at z-index 60 to be below the blocking overlay container.
+                // is open.
                 createPortal(
-                    <Box position="absolute" inset="0" zIndex="60" />,
-                    portalElement.parentElement,
+                    <Box
+                        ref={blockingCoverRef}
+                        position="absolute"
+                        top="0"
+                        left="0"
+                        zIndex="-10"
+                        style={{width: "100vw", height: "100vh"}}
+                    />,
+                    portalElement,
                 )}
             {useElementWithRef(children, useLifecycleRef(targetLifecycleRef))}
         </>
@@ -701,12 +720,18 @@ function BlockingOverlayScopeContextProvider({children}: {children: ReactNode}) 
         useContext(OverlaySinkContext) ?? overlaySinkContextForTest,
     );
 
+    const blockingPortalRef = useRef<HTMLDivElement>(null);
+
     return (
         <OverlaySinkContext.Provider
             value={useMemo(
                 () => ({
                     getRootPortalElement: parentOverlaySink.getRootBlockingPortalElement,
-                    getRootBlockingPortalElement: parentOverlaySink.getRootBlockingPortalElement,
+                    // If you render another blocking overlay inside of a blocking overlay then the
+                    // first blocking overlay must be covered. To do this we create a new portal
+                    // location for new blocking overlays that will render on top of old blocking
+                    // overlays.
+                    getRootBlockingPortalElement: () => blockingPortalRef.current,
                     getPortalElement: parentOverlaySink.getRootBlockingPortalElement,
                     insetLeft: null,
                     insetRight: null,
@@ -715,6 +740,7 @@ function BlockingOverlayScopeContextProvider({children}: {children: ReactNode}) 
             )}
         >
             {children}
+            {renderOverlayPortal(blockingPortalRef, "70")}
         </OverlaySinkContext.Provider>
     );
 }

@@ -1,8 +1,8 @@
 import {keyframes, style} from "@vanilla-extract/css";
 import {easeInOutCirc} from "~/shared/design/easing.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 
-const overlayArrowUpRightAnimationDistance = spacing["0.5"];
+const overlayArrowUpRightAnimationDistance = `${parseRemLengthNumber(spacing["0.5"]) * 1.5}rem`;
 
 const overlayArrowUpRightAnimationKeyframes = keyframes({
     "0%": {

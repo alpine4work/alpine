@@ -1,6 +1,7 @@
 import {HydrationState} from "@remix-run/router";
 import {SpinnerGap} from "phosphor-react";
 import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
@@ -25,6 +26,7 @@ import {
     PeekSwitcherStatePeekBase,
     usePeekSwitcherState,
 } from "~/client/peek/use_peek_switcher_state.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
@@ -41,6 +43,10 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {PeekId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {
+    archiveInboxEntry,
+    unarchiveInboxEntry,
+} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
@@ -143,7 +149,7 @@ export function InboxView({
             entry,
             withAnimation,
         }: {
-            promise: Promise<unknown>;
+            promise: Promise<unknown> | null;
             entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
             withAnimation: boolean;
         }) => {
@@ -276,6 +282,7 @@ export function InboxView({
                         <InboxViewEntriesEmpty filter={filter} />
                     ) : (
                         <InboxViewEntries
+                            filter={filter}
                             query={query}
                             tryLoadingMore={tryLoadingMore}
                             itemsDeletedByLastChangeForAnimation={
@@ -283,6 +290,7 @@ export function InboxView({
                             }
                             selectedEntryKey={selectedEntryKey}
                             selectEntry={selectEntry}
+                            deleteEntryOptimistically={deleteEntryOptimistically}
                         />
                     )}
                 </Box>
@@ -310,12 +318,15 @@ export function InboxView({
 }
 
 function InboxViewEntries({
+    filter,
     query,
     tryLoadingMore,
     itemsDeletedByLastChangeForAnimation,
     selectedEntryKey,
     selectEntry,
+    deleteEntryOptimistically,
 }: {
+    filter: "New" | "Archive";
     query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
     tryLoadingMore: (
         viewHeight: number,
@@ -328,9 +339,23 @@ function InboxViewEntries({
     }>;
     selectedEntryKey: DynamoItemKey | null;
     selectEntry: Memo<(entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>>;
+    deleteEntryOptimistically: Memo<
+        ({
+            promise,
+            entry,
+            withAnimation,
+        }: {
+            promise: Promise<unknown> | null;
+            entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
+            withAnimation: boolean;
+        }) => void
+    >;
 }) {
-    const viewRef = useRef<VirtualizedScrollViewRef>(null);
+    const context = useAppContext();
     const remPx = useRemPx();
+    const {space} = useSpaceContext();
+
+    const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
     // Whenever our query data changes, try loading more entries. In case our
     // rendered range stayed the same but we now see the loading indicator.
@@ -556,6 +581,7 @@ function InboxViewEntries({
                                         minHeight: inboxEntryViewMinHeight,
                                         node: (
                                             <InboxEntryView
+                                                filter={filter}
                                                 entry={animation.deletedItem.item.model}
                                                 isSelected={false}
                                                 onPressStart={() => {}}
@@ -568,6 +594,34 @@ function InboxViewEntries({
                                                         ? animation
                                                         : deletedItemAnimation
                                                 }
+                                                onArchive={async () => {
+                                                    await archiveInboxEntry(context, {
+                                                        spaceId: space.id,
+                                                        key: animation.deletedItem.item.model.getKey(),
+                                                    });
+
+                                                    // Wait until the backend has successfully archived the entry, then delete it
+                                                    // from our query without waiting for a WebSocket realtime message.
+                                                    deleteEntryOptimistically({
+                                                        promise: null,
+                                                        entry: animation.deletedItem.item,
+                                                        withAnimation: false,
+                                                    });
+                                                }}
+                                                onUnarchive={async () => {
+                                                    await unarchiveInboxEntry(context, {
+                                                        spaceId: space.id,
+                                                        key: animation.deletedItem.item.model.getKey(),
+                                                    });
+
+                                                    // Wait until the backend has successfully archived the entry, then delete it
+                                                    // from our query without waiting for a WebSocket realtime message.
+                                                    deleteEntryOptimistically({
+                                                        promise: null,
+                                                        entry: animation.deletedItem.item,
+                                                        withAnimation: false,
+                                                    });
+                                                }}
                                             />
                                         ),
                                     };
@@ -593,6 +647,7 @@ function InboxViewEntries({
                                         minHeight: inboxEntryViewMinHeight,
                                         node: (
                                             <InboxEntryView
+                                                filter={filter}
                                                 entry={item.item.model}
                                                 isSelected={selectedEntryKey === item.item.key}
                                                 // We use `onPressStart` to select so the selected style is applied immediately.
@@ -607,6 +662,34 @@ function InboxViewEntries({
                                                 aria-posinset={index}
                                                 aria-setsize={ariaSetsize}
                                                 deletedItemAnimation={deletedItemAnimation}
+                                                onArchive={async () => {
+                                                    await archiveInboxEntry(context, {
+                                                        spaceId: space.id,
+                                                        key: item.item.model.getKey(),
+                                                    });
+
+                                                    // Wait until the backend has successfully archived the entry, then delete it
+                                                    // from our query without waiting for a WebSocket realtime message.
+                                                    deleteEntryOptimistically({
+                                                        promise: null,
+                                                        entry: item.item,
+                                                        withAnimation: false,
+                                                    });
+                                                }}
+                                                onUnarchive={async () => {
+                                                    await unarchiveInboxEntry(context, {
+                                                        spaceId: space.id,
+                                                        key: item.item.model.getKey(),
+                                                    });
+
+                                                    // Wait until the backend has successfully archived the entry, then delete it
+                                                    // from our query without waiting for a WebSocket realtime message.
+                                                    deleteEntryOptimistically({
+                                                        promise: null,
+                                                        entry: item.item,
+                                                        withAnimation: false,
+                                                    });
+                                                }}
                                             />
                                         ),
                                     };
@@ -638,10 +721,14 @@ function InboxViewEntries({
                             }
                         },
                         [
+                            itemCountWithDeletedItemAnimations,
                             query,
                             deletedItemAnimations,
-                            itemCountWithDeletedItemAnimations,
+                            filter,
                             deletedItemAnimationsState.activeAnimations?.currentAnimation,
+                            context,
+                            space.id,
+                            deleteEntryOptimistically,
                             selectedEntryKey,
                             ariaSetsize,
                             selectEntry,

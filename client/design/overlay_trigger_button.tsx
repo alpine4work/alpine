@@ -37,6 +37,7 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 
@@ -56,7 +57,7 @@ export type OverlayTriggerButtonState =
           readonly disableAnimationOut?: undefined;
       };
 
-const initialOverlayTriggerButtonState: OverlayTriggerButtonState = {
+export const initialOverlayTriggerButtonState: OverlayTriggerButtonState = {
     isExpanded: false,
     disableAnimationOut: false,
 };
@@ -182,7 +183,7 @@ function OverlayTriggerButton(
     const [state, setState] = useState(initialOverlayTriggerButtonState);
 
     const {onOpen, onClose, onStateChange, open, close, closeWithoutAnimation} = useEvents({
-        onOpen: _onOpen ?? noop,
+        onOpen: cast<() => {preventDefault: boolean} | void>(_onOpen ?? noop),
         onClose: _onClose ?? noop,
         onStateChange: _onStateChange ?? noop,
 

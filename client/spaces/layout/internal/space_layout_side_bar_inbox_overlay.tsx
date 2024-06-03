@@ -1,10 +1,12 @@
 import {ArrowUpRight, SpinnerGap} from "phosphor-react";
 import {Memo, useCallback, useEffect, useRef, useState} from "react";
 import {usePress} from "react-aria";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {InboxEntryView} from "~/client/inbox/inbox_entry_view.js";
 import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js";
@@ -18,14 +20,21 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing, addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
-import {DynamoGeneralRealtimeIndexQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {
+    DynamoGeneralRealtimeIndexQueryResult,
+    DynamoGeneralRealtimeItem,
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {
+    archiveInboxEntry,
+    unarchiveInboxEntry,
+} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {colorSchemeVars, inboxStyles, spinAnimationClassName} from "~/shared/styles/styles.js";
 
@@ -173,11 +182,11 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
                 className={
                     withAnimation ? inboxStyles.overlayArrowUpRightAnimationClassName : undefined
                 }
-                size={addRemLengths(spacing["3"], spacing["0.5"])}
+                size={spacing["3"]}
                 weight="bold"
                 style={{
                     position: "relative",
-                    top: "0.0625rem",
+                    top: "0.09375rem",
                 }}
             />
         </Box>
@@ -193,10 +202,29 @@ function SpaceLayoutTopBarInboxOverlayEntries({
     initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
     onClose: Memo<() => void>;
 }) {
-    const {query, tryLoadingMore} = useInboxState({
+    const {query, updateQueryOptimistically, tryLoadingMore} = useInboxState({
         filter,
         initialEntriesResult,
     });
+
+    const deleteEntryOptimistically = useEvent(
+        ({
+            promise,
+            entry,
+            withAnimation,
+        }: {
+            promise: Promise<unknown> | null;
+            entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
+            withAnimation: boolean;
+        }) => {
+            updateQueryOptimistically({
+                promise,
+                withAnimation,
+                update: query =>
+                    query.optimisticallyDeleteItemByKeyIfExistsAtVersion(entry.key, entry.version),
+            });
+        },
+    );
 
     if (query.getItemCount() === 0) {
         return <InboxViewEntriesEmpty filter={filter} />;
@@ -204,24 +232,40 @@ function SpaceLayoutTopBarInboxOverlayEntries({
 
     return (
         <SpaceLayoutTopBarInboxOverlayEntriesInner
+            filter={filter}
             query={query}
             tryLoadingMore={tryLoadingMore}
+            deleteEntryOptimistically={deleteEntryOptimistically}
             onClose={onClose}
         />
     );
 }
 
 function SpaceLayoutTopBarInboxOverlayEntriesInner({
+    filter,
     query,
     tryLoadingMore,
+    deleteEntryOptimistically,
     onClose,
 }: {
+    filter: "New" | "Archive";
     query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
     tryLoadingMore: (
         viewHeight: number,
         renderedRange: {startIndex: number; endIndex: number} | null,
     ) => void;
-    onClose: () => void;
+    deleteEntryOptimistically: Memo<
+        ({
+            promise,
+            entry,
+            withAnimation,
+        }: {
+            promise: Promise<unknown> | null;
+            entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
+            withAnimation: boolean;
+        }) => void
+    >;
+    onClose: Memo<() => void>;
 }) {
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const remPx = useRemPx();
@@ -266,9 +310,11 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
                                 minHeight: inboxEntryViewMinHeight,
                                 node: (
                                     <SpaceLayoutTopBarInboxOverlayEntry
-                                        entry={item.item.model}
+                                        filter={filter}
+                                        entry={item.item}
                                         isFirstEntry={index === 0}
                                         isLastEntry={index === itemCount - 1}
+                                        deleteEntryOptimistically={deleteEntryOptimistically}
                                         onClose={onClose}
                                     />
                                 ),
@@ -298,7 +344,7 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
                             throw exhaustive(item);
                     }
                 },
-                [itemCount, onClose, query],
+                [deleteEntryOptimistically, filter, itemCount, onClose, query],
             )}
             extraChildrenOutsideContentElement={({contentHeight}) => (
                 // Our items all have a bottom border. This is good when there's less content
@@ -336,24 +382,41 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
 }
 
 function SpaceLayoutTopBarInboxOverlayEntry({
+    filter,
     entry,
     isFirstEntry,
     isLastEntry,
+    deleteEntryOptimistically,
     onClose,
 }: {
-    entry: InboxEntryModel;
+    filter: "New" | "Archive";
+    entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
     isFirstEntry: boolean;
     isLastEntry: boolean;
+    deleteEntryOptimistically: Memo<
+        ({
+            promise,
+            entry,
+            withAnimation,
+        }: {
+            promise: Promise<unknown> | null;
+            entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
+            withAnimation: boolean;
+        }) => void
+    >;
     onClose: () => void;
 }) {
+    const context = useAppContext();
     const showToast = useShowToast();
     const peekStackContext = usePeekStackContext();
+    const {space} = useSpaceContext();
 
     const [isPending, setIsPending] = useState(false);
 
     return (
         <InboxEntryView
-            entry={entry}
+            filter={filter}
+            entry={entry.model}
             withinOverlay={true}
             isFirstEntry={isFirstEntry}
             isLastEntry={isLastEntry}
@@ -362,7 +425,7 @@ function SpaceLayoutTopBarInboxOverlayEntry({
 
                 // TODO(calebmer, #global-loading-indicator): Some kind of global loading
                 // indicator?
-                peekStackContext.push(entry.getPath()).then(
+                peekStackContext.push(entry.model.getPath()).then(
                     () => {
                         setIsPending(false);
                         onClose();
@@ -376,6 +439,34 @@ function SpaceLayoutTopBarInboxOverlayEntry({
                         });
                     },
                 );
+            }}
+            onArchive={async () => {
+                await archiveInboxEntry(context, {
+                    spaceId: space.id,
+                    key: entry.model.getKey(),
+                });
+
+                // Wait until the backend has successfully archived the entry, then delete it
+                // from our query without waiting for a WebSocket realtime message.
+                deleteEntryOptimistically({
+                    promise: null,
+                    entry,
+                    withAnimation: false,
+                });
+            }}
+            onUnarchive={async () => {
+                await unarchiveInboxEntry(context, {
+                    spaceId: space.id,
+                    key: entry.model.getKey(),
+                });
+
+                // Wait until the backend has successfully archived the entry, then delete it
+                // from our query without waiting for a WebSocket realtime message.
+                deleteEntryOptimistically({
+                    promise: null,
+                    entry,
+                    withAnimation: false,
+                });
             }}
         />
     );

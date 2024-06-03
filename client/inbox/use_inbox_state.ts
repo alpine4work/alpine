@@ -44,6 +44,7 @@ type InboxStateAction =
           readonly update: (
               query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
           ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
+          readonly withAnimation: boolean;
       }
     | {
           readonly type: "OptimisticUpdate";
@@ -91,9 +92,9 @@ function reduceInboxState(oldState: InboxState, action: InboxStateAction): Inbox
                 queryWithoutOptimisticUpdates: newQueryWithoutOptimisticUpdates,
                 query: newQuery,
                 optimisticUpdates: oldState.optimisticUpdates,
-                itemsDeletedByLastChangeForAnimation: Array.from(
-                    newQuery.getDeletedItems(oldState.query),
-                ),
+                itemsDeletedByLastChangeForAnimation: action.withAnimation
+                    ? Array.from(newQuery.getDeletedItems(oldState.query))
+                    : [],
             };
         }
         case "OptimisticUpdate": {
@@ -217,18 +218,26 @@ export function useInboxState({
             update,
             withAnimation,
         }: {
-            promise: Promise<unknown>;
+            promise: Promise<unknown> | null;
             withAnimation: boolean;
             update: (
                 query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
             ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
         }) => {
-            dispatch({
-                type: "OptimisticUpdate",
-                promise,
-                update,
-                withAnimation,
-            });
+            if (promise === null) {
+                dispatch({
+                    type: "Update",
+                    update,
+                    withAnimation,
+                });
+            } else {
+                dispatch({
+                    type: "OptimisticUpdate",
+                    promise,
+                    update,
+                    withAnimation,
+                });
+            }
         },
         [],
     );
@@ -270,7 +279,12 @@ export function useInboxState({
                     update: (
                         query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
                     ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
-                ) => dispatch({type: "Update", update}),
+                ) =>
+                    dispatch({
+                        type: "Update",
+                        update,
+                        withAnimation: true,
+                    }),
                 [],
             ),
         },
@@ -381,6 +395,7 @@ export function useInboxState({
                     dispatch({
                         type: "Update",
                         update: query => query.loadMore(entriesResult),
+                        withAnimation: true,
                     });
                 })();
 

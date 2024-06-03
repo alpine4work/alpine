@@ -2,18 +2,25 @@ import {assignInlineVars} from "@vanilla-extract/dynamic";
 import {differenceInHours} from "date-fns";
 import GraphemeSplitter from "grapheme-splitter";
 import {AnimationControls, animate} from "motion";
+import {Check, DotsThree} from "phosphor-react";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {MenuButton} from "~/client/design/menu_button.js";
 import {PrettyNumber, printPrettySmallNumberSummary} from "~/client/design/pretty_number.js";
+import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
+import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {Spacing} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
@@ -26,7 +33,12 @@ import {
 } from "~/shared/notifications/inbox_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
-import {backgroundColorVar, colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
+import {
+    backgroundColorVar,
+    colorSchemeVars,
+    overlayFadeOutAnimationDurationMs,
+    sprinkles,
+} from "~/shared/styles/styles.js";
 
 export const inboxEntryWidth: Spacing = "96";
 
@@ -37,6 +49,7 @@ export const inboxEntryDeleteAnimationDurationMs =
     inboxEntryDeleteAnimationSlideDelayDurationMs + inboxEntryDeleteAnimationSlideDurationMs;
 
 export function InboxEntryView({
+    filter,
     entry,
     isSelected = false,
     onPressStart,
@@ -47,7 +60,10 @@ export function InboxEntryView({
     "aria-setsize": ariaSetsize,
     "aria-posinset": ariaPosinset,
     deletedItemAnimation = null,
+    onArchive,
+    onUnarchive,
 }: {
+    filter: "New" | "Archive";
     entry: InboxEntryModel;
     isSelected?: boolean;
     onPressStart?: () => void;
@@ -65,9 +81,42 @@ export function InboxEntryView({
         offset: number;
         deletedItem: {item: DynamoGeneralRealtimeItem<InboxEntryModel>};
     } | null;
+    onArchive: () => Promise<void>;
+    onUnarchive: () => Promise<void>;
 }) {
+    const {isAppleDevice} = useClientInfo();
+
     const entryRef = useRef<HTMLDivElement>(null);
     const [isPressed, setIsPressed] = useState(false);
+
+    const [isHovered, hoverRef] = useHoverWithOverlaySupport();
+
+    const [archiveFilterMoreMenuButtonState, setArchiveFilterMoreMenuButtonState] = useState<
+        {isExpanded: false} | {isExpanded: true; isAnimatingOut: boolean}
+    >({isExpanded: false});
+    if (filter !== "Archive" && archiveFilterMoreMenuButtonState.isExpanded)
+        setArchiveFilterMoreMenuButtonState({isExpanded: false});
+
+    useEffect(() => {
+        if (
+            !archiveFilterMoreMenuButtonState.isExpanded ||
+            !archiveFilterMoreMenuButtonState.isAnimatingOut
+        ) {
+            return;
+        }
+
+        const timeout = createTimeout(
+            () => {
+                setArchiveFilterMoreMenuButtonState({isExpanded: false});
+            },
+            overlayFadeOutAnimationDurationMs +
+                // Wait a bit before setting `isExpanded` to false so `isHovered` state can
+                // become true and actions don't temporarily blink out of existence.
+                perceivedAsInstantLimitMs,
+        );
+
+        return () => timeout.clear();
+    }, [archiveFilterMoreMenuButtonState]);
 
     const lastDeletedItemAnimationRef = useRef(deletedItemAnimation);
     const lastAnimationRef = useRef<AnimationControls | null>(null);
@@ -127,9 +176,12 @@ export function InboxEntryView({
             throw exhaustive(entry);
     }
 
+    const backgroundColor =
+        isPressed && withinOverlay ? "grey-10" : isSelected ? "grey-5" : undefined;
+
     return (
         <Box
-            ref={entryRef}
+            ref={useMergedRefs<HTMLDivElement>(hoverRef, entryRef)}
             // Our inbox implements the ARIA `listbox` role.
             // https://www.w3.org/WAI/ARIA/apg/patterns/listbox
             role="option"
@@ -143,16 +195,31 @@ export function InboxEntryView({
             // NOTE(calebmer): Not using `usePress()` here because that hook does something
             // weird with `event.preventDefault()` that causes the listbox in `<InboxView>`
             // to not be focused after a click.
-            onPointerDown={() => {
+            onPointerDown={event => {
+                // Ignore pointer events from portals (e.g. menu opened by the `<MenuButton>`
+                // shown on hover).
+                if (event.target instanceof Node && !event.currentTarget.contains(event.target))
+                    return;
+
                 setIsPressed(true);
                 onPressStart?.();
             }}
-            onPointerUp={() => {
+            onPointerUp={event => {
+                // Ignore pointer events from portals (e.g. menu opened by the `<MenuButton>`
+                // shown on hover).
+                if (event.target instanceof Node && !event.currentTarget.contains(event.target))
+                    return;
+
                 const wasPressed = isPressed;
                 setIsPressed(false);
                 if (wasPressed) onPress?.();
             }}
-            onPointerLeave={() => {
+            onPointerLeave={event => {
+                // Ignore pointer events from portals (e.g. menu opened by the `<MenuButton>`
+                // shown on hover).
+                if (event.target instanceof Node && !event.currentTarget.contains(event.target))
+                    return;
+
                 setIsPressed(false);
             }}
         >
@@ -164,10 +231,8 @@ export function InboxEntryView({
                     // We use `backgroundColorVar` to draw an outline around avatars. Even though we
                     // use an absolutely positioned element to set the background color we still
                     // want `backgroundColorVar` to reflect the right value.
-                    isPressed && withinOverlay
-                        ? assignInlineVars({[backgroundColorVar]: colorSchemeVars["grey-10"]})
-                        : isSelected
-                        ? assignInlineVars({[backgroundColorVar]: colorSchemeVars["grey-5"]})
+                    backgroundColor
+                        ? assignInlineVars({[backgroundColorVar]: colorSchemeVars[backgroundColor]})
                         : undefined
                 }
             >
@@ -177,13 +242,7 @@ export function InboxEntryView({
                         inset="0"
                         zIndex="-10"
                         borderRadius="md"
-                        backgroundColor={
-                            isPressed && withinOverlay
-                                ? "grey-10"
-                                : isSelected
-                                ? "grey-5"
-                                : undefined
-                        }
+                        backgroundColor={backgroundColor}
                         style={{
                             // Make sure background covers border of the entry below.
                             bottom: -1,
@@ -203,6 +262,94 @@ export function InboxEntryView({
                 >
                     {children}
                 </Box>
+                {(isHovered || archiveFilterMoreMenuButtonState.isExpanded) && (
+                    <Box
+                        position="absolute"
+                        bottom="0"
+                        right="0"
+                        paddingX="2"
+                        paddingRight="4"
+                        zIndex="10"
+                        backgroundColor={backgroundColor ?? "grey-0"}
+                        display="flex"
+                        alignItems="center"
+                        style={{
+                            // Don't render over bottom border.
+                            top: 1,
+                        }}
+                    >
+                        <Box
+                            position="absolute"
+                            top="0"
+                            bottom="0"
+                            left="-3"
+                            width="3"
+                            style={{
+                                background: `linear-gradient(to left, ${
+                                    colorSchemeVars[backgroundColor ?? "grey-0"]
+                                }, transparent)`,
+                            }}
+                        />
+                        {filter === "New" ? (
+                            <IconButton
+                                variant={
+                                    backgroundColor ? "quiet-above-grey-5-background" : "quiet"
+                                }
+                                description="Done"
+                                tooltipPlacement="bottom"
+                                keyboardShortcutHint={
+                                    isSelected ? (isAppleDevice ? "⌘+D" : "Ctrl+D") : undefined
+                                }
+                                pressErrorTitle="Couldn’t mark as done"
+                                onPress={onArchive}
+                            >
+                                <Check />
+                            </IconButton>
+                        ) : (
+                            <MenuButton
+                                placement="bottom-end"
+                                actions={[
+                                    {
+                                        label: "Move to new",
+                                        pressErrorTitle: "Couldn’t move to new",
+                                        onPress: onUnarchive,
+                                    },
+                                ]}
+                                onStateChange={state => {
+                                    if (state.isExpanded) {
+                                        setArchiveFilterMoreMenuButtonState({
+                                            isExpanded: true,
+                                            isAnimatingOut: false,
+                                        });
+                                    } else if (!state.disableAnimationOut) {
+                                        setArchiveFilterMoreMenuButtonState(state => {
+                                            if (!state.isExpanded) return state;
+
+                                            return {
+                                                isExpanded: true,
+                                                isAnimatingOut: true,
+                                            };
+                                        });
+                                    } else {
+                                        setArchiveFilterMoreMenuButtonState({
+                                            isExpanded: false,
+                                        });
+                                    }
+                                }}
+                            >
+                                <IconButton
+                                    variant={
+                                        backgroundColor ? "quiet-above-grey-5-background" : "quiet"
+                                    }
+                                    description="More"
+                                    tooltipPlacement="bottom"
+                                >
+                                    <DotsThree />
+                                </IconButton>
+                            </MenuButton>
+                        )}
+                    </Box>
+                )}
             </Box>
         </Box>
     );
@@ -654,10 +801,9 @@ function InboxEntryLatestMessagePreview({
             color="grey-50"
             fontSize="50"
             display="flex"
-            gap="1.5"
+            gap="0"
         >
             <Box
-                flexGrow="1"
                 overflow="hidden"
                 fontStyle="truncate"
                 style={{
@@ -673,7 +819,8 @@ function InboxEntryLatestMessagePreview({
                     </>
                 )}
             </Box>
-            <Box flexShrink="0" marginLeft="0.5">
+            <Box flexShrink="0">
+                &nbsp;∙&nbsp;
                 {useMemo(() => {
                     if (differenceInHours(currentTime, time) < 24) {
                         const formatter = new Intl.DateTimeFormat(locale, {
