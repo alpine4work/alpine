@@ -2,7 +2,7 @@ import {assignInlineVars} from "@vanilla-extract/dynamic";
 import {differenceInHours} from "date-fns";
 import GraphemeSplitter from "grapheme-splitter";
 import {AnimationControls, animate} from "motion";
-import {Check, DotsThree} from "phosphor-react";
+import {Check, DotsThree, IconContext} from "phosphor-react";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
@@ -14,11 +14,14 @@ import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
+import {ChatBrandIcon} from "~/client/icons/brand/chat_brand_icon.js";
+import {DocumentBrandIcon} from "~/client/icons/brand/document_brand_icon.js";
+import {PostBrandIcon} from "~/client/icons/brand/post_brand_icon.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {Spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -369,6 +372,7 @@ function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
 
     return (
         <InboxEntryViewBase
+            brandIcon={<ChatBrandIcon />}
             firstAccount={firstAccount}
             secondAccount={secondAccount}
             loudNotificationCount={entry.loudNotificationCount}
@@ -459,6 +463,7 @@ function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel
 
     return (
         <InboxEntryViewBase
+            brandIcon={<PostBrandIcon />}
             firstAccount={firstAccount}
             secondAccount={secondAccount}
             loudNotificationCount={entry.loudNotificationCount}
@@ -530,6 +535,7 @@ function InboxChannelPostsEntryView({entry}: {entry: InboxChannelPostsEntryModel
 
     return (
         <InboxEntryViewBase
+            brandIcon={<PostBrandIcon />}
             firstAccount={firstAccount}
             secondAccount={secondAccount}
             loudNotificationCount={entry.loudNotificationCount}
@@ -599,6 +605,14 @@ function InboxDocumentCommentThreadEntryView({
 
     return (
         <InboxEntryViewBase
+            brandIcon={
+                // Scooch document icon right a little to balance it visually with other icons.
+                // Given the document icon has a vertical orientation vs horizontal
+                // orientation.
+                <Box position="relative" style={{right: "-0.0625rem"}}>
+                    <DocumentBrandIcon />
+                </Box>
+            }
             firstAccount={firstAccount}
             secondAccount={secondAccount}
             loudNotificationCount={entry.loudNotificationCount}
@@ -660,6 +674,14 @@ function InboxDocumentNewCommentThreadsEntryView({
 
     return (
         <InboxEntryViewBase
+            brandIcon={
+                // Scooch document icon right a little to balance it visually with other icons.
+                // Given the document icon has a vertical orientation vs horizontal
+                // orientation.
+                <Box position="relative" style={{right: "-0.0625rem"}}>
+                    <DocumentBrandIcon />
+                </Box>
+            }
             firstAccount={firstAccount}
             secondAccount={secondAccount}
             loudNotificationCount={entry.loudNotificationCount}
@@ -722,11 +744,13 @@ function truncateDocumentTitle(string: string) {
 }
 
 function InboxEntryViewBase({
+    brandIcon,
     firstAccount,
     secondAccount,
     loudNotificationCount,
     children,
 }: {
+    brandIcon: ReactNode;
     firstAccount: AccountModel;
     secondAccount: AccountModel | null;
     loudNotificationCount: number;
@@ -761,6 +785,24 @@ function InboxEntryViewBase({
                             </Box>
                         </>
                     )}
+                    <Box
+                        position="absolute"
+                        left="-2.5"
+                        bottom="-2.5"
+                        width="6"
+                        height="6"
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                        borderRadius="full"
+                        style={{
+                            backgroundColor: backgroundColorVar,
+                        }}
+                    >
+                        <IconContext.Provider value={{size: spacing["4"]}}>
+                            {brandIcon}
+                        </IconContext.Provider>
+                    </Box>
                     {loudNotificationCount > 0 && (
                         <LoudNotificationBadge
                             top="0"
