@@ -1431,7 +1431,12 @@ function TaskRowView(
                                 size="xs"
                                 description="Open"
                                 pressErrorTitle="Couldn’t open task"
-                                onPress={() => navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`)}
+                                onPress={async () => {
+                                    await navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`);
+
+                                    // After opening a task, don't continue to think the expand button is focused.
+                                    setIsExpandButtonFocused(false);
+                                }}
                                 onFocusChange={setIsExpandButtonFocused}
                                 onKeyDown={event => handleCellKeyDown("ExpandButton", event)}
                                 onKeyDownCapture={event =>
