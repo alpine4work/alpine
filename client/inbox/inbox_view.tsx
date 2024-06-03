@@ -477,12 +477,12 @@ function InboxViewEntries({
         }
     }
 
-    const hasDeletedAnimationState = !!deletedItemAnimationsState;
+    const hasDeletedActiveAnimationsState = !!deletedItemAnimationsState.activeAnimations;
 
     useEffect(() => {
         // Important to use a boolean here so we don't subscribe to all
         // `deletedItemAnimationsState` changes.
-        if (!hasDeletedAnimationState) return;
+        if (!hasDeletedActiveAnimationsState) return;
 
         // Keep popping animations from the stack until `deletedItemAnimationsState` is
         // null which will re-run the effect and clear the interval.
@@ -515,7 +515,7 @@ function InboxViewEntries({
         }, inboxEntryDeleteAnimationDurationMs);
 
         return () => interval.clear();
-    }, [hasDeletedAnimationState]);
+    }, [hasDeletedActiveAnimationsState]);
 
     // Collect all items that we need to animate deletion of into a sorted array.
     // We will interleave this array in our virtualized list.
