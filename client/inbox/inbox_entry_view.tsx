@@ -40,6 +40,7 @@ import {
     backgroundColorVar,
     colorSchemeVars,
     overlayFadeOutAnimationDurationMs,
+    searchStyles,
     sprinkles,
 } from "~/shared/styles/styles.js";
 
@@ -786,6 +787,14 @@ function InboxEntryViewBase({
                         </>
                     )}
                     <Box
+                        // Brand icons only render in the `grey-80` shade and above. So we can maintain
+                        // proper contrast between the icon line and color splash. However, here we
+                        // want to render a lighter line color (e.g. `grey-60`) to not distract from
+                        // the result title. We calculate the opacity to get us from `grey-80` to a
+                        // lighter line color (e.g. `grey-60`) and apply it. By applying opacity the
+                        // color splash also gets lighter to maintain proper contrast between the lines
+                        // and the color splash.
+                        className={searchStyles.brandIconOpacityClassName}
                         position="absolute"
                         left="-2.5"
                         bottom="-2.5"
@@ -799,7 +808,9 @@ function InboxEntryViewBase({
                             backgroundColor: backgroundColorVar,
                         }}
                     >
-                        <IconContext.Provider value={{size: spacing["4"]}}>
+                        <IconContext.Provider
+                            value={{color: searchStyles.brandIconColor, size: spacing["4"]}}
+                        >
                             {brandIcon}
                         </IconContext.Provider>
                     </Box>
