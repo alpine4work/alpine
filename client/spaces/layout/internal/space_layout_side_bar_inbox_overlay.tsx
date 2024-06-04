@@ -368,8 +368,8 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
                                     <SpaceLayoutTopBarInboxOverlayEntry
                                         filter={filter}
                                         entry={item.item}
-                                        isFirstEntry={index === 0}
-                                        isLastEntry={index === itemCount - 1}
+                                        isFirstItem={index === 0}
+                                        isLastItem={index === itemCount - 1}
                                         deleteEntryOptimistically={deleteEntryOptimistically}
                                         onClose={onClose}
                                     />
@@ -440,15 +440,15 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
 function SpaceLayoutTopBarInboxOverlayEntry({
     filter,
     entry,
-    isFirstEntry,
-    isLastEntry,
+    isFirstItem,
+    isLastItem,
     deleteEntryOptimistically,
     onClose,
 }: {
     filter: "New" | "Archive";
     entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
-    isFirstEntry: boolean;
-    isLastEntry: boolean;
+    isFirstItem: boolean;
+    isLastItem: boolean;
     deleteEntryOptimistically: Memo<
         ({
             promise,
@@ -473,11 +473,12 @@ function SpaceLayoutTopBarInboxOverlayEntry({
         <InboxEntryView
             filter={filter}
             entry={entry.model}
-            withinOverlay={true}
-            isFirstEntry={isFirstEntry}
-            isLastEntry={isLastEntry}
+            withBackgroundIfPressed={true}
+            withMarginTop={isFirstItem}
+            withMarginBottom={isLastItem}
             onPress={() => {
                 if (isPending) return;
+                setIsPending(true);
 
                 const url = new URL(entry.model.getPath(), window.location.href);
                 url.searchParams.set("inbox", "show");

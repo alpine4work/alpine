@@ -13,7 +13,6 @@ import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view.js";
 import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
-import {searchMobileInputMarginTop} from "~/shared/styles/search_shared_styles.js";
 
 export function meta() {
     return [{title: `More${metaTitlePostfix}`}];
@@ -46,12 +45,6 @@ export default function MoreRoute() {
             withoutMobileBackButton={true}
         >
             <Box width="full" maxWidth={maxWidth} paddingX={screenPaddingX} marginX="center">
-                <Box
-                    // For consistency with `/s/:spaceId/search` which needs some space between the
-                    // search input and nav bar to avoid selection lollipop clipping in our native
-                    // mobile app.
-                    height={searchMobileInputMarginTop}
-                />
                 <Box display="flex">
                     <Box
                         {...spacePressProps}

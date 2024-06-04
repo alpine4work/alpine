@@ -13,6 +13,7 @@ import {
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {
@@ -23,6 +24,7 @@ import {
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 
 type InboxState = {
+    readonly withoutAnimation: boolean;
     readonly queryWithoutOptimisticUpdates: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
     readonly query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
     readonly optimisticUpdates: ReadonlyArray<{
@@ -61,18 +63,27 @@ type InboxStateAction =
     | {
           readonly type: "RejectOptimisticUpdate";
           readonly promise: Promise<unknown>;
+      }
+    | {
+          readonly type: "UpdateWithoutAnimation";
+          readonly withoutAnimation: boolean;
       };
 
-function getInitialInboxState(
-    initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>,
-): InboxState {
+function getInitialInboxState({
+    initialEntriesResult,
+    withoutAnimation = false,
+}: {
+    initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
+    withoutAnimation?: boolean;
+}): InboxState {
     const query = DynamoGeneralRealtimeIndexQuery.new(initialEntriesResult);
 
     return {
         queryWithoutOptimisticUpdates: query,
         query,
-        optimisticUpdates: [],
-        itemsDeletedByLastChangeForAnimation: [],
+        optimisticUpdates: emptyArray,
+        itemsDeletedByLastChangeForAnimation: emptyArray,
+        withoutAnimation,
     };
 }
 
@@ -92,9 +103,11 @@ function reduceInboxState(oldState: InboxState, action: InboxStateAction): Inbox
                 queryWithoutOptimisticUpdates: newQueryWithoutOptimisticUpdates,
                 query: newQuery,
                 optimisticUpdates: oldState.optimisticUpdates,
-                itemsDeletedByLastChangeForAnimation: action.withAnimation
-                    ? Array.from(newQuery.getDeletedItems(oldState.query))
-                    : [],
+                itemsDeletedByLastChangeForAnimation:
+                    !oldState.withoutAnimation && action.withAnimation
+                        ? Array.from(newQuery.getDeletedItems(oldState.query))
+                        : emptyArray,
+                withoutAnimation: oldState.withoutAnimation,
             };
         }
         case "OptimisticUpdate": {
@@ -115,9 +128,11 @@ function reduceInboxState(oldState: InboxState, action: InboxStateAction): Inbox
                 queryWithoutOptimisticUpdates: oldState.queryWithoutOptimisticUpdates,
                 query: newQuery,
                 optimisticUpdates: newOptimisticUpdates,
-                itemsDeletedByLastChangeForAnimation: action.withAnimation
-                    ? Array.from(newQuery.getDeletedItems(oldState.query))
-                    : [],
+                itemsDeletedByLastChangeForAnimation:
+                    !oldState.withoutAnimation && action.withAnimation
+                        ? Array.from(newQuery.getDeletedItems(oldState.query))
+                        : emptyArray,
+                withoutAnimation: oldState.withoutAnimation,
             };
         }
         case "ResolveOptimisticUpdate": {
@@ -151,9 +166,10 @@ function reduceInboxState(oldState: InboxState, action: InboxStateAction): Inbox
                 queryWithoutOptimisticUpdates: newQueryWithoutOptimisticUpdates,
                 query: newQuery,
                 optimisticUpdates: pendingOptimisticUpdates,
-                itemsDeletedByLastChangeForAnimation: Array.from(
-                    newQuery.getDeletedItems(oldState.query),
-                ),
+                itemsDeletedByLastChangeForAnimation: !oldState.withoutAnimation
+                    ? Array.from(newQuery.getDeletedItems(oldState.query))
+                    : emptyArray,
+                withoutAnimation: oldState.withoutAnimation,
             };
         }
         case "RejectOptimisticUpdate": {
@@ -178,9 +194,19 @@ function reduceInboxState(oldState: InboxState, action: InboxStateAction): Inbox
                 queryWithoutOptimisticUpdates: oldState.queryWithoutOptimisticUpdates,
                 query: newQuery,
                 optimisticUpdates: pendingOptimisticUpdates,
-                itemsDeletedByLastChangeForAnimation: Array.from(
-                    newQuery.getDeletedItems(oldState.query),
-                ),
+                itemsDeletedByLastChangeForAnimation: !oldState.withoutAnimation
+                    ? Array.from(newQuery.getDeletedItems(oldState.query))
+                    : emptyArray,
+                withoutAnimation: oldState.withoutAnimation,
+            };
+        }
+        case "UpdateWithoutAnimation": {
+            return {
+                queryWithoutOptimisticUpdates: oldState.queryWithoutOptimisticUpdates,
+                query: oldState.query,
+                optimisticUpdates: oldState.optimisticUpdates,
+                itemsDeletedByLastChangeForAnimation: emptyArray,
+                withoutAnimation: action.withoutAnimation,
             };
         }
         default:
@@ -195,22 +221,28 @@ function reduceInboxState(oldState: InboxState, action: InboxStateAction): Inbox
  * - Backfills realtime changes when we connect to realtime
  * - Provides a function to load more data based on what's rendered
  */
-export function useInboxState({
-    filter,
-    initialEntriesResult,
-}: {
+export function useInboxState(props: {
     filter: "New" | "Archive";
     initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
+    withoutAnimation?: boolean;
 }) {
+    const {filter} = props;
+
     const context = useAppContext();
     const {space} = useSpaceContext();
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
 
-    const [{query, optimisticUpdates, itemsDeletedByLastChangeForAnimation}, dispatch] = useReducer(
-        reduceInboxState,
-        initialEntriesResult,
-        getInitialInboxState,
-    );
+    const [
+        {query, optimisticUpdates, itemsDeletedByLastChangeForAnimation, withoutAnimation},
+        dispatch,
+    ] = useReducer(reduceInboxState, props, getInitialInboxState);
+
+    if (withoutAnimation !== (props.withoutAnimation ?? false)) {
+        dispatch({
+            type: "UpdateWithoutAnimation",
+            withoutAnimation: props.withoutAnimation ?? false,
+        });
+    }
 
     const updateQueryOptimistically = useCallback(
         ({

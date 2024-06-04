@@ -585,8 +585,8 @@ function InboxViewEntries({
                                                 entry={animation.deletedItem.item.model}
                                                 isSelected={false}
                                                 onPressStart={() => {}}
-                                                isFirstEntry={isFirstItem}
-                                                isLastEntry={isLastItem}
+                                                withMarginTop={isFirstItem}
+                                                withMarginBottom={isLastItem}
                                                 deletedItemAnimation={
                                                     animation ===
                                                     deletedItemAnimationsState.activeAnimations
@@ -657,8 +657,8 @@ function InboxViewEntries({
                                                 onPressStart={() => {
                                                     void selectEntry(item.item);
                                                 }}
-                                                isFirstEntry={isFirstItem}
-                                                isLastEntry={isLastItem}
+                                                withMarginTop={isFirstItem}
+                                                withMarginBottom={isLastItem}
                                                 aria-posinset={index}
                                                 aria-setsize={ariaSetsize}
                                                 deletedItemAnimation={deletedItemAnimation}

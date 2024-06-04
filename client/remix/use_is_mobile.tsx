@@ -5,6 +5,7 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {mobileMaxScreenWidth, mobilePlatformMediaQuery} from "~/shared/design/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {ClientInfo} from "~/shared/remix/client_info.js";
 
 const IsMobileContext = createContext<boolean | null>(null);
 const CanPrimaryInputHoverContext = createContext<boolean | null>(null);
@@ -60,16 +61,26 @@ export function getIsMobileWithoutListening(): boolean {
     return !!NativeMobileBridge || window.innerWidth <= mobileMaxScreenWidth;
 }
 
+/**
+ * Does this `ClientInfo` mean the initial app render will be considered to be
+ * a mobile render? Whether we render in mobile mode is ultimately determined
+ * by the window size but during a server render we only have the device's
+ * screen size in our `ClientInfo` cookie.
+ */
+export function getInitialAppRenderIsMobile(clientInfo: ClientInfo): boolean {
+    return clientInfo.isNativeMobile || clientInfo.screenWidth <= mobileMaxScreenWidth;
+}
+
 export function IsMobileContextProvider({children}: {children?: ReactNode}) {
-    const {screenWidth, isNativeMobile} = useClientInfo();
-    const [isMobile, setIsMobile] = useState(isNativeMobile || screenWidth <= mobileMaxScreenWidth);
+    const clientInfo = useClientInfo();
+    const [isMobile, setIsMobile] = useState(getInitialAppRenderIsMobile(clientInfo));
 
     useEffect(() => {
         const mediaQuery = window.matchMedia(mobilePlatformMediaQuery);
 
         const update = () => {
             runWithImmediatePriority(() => {
-                setIsMobile(isNativeMobile || mediaQuery.matches);
+                setIsMobile(clientInfo.isNativeMobile || mediaQuery.matches);
             });
         };
 
@@ -80,7 +91,7 @@ export function IsMobileContextProvider({children}: {children?: ReactNode}) {
         return () => {
             mediaQuery.removeEventListener("change", update);
         };
-    }, [isNativeMobile]);
+    }, [clientInfo.isNativeMobile]);
 
     const [canPrimaryInputHover, setCanPrimaryInputHover] = useState(!isMobile);
 
@@ -98,7 +109,7 @@ export function IsMobileContextProvider({children}: {children?: ReactNode}) {
         return () => {
             mediaQuery.removeEventListener("change", update);
         };
-    }, [isNativeMobile]);
+    }, []);
 
     return (
         <IsMobileContext.Provider value={isMobile}>

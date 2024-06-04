@@ -49,8 +49,8 @@ export function SearchResultView({
     result,
     isSelected = false,
     isPressed = false,
-    isFirstEntry,
-    isLastEntry,
+    withMarginTop,
+    withMarginBottom,
     onPressStart,
     onDoubleClick,
     marginX = "1",
@@ -60,8 +60,8 @@ export function SearchResultView({
     result: SearchResult;
     isSelected?: boolean;
     isPressed?: boolean;
-    isFirstEntry: boolean;
-    isLastEntry: boolean;
+    withMarginTop: boolean;
+    withMarginBottom: boolean;
     onPressStart?: () => void;
     onDoubleClick?: () => void;
     marginX?: Spacing;
@@ -99,8 +99,8 @@ export function SearchResultView({
     return (
         <Box
             paddingX={marginX}
-            paddingTop={isFirstEntry ? "1" : undefined}
-            paddingBottom={isLastEntry ? "1" : undefined}
+            paddingTop={withMarginTop ? "1" : undefined}
+            paddingBottom={withMarginBottom ? "1" : undefined}
             style={{minHeight: minSearchResultViewHeight}}
             onPointerDown={event => {
                 // Presses in a modal outside our element tree shouldn't select the search

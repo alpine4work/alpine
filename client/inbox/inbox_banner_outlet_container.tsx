@@ -28,6 +28,10 @@ import {
 } from "~/shared/rpc/notifications_rpc_definitions.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
 
+// NOCOMMIT: Test what happens when sending a message (which should mark the
+// notification as done). Maybe Cmd-D should close even if the entry is
+// already done.
+
 const inboxBannerHeight = "9";
 
 export function InboxBannerOutletContainer({

@@ -10,7 +10,6 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view.js";
 import {screenPaddingX} from "~/shared/design/spacing.js";
 import {generateId} from "~/shared/id/id.js";
-import {searchMobileInputMarginTop} from "~/shared/styles/search_shared_styles.js";
 
 export function meta() {
     return [{title: `Create${metaTitlePostfix}`}];
@@ -32,12 +31,6 @@ export default function CreateMoreRoute() {
             desktopMaxWidth={maxWidth}
         >
             <Box width="full" maxWidth={maxWidth} paddingX={screenPaddingX} marginX="center">
-                <Box
-                    // For consistency with `/s/:spaceId/search` which needs some space between the
-                    // search input and nav bar to avoid selection lollipop clipping in our native
-                    // mobile app.
-                    height={searchMobileInputMarginTop}
-                />
                 <MobileSettingsRow
                     withBorderTop
                     icon={<ChannelBrandIcon />}

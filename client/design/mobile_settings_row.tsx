@@ -70,7 +70,7 @@ export function MobileSettingsRow({
             gap="2.5"
             style={{
                 boxShadow:
-                    !isPressed && !isHovered
+                    !isPressed && !isHovered && (!withoutBorderBottom || withBorderTop)
                         ? [
                               ...(!withoutBorderBottom
                                   ? [`inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`]

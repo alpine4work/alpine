@@ -27,6 +27,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {
+    Sprinkles,
     backgroundColorVar,
     colorSchemeVars,
     overlayFadeOutAnimationDurationMs,
@@ -47,9 +48,12 @@ export function InboxEntryView({
     isSelected = false,
     onPressStart,
     onPress,
-    isFirstEntry,
-    isLastEntry,
-    withinOverlay = false,
+    marginX = "1",
+    paddingX = "4",
+    withMarginTop,
+    withMarginBottom,
+    withBorderTop,
+    withBackgroundIfPressed = false,
     "aria-setsize": ariaSetsize,
     "aria-posinset": ariaPosinset,
     deletedItemAnimation = null,
@@ -61,9 +65,12 @@ export function InboxEntryView({
     isSelected?: boolean;
     onPressStart?: () => void;
     onPress?: () => void;
-    isFirstEntry: boolean;
-    isLastEntry: boolean;
-    withinOverlay?: boolean;
+    marginX?: Spacing;
+    paddingX?: Sprinkles["paddingX"];
+    withMarginTop?: boolean;
+    withMarginBottom?: boolean;
+    withBorderTop?: boolean;
+    withBackgroundIfPressed?: boolean;
     // Because entries are virtualized, we need to set these properties so screen
     // readers can correctly announce what position the user is in no matter
     // what's in the DOM.
@@ -156,7 +163,7 @@ export function InboxEntryView({
     );
 
     const backgroundColor =
-        isPressed && withinOverlay ? "grey-10" : isSelected ? "grey-5" : undefined;
+        isPressed && withBackgroundIfPressed ? "grey-10" : isSelected ? "grey-5" : undefined;
 
     return (
         <Box
@@ -167,9 +174,9 @@ export function InboxEntryView({
             aria-selected={isSelected}
             aria-setsize={ariaSetsize}
             aria-posinset={ariaPosinset}
-            paddingX="1"
-            paddingTop={isFirstEntry ? "1" : undefined}
-            paddingBottom={isLastEntry ? "1" : undefined}
+            paddingX={marginX}
+            paddingTop={withMarginTop ? "1" : undefined}
+            paddingBottom={withMarginBottom ? "1" : undefined}
             style={{minHeight: inboxEntryViewMinHeight}}
             // NOTE(calebmer): Not using `usePress()` here because that hook does something
             // weird with `event.preventDefault()` that causes the listbox in `<InboxView>`
@@ -186,24 +193,39 @@ export function InboxEntryView({
             onPointerUp={event => {
                 // Ignore pointer events from portals (e.g. menu opened by the `<MenuButton>`
                 // shown on hover).
-                if (event.target instanceof Node && !event.currentTarget.contains(event.target))
+                if (event.target instanceof Node && !event.currentTarget.contains(event.target)) {
+                    setIsPressed(false);
                     return;
+                }
 
                 const wasPressed = isPressed;
                 setIsPressed(false);
                 if (wasPressed) onPress?.();
             }}
-            onPointerLeave={event => {
-                // Ignore pointer events from portals (e.g. menu opened by the `<MenuButton>`
-                // shown on hover).
-                if (event.target instanceof Node && !event.currentTarget.contains(event.target))
-                    return;
+            // Safari doesn't implement `pointerleave` correctly. So implement our own hit
+            // testing on `pointermove`. This is the same thing `react-aria`'s `usePress()`
+            // hook does.
+            //
+            // https://github.com/adobe/react-spectrum/blob/7da3d384aa0c6bdc14449c4f138e963a094a7a38/packages/%40react-aria/interactions/src/usePress.ts#L453-L456
+            onPointerMove={event => {
+                const rect = event.currentTarget.getBoundingClientRect();
 
-                setIsPressed(false);
+                if (
+                    rect.left <= event.clientX &&
+                    event.clientX <= rect.right &&
+                    rect.top <= event.clientY &&
+                    event.clientY <= rect.bottom
+                ) {
+                    // Pointer is still in element bounds...
+                } else {
+                    setIsPressed(false);
+                }
             }}
+            onPointerCancel={() => setIsPressed(false)}
+            onDragStart={() => setIsPressed(false)}
         >
             <Box
-                paddingX="4"
+                paddingX={paddingX}
                 position="relative"
                 zIndex="0"
                 style={
@@ -215,12 +237,12 @@ export function InboxEntryView({
                         : undefined
                 }
             >
-                {((isPressed && withinOverlay) || isSelected) && (
+                {((isPressed && withBackgroundIfPressed) || isSelected) && (
                     <Box
                         position="absolute"
                         inset="0"
                         zIndex="-10"
-                        borderRadius="md"
+                        borderRadius={marginX !== "0" ? "md" : undefined}
                         backgroundColor={backgroundColor}
                         style={{
                             // Make sure background covers border of the entry below.
@@ -236,7 +258,15 @@ export function InboxEntryView({
                         // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
                         // 1px to layout. Layout needs to be precise since this is rendered in a
                         // virtualized list.
-                        boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                        boxShadow:
+                            !isSelected && !isPressed
+                                ? [
+                                      `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                                      ...(withBorderTop
+                                          ? [`inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`]
+                                          : []),
+                                  ].join(", ")
+                                : undefined,
                     }}
                 >
                     <Box flexShrink="0" width="10" paddingY="4">

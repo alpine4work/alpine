@@ -595,8 +595,8 @@ function SearchModalResultList({
         (index: number): VirtualizedScrollViewItem => {
             const result = results[index]!;
 
-            const isFirstEntry = index === 0;
-            const isLastEntry = index === results.length - 1;
+            const isFirstItem = index === 0;
+            const isLastItem = index === results.length - 1;
 
             return {
                 key: `Loaded:${result.id}`,
@@ -605,8 +605,8 @@ function SearchModalResultList({
                     <SearchResultView
                         result={result}
                         isSelected={result.id === selectedPeek?.extra.resultId}
-                        isFirstEntry={isFirstEntry}
-                        isLastEntry={isLastEntry}
+                        withMarginTop={isFirstItem}
+                        withMarginBottom={isLastItem}
                         // We use `onPressStart` to select so the selected style is applied immediately.
                         // We use the selected style to indicate interaction to the user instead of an
                         // `isPressed` style. The benefit of using selection is the previous item loses

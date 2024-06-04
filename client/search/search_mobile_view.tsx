@@ -187,8 +187,8 @@ export function SearchMobileView({
 
             const result = results[index]!;
 
-            const isFirstEntry = index === 0;
-            const isLastEntry = index === results.length - 1;
+            const isFirstItem = index === 0;
+            const isLastItem = index === results.length - 1;
 
             return {
                 key: `Loaded:${result.id}`,
@@ -199,10 +199,10 @@ export function SearchMobileView({
                             spaceId={space.id}
                             searchKey={output.key}
                             result={result}
-                            isFirstEntry={isFirstEntry}
-                            isLastEntry={isLastEntry}
+                            isFirstItem={isFirstItem}
+                            isLastItem={isLastItem}
                         />
-                        {isLastEntry && <Box height="safe-area-inset-bottom" />}
+                        {isLastItem && <Box height="safe-area-inset-bottom" />}
                     </Box>
                 ),
             };
@@ -268,14 +268,14 @@ function SearchMobileViewResult({
     spaceId,
     searchKey,
     result,
-    isFirstEntry,
-    isLastEntry,
+    isFirstItem,
+    isLastItem,
 }: {
     spaceId: SpaceId;
     searchKey: string;
     result: SearchResult;
-    isFirstEntry: boolean;
-    isLastEntry: boolean;
+    isFirstItem: boolean;
+    isLastItem: boolean;
 }) {
     const navigate = useNavigate();
 
@@ -294,9 +294,9 @@ function SearchMobileViewResult({
                 marginX="0"
                 isPressed={isPressed}
                 result={result}
-                isFirstEntry={isFirstEntry}
-                isLastEntry={isLastEntry}
-                withBorderTop={isFirstEntry}
+                withMarginTop={isFirstItem}
+                withMarginBottom={isLastItem}
+                withBorderTop={isFirstItem}
             />
         </Box>
     );

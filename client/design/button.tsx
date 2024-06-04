@@ -448,7 +448,7 @@ function Button(
               },
         neutral: !isDisabled
             ? {
-                  backgroundColor: {light: "grey-80", dark: "grey-90"},
+                  backgroundColor: "grey-90",
                   color: "grey-0",
               }
             : {
