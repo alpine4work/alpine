@@ -12,6 +12,7 @@ import {
 import {useShowToast} from "~/client/design/toast.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
+import {useTouchSlop} from "~/client/design/use_touch_slop.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {assignRef} from "~/client/helpers/refs/assign_ref.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -318,6 +319,8 @@ function Button(
 
     const isHoveredOrTriggeredOverlayOpen = isHovered || isTriggeredOverlayOpen;
 
+    const touchSlop = useTouchSlop(height);
+
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
     const shouldShowPendingSpinner =
@@ -528,8 +531,32 @@ function Button(
                         [foreignRef],
                     ),
                     className: sprinkles({
+                        display: "flex",
+                        width: fullWidth ? "full" : undefined,
+                        height: touchSlop.sizeWithSlop,
+                        paddingY: touchSlop.slop,
+                        marginY: `-${touchSlop.slop}`,
+                        borderRadius: "base",
+                        // If this button is in a `display: flex` element, don't shrink the button based
+                        // on other contents.
+                        flexShrink,
+                        // You may notice our button doesn't have a pointer cursor. See:
+                        // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
+                        cursor: "default",
+                    }),
+                    tabIndex: isFocusable ? (!isTabbable ? -1 : buttonProps.tabIndex) : undefined,
+                    // Allow the button to maintain focus when pending. This way if a button is
+                    // used in a `useConfirmSaveAfterLosingFocus()` hook (like comment inputs in
+                    // `<DocumentContentEditor>`) and it enters a pending state we don't think the
+                    // parent element has lost focus.
+                    disabled:
+                        isPending && !isDisabled
+                            ? undefined
+                            : (buttonProps as {disabled?: boolean}).disabled,
+                },
+                <span
+                    className={sprinkles({
                         ...stylesByVariant[variant],
-
                         position: "relative",
                         overflow: "hidden",
                         display: "flex",
@@ -542,77 +569,63 @@ function Button(
                         fontSize,
                         borderLeftRadius: "base",
                         borderRightRadius,
-                        // You may notice our button doesn't have a pointer cursor. See:
-                        // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
-                        cursor: "default",
-                        // If this button is in a `display: flex` element, don't shrink the button based
-                        // on other contents.
-                        flexShrink,
-                    }),
-                    style: {
+                    })}
+                    style={{
                         // Use a box-shadow for drawing the border so it doesn't affect layout.
                         boxShadow: isOutlineVariant
                             ? `inset 0 0 0 1px ${
                                   colorSchemeVars[isPressed ? "grey-20" : "grey-10"]
                               }`
                             : undefined,
-                    },
-                    tabIndex: isFocusable ? (!isTabbable ? -1 : buttonProps.tabIndex) : undefined,
-                    // Allow the button to maintain focus when pending. This way if a button is
-                    // used in a `useConfirmSaveAfterLosingFocus()` hook (like comment inputs in
-                    // `<DocumentContentEditor>`) and it enters a pending state we don't think the
-                    // parent element has lost focus.
-                    disabled:
-                        isPending && !isDisabled
-                            ? undefined
-                            : (buttonProps as {disabled?: boolean}).disabled,
-                },
-                isPressed && willDarkenWithOverlayOnPress && (
-                    // For accent buttons, instead of choosing a darker background color shade when
-                    // pressed we add a black overlay at a lowered opacity. We accomplish this with
-                    // an overlay element since such a color is not in our color scheme.
-                    //
-                    // Darker shades in our color scheme are more saturated. We want the effect of a
-                    // button being physically pressed down.
-                    //
-                    // When we added this there was a happy accident. The text color also got
-                    // darker! This is more fitting for the physical analogy of a button being
-                    // pressed down.
-                    <span
-                        className={sprinkles({
-                            position: "absolute",
-                            inset: "0",
-                            backgroundColor: "grey-100-const",
-                            pointerEvents: "none",
-                        })}
-                        style={{opacity: buttonStyles.buttonPressedOverlayOpacity}}
-                    />
-                ),
-                shouldShowPendingSpinner && !iconChild && (
-                    <SpinnerGap
-                        className={classNames(
-                            sprinkles({position: "absolute"}),
-                            spinAnimationClassName,
-                        )}
-                        size={spacing["4"]}
-                    />
-                ),
-                <span
-                    className={sprinkles({
-                        display: "flex",
-                        alignItems: "center",
-                        gap: iconGap,
-                        maxWidth: "full",
-                    })}
-                    style={{
-                        // Keep the icon and label in the DOM so we keep the shape of the button but
-                        // hide them so we can show a spinner.
-                        opacity: shouldShowPendingSpinner && !iconChild ? 0 : undefined,
                     }}
                 >
-                    {iconPlacement === "start" && iconChild}
-                    {labelChild}
-                    {iconPlacement === "end" && iconChild}
+                    {isPressed && willDarkenWithOverlayOnPress && (
+                        // For accent buttons, instead of choosing a darker background color shade when
+                        // pressed we add a black overlay at a lowered opacity. We accomplish this with
+                        // an overlay element since such a color is not in our color scheme.
+                        //
+                        // Darker shades in our color scheme are more saturated. We want the effect of a
+                        // button being physically pressed down.
+                        //
+                        // When we added this there was a happy accident. The text color also got
+                        // darker! This is more fitting for the physical analogy of a button being
+                        // pressed down.
+                        <span
+                            className={sprinkles({
+                                position: "absolute",
+                                inset: "0",
+                                backgroundColor: "grey-100-const",
+                                pointerEvents: "none",
+                            })}
+                            style={{opacity: buttonStyles.buttonPressedOverlayOpacity}}
+                        />
+                    )}
+                    {shouldShowPendingSpinner && !iconChild && (
+                        <SpinnerGap
+                            className={classNames(
+                                sprinkles({position: "absolute"}),
+                                spinAnimationClassName,
+                            )}
+                            size={spacing["4"]}
+                        />
+                    )}
+                    <span
+                        className={sprinkles({
+                            display: "flex",
+                            alignItems: "center",
+                            gap: iconGap,
+                            maxWidth: "full",
+                        })}
+                        style={{
+                            // Keep the icon and label in the DOM so we keep the shape of the button but
+                            // hide them so we can show a spinner.
+                            opacity: shouldShowPendingSpinner && !iconChild ? 0 : undefined,
+                        }}
+                    >
+                        {iconPlacement === "start" && iconChild}
+                        {labelChild}
+                        {iconPlacement === "end" && iconChild}
+                    </span>
                 </span>,
             )}
         </FocusRing>

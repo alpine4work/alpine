@@ -190,7 +190,6 @@ export function InboxBannerOutletContainer({
                         <Box minWidth="10" flexGrow="1" />
                         <Button
                             ref={doneButtonRef}
-                            // NOCOMMIT: Touch-slop for `<Button>`?
                             variant="neutral"
                             height="6"
                             paddingX="2"
