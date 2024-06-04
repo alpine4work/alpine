@@ -64,16 +64,16 @@ export const overlayAnimateFadeInFromBottomSlowedAnimation = `${overlayFadeInBot
 export const overlayAnimateFadeInClassName = style({
     pointerEvents: "none",
     selectors: {
-        [`${overlayAnimateContainerClassName}[data-popper-placement^=top] &`]: {
+        [`${overlayAnimateContainerClassName}[data-popper-placement^=top] > &`]: {
             animation: `${overlayFadeInTopKeyframes} ${overlayFadeInAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
         },
-        [`${overlayAnimateContainerClassName}[data-popper-placement^=bottom] &`]: {
+        [`${overlayAnimateContainerClassName}[data-popper-placement^=bottom] > &`]: {
             animation: overlayAnimateFadeInFromBottomAnimation,
         },
-        [`${overlayAnimateContainerClassName}[data-popper-placement^=left] &`]: {
+        [`${overlayAnimateContainerClassName}[data-popper-placement^=left] > &`]: {
             animation: `${overlayFadeInLeftKeyframes} ${overlayFadeInAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
         },
-        [`${overlayAnimateContainerClassName}[data-popper-placement^=right] &`]: {
+        [`${overlayAnimateContainerClassName}[data-popper-placement^=right] > &`]: {
             animation: `${overlayFadeInRightKeyframes} ${overlayFadeInAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
         },
     },
@@ -84,16 +84,16 @@ export const overlayAnimateFadeOutFromBottomAnimation = `${overlayFadeOutBottomK
 export const overlayAnimateFadeOutClassName = style({
     pointerEvents: "none",
     selectors: {
-        [`${overlayAnimateContainerClassName}[data-popper-placement^=top] &`]: {
+        [`${overlayAnimateContainerClassName}[data-popper-placement^=top] > &`]: {
             animation: `${overlayFadeOutTopKeyframes} ${overlayFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
         },
-        [`${overlayAnimateContainerClassName}[data-popper-placement^=bottom] &`]: {
+        [`${overlayAnimateContainerClassName}[data-popper-placement^=bottom] > &`]: {
             animation: overlayAnimateFadeOutFromBottomAnimation,
         },
-        [`${overlayAnimateContainerClassName}[data-popper-placement^=left] &`]: {
+        [`${overlayAnimateContainerClassName}[data-popper-placement^=left] > &`]: {
             animation: `${overlayFadeOutLeftKeyframes} ${overlayFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
         },
-        [`${overlayAnimateContainerClassName}[data-popper-placement^=right] &`]: {
+        [`${overlayAnimateContainerClassName}[data-popper-placement^=right] > &`]: {
             animation: `${overlayFadeOutRightKeyframes} ${overlayFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
         },
     },
