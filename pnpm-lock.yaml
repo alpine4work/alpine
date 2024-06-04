@@ -79,7 +79,7 @@ patchedDependencies:
     hash: 4zjoxiw4th676hgmdgid4hevxy
     path: admin/patches/@types__node@20.3.2.patch
   '@types/react@18.0.15':
-    hash: x4axwesafhl3flpnwlimhsgpk4
+    hash: tudgjew36lwa5g36cc3vitbh6e
     path: admin/patches/@types__react@18.0.15.patch
   '@vanilla-extract/integration@5.0.1':
     hash: 47jehzj4xj72gvnvadwkoykrme
@@ -337,7 +337,7 @@ dependencies:
     version: 4.1.2
   '@types/react':
     specifier: 18.0.15
-    version: 18.0.15(patch_hash=x4axwesafhl3flpnwlimhsgpk4)
+    version: 18.0.15(patch_hash=tudgjew36lwa5g36cc3vitbh6e)
   '@types/react-dom':
     specifier: 18.0.6
     version: 18.0.6
@@ -6168,7 +6168,7 @@ packages:
   /@types/mjml-react@2.0.6:
     resolution: {integrity: sha512-pOYAX16xjkWNHWPNETfDYiUGYYwHQeuhtrUFDVCWh49zisgkLRG9kA3W9324Kc+KmO+xQp2LQldTVprhJ7ZMbw==}
     dependencies:
-      '@types/react': 18.0.15(patch_hash=x4axwesafhl3flpnwlimhsgpk4)
+      '@types/react': 18.0.15(patch_hash=tudgjew36lwa5g36cc3vitbh6e)
     dev: false
 
   /@types/mjml@4.7.0:
@@ -6211,10 +6211,10 @@ packages:
   /@types/react-dom@18.0.6:
     resolution: {integrity: sha512-/5OFZgfIPSwy+YuIBP/FgJnQnsxhZhjjrnxudMddeblOouIodEQ75X14Rr4wGSG/bknL+Omy9iWlLo1u/9GzAA==}
     dependencies:
-      '@types/react': 18.0.15(patch_hash=x4axwesafhl3flpnwlimhsgpk4)
+      '@types/react': 18.0.15(patch_hash=tudgjew36lwa5g36cc3vitbh6e)
     dev: false
 
-  /@types/react@18.0.15(patch_hash=x4axwesafhl3flpnwlimhsgpk4):
+  /@types/react@18.0.15(patch_hash=tudgjew36lwa5g36cc3vitbh6e):
     resolution: {integrity: sha512-iz3BtLuIYH1uWdsv6wXYdhozhqj20oD4/Hk2DNXIn1kFsmp9x8d9QB6FnPhfkbhd2PgEONt9Q1x/ebkwjfFLow==}
     dependencies:
       '@types/prop-types': 15.7.5
