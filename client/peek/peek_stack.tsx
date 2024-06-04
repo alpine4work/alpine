@@ -1515,8 +1515,14 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                     }
                 }}
                 style={{
+                    // When setting `--safe-area-inset-top` we need to set
+                    // `--safe-area-inset-top-base` to the same value. Some code (e.g. inbox
+                    // notification banner) will need the base value to override
+                    // `--safe-area-inset-top`.
+                    //
                     // @ts-expect-error: This sets the CSS variable but TypeScript doesn't
                     // like it.
+                    "--safe-area-inset-top-base": spacing[peekControlsHeight],
                     "--safe-area-inset-top": spacing[peekControlsHeight],
                 }}
             >

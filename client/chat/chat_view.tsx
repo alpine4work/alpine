@@ -45,6 +45,8 @@ import {
 } from "~/shared/styles/messaging_shared_styles.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
+export const chatViewMaxWidth = "160";
+
 export function ChatView({
     withMobileLayout,
     chat,
@@ -118,7 +120,7 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
                 )}
                 <Box
                     width="full"
-                    maxWidth="160"
+                    maxWidth={chatViewMaxWidth}
                     paddingX={screenPaddingX}
                     display="flex"
                     flexDirection={!isMobile ? "row" : "column"}

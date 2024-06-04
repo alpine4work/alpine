@@ -1,7 +1,9 @@
+import {useMemo} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {usePrettyNumber} from "~/client/design/pretty_number.js";
+import {printPrettyNumber} from "~/client/design/pretty_number.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {TaskClientStore, TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 
@@ -19,11 +21,16 @@ export function TaskDeleteConfirmationModalDialog({
     onAfterDelete?: () => void;
 }) {
     const context = useAppContext();
+    const {locale} = useClientInfo();
+
     const taskEntryStore = store.getTaskEntryStoreIfExists(taskId);
     const taskEntry = useStore(taskEntryStore);
     const childTaskCount = taskEntry?.task?.getChildTaskCount() ?? 0;
 
-    const childTaskCountPrettyNumber = usePrettyNumber({number: childTaskCount, label: "subtask"});
+    const childTaskCountPrettyNumber = useMemo(
+        () => printPrettyNumber(locale, childTaskCount, "subtask"),
+        [childTaskCount, locale],
+    );
 
     return (
         <ModalDialog

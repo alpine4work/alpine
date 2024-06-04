@@ -4,24 +4,18 @@ import {
     getInbox,
     getInboxChannelPostsEntryPosts,
     getInboxEntries,
+    getInboxEntry,
     observeInbox,
     unarchiveInboxEntry,
 } from "~/server/notifications/data/notifications_table.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
-import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import * as definition from "~/shared/rpc/notifications_rpc_definitions.js";
 
 implementRpc(
     definition.getInboxWithStrongReadConsistency,
     {visibility: ["AppClient"]},
-    async (_context, input) => {
-        const context = _context.actor.authorizeSession();
-
-        // Minor optimization: Authorize space access with eventual consistency instead
-        // of inheriting strong consistency. We cache space authorization per request.
-        await authorizeSpaceAccess(context, input.spaceId);
-
-        const inbox = await getInbox(context, {
+    async (context, input) => {
+        const inbox = await getInbox(context.actor.authorizeSession(), {
             ...input,
             consistency: "Strong",
         });
@@ -33,6 +27,19 @@ implementRpc(definition.getInboxEntries, {visibility: ["AppClient"]}, async (con
     const entriesResult = await getInboxEntries(context.actor.authorizeSession(), input);
     return {entriesResult};
 });
+
+implementRpc(
+    definition.getInboxEntryWithStrongReadConsistency,
+    {visibility: ["AppClient"]},
+    async (context, input) => {
+        const entry = await getInboxEntry(context.actor.authorizeSession(), {
+            ...input,
+            consistency: "Strong",
+        });
+
+        return {entry};
+    },
+);
 
 implementRpc(
     definition.backfillInboxEntries,

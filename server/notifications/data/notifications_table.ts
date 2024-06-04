@@ -567,6 +567,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         chatId: item.chatId,
                         chatAccountCount,
                         loudNotificationCount: item.loudNotificationCount,
+                        isArchived: item.isArchived,
                         latestMessage: {
                             author,
                             createdTime: item.latestMessage.createdTime,
@@ -626,6 +627,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         channel,
                         postAuthor,
                         loudNotificationCount: item.loudNotificationCount,
+                        isArchived: item.isArchived,
                         postCreatedTime: item.postCreatedTime,
                         postContentTextSnippetIfMentioned: postContentSnippetIfMentioned
                             ? printContentSingleLineTextSnippet(postContentSnippetIfMentioned)
@@ -674,6 +676,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         spaceId: item.spaceId,
                         accountId: item.accountId,
                         loudNotificationCount: item.loudNotificationCount,
+                        isArchived: item.isArchived,
                         channel,
                         bucketGeneration: item.bucketGeneration,
                         postCount: item.postIds.size,
@@ -716,6 +719,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         spaceId: item.spaceId,
                         accountId: item.accountId,
                         loudNotificationCount: item.loudNotificationCount,
+                        isArchived: item.isArchived,
                         document,
                         commentThreadId: item.commentThreadId,
                         firstCommentAuthor,
@@ -761,6 +765,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         spaceId: item.spaceId,
                         accountId: item.accountId,
                         loudNotificationCount: item.loudNotificationCount,
+                        isArchived: item.isArchived,
                         document,
                         bucketGeneration: item.bucketGeneration,
                         commentThreadCount: item.commentThreadIds.size,
@@ -1085,6 +1090,33 @@ export async function getInboxEntries(
     }
 
     return result;
+}
+
+/**
+ * Get a single inbox for the actor based on the provided key.
+ */
+export async function getInboxEntry(
+    context: ServerSessionActionContext,
+    {
+        spaceId,
+        key,
+        consistency,
+    }: {
+        spaceId: SpaceId;
+        key: InboxEntryKey;
+        consistency?: DynamoReadConsistency;
+    },
+): Promise<DynamoGeneralRealtimeItem<InboxEntryModel>> {
+    // NOCOMMIT: Test!
+    await authorizeSpaceAccess(context, spaceId);
+
+    const item = await InboxTable.getRealtimeItem(
+        context,
+        getInboxEntryItemKey({spaceId, accountId: context.actor.getAccountId(), key}),
+        {consistency},
+    );
+
+    return item;
 }
 
 /**

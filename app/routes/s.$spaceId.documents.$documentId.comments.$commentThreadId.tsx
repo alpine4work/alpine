@@ -5,6 +5,7 @@ import {useShowToast} from "~/client/design/toast.js";
 import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view.js";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {InboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -13,6 +14,7 @@ import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/documents/data/documents_table.js";
+import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
@@ -22,8 +24,11 @@ import {
     DocumentCommentThreadModel,
     DocumentModel,
 } from "~/shared/documents/document_model.js";
+import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
     documentCommentThreadCountAgainstLimit,
@@ -35,21 +40,35 @@ const LoaderSchema = Schema.object({
     commentThread: DocumentCommentThreadModel.schema(),
     initialComments: Schema.array(DocumentCommentModel.schema()),
     initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
+    inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
 });
 
-export async function loader({params, context}: LoaderArgs) {
+export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
+    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
+
+    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
     const documentId = Schema.id<DocumentId>().deserialize(params.documentId ?? null);
     const commentThreadId = Schema.id<DocumentCommentThreadId>().deserialize(
         params.commentThreadId ?? null,
     );
 
-    const {document, commentThreads, initialCommentsByCommentThreadId} =
-        await getDocumentAndCommentThreadsWithInitialComments(await context.actor.authenticate(), {
-            documentId,
-            commentThreadIds: [commentThreadId],
-            commentLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
-            commentThreadCountAgainstLimit: documentCommentThreadCountAgainstLimit,
-        });
+    const url = new URL(request.url);
+
+    const [{document, commentThreads, initialCommentsByCommentThreadId}, inboxEntry] =
+        await runAllPromises([
+            getDocumentAndCommentThreadsWithInitialComments(context, {
+                documentId,
+                commentThreadIds: [commentThreadId],
+                commentLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
+                commentThreadCountAgainstLimit: documentCommentThreadCountAgainstLimit,
+            }),
+            url.searchParams.get("inbox") === "show"
+                ? getInboxEntry(context, {
+                      spaceId,
+                      key: {type: "DocumentCommentThread", documentId, commentThreadId},
+                  })
+                : null,
+        ]);
 
     const commentThread = assertExists(commentThreads[0]);
 
@@ -62,6 +81,7 @@ export async function loader({params, context}: LoaderArgs) {
         commentThread,
         initialComments: comments,
         initialOtherReferencedComments: otherReferencedComments,
+        inboxEntry,
     });
 }
 
@@ -97,6 +117,7 @@ export default function DocumentCommentThreadRoute({
         commentThread,
         initialComments,
         initialOtherReferencedComments,
+        inboxEntry,
     } = useLoaderDataWithSchema(LoaderSchema);
 
     const {
@@ -119,7 +140,7 @@ export default function DocumentCommentThreadRoute({
         withoutDisappearingTitle: true,
     });
 
-    return (
+    const node = (
         <DocumentCommentThreadListView
             withMobileLayout={withMobileLayout}
             documentId={initialDocument.id}
@@ -207,4 +228,18 @@ export default function DocumentCommentThreadRoute({
             }, [isMobile])}
         />
     );
+
+    if (!inboxEntry) {
+        return node;
+    } else {
+        return (
+            <InboxBannerOutletContainer
+                initialEntry={inboxEntry}
+                maxWidth={documentCommentThreadListViewMaxWidth}
+                borderBottom="grey-10"
+            >
+                {node}
+            </InboxBannerOutletContainer>
+        );
+    }
 }

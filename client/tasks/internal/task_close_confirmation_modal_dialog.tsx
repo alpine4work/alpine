@@ -1,6 +1,8 @@
+import {useMemo} from "react";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {usePrettyNumber} from "~/client/design/pretty_number.js";
+import {printPrettyNumber} from "~/client/design/pretty_number.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 
@@ -15,14 +17,16 @@ export function TaskCloseConfirmationModalDialog({
     onClose: () => void;
     onConfirm: () => void;
 }) {
+    const {locale} = useClientInfo();
+
     const taskEntryStore = store.getTaskEntryStoreIfExists(taskId);
     const taskEntry = useStore(taskEntryStore);
     const childTaskCount = taskEntry?.task?.getOpenChildTaskCount() ?? 0;
 
-    const childTaskCountPrettyNumber = usePrettyNumber({
-        number: childTaskCount,
-        label: "open subtask",
-    });
+    const childTaskCountPrettyNumber = useMemo(
+        () => printPrettyNumber(locale, childTaskCount, "open subtask"),
+        [childTaskCount, locale],
+    );
 
     return (
         <ModalDialog

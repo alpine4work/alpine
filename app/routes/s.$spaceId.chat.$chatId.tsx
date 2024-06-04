@@ -1,8 +1,9 @@
 import {useSearchParams} from "@remix-run/react";
 import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s.$spaceId.js";
-import {ChatView} from "~/client/chat/chat_view.js";
+import {ChatView, chatViewMaxWidth} from "~/client/chat/chat_view.js";
 import {Box} from "~/client/design/box.js";
 import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
+import {InboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -11,12 +12,16 @@ import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getChatAndInitialMessages} from "~/server/chat/data/chat_table.js";
+import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
+import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
@@ -24,19 +29,29 @@ const LoaderSchema = Schema.object({
     chat: ChatModel.schema(),
     initialMessages: Schema.array(ChatMessageModel.schema()),
     initialOtherReferencedMessages: Schema.array(ChatMessageModel.schema()),
+    inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
 });
 
-export async function loader({context: _context, params}: LoaderArgs) {
-    const context = await _context.actor.authenticate();
+export async function loader({context: unauthenticatedContext, request, params}: LoaderArgs) {
+    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
+    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
     const chatId = Schema.id<ChatId>().deserialize(params.chatId ?? null);
 
-    const {chat, initialMessages, initialOtherReferencedMessages} = await getChatAndInitialMessages(
-        context.actor.authorizeSession(),
-        {
-            chatId,
-            messagesLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
-        },
-    );
+    const url = new URL(request.url);
+
+    const [{chat, initialMessages, initialOtherReferencedMessages}, inboxEntry] =
+        await runAllPromises([
+            getChatAndInitialMessages(context.actor.authorizeSession(), {
+                chatId,
+                messagesLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
+            }),
+            url.searchParams.get("inbox") === "show"
+                ? getInboxEntry(context, {
+                      spaceId,
+                      key: {type: "Chat", chatId},
+                  })
+                : null,
+        ]);
 
     const propagateEventData: TracerEventData = {
         context: {
@@ -46,7 +61,7 @@ export async function loader({context: _context, params}: LoaderArgs) {
 
     return jsonWithSchema(
         LoaderSchema,
-        {chat, initialMessages, initialOtherReferencedMessages},
+        {chat, initialMessages, initialOtherReferencedMessages, inboxEntry},
         {propagateEventData},
     );
 }
@@ -81,7 +96,7 @@ export default function ChatRoute({
     withMobileLayout?: boolean;
 }) {
     const [searchParams] = useSearchParams();
-    const {chat, initialMessages, initialOtherReferencedMessages} =
+    const {chat, initialMessages, initialOtherReferencedMessages, inboxEntry} =
         useLoaderDataWithSchema(LoaderSchema);
 
     const isMobile = useIsMobile();
@@ -104,7 +119,7 @@ export default function ChatRoute({
             : `Chat:${chat.id}`,
     );
 
-    return (
+    const node = (
         <Box flexGrow="1" width="full" height="full" overflow="hidden">
             <ChatView
                 // Remount whenever we navigate to a different chat.
@@ -117,4 +132,20 @@ export default function ChatRoute({
             />
         </Box>
     );
+
+    if (!inboxEntry) {
+        return node;
+    } else {
+        return (
+            <InboxBannerOutletContainer
+                initialEntry={inboxEntry}
+                maxWidth={chatViewMaxWidth}
+                // Since chats have a permanent top bar, use `grey-5` border to create the
+                // illusion that the banner is of the same physical material.
+                borderBottom="grey-5"
+            >
+                {node}
+            </InboxBannerOutletContainer>
+        );
+    }
 }

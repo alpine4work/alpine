@@ -87,11 +87,7 @@ export function Model<Data>(schema: ObjectSchema<Data>): ModelClass<Data> {
         }
 
         public clone(partialData: Partial<Data>): this {
-            // We use `this.constructor.prototype` instead of `Model.prototype` so that we
-            // use the subclass instead of the base model class.
-            //
-            // This does depend on subclasses not mucking with the constructor function.
-            const newModel: any = Object.create(this.constructor.prototype);
+            const newData: any = {};
             let hasChanged = false;
 
             for (const key of schema.propertySchemaByKey.keys()) {
@@ -111,18 +107,32 @@ export function Model<Data>(schema: ObjectSchema<Data>): ModelClass<Data> {
                             hasChanged = true;
                         }
 
-                        newModel[key] = value;
+                        newData[key] = value;
                         continue;
                     }
                 }
 
                 if (hasOwnProperty(this, key)) {
-                    newModel[key] = (this as any)[key];
+                    newData[key] = (this as any)[key];
                     continue;
                 }
             }
 
             if (!hasChanged) return this;
+
+            // We use `new this.constructor()` instead of `new Model()` so that we
+            // use the subclass instead of the base model class.
+            //
+            // This does depend on subclasses having the same constructor interface.
+            //
+            // We use `new this.constructor()` instead of
+            // `Object.create(this.constructor.prototype)` in case the subclass has custom
+            // constructor logic (e.g. computing custom properties). A non-obvious example
+            // of custom constructor logic is class instance fields (e.g.
+            // `public readonly type = "Chat"` in `InboxChatEntryModel`). These properties
+            // are initialized when calling the constructor function.
+            const newModel = new (this.constructor as any)(newData);
+
             return newModel;
         }
     }

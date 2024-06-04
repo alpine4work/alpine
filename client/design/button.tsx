@@ -99,6 +99,12 @@ function Button(
         isPending?: boolean;
 
         /**
+         * Never show loading indicator even if `isPending` is true. Useful if when
+         * `isPending` is set to true, some other loading indicator is visible.
+         */
+        withoutLoadingIndicator?: boolean;
+
+        /**
          * Give the button a 100% width so it fills all available space. Defaults
          * to false.
          */
@@ -135,7 +141,7 @@ function Button(
         /**
          * Gap between the icon and button label. Default is `1`.
          */
-        iconGap?: "1" | "1.5" | "2";
+        iconGap?: "0.5" | "1" | "1.5" | "2";
 
         /**
          * The font size of the button. Defaults to `75`.
@@ -197,6 +203,7 @@ function Button(
         isDisabled,
         keyboardShortcutHint,
         isPending: isPendingFromProps,
+        withoutLoadingIndicator = false,
         fullWidth = false,
         withoutMinWidth = false,
         shouldSubmitForm = false,
@@ -313,7 +320,8 @@ function Button(
 
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
-    const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
+    const shouldShowPendingSpinner =
+        useDelayLoadingIndicator(isPending) && !withoutLoadingIndicator;
 
     const isBold = variant === "neutral" && !isDisabled;
 

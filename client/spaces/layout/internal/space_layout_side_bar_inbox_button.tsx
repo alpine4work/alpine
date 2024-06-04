@@ -250,9 +250,9 @@ export function SpaceLayoutSideBarInboxButton({
                 // We'll open the overlay after a delay and show a loading indicator there.
                 withoutLoadingIndicator
                 size="lg"
-                description="Notifications"
+                description="Inbox"
                 tooltipPlacement="right"
-                pressErrorTitle="Couldn’t open notifications"
+                pressErrorTitle="Couldn’t open inbox"
             >
                 <Bell />
                 {inbox.model.loudNotificationCount > 0 ? (

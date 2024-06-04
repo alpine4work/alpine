@@ -1,8 +1,18 @@
 import {ArrowUpRight, SpinnerGap} from "phosphor-react";
-import {Memo, useCallback, useEffect, useRef, useState} from "react";
-import {usePress} from "react-aria";
+import {
+    Memo,
+    Ref,
+    RefObject,
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useRef,
+    useState,
+} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
@@ -27,6 +37,7 @@ import {
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -57,6 +68,8 @@ export function SpaceLayoutSideBarInboxOverlay({
     onArchivePress: () => MaybePromise<void>;
     onClose: Memo<() => void>;
 }) {
+    const entriesRef = useRef<SpaceLayoutTopBarInboxOverlayEntriesRef>(null);
+
     const initialEntriesResult = usePromise(initialEntriesResultPromise);
 
     return (
@@ -67,7 +80,7 @@ export function SpaceLayoutSideBarInboxOverlay({
                 borderBottom="grey-10"
                 display="flex"
                 alignItems="center"
-                paddingRight="1.5"
+                paddingX="1.5"
             >
                 <SpaceLayoutSideBarInboxOverlayExpandButton
                     filter={filter}
@@ -75,6 +88,7 @@ export function SpaceLayoutSideBarInboxOverlay({
                         initialEntriesResult.isPending ||
                         initialEntriesResult.value.items.length <= 3
                     }
+                    entriesRef={entriesRef}
                     onClose={onClose}
                 />
                 <Box flexGrow="1" />
@@ -96,6 +110,7 @@ export function SpaceLayoutSideBarInboxOverlay({
                 </Box>
             ) : (
                 <SpaceLayoutTopBarInboxOverlayEntries
+                    ref={entriesRef}
                     filter={filter}
                     initialEntriesResult={initialEntriesResult.value}
                     onClose={onClose}
@@ -108,25 +123,16 @@ export function SpaceLayoutSideBarInboxOverlay({
 function SpaceLayoutSideBarInboxOverlayExpandButton({
     filter,
     withoutAnimation,
+    entriesRef,
     onClose,
 }: {
     filter: "New" | "Archive";
     withoutAnimation: boolean;
+    entriesRef: RefObject<SpaceLayoutTopBarInboxOverlayEntriesRef>;
     onClose: () => void;
 }) {
     const rootNavigate = useRootNavigate();
     const {space} = useSpaceContext();
-
-    const {isPressed, pressProps} = usePress({
-        onPress: () => {
-            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-            if (filter === "New") {
-                void rootNavigate(`/s/${space.id}/inbox`).then(onClose);
-            } else {
-                void rootNavigate(`/s/${space.id}/inbox?tab=old`).then(onClose);
-            }
-        },
-    });
 
     const [withAnimation, setWithAnimation] = useState(false);
 
@@ -162,84 +168,134 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
     }, [withAnimation, withoutAnimation]);
 
     return (
-        <Box
-            {...pressProps}
-            flexShrink="0"
-            paddingX="3"
-            paddingY="2"
-            display="flex"
-            alignItems="center"
-            gap="0.5"
-            // Pointer to indicate this is a clickable link. Otherwise it's not entirely
-            // clear this element is clickable.
-            cursor="pointer"
-            opacity={isPressed ? "60" : undefined}
+        <Button
+            height="6"
+            paddingX="1.5"
+            fontSize="100"
+            // The inbox will show a loading shimmer when it opens. We don't need to
+            // also show a loading indicator here.
+            withoutLoadingIndicator
+            iconGap="0.5"
+            iconPlacement="end"
+            icon={
+                <ArrowUpRight
+                    className={
+                        withAnimation
+                            ? inboxStyles.overlayArrowUpRightAnimationClassName
+                            : undefined
+                    }
+                    size={spacing["3"]}
+                    weight="bold"
+                    style={{
+                        position: "relative",
+                        top: "0.09375rem",
+                    }}
+                />
+            }
+            pressErrorTitle="Couldn’t open inbox"
+            onPress={async () => {
+                const searchParams = new URLSearchParams();
+
+                if (filter === "Archive") {
+                    searchParams.set("tab", "old");
+                }
+
+                // Optimization: Since we know the first inbox entry we can include it in the
+                // URL so our backend can load data it in parallel.
+                const firstItemPath = entriesRef.current?.getFirstItemIfExists()?.model.getPath();
+                if (firstItemPath) {
+                    // base64 encode the initial path to hide the fact that it's a URL.
+                    const textEncoder = new TextEncoder();
+
+                    const selectedSearchParam = encodeBase64(
+                        textEncoder.encode(firstItemPath.replace(/^(\/s\/[^/]+\/)/, "")),
+                        "Rfc4648Url",
+                    );
+
+                    searchParams.set("selected", selectedSearchParam);
+                }
+
+                await rootNavigate(
+                    `/s/${space.id}/inbox${
+                        searchParams.size > 0 ? `?${searchParams.toString()}` : ""
+                    }`,
+                ).then(onClose);
+            }}
         >
-            <Box fontSize="100" fontStyle="semi-bold">
+            <Box display="inline" fontStyle="semi-bold">
                 Inbox
             </Box>
-            <ArrowUpRight
-                className={
-                    withAnimation ? inboxStyles.overlayArrowUpRightAnimationClassName : undefined
-                }
-                size={spacing["3"]}
-                weight="bold"
-                style={{
-                    position: "relative",
-                    top: "0.09375rem",
-                }}
-            />
-        </Box>
+        </Button>
     );
 }
 
-function SpaceLayoutTopBarInboxOverlayEntries({
-    filter,
-    initialEntriesResult,
-    onClose,
-}: {
-    filter: "New" | "Archive";
-    initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
-    onClose: Memo<() => void>;
-}) {
-    const {query, updateQueryOptimistically, tryLoadingMore} = useInboxState({
-        filter,
-        initialEntriesResult,
-    });
+type SpaceLayoutTopBarInboxOverlayEntriesRef = {
+    getFirstItemIfExists(): DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+};
 
-    const deleteEntryOptimistically = useEvent(
-        ({
-            promise,
-            entry,
-            withAnimation,
+const SpaceLayoutTopBarInboxOverlayEntries = forwardRef(
+    function SpaceLayoutTopBarInboxOverlayEntries(
+        {
+            filter,
+            initialEntriesResult,
+            onClose,
         }: {
-            promise: Promise<unknown> | null;
-            entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
-            withAnimation: boolean;
-        }) => {
-            updateQueryOptimistically({
-                promise,
-                withAnimation,
-                update: query =>
-                    query.optimisticallyDeleteItemByKeyIfExistsAtVersion(entry.key, entry.version),
-            });
+            filter: "New" | "Archive";
+            initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
+            onClose: Memo<() => void>;
         },
-    );
+        ref: Ref<SpaceLayoutTopBarInboxOverlayEntriesRef>,
+    ) {
+        const {query, updateQueryOptimistically, tryLoadingMore} = useInboxState({
+            filter,
+            initialEntriesResult,
+        });
 
-    if (query.getItemCount() === 0) {
-        return <InboxViewEntriesEmpty filter={filter} />;
-    }
+        useImperativeHandle(
+            ref,
+            () => ({
+                getFirstItemIfExists: () => query.getFirstItemIfExists(),
+            }),
+            [query],
+        );
 
-    return (
-        <SpaceLayoutTopBarInboxOverlayEntriesInner
-            filter={filter}
-            query={query}
-            tryLoadingMore={tryLoadingMore}
-            deleteEntryOptimistically={deleteEntryOptimistically}
-            onClose={onClose}
-        />
-    );
-}
+        const deleteEntryOptimistically = useEvent(
+            ({
+                promise,
+                entry,
+                withAnimation,
+            }: {
+                promise: Promise<unknown> | null;
+                entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
+                withAnimation: boolean;
+            }) => {
+                updateQueryOptimistically({
+                    promise,
+                    withAnimation,
+                    update: query =>
+                        query.optimisticallyDeleteItemByKeyIfExistsAtVersion(
+                            entry.key,
+                            entry.version,
+                        ),
+                });
+            },
+        );
+
+        if (query.getItemCount() === 0) {
+            return <InboxViewEntriesEmpty filter={filter} />;
+        }
+
+        return (
+            <SpaceLayoutTopBarInboxOverlayEntriesInner
+                filter={filter}
+                query={query}
+                tryLoadingMore={tryLoadingMore}
+                deleteEntryOptimistically={deleteEntryOptimistically}
+                onClose={onClose}
+            />
+        );
+    },
+);
 
 function SpaceLayoutTopBarInboxOverlayEntriesInner({
     filter,
@@ -423,22 +479,31 @@ function SpaceLayoutTopBarInboxOverlayEntry({
             onPress={() => {
                 if (isPending) return;
 
+                const url = new URL(entry.model.getPath(), window.location.href);
+                url.searchParams.set("inbox", "show");
+
                 // TODO(calebmer, #global-loading-indicator): Some kind of global loading
                 // indicator?
-                peekStackContext.push(entry.model.getPath()).then(
-                    () => {
-                        setIsPending(false);
-                        onClose();
-                    },
-                    error => {
-                        setIsPending(false);
-                        showToast({
-                            type: "Error",
-                            title: "Couldn’t open notification",
-                            error,
-                        });
-                    },
-                );
+                peekStackContext
+                    .push({
+                        pathname: url.pathname,
+                        search: url.search,
+                        hash: url.hash,
+                    })
+                    .then(
+                        () => {
+                            setIsPending(false);
+                            onClose();
+                        },
+                        error => {
+                            setIsPending(false);
+                            showToast({
+                                type: "Error",
+                                title: "Couldn’t open notification",
+                                error,
+                            });
+                        },
+                    );
             }}
             onArchive={async () => {
                 await archiveInboxEntry(context, {

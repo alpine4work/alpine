@@ -1,4 +1,4 @@
-import {useCallback, useMemo, useRef, useState} from "react";
+import {ReactElement, useCallback, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {printPrettySmallNumberSummary} from "~/client/design/pretty_number.js";
@@ -6,6 +6,7 @@ import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_r
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
 import {PostView} from "~/client/forum/post_view.js";
+import {InboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -15,6 +16,7 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {getChannel} from "~/server/forum/data/forum_table.js";
+import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -28,10 +30,14 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isId} from "~/shared/id/id.js";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {getChannelWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitions.js";
 import {getInboxChannelPostsEntryPosts} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {postContentViewMinHeightWithClosedCommentSection} from "~/shared/styles/forum_shared_styles.js";
+import {
+    postContentViewMinHeightWithClosedCommentSection,
+    postViewMaxWidth,
+} from "~/shared/styles/forum_shared_styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
@@ -49,9 +55,12 @@ const LoaderSchema = Schema.object({
             }),
         ),
     }),
+    inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
 });
 
-export async function loader({params, context}: LoaderArgs) {
+export async function loader({params, request, context: unauthenticatedContext}: LoaderArgs) {
+    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
+
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
     const channelIdAndBucketGeneration = assertExists(params.channelIdAndBucketGeneration);
     const [channelId, bucketGenerationString, ...otherParts] =
@@ -71,8 +80,10 @@ export async function loader({params, context}: LoaderArgs) {
     if (bucketGeneration === null || !Number.isInteger(bucketGeneration))
         throw new InvalidArgumentError("Expected bucket generation to be an integer");
 
-    const [channel, postsResult] = await runAllPromises([
-        getChannel(await context.actor.authenticate(), channelId),
+    const url = new URL(request.url);
+
+    const [channel, postsResult, inboxEntry] = await runAllPromises([
+        getChannel(context, channelId),
         getInboxChannelPostsEntryPosts(context, {
             spaceId,
             channelId,
@@ -84,6 +95,12 @@ export async function loader({params, context}: LoaderArgs) {
             commentLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
             afterPostId: null,
         }),
+        url.searchParams.get("inbox") === "show"
+            ? getInboxEntry(context, {
+                  spaceId,
+                  key: {type: "ChannelPosts", channelId, bucketGeneration},
+              })
+            : null,
     ]);
 
     const propagateEventData: TracerEventData = {
@@ -94,7 +111,7 @@ export async function loader({params, context}: LoaderArgs) {
 
     return jsonWithSchema(
         LoaderSchema,
-        {channel, bucketGeneration, postsResult},
+        {channel, bucketGeneration, postsResult, inboxEntry},
         {propagateEventData},
     );
 }
@@ -120,17 +137,19 @@ export default function ChannelPostsRouteWrapper({
 }: {
     withMobileLayout?: boolean;
 }) {
-    const {channel, postsResult} = useLoaderDataWithSchema(LoaderSchema);
+    const {channel, postsResult, inboxEntry} = useLoaderDataWithSchema(LoaderSchema);
 
     // While you're viewing new posts in a channel, this accrues affinity points to
     // the channel. Since you're taking time to pay attention to what's new in a
     // channel.
     useSearchAffinityViewInteraction(`Channel:${channel.model.id}`);
 
+    let node: ReactElement;
+
     if (postsResult.posts.length === 1 && !postsResult.hasMorePosts) {
         const post = postsResult.posts[0]!;
 
-        return (
+        node = (
             <PostView
                 // Remount when navigating to a different post.
                 key={post.model.id}
@@ -147,7 +166,21 @@ export default function ChannelPostsRouteWrapper({
             />
         );
     } else {
-        return <ChannelPostsRoute withMobileLayout={withMobileLayout} />;
+        node = <ChannelPostsRoute withMobileLayout={withMobileLayout} />;
+    }
+
+    if (!inboxEntry) {
+        return node;
+    } else {
+        return (
+            <InboxBannerOutletContainer
+                initialEntry={inboxEntry}
+                maxWidth={postViewMaxWidth}
+                borderBottom="grey-10"
+            >
+                {node}
+            </InboxBannerOutletContainer>
+        );
     }
 }
 

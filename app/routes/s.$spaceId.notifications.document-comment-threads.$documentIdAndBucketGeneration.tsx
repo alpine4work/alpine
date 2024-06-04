@@ -12,6 +12,7 @@ import {
 } from "~/client/documents/document_comment_thread_list_view.js";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {InboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -19,7 +20,10 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
-import {getInboxDocumentNewCommentThreadsEntryCommentThreads} from "~/server/notifications/data/notifications_table.js";
+import {
+    getInboxDocumentNewCommentThreadsEntryCommentThreads,
+    getInboxEntry,
+} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
@@ -28,11 +32,14 @@ import {
     DocumentCommentThreadModel,
     DocumentModel,
 } from "~/shared/documents/document_model.js";
+import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
     documentCommentThreadCountAgainstLimit,
@@ -52,9 +59,14 @@ const LoaderSchema = Schema.object({
             otherReferencedComments: Schema.array(DocumentCommentModel.schema()),
         }),
     ),
+    inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
 });
 
-export async function loader({params, context}: LoaderArgs) {
+export async function loader({params, request, context: unauthenticatedContext}: LoaderArgs) {
+    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
+
+    const url = new URL(request.url);
+
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
     const documentIdAndBucketGeneration = assertExists(params.documentIdAndBucketGeneration);
     const [documentId, bucketGenerationString, ...otherParts] =
@@ -74,17 +86,22 @@ export async function loader({params, context}: LoaderArgs) {
     if (bucketGeneration === null || !Number.isInteger(bucketGeneration))
         throw new InvalidArgumentError("Expected bucket generation to be an integer");
 
-    const {document, commentThreads, initialCommentsByCommentThreadId} =
-        await getInboxDocumentNewCommentThreadsEntryCommentThreads(
-            (await context.actor.authenticate()).actor.authorizeSession(),
-            {
+    const [{document, commentThreads, initialCommentsByCommentThreadId}, inboxEntry] =
+        await runAllPromises([
+            getInboxDocumentNewCommentThreadsEntryCommentThreads(context, {
                 spaceId,
                 documentId,
                 bucketGeneration,
                 commentLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
                 commentThreadCountAgainstLimit: documentCommentThreadCountAgainstLimit,
-            },
-        );
+            }),
+            url.searchParams.get("inbox") === "show"
+                ? getInboxEntry(context, {
+                      spaceId,
+                      key: {type: "DocumentNewCommentThreads", documentId, bucketGeneration},
+                  })
+                : null,
+        ]);
 
     const propagateEventData: TracerEventData = {
         context: {
@@ -99,6 +116,7 @@ export async function loader({params, context}: LoaderArgs) {
             document,
             commentThreads,
             initialCommentsByCommentThreadId,
+            inboxEntry,
         },
         {propagateEventData},
     );
@@ -144,6 +162,7 @@ function DocumentNewCommentThreadsRouteInner({
         document: initialDocument,
         commentThreads: initialCommentThreads,
         initialCommentsByCommentThreadId,
+        inboxEntry,
     } = useLoaderDataWithSchema(LoaderSchema);
 
     const {
@@ -323,7 +342,7 @@ function DocumentNewCommentThreadsRouteInner({
         withoutDisappearingTitle: true,
     });
 
-    return (
+    const node = (
         <DocumentCommentThreadListView
             ref={listViewRef}
             // When rendering for mobile, we render one comment thread at a time. Instead of
@@ -394,4 +413,18 @@ function DocumentNewCommentThreadsRouteInner({
             }, [isMobile])}
         />
     );
+
+    if (!inboxEntry) {
+        return node;
+    } else {
+        return (
+            <InboxBannerOutletContainer
+                initialEntry={inboxEntry}
+                maxWidth={documentCommentThreadListViewMaxWidth}
+                borderBottom="grey-10"
+            >
+                {node}
+            </InboxBannerOutletContainer>
+        );
+    }
 }

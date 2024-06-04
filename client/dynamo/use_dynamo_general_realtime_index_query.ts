@@ -74,10 +74,7 @@ export function useDynamoGeneralRealtimeIndexQuery<Model>(
         DynamoGeneralRealtimeIndexQuery.new(initialQueryResult),
     );
 
-    useDynamoGeneralRealtimeIndexQueryBase(
-        {query, onUpdateQuery: setQuery as Memo<typeof setQuery>},
-        options,
-    );
+    useDynamoGeneralRealtimeIndexQueryBase({query, onUpdateQuery: setQuery}, options);
 
     return {query};
 }

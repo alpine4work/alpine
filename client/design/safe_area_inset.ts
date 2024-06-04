@@ -8,6 +8,20 @@ export function getElementSafeAreaInsetTopPx(element: Element): number {
     const safeAreaInsetTop = getComputedStyle(element).getPropertyValue("--safe-area-inset-top");
     if (!safeAreaInsetTop) return 0;
 
+    // Detect the `calc()` syntax used by when the `inbox=show` search param is set
+    // (see `s.$spaceId.peek.tsx`).
+    const safeAreaInsetTopCalcMatch = safeAreaInsetTop.match(
+        /^calc\((\d+\.?\d*)(rem|px) \+ (\d+\.?\d*)(rem|px)\)$/,
+    );
+    if (safeAreaInsetTopCalcMatch) {
+        return (
+            parseFloat(safeAreaInsetTopCalcMatch[1]!) *
+                (safeAreaInsetTopCalcMatch[2] === "rem" ? getRemPxWithoutListening() : 1) +
+            parseFloat(safeAreaInsetTopCalcMatch[3]!) *
+                (safeAreaInsetTopCalcMatch[4] === "rem" ? getRemPxWithoutListening() : 1)
+        );
+    }
+
     const safeAreaInsetTopNumber = parseFloat(safeAreaInsetTop);
 
     if (safeAreaInsetTop.endsWith("px")) return safeAreaInsetTopNumber;

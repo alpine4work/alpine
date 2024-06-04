@@ -37,6 +37,17 @@ export const getInboxEntries = defineRpc({
     },
 });
 
+export const getInboxEntryWithStrongReadConsistency = defineRpc({
+    name: "getInboxEntryWithStrongReadConsistency",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        key: InboxEntryKeySchema,
+    },
+    output: {
+        entry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema),
+    },
+});
+
 export const backfillInboxEntries = defineRpc({
     name: "backfillInboxEntries",
     input: {

@@ -32,6 +32,10 @@ type TracerEventHttpSearchParamNameMap = {
     // In the document route, indicates which comment thread we should open in the
     // comment sidebar (or in the comment bottom sheet on mobile).
     comments: true;
+    // We open notifications with the `inbox=show` search param which shows the
+    // notification banner at the top of the page. So the user can dismiss the
+    // notification without opening the inbox again.
+    inbox: true;
 };
 
 const tracerEventHttpSearchParamNameMap: TracerEventHttpSearchParamNameMap = {
@@ -42,6 +46,7 @@ const tracerEventHttpSearchParamNameMap: TracerEventHttpSearchParamNameMap = {
     message: true,
     comment: true,
     comments: true,
+    inbox: true,
 };
 
 /**
@@ -71,5 +76,6 @@ export const tracerEventHttpSearchParamNameByServiceName: {
         "message",
         "comment",
         "comments",
+        "inbox",
     ]),
 };

@@ -732,8 +732,14 @@ function SearchModalPeekContent({
             display="flex"
             flexDirection="column"
             style={{
+                // When setting `--safe-area-inset-top` we need to set
+                // `--safe-area-inset-top-base` to the same value. Some code (e.g. inbox
+                // notification banner) will need the base value to override
+                // `--safe-area-inset-top`.
+                //
                 // @ts-expect-error: This sets the CSS variable but TypeScript doesn't
                 // like it.
+                "--safe-area-inset-top-base": spacing[searchModalPeekControlsHeight],
                 "--safe-area-inset-top": spacing[searchModalPeekControlsHeight],
             }}
         >

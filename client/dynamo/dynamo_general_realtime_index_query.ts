@@ -854,6 +854,28 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     }
 
     /**
+     * Gets the first loaded item in the query if there are items in the query.
+     */
+    public getFirstItemIfExists(): DynamoGeneralRealtimeItem<Model> | null {
+        const loadedPageItemSlice = this._loadedPageItemSlice.get();
+        return this._itemByCursor.at(loadedPageItemSlice?.startIndex ?? 0).value ?? null;
+    }
+
+    /**
+     * Gets the first loaded item in the query if there are items in the query.
+     */
+    public getLastItemIfExists(): DynamoGeneralRealtimeItem<Model> | null {
+        const loadedPageItemSlice = this._loadedPageItemSlice.get();
+        return (
+            this._itemByCursor.at(
+                loadedPageItemSlice
+                    ? loadedPageItemSlice.endIndex - 1
+                    : this._itemByCursor.length - 1,
+            ).value ?? null
+        );
+    }
+
+    /**
      * Get the item after the provided cursor if an item exists.
      */
     public getItemAfterCursorIfExists(
