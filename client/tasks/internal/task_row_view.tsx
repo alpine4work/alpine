@@ -226,9 +226,10 @@ const dragHandleContainerIfPrimaryInputCanNotHoverClassName = `${dragHandleConta
 )}`;
 
 const expandButtonContainerClassName = `${pointerEventsNoneNotInheritedClassName} ${sprinkles({
+    position: "relative",
+    left: "-0.5",
     width: taskRowViewExpandButtonWidth,
     height: taskRowViewMinHeight,
-    paddingRight: "1",
     display: "flex",
     alignItems: "center",
 })}`;

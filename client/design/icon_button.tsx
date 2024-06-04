@@ -106,20 +106,6 @@ function IconButton(
         size?: IconButtonSize;
 
         /**
-         * Forces touch slop even for small button sizes. By default, larger
-         * button sizes like `base` get touch slop but smaller buttons like `xs` don't
-         * get touch slop. Since generally if you're using an `xs` button there are
-         * multiple small buttons next to each other and touch slop would leave you
-         * with conflicting touch areas.
-         *
-         * However, if for design reasons you have one lone `xs` button on mobile you
-         * should give it touch slop.
-         *
-         * If set to false, `base` buttons will still get touch slop.
-         */
-        withTouchSlop?: boolean;
-
-        /**
          * A keyboard shortcut that will display alongside the description in the tooltip.
          */
         keyboardShortcutHint?: ReactNode;
@@ -251,7 +237,6 @@ function IconButton(
         pressErrorTitle,
         variant = "quiet",
         size = "base",
-        withTouchSlop = false,
         keyboardShortcutHint,
         isPending: isPendingFromProps,
         withoutLoadingIndicator = false,
@@ -416,21 +401,17 @@ function IconButton(
               },
     };
 
-    const {buttonSize, iconSize, withoutTouchSlop} = (
+    const {buttonSize, iconSize} = (
         {
-            lg: {buttonSize: "8", iconSize: "5", withoutTouchSlop: false},
-            base: {buttonSize: "7", iconSize: "5", withoutTouchSlop: false},
-            md: {buttonSize: "6", iconSize: "4", withoutTouchSlop: false},
-            sm: {buttonSize: "5", iconSize: "4", withoutTouchSlop: true},
-            xs: {buttonSize: "4", iconSize: "3", withoutTouchSlop: true},
+            lg: {buttonSize: "8", iconSize: "5"},
+            base: {buttonSize: "7", iconSize: "5"},
+            md: {buttonSize: "6", iconSize: "4"},
+            sm: {buttonSize: "5", iconSize: "4"},
+            xs: {buttonSize: "5", iconSize: "3"},
         } as const
     )[size];
 
-    const defaultTouchSlop = useTouchSlop(buttonSize);
-    const touchSlop =
-        withTouchSlop || !withoutTouchSlop
-            ? defaultTouchSlop
-            : ({slop: "0", sizeWithSlop: buttonSize} as const);
+    const touchSlop = useTouchSlop(buttonSize);
 
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.

@@ -85,7 +85,7 @@ export function InboxViewTopBar({
                 alignItems="center"
             >
                 <Box>
-                    <Box flexShrink="0" paddingX="4" display="flex" gap="1">
+                    <Box flexShrink="0" paddingX="3" display="flex">
                         <IconButton
                             size="xs"
                             description="Previous notification"

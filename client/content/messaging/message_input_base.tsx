@@ -579,11 +579,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             >
                                 <PencilSimple size={spacing["3"]} />
                                 <span>Editing message</span>
-                                <Box paddingLeft="1" style={{transform: "translateY(1px)"}}>
+                                <Box paddingLeft="0.5" style={{transform: "translateY(1px)"}}>
                                     <IconButton
                                         size="xs"
-                                        // Really hard to tap this button on mobile without touch slop.
-                                        withTouchSlop={true}
                                         description="Cancel editing"
                                         onPress={() => {
                                             messageEditingForThisInput.dispatch({
@@ -653,11 +651,12 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                 />
                                             </span>
                                         </span>
-                                        <Box paddingLeft="1" style={{transform: "translateY(1px)"}}>
+                                        <Box
+                                            paddingLeft="0.5"
+                                            style={{transform: "translateY(1px)"}}
+                                        >
                                             <IconButton
                                                 size="xs"
-                                                // Really hard to tap this button on mobile without touch slop.
-                                                withTouchSlop={true}
                                                 description="Cancel reply"
                                                 onPress={onClearReplyingToMessage}
                                                 // Not focusable so clicking on this button doesn't unfocus

@@ -167,7 +167,7 @@ function SpaceLayoutSideBarNavigationButtons() {
     }, [navigationState]);
 
     return (
-        <Box flexShrink="0" display="flex" justifyContent="flex-start" alignItems="center" gap="1">
+        <Box flexShrink="0" display="flex" justifyContent="flex-start" alignItems="center">
             <IconButton
                 size="xs"
                 description="Go back"

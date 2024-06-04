@@ -516,7 +516,7 @@ export function ChatAccountPicker({
                     {!isMobile && (
                         // On mobile this button is too small. So the only way to delete people is via
                         // pressing backspace on the keyboard.
-                        <Box paddingRight="1">
+                        <Box paddingRight="0.5">
                             <IconButton
                                 size="xs"
                                 variant="quiet-above-grey-5-background"

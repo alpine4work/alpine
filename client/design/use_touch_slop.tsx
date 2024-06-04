@@ -1,6 +1,7 @@
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {Spacing} from "~/shared/design/spacing.js";
 
+// On desktop, we want button hit size to be 24x24 or larger.
 export const desktopTouchSlopBySpacing: {
     [Key in "4" | "5" | "6" | "7" | "8"]: {
         readonly slop: Spacing;
@@ -10,10 +11,11 @@ export const desktopTouchSlopBySpacing: {
     "8": {slop: "0", sizeWithSlop: "8"},
     "7": {slop: "0", sizeWithSlop: "7"},
     "6": {slop: "0", sizeWithSlop: "6"},
-    "5": {slop: "0", sizeWithSlop: "5"},
-    "4": {slop: "0", sizeWithSlop: "4"},
+    "5": {slop: "0.5", sizeWithSlop: "6"},
+    "4": {slop: "1", sizeWithSlop: "6"},
 };
 
+// On mobile, we want button hit size to be 44x44 or larger.
 export const mobileTouchSlopBySpacing: {
     [Key in "4" | "5" | "6" | "7" | "8"]: {
         readonly slop: Spacing;

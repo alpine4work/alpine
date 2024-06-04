@@ -328,7 +328,7 @@ function ToastView({
                     )}
                 </Box>
             </Box>
-            <Box flexShrink="0" padding="1.5" paddingLeft="0">
+            <Box flexShrink="0" padding="1" paddingLeft="0">
                 <IconButton
                     variant="quiet-above-grey-5-dark-background"
                     size="xs"
@@ -387,7 +387,7 @@ function ToastViewTimer({startTime, expirationTime}: {startTime: Date; expiratio
     }, [dashes, expirationTime, startTime]);
 
     return (
-        <Box position="relative" width="3" height="3" marginX="0.5">
+        <Box position="relative" width="3" height="3" marginX="1">
             <Box position="absolute" inset="0" color="grey-10">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"

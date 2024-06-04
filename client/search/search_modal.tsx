@@ -750,11 +750,10 @@ function SearchModalPeekContent({
             >
                 <Box
                     flexShrink="0"
-                    paddingX="1"
+                    paddingX="0.5"
                     display="flex"
                     justifyContent="flex-start"
                     alignItems="center"
-                    gap="1"
                 >
                     <IconButton
                         size="xs"
@@ -778,11 +777,10 @@ function SearchModalPeekContent({
                 <Box flexGrow="1" />
                 <Box
                     flexShrink="0"
-                    paddingX="1"
+                    paddingX="0.5"
                     display="flex"
                     justifyContent="flex-start"
                     alignItems="center"
-                    gap="1"
                 >
                     <IconButton
                         size="xs"

@@ -63,7 +63,7 @@ export function InlineAlert({
             borderWidth="thick"
             borderRadius="base"
         >
-            <Box position="absolute" top="1.5" right="1.5">
+            <Box position="absolute" top="1" right="1">
                 <IconButton
                     size="xs"
                     description="Dismiss alert"

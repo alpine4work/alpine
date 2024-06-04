@@ -137,15 +137,9 @@ export function SearchMobileView({
                                         </Box>
                                     )}
                                     {queryText.length > 0 && (
-                                        <Box
-                                            position="absolute"
-                                            zIndex="20"
-                                            right="2.5"
-                                            bottom="2.5"
-                                        >
+                                        <Box position="absolute" zIndex="20" right="2" bottom="2">
                                             <IconButton
                                                 size="xs"
-                                                withTouchSlop
                                                 description="Clear"
                                                 onPress={() => onQueryTextChange("")}
                                             >

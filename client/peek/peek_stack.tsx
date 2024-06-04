@@ -1534,11 +1534,10 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                 >
                     <Box
                         flexShrink="0"
-                        paddingX="1"
+                        paddingX="0.5"
                         display="flex"
                         justifyContent="flex-start"
                         alignItems="center"
-                        gap="1"
                     >
                         <IconButton
                             size="xs"
@@ -1577,11 +1576,10 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                     />
                     <Box
                         flexShrink="0"
-                        paddingX="1"
+                        paddingX="0.5"
                         display="flex"
                         justifyContent="flex-end"
                         alignItems="center"
-                        gap="1"
                     >
                         <IconButton
                             size="xs"

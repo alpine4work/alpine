@@ -264,7 +264,7 @@ export function Modal({
                                           })
                                         : children}
                                     {!withoutCloseButton && (
-                                        <Box position="absolute" top="2" right="2">
+                                        <Box position="absolute" top="1.5" right="1.5">
                                             <IconButton
                                                 size="xs"
                                                 description="Close"
