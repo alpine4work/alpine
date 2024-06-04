@@ -1,22 +1,21 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import {differenceInHours} from "date-fns";
-import GraphemeSplitter from "grapheme-splitter";
 import {AnimationControls, animate} from "motion";
 import {Check, DotsThree, IconContext} from "phosphor-react";
-import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {PrettyNumber, printPrettySmallNumberSummary} from "~/client/design/pretty_number.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
-import {ChatBrandIcon} from "~/client/icons/brand/chat_brand_icon.js";
-import {DocumentBrandIcon} from "~/client/icons/brand/document_brand_icon.js";
-import {PostBrandIcon} from "~/client/icons/brand/post_brand_icon.js";
+import {
+    getInboxEntryDisplay,
+    renderInboxEntryDisplaySummary,
+} from "~/client/inbox/inbox_entry_display.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
@@ -25,23 +24,13 @@ import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {
-    InboxChannelPostsEntryModel,
-    InboxChatEntryModel,
-    InboxDocumentCommentThreadEntryModel,
-    InboxDocumentNewCommentThreadsEntryModel,
-    InboxEntryModel,
-    InboxPostCommentsEntryModel,
-} from "~/shared/notifications/inbox_model.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {
     backgroundColorVar,
     colorSchemeVars,
     overlayFadeOutAnimationDurationMs,
     searchStyles,
-    sprinkles,
 } from "~/shared/styles/styles.js";
 
 export const inboxEntryWidth: Spacing = "96";
@@ -88,7 +77,9 @@ export function InboxEntryView({
     onArchive: () => Promise<void>;
     onUnarchive: () => Promise<void>;
 }) {
-    const {isAppleDevice} = useClientInfo();
+    const currentTime = useCurrentTimeRoundedToHour();
+    const {isAppleDevice, timeZone, locale} = useClientInfo();
+    const {currentAccount} = useSpaceContext();
 
     const entryRef = useRef<HTMLDivElement>(null);
     const [isPressed, setIsPressed] = useState(false);
@@ -159,26 +150,10 @@ export function InboxEntryView({
         }
     }, [deletedItemAnimation, entry]);
 
-    let children;
-    switch (entry.type) {
-        case "Chat":
-            children = <InboxChatEntryView entry={entry} />;
-            break;
-        case "PostComments":
-            children = <InboxPostCommentsEntryView entry={entry} />;
-            break;
-        case "ChannelPosts":
-            children = <InboxChannelPostsEntryView entry={entry} />;
-            break;
-        case "DocumentCommentThread":
-            children = <InboxDocumentCommentThreadEntryView entry={entry} />;
-            break;
-        case "DocumentNewCommentThreads":
-            children = <InboxDocumentNewCommentThreadsEntryView entry={entry} />;
-            break;
-        default:
-            throw exhaustive(entry);
-    }
+    const entryDisplay = useMemo(
+        () => getInboxEntryDisplay({entry, locale, currentAccount}),
+        [currentAccount, entry, locale],
+    );
 
     const backgroundColor =
         isPressed && withinOverlay ? "grey-10" : isSelected ? "grey-5" : undefined;
@@ -264,7 +239,162 @@ export function InboxEntryView({
                         boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
                     }}
                 >
-                    {children}
+                    <Box flexShrink="0" width="10" paddingY="4">
+                        <Box
+                            position="relative"
+                            width="10"
+                            height="10"
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="center"
+                        >
+                            {!entryDisplay.secondAccount ? (
+                                <AccountAvatar account={entryDisplay.firstAccount} size="9" />
+                            ) : (
+                                <>
+                                    <Box position="absolute" top="0" left="0">
+                                        <AccountAvatar
+                                            account={entryDisplay.firstAccount}
+                                            size="7"
+                                        />
+                                    </Box>
+                                    <Box
+                                        position="absolute"
+                                        bottom="0"
+                                        right="0"
+                                        borderRadius="full"
+                                        style={{boxShadow: `0 0 0 2px ${backgroundColorVar}`}}
+                                    >
+                                        <AccountAvatar
+                                            account={entryDisplay.secondAccount}
+                                            size="7"
+                                        />
+                                    </Box>
+                                </>
+                            )}
+                            <Box
+                                position="absolute"
+                                left="-2.5"
+                                bottom="-2.5"
+                                width="6"
+                                height="6"
+                                display="flex"
+                                justifyContent="center"
+                                alignItems="center"
+                                borderRadius="full"
+                                style={{
+                                    backgroundColor: backgroundColorVar,
+                                }}
+                            >
+                                <Box
+                                    // Brand icons only render in the `grey-80` shade and above. So we can maintain
+                                    // proper contrast between the icon line and color splash. However, here we
+                                    // want to render a lighter line color (e.g. `grey-60`) to not distract from
+                                    // the result title. We calculate the opacity to get us from `grey-80` to a
+                                    // lighter line color (e.g. `grey-60`) and apply it. By applying opacity the
+                                    // color splash also gets lighter to maintain proper contrast between the lines
+                                    // and the color splash.
+                                    className={searchStyles.brandIconOpacityClassName}
+                                >
+                                    <IconContext.Provider
+                                        value={{
+                                            color: searchStyles.brandIconColor,
+                                            size: spacing["4"],
+                                        }}
+                                    >
+                                        {entryDisplay.brandIcon}
+                                    </IconContext.Provider>
+                                </Box>
+                            </Box>
+                            {entry.loudNotificationCount > 0 && (
+                                <LoudNotificationBadge
+                                    top="0"
+                                    right="1"
+                                    loudNotificationCount={entry.loudNotificationCount}
+                                />
+                            )}
+                        </Box>
+                    </Box>
+                    <Box paddingY="4" flexGrow="1" fontSize="75" overflow="hidden">
+                        <Box>
+                            {useMemo(
+                                () => renderInboxEntryDisplaySummary(entryDisplay.summary),
+                                [entryDisplay.summary],
+                            )}
+                        </Box>
+                        <Box
+                            // Do not read the message preview for screen reader users. It will likely be
+                            // confusing as the text cuts off eventually.
+                            aria-hidden={true}
+                            paddingTop="0.5"
+                            width="full"
+                            pointerEvents="none"
+                            color="grey-50"
+                            fontSize="50"
+                            display="flex"
+                            gap="0"
+                        >
+                            <Box
+                                overflow="hidden"
+                                fontStyle="truncate"
+                                style={{
+                                    // Render contextual alternate glyphs. Particularly important that we render
+                                    // the right "@" for mentions.
+                                    fontFeatureSettings: '"calt" on',
+                                }}
+                            >
+                                {useMemo(
+                                    () =>
+                                        entryDisplay.latestMessage && (
+                                            <>
+                                                <AccountShortName
+                                                    account={entryDisplay.latestMessage.author}
+                                                    isTooltipDisabled={true}
+                                                />
+                                                :{" "}
+                                                {renderTextWithEmojiFontFamily(
+                                                    entryDisplay.latestMessage.contentTextSnippet,
+                                                )}
+                                            </>
+                                        ),
+                                    [entryDisplay.latestMessage],
+                                )}
+                            </Box>
+                            <Box flexShrink="0">
+                                &nbsp;∙&nbsp;
+                                {useMemo(() => {
+                                    if (differenceInHours(currentTime, entryDisplay.time) < 24) {
+                                        const formatter = new Intl.DateTimeFormat(locale, {
+                                            timeZone,
+                                            calendar: "iso8601",
+                                            hour: "numeric",
+                                            minute: "2-digit",
+                                            hour12: true,
+                                        });
+
+                                        return formatter
+                                            .format(entryDisplay.time)
+                                            .replaceAll(/\s*(AM|PM)/g, string =>
+                                                string.trim().toLowerCase(),
+                                            );
+                                    } else {
+                                        const formatter = new Intl.DateTimeFormat(locale, {
+                                            timeZone,
+                                            calendar: "iso8601",
+                                            month: "short",
+                                            day: "numeric",
+                                        });
+
+                                        return formatter
+                                            .format(entryDisplay.time)
+                                            .replaceAll(/\s*(AM|PM)/g, string =>
+                                                string.trim().toLowerCase(),
+                                            );
+                                    }
+                                }, [currentTime, entryDisplay.time, locale, timeZone])}
+                            </Box>
+                        </Box>
+                    </Box>
                 </Box>
                 {(isHovered || archiveFilterMoreMenuButtonState.isExpanded) && (
                     <Box
@@ -354,552 +484,6 @@ export function InboxEntryView({
                         )}
                     </Box>
                 )}
-            </Box>
-        </Box>
-    );
-}
-
-const boldClassName = sprinkles({
-    fontStyle: "bold",
-});
-
-function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
-    const {currentAccount} = useSpaceContext();
-
-    const firstAccount = entry.otherChatAccount ?? entry.latestMessage.author;
-
-    const secondAccount =
-        entry.latestMessage.author.id !== firstAccount.id ? entry.latestMessage.author : null;
-
-    return (
-        <InboxEntryViewBase
-            brandIcon={<ChatBrandIcon />}
-            firstAccount={firstAccount}
-            secondAccount={secondAccount}
-            loudNotificationCount={entry.loudNotificationCount}
-        >
-            {entry.latestMessage.isStickyMention && entry.chatAccountCount > 2 ? (
-                <>
-                    <span className={boldClassName}>
-                        <AccountShortName account={entry.latestMessage.author} />
-                    </span>{" "}
-                    mentioned you in a chat with
-                    {entry.chatAccountCount === 3 && entry.otherChatAccount ? (
-                        <>
-                            {" "}
-                            <span className={boldClassName}>
-                                <AccountShortName account={entry.otherChatAccount} />
-                            </span>
-                        </>
-                    ) : entry.chatAccountCount > 2 ? (
-                        <>
-                            {" "}
-                            <PrettyNumber number={entry.chatAccountCount - 2} label="other" />
-                        </>
-                    ) : null}
-                </>
-            ) : entry.latestMessage.author.id !== currentAccount.id ? (
-                <Box>
-                    <span className={boldClassName}>
-                        <AccountShortName account={entry.latestMessage.author} />
-                    </span>{" "}
-                    sent you
-                    {entry.chatAccountCount === 3 && entry.otherChatAccount ? (
-                        <>
-                            {" "}
-                            and{" "}
-                            <span className={boldClassName}>
-                                <AccountShortName account={entry.otherChatAccount} />
-                            </span>
-                        </>
-                    ) : entry.chatAccountCount > 2 ? (
-                        <>
-                            {" "}
-                            and <PrettyNumber number={entry.chatAccountCount - 2} label="other" />
-                        </>
-                    ) : null}{" "}
-                    a chat message
-                </Box>
-            ) : (
-                <Box>
-                    You sent a chat message to{" "}
-                    {entry.chatAccountCount === 1 ? (
-                        "yourself"
-                    ) : entry.chatAccountCount === 2 && entry.otherChatAccount ? (
-                        <span className={boldClassName}>
-                            <AccountShortName account={entry.otherChatAccount} />
-                        </span>
-                    ) : entry.otherChatAccount ? (
-                        <>
-                            <span className={boldClassName}>
-                                <AccountShortName account={entry.otherChatAccount} />
-                            </span>{" "}
-                            and <PrettyNumber number={entry.chatAccountCount - 2} label="other" />
-                        </>
-                    ) : (
-                        <PrettyNumber number={entry.chatAccountCount - 1} label="other" />
-                    )}
-                </Box>
-            )}
-            <InboxEntryLatestMessagePreview
-                time={entry.latestMessage.createdTime}
-                latestMessage={entry.latestMessage}
-            />
-        </InboxEntryViewBase>
-    );
-}
-
-function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel}) {
-    const {currentAccount} = useSpaceContext();
-
-    const firstAccount: AccountModel =
-        entry.postAuthor.id !== currentAccount.id
-            ? entry.postAuthor
-            : entry.otherCommentAuthor ?? entry.latestComment?.author ?? entry.postAuthor;
-
-    const secondAccount: AccountModel | null =
-        entry.latestComment?.author.id !== firstAccount.id
-            ? entry.latestComment?.author ?? null
-            : null;
-
-    return (
-        <InboxEntryViewBase
-            brandIcon={<PostBrandIcon />}
-            firstAccount={firstAccount}
-            secondAccount={secondAccount}
-            loudNotificationCount={entry.loudNotificationCount}
-        >
-            <Box>
-                {entry.postContentTextSnippetIfMentioned !== null ? (
-                    <>
-                        <span className={boldClassName}>
-                            <AccountShortName account={entry.postAuthor} />
-                        </span>{" "}
-                        mentioned you in a post in {entry.channel.name}
-                    </>
-                ) : entry.latestComment?.isStickyMention ? (
-                    <>
-                        <span className={boldClassName}>
-                            <AccountShortName account={entry.latestComment.author} />
-                        </span>{" "}
-                        mentioned you in a comment on{" "}
-                        {currentAccount.id === entry.postAuthor.id ? (
-                            "your"
-                        ) : entry.latestComment.author.id === entry.postAuthor.id ? (
-                            "their"
-                        ) : (
-                            <>
-                                <span className={boldClassName}>
-                                    <AccountShortName account={entry.postAuthor} />
-                                </span>
-                                ’s
-                            </>
-                        )}{" "}
-                        post in {entry.channel.name}
-                    </>
-                ) : (
-                    <>
-                        {currentAccount.id === entry.postAuthor.id ? (
-                            "Your"
-                        ) : (
-                            <>
-                                <span className={boldClassName}>
-                                    <AccountShortName account={entry.postAuthor} />
-                                </span>
-                                ’s
-                            </>
-                        )}{" "}
-                        post in {entry.channel.name} has new comments
-                    </>
-                )}
-            </Box>
-            <InboxEntryLatestMessagePreview
-                time={entry.latestComment?.createdTime ?? entry.postCreatedTime}
-                latestMessage={
-                    entry.postContentTextSnippetIfMentioned !== null
-                        ? {
-                              author: entry.postAuthor,
-                              contentTextSnippet: entry.postContentTextSnippetIfMentioned,
-                          }
-                        : entry.latestComment
-                }
-            />
-        </InboxEntryViewBase>
-    );
-}
-
-function InboxChannelPostsEntryView({entry}: {entry: InboxChannelPostsEntryModel}) {
-    const firstAccount: AccountModel = entry.otherPostAuthor ?? entry.latestPost.author;
-
-    const secondAccount: AccountModel | null =
-        entry.latestPost.author.id !== firstAccount.id ? entry.latestPost.author : null;
-
-    return (
-        <InboxEntryViewBase
-            brandIcon={<PostBrandIcon />}
-            firstAccount={firstAccount}
-            secondAccount={secondAccount}
-            loudNotificationCount={entry.loudNotificationCount}
-        >
-            <Box>
-                {useMemo(
-                    () => printPrettySmallNumberSummary(entry.postCount, "new post"),
-                    [entry.postCount],
-                )}{" "}
-                in {entry.channel.name} by{" "}
-                {!secondAccount ? (
-                    <span className={boldClassName}>
-                        <AccountShortName account={firstAccount} />
-                    </span>
-                ) : entry.postAuthorCount <= 2 ? (
-                    <>
-                        <span className={boldClassName}>
-                            <AccountShortName account={secondAccount} />
-                        </span>{" "}
-                        and{" "}
-                        <span className={boldClassName}>
-                            <AccountShortName account={firstAccount} />
-                        </span>
-                    </>
-                ) : (
-                    <>
-                        <span className={boldClassName}>
-                            <AccountShortName account={secondAccount} />
-                        </span>
-                        ,{" "}
-                        <span className={boldClassName}>
-                            <AccountShortName account={firstAccount} />
-                        </span>
-                        , and <PrettyNumber number={entry.postAuthorCount - 2} label="other" />
-                    </>
-                )}
-            </Box>
-            <InboxEntryLatestMessagePreview
-                time={entry.latestPost.createdTime}
-                latestMessage={entry.latestPost}
-            />
-        </InboxEntryViewBase>
-    );
-}
-
-function InboxDocumentCommentThreadEntryView({
-    entry,
-}: {
-    entry: InboxDocumentCommentThreadEntryModel;
-}) {
-    const {currentAccount} = useSpaceContext();
-
-    const firstAccount: AccountModel =
-        entry.firstCommentAuthor.id !== currentAccount.id
-            ? entry.firstCommentAuthor
-            : entry.otherCommentAuthor ?? entry.latestComment.author;
-
-    const secondAccount: AccountModel | null =
-        entry.latestComment?.author.id !== firstAccount.id
-            ? entry.latestComment?.author ?? null
-            : null;
-
-    const truncatedDocumentTitle = useMemo(
-        () => truncateDocumentTitle(entry.document.getTitle()),
-        [entry.document],
-    );
-
-    return (
-        <InboxEntryViewBase
-            brandIcon={
-                // Scooch document icon right a little to balance it visually with other icons.
-                // Given the document icon has a vertical orientation vs horizontal
-                // orientation.
-                <Box position="relative" style={{right: "-0.0625rem"}}>
-                    <DocumentBrandIcon />
-                </Box>
-            }
-            firstAccount={firstAccount}
-            secondAccount={secondAccount}
-            loudNotificationCount={entry.loudNotificationCount}
-        >
-            <Box>
-                {entry.latestComment.isStickyMention ? (
-                    <>
-                        <span className={boldClassName}>
-                            <AccountShortName account={entry.latestComment.author} />
-                        </span>{" "}
-                        mentioned you in{" "}
-                        {currentAccount.id === entry.firstCommentAuthor.id ? (
-                            "your"
-                        ) : entry.latestComment.author.id === entry.firstCommentAuthor.id ? (
-                            "their"
-                        ) : (
-                            <>
-                                <span className={boldClassName}>
-                                    <AccountShortName account={entry.firstCommentAuthor} />
-                                </span>
-                                ’s
-                            </>
-                        )}{" "}
-                        comment thread on “{truncatedDocumentTitle}”
-                    </>
-                ) : (
-                    <>
-                        {currentAccount.id === entry.firstCommentAuthor.id ? (
-                            "Your"
-                        ) : (
-                            <>
-                                <span className={boldClassName}>
-                                    <AccountShortName account={entry.firstCommentAuthor} />
-                                </span>
-                                ’s
-                            </>
-                        )}{" "}
-                        thread on “{truncatedDocumentTitle}” has new comments
-                    </>
-                )}
-            </Box>
-            <InboxEntryLatestMessagePreview
-                time={entry.latestComment.createdTime}
-                latestMessage={entry.latestComment}
-            />
-        </InboxEntryViewBase>
-    );
-}
-
-function InboxDocumentNewCommentThreadsEntryView({
-    entry,
-}: {
-    entry: InboxDocumentNewCommentThreadsEntryModel;
-}) {
-    const firstAccount: AccountModel = entry.otherCommentThreadAuthor ?? entry.firstComment.author;
-
-    const secondAccount: AccountModel | null =
-        entry.firstComment.author.id !== firstAccount.id ? entry.firstComment.author : null;
-
-    return (
-        <InboxEntryViewBase
-            brandIcon={
-                // Scooch document icon right a little to balance it visually with other icons.
-                // Given the document icon has a vertical orientation vs horizontal
-                // orientation.
-                <Box position="relative" style={{right: "-0.0625rem"}}>
-                    <DocumentBrandIcon />
-                </Box>
-            }
-            firstAccount={firstAccount}
-            secondAccount={secondAccount}
-            loudNotificationCount={entry.loudNotificationCount}
-        >
-            <Box>
-                {useMemo(
-                    () =>
-                        printPrettySmallNumberSummary(
-                            entry.commentThreadCount,
-                            "new comment thread",
-                        ),
-                    [entry.commentThreadCount],
-                )}{" "}
-                on “{truncateDocumentTitle(entry.document.getTitle())}” by{" "}
-                {!secondAccount ? (
-                    <span className={boldClassName}>
-                        <AccountShortName account={firstAccount} />
-                    </span>
-                ) : entry.commentThreadAuthorCount <= 2 ? (
-                    <>
-                        <span className={boldClassName}>
-                            <AccountShortName account={secondAccount} />
-                        </span>{" "}
-                        and{" "}
-                        <span className={boldClassName}>
-                            <AccountShortName account={firstAccount} />
-                        </span>
-                    </>
-                ) : (
-                    <>
-                        <span className={boldClassName}>
-                            <AccountShortName account={secondAccount} />
-                        </span>
-                        ,{" "}
-                        <span className={boldClassName}>
-                            <AccountShortName account={firstAccount} />
-                        </span>
-                        , and{" "}
-                        <PrettyNumber number={entry.commentThreadAuthorCount - 2} label="other" />
-                    </>
-                )}
-            </Box>
-            <InboxEntryLatestMessagePreview
-                time={entry.firstComment.createdTime}
-                latestMessage={entry.firstComment}
-            />
-        </InboxEntryViewBase>
-    );
-}
-
-function truncateDocumentTitle(string: string) {
-    const splitter = new GraphemeSplitter();
-
-    const maxGraphemeCount = 50;
-    const graphemes = splitter.splitGraphemes(string);
-
-    if (graphemes.length < maxGraphemeCount) return graphemes;
-
-    return `${graphemes.slice(0, maxGraphemeCount).join("").trim()}…`;
-}
-
-function InboxEntryViewBase({
-    brandIcon,
-    firstAccount,
-    secondAccount,
-    loudNotificationCount,
-    children,
-}: {
-    brandIcon: ReactNode;
-    firstAccount: AccountModel;
-    secondAccount: AccountModel | null;
-    loudNotificationCount: number;
-    children?: ReactNode;
-}) {
-    return (
-        <>
-            <Box flexShrink="0" width="10" paddingY="4">
-                <Box
-                    position="relative"
-                    width="10"
-                    height="10"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                >
-                    {!secondAccount ? (
-                        <AccountAvatar account={firstAccount} size="9" />
-                    ) : (
-                        <>
-                            <Box position="absolute" top="0" left="0">
-                                <AccountAvatar account={firstAccount} size="7" />
-                            </Box>
-                            <Box
-                                position="absolute"
-                                bottom="0"
-                                right="0"
-                                borderRadius="full"
-                                style={{boxShadow: `0 0 0 2px ${backgroundColorVar}`}}
-                            >
-                                <AccountAvatar account={secondAccount} size="7" />
-                            </Box>
-                        </>
-                    )}
-                    <Box
-                        // Brand icons only render in the `grey-80` shade and above. So we can maintain
-                        // proper contrast between the icon line and color splash. However, here we
-                        // want to render a lighter line color (e.g. `grey-60`) to not distract from
-                        // the result title. We calculate the opacity to get us from `grey-80` to a
-                        // lighter line color (e.g. `grey-60`) and apply it. By applying opacity the
-                        // color splash also gets lighter to maintain proper contrast between the lines
-                        // and the color splash.
-                        className={searchStyles.brandIconOpacityClassName}
-                        position="absolute"
-                        left="-2.5"
-                        bottom="-2.5"
-                        width="6"
-                        height="6"
-                        display="flex"
-                        justifyContent="center"
-                        alignItems="center"
-                        borderRadius="full"
-                        style={{
-                            backgroundColor: backgroundColorVar,
-                        }}
-                    >
-                        <IconContext.Provider
-                            value={{color: searchStyles.brandIconColor, size: spacing["4"]}}
-                        >
-                            {brandIcon}
-                        </IconContext.Provider>
-                    </Box>
-                    {loudNotificationCount > 0 && (
-                        <LoudNotificationBadge
-                            top="0"
-                            right="1"
-                            loudNotificationCount={loudNotificationCount}
-                        />
-                    )}
-                </Box>
-            </Box>
-            <Box paddingY="4" flexGrow="1" fontSize="75" overflow="hidden">
-                {children}
-            </Box>
-        </>
-    );
-}
-
-function InboxEntryLatestMessagePreview({
-    time,
-    latestMessage,
-}: {
-    time: Date;
-    latestMessage: {
-        author: AccountModel;
-        contentTextSnippet: string;
-    } | null;
-}) {
-    const currentTime = useCurrentTimeRoundedToHour();
-    const {timeZone, locale} = useClientInfo();
-
-    return (
-        <Box
-            // Do not read the message preview for screen reader users. It will likely be
-            // confusing as the text cuts off eventually.
-            aria-hidden={true}
-            paddingTop="0.5"
-            width="full"
-            pointerEvents="none"
-            color="grey-50"
-            fontSize="50"
-            display="flex"
-            gap="0"
-        >
-            <Box
-                overflow="hidden"
-                fontStyle="truncate"
-                style={{
-                    // Render contextual alternate glyphs. Particularly important that we render
-                    // the right "@" for mentions.
-                    fontFeatureSettings: '"calt" on',
-                }}
-            >
-                {latestMessage && (
-                    <>
-                        <AccountShortName account={latestMessage.author} isTooltipDisabled={true} />
-                        : {renderTextWithEmojiFontFamily(latestMessage.contentTextSnippet)}
-                    </>
-                )}
-            </Box>
-            <Box flexShrink="0">
-                &nbsp;∙&nbsp;
-                {useMemo(() => {
-                    if (differenceInHours(currentTime, time) < 24) {
-                        const formatter = new Intl.DateTimeFormat(locale, {
-                            timeZone,
-                            calendar: "iso8601",
-                            hour: "numeric",
-                            minute: "2-digit",
-                            hour12: true,
-                        });
-
-                        return formatter
-                            .format(time)
-                            .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
-                    } else {
-                        const formatter = new Intl.DateTimeFormat(locale, {
-                            timeZone,
-                            calendar: "iso8601",
-                            month: "short",
-                            day: "numeric",
-                        });
-
-                        return formatter
-                            .format(time)
-                            .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
-                    }
-                }, [currentTime, locale, time, timeZone])}
             </Box>
         </Box>
     );
