@@ -97,6 +97,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         " id='(nmbb-(w?kt-)?[^']*)'"
     )
 
+    static private let inboxBannerUrlQueryRegex = try! Regex<Substring>(
+        "(?:^|\\?|&)inbox=show(?:&|$)"
+    )
+
     private let initialPath: String
     private let initialPathByTab: InitialPathByTab
     private let webConfiguration: WKWebViewConfiguration
@@ -2240,7 +2244,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         )
 
         var verticalScrollIndicatorInsets = UIEdgeInsets(
-            top: safeAreaInsets.top + navigationBarHeight,
+            top: safeAreaInsets.top + navigationBarHeight
+                // If `inbox=show` is in the URL then we'll render an inbox banner over our
+                // navigation bar and so need to update our vertical scroll indicator insets
+                // appropriately.
+                + ((webView.url?.query() ?? "")
+                    .contains(WebNavigationController.inboxBannerUrlQueryRegex)
+                    ? inboxBannerHeight : 0),
             left: safeAreaInsets.left,
             bottom: safeAreaInsets.bottom,
             right: safeAreaInsets.right
