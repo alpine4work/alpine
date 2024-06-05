@@ -29,7 +29,6 @@ import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
-// NOCOMMIT: Shimmer for `inbox=show` has banner
 // NOCOMMIT: Swipe to mark notification as done
 
 export function InboxMobileView({

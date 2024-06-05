@@ -1,6 +1,8 @@
-import {ArrowLeft, SpinnerGap} from "phosphor-react";
+import {ArrowLeft, Check, SpinnerGap} from "phosphor-react";
 import {ComponentType, ReactNode, memo} from "react";
+import {useSearchParams} from "react-router-dom";
 import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {mobileNavigationBarGap, navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
@@ -43,6 +45,7 @@ import {
     postFauxInputCreateButtonHeight,
     postViewMaxWidth,
 } from "~/shared/styles/forum_shared_styles.js";
+import {inboxBannerHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {
     messageInputAccountAvatarSize,
     messageInputMinHeight,
@@ -162,6 +165,8 @@ function RouteShimmer({
     routeId: string | null;
     withMobileLayout: boolean;
 }) {
+    const [searchParams] = useSearchParams();
+
     const ShimmerComponent = routeId
         ? shimmerComponentByRouteId[routeId.replace(".peek.", ".")]
         : undefined;
@@ -187,11 +192,84 @@ function RouteShimmer({
         );
     }
 
-    return (
-        <Box ref={containerRef} width="full" height="full" overflow="hidden">
-            <ShimmerComponent withMobileLayout={withMobileLayout} />
-        </Box>
-    );
+    const shouldShowInboxBanner = searchParams.get("inbox") === "show";
+
+    if (!shouldShowInboxBanner) {
+        return (
+            <Box ref={containerRef} width="full" height="full" overflow="hidden">
+                <ShimmerComponent withMobileLayout={withMobileLayout} />
+            </Box>
+        );
+    } else {
+        return (
+            <Box
+                ref={containerRef}
+                width="full"
+                height="full"
+                overflow="hidden"
+                position="relative"
+                style={{
+                    // @ts-expect-error: This sets the CSS variable but TypeScript doesn't
+                    // like it.
+                    "--safe-area-inset-top": `calc(var(--safe-area-inset-top-base, 0px) + ${spacing[inboxBannerHeight]})`,
+                }}
+            >
+                <Box
+                    position="absolute"
+                    left="0"
+                    right="0"
+                    style={{
+                        paddingTop: "var(--safe-area-inset-top-base, 0px)",
+                        // We use a box shadow to draw the border so it occupies the same space as a
+                        // `useNavigationBar()` border when scrolled all the way up. That way we don't
+                        // render double borders.
+                        boxShadow: `0 1px 0 0 ${
+                            colorSchemeVars[
+                                ShimmerComponent === ChatRouteShimmer ? "grey-5" : "grey-10"
+                            ]
+                        }`,
+                    }}
+                >
+                    <Box
+                        display="flex"
+                        alignItems="center"
+                        height={inboxBannerHeight}
+                        paddingLeft="3"
+                        paddingRight="1.5"
+                    >
+                        <TextShimmer fontSize="50" width="16" />
+                        <Box flexGrow="1" />
+                        <Box
+                            flexShrink="0"
+                            className={pulseAnimationClassName}
+                            height="6"
+                            borderRadius="base"
+                            backgroundColor="grey-10"
+                        >
+                            <Box opacity="0">
+                                <Button
+                                    // Render a non-interactive button to get the exact right size for the
+                                    // button shimmer.
+                                    isDisabled={true}
+                                    isFocusable={false}
+                                    isTabbable={false}
+                                    variant="neutral"
+                                    height="6"
+                                    paddingX="2"
+                                    icon={<Check />}
+                                >
+                                    Done
+                                </Button>
+                            </Box>
+                        </Box>
+                    </Box>
+                </Box>
+                <Box width="full" height="full" overflow="hidden">
+                    <ShimmerComponent withMobileLayout={withMobileLayout} />
+                </Box>
+            </Box>
+        );
+    }
 }
 
 function MobileBackButton() {
