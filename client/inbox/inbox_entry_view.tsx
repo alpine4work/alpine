@@ -158,6 +158,56 @@ export function InboxEntryView({
         }
     }, [deletedItemAnimation, entry]);
 
+    // Watch all parent elements of our content editor for scroll events. When a
+    // scroll event occurs we call `setIsPressed(false)`.
+    //
+    // This replicates the behavior in `@react-aria/interactions` where a press is
+    // cancelled when a parent element scrolls. This behavior is important for
+    // mobile since the user must press somewhere on the screen to scroll. Normally
+    // `pointercancel` should be dispatched when the user scrolls while pressing on
+    // some element but when the CSS `touch-action: manipulation` is set the press
+    // is not cancelled.
+    useEffect(() => {
+        if (!isPressed) return;
+
+        const handleScroll = () => {
+            setIsPressed(false);
+        };
+
+        const scrollEventTargets: Array<EventTarget> = [window];
+
+        {
+            let parentElement = assertExists(entryRef.current).parentElement;
+            while (parentElement) {
+                const {overflowX, overflowY} = getComputedStyle(parentElement);
+
+                if (
+                    overflowX === "auto" ||
+                    overflowX === "scroll" ||
+                    overflowY === "auto" ||
+                    overflowY === "scroll"
+                ) {
+                    scrollEventTargets.push(parentElement);
+                }
+
+                parentElement =
+                    parentElement.parentElement !== document.body
+                        ? parentElement.parentElement
+                        : null;
+            }
+        }
+
+        for (const scrollEventTarget of scrollEventTargets) {
+            scrollEventTarget.addEventListener("scroll", handleScroll, true);
+        }
+
+        return () => {
+            for (const scrollEventTarget of scrollEventTargets) {
+                scrollEventTarget.removeEventListener("scroll", handleScroll, true);
+            }
+        };
+    }, [isPressed]);
+
     const entryDisplay = useMemo(
         () => getInboxEntryDisplay({entry, locale, currentAccount}),
         [currentAccount, entry, locale],
