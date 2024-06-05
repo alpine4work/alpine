@@ -24,6 +24,7 @@ import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {
@@ -81,8 +82,8 @@ export function InboxEntryView({
         offset: number;
         deletedItem: {item: DynamoGeneralRealtimeItem<InboxEntryModel>};
     } | null;
-    onArchive: () => Promise<void>;
-    onUnarchive: () => Promise<void>;
+    onArchive: () => MaybePromise<void>;
+    onUnarchive: () => MaybePromise<void>;
 }) {
     const currentTime = useCurrentTimeRoundedToHour();
     const {isAppleDevice, timeZone, locale} = useClientInfo();

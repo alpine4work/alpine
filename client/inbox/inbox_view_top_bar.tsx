@@ -1,23 +1,21 @@
 import {ArrowRight, CaretDown, CaretUp, Check} from "phosphor-react";
-import {useRef, useState} from "react";
-import {useAppContext} from "~/client/context/app_context.js";
+import {useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {useShowToast} from "~/client/design/toast.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view.js";
 import {InboxViewTopBarModeToggleButton} from "~/client/inbox/inbox_view_top_bar_mode_toggle_button.js";
+import {
+    useArchiveInboxEntry,
+    useUnarchiveInboxEntry,
+} from "~/client/inbox/use_archive_inbox_entry.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
-import {
-    archiveInboxEntry,
-    unarchiveInboxEntry,
-} from "~/shared/rpc/notifications_rpc_definitions.js";
 
 export function InboxViewTopBar({
     filter,
@@ -25,17 +23,12 @@ export function InboxViewTopBar({
     nextEntry,
     previousEntry,
     selectEntry,
-    deleteActiveEntryOptimistically,
 }: {
     filter: "New" | "Archive";
     activeEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null) => Promise<void>;
-    deleteActiveEntryOptimistically: (
-        promise: Promise<unknown>,
-        options: {withAnimation: boolean},
-    ) => void;
 }) {
     const navigate = useNavigate();
     const {space} = useSpaceContext();
@@ -121,7 +114,6 @@ export function InboxViewTopBar({
                             nextEntry={nextEntry}
                             previousEntry={previousEntry}
                             selectEntry={selectEntry}
-                            deleteActiveEntryOptimistically={deleteActiveEntryOptimistically}
                         />
                     ) : (
                         <InboxViewTopBarUnarchiveButton
@@ -129,7 +121,6 @@ export function InboxViewTopBar({
                             nextEntry={nextEntry}
                             previousEntry={previousEntry}
                             selectEntry={selectEntry}
-                            deleteActiveEntryOptimistically={deleteActiveEntryOptimistically}
                         />
                     )}
                 </Box>
@@ -143,27 +134,16 @@ function InboxViewTopBarArchiveButton({
     nextEntry,
     previousEntry,
     selectEntry,
-    deleteActiveEntryOptimistically,
 }: {
     activeEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null) => Promise<void>;
-    deleteActiveEntryOptimistically: (
-        promise: Promise<unknown>,
-        options: {withAnimation: boolean},
-    ) => void;
 }) {
     const {isAppleDevice} = useClientInfo();
-    const context = useAppContext();
-    const showToast = useShowToast();
-    const {space} = useSpaceContext();
-    const buttonRef = useRef<HTMLButtonElement & {press(): void}>(null);
-    const [isPending, setIsPending] = useState(false);
+    const archiveInboxEntry = useArchiveInboxEntry();
 
-    // Don't flash the button into a disabled state because `activeEntry` is
-    // cleared when we optimistically archive the entry.
-    const isDisabled = !activeEntry && !isPending;
+    const buttonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
     return (
         <GlobalKeyDownEvent
@@ -173,7 +153,7 @@ function InboxViewTopBarArchiveButton({
                     event.stopPropagation();
 
                     // If the button is disabled, navigate when the keyboard shortcut is hit.
-                    if (isDisabled) {
+                    if (!activeEntry) {
                         if (nextEntry) {
                             void selectEntry(nextEntry);
                         } else if (previousEntry) {
@@ -194,42 +174,23 @@ function InboxViewTopBarArchiveButton({
                 paddingX="2"
                 icon={<Check />}
                 keyboardShortcutHint={isAppleDevice ? "⌘+D" : "Ctrl+D"}
-                isDisabled={isDisabled}
+                isDisabled={!activeEntry}
                 pressErrorTitle="Can’t go to next notification"
                 onPress={async () => {
                     if (!activeEntry) return;
 
-                    setIsPending(true);
-                    try {
-                        const archivePromise = archiveInboxEntry(context, {
-                            spaceId: space.id,
-                            key: activeEntry.model.getKey(),
-                        });
+                    archiveInboxEntry({
+                        entry: activeEntry,
+                        // No animation since we are directly dismissing the item.
+                        withAnimation: false,
+                    });
 
-                        archivePromise.catch(error => {
-                            showToast({
-                                type: "Error",
-                                title: "Can’t dismiss notification",
-                                error,
-                            });
-                        });
-
-                        // Immediately delete the item from the query so we don't have to wait for
-                        // realtime to respond to this.
-                        deleteActiveEntryOptimistically(archivePromise, {
-                            // No animation since we are directly dismissing the item.
-                            withAnimation: false,
-                        });
-
-                        if (nextEntry) {
-                            await selectEntry(nextEntry);
-                        } else if (previousEntry) {
-                            await selectEntry(previousEntry);
-                        } else {
-                            await selectEntry(null);
-                        }
-                    } finally {
-                        setIsPending(false);
+                    if (nextEntry) {
+                        await selectEntry(nextEntry);
+                    } else if (previousEntry) {
+                        await selectEntry(previousEntry);
+                    } else {
+                        await selectEntry(null);
                     }
                 }}
             >
@@ -244,25 +205,13 @@ function InboxViewTopBarUnarchiveButton({
     nextEntry,
     previousEntry,
     selectEntry,
-    deleteActiveEntryOptimistically,
 }: {
     activeEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null) => Promise<void>;
-    deleteActiveEntryOptimistically: (
-        promise: Promise<unknown>,
-        options: {withAnimation: boolean},
-    ) => void;
 }) {
-    const context = useAppContext();
-    const showToast = useShowToast();
-    const {space} = useSpaceContext();
-    const [isPending, setIsPending] = useState(false);
-
-    // Don't flash the button into a disabled state because `activeEntry` is
-    // cleared when we optimistically archive the entry.
-    const isDisabled = !activeEntry && !isPending;
+    const unarchiveInboxEntry = useUnarchiveInboxEntry();
 
     return (
         <Button
@@ -271,42 +220,23 @@ function InboxViewTopBarUnarchiveButton({
             paddingX="2"
             icon={<ArrowRight />}
             iconPlacement="end"
-            isDisabled={isDisabled}
+            isDisabled={!activeEntry}
             pressErrorTitle="Can’t go to next notification"
             onPress={async () => {
                 if (!activeEntry) return;
 
-                setIsPending(true);
-                try {
-                    const archivePromise = unarchiveInboxEntry(context, {
-                        spaceId: space.id,
-                        key: activeEntry.model.getKey(),
-                    });
+                unarchiveInboxEntry({
+                    entry: activeEntry,
+                    // No animation since we are directly dismissing the item.
+                    withAnimation: false,
+                });
 
-                    archivePromise.catch(error => {
-                        showToast({
-                            type: "Error",
-                            title: "Can’t move notification to new",
-                            error,
-                        });
-                    });
-
-                    // Immediately delete the item from the query so we don't have to wait for
-                    // realtime to respond to this.
-                    deleteActiveEntryOptimistically(archivePromise, {
-                        // No animation since we are directly dismissing the item.
-                        withAnimation: false,
-                    });
-
-                    if (nextEntry) {
-                        await selectEntry(nextEntry);
-                    } else if (previousEntry) {
-                        await selectEntry(previousEntry);
-                    } else {
-                        await selectEntry(null);
-                    }
-                } finally {
-                    setIsPending(false);
+                if (nextEntry) {
+                    await selectEntry(nextEntry);
+                } else if (previousEntry) {
+                    await selectEntry(previousEntry);
+                } else {
+                    await selectEntry(null);
                 }
             }}
         >

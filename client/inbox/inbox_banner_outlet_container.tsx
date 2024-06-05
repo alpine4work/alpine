@@ -1,5 +1,5 @@
 import {ArrowUpRight, Check} from "phosphor-react";
-import {ReactNode, useCallback, useMemo, useRef, useState} from "react";
+import {ReactNode, useCallback, useEffect, useMemo, useRef} from "react";
 import {createPath, useLocation} from "react-router";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -9,10 +9,16 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {useDynamoGeneralRealtimeItemBase} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
 import {
     getInboxEntryDisplay,
     printInboxEntryDisplaySummaryWithoutInteractivityStore,
 } from "~/client/inbox/inbox_entry_display.js";
+import {
+    subscribeToArchiveInboxEntryOptimistically,
+    subscribeToUnarchiveInboxEntryOptimistically,
+    useArchiveInboxEntry,
+} from "~/client/inbox/use_archive_inbox_entry.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
@@ -22,15 +28,14 @@ import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
-import {
-    archiveInboxEntry,
-    getInboxEntryWithStrongReadConsistency,
-} from "~/shared/rpc/notifications_rpc_definitions.js";
+import {getInboxEntryWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
 
 // NOCOMMIT: Test what happens when sending a message (which should mark the
 // notification as done). Maybe Cmd-D should close even if the entry is
 // already done.
+
+// NOCOMMIT: Tapping done button should unarchive?
 
 const inboxBannerHeight = "9";
 
@@ -54,15 +59,47 @@ export function InboxBannerOutletContainer({
     const accountStore = useAccountClientStore();
     const {space, currentAccount} = useSpaceContext();
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
+    const archiveInboxEntry = useArchiveInboxEntry();
 
     const doneButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
     const entryKey = useMemo(() => initialEntry.model.getKey(), [initialEntry.model]);
 
-    const [entry, setEntry] = useState(initialEntry);
+    const [entry, updateEntry, updateEntryOptimistically] =
+        useStateWithOptimisticUpdates(initialEntry);
+
+    useEffect(() => {
+        return subscribeToArchiveInboxEntryOptimistically(event => {
+            updateEntryOptimistically(event.promise, entry => {
+                if (entry.key !== event.entry.key) return entry;
+                if (entry.version > event.entry.version) return entry;
+                if (entry.model.isArchived) return entry;
+
+                return {
+                    ...entry,
+                    model: entry.model.clone({isArchived: true}),
+                };
+            });
+        });
+    }, [updateEntryOptimistically]);
+
+    useEffect(() => {
+        return subscribeToUnarchiveInboxEntryOptimistically(event => {
+            updateEntryOptimistically(event.promise, entry => {
+                if (entry.key !== event.entry.key) return entry;
+                if (entry.version > event.entry.version) return entry;
+                if (!entry.model.isArchived) return entry;
+
+                return {
+                    ...entry,
+                    model: entry.model.clone({isArchived: false}),
+                };
+            });
+        });
+    }, [updateEntryOptimistically]);
 
     useDynamoGeneralRealtimeItemBase(
-        {item: entry, onUpdateItem: setEntry},
+        {item: entry, onUpdateItem: updateEntry},
         {
             isConnected,
             subscribeToEvents: useCallback(
@@ -202,19 +239,9 @@ export function InboxBannerOutletContainer({
                             isDisabled={entry.model.isArchived}
                             pressErrorTitle="Can’t mark as done"
                             onPress={async () => {
-                                const oldEntry = entry;
-
-                                await archiveInboxEntry(context, {
-                                    spaceId: space.id,
-                                    key: oldEntry.model.getKey(),
-                                });
-
-                                // Optimistically set `isArchived` to true before we get a realtime event with
-                                // the new item. If we received a newer entry `version` then we respect the new
-                                // entry.
-                                setEntry(entry => {
-                                    if (entry.version > oldEntry.version) return entry;
-                                    return {...entry, model: entry.model.clone({isArchived: true})};
+                                archiveInboxEntry({
+                                    entry,
+                                    withAnimation: true,
                                 });
 
                                 // Navigate back, if this is in a peek we'll close the peek. If this is on

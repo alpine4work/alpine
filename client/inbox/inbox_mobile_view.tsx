@@ -1,14 +1,15 @@
 import {SpinnerGap} from "phosphor-react";
-import {Memo, useCallback, useRef, useState} from "react";
-import {useAppContext} from "~/client/context/app_context.js";
+import {useCallback, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {InboxEntryView} from "~/client/inbox/inbox_entry_view.js";
+import {
+    useArchiveInboxEntry,
+    useUnarchiveInboxEntry,
+} from "~/client/inbox/use_archive_inbox_entry.js";
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
@@ -23,15 +24,13 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
-import {
-    archiveInboxEntry,
-    unarchiveInboxEntry,
-} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
 // NOCOMMIT: Different shimmer on mobile
 // NOCOMMIT: Empty inbox illustration
+// NOCOMMIT: Old filtered inbox
+// NOCOMMIT: Swipe to mark notification as done
 
 export function InboxMobileView({
     filter,
@@ -48,30 +47,11 @@ export function InboxMobileView({
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const {query, tryLoadingMore, updateQueryOptimistically} = useInboxState({
+    const {query, tryLoadingMore} = useInboxState({
         filter,
         initialEntriesResult,
         withoutAnimation: true,
     });
-
-    const deleteEntryOptimistically = useEvent(
-        ({
-            promise,
-            entry,
-            withAnimation,
-        }: {
-            promise: Promise<unknown> | null;
-            entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
-            withAnimation: boolean;
-        }) => {
-            updateQueryOptimistically({
-                promise,
-                withAnimation,
-                update: query =>
-                    query.optimisticallyDeleteItemByKeyIfExistsAtVersion(entry.key, entry.version),
-            });
-        },
-    );
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         withMobileLayout: true,
@@ -116,7 +96,6 @@ export function InboxMobileView({
                                 entry={item.item}
                                 isFirstItem={isFirstItem}
                                 isLastItem={isLastItem}
-                                deleteEntryOptimistically={deleteEntryOptimistically}
                             />
                         ),
                     };
@@ -147,7 +126,7 @@ export function InboxMobileView({
                     throw exhaustive(item);
             }
         },
-        [deleteEntryOptimistically, filter, query],
+        [filter, query],
     );
 
     return (
@@ -221,27 +200,15 @@ function InboxMobileEntryView({
     entry,
     isFirstItem,
     isLastItem,
-    deleteEntryOptimistically,
 }: {
     filter: "New" | "Archive";
     entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
     isFirstItem: boolean;
     isLastItem: boolean;
-    deleteEntryOptimistically: Memo<
-        ({
-            promise,
-            entry,
-            withAnimation,
-        }: {
-            promise: Promise<unknown> | null;
-            entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
-            withAnimation: boolean;
-        }) => void
-    >;
 }) {
-    const context = useAppContext();
     const navigate = useNavigate();
-    const {space} = useSpaceContext();
+    const archiveInboxEntry = useArchiveInboxEntry();
+    const unarchiveInboxEntry = useUnarchiveInboxEntry();
 
     const [isPending, setIsPending] = useState(false);
 
@@ -271,30 +238,14 @@ function InboxMobileEntryView({
             withBorderTop={isFirstItem}
             withMarginBottom={isLastItem}
             withBackgroundIfPressed={true}
-            onArchive={async () => {
-                await archiveInboxEntry(context, {
-                    spaceId: space.id,
-                    key: entry.model.getKey(),
-                });
-
-                // Wait until the backend has successfully archived the entry, then delete it
-                // from our query without waiting for a WebSocket realtime message.
-                deleteEntryOptimistically({
-                    promise: null,
+            onArchive={() => {
+                archiveInboxEntry({
                     entry,
                     withAnimation: false,
                 });
             }}
-            onUnarchive={async () => {
-                await unarchiveInboxEntry(context, {
-                    spaceId: space.id,
-                    key: entry.model.getKey(),
-                });
-
-                // Wait until the backend has successfully archived the entry, then delete it
-                // from our query without waiting for a WebSocket realtime message.
-                deleteEntryOptimistically({
-                    promise: null,
+            onUnarchive={() => {
+                unarchiveInboxEntry({
                     entry,
                     withAnimation: false,
                 });

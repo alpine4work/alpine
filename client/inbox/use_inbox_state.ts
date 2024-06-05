@@ -4,7 +4,19 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {
+    ActionForStateWithOptimisticUpdates,
+    StateWithOptimisticUpdates,
+    getInitialStateWithOptimisticUpdates,
+    reduceStateWithOptimisticUpdates,
+    useStateWithOptimisticUpdatesMonitor,
+} from "~/client/helpers/use_state_with_optimistic_updates.js";
+import {
+    subscribeToArchiveInboxEntryOptimistically,
+    subscribeToUnarchiveInboxEntryOptimistically,
+} from "~/client/inbox/use_archive_inbox_entry.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
 import {convertRemLengthToPx} from "~/shared/design/spacing.js";
@@ -14,7 +26,6 @@ import {
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {
     backfillInboxEntries,
@@ -24,15 +35,8 @@ import {
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 
 type InboxState = {
+    readonly query: StateWithOptimisticUpdates<DynamoGeneralRealtimeIndexQuery<InboxEntryModel>>;
     readonly withoutAnimation: boolean;
-    readonly queryWithoutOptimisticUpdates: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
-    readonly query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
-    readonly optimisticUpdates: ReadonlyArray<{
-        readonly promise: Promise<unknown>;
-        readonly update: (
-            query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
-        ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
-    }>;
     readonly itemsDeletedByLastChangeForAnimation: ReadonlyArray<{
         readonly index: number;
         readonly cursor: DynamoIndexCursor;
@@ -41,31 +45,11 @@ type InboxState = {
 };
 
 type InboxStateAction =
-    | {
-          readonly type: "Update";
-          readonly update: (
-              query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
-          ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
+    | (ActionForStateWithOptimisticUpdates<DynamoGeneralRealtimeIndexQuery<InboxEntryModel>> & {
           readonly withAnimation: boolean;
-      }
+      })
     | {
-          readonly type: "OptimisticUpdate";
-          readonly promise: Promise<unknown>;
-          readonly update: (
-              query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
-          ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
-          readonly withAnimation: boolean;
-      }
-    | {
-          readonly type: "ResolveOptimisticUpdate";
-          readonly promise: Promise<unknown>;
-      }
-    | {
-          readonly type: "RejectOptimisticUpdate";
-          readonly promise: Promise<unknown>;
-      }
-    | {
-          readonly type: "UpdateWithoutAnimation";
+          readonly type: "SetWithoutAnimation";
           readonly withoutAnimation: boolean;
       };
 
@@ -79,139 +63,31 @@ function getInitialInboxState({
     const query = DynamoGeneralRealtimeIndexQuery.new(initialEntriesResult);
 
     return {
-        queryWithoutOptimisticUpdates: query,
-        query,
-        optimisticUpdates: emptyArray,
-        itemsDeletedByLastChangeForAnimation: emptyArray,
+        query: getInitialStateWithOptimisticUpdates(query),
         withoutAnimation,
+        itemsDeletedByLastChangeForAnimation: emptyArray,
     };
 }
 
-function reduceInboxState(oldState: InboxState, action: InboxStateAction): InboxState {
-    switch (action.type) {
-        case "Update": {
-            const newQueryWithoutOptimisticUpdates = action.update(
-                oldState.queryWithoutOptimisticUpdates,
-            );
-
-            const newQuery = oldState.optimisticUpdates.reduce(
-                (query, {update}) => update(query),
-                newQueryWithoutOptimisticUpdates,
-            );
-
-            return {
-                queryWithoutOptimisticUpdates: newQueryWithoutOptimisticUpdates,
-                query: newQuery,
-                optimisticUpdates: oldState.optimisticUpdates,
-                itemsDeletedByLastChangeForAnimation:
-                    !oldState.withoutAnimation && action.withAnimation
-                        ? Array.from(newQuery.getDeletedItems(oldState.query))
-                        : emptyArray,
-                withoutAnimation: oldState.withoutAnimation,
-            };
-        }
-        case "OptimisticUpdate": {
-            const newOptimisticUpdates = [
-                ...oldState.optimisticUpdates,
-                {
-                    promise: action.promise,
-                    update: action.update,
-                },
-            ];
-
-            const newQuery = newOptimisticUpdates.reduce(
-                (query, {update}) => update(query),
-                oldState.queryWithoutOptimisticUpdates,
-            );
-
-            return {
-                queryWithoutOptimisticUpdates: oldState.queryWithoutOptimisticUpdates,
-                query: newQuery,
-                optimisticUpdates: newOptimisticUpdates,
-                itemsDeletedByLastChangeForAnimation:
-                    !oldState.withoutAnimation && action.withAnimation
-                        ? Array.from(newQuery.getDeletedItems(oldState.query))
-                        : emptyArray,
-                withoutAnimation: oldState.withoutAnimation,
-            };
-        }
-        case "ResolveOptimisticUpdate": {
-            const resolvedOptimisticUpdates = [];
-            const pendingOptimisticUpdates = [];
-
-            for (const optimisticUpdate of oldState.optimisticUpdates) {
-                if (optimisticUpdate.promise !== action.promise) {
-                    pendingOptimisticUpdates.push(optimisticUpdate);
-                } else {
-                    resolvedOptimisticUpdates.push(optimisticUpdate);
-                }
-            }
-
-            // Optimization: If no promises resolved, don't change state.
-            if (pendingOptimisticUpdates.length === oldState.optimisticUpdates.length)
-                return oldState;
-
-            // Permanently apply optimistic update...
-            const newQueryWithoutOptimisticUpdates = resolvedOptimisticUpdates.reduce(
-                (query, {update}) => update(query),
-                oldState.queryWithoutOptimisticUpdates,
-            );
-
-            const newQuery = pendingOptimisticUpdates.reduce(
-                (query, {update}) => update(query),
-                newQueryWithoutOptimisticUpdates,
-            );
-
-            return {
-                queryWithoutOptimisticUpdates: newQueryWithoutOptimisticUpdates,
-                query: newQuery,
-                optimisticUpdates: pendingOptimisticUpdates,
-                itemsDeletedByLastChangeForAnimation: !oldState.withoutAnimation
-                    ? Array.from(newQuery.getDeletedItems(oldState.query))
-                    : emptyArray,
-                withoutAnimation: oldState.withoutAnimation,
-            };
-        }
-        case "RejectOptimisticUpdate": {
-            const pendingOptimisticUpdates = [];
-
-            for (const optimisticUpdate of oldState.optimisticUpdates) {
-                if (optimisticUpdate.promise !== action.promise) {
-                    pendingOptimisticUpdates.push(optimisticUpdate);
-                }
-            }
-
-            // Optimization: If no promises rejected, don't change state.
-            if (pendingOptimisticUpdates.length === oldState.optimisticUpdates.length)
-                return oldState;
-
-            const newQuery = pendingOptimisticUpdates.reduce(
-                (query, {update}) => update(query),
-                oldState.queryWithoutOptimisticUpdates,
-            );
-
-            return {
-                queryWithoutOptimisticUpdates: oldState.queryWithoutOptimisticUpdates,
-                query: newQuery,
-                optimisticUpdates: pendingOptimisticUpdates,
-                itemsDeletedByLastChangeForAnimation: !oldState.withoutAnimation
-                    ? Array.from(newQuery.getDeletedItems(oldState.query))
-                    : emptyArray,
-                withoutAnimation: oldState.withoutAnimation,
-            };
-        }
-        case "UpdateWithoutAnimation": {
-            return {
-                queryWithoutOptimisticUpdates: oldState.queryWithoutOptimisticUpdates,
-                query: oldState.query,
-                optimisticUpdates: oldState.optimisticUpdates,
-                itemsDeletedByLastChangeForAnimation: emptyArray,
-                withoutAnimation: action.withoutAnimation,
-            };
-        }
-        default:
-            throw exhaustive(action);
+function reduceInboxState(state: InboxState, action: InboxStateAction): InboxState {
+    if (action.type === "SetWithoutAnimation") {
+        return {
+            query: state.query,
+            withoutAnimation: action.withoutAnimation,
+            itemsDeletedByLastChangeForAnimation: emptyArray,
+        };
     }
+
+    const newQuery = reduceStateWithOptimisticUpdates(state.query, action);
+
+    return {
+        query: newQuery,
+        withoutAnimation: state.withoutAnimation,
+        itemsDeletedByLastChangeForAnimation:
+            !state.withoutAnimation && action.withAnimation
+                ? Array.from(newQuery.value.getDeletedItems(state.query.value))
+                : emptyArray,
+    };
 }
 
 /**
@@ -233,75 +109,58 @@ export function useInboxState(props: {
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
 
     const [
-        {query, optimisticUpdates, itemsDeletedByLastChangeForAnimation, withoutAnimation},
+        {
+            query: queryState,
+            withoutAnimation: oldWithoutAnimation,
+            itemsDeletedByLastChangeForAnimation,
+        },
         dispatch,
     ] = useReducer(reduceInboxState, props, getInitialInboxState);
+    const query = queryState.value;
 
-    if (withoutAnimation !== (props.withoutAnimation ?? false)) {
+    useStateWithOptimisticUpdatesMonitor(
+        queryState,
+        useCallback(action => dispatch({...action, withAnimation: true}), []),
+    );
+
+    const newWithoutAnimation = useIsInertNativeMobileRoute() || (props.withoutAnimation ?? false);
+
+    if (oldWithoutAnimation !== newWithoutAnimation) {
         dispatch({
-            type: "UpdateWithoutAnimation",
-            withoutAnimation: props.withoutAnimation ?? false,
+            type: "SetWithoutAnimation",
+            withoutAnimation: newWithoutAnimation,
         });
     }
 
-    const updateQueryOptimistically = useCallback(
-        ({
-            promise,
-            update,
-            withAnimation,
-        }: {
-            promise: Promise<unknown> | null;
-            withAnimation: boolean;
-            update: (
-                query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
-            ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
-        }) => {
-            if (promise === null) {
-                dispatch({
-                    type: "Update",
-                    update,
-                    withAnimation,
-                });
-            } else {
+    useEffect(() => {
+        if (filter === "New") {
+            return subscribeToArchiveInboxEntryOptimistically(event => {
                 dispatch({
                     type: "OptimisticUpdate",
-                    promise,
-                    update,
-                    withAnimation,
+                    promise: event.promise,
+                    withAnimation: event.withAnimation,
+                    update: query =>
+                        query.optimisticallyDeleteItemByKeyIfExistsAtVersion(
+                            event.entry.key,
+                            event.entry.version,
+                        ),
                 });
-            }
-        },
-        [],
-    );
-
-    useEffect(() => {
-        let isCancelled = false;
-
-        for (const {promise} of optimisticUpdates) {
-            promise.then(
-                () => {
-                    if (isCancelled) return;
-
-                    dispatch({
-                        type: "ResolveOptimisticUpdate",
-                        promise,
-                    });
-                },
-                () => {
-                    if (isCancelled) return;
-
-                    dispatch({
-                        type: "RejectOptimisticUpdate",
-                        promise,
-                    });
-                },
-            );
+            });
+        } else {
+            return subscribeToUnarchiveInboxEntryOptimistically(event => {
+                dispatch({
+                    type: "OptimisticUpdate",
+                    promise: event.promise,
+                    withAnimation: event.withAnimation,
+                    update: query =>
+                        query.optimisticallyDeleteItemByKeyIfExistsAtVersion(
+                            event.entry.key,
+                            event.entry.version,
+                        ),
+                });
+            });
         }
-
-        return () => {
-            isCancelled = true;
-        };
-    }, [optimisticUpdates]);
+    }, [filter, space.id]);
 
     useDynamoGeneralRealtimeIndexQueryBase(
         {
@@ -438,7 +297,6 @@ export function useInboxState(props: {
 
     return {
         query,
-        updateQueryOptimistically,
         itemsDeletedByLastChangeForAnimation,
         tryLoadingMore,
     };
