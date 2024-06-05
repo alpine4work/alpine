@@ -1689,6 +1689,8 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     const navigate = useNavigate();
     const showToast = useShowToast();
 
+    titleJustifyContents ??= isMobile ? "center" : "flex-start";
+
     const contentRef = useRef<HTMLDivElement>(null);
     const titleRef = useRef<HTMLDivElement>(null);
 
@@ -1723,6 +1725,11 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                 : desktopTitleMaxWidthProp
             : undefined;
 
+    const hasLeftActions: boolean = isMobile && (!!onMobileCancel || !withoutMobileBackButton);
+
+    const hasRightActions: boolean =
+        !!replaceActions || !!shareButton || isTextInputFocused || menuActions.length > 0;
+
     return (
         <Box
             ref={contentRef}
@@ -1739,7 +1746,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         >
             <OverlayScopeContextProvider>
                 {isMobile
-                    ? (onMobileCancel || !withoutMobileBackButton) && (
+                    ? (hasLeftActions || hasRightActions) && (
                           <Box
                               flexShrink="0"
                               height={navigationBarHeight}
@@ -1792,17 +1799,14 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                               }}
                           />
                       )}
-                {!replaceActions && isTextInputFocused && (
+                {titleJustifyContents === "center" && !replaceActions && isTextInputFocused && (
                     // This spacer keeps the title centered when the done button is visible if the
                     // title is small enough to still fit in the center. If the title is longer then
                     // this spacer will shrink to give the title space.
                     <Box
                         style={{
                             flexShrink: 1000,
-                            width:
-                                !onMobileCancel && withoutMobileBackButton
-                                    ? spacing[navigationBarDoneButtonActionFlexBasis]
-                                    : navigationBarDoneButtonActionSpacerWidth,
+                            width: navigationBarDoneButtonActionSpacerWidth,
                         }}
                     />
                 )}
@@ -1813,7 +1817,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                     paddingX={isMobile ? mobileNavigationBarGap : undefined}
                     paddingLeft={desktopTitleMaxWidth === undefined && !isMobile ? "5" : undefined}
                     display="flex"
-                    justifyContent={titleJustifyContents ?? (isMobile ? "center" : "flex-start")}
+                    justifyContent={titleJustifyContents}
                     alignItems="center"
                     gap="3"
                     style={{
@@ -1887,11 +1891,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                         )}
                     </Box>
                 </Box>
-                {(replaceActions ||
-                    shareButton ||
-                    isTextInputFocused ||
-                    menuActions.length > 0 ||
-                    (isMobile && (onMobileCancel || !withoutMobileBackButton))) && (
+                {(hasLeftActions || hasRightActions) && (
                     <Box
                         flexGrow={!isMobile ? "1" : undefined}
                         flexShrink="0"

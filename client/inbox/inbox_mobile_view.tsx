@@ -11,6 +11,7 @@ import {
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
@@ -28,7 +29,7 @@ import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
-// NOCOMMIT: Old filtered inbox
+// NOCOMMIT: Shimmer for `inbox=show` has banner
 // NOCOMMIT: Swipe to mark notification as done
 
 export function InboxMobileView({
@@ -43,6 +44,9 @@ export function InboxMobileView({
     // mobile UI on desktop. On desktop the `/s/:spaceId/inbox` route renders
     // `<InboxView>`.
     assert(useIsMobile());
+
+    const navigate = useNavigate();
+    const {space} = useSpaceContext();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
@@ -60,6 +64,28 @@ export function InboxMobileView({
         // This is a route for a root tab in our mobile app so don't show the back
         // button. It wouldn't work.
         withoutMobileBackButton: true,
+        menuActions: [
+            [
+                {
+                    label: "New notifications",
+                    isSelected: filter === "New",
+                    pressErrorTitle: "Can’t open new notifications",
+                    onPress: async () => {
+                        if (filter === "New") return;
+                        await navigate(`/s/${space.id}/inbox`, {replace: true});
+                    },
+                },
+                {
+                    label: "Old notifications",
+                    isSelected: filter === "Archive",
+                    pressErrorTitle: "Can’t open old notifications",
+                    onPress: async () => {
+                        if (filter === "Archive") return;
+                        await navigate(`/s/${space.id}/inbox?tab=old`, {replace: true});
+                    },
+                },
+            ],
+        ],
     });
 
     const renderItem = useCallback(
@@ -72,11 +98,11 @@ export function InboxMobileView({
                         <>
                             <Box height="safe-area-inset-top" />
                             <Box height={navigationBarHeight} />
-                            <Box style={{height: "50vh"}}>
-                                {query.getItemCount() === 0 && (
+                            {query.getItemCount() === 0 && (
+                                <Box style={{height: "50vh"}}>
                                     <InboxViewEntriesEmpty filter={filter} />
-                                )}
-                            </Box>
+                                </Box>
+                            )}
                         </>
                     ),
                 };
