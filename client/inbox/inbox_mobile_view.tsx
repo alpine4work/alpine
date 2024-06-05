@@ -3,6 +3,7 @@ import {useCallback, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {InboxEntryView} from "~/client/inbox/inbox_entry_view.js";
+import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js";
 import {
     useArchiveInboxEntry,
     useUnarchiveInboxEntry,
@@ -27,7 +28,6 @@ import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
-// NOCOMMIT: Empty inbox illustration
 // NOCOMMIT: Old filtered inbox
 // NOCOMMIT: Swipe to mark notification as done
 
@@ -72,6 +72,11 @@ export function InboxMobileView({
                         <>
                             <Box height="safe-area-inset-top" />
                             <Box height={navigationBarHeight} />
+                            <Box style={{height: "50vh"}}>
+                                {query.getItemCount() === 0 && (
+                                    <InboxViewEntriesEmpty filter={filter} />
+                                )}
+                            </Box>
                         </>
                     ),
                 };

@@ -20,9 +20,9 @@ export function InboxViewEntriesEmpty({filter}: {filter: "New" | "Archive"}) {
                 <Box>No new notifications</Box>
             ) : (
                 <Box>
-                    Notifications you mark as done
+                    Notifications you mark as
                     <br />
-                    or respond to will appear here
+                    done will appear here
                 </Box>
             )}
         </Box>
