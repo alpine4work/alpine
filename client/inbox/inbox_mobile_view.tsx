@@ -27,7 +27,6 @@ import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
-// NOCOMMIT: Different shimmer on mobile
 // NOCOMMIT: Empty inbox illustration
 // NOCOMMIT: Old filtered inbox
 // NOCOMMIT: Swipe to mark notification as done

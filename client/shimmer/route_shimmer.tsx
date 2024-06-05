@@ -673,23 +673,73 @@ function DocumentCommentThreadRouteShimmer() {
 }
 
 function InboxRouteShimmer() {
-    return (
-        <Box width="full" height="full" display="flex" flexDirection="column">
-            <Box flexShrink="0" height="12" borderBottom="grey-10" />
-            <Box flexGrow="1" display="flex" flexDirection="row">
-                <Box flexShrink="0" width="96" borderRight="grey-10" padding="1">
-                    <InboxEntryShimmer titleRagRight="0" subtitleRagRight="8" />
-                    <InboxEntryShimmer titleRagRight="6" subtitleRagRight="4" />
-                    <InboxEntryShimmer titleRagRight="4" subtitleRagRight="6" />
-                    <InboxEntryShimmer titleRagRight="0" subtitleRagRight="2" />
-                    <InboxEntryShimmer titleRagRight="6" subtitleRagRight="4" />
+    const isMobile = useIsMobile();
+
+    if (isMobile) {
+        return (
+            <Box width="full">
+                <Box height="safe-area-inset-top" />
+                <Box
+                    height={navigationBarHeight}
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    paddingX={mobileNavigationBarGap}
+                >
+                    <TextShimmer fontSize="100" width="16" />
                 </Box>
-                <Box flexGrow="1" overflow="hidden">
-                    <ChannelPostsNotificationRouteShimmer />
+                <InboxEntryShimmer
+                    withBorderTop
+                    paddingX={screenPaddingX}
+                    marginX="0"
+                    titleRagRight="0"
+                    subtitleRagRight="8"
+                />
+                <InboxEntryShimmer
+                    paddingX={screenPaddingX}
+                    marginX="0"
+                    titleRagRight="6"
+                    subtitleRagRight="4"
+                />
+                <InboxEntryShimmer
+                    paddingX={screenPaddingX}
+                    marginX="0"
+                    titleRagRight="4"
+                    subtitleRagRight="6"
+                />
+                <InboxEntryShimmer
+                    paddingX={screenPaddingX}
+                    marginX="0"
+                    titleRagRight="0"
+                    subtitleRagRight="2"
+                />
+                <InboxEntryShimmer
+                    paddingX={screenPaddingX}
+                    marginX="0"
+                    titleRagRight="6"
+                    subtitleRagRight="4"
+                />
+            </Box>
+        );
+    } else {
+        return (
+            <Box width="full" height="full" display="flex" flexDirection="column">
+                <Box flexShrink="0" height="12" borderBottom="grey-10" />
+                <Box flexGrow="1" display="flex" flexDirection="row">
+                    <Box flexShrink="0" width="96" borderRight="grey-10" paddingY="1">
+                        <InboxEntryShimmer titleRagRight="0" subtitleRagRight="8" />
+                        <InboxEntryShimmer titleRagRight="6" subtitleRagRight="4" />
+                        <InboxEntryShimmer titleRagRight="4" subtitleRagRight="6" />
+                        <InboxEntryShimmer titleRagRight="0" subtitleRagRight="2" />
+                        <InboxEntryShimmer titleRagRight="6" subtitleRagRight="4" />
+                    </Box>
+                    <Box flexGrow="1" overflow="hidden">
+                        <ChannelPostsNotificationRouteShimmer />
+                    </Box>
                 </Box>
             </Box>
-        </Box>
-    );
+        );
+    }
 }
 
 function ChannelPostsNotificationRouteShimmer() {
