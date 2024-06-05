@@ -116,7 +116,6 @@ export function getInboxEntryDisplay({
         case "DocumentNewCommentThreads":
             return getInboxDocumentNewCommentThreadsEntryDisplay({entry, locale});
         default:
-            console.log(entry);
             throw exhaustive(entry);
     }
 }
