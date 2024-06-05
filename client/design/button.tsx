@@ -32,11 +32,12 @@ export {ButtonForwardRef as Button};
 type ButtonVariant =
     | "quiet"
     | "quieter"
-    | "quieter2"
+    | "quietest"
     | "quiet-on"
     | "quiet-off"
     | "quiet-above-grey-5-dark-background"
     | "neutral"
+    | "neutral-disabled"
     | "accent"
     | "accent-even-when-disabled"
     | "outline";
@@ -398,7 +399,7 @@ function Button(
                   backgroundColor: undefined,
                   color: "grey-30",
               },
-        quieter2: !isDisabled
+        quietest: !isDisabled
             ? {
                   backgroundColor: isPressed
                       ? "grey-10"
@@ -455,6 +456,10 @@ function Button(
                   backgroundColor: "grey-5",
                   color: "grey-30",
               },
+        "neutral-disabled": {
+            backgroundColor: "grey-5",
+            color: "grey-30",
+        },
         accent: !isDisabled
             ? {
                   backgroundColor: "theme-40-const",

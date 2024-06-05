@@ -8,19 +8,17 @@ import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_re
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {InboxContextProvider} from "~/client/inbox/inbox_context.js";
 import {
     InboxEntryView,
     inboxEntryDeleteAnimationDurationMs,
     inboxEntryWidth,
 } from "~/client/inbox/inbox_entry_view.js";
-import {InboxPeekContextProvider} from "~/client/inbox/inbox_peek_context.js";
 import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js";
 import {InboxViewTopBar} from "~/client/inbox/inbox_view_top_bar.js";
 import {
-    archiveInboxEntryOptimistically,
     useArchiveInboxEntry,
     useUnarchiveInboxEntry,
 } from "~/client/inbox/use_archive_inbox_entry.js";
@@ -755,44 +753,11 @@ function InboxViewPeekContent({
     if (!routerResult.ok) throw routerResult.error;
     const router = routerResult.value;
 
-    const onCreateMessageOptimistically = useEvent((promise: Promise<unknown>) => {
-        // We may not have an entry if the path in the URL is no longer in the inbox
-        // entries query.
-        if (!entry) return;
-
-        // Only new entries implicitly dismiss on message creation.
-        if (filter !== "New") return;
-
-        let shouldImplicitlyDismissAfterCreateMessage;
-        switch (entry.model.type) {
-            case "Chat":
-            case "PostComments":
-            case "DocumentCommentThread":
-                shouldImplicitlyDismissAfterCreateMessage = true;
-                break;
-            case "ChannelPosts":
-            case "DocumentNewCommentThreads":
-                shouldImplicitlyDismissAfterCreateMessage = false;
-                break;
-            default:
-                throw exhaustive(entry.model);
-        }
-
-        // Only some entries implicitly dismiss after sending a message.
-        if (!shouldImplicitlyDismissAfterCreateMessage) return;
-
-        archiveInboxEntryOptimistically({
-            promise,
-            entry,
-            withAnimation: true,
-        });
-    });
-
     return (
         <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
-            <InboxPeekContextProvider onCreateMessageOptimistically={onCreateMessageOptimistically}>
+            <InboxContextProvider entry={entry}>
                 <PeekRemixEmbed peekId={peekId} withMobileLayout={false} router={router} />
-            </InboxPeekContextProvider>
+            </InboxContextProvider>
         </Box>
     );
 }

@@ -324,7 +324,7 @@ function PostContentViewFooter({
                     </Box>
                 ) : (
                     <Button
-                        variant="quieter2"
+                        variant="quietest"
                         height={postContentViewFooterButtonHeight}
                         paddingX="1.5"
                         icon={
@@ -436,7 +436,7 @@ function PostContentViewFooter({
             <Box flexGrow="1" />
             <Box marginRight="-1.5">
                 <Button
-                    variant="quieter2"
+                    variant="quietest"
                     icon={<Smiley size={spacing[postContentViewFooterButtonIconSize]} />}
                     height={postContentViewFooterButtonHeight}
                     paddingX="1.5"

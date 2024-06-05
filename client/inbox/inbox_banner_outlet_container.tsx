@@ -10,6 +10,7 @@ import {useDynamoGeneralRealtimeItemBase} from "~/client/dynamo/use_dynamo_gener
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
+import {InboxContextProvider} from "~/client/inbox/inbox_context.js";
 import {
     getInboxEntryDisplay,
     printInboxEntryDisplaySummaryWithoutInteractivityStore,
@@ -18,6 +19,7 @@ import {
     subscribeToArchiveInboxEntryOptimistically,
     subscribeToUnarchiveInboxEntryOptimistically,
     useArchiveInboxEntry,
+    useUnarchiveInboxEntry,
 } from "~/client/inbox/use_archive_inbox_entry.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -30,12 +32,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {getInboxEntryWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
-
-// NOCOMMIT: Test what happens when sending a message (which should mark the
-// notification as done). Maybe Cmd-D should close even if the entry is
-// already done.
-
-// NOCOMMIT: Tapping done button should unarchive?
 
 const inboxBannerHeight = "9";
 
@@ -60,6 +56,7 @@ export function InboxBannerOutletContainer({
     const {space, currentAccount} = useSpaceContext();
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
     const archiveInboxEntry = useArchiveInboxEntry();
+    const unarchiveInboxEntry = useUnarchiveInboxEntry();
 
     const doneButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
@@ -143,6 +140,12 @@ export function InboxBannerOutletContainer({
                         // Programmatically click the button to correctly handle loading and
                         // error states.
                         assertExists(doneButtonRef.current).press();
+                    } else {
+                        // If the entry is already archived (e.g. because of a comment) we still want
+                        // Cmd-D to close the peek so users can maintain that workflow.
+                        //
+                        // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+                        void navigate(-1);
                     }
                 }
             }}
@@ -231,29 +234,38 @@ export function InboxBannerOutletContainer({
                         <Box minWidth="10" flexGrow="1" />
                         <Button
                             ref={doneButtonRef}
-                            variant="neutral"
+                            variant={entry.model.isArchived ? "neutral-disabled" : "neutral"}
                             height="6"
                             paddingX="2"
                             icon={<Check />}
                             keyboardShortcutHint={isAppleDevice ? "⌘+D" : "Ctrl+D"}
-                            isDisabled={entry.model.isArchived}
                             pressErrorTitle="Can’t mark as done"
                             onPress={async () => {
-                                archiveInboxEntry({
-                                    entry,
-                                    withAnimation: true,
-                                });
+                                if (!entry.model.isArchived) {
+                                    archiveInboxEntry({
+                                        entry,
+                                        withAnimation: true,
+                                    });
 
-                                // Navigate back, if this is in a peek we'll close the peek. If this is on
-                                // mobile we'll go back to inbox.
-                                await navigate(-1);
+                                    // Navigate back, if this is in a peek we'll close the peek. If this is on
+                                    // mobile we'll go back to inbox.
+                                    await navigate(-1);
+                                }
+                                // This button works as a toggle button. If you click it when the notification
+                                // has already been archived then we'll unarchive.
+                                else {
+                                    unarchiveInboxEntry({
+                                        entry,
+                                        withAnimation: true,
+                                    });
+                                }
                             }}
                         >
                             Done
                         </Button>
                     </Box>
                 </Box>
-                {children}
+                <InboxContextProvider entry={entry}>{children}</InboxContextProvider>
             </Box>
         </GlobalKeyDownEvent>
     );

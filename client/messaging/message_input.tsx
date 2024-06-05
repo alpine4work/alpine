@@ -16,7 +16,7 @@ import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/mess
 import {useShowToast} from "~/client/design/toast.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {useInboxPeekContext} from "~/client/inbox/inbox_peek_context.js";
+import {useInboxContext} from "~/client/inbox/inbox_context.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
@@ -100,7 +100,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     const isMobile = useIsMobile();
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
-    const inboxPeekContext = useInboxPeekContext();
+    const inboxPeekContext = useInboxContext();
 
     const inputRef = useRef<MessageInputRef>(null);
 

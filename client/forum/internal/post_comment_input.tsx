@@ -229,8 +229,6 @@ export function PostCommentInput({
             withMobileLayout={withMobileLayout}
             data-testid={`PostCommentInput:${post.id}`}
             messageNoun="comment"
-            // NOCOMMIT: Sticky positioned message inputs on mobile? Probably should mount
-            // a brand new input instead of trying to animate this one.
             isNotBottomBar={isStickyPositioned}
             messages={postComments}
             onUpdateMessages={onUpdatePostComments}
