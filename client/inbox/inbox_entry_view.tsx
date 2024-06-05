@@ -283,8 +283,8 @@ export function InboxEntryView({
 
             const touch = event.touches[0]!;
 
-            const verticalActivationDistance = 10;
-            const horizontalActivationDistance = 3;
+            const verticalActivationDistance = 8;
+            const horizontalActivationDistance = 4;
 
             if (
                 touchState.gesture === null &&
