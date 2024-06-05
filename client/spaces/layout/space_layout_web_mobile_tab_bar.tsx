@@ -32,7 +32,7 @@ const beforeAppInitialRenderScript = safe`var tabBar = document.currentScript.pa
     safe`, `,
 )}}; tabBar.className = (classNames[(sessionStorage.getItem("cyberworlds/webMobileTab") || "").slice(1, -1)] || classNames.Home) + " " + tabBar.className;`;
 
-function getWebMobileTabFromPathname(pathname: string): WebMobileTab | null {
+export function getWebMobileTabFromPathname(pathname: string): WebMobileTab | null {
     const match = pathname.match(/^\/s\/(?:[a-zA-Z0-9]+)(\/search|\/create|\/inbox|\/more)?$/);
     if (!match) return null;
 

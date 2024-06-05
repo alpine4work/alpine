@@ -1,34 +1,74 @@
+import {ArrowLeft} from "phosphor-react";
+import {useMemo} from "react";
+import {useLocation} from "react-router";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {mobileNavigationBarGap, navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
+import {getWebMobileTabFromPathname} from "~/client/spaces/layout/space_layout_web_mobile_tab_bar.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
+    const isMobile = useIsMobile();
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    // Is this the initial location for a tab? If so we don't want to render the
+    // back button since there's nothing to go back to.
+    //
+    // The `getWebMobileTabFromPathname()` returns a tab if the pathname is a root
+    // tab location and null otherwise. Even though the function was not made for
+    // this purpose it still gets the job done.
+    const isTabRootLocation = useMemo(
+        () => !!(isMobile ? getWebMobileTabFromPathname(location.pathname) : null),
+        [isMobile, location.pathname],
+    );
+
     // It appears that Remix does not `useMemo()` its error object. So stabilize
     // the object reference here. Our error rendering components use referential
     // identity to determine whether we need to log the error.
     const error = useStableValue(ErrorSchema, _error);
 
     return (
-        <Box width="full" display="flex" justifyContent="center" padding="safe-area-inset">
-            <Box
-                className={sprinkles({
-                    width: "full",
-                    maxWidth: "128",
-                    paddingX: "8",
-                    paddingY: {desktop: "32", mobile: "16"},
-                })}
-            >
-                <ErrorBodyRenderer
-                    // TODO(calebmer): "Couldn't show content" is way too generic. Can I write a
-                    // route pattern matcher so we can be more specific like "Couldn't open task"
-                    // or "Couldn't open document" for initial page loads. Ideally we'd have a more
-                    // specific error if the error was thrown after page load like "Task broke" or
-                    // something but I don't know what that message is.
-                    title="Couldn’t show content"
-                    error={error}
-                />
+        <Box width="full" paddingY="safe-area-inset">
+            {isMobile && (
+                <Box height={navigationBarHeight} paddingX={mobileNavigationBarGap}>
+                    {!isTabRootLocation && (
+                        <IconButton
+                            size="base"
+                            description="Go back"
+                            withoutTooltip={true}
+                            pressErrorTitle="Couldn’t go back"
+                            onPress={() => navigate(-1)}
+                        >
+                            <ArrowLeft />
+                        </IconButton>
+                    )}
+                </Box>
+            )}
+            <Box display="flex" justifyContent="center">
+                <Box
+                    className={sprinkles({
+                        width: "full",
+                        maxWidth: "128",
+                        paddingX: "8",
+                        paddingY: isMobile ? "4" : "32",
+                    })}
+                >
+                    <ErrorBodyRenderer
+                        // TODO(calebmer): "Couldn't show content" is way too generic. Can I write a
+                        // route pattern matcher so we can be more specific like "Couldn't open task"
+                        // or "Couldn't open document" for initial page loads. Ideally we'd have a more
+                        // specific error if the error was thrown after page load like "Task broke" or
+                        // something but I don't know what that message is.
+                        title="Couldn’t show content"
+                        error={error}
+                    />
+                </Box>
             </Box>
         </Box>
     );
