@@ -1,14 +1,17 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import {differenceInHours} from "date-fns";
-import {AnimationControls, animate} from "motion";
+import {AnimationControls, animate, timeline} from "motion";
 import {Check, DotsThree, IconContext} from "phosphor-react";
 import {useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {Spacer} from "~/client/design/spacer.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
@@ -19,8 +22,10 @@ import {
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {easeOutExpo, parseCubicBezier} from "~/shared/design/easing.js";
+import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -28,14 +33,18 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {
-    Sprinkles,
     backgroundColorVar,
     colorSchemeVars,
     overlayFadeOutAnimationDurationMs,
     searchStyles,
 } from "~/shared/styles/styles.js";
 
-export const inboxEntryWidth: Spacing = "96";
+export const inboxEntryWidth = "96";
+
+const inboxEntryViewTouchSwipeIconWidth = "16";
+const inboxEntryViewTouchSwipeIconWidthRem = parseRemLengthNumber(
+    spacing[inboxEntryViewTouchSwipeIconWidth],
+);
 
 const inboxEntryDeleteAnimationFadeDurationMs = 150;
 const inboxEntryDeleteAnimationSlideDurationMs = 230;
@@ -67,7 +76,7 @@ export function InboxEntryView({
     onPressStart?: () => void;
     onPress?: () => void;
     marginX?: Spacing;
-    paddingX?: Sprinkles["paddingX"];
+    paddingX?: Spacing | {mobile?: Spacing; desktop?: Spacing};
     withMarginTop?: boolean;
     withMarginBottom?: boolean;
     withBorderTop?: boolean;
@@ -82,14 +91,16 @@ export function InboxEntryView({
         offset: number;
         deletedItem: {item: DynamoGeneralRealtimeItem<InboxEntryModel>};
     } | null;
-    onArchive: () => MaybePromise<void>;
+    onArchive: (options: {withAnimation: boolean}) => MaybePromise<void>;
     onUnarchive: () => MaybePromise<void>;
 }) {
     const currentTime = useCurrentTimeRoundedToHour();
     const {isAppleDevice, timeZone, locale} = useClientInfo();
+    const canPrimaryInputHover = useCanPrimaryInputHover();
     const {currentAccount} = useSpaceContext();
 
     const entryRef = useRef<HTMLDivElement>(null);
+    const entryContentRef = useRef<HTMLDivElement>(null);
     const [isPressed, setIsPressed] = useState(false);
 
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
@@ -208,6 +219,234 @@ export function InboxEntryView({
         };
     }, [isPressed]);
 
+    const [touchSwipeState, setTouchSwipeState] = useState<"Indeterminate" | "Activated" | null>(
+        null,
+    );
+    const touchSwipeStateRef = useRef(touchSwipeState);
+
+    const touchSwipeIconRef = useRef<HTMLDivElement>(null);
+
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    const onArchiveEvent = useEvent(onArchive);
+
+    useEffect(() => {
+        if (filter !== "New") return;
+
+        // If the user can hover then we'll show a "Done" button when the user hovers
+        // over the entry.
+        if (canPrimaryInputHover) return;
+
+        const entryElement = assertExists(entryRef.current);
+        const entryContentElement = assertExists(entryContentRef.current);
+
+        let touchState: {
+            gesture: "Swipe" | "Scroll" | null;
+            hasSwipeGestureActivated: boolean;
+            initialClientX: number;
+            initialClientY: number;
+            finishGesture: (() => void) | null;
+        } | null = null;
+
+        const handleTouchStart = (event: TouchEvent) => {
+            // Can't start a new swipe gesture while another's animation is finishing.
+            if (touchSwipeStateRef.current !== null) return;
+
+            setTouchSwipeState(null);
+            touchSwipeStateRef.current = null;
+
+            void touchState?.finishGesture?.();
+            touchState = null;
+
+            if (event.touches.length > 1) {
+                return;
+            }
+
+            const touch = event.touches[0]!;
+
+            touchState = {
+                gesture: null,
+                hasSwipeGestureActivated: false,
+                initialClientX: touch.clientX,
+                initialClientY: touch.clientY,
+                finishGesture: null,
+            };
+        };
+
+        const handleTouchEnd = () => {
+            touchState?.finishGesture?.();
+            touchState = null;
+        };
+
+        const handleTouchMove = (event: TouchEvent) => {
+            if (!touchState) return;
+            if (event.touches.length !== 1) return;
+
+            const touch = event.touches[0]!;
+
+            const verticalActivationDistance = 10;
+            const horizontalActivationDistance = 3;
+
+            if (
+                touchState.gesture === null &&
+                Math.abs(touch.clientY - touchState.initialClientY) >= verticalActivationDistance
+            ) {
+                touchState.gesture = "Scroll";
+            }
+
+            if (
+                touchState.gesture === null &&
+                Math.abs(touch.clientX - touchState.initialClientX) >= horizontalActivationDistance
+            ) {
+                touchState.gesture = "Swipe";
+                setIsPressed(false);
+                setTouchSwipeState("Indeterminate");
+                touchSwipeStateRef.current = "Indeterminate";
+
+                touchState.finishGesture = () => {
+                    const touchSwipeIconElement = touchSwipeIconRef.current;
+
+                    if (!touchState?.hasSwipeGestureActivated) {
+                        const animation = timeline(
+                            [
+                                [
+                                    entryContentElement,
+                                    {x: 0},
+                                    {
+                                        easing: parseCubicBezier(easeOutExpo.cubicBezier),
+                                        // Make sure we use hardware acceleration for this animation in WebKit. By
+                                        // default `motion` turns it off.
+                                        // https://motion.dev/guides/performance#webkits-exceptions
+                                        allowWebkitAcceleration: true,
+                                    },
+                                ],
+                                [
+                                    touchSwipeIconElement ?? [],
+                                    {x: 0, opacity: 0},
+                                    {
+                                        at: 0,
+                                        easing: parseCubicBezier(easeOutExpo.cubicBezier),
+                                        // Make sure we use hardware acceleration for this animation in WebKit. By
+                                        // default `motion` turns it off.
+                                        // https://motion.dev/guides/performance#webkits-exceptions
+                                        allowWebkitAcceleration: true,
+                                    },
+                                ],
+                            ],
+                            {
+                                duration: 0.5,
+                            },
+                        );
+
+                        void animation.finished.finally(() => {
+                            setTouchSwipeState(null);
+                            touchSwipeStateRef.current = null;
+                        });
+                    }
+                    // The user swiped enough to archive the inbox entry. Animate the entry
+                    // offscreen and perform archival with an animation.
+                    else {
+                        const animation = animate(
+                            entryContentElement,
+                            {x: -entryElement.clientWidth},
+                            {
+                                duration: 0.5,
+                                easing: parseCubicBezier(easeOutExpo.cubicBezier),
+                                // Make sure we use hardware acceleration for this animation in WebKit. By
+                                // default `motion` turns it off.
+                                // https://motion.dev/guides/performance#webkits-exceptions
+                                allowWebkitAcceleration: true,
+                            },
+                        );
+
+                        void animation.finished.finally(() => {
+                            void onArchiveEvent({withAnimation: true});
+                        });
+                    }
+                };
+            }
+
+            if (touchState.gesture === "Swipe") {
+                event.preventDefault();
+
+                const translateX =
+                    (touch.clientX - touchState.initialClientX - horizontalActivationDistance) *
+                    // We slow the drag animation down to make it feel like the user is dragging
+                    // something heavy. But also this ends up smoothing out the animation! We only
+                    // get `touchmove` events every whole pixel. But on devices like iPhone every
+                    // virtual pixel is actually rendered by 2 to 3 hardware pixels. So animating
+                    // 1:1 with `touchmove` events can looking subtly coarse since we're jumping
+                    // across multiple hardware pixels per move.
+                    (1 / 3);
+
+                const touchSwipeIconElement = touchSwipeIconRef.current;
+
+                const remPx = getRemPxWithoutListening();
+
+                const minTouchSwipeIconElementTranslateX =
+                    -inboxEntryViewTouchSwipeIconWidthRem * remPx;
+
+                const touchSwipeIconElementTranslateX = Math.max(
+                    translateX,
+                    // The touch swipe icon finishes its animation once its left edge is where the
+                    // message bubble left edge started.
+                    minTouchSwipeIconElementTranslateX,
+                );
+
+                // NOCOMMIT: Haptic feedback when reply gesture activates.
+                if (touchSwipeIconElementTranslateX === minTouchSwipeIconElementTranslateX) {
+                    if (!touchState.hasSwipeGestureActivated) {
+                        setTouchSwipeState("Activated");
+                        touchSwipeStateRef.current = "Activated";
+                    }
+                    touchState.hasSwipeGestureActivated = true;
+                } else {
+                    if (touchState.hasSwipeGestureActivated) {
+                        setTouchSwipeState("Indeterminate");
+                        touchSwipeStateRef.current = "Indeterminate";
+                    }
+                    touchState.hasSwipeGestureActivated = false;
+                }
+
+                timeline(
+                    [
+                        [entryContentElement, {x: translateX}],
+                        [
+                            touchSwipeIconElement ?? [],
+                            {
+                                x: touchSwipeIconElementTranslateX,
+                                opacity:
+                                    touchSwipeIconElementTranslateX /
+                                    minTouchSwipeIconElementTranslateX,
+                            },
+                            {at: 0},
+                        ],
+                    ],
+                    {duration: 0},
+                );
+            }
+        };
+
+        const handleTouchCancel = () => {
+            touchState?.finishGesture?.();
+            touchState = null;
+        };
+
+        entryElement.addEventListener("touchstart", handleTouchStart);
+        entryElement.addEventListener("touchend", handleTouchEnd);
+        entryElement.addEventListener("touchmove", handleTouchMove, {passive: false});
+        entryElement.addEventListener("touchcancel", handleTouchCancel);
+
+        return () => {
+            setTouchSwipeState(null);
+            touchSwipeStateRef.current = null;
+
+            entryElement.removeEventListener("touchstart", handleTouchStart);
+            entryElement.removeEventListener("touchend", handleTouchEnd);
+            entryElement.removeEventListener("touchmove", handleTouchMove);
+            entryElement.removeEventListener("touchcancel", handleTouchCancel);
+        };
+    }, [canPrimaryInputHover, filter, onArchiveEvent]);
+
     const entryDisplay = useMemo(
         () => getInboxEntryDisplay({entry, locale, currentAccount}),
         [currentAccount, entry, locale],
@@ -233,6 +472,8 @@ export function InboxEntryView({
             // weird with `event.preventDefault()` that causes the listbox in `<InboxView>`
             // to not be focused after a click.
             onPointerDown={event => {
+                if (touchSwipeState !== null) return;
+
                 // Ignore pointer events from portals (e.g. menu opened by the `<MenuButton>`
                 // shown on hover).
                 if (event.target instanceof Node && !event.currentTarget.contains(event.target))
@@ -242,6 +483,11 @@ export function InboxEntryView({
                 onPressStart?.();
             }}
             onPointerUp={event => {
+                if (touchSwipeState !== null) {
+                    setIsPressed(false);
+                    return;
+                }
+
                 // Ignore pointer events from portals (e.g. menu opened by the `<MenuButton>`
                 // shown on hover).
                 if (event.target instanceof Node && !event.currentTarget.contains(event.target)) {
@@ -288,7 +534,20 @@ export function InboxEntryView({
                         : undefined
                 }
             >
-                {((isPressed && withBackgroundIfPressed) || isSelected) && (
+                {!canPrimaryInputHover && (
+                    // Render this background on touch devices when the swipe to archive gesture is
+                    // enabled. When we archive an entry, the entries below it animate up to cover
+                    // the deleted entry. Those entries need a background color to actually obscure
+                    // the deleted entry.
+                    <Box
+                        position="absolute"
+                        inset="0"
+                        zIndex="-20"
+                        backgroundColor="grey-0"
+                        style={{top: 1}}
+                    />
+                )}
+                {(isPressed && withBackgroundIfPressed) || isSelected ? (
                     <Box
                         position="absolute"
                         inset="0"
@@ -300,26 +559,110 @@ export function InboxEntryView({
                             bottom: -1,
                         }}
                     />
+                ) : (
+                    <Box
+                        position="absolute"
+                        top="0"
+                        bottom="0"
+                        left={paddingX}
+                        right={paddingX}
+                        zIndex="-10"
+                        style={{
+                            // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
+                            // 1px to layout. Layout needs to be precise since this is rendered in a
+                            // virtualized list.
+                            boxShadow: [
+                                `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                                ...(withBorderTop
+                                    ? [`inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`]
+                                    : []),
+                            ].join(", "),
+                        }}
+                    />
+                )}
+                {touchSwipeState && (
+                    <Box
+                        position="absolute"
+                        zIndex="-10"
+                        bottom="0"
+                        left="0"
+                        right="0"
+                        display="flex"
+                        style={{
+                            // Don't render on top of previous entry's border.
+                            top: 1,
+                        }}
+                    >
+                        {touchSwipeState === "Indeterminate" && <Box flexGrow="1" height="full" />}
+                        <Box flexGrow="1" height="full" backgroundColor="green-40">
+                            <Box
+                                ref={touchSwipeIconRef}
+                                position="absolute"
+                                top="0"
+                                bottom="0"
+                                right={`-${inboxEntryViewTouchSwipeIconWidth}`}
+                                width={inboxEntryViewTouchSwipeIconWidth}
+                                display="flex"
+                                flexDirection="column"
+                                justifyContent="center"
+                                alignItems="center"
+                                color="green-80"
+                                // Start at opacity 0. Opacity will be update during the swipe gesture.
+                                opacity="0"
+                            >
+                                <Spacer space="0.5" />
+                                <Check size={spacing["5"]} />
+                                <Box fontSize="50" fontStyle="semi-bold">
+                                    Done
+                                </Box>
+                            </Box>
+                        </Box>
+                    </Box>
                 )}
                 <Box
+                    ref={entryContentRef}
+                    position="relative"
+                    zIndex="0"
                     display="flex"
                     alignItems="center"
                     gap="3"
-                    style={{
-                        // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
-                        // 1px to layout. Layout needs to be precise since this is rendered in a
-                        // virtualized list.
-                        boxShadow:
-                            !isSelected && !isPressed
-                                ? [
-                                      `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
-                                      ...(withBorderTop
-                                          ? [`inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`]
-                                          : []),
-                                  ].join(", ")
-                                : undefined,
-                    }}
                 >
+                    {touchSwipeState && (
+                        <Box
+                            position="absolute"
+                            zIndex="-10"
+                            bottom="0"
+                            left={
+                                typeof paddingX === "string"
+                                    ? `-${paddingX}`
+                                    : {
+                                          mobile: paddingX.mobile
+                                              ? `-${paddingX.mobile}`
+                                              : undefined,
+                                          desktop: paddingX.desktop
+                                              ? `-${paddingX.desktop}`
+                                              : undefined,
+                                      }
+                            }
+                            right={
+                                typeof paddingX === "string"
+                                    ? `-${paddingX}`
+                                    : {
+                                          mobile: paddingX.mobile
+                                              ? `-${paddingX.mobile}`
+                                              : undefined,
+                                          desktop: paddingX.desktop
+                                              ? `-${paddingX.desktop}`
+                                              : undefined,
+                                      }
+                            }
+                            backgroundColor="grey-0"
+                            style={{
+                                // Don't render on top of previous entry's border.
+                                top: 1,
+                            }}
+                        />
+                    )}
                     <Box flexShrink="0" width="10" paddingY="4">
                         <Box
                             position="relative"
@@ -516,7 +859,7 @@ export function InboxEntryView({
                                     isSelected ? (isAppleDevice ? "⌘+D" : "Ctrl+D") : undefined
                                 }
                                 pressErrorTitle="Couldn’t mark as done"
-                                onPress={onArchive}
+                                onPress={() => onArchive({withAnimation: false})}
                             >
                                 <Check />
                             </IconButton>

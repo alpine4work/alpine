@@ -8,6 +8,7 @@ import {
     useArchiveInboxEntry,
     useUnarchiveInboxEntry,
 } from "~/client/inbox/use_archive_inbox_entry.js";
+import {useInboxDeletedItemAnimationState} from "~/client/inbox/use_inbox_deleted_item_animation_state.js";
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
@@ -29,8 +30,6 @@ import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
-// NOCOMMIT: Swipe to mark notification as done
-
 export function InboxMobileView({
     filter,
     initialEntriesResult,
@@ -49,15 +48,19 @@ export function InboxMobileView({
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const {query, tryLoadingMore} = useInboxState({
+    const {
+        query,
+        tryLoadingMore,
+        // Animations are important on mobile when swiping to archive an inbox entry.
+        itemsDeletedByLastChangeForAnimation,
+    } = useInboxState({
         filter,
         initialEntriesResult,
-        withoutAnimation: true,
     });
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         withMobileLayout: true,
-        title: "Inbox",
+        title: filter === "New" ? "Inbox" : "Inbox (old)",
         withoutDisappearingTitle: true,
         titleJustifyContents: "center",
         // This is a route for a root tab in our mobile app so don't show the back
@@ -87,6 +90,16 @@ export function InboxMobileView({
         ],
     });
 
+    const itemCount = query.getItemCount();
+
+    const {deletedItemAnimationsState, deletedItemAnimations} = useInboxDeletedItemAnimationState({
+        viewRef,
+        itemCount,
+        itemsDeletedByLastChangeForAnimation,
+    });
+
+    const itemCountWithDeletedItemAnimations = itemCount + deletedItemAnimations.length;
+
     const renderItem = useCallback(
         (index: number): VirtualizedScrollViewItem => {
             if (index === 0) {
@@ -97,7 +110,7 @@ export function InboxMobileView({
                         <>
                             <Box height="safe-area-inset-top" />
                             <Box height={navigationBarHeight} />
-                            {query.getItemCount() === 0 && (
+                            {itemCountWithDeletedItemAnimations === 0 && (
                                 <Box style={{height: "50vh"}}>
                                     <InboxViewEntriesEmpty filter={filter} />
                                 </Box>
@@ -109,10 +122,41 @@ export function InboxMobileView({
 
             index -= 1;
 
-            const item = query.getItem(index);
-
             const isFirstItem = index === 0;
-            const isLastItem = index === query.getItemCount() - 1;
+            const isLastItem = index === itemCountWithDeletedItemAnimations - 1;
+
+            let deletedItemAnimation = null;
+
+            for (const animation of deletedItemAnimations) {
+                if (index === animation.deletedItem.index) {
+                    return {
+                        key: `Loaded:${animation.deletedItem.item.key}`,
+                        minHeight: inboxEntryViewMinHeight,
+                        node: (
+                            <>
+                                <InboxMobileEntryView
+                                    filter={filter}
+                                    entry={animation.deletedItem.item}
+                                    isFirstItem={isFirstItem}
+                                    isLastItem={isLastItem}
+                                    deletedItemAnimation={deletedItemAnimation}
+                                />
+                                {isLastItem && <Box height="safe-area-inset-bottom" />}
+                            </>
+                        ),
+                    };
+                } else if (index > animation.deletedItem.index) {
+                    index--;
+
+                    if (
+                        animation === deletedItemAnimationsState.activeAnimations?.currentAnimation
+                    ) {
+                        deletedItemAnimation = animation;
+                    }
+                }
+            }
+
+            const item = query.getItem(index);
 
             switch (item.type) {
                 case "Loaded": {
@@ -120,12 +164,16 @@ export function InboxMobileView({
                         key: `Loaded:${item.item.key}`,
                         minHeight: inboxEntryViewMinHeight,
                         node: (
-                            <InboxMobileEntryView
-                                filter={filter}
-                                entry={item.item}
-                                isFirstItem={isFirstItem}
-                                isLastItem={isLastItem}
-                            />
+                            <>
+                                <InboxMobileEntryView
+                                    filter={filter}
+                                    entry={item.item}
+                                    isFirstItem={isFirstItem}
+                                    isLastItem={isLastItem}
+                                    deletedItemAnimation={deletedItemAnimation}
+                                />
+                                {isLastItem && <Box height="safe-area-inset-bottom" />}
+                            </>
                         ),
                     };
                 }
@@ -134,20 +182,23 @@ export function InboxMobileView({
                         key: "LoadingIndicator",
                         minHeight: inboxEntryViewMinHeight,
                         node: (
-                            <Box
-                                display="flex"
-                                justifyContent="center"
-                                alignItems="center"
-                                style={{
-                                    height: inboxEntryViewMinHeight,
-                                }}
-                            >
-                                <SpinnerGap
-                                    className={spinAnimationClassName}
-                                    color={colorSchemeVars["grey-60"]}
-                                    size={spacing["4"]}
-                                />
-                            </Box>
+                            <>
+                                <Box
+                                    display="flex"
+                                    justifyContent="center"
+                                    alignItems="center"
+                                    style={{
+                                        height: inboxEntryViewMinHeight,
+                                    }}
+                                >
+                                    <SpinnerGap
+                                        className={spinAnimationClassName}
+                                        color={colorSchemeVars["grey-60"]}
+                                        size={spacing["4"]}
+                                    />
+                                </Box>
+                                {isLastItem && <Box height="safe-area-inset-bottom" />}
+                            </>
                         ),
                     };
                 }
@@ -155,7 +206,13 @@ export function InboxMobileView({
                     throw exhaustive(item);
             }
         },
-        [filter, query],
+        [
+            deletedItemAnimations,
+            deletedItemAnimationsState.activeAnimations?.currentAnimation,
+            filter,
+            itemCountWithDeletedItemAnimations,
+            query,
+        ],
     );
 
     return (
@@ -164,7 +221,7 @@ export function InboxMobileView({
             elementRef={scrollViewRef}
             scrollbarInsetTop={scrollbarInsetTop}
             extraChildren={navigationBar}
-            itemCount={1 + query.getItemCount()}
+            itemCount={1 + itemCountWithDeletedItemAnimations}
             bufferedItemHeight={inboxEntryViewMinHeight}
             renderItem={renderItem}
             onRenderedRangeChange={renderedRange => {
@@ -229,11 +286,16 @@ function InboxMobileEntryView({
     entry,
     isFirstItem,
     isLastItem,
+    deletedItemAnimation,
 }: {
     filter: "New" | "Archive";
     entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
     isFirstItem: boolean;
     isLastItem: boolean;
+    deletedItemAnimation: {
+        offset: number;
+        deletedItem: {item: DynamoGeneralRealtimeItem<InboxEntryModel>};
+    } | null;
 }) {
     const navigate = useNavigate();
     const archiveInboxEntry = useArchiveInboxEntry();
@@ -267,10 +329,11 @@ function InboxMobileEntryView({
             withBorderTop={isFirstItem}
             withMarginBottom={isLastItem}
             withBackgroundIfPressed={true}
-            onArchive={() => {
+            deletedItemAnimation={deletedItemAnimation}
+            onArchive={({withAnimation}) => {
                 archiveInboxEntry({
                     entry,
-                    withAnimation: false,
+                    withAnimation,
                 });
             }}
             onUnarchive={() => {

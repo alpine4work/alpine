@@ -1,9 +1,8 @@
 import {HydrationState} from "@remix-run/router";
 import {SpinnerGap} from "phosphor-react";
-import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {Memo, useCallback, useEffect, useMemo, useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
@@ -11,17 +10,14 @@ import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {InboxContextProvider} from "~/client/inbox/inbox_context.js";
-import {
-    InboxEntryView,
-    inboxEntryDeleteAnimationDurationMs,
-    inboxEntryWidth,
-} from "~/client/inbox/inbox_entry_view.js";
+import {InboxEntryView, inboxEntryWidth} from "~/client/inbox/inbox_entry_view.js";
 import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js";
 import {InboxViewTopBar} from "~/client/inbox/inbox_view_top_bar.js";
 import {
     useArchiveInboxEntry,
     useUnarchiveInboxEntry,
 } from "~/client/inbox/use_archive_inbox_entry.js";
+import {useInboxDeletedItemAnimationState} from "~/client/inbox/use_inbox_deleted_item_animation_state.js";
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
 import {PeekRemixEmbed, PeekRemixEmbedRouter} from "~/client/peek/peek_remix_embed.js";
 import {
@@ -32,13 +28,12 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {createInterval} from "~/shared/helpers/async/interval.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
@@ -58,7 +53,7 @@ export function InboxView({
     initialPeekData: {spacePath: string; hydrationData: HydrationState} | null;
     onPeekChange: (peek: PeekSwitcherStatePeekBase<{key: DynamoItemKey | null}> | null) => void;
 }) {
-    const {query, itemsDeletedByLastChangeForAnimation, tryLoadingMore} = useInboxState({
+    const {query, tryLoadingMore, itemsDeletedByLastChangeForAnimation} = useInboxState({
         filter,
         initialEntriesResult,
     });
@@ -310,7 +305,6 @@ function InboxViewEntries({
     selectedEntryKey: DynamoItemKey | null;
     selectEntry: Memo<(entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>>;
 }) {
-    const remPx = useRemPx();
     const archiveInboxEntry = useArchiveInboxEntry();
     const unarchiveInboxEntry = useUnarchiveInboxEntry();
 
@@ -351,152 +345,11 @@ function InboxViewEntries({
         }
     }, [selectedEntryKey]);
 
-    const [deletedItemAnimationsState, setDeletedItemAnimationsState] = useState<{
-        readonly activeAnimations: {
-            readonly currentAnimation: {
-                readonly offset: number;
-                readonly deletedItem: {
-                    readonly index: number;
-                    readonly cursor: DynamoIndexCursor;
-                    readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
-                };
-            };
-            readonly queuedAnimations: ReadonlyArray<{
-                readonly offset: number;
-                readonly deletedItem: {
-                    readonly index: number;
-                    readonly cursor: DynamoIndexCursor;
-                    readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
-                };
-            }>;
-        } | null;
-        readonly finishedAnimations: ReadonlySet<{
-            readonly index: number;
-            readonly cursor: DynamoIndexCursor;
-            readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
-        }>;
-    }>({
-        activeAnimations: null,
-        finishedAnimations: new Set(),
+    const {deletedItemAnimationsState, deletedItemAnimations} = useInboxDeletedItemAnimationState({
+        viewRef,
+        itemCount,
+        itemsDeletedByLastChangeForAnimation,
     });
-
-    // When an item is deleted, we start an animation to shift entries below the
-    // deleted item up to fill its space. This helps users see an item was removed
-    // and what happens next.
-    {
-        const deletedItem = itemsDeletedByLastChangeForAnimation[0];
-        if (deletedItem && !deletedItemAnimationsState.finishedAnimations.has(deletedItem)) {
-            // We should still have the height of the deleted item in
-            // `VirtualizedScrollViewRef` since the render hasn't finished and unmounted
-            // the element yet.
-            let offset = viewRef.current?.getPositionByKeyIfExists(
-                `Loaded:${deletedItem.item.key}`,
-            )?.height;
-
-            // If we are deleting the first item, don't animate into the top padding.
-            if (typeof offset === "number" && deletedItem.index === 0) {
-                offset -= convertRemLengthToPx(spacing["1"], remPx);
-            }
-
-            offset ??= convertRemLengthToPx(inboxEntryViewMinHeight, remPx);
-
-            if (!deletedItemAnimationsState.activeAnimations) {
-                setDeletedItemAnimationsState({
-                    activeAnimations: {
-                        currentAnimation: {
-                            offset,
-                            deletedItem,
-                        },
-                        queuedAnimations: [],
-                    },
-                    finishedAnimations: deletedItemAnimationsState.finishedAnimations,
-                });
-            } else if (
-                deletedItemAnimationsState.activeAnimations.currentAnimation.deletedItem !==
-                    deletedItem &&
-                deletedItemAnimationsState.activeAnimations.queuedAnimations.every(
-                    animation => animation.deletedItem !== deletedItem,
-                )
-            ) {
-                setDeletedItemAnimationsState({
-                    activeAnimations: {
-                        currentAnimation:
-                            deletedItemAnimationsState.activeAnimations.currentAnimation,
-                        queuedAnimations: [
-                            ...deletedItemAnimationsState.activeAnimations.queuedAnimations,
-                            {
-                                offset,
-                                deletedItem,
-                            },
-                        ],
-                    },
-                    finishedAnimations: deletedItemAnimationsState.finishedAnimations,
-                });
-            }
-        }
-    }
-
-    const hasDeletedActiveAnimationsState = !!deletedItemAnimationsState.activeAnimations;
-
-    useEffect(() => {
-        // Important to use a boolean here so we don't subscribe to all
-        // `deletedItemAnimationsState` changes.
-        if (!hasDeletedActiveAnimationsState) return;
-
-        // Keep popping animations from the stack until `deletedItemAnimationsState` is
-        // null which will re-run the effect and clear the interval.
-        const interval = createInterval(() => {
-            setDeletedItemAnimationsState(animationState => {
-                if (!animationState.activeAnimations) return animationState;
-
-                const newFinishedAnimations = new Set(animationState.finishedAnimations);
-                newFinishedAnimations.add(
-                    animationState.activeAnimations.currentAnimation.deletedItem,
-                );
-
-                const [currentAnimation, ...queuedAnimations] =
-                    animationState.activeAnimations.queuedAnimations;
-                if (!currentAnimation) {
-                    return {
-                        activeAnimations: null,
-                        finishedAnimations: newFinishedAnimations,
-                    };
-                }
-
-                return {
-                    activeAnimations: {
-                        currentAnimation,
-                        queuedAnimations,
-                    },
-                    finishedAnimations: newFinishedAnimations,
-                };
-            });
-        }, inboxEntryDeleteAnimationDurationMs);
-
-        return () => interval.clear();
-    }, [hasDeletedActiveAnimationsState]);
-
-    // Collect all items that we need to animate deletion of into a sorted array.
-    // We will interleave this array in our virtualized list.
-    const deletedItemAnimations = useMemo(() => {
-        if (!deletedItemAnimationsState.activeAnimations) return [];
-
-        const deletedItemAnimations = [];
-
-        for (const animation of [
-            deletedItemAnimationsState.activeAnimations.currentAnimation,
-            ...deletedItemAnimationsState.activeAnimations.queuedAnimations,
-        ]) {
-            if (animation.deletedItem.index < itemCount + 1) {
-                deletedItemAnimations.push(animation);
-            }
-        }
-
-        // Sort animations by the index they are replacing.
-        deletedItemAnimations.sort((a, b) => a.deletedItem.index - b.deletedItem.index);
-
-        return deletedItemAnimations;
-    }, [deletedItemAnimationsState, itemCount]);
 
     const itemCountWithDeletedItemAnimations = itemCount + deletedItemAnimations.length;
 
@@ -599,10 +452,10 @@ function InboxViewEntries({
                                                 aria-posinset={index}
                                                 aria-setsize={ariaSetsize}
                                                 deletedItemAnimation={deletedItemAnimation}
-                                                onArchive={async () => {
+                                                onArchive={async ({withAnimation}) => {
                                                     archiveInboxEntry({
                                                         entry: item.item,
-                                                        withAnimation: false,
+                                                        withAnimation,
                                                     });
 
                                                     // If we are archiving the select entry then navigate the user to the

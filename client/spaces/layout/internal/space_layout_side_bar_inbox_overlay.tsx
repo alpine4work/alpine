@@ -247,6 +247,7 @@ const SpaceLayoutTopBarInboxOverlayEntries = forwardRef(
         const {query, tryLoadingMore} = useInboxState({
             filter,
             initialEntriesResult,
+            withoutAnimation: true,
         });
 
         useImperativeHandle(
@@ -456,10 +457,10 @@ function SpaceLayoutTopBarInboxOverlayEntry({
                         },
                     );
             }}
-            onArchive={() => {
+            onArchive={({withAnimation}) => {
                 archiveInboxEntry({
                     entry,
-                    withAnimation: false,
+                    withAnimation,
                 });
             }}
             onUnarchive={() => {

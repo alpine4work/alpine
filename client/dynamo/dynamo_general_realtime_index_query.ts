@@ -857,6 +857,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      * Gets the first loaded item in the query if there are items in the query.
      */
     public getFirstItemIfExists(): DynamoGeneralRealtimeItem<Model> | null {
+        if (this._itemByCursor.length === 0) return null;
+
         const loadedPageItemSlice = this._loadedPageItemSlice.get();
         return this._itemByCursor.at(loadedPageItemSlice?.startIndex ?? 0).value ?? null;
     }
@@ -865,6 +867,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      * Gets the first loaded item in the query if there are items in the query.
      */
     public getLastItemIfExists(): DynamoGeneralRealtimeItem<Model> | null {
+        if (this._itemByCursor.length === 0) return null;
+
         const loadedPageItemSlice = this._loadedPageItemSlice.get();
         return (
             this._itemByCursor.at(
