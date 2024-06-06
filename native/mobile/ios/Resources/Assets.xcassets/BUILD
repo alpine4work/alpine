@@ -96,6 +96,8 @@ COLORS = [
     "indigo-70",
     "indigo-80",
     "indigo-90",
+    "grey-0-const",
+    "red-50-const",
 ]
 
 js_run_binary(

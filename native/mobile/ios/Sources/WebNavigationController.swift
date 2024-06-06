@@ -72,6 +72,16 @@ private let tabBarHeight = UITabBarController().tabBar.frame.height
         didNavigate webNavigationEntry: WebNavigationEntry,
         hasMainScrollView: Bool
     )
+    @objc optional func webNavigationController(
+        clearInboxNotificationBadge webNavigationController: WebNavigationController
+    )
+    @objc optional func webNavigationController(
+        _ webNavigationController: WebNavigationController,
+        setInboxLoudNotificationBadge loudNotificationCount: Int
+    )
+    @objc optional func webNavigationController(
+        setInboxSubtleNotificationBadge webNavigationController: WebNavigationController
+    )
 }
 
 class WebNavigationController: UINavigationController, WKNavigationDelegate, WKUIDelegate,
@@ -1580,6 +1590,21 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             isDisableTabBarChangeAnimated = isAnimatedString == "true"
             disableTabBarCount -= 1
             isDisableTabBarChangeAnimated = nil
+        } else if messageBody == "tabBar.clearInboxNotificationBadge" {
+            webDelegate?.webNavigationController?(clearInboxNotificationBadge: self)
+        } else if messageBody.starts(with: "tabBar.setInboxLoudNotificationBadge:") {
+            let loudNotificationCountString = messageBody.suffix(
+                from: messageBody.index(messageBody.startIndex, offsetBy: 37)
+            )
+
+            let loudNotificationCount = Int(loudNotificationCountString)!
+
+            webDelegate?.webNavigationController?(
+                self,
+                setInboxLoudNotificationBadge: loudNotificationCount
+            )
+        } else if messageBody == "tabBar.setInboxSubtleNotificationBadge" {
+            webDelegate?.webNavigationController?(setInboxSubtleNotificationBadge: self)
         } else if messageBody == "scrollbar.updateAllInsets" {
             setAllWebScrollViewScrollIndicatorInsets()
         } else {
@@ -3564,6 +3589,15 @@ private let webBridgeSource = """
                 enable: ({isAnimated = false} = {}) => {
                     disableTabBarCount -= 1;
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.enable:${isAnimated}`);
+                },
+                clearInboxNotificationBadge: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("tabBar.clearInboxNotificationBadge");
+                },
+                setInboxLoudNotificationBadge: loudNotificationCount => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.setInboxLoudNotificationBadge:${loudNotificationCount}`);
+                },
+                setInboxSubtleNotificationBadge: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("tabBar.setInboxSubtleNotificationBadge");
                 },
             },
             keyboard: {

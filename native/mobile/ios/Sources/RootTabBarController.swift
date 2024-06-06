@@ -11,6 +11,9 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     private let signOut: () -> Void
     private let switchSpace: (String, Session) -> Void
 
+    private var inboxNotificationBadgeView: UIView?
+    private var isInboxSubtleNotificationBadgeView = false
+
     private weak var mainScrollView: UIScrollView?
     private weak var mainNavigationEntry: WebNavigationEntry?
     private var lastScrollOffset = 0.0
@@ -183,6 +186,11 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         _ tabBarController: UITabBarController,
         didSelect viewController: UIViewController
     ) {
+        // If we have a subtle notification badge then reset it whenever the tab
+        // changes. Since the background color may need to change depending on the
+        // selected tab.
+        if isInboxSubtleNotificationBadgeView { setInboxSubtleNotificationBadge() }
+
         let tabViewController = viewController as! RootTabController
 
         // We only have one underlying web view for each tab. So whenever the user
@@ -765,6 +773,119 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             }
         }
     }
+
+    func webNavigationController(
+        clearInboxNotificationBadge webNavigationController: WebNavigationController
+    ) { clearInboxNotificationBadge() }
+
+    func webNavigationController(
+        _ webNavigationController: WebNavigationController,
+        setInboxLoudNotificationBadge loudNotificationCount: Int
+    ) { setInboxLoudNotificationBadge(loudNotificationCount) }
+
+    func webNavigationController(
+        setInboxSubtleNotificationBadge webNavigationController: WebNavigationController
+    ) { setInboxSubtleNotificationBadge() }
+
+    private static let inboxLoudNotificationBadgeFontSize = 12.0
+    private static let inboxNotificationBadgeBorderWidth = inboxLoudNotificationBadgeFontSize * 0.15
+
+    private func clearInboxNotificationBadge() {
+        inboxNotificationBadgeView?.removeFromSuperview()
+        inboxNotificationBadgeView = nil
+        isInboxSubtleNotificationBadgeView = false
+    }
+
+    private func setInboxLoudNotificationBadge(_ loudNotificationCount: Int) {
+        inboxNotificationBadgeView?.removeFromSuperview()
+        inboxNotificationBadgeView = nil
+        isInboxSubtleNotificationBadgeView = false
+
+        let inboxTabIndex =
+            (viewControllers?.firstIndex(where: { ($0 as? RootTabController)?.tab == .inbox }))!
+
+        let tabBarItemWidth = tabBar.frame.width / CGFloat(tabBar.items!.count)
+
+        let fontSize = RootTabBarController.inboxLoudNotificationBadgeFontSize
+        let borderWidth = RootTabBarController.inboxNotificationBadgeBorderWidth
+
+        let offsetX = 7.5
+        let offsetY = -8.0
+
+        // The view we create here should render the same as `<LoudNotificationBadge>`.
+        // `<LoudNotificationBadge>` renders with a 10px font size (on mobile) but we
+        // want to render with a larger font size. So all measurements are relative to
+        // `fontSize` but with the same proportions as `<LoudNotificationBadge>`.
+        let badgeView = UILabel()
+        badgeView.text = loudNotificationCount > 99 ? "99+" : String(loudNotificationCount)
+
+        badgeView.backgroundColor = UIColor(named: "red-50-const")!
+        badgeView.textColor = UIColor(named: "grey-0-const")!
+        badgeView.textAlignment = .center
+        badgeView.font = UIFont(name: "Inter-Medium", size: fontSize)!
+
+        badgeView.clipsToBounds = true
+        badgeView.frame.size = CGSize(
+            width: max(
+                fontSize * 1.5,
+                // `intrinsicContentSize` may only be measured after setting text and font.
+                badgeView.intrinsicContentSize.width + (fontSize / 2)
+            ) + borderWidth * 2,
+            height: fontSize * 1.5 + borderWidth * 2
+        )
+
+        badgeView.center = CGPoint(
+            x: (tabBarItemWidth * CGFloat(inboxTabIndex)) + (tabBarItemWidth / 2.0) + offsetX,
+            y: (tabBar.frame.height - view.safeAreaInsets.bottom) / 2.0 + offsetY
+        )
+
+        badgeView.layer.cornerRadius = badgeView.bounds.height / 2
+        badgeView.layer.borderColor = UIColor(named: "grey-0")!.cgColor
+        badgeView.layer.borderWidth = borderWidth
+
+        tabBar.addSubview(badgeView)
+
+        inboxNotificationBadgeView = badgeView
+    }
+
+    private func setInboxSubtleNotificationBadge() {
+        inboxNotificationBadgeView?.removeFromSuperview()
+        inboxNotificationBadgeView = nil
+        isInboxSubtleNotificationBadgeView = false
+
+        let inboxTabIndex =
+            (viewControllers?.firstIndex(where: { ($0 as? RootTabController)?.tab == .inbox }))!
+
+        let tabBarItemWidth = tabBar.frame.width / CGFloat(tabBar.items!.count)
+
+        let borderWidth = RootTabBarController.inboxNotificationBadgeBorderWidth
+
+        let offsetX = 5.0
+        let offsetY = -6.5
+
+        let badgeView = InboxSubtleNotificationBadgeView()
+
+        badgeView.frame.size = CGSize(width: 5 + borderWidth, height: 5 + borderWidth)
+        badgeView.center = CGPoint(
+            x: (tabBarItemWidth * CGFloat(inboxTabIndex)) + (tabBarItemWidth / 2.0) + offsetX,
+            y: (tabBar.frame.height - view.safeAreaInsets.bottom) / 2.0 + offsetY
+        )
+
+        badgeView.layer.fillColor =
+            UIColor(
+                named: (selectedViewController as! RootTabController).tab == .inbox
+                    ? "grey-100" : "grey-30"
+            )!
+            .cgColor
+        badgeView.layer.strokeColor = UIColor(named: "grey-0")!.cgColor
+        badgeView.layer.lineWidth = borderWidth
+        badgeView.layer.cornerRadius = badgeView.bounds.height / 2
+
+        tabBar.addSubview(badgeView)
+
+        inboxNotificationBadgeView = badgeView
+        isInboxSubtleNotificationBadgeView = true
+    }
 }
 
 class RootTabController: UIViewController {
@@ -789,4 +910,23 @@ class RootTabController: UIViewController {
     }
 
     required init?(coder: NSCoder) { fatalError("Unimplemented") }
+}
+
+/// Helper view for rendering a subtle notification badge without anti-aliasing
+/// artifacts at the shape's border.
+///
+/// Adapted from:
+/// https://stackoverflow.com/a/71185674/1568890
+class InboxSubtleNotificationBadgeView: UIView {
+    override class var layerClass: AnyClass { return CAShapeLayer.self }
+    override var layer: CAShapeLayer { super.layer as! CAShapeLayer }
+
+    override init(frame: CGRect) { super.init(frame: frame) }
+    required init?(coder: NSCoder) { fatalError("Unimplemented") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let path = UIBezierPath(roundedRect: bounds, cornerRadius: layer.cornerRadius)
+        layer.path = path.cgPath
+    }
 }

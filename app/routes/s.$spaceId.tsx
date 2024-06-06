@@ -39,6 +39,7 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {RootNavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {SearchModal} from "~/client/search/search_modal.js";
+import {SpaceLayoutNativeMobileInboxController} from "~/client/spaces/layout/space_layout_native_mobile_inbox_controller.js";
 import {SpaceLayoutSideBar} from "~/client/spaces/layout/space_layout_side_bar.js";
 import {
     SpaceLayoutWebMobileTabBar,
@@ -663,6 +664,9 @@ export default function SpaceLayoutRoute() {
                             </SearchModalErrorBoundary>
                         )}
                         {isMobile && !clientInfo.isNativeMobile && <SpaceLayoutWebMobileTabBar />}
+                        {clientInfo.isNativeMobile && (
+                            <SpaceLayoutNativeMobileInboxController initialInbox={inbox} />
+                        )}
                     </TaskRealtimeClientContextProvider>
                 </SpaceContextProvider>
             </RootNavigationContextProvider>

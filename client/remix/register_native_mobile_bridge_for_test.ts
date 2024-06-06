@@ -76,6 +76,9 @@ export const NativeMobileBridgeForTest: typeof NativeMobileBridge & {
                 "`NativeMobileBridge.tabBar.enable()` is unimplemented in tests",
             );
         },
+        clearInboxNotificationBadge: () => {},
+        setInboxLoudNotificationBadge: () => {},
+        setInboxSubtleNotificationBadge: () => {},
     },
     keyboard: {
         subscribeToFrameChange: () => {

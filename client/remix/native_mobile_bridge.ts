@@ -501,6 +501,24 @@ export const NativeMobileBridge: {
          * Show the tab bar after it was hidden by `disable()`.
          */
         enable(options?: {isAnimated: boolean}): void;
+
+        /**
+         * Clears any notification badge on the inbox tab in the native mobile app. If
+         * a tab bar is visible for this web process.
+         */
+        clearInboxNotificationBadge(): void;
+
+        /**
+         * Sets the notification badge on our inbox tab to the provided loud
+         * notification count. If a tab bar is visible for this web process.
+         */
+        setInboxLoudNotificationBadge(loudNotificationCount: number): void;
+
+        /**
+         * Sets a subtle notification badge on our inbox tab. If a tab bar is visible
+         * for this web process.
+         */
+        setInboxSubtleNotificationBadge(): void;
     };
 
     /**

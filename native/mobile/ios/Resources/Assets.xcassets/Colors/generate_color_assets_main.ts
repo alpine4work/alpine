@@ -64,8 +64,11 @@ async function writeColor(name: string, lightColorString: string, darkColorStrin
 async function main() {
     await runAllPromises(
         colorArgs.map(async color => {
-            if (color === "grey-100") {
-                await writeColor("grey-100", colors["grey-100"], colors["grey-0"]);
+            if (color.endsWith("-const")) {
+                const constColor = assertExists(
+                    cast<{[key: string]: string}>(colorsWithShade)[color.slice(0, -6)],
+                );
+                await writeColor(color, constColor, constColor);
             } else {
                 const lightColor = assertExists(
                     cast<{[key: string]: string}>(colorsWithShade)[color],

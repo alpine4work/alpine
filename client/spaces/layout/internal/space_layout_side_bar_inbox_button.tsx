@@ -1,4 +1,4 @@
-import {differenceInHours} from "date-fns";
+import {differenceInMinutes} from "date-fns";
 import {Bell} from "phosphor-react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -14,6 +14,7 @@ import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {
     SpaceLayoutSideBarInboxOverlay,
@@ -28,6 +29,7 @@ import {
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {InboxEntryModel, InboxModel} from "~/shared/notifications/inbox_model.js";
 import {
@@ -41,6 +43,8 @@ import {
     overlayFadeOutAnimationDurationMs,
 } from "~/shared/styles/styles.js";
 
+export const inboxSubtleNotificationBadgePeaceMinutes = 60;
+
 export function SpaceLayoutSideBarInboxButton({
     initialInbox,
 }: {
@@ -50,9 +54,16 @@ export function SpaceLayoutSideBarInboxButton({
     const currentTimeRoundedToHour = useCurrentTimeRoundedToHour();
     const context = useAppContext();
     const {space} = useSpaceContext();
+    const {isNativeMobile} = useClientInfo();
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
 
     const overlayTriggerButtonRef = useRef<OverlayTriggerButtonRef>(null);
+
+    // In native mobile, we expect that this component shouldn't render. Instead
+    // `<SpaceLayoutNativeMobileInboxController>` should render. This assert is a
+    // sanity check since we don't want to maintain two separate inbox realtime
+    // items which would be inefficient.
+    assert(!isNativeMobile);
 
     const {item: inbox} = useDynamoGeneralRealtimeItem(initialInbox, {
         isConnected,
@@ -270,10 +281,10 @@ export function SpaceLayoutSideBarInboxButton({
                 // notification.
                 inbox.model.entryCount > 0 &&
                   (!inbox.model.lastZeroEntryCountTime ||
-                      differenceInHours(
+                      differenceInMinutes(
                           currentTimeRoundedToHour,
                           inbox.model.lastZeroEntryCountTime,
-                      ) >= 1) ? (
+                      ) > inboxSubtleNotificationBadgePeaceMinutes) ? (
                     <Box
                         zIndex="30"
                         position="absolute"

@@ -1,7 +1,16 @@
 import {Box} from "~/client/design/box.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {RemLength, Spacing, spacing} from "~/shared/design/spacing.js";
 import {backgroundColorVar} from "~/shared/styles/styles.js";
 
+/**
+ * The red dot with a notification count we render next to the notifications
+ * icon or an inbox entry.
+ *
+ * The `setInboxLoudNotificationBadge()` function in
+ * `RootTabBarController.swift` renders identical UI in Swift code. If we make
+ * a change here we also probably need to make a change there.
+ */
 export function LoudNotificationBadge({
     top,
     right,
@@ -11,6 +20,8 @@ export function LoudNotificationBadge({
     right: Spacing | `-${Spacing}` | RemLength;
     loudNotificationCount: number;
 }) {
+    const isMobile = useIsMobile();
+
     return (
         // We use a bright red design for loud notifications. We know this can be
         // distracting...but that's the point of a loud notification. Someone is
@@ -20,16 +31,17 @@ export function LoudNotificationBadge({
             position="absolute"
             pointerEvents="none"
             borderRadius="full"
+            fontStyle="semi-bold"
             style={{
-                lineHeight: 1,
-                fontSize: "0.5rem",
-                // On high pixel density displays we want 1.3px should to round up to 1.5px and
-                // on low pixel density displays we want 1.3px to round down to 1px.
+                // On high pixel density displays we want 1.3px should to round up to 1.5px
+                // and on low pixel density displays we want 1.3px to round down to 1px.
+                // Mobile devices generally have high pixel density so we set to 1.5px
+                // directly to avoid incorrect rounding.
                 //
                 // That extra width is helpful when rendering this on top of a solid object
                 // like an avatar. We don't want 2px since an avatar pile will use that for
                 // occluding other avatars.
-                boxShadow: `0 0 0 1.3px ${backgroundColorVar}`,
+                boxShadow: `0 0 0 ${isMobile ? 1.5 : 1.3}px ${backgroundColorVar}`,
                 // Use `right` and `translateX` to center the number around a point inset within
                 // the positioning context.
                 top: top.endsWith("rem")
@@ -49,9 +61,6 @@ export function LoudNotificationBadge({
                 minWidth="3"
                 height="3"
                 paddingX="0.5"
-                display="flex"
-                justifyContent="center"
-                alignItems="center"
                 borderRadius="full"
                 color="grey-0-const"
                 backgroundColor="red-50-const"
@@ -60,6 +69,11 @@ export function LoudNotificationBadge({
                 // users. Reading out a number with no context doesn't make sense? (Number
                 // with a red badge is a clear visual cue.)
                 aria-hidden={true}
+                style={{
+                    textAlign: "center",
+                    lineHeight: spacing["3"],
+                    fontSize: "0.5rem",
+                }}
             >
                 {loudNotificationCount > 99 ? "99+" : loudNotificationCount}
             </Box>
