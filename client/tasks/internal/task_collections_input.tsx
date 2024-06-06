@@ -22,7 +22,7 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
@@ -143,7 +143,7 @@ function TaskCollectionsInput(
     const {isAppleDevice} = useClientInfo();
     const context = useAppContext();
     const navigate = useNavigate();
-    const showToast = useShowToast();
+    const reporter = useReporter();
     const {space, currentAccount} = useSpaceContext();
     const {store} = referencesSubscription;
 
@@ -674,11 +674,7 @@ function TaskCollectionsInput(
                             // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
                             navigate(`/s/${space.id}/tasks/collections/${collection.id}`).catch(
                                 error => {
-                                    showToast({
-                                        type: "Error",
-                                        title: "Can’t open collection",
-                                        error,
-                                    });
+                                    reporter.displayError("Can’t open collection", error);
                                 },
                             );
                         }}

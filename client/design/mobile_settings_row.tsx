@@ -2,7 +2,7 @@ import {Check, IconContext, SpinnerGap} from "phosphor-react";
 import {ReactNode, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {borderRadius, colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
@@ -26,7 +26,7 @@ export function MobileSettingsRow({
     withBorderTop?: boolean;
     withoutBorderBottom?: boolean;
 }) {
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     const [isPending, setIsPending] = useState(false);
     const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
@@ -45,12 +45,7 @@ export function MobileSettingsRow({
                 },
                 error => {
                     setIsPending(false);
-
-                    showToast({
-                        type: "Error",
-                        title: pressErrorTitle,
-                        error,
-                    });
+                    reporter.displayError(pressErrorTitle, error);
                 },
             );
         },

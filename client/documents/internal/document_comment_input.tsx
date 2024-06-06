@@ -1,7 +1,7 @@
 import {Memo, Ref, RefObject, useCallback, useRef} from "react";
 import {flushSync} from "react-dom";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
-import {useAppContext} from "~/client/context/app_context.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client.js";
 import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/use_document_content_editor_web_socket.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -67,7 +67,7 @@ export function DocumentCommentInput({
     paddingX: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     withMobileMaxHeight: boolean;
 }) {
-    const context = useAppContext();
+    const reporter = useReporter();
 
     const inputRef = useRef<MessageInputRef>(null);
 
@@ -202,9 +202,10 @@ export function DocumentCommentInput({
                     // error in our logs but the user won't see any weird behavior if the
                     // request fails.
                     .catch(error =>
-                        context.tracer
-                            .getRoot()
-                            .logUncaughtException("Couldn't update typing indicator", error),
+                        reporter.logErrorWithoutDisplaying(
+                            "Couldn't update typing indicator",
+                            error,
+                        ),
                     );
             }}
             onHideTypingIndicator={() => {
@@ -214,9 +215,10 @@ export function DocumentCommentInput({
                     // error in our logs but the user won't see any weird behavior if the
                     // request fails.
                     .catch(error =>
-                        context.tracer
-                            .getRoot()
-                            .logUncaughtException("Couldn't update typing indicator", error),
+                        reporter.logErrorWithoutDisplaying(
+                            "Couldn't update typing indicator",
+                            error,
+                        ),
                     );
             }}
             paddingX={paddingX}

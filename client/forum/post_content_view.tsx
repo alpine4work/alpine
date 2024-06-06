@@ -10,8 +10,8 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
-import {useShowToast} from "~/client/design/toast.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
 import {PostEditing} from "~/client/forum/internal/post_editing.js";
@@ -297,7 +297,7 @@ function PostContentViewFooter({
 }) {
     const isMobile = useIsMobile();
     const navigate = useNavigate();
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     return (
         <Box
@@ -441,16 +441,12 @@ function PostContentViewFooter({
                     height={postContentViewFooterButtonHeight}
                     paddingX="1.5"
                     onPress={() => {
-                        showToast({
-                            type: "Error",
-                            title: "Can’t like post",
-                            error: new UnimplementedError(
-                                "Liking posts hasn't been implemented yet",
-                                {
-                                    displayMessage: errorDisplayMessage`Liking posts hasn't been implemented yet.`,
-                                },
-                            ),
-                        });
+                        reporter.displayError(
+                            "Can’t like post",
+                            new UnimplementedError("Liking posts hasn't been implemented yet", {
+                                displayMessage: errorDisplayMessage`Liking posts hasn't been implemented yet.`,
+                            }),
+                        );
                     }}
                 >
                     <PrettyNumber number={0} label="like" />

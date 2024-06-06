@@ -1,32 +1,31 @@
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {MenuAction} from "~/client/design/menu.js";
-import {Toast, useShowToast} from "~/client/design/toast.js";
+import {Reporter, useReporter} from "~/client/design/reporter.js";
 import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {elevation} from "~/shared/styles/styles.js";
 
-export function createShareMenuItem({showToast}: {showToast: (toast: Toast) => void}): MenuAction {
+export function createShareMenuItem(reporter: Reporter): MenuAction {
     return {
         label: "Share",
         icon: <BuildingsIcon />,
         iconPlacement: "end",
         onPress: () => {
-            showToast({
-                type: "Error",
-                title: "Can’t share document",
-                error: new UnimplementedError("Sharing documents hasn't been implemented yet", {
+            reporter.displayError(
+                "Can’t share document",
+                new UnimplementedError("Sharing documents hasn't been implemented yet", {
                     displayMessage: errorDisplayMessage`Sharing documents hasn’t been implemented yet.`,
                 }),
-            });
+            );
         },
     };
 }
 
 export function ShareButton() {
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     return (
         <Box display="flex" alignItems="center" gap="1.5">
@@ -34,16 +33,12 @@ export function ShareButton() {
                 height="6"
                 paddingX="2"
                 onPress={() => {
-                    showToast({
-                        type: "Error",
-                        title: "Can’t share document",
-                        error: new UnimplementedError(
-                            "Sharing documents hasn't been implemented yet",
-                            {
-                                displayMessage: errorDisplayMessage`Sharing documents hasn’t been implemented yet.`,
-                            },
-                        ),
-                    });
+                    reporter.displayError(
+                        "Can’t share document",
+                        new UnimplementedError("Sharing documents hasn't been implemented yet", {
+                            displayMessage: errorDisplayMessage`Sharing documents hasn’t been implemented yet.`,
+                        }),
+                    );
                 }}
             >
                 Share
@@ -63,16 +58,12 @@ export function ShareButton() {
                     margin: -1,
                 }}
                 onClick={() => {
-                    showToast({
-                        type: "Error",
-                        title: "Can’t share document",
-                        error: new UnimplementedError(
-                            "Sharing documents hasn't been implemented yet",
-                            {
-                                displayMessage: errorDisplayMessage`Sharing documents hasn’t been implemented yet.`,
-                            },
-                        ),
-                    });
+                    reporter.displayError(
+                        "Can’t share document",
+                        new UnimplementedError("Sharing documents hasn't been implemented yet", {
+                            displayMessage: errorDisplayMessage`Sharing documents hasn’t been implemented yet.`,
+                        }),
+                    );
                 }}
             >
                 <Box

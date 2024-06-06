@@ -50,12 +50,12 @@ async function main() {
         tracer: new TracerContextModule(tracer),
         rpc: new ClientRpcContextModule(),
         react: new ReactContextModule({
-            reportRenderedError: error => {
+            reportRenderedError: (tracer, error) => {
                 // Log after a microtask so we don't get the React component trace in the error
                 // log. The trace will always point to our error message renderer which
                 // isn't useful.
                 scheduleMicrotask(() => {
-                    context.tracer.getRoot().logUncaughtException("Rendered error", error);
+                    tracer.getRoot().logUncaughtException("Rendered error", error);
                 });
             },
         }),

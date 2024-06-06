@@ -4,8 +4,8 @@ import {useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {Spacer} from "~/client/design/spacer.js";
-import {useShowToast} from "~/client/design/toast.js";
 import {DocumentCommentThreadPreview} from "~/client/documents/internal/document_comment_thread_preview.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
@@ -46,7 +46,7 @@ export function DocumentCommentThreadHeader({
     contentReferences: DocumentContentReferences;
     onCommentThreadSnippetPress: (commentThreadId: DocumentCommentThreadId) => void;
 }) {
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     const buttonRef = useRef<HTMLButtonElement>(null);
     const [isPending, setIsPending] = useState(false);
@@ -69,11 +69,10 @@ export function DocumentCommentThreadHeader({
             error => {
                 setIsPending(false);
 
-                showToast({
-                    type: "Error",
-                    title: isResolved ? "Couldn’t mark as unresolved" : "Couldn’t mark as resolved",
+                reporter.displayError(
+                    isResolved ? "Couldn’t mark as unresolved" : "Couldn’t mark as resolved",
                     error,
-                });
+                );
             },
         );
     };

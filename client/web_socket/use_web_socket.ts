@@ -3,6 +3,7 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {WebSocketClient, WebSocketClientProcedures} from "~/client/web_socket/web_socket_client.js";
 import {InternalError} from "~/shared/error/error.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -13,10 +14,6 @@ import {
     WebSocketProtocolEventType,
     WebSocketProtocolProceduresType,
 } from "~/shared/web_socket/web_socket_protocol.js";
-
-type MemoObject<Value> = Memo<{
-    [Key in keyof Value]: Memo<Value[Key]>;
-}>;
 
 /**
  * React hook for connecting to a WebSocket using our `WebSocketClient`

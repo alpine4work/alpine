@@ -16,6 +16,7 @@ import {
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/context/app_context.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
@@ -375,7 +376,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     ref: Ref<MessagingViewRef>,
 ) {
     const isMobile = useIsMobile();
-    const context = useAppContext();
+    const reporter = useReporter();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const inputRef = useRef<MessageInputRef>(null);
 
@@ -732,12 +733,10 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                             // error in our logs but the user won't see any weird behavior if the
                             // request fails.
                             .catch(error =>
-                                context.tracer
-                                    .getRoot()
-                                    .logUncaughtException(
-                                        "Couldn't update typing indicator",
-                                        error,
-                                    ),
+                                reporter.logErrorWithoutDisplaying(
+                                    "Couldn't update typing indicator",
+                                    error,
+                                ),
                             );
                     }}
                     onHideTypingIndicator={() => {
@@ -746,12 +745,10 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                             // error in our logs but the user won't see any weird behavior if the
                             // request fails.
                             .catch(error =>
-                                context.tracer
-                                    .getRoot()
-                                    .logUncaughtException(
-                                        "Couldn't update typing indicator",
-                                        error,
-                                    ),
+                                reporter.logErrorWithoutDisplaying(
+                                    "Couldn't update typing indicator",
+                                    error,
+                                ),
                             );
                     }}
                     restoreStateRef={inputRestoreStateRef}

@@ -17,8 +17,8 @@ import {
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useRegisterBottomBarMobileKeyboardToolbarFrame} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
-import {useShowToast} from "~/client/design/toast.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
@@ -494,7 +494,7 @@ function TaskGridViewMobileKeyboardToolbarButton({
     pressErrorTitle?: string;
     onPress: () => MaybePromise<void>;
 }) {
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     const [isPending, setIsPending] = useState(false);
 
@@ -515,11 +515,7 @@ function TaskGridViewMobileKeyboardToolbarButton({
             try {
                 promise = onPress?.();
             } catch (error) {
-                showToast({
-                    type: "Error",
-                    title: pressErrorTitle ?? defaultPressErrorTitle,
-                    error,
-                });
+                reporter.displayError(pressErrorTitle ?? defaultPressErrorTitle, error);
                 return;
             }
 
@@ -541,11 +537,7 @@ function TaskGridViewMobileKeyboardToolbarButton({
                     },
                     error => {
                         setIsPending(false);
-                        showToast({
-                            type: "Error",
-                            title: pressErrorTitle,
-                            error,
-                        });
+                        reporter.displayError(pressErrorTitle, error);
                     },
                 );
             }

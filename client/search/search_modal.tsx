@@ -13,6 +13,7 @@ import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {Modal} from "~/client/design/modal.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
@@ -77,6 +78,7 @@ export function SearchModal({
     debugOptions: SearchOptions | null;
 }) {
     const context = useAppContext();
+    const reporter = useReporter();
     const {space} = useSpaceContext();
     const navigate = useNavigate();
 
@@ -154,12 +156,10 @@ export function SearchModal({
         }).catch(error => {
             // Silently fail. This doesn't affect anything the user sees so we don't need
             // to report the error to the user.
-            context.tracer
-                .getRoot()
-                .logUncaughtException(
-                    "Couldn't mark search result select affinity interaction",
-                    error,
-                );
+            reporter.logErrorWithoutDisplaying(
+                "Couldn't mark search result select affinity interaction",
+                error,
+            );
         });
     };
 

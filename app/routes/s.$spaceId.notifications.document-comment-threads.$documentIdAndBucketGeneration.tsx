@@ -5,7 +5,7 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {printPrettySmallNumberSummary} from "~/client/design/pretty_number.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {
     DocumentCommentThreadListView,
     DocumentCommentThreadListViewRef,
@@ -154,7 +154,7 @@ function DocumentNewCommentThreadsRouteInner({
 }) {
     const isMobile = useIsMobile();
     const rootNavigate = useRootNavigate();
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
 
@@ -374,11 +374,7 @@ function DocumentNewCommentThreadsRouteInner({
                             : `comments=${commentThreadId}`
                     }`,
                 ).catch(error => {
-                    showToast({
-                        type: "Error",
-                        title: "Can’t open document",
-                        error,
-                    });
+                    reporter.displayError("Can’t open document", error);
                 });
             })}
             initialCommentThreadResults={useMemo(

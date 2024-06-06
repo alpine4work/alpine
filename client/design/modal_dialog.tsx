@@ -1,13 +1,19 @@
 import {useEffect, useId, useRef} from "react";
+import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
+import {
+    ErrorDisplayMessageRenderer,
+    defaultErrorDisplayMessage,
+} from "~/client/design/error_display_message_renderer.js";
 import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_buttons.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
-import {InternalError} from "~/shared/error/error.js";
+import {ErrorBase, InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {sprinkles} from "~/shared/styles/styles.js";
@@ -35,17 +41,19 @@ const ActualModalDialog = NativeMobileBridge ? ModalDialogNativeMobile : ModalDi
 export {ActualModalDialog as ModalDialog};
 
 export type ModalDialogProps = {
-    title: string;
-    description: string;
-    primaryButtonLabel: string;
-    isPrimaryButtonDisabled?: boolean;
-    primaryButtonPressErrorTitle?: string;
-    onPrimaryButtonPress: () => MaybePromise<void>;
-    cancelButtonLabel?: string;
-    cancelButtonPressErrorTitle?: string;
-    onCancelButtonPress?: () => MaybePromise<void>;
-    shouldHideCancelButton?: boolean;
-    onClose: () => void;
+    readonly title: string;
+    readonly description:
+        | string
+        | {readonly type: "Error"; readonly error: unknown; readonly reportingContext?: AppContext};
+    readonly primaryButtonLabel: string;
+    readonly isPrimaryButtonDisabled?: boolean;
+    readonly primaryButtonPressErrorTitle?: string;
+    readonly onPrimaryButtonPress?: () => MaybePromise<void>;
+    readonly cancelButtonLabel?: string;
+    readonly cancelButtonPressErrorTitle?: string;
+    readonly onCancelButtonPress?: () => MaybePromise<void>;
+    readonly shouldHideCancelButton?: boolean;
+    readonly onClose: () => void;
 };
 
 function ModalDialog({
@@ -127,7 +135,15 @@ function ModalDialog({
                     fontSize="75"
                     style={{lineHeight: 1.5}}
                 >
-                    {description}
+                    {typeof description === "string" ? (
+                        description
+                    ) : (
+                        <ErrorDisplayMessageRenderer
+                            isSingleLine={true}
+                            error={description.error}
+                            reportingContext={description.reportingContext}
+                        />
+                    )}
                 </Box>
             </Box>
         </ModalWithButtons>
@@ -147,7 +163,8 @@ function ModalDialogNativeMobile({
     shouldHideCancelButton,
     onClose,
 }: ModalDialogProps) {
-    const showToast = useShowToast();
+    const context = useAppContext();
+    const reporter = useReporter();
 
     const hasInitiallyMountedRef = useRef(false);
     useEffect(() => {
@@ -162,14 +179,44 @@ function ModalDialogNativeMobile({
             document.activeElement.blur();
         }
 
+        let descriptionString: string;
+
+        if (typeof description === "string") {
+            descriptionString = description;
+        } else {
+            descriptionString = "";
+
+            // Since we aren't rendering `<ErrorDisplayMessageRenderer>` and instead are
+            // opening a native dialog, report the error here before opening the dialog.
+            (description.reportingContext ?? context).react.reportRenderedError(description.error);
+
+            for (const displayMessageSegment of (description.error instanceof ErrorBase
+                ? description.error.displayMessage
+                : null) ?? defaultErrorDisplayMessage) {
+                switch (displayMessageSegment.type) {
+                    case "Text":
+                    case "SensitiveText":
+                    // TODO(calebmer): When showing an error in `<ModalDialog>` we strip all links
+                    // since the modal content isn't interactive. Figure out if it's possible to put
+                    // links in an iOS dialog and if it's not can we write some code to add the
+                    // links as action buttons in the dialog?
+                    case "Link":
+                        descriptionString += displayMessageSegment.text;
+                        break;
+                    default:
+                        throw exhaustive(displayMessageSegment);
+                }
+            }
+        }
+
         assert(NativeMobileBridge);
         NativeMobileBridge.modal.presentDialog({
             title,
-            description,
+            description: descriptionString,
             primaryButtonLabel,
             isPrimaryButtonDisabled,
             onPrimaryButtonPress: () => {
-                const promise = onPrimaryButtonPress();
+                const promise = onPrimaryButtonPress?.();
 
                 // We can't show a pending indicator in our native mobile modal dialog so
                 // close immediately.
@@ -182,11 +229,7 @@ function ModalDialogNativeMobile({
                     );
 
                     promise.catch(error => {
-                        showToast({
-                            type: "Error",
-                            title: primaryButtonPressErrorTitle,
-                            error,
-                        });
+                        reporter.displayError(primaryButtonPressErrorTitle, error);
                     });
                 }
             },
@@ -205,11 +248,7 @@ function ModalDialogNativeMobile({
                     );
 
                     promise.catch(error => {
-                        showToast({
-                            type: "Error",
-                            title: cancelButtonPressErrorTitle,
-                            error,
-                        });
+                        reporter.displayError(cancelButtonPressErrorTitle, error);
                     });
                 }
             },

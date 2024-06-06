@@ -7,7 +7,7 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {PostFauxInputCreateButton} from "~/client/forum/internal/post_faux_input_create_button.js";
 import {PostListChannelHeader} from "~/client/forum/post_list.js";
@@ -148,7 +148,7 @@ function ChannelViewHeaderMobileDescriptionEditor({
     onCancel: () => void;
     onSave: (description: MessageContent) => Promise<void>;
 }) {
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     const editorId = useId();
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
@@ -260,11 +260,7 @@ function ChannelViewHeaderMobileDescriptionEditor({
                             if (isSaving) return;
 
                             save().catch(error => {
-                                showToast({
-                                    type: "Error",
-                                    title: "Couldn’t save description",
-                                    error,
-                                });
+                                reporter.displayError("Couldn’t save description", error);
                             });
                         }}
                     />

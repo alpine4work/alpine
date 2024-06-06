@@ -5,8 +5,8 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
-import {useShowToast} from "~/client/design/toast.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -32,7 +32,7 @@ export function ChannelViewNameEditor({
     onCancel: () => MaybePromise<void>;
     onSave: (name: string) => Promise<void>;
 }) {
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const [name, setName] = useState(initialName);
@@ -121,11 +121,7 @@ export function ChannelViewNameEditor({
                                                 // save has finished.
                                                 await onSave(name);
                                             } catch (error) {
-                                                showToast({
-                                                    type: "Error",
-                                                    title: "Couldn’t save name",
-                                                    error,
-                                                });
+                                                reporter.displayError("Couldn’t save name", error);
                                             } finally {
                                                 setIsSaving(false);
                                             }

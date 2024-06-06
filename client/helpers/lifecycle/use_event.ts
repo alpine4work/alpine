@@ -4,6 +4,7 @@ import {
     reactDispatchersSeenDuringRender,
 } from "~/client/helpers/lifecycle/internal/react_current_dispatcher.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -64,10 +65,6 @@ export function useEvent<Args extends Array<unknown>>(
         return eventRef.current?.(...args);
     }, []);
 }
-
-export type MemoObject<T extends {}> = Memo<{
-    [K in keyof T]: Memo<T[K]>;
-}>;
 
 /**
  * Allows you to define event handlers that can read the latest props/state but

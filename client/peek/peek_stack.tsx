@@ -38,13 +38,13 @@ import {
     useNavigation,
     useNavigationType,
 } from "react-router";
-import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {
     trackNavigationAnimationFinish,
     trackNavigationAnimationStart,
@@ -298,7 +298,7 @@ function PeekStackContextProvider(
     const dataRouterContext = useContext(DataRouterContext);
     assert(dataRouterContext, "Expected data router context");
 
-    const context = useAppContext();
+    const reporter = useReporter();
     const isMobile = useIsMobile();
 
     const stackRef = useRef<PeekStackRef>(null);
@@ -444,10 +444,10 @@ function PeekStackContextProvider(
                 dispatch({type: "Restore", stack});
             },
             error => {
-                context.tracer.getRoot().logUncaughtException("Couldn't restore peek stack", error);
+                reporter.logErrorWithoutDisplaying("Couldn't restore peek stack", error);
             },
         );
-    }, [createPeekRouter, peekRoutes, location.key, navigationType, state, context.tracer]);
+    }, [createPeekRouter, peekRoutes, location.key, navigationType, state, reporter]);
 
     useEffect(() => {
         const handleVisibilityChange = () => {

@@ -3,7 +3,7 @@ import {ReactNode, createContext, useContext, useEffect, useRef, useState} from 
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {useAppContext} from "~/client/context/app_context.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
@@ -210,7 +210,7 @@ export function TaskRealtimeClientContextProvider({
         contextRef.current = context;
     });
 
-    const showToast = useShowToast();
+    const reporter = useReporter();
     const {currentAccount} = useSpaceContext();
 
     const accountStore = useAccountClientStore();
@@ -245,7 +245,7 @@ export function TaskRealtimeClientContextProvider({
                 spaceId,
                 currentAccountId,
                 browserId,
-                onDisplayError: ({title, error}) => showToast({type: "Error", title, error}),
+                onDisplayError: ({title, error}) => reporter.displayError(title, error),
             });
 
             // Initialize `TaskClientStore` with initial loader data. After initialization,

@@ -29,6 +29,7 @@ import {
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
@@ -189,7 +190,7 @@ export function DocumentContentEditor({
     onContentLocalChange?: () => void;
     onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
 }) {
-    const context = useAppContext();
+    const reporter = useReporter();
     const isInitialAppRender = useIsInitialAppRender();
     const {isAppleDevice, isNativeMobile} = useClientInfo();
     const isMobile = useIsMobile();
@@ -910,12 +911,10 @@ export function DocumentContentEditor({
             if (isAccepted) return;
 
             if (!data) {
-                context.tracer
-                    .getRoot()
-                    .logUncaughtException(
-                        "Selected document comment thread couldn't be opened",
-                        new InternalError("Couldn't find document comment thread"),
-                    );
+                reporter.logErrorWithoutDisplaying(
+                    "Selected document comment thread couldn't be opened",
+                    new InternalError("Couldn't find document comment thread"),
+                );
 
                 // Comment thread not found so cancel the transition.
                 setSidebarState({
@@ -937,7 +936,7 @@ export function DocumentContentEditor({
             timeout.clear();
             transition.pendingPromiseResolver.resolve();
         };
-    }, [context.tracer, sidebarState.transition]);
+    }, [reporter, sidebarState.transition]);
 
     const [
         mobileDiscardSidebarCommentInputModalState,
@@ -2006,7 +2005,7 @@ function DocumentContentEditorSidebar({
     onClose: Memo<() => void>;
     openCommentThread: Memo<(commentThreadId: DocumentCommentThreadId) => Promise<void>>;
 }) {
-    const context = useAppContext();
+    const reporter = useReporter();
     const {isAppleDevice, isNativeMobile} = useClientInfo();
 
     const previousCommentThreadButtonRef = useRef<HTMLElement & {press(): void}>(null);
@@ -2022,16 +2021,14 @@ function DocumentContentEditorSidebar({
         initialDataResultRef.current = initialDataResult;
 
         if (!initialDataResult.isPending && !initialDataResult.value) {
-            context.tracer
-                .getRoot()
-                .logUncaughtException(
-                    "Selected document comment thread couldn't be opened",
-                    new InternalError("Couldn't find document comment thread"),
-                );
+            reporter.logErrorWithoutDisplaying(
+                "Selected document comment thread couldn't be opened",
+                new InternalError("Couldn't find document comment thread"),
+            );
 
             onClose();
         }
-    }, [context.tracer, initialDataResult, onClose]);
+    }, [initialDataResult, onClose, reporter]);
 
     const currentAdjacentCommentThreads = useMemo(() => {
         let decoratedCommentThreadIndex = 0;

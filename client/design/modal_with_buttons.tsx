@@ -2,8 +2,8 @@ import {ReactNode, Ref, forwardRef, useImperativeHandle, useRef, useState} from 
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {Modal} from "~/client/design/modal.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
-import {useShowToast} from "~/client/design/toast.js";
 import {RemLength, Spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -47,7 +47,7 @@ function ModalWithButtons(
         primaryButtonLabel: string;
         isPrimaryButtonDisabled?: boolean;
         primaryButtonPressErrorTitle?: string;
-        onPrimaryButtonPress: () => MaybePromise<void>;
+        onPrimaryButtonPress?: () => MaybePromise<void>;
         cancelButtonLabel?: string;
         cancelButtonPressErrorTitle?: string;
         onCancelButtonPress?: () => MaybePromise<void>;
@@ -62,7 +62,7 @@ function ModalWithButtons(
     },
     ref: Ref<ModalWithButtonsRef>,
 ) {
-    const showToast = useShowToast();
+    const reporter = useReporter();
     const primaryButtonRef = useRef<HTMLButtonElement>(null);
     const [isPrimaryButtonPending, setIsPrimaryButtonPending] = useState(false);
 
@@ -90,7 +90,7 @@ function ModalWithButtons(
                 const pressPrimaryButton = () => {
                     if (isPrimaryButtonDisabled) return;
 
-                    const promise = onPrimaryButtonPress();
+                    const promise = onPrimaryButtonPress?.();
 
                     if (!(promise instanceof Promise)) {
                         onCloseWithoutAnimation();
@@ -124,12 +124,7 @@ function ModalWithButtons(
                             },
                             error => {
                                 setIsPrimaryButtonPending(false);
-
-                                showToast({
-                                    type: "Error",
-                                    title: primaryButtonPressErrorTitle,
-                                    error,
-                                });
+                                reporter.displayError(primaryButtonPressErrorTitle, error);
                             },
                         );
                     }

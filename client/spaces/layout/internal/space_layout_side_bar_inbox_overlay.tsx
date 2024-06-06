@@ -13,7 +13,7 @@ import {
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {InboxEntryView} from "~/client/inbox/inbox_entry_view.js";
@@ -413,7 +413,7 @@ function SpaceLayoutTopBarInboxOverlayEntry({
     isLastItem: boolean;
     onClose: () => void;
 }) {
-    const showToast = useShowToast();
+    const reporter = useReporter();
     const peekStackContext = usePeekStackContext();
     const archiveInboxEntry = useArchiveInboxEntry();
     const unarchiveInboxEntry = useUnarchiveInboxEntry();
@@ -449,11 +449,7 @@ function SpaceLayoutTopBarInboxOverlayEntry({
                         },
                         error => {
                             setIsPending(false);
-                            showToast({
-                                type: "Error",
-                                title: "Couldn’t open notification",
-                                error,
-                            });
+                            reporter.displayError("Couldn’t open notification", error);
                         },
                     );
             }}

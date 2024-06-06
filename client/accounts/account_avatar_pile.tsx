@@ -4,9 +4,9 @@ import {SpinnerGap} from "phosphor-react";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
-import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {Tooltip, TooltipProps} from "~/client/design/tooltip.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -186,7 +186,7 @@ function AsyncTooltip({
     getContent,
     ...tooltipProps
 }: Omit<TooltipProps, "content" | "isDisabled"> & {getContent: () => Promise<ReactNode>}) {
-    const context = useAppContext();
+    const reporter = useReporter();
 
     const [tooltipState, setTooltipState] = useState<
         {isHoveredOrFocused: false} | {isHoveredOrFocused: true; isTooltipOpenStalled: boolean}
@@ -231,11 +231,7 @@ function AsyncTooltip({
                 const content = await getContent();
                 setContentState({isLoaded: true, loadTime, content});
             } catch (error) {
-                // TODO(calebmer): This does not show the exception to the user! We should show
-                // some kind of banner on error.
-                context.tracer
-                    .getRoot()
-                    .logUncaughtException("Could not get tooltip content", error);
+                reporter.displayError("Couldn’t get content", error);
             } finally {
                 isLoadingRef.current = false;
             }

@@ -1,6 +1,6 @@
 import {Memo, useCallback} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
@@ -30,7 +30,7 @@ export function useArchiveInboxEntry(): Memo<
 > {
     const context = useAppContext();
     const {space} = useSpaceContext();
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     return useCallback(
         ({entry, withAnimation}) => {
@@ -40,11 +40,7 @@ export function useArchiveInboxEntry(): Memo<
             });
 
             promise.catch(error => {
-                showToast({
-                    type: "Error",
-                    title: "Couldn’t dismiss notification",
-                    error,
-                });
+                reporter.displayError("Couldn’t dismiss notification", error);
             });
 
             archiveInboxEntryOptimisticallyEmitter.emit({
@@ -53,7 +49,7 @@ export function useArchiveInboxEntry(): Memo<
                 withAnimation,
             });
         },
-        [context, showToast, space.id],
+        [context, reporter, space.id],
     );
 }
 
@@ -81,7 +77,7 @@ export function useUnarchiveInboxEntry(): Memo<
 > {
     const context = useAppContext();
     const {space} = useSpaceContext();
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     return useCallback(
         ({entry, withAnimation}) => {
@@ -91,11 +87,7 @@ export function useUnarchiveInboxEntry(): Memo<
             });
 
             promise.catch(error => {
-                showToast({
-                    type: "Error",
-                    title: "Couldn’t move notification to new",
-                    error,
-                });
+                reporter.displayError("Couldn’t move notification to new", error);
             });
 
             unarchiveInboxEntryOptimisticallyEmitter.emit({
@@ -104,6 +96,6 @@ export function useUnarchiveInboxEntry(): Memo<
                 withAnimation,
             });
         },
-        [context, showToast, space.id],
+        [context, reporter, space.id],
     );
 }

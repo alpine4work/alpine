@@ -9,7 +9,7 @@ import {
     onTriggeredOverlayCloseSymbol,
     onTriggeredOverlayOpenSymbol,
 } from "~/client/design/overlay_trigger_button.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useTouchSlop} from "~/client/design/use_touch_slop.js";
@@ -221,7 +221,7 @@ function Button(
         isFocusable = true,
     } = props;
     const isMobile = useIsMobile();
-    const showToast = useShowToast();
+    const reporter = useReporter();
     const localRef = useRef<HTMLButtonElement | null>(null);
 
     const [isPendingFromPress, setIsPendingFromPress] = useState(false);
@@ -239,11 +239,7 @@ function Button(
         try {
             promise = onPress?.(event);
         } catch (error) {
-            showToast({
-                type: "Error",
-                title: pressErrorTitle ?? defaultPressErrorTitle,
-                error,
-            });
+            reporter.displayError(pressErrorTitle ?? defaultPressErrorTitle, error);
             return;
         }
 

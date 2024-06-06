@@ -3,7 +3,7 @@ import {ReactNode, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {MobileSettingsRow} from "~/client/design/mobile_settings_row.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {ChatBrandBigIcon} from "~/client/icons/brand/chat_brand_big_icon.js";
 import {DocumentBrandBigIcon} from "~/client/icons/brand/document_brand_big_icon.js";
@@ -110,7 +110,7 @@ function CreateRouteButton({
     onPress: () => Promise<void>;
     withBorderTop?: boolean;
 }) {
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     const [isPending, setIsPending] = useState(false);
     const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
@@ -130,11 +130,7 @@ function CreateRouteButton({
                 error => {
                     setIsPending(false);
 
-                    showToast({
-                        type: "Error",
-                        title: pressErrorTitle,
-                        error,
-                    });
+                    reporter.displayError(pressErrorTitle, error);
                 },
             );
         },

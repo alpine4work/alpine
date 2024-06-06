@@ -14,7 +14,7 @@ import {ContentView} from "~/client/content/content_view.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {ErrorToast, useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -64,11 +64,11 @@ function TaskDetailNotesField(
 ) {
     const context = useAppContext();
     const isMobile = useIsMobile();
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     const events = useEvents({
         getContext: () => context,
-        showToast: (toast: ErrorToast) => showToast(toast),
+        getReporter: () => reporter,
     });
 
     const labelId = useId();
@@ -95,7 +95,7 @@ function TaskDetailNotesField(
             taskId,
             initialNotesVersion,
             initialNotesContent,
-            showToast: events.showToast,
+            displayError: (title, error) => events.getReporter().displayError(title, error),
         });
     });
 
@@ -106,7 +106,7 @@ function TaskDetailNotesField(
                 taskId,
                 initialNotesVersion,
                 initialNotesContent,
-                showToast: events.showToast,
+                displayError: (title, error) => events.getReporter().displayError(title, error),
             });
         });
     }

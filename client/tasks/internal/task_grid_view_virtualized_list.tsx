@@ -32,7 +32,7 @@ import {maintainTextInputVisibility} from "~/client/design/use_text_input_visibi
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
-import {MemoObject, useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useInitialAppRenderId} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
@@ -40,6 +40,7 @@ import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {undefinedStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";

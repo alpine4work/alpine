@@ -6,7 +6,7 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {usePreloadSearchByAffinity} from "~/client/search/use_search_state.js";
 import {SpaceLayoutSideBarCreateButton} from "~/client/spaces/layout/internal/space_layout_side_bar_create_button.js";
@@ -33,7 +33,7 @@ export function SpaceLayoutSideBar({
     onSearchPress: () => void;
 }) {
     const rootNavigate = useRootNavigate();
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     // Preload affinitive search entities so they're ready when the search modal
     // opens. We expect search to be the primary way users navigate around the
@@ -64,16 +64,15 @@ export function SpaceLayoutSideBar({
                                     `/s/${space.id}/channels/${space.alphaAccessDefaultChannelId}`,
                                 );
                             } else {
-                                showToast({
-                                    type: "Error",
-                                    title: "Can’t open the home page",
-                                    error: new UnimplementedError(
+                                reporter.displayError(
+                                    "Can’t open the home page",
+                                    new UnimplementedError(
                                         "The home page hasn't been implemented yet",
                                         {
                                             displayMessage: errorDisplayMessage`The home page hasn’t been implemented yet.`,
                                         },
                                     ),
-                                });
+                                );
                             }
                         }}
                     >

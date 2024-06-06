@@ -1,7 +1,7 @@
 import {Memo, MutableRefObject, ReactNode, useEffect, useMemo, useReducer} from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -195,7 +195,7 @@ export function useMessageEditing<RoomKey extends string>({
     messageEditing: MessageEditing<RoomKey>;
     modals: ReactNode;
 } {
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     const [state, dispatch] = useReducer<
         (
@@ -228,17 +228,13 @@ export function useMessageEditing<RoomKey extends string>({
                 if (state.savePromiseResolver) {
                     state.savePromiseResolver.reject(error);
                 } else {
-                    showToast({
-                        type: "Error",
-                        title: `Couldn’t update ${messageNoun}`,
-                        error,
-                    });
+                    reporter.displayError(`Couldn’t update ${messageNoun}`, error);
                 }
 
                 dispatch({type: "FinishedSavingContent", shouldCancelEditing: false});
             },
         );
-    }, [messageNoun, onUpdateMessageContent, showToast, state]);
+    }, [messageNoun, onUpdateMessageContent, reporter, state]);
 
     return {
         messageEditing: useMemo(

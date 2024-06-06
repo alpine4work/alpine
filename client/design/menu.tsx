@@ -18,9 +18,9 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {OverlayPlacement} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
-import {useShowToast} from "~/client/design/toast.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
@@ -855,7 +855,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
     ref: Ref<HTMLDivElement>,
 ) {
     const isMobile = useIsMobile();
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     const {width, iconSize, itemPaddingY, height} =
         menuSizeConstants[size][isMobile ? "mobile" : "desktop"];
@@ -894,15 +894,13 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
             try {
                 promise = action.onPress();
             } catch (error) {
-                showToast({
-                    type: "Error",
-                    title:
-                        pressErrorTitle ??
+                reporter.displayError(
+                    pressErrorTitle ??
                         (event.pointerType === "touch"
                             ? defaultTouchMenuItemPressErrorTitle
                             : defaultMouseMenuItemPressErrorTitle),
                     error,
-                });
+                );
                 return;
             }
 
@@ -945,11 +943,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                     },
                     error => {
                         setPendingState({isPending: false, shouldShowPendingSpinner: false});
-                        showToast({
-                            type: "Error",
-                            title: pressErrorTitle,
-                            error,
-                        });
+                        reporter.displayError(pressErrorTitle, error);
                     },
                 );
             }
@@ -1095,7 +1089,7 @@ function MenuCustomItem({
     isFocusRingVisible: boolean;
     shouldNotCloseAfterPress: boolean;
 }) {
-    const showToast = useShowToast();
+    const reporter = useReporter();
     const [pendingState, setPendingState] = useState<
         | {isPending: false; shouldShowPendingSpinner: false}
         | {isPending: true; shouldShowPendingSpinner: boolean}
@@ -1110,15 +1104,13 @@ function MenuCustomItem({
             try {
                 promise = action.onPress();
             } catch (error) {
-                showToast({
-                    type: "Error",
-                    title:
-                        pressErrorTitle ??
+                reporter.displayError(
+                    pressErrorTitle ??
                         (event.pointerType === "touch"
                             ? defaultTouchMenuItemPressErrorTitle
                             : defaultMouseMenuItemPressErrorTitle),
                     error,
-                });
+                );
                 return;
             }
 
@@ -1161,11 +1153,7 @@ function MenuCustomItem({
                     },
                     error => {
                         setPendingState({isPending: false, shouldShowPendingSpinner: false});
-                        showToast({
-                            type: "Error",
-                            title: pressErrorTitle,
-                            error,
-                        });
+                        reporter.displayError(pressErrorTitle, error);
                     },
                 );
             }

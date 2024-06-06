@@ -19,7 +19,7 @@ import {
     onTriggeredOverlayCloseSymbol,
     onTriggeredOverlayOpenSymbol,
 } from "~/client/design/overlay_trigger_button.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useTouchSlop} from "~/client/design/use_touch_slop.js";
@@ -258,7 +258,7 @@ function IconButton(
         onKeyDownCapture,
     } = props;
     const localRef = useRef<HTMLElement | null>(null);
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     const [isPendingFromPress, setIsPendingFromPress] = useState(false);
     const isPending = isPendingFromProps || isPendingFromPress;
@@ -275,11 +275,7 @@ function IconButton(
         try {
             promise = onPress?.(event);
         } catch (error) {
-            showToast({
-                type: "Error",
-                title: pressErrorTitle ?? defaultPressErrorTitle,
-                error,
-            });
+            reporter.displayError(pressErrorTitle ?? defaultPressErrorTitle, error);
             return;
         }
 

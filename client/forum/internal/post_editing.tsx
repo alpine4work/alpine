@@ -1,7 +1,7 @@
 import {Memo, MutableRefObject, ReactNode, useEffect, useMemo, useReducer} from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {PostContent, PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -170,7 +170,7 @@ export function usePostEditing({
     postEditing: PostEditing;
     modals: ReactNode;
 } {
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     const [state, dispatch] = useReducer<
         (state: PostEditingState, action: PostEditingAction) => PostEditingState
@@ -201,17 +201,13 @@ export function usePostEditing({
                 if (savePromiseResolver) {
                     savePromiseResolver.reject(error);
                 } else {
-                    showToast({
-                        type: "Error",
-                        title: "Couldn’t update post",
-                        error,
-                    });
+                    reporter.displayError("Couldn’t update post", error);
                 }
 
                 dispatch({type: "FinishedSavingContent", shouldCancelEditing: false});
             },
         );
-    }, [onUpdatePostContent, showToast, state]);
+    }, [onUpdatePostContent, reporter, state]);
 
     return {
         postEditing: useMemo(

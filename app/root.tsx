@@ -24,8 +24,8 @@ import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {MobileFullScreenModalContextProvider} from "~/client/design/mobile_full_screen_modal.js";
 import {RootOverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {ReporterContextProvider} from "~/client/design/reporter.js";
 import {BottomBarFrameContextProvider} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
-import {ToastContextProvider} from "~/client/design/toast.js";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip.js";
 import {
     ColorSchemeManager,
@@ -449,9 +449,9 @@ export default function Root() {
                                             <RootOverlayScopeContextProvider>
                                                 <MobileFullScreenModalContextProvider>
                                                     <TooltipCoordinationContextProvider>
-                                                        <ToastContextProvider>
+                                                        <ReporterContextProvider>
                                                             {nodes}
-                                                        </ToastContextProvider>
+                                                        </ReporterContextProvider>
                                                     </TooltipCoordinationContextProvider>
                                                 </MobileFullScreenModalContextProvider>
                                             </RootOverlayScopeContextProvider>

@@ -1,7 +1,7 @@
 import {useMemo} from "react";
 import {Box} from "~/client/design/box.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view.js";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -108,7 +108,7 @@ export default function DocumentCommentThreadRoute({
 }) {
     const isMobile = useIsMobile();
     const rootNavigate = useRootNavigate();
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
 
@@ -189,11 +189,7 @@ export default function DocumentCommentThreadRoute({
                             : `comments=${commentThreadId}`
                     }`,
                 ).catch(error => {
-                    showToast({
-                        type: "Error",
-                        title: "Can’t open document",
-                        error,
-                    });
+                    reporter.displayError("Can't open document", error);
                 });
             })}
             initialCommentThreadResults={[

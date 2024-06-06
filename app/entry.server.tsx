@@ -27,7 +27,7 @@ export default async function handleRequest(
     const appContext = loadContext.clone({
         tracer: new TracerContextModule(span),
         react: new ReactContextModule({
-            reportRenderedError: error => renderedErrors.push(error),
+            reportRenderedError: (tracer, error) => renderedErrors.push(error),
         }),
     });
 

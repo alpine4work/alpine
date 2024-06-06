@@ -9,7 +9,6 @@ import {
     reduceContentReferences,
 } from "~/client/content/content_editor_state.js";
 import {AppContext} from "~/client/context/app_context.js";
-import {ErrorToast} from "~/client/design/toast.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {WebSocketClient, WebSocketClientState} from "~/client/web_socket/web_socket_client.js";
@@ -64,7 +63,7 @@ const reduceCollaborativeContentEditorState = createCollaborativeContentEditorSt
  */
 export class TaskDetailNotesContentEditorWebSocketClient {
     public readonly taskId: TaskId;
-    private readonly _showToast: (toast: ErrorToast) => void;
+    private readonly _displayError: (title: string, error: unknown) => void;
     private readonly _client: WebSocketClient<typeof TaskNotesCollaborationProtocol>;
     private readonly _state: ValueStore<TaskNotesContentEditorState>;
     private _disconnect: (() => void) | null = null;
@@ -83,12 +82,12 @@ export class TaskDetailNotesContentEditorWebSocketClient {
             taskId,
             initialNotesVersion,
             initialNotesContent,
-            showToast,
+            displayError,
         }: {
             taskId: TaskId;
             initialNotesVersion: number;
             initialNotesContent: TaskNotesContentWithReferences;
-            showToast: (toast: ErrorToast) => void;
+            displayError: (title: string, error: unknown) => void;
         },
     ) {
         this.taskId = taskId;
@@ -106,7 +105,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                 extra: {taskId},
             }),
         );
-        this._showToast = showToast;
+        this._displayError = displayError;
     }
 
     private _dispatchBatch(actions: ReadonlyArray<TaskNotesContentEditorAction>) {
@@ -174,16 +173,15 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                                 // If the user had some pending changes they'll be reset. Show the user an error
                                 // message to let them know we threw away their changes.
                                 if (state.pendingSendableSteps) {
-                                    this._showToast({
-                                        type: "Error",
-                                        title: "Couldn’t save changes to task",
-                                        error: new UnavailableError(
+                                    this._displayError(
+                                        "Couldn’t save changes to task",
+                                        new UnavailableError(
                                             "Throwing away local task notes changes because collaboration service is missing the steps we need to backfill",
                                             {
                                                 displayMessage: errorDisplayMessage`The task’s notes changed while you were offline and we didn’t know how to update your changes to the task’s notes to avoid conflicting updates. Now if you type your changes again they’ll save.`,
                                             },
                                         ),
-                                    });
+                                    );
                                 }
 
                                 this._dispatch({

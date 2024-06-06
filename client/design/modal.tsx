@@ -181,7 +181,7 @@ export function Modal({
                 // If the underlay is clicked, we close the modal. This element is not
                 // focusable or keyboard accessible. You can hit the "Escape" key as a shortcut
                 // to close the modal.
-                onClick={onCloseWithAnimation}
+                onPointerDown={onCloseWithAnimation}
             />
             <FocusScope restoreFocus contain>
                 <GlobalKeyDownEventModal>

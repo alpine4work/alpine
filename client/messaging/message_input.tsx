@@ -13,7 +13,7 @@ import {
 } from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useInboxContext} from "~/client/inbox/inbox_context.js";
@@ -98,7 +98,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     externalRef: Ref<MessageInputRef>,
 ) {
     const isMobile = useIsMobile();
-    const showToast = useShowToast();
+    const reporter = useReporter();
     const {currentAccount} = useSpaceContext();
     const inboxPeekContext = useInboxContext();
 
@@ -210,11 +210,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     // message. We do this so that messages are delivered to the user in order
                     // instead of confirming a message and discovering some unloaded messages.
                 } catch (error) {
-                    showToast({
-                        type: "Error",
-                        title: `Couldn’t create ${messageNoun}`,
-                        error,
-                    });
+                    reporter.displayError(`Couldn’t create ${messageNoun}`, error);
 
                     onUpdateMessages(messages =>
                         messages.updateOptimisticMessage(

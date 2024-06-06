@@ -1,6 +1,7 @@
 import {Memo, Ref, RefObject, useCallback, useEffect, useImperativeHandle, useRef} from "react";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/context/app_context.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageInput} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
@@ -65,6 +66,7 @@ export function PostCommentInput({
     >;
 }) {
     const context = useAppContext();
+    const reporter = useReporter();
 
     const inputRef = useRef<MessageInputRef>(null);
 
@@ -183,18 +185,16 @@ export function PostCommentInput({
                 });
             },
             error => {
-                context.tracer
-                    .getRoot()
-                    .logUncaughtException("Failed to reload realtime item", error);
+                reporter.logErrorWithoutDisplaying("Failed to reload realtime item", error);
             },
         );
     }, [
-        context.tracer,
         isConnected,
         post.id,
         onPostRealtimeEventTransaction,
         shouldBeConnectedToChannelRealtime,
         context,
+        reporter,
     ]);
 
     // We perform the scroll adjustment for new messages in the
@@ -250,9 +250,10 @@ export function PostCommentInput({
                 procedures
                     .startTypingInCommentInput({})
                     .catch(error =>
-                        context.tracer
-                            .getRoot()
-                            .logUncaughtException("Couldn't update typing indicator", error),
+                        reporter.logErrorWithoutDisplaying(
+                            "Couldn't update typing indicator",
+                            error,
+                        ),
                     );
             }}
             onHideTypingIndicator={() => {
@@ -262,9 +263,10 @@ export function PostCommentInput({
                 procedures
                     .stopTypingInCommentInput({})
                     .catch(error =>
-                        context.tracer
-                            .getRoot()
-                            .logUncaughtException("Couldn't update typing indicator", error),
+                        reporter.logErrorWithoutDisplaying(
+                            "Couldn't update typing indicator",
+                            error,
+                        ),
                     );
             }}
         />

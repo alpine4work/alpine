@@ -8,7 +8,7 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
-import {useShowToast} from "~/client/design/toast.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {
@@ -109,7 +109,7 @@ function ChannelViewAsideDescriptionEditor({
     onCancel: () => void;
     onSave: (description: MessageContent) => Promise<void>;
 }) {
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     const editorId = useId();
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
@@ -221,11 +221,7 @@ function ChannelViewAsideDescriptionEditor({
                             if (isSaving) return;
 
                             save().catch(error => {
-                                showToast({
-                                    type: "Error",
-                                    title: "Couldn’t save description",
-                                    error,
-                                });
+                                reporter.displayError("Couldn’t save description", error);
                             });
                         }}
                     />

@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useReducer, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -105,6 +106,7 @@ export function useInboxState(props: {
     const {filter} = props;
 
     const context = useAppContext();
+    const reporter = useReporter();
     const {space} = useSpaceContext();
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
 
@@ -193,9 +195,7 @@ export function useInboxState(props: {
                     //
                     // It's also nice that we create an RPC batch with the backfill request.
                     observeInbox(context, {spaceId: space.id}).catch(error => {
-                        context.tracer
-                            .getRoot()
-                            .logUncaughtException("Couldn't observe inbox", error);
+                        reporter.logErrorWithoutDisplaying("Couldn't observe inbox", error);
                     });
 
                     const {backfillEntriesResult} = await backfillInboxEntries(context, {
@@ -204,7 +204,7 @@ export function useInboxState(props: {
                     });
                     return backfillEntriesResult;
                 },
-                [context, space.id],
+                [context, reporter, space.id],
             ),
             reloadQuery: useCallback(async () => {
                 const {entriesResult} = await getInboxEntries(context, {

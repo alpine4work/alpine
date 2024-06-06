@@ -22,13 +22,13 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {
     ScrollbarInsetDynamic,
     scrollbarVisibleAfterScrollDurationMs,
 } from "~/client/design/scrollbar.js";
 import {ShareButton, createShareMenuItem} from "~/client/design/share_button.js";
-import {useShowToast} from "~/client/design/toast.js";
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
@@ -1687,7 +1687,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     const isMobile = useIsMobile();
     const {isNativeMobile} = useClientInfo();
     const navigate = useNavigate();
-    const showToast = useShowToast();
+    const reporter = useReporter();
 
     titleJustifyContents ??= isMobile ? "center" : "flex-start";
 
@@ -1952,7 +1952,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                             actions={
                                                 shareButton && withMobileLayout
                                                     ? [
-                                                          [createShareMenuItem({showToast})],
+                                                          [createShareMenuItem(reporter)],
                                                           ...menuActions,
                                                       ]
                                                     : menuActions
