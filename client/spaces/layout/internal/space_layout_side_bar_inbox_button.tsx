@@ -15,7 +15,9 @@ import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_r
 import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useCurrentTimeRoundedToNearestTenMinutes} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {inboxSubtleNotificationBadgePeaceMinutes} from "~/client/spaces/layout/internal/inbox_subtle_notification_badge_peace_minutes.js";
 import {
     SpaceLayoutSideBarInboxOverlay,
     spaceLayoutSideBarInboxOverlayHeight,
@@ -43,27 +45,27 @@ import {
     overlayFadeOutAnimationDurationMs,
 } from "~/shared/styles/styles.js";
 
-export const inboxSubtleNotificationBadgePeaceMinutes = 60;
-
 export function SpaceLayoutSideBarInboxButton({
     initialInbox,
 }: {
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
 }) {
     const remPx = useRemPx();
-    const currentTimeRoundedToHour = useCurrentTimeRoundedToHour();
+    const currentTimeRoundedToNearestTenMinutes = useCurrentTimeRoundedToNearestTenMinutes();
     const context = useAppContext();
     const {space} = useSpaceContext();
+    const isMobile = useIsMobile();
     const {isNativeMobile} = useClientInfo();
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
 
     const overlayTriggerButtonRef = useRef<OverlayTriggerButtonRef>(null);
 
-    // In native mobile, we expect that this component shouldn't render. Instead
-    // `<SpaceLayoutNativeMobileInboxController>` should render. This assert is a
+    // On mobile platforms, we expect that this component shouldn't render. Instead
+    // `<SpaceLayoutNativeMobileInboxController>` should render for native mobile
+    // and `<SpaceLayoutWebMobileTabBar>` for web mobile. This assert is a
     // sanity check since we don't want to maintain two separate inbox realtime
     // items which would be inefficient.
-    assert(!isNativeMobile);
+    assert(!isMobile && !isNativeMobile);
 
     const {item: inbox} = useDynamoGeneralRealtimeItem(initialInbox, {
         isConnected,
@@ -272,17 +274,10 @@ export function SpaceLayoutSideBarInboxButton({
                         right="0.6875rem"
                         loudNotificationCount={inbox.model.loudNotificationCount}
                     />
-                ) : // If the inbox has entries then we want to render a subtle dot on top of our
-                // notification bell. However, we want folks to have a healthy relationship with
-                // their notifications. You could be getting new non-loud notifications pretty
-                // frequently as folks create new posts or add comments. So when you reach inbox
-                // zero we give you 1-2 hours of peace before showing you have new
-                // notifications. You can still reach someone immediately with a loud
-                // notification.
-                inbox.model.entryCount > 0 &&
+                ) : inbox.model.entryCount > 0 &&
                   (!inbox.model.lastZeroEntryCountTime ||
                       differenceInMinutes(
-                          currentTimeRoundedToHour,
+                          currentTimeRoundedToNearestTenMinutes,
                           inbox.model.lastZeroEntryCountTime,
                       ) > inboxSubtleNotificationBadgePeaceMinutes) ? (
                     <Box

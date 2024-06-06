@@ -1,19 +1,31 @@
+import {differenceInMinutes} from "date-fns";
 import {Bell, House, IconContext, List, MagnifyingGlass, Plus} from "phosphor-react";
-import {ReactNode, useContext, useMemo} from "react";
+import {ReactNode, useCallback, useContext, useMemo} from "react";
 import {usePress} from "react-aria";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
+import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useSessionStorage} from "~/client/helpers/use_local_storage.js";
+import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useCurrentTimeRoundedToNearestTenMinutes} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {inboxSubtleNotificationBadgePeaceMinutes} from "~/client/spaces/layout/internal/inbox_subtle_notification_badge_peace_minutes.js";
+import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {safe, safeIdentifierString, safeJoin} from "~/shared/helpers/string/safe_string.js";
+import {InboxModel} from "~/shared/notifications/inbox_model.js";
+import {getInboxWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {colorSchemeVars, spaceLayoutStyles} from "~/shared/styles/styles.js";
+import {backgroundColorVar, colorSchemeVars, spaceLayoutStyles} from "~/shared/styles/styles.js";
 
 // A little bigger than the native iOS toolbar which is around height spacing
 // `10`. Spacing `10` just looks squished. In native iOS there's safe area at
@@ -52,12 +64,39 @@ export function getWebMobileTabFromPathname(pathname: string): WebMobileTab | nu
     }
 }
 
-export function SpaceLayoutWebMobileTabBar() {
+export function SpaceLayoutWebMobileTabBar({
+    initialInbox,
+}: {
+    initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
+}) {
     const dataRouterStateContext = assertExists(useContext(DataRouterStateContext));
 
+    const currentTimeRoundedToNearestTenMinutes = useCurrentTimeRoundedToNearestTenMinutes();
+    const context = useAppContext();
     const isInitialAppRender = useIsInitialAppRender();
     const navigate = useNavigate();
     const {space} = useSpaceContext();
+    const isMobile = useIsMobile();
+    const {isNativeMobile} = useClientInfo();
+    const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
+
+    // In native mobile, we expect that this component shouldn't render. Instead
+    // `<SpaceLayoutNativeMobileInboxController>` should render. This assert is a
+    // sanity check since we don't want to maintain two separate inbox realtime
+    // items which would be inefficient.
+    assert(isMobile && !isNativeMobile);
+
+    const {item: inbox} = useDynamoGeneralRealtimeItem(initialInbox, {
+        isConnected,
+        subscribeToEvents: useCallback(
+            subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+            [subscribeToEvents],
+        ),
+        reloadItemWithStrongReadConsistency: useCallback(async () => {
+            const {inbox} = await getInboxWithStrongReadConsistency(context, {spaceId: space.id});
+            return inbox;
+        }, [context, space.id]),
+    });
 
     const pendingTab = useMemo(
         () =>
@@ -149,7 +188,52 @@ export function SpaceLayoutWebMobileTabBar() {
             />
             <SpaceLayoutWebMobileTabBarButton
                 tab="Inbox"
-                icon={<Bell />}
+                icon={
+                    <Box
+                        position="relative"
+                        zIndex="0"
+                        width="8"
+                        height="8"
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                    >
+                        <Bell />
+                        {inbox.model.loudNotificationCount > 0 ? (
+                            <LoudNotificationBadge
+                                top="0.1875rem"
+                                right="0.6875rem"
+                                loudNotificationCount={inbox.model.loudNotificationCount}
+                            />
+                        ) : inbox.model.entryCount > 0 &&
+                          (!inbox.model.lastZeroEntryCountTime ||
+                              differenceInMinutes(
+                                  currentTimeRoundedToNearestTenMinutes,
+                                  inbox.model.lastZeroEntryCountTime,
+                              ) > inboxSubtleNotificationBadgePeaceMinutes) ? (
+                            <Box
+                                zIndex="30"
+                                position="absolute"
+                                pointerEvents="none"
+                                borderRadius="full"
+                                width="1"
+                                height="1"
+                                style={{
+                                    top: "0.5rem",
+                                    right: "0.625rem",
+                                    backgroundColor: "currentcolor",
+                                    // On high pixel density displays we want 1.3px should to round up to 1.5px and
+                                    // on low pixel density displays we want 1.3px to round down to 1px.
+                                    //
+                                    // That extra width is helpful when rendering this on top of a solid object
+                                    // like an avatar. We don't want 2px since an avatar pile will use that for
+                                    // occluding other avatars.
+                                    boxShadow: `0 0 0 1.3px ${backgroundColorVar}`,
+                                }}
+                            />
+                        ) : null}
+                    </Box>
+                }
                 onPress={() => {
                     // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
                     void navigate(`/s/${space.id}/inbox`);

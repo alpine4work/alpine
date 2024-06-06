@@ -1,4 +1,5 @@
 import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
+import {roundToNearestMinutes} from "date-fns";
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -13,15 +14,46 @@ export function roundDateToHour(time: Date): Date {
     return new Date(time.getFullYear(), time.getMonth(), time.getDate(), time.getHours(), 0, 0, 0);
 }
 
-const CurrentTimeContext = createContext<{
-    readonly currentTimeRoundedToHour: Date;
-    readonly currentDate: CalendarDate;
-} | null>(null);
+const CurrentDateContext = createContext<CalendarDate | null>(null);
+const CurrentTimeRoundedToHour = createContext<Date | null>(null);
+const CurrentTimeRoundedToNearestTenMinutes = createContext<Date | null>(null);
 
-const currentTimeForTest = import.meta.jest ? roundDateToHour(new Date()) : null;
-const currentDateForTest = import.meta.jest
-    ? toCalendarDate(parseAbsolute(currentTimeForTest!.toISOString(), defaultTimeZone))
+const currentTimeRoundedToNearestTenMinutesForTest = import.meta.jest
+    ? roundToNearestMinutes(new Date(), {
+          nearestTo: 10,
+          roundingMethod: "ceil",
+      })
     : null;
+const currentTimeRoundedToHourForTest = import.meta.jest
+    ? roundDateToHour(currentTimeRoundedToNearestTenMinutesForTest!)
+    : null;
+const currentDateForTest = import.meta.jest
+    ? toCalendarDate(parseAbsolute(currentTimeRoundedToHourForTest!.toISOString(), defaultTimeZone))
+    : null;
+
+/**
+ * Return the current time rounded to 10 minutes. This hook will update and re
+ * render the component every 10 minutes.
+ *
+ * Works with server-side rendering. The initial time comes from the server.
+ */
+export function useCurrentTimeRoundedToNearestTenMinutes(): Date {
+    const currentTimeRoundedToNearestTenMinutes = useContext(CurrentTimeRoundedToNearestTenMinutes);
+
+    if (currentTimeRoundedToNearestTenMinutes === null) {
+        // In Jest tests use a dummy value instead of requiring a root
+        // context provider.
+        if (import.meta.jest) {
+            return assertExists(currentTimeRoundedToNearestTenMinutesForTest);
+        }
+
+        throw new InternalError(
+            "Expected component to be rendered inside a `<CurrentTimeContextProvider>`",
+        );
+    }
+
+    return currentTimeRoundedToNearestTenMinutes;
+}
 
 /**
  * Return the current time rounded to the start of the current hour. This hook
@@ -30,13 +62,13 @@ const currentDateForTest = import.meta.jest
  * Works with server-side rendering. The initial time comes from the server.
  */
 export function useCurrentTimeRoundedToHour(): Date {
-    const context = useContext(CurrentTimeContext);
+    const currentTimeRoundedToHour = useContext(CurrentTimeRoundedToHour);
 
-    if (context === null) {
+    if (currentTimeRoundedToHour === null) {
         // In Jest tests use a dummy value instead of requiring a root
         // context provider.
         if (import.meta.jest) {
-            return assertExists(currentTimeForTest);
+            return assertExists(currentTimeRoundedToHourForTest);
         }
 
         throw new InternalError(
@@ -44,7 +76,7 @@ export function useCurrentTimeRoundedToHour(): Date {
         );
     }
 
-    return context.currentTimeRoundedToHour;
+    return currentTimeRoundedToHour;
 }
 
 /**
@@ -54,9 +86,9 @@ export function useCurrentTimeRoundedToHour(): Date {
  * Works with server-side rendering. The initial time comes from the server.
  */
 export function useCurrentDate(): CalendarDate {
-    const context = useContext(CurrentTimeContext);
+    const currentDate = useContext(CurrentDateContext);
 
-    if (context === null) {
+    if (currentDate === null) {
         // In Jest tests use a dummy value instead of requiring a root
         // context provider.
         if (import.meta.jest) {
@@ -68,7 +100,7 @@ export function useCurrentDate(): CalendarDate {
         );
     }
 
-    return context.currentDate;
+    return currentDate;
 }
 
 /**
@@ -106,38 +138,56 @@ export function CurrentTimeContextProvider({
 
     const [state, setState] = useState(() => {
         const currentTimeRoundedToHour = roundDateToHour(initialTime);
+        const currentTimeRoundedToNearestTenMinutes = roundToNearestMinutes(initialTime, {
+            nearestTo: 10,
+            roundingMethod: "ceil",
+        });
+
         const currentDate = toCalendarDate(
             parseAbsolute(currentTimeRoundedToHour.toISOString(), timeZone),
         );
-        return {currentTimeRoundedToHour, currentDate};
+
+        return {currentTimeRoundedToHour, currentTimeRoundedToNearestTenMinutes, currentDate};
     });
 
     useEffect(() => {
         let timeout: Timeout;
 
         const update = () => {
-            const currentTimeRoundedToHour = roundDateToHour(new Date());
+            const currentTime = new Date();
+            const currentTimeRoundedToHour = roundDateToHour(currentTime);
+            const currentTimeRoundedToNearestTenMinutes = roundToNearestMinutes(currentTime, {
+                nearestTo: 10,
+                roundingMethod: "ceil",
+            });
 
             setState(previousState => {
                 if (
                     currentTimeRoundedToHour.toISOString() ===
-                    previousState.currentTimeRoundedToHour.toISOString()
+                        previousState.currentTimeRoundedToHour.toISOString() &&
+                    currentTimeRoundedToNearestTenMinutes.toISOString() ===
+                        previousState.currentTimeRoundedToNearestTenMinutes.toISOString()
                 ) {
                     return previousState;
                 }
+
                 return {
                     currentTimeRoundedToHour,
+                    currentTimeRoundedToNearestTenMinutes,
                     currentDate: toCalendarDate(
                         parseAbsolute(currentTimeRoundedToHour.toISOString(), timeZone),
                     ),
                 };
             });
 
-            let nextTimeRoundedToHour = new Date(currentTimeRoundedToHour.getTime());
-            nextTimeRoundedToHour.setHours(nextTimeRoundedToHour.getHours() + 1);
-            nextTimeRoundedToHour = roundDateToHour(nextTimeRoundedToHour);
+            const nextTimeRoundedToNearestTenMinutes = new Date(
+                currentTimeRoundedToNearestTenMinutes.getTime() + 1000 * 60 * 10,
+            );
 
-            timeout = createTimeout(update, nextTimeRoundedToHour.getTime() - Date.now());
+            timeout = createTimeout(
+                update,
+                nextTimeRoundedToNearestTenMinutes.getTime() - Date.now(),
+            );
         };
 
         update();
@@ -147,5 +197,15 @@ export function CurrentTimeContextProvider({
         };
     }, [initialTime, timeZone]);
 
-    return <CurrentTimeContext.Provider value={state}>{children}</CurrentTimeContext.Provider>;
+    return (
+        <CurrentDateContext.Provider value={state.currentDate}>
+            <CurrentTimeRoundedToHour.Provider value={state.currentTimeRoundedToHour}>
+                <CurrentTimeRoundedToNearestTenMinutes.Provider
+                    value={state.currentTimeRoundedToNearestTenMinutes}
+                >
+                    {children}
+                </CurrentTimeRoundedToNearestTenMinutes.Provider>
+            </CurrentTimeRoundedToHour.Provider>
+        </CurrentDateContext.Provider>
+    );
 }

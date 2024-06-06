@@ -4,8 +4,8 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {inboxSubtleNotificationBadgePeaceMinutes} from "~/client/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
+import {useCurrentTimeRoundedToNearestTenMinutes} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {inboxSubtleNotificationBadgePeaceMinutes} from "~/client/spaces/layout/internal/inbox_subtle_notification_badge_peace_minutes.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -17,7 +17,7 @@ export function SpaceLayoutNativeMobileInboxController({
 }: {
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
 }) {
-    const currentTimeRoundedToHour = useCurrentTimeRoundedToHour();
+    const currentTimeRoundedToNearestTenMinutes = useCurrentTimeRoundedToNearestTenMinutes();
     const context = useAppContext();
     const {space} = useSpaceContext();
     const {isNativeMobile} = useClientInfo();
@@ -56,15 +56,17 @@ export function SpaceLayoutNativeMobileInboxController({
         else if (
             inbox.model.entryCount > 0 &&
             (!inbox.model.lastZeroEntryCountTime ||
-                differenceInMinutes(currentTimeRoundedToHour, inbox.model.lastZeroEntryCountTime) >
-                    inboxSubtleNotificationBadgePeaceMinutes)
+                differenceInMinutes(
+                    currentTimeRoundedToNearestTenMinutes,
+                    inbox.model.lastZeroEntryCountTime,
+                ) > inboxSubtleNotificationBadgePeaceMinutes)
         ) {
             NativeMobileBridge.tabBar.setInboxSubtleNotificationBadge();
         } else {
             NativeMobileBridge.tabBar.clearInboxNotificationBadge();
         }
     }, [
-        currentTimeRoundedToHour,
+        currentTimeRoundedToNearestTenMinutes,
         inbox.model.entryCount,
         inbox.model.lastZeroEntryCountTime,
         inbox.model.loudNotificationCount,

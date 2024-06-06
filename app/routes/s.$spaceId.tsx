@@ -663,7 +663,9 @@ export default function SpaceLayoutRoute() {
                                 />
                             </SearchModalErrorBoundary>
                         )}
-                        {isMobile && !clientInfo.isNativeMobile && <SpaceLayoutWebMobileTabBar />}
+                        {isMobile && !clientInfo.isNativeMobile && (
+                            <SpaceLayoutWebMobileTabBar initialInbox={inbox} />
+                        )}
                         {clientInfo.isNativeMobile && (
                             <SpaceLayoutNativeMobileInboxController initialInbox={inbox} />
                         )}
