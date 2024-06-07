@@ -199,6 +199,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             }
 
             if oldValue.isLoading != newValue.isLoading || oldValue.isHealthy != newValue.isHealthy
+                || (oldValue.navigationError == nil) != (newValue.navigationError == nil)
             {
                 ((modalPresentedViewController ?? topViewController)
                     as! WebNavigationEntryController)
@@ -222,6 +223,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         var readyTime: DispatchTime?
         var lastPingTime: DispatchTime?
         var provisionalNavigation: WKNavigation?
+        var navigationError: (any Error)?
         var isHealthy: Bool
 
         var isLoading: Bool { provisionalNavigation != nil || readyTime == nil }
@@ -852,9 +854,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     /// Calling `webView.reload()` when the JavaScript thread is blocked doesn't
     /// seem to work.
     fileprivate func forceReloadWebView() {
-        let url = webView.url
+        let url = webView.url ?? (topViewController as! WebNavigationEntryController).url
 
-        logger.info("Force reloading to: \(url?.absoluteString ?? "nil", privacy: .public)")
+        logger.info("Force reloading to: \(url.absoluteString, privacy: .public)")
 
         webInputAccessoryObserverView?.removeFromSuperview()
         webInputAccessoryObserverView = nil
@@ -876,7 +878,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             isHealthy: true
         )
 
-        if let url = url { webView.load(URLRequest(url: url)) }
+        webView.load(URLRequest(url: url))
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async
@@ -941,6 +943,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             webViewHealthState.readyTime = nil
             webViewHealthState.lastPingTime = nil
             webViewHealthState.isHealthy = true
+            webViewHealthState.navigationError = nil
 
             webViewHealthState.provisionalNavigation = nil
         }
@@ -964,6 +967,34 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         // Reset any `disableTabBar()` calls after we finish loading.
         disableTabBarCount = 0
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        didFailProvisionalNavigation navigation: WKNavigation!,
+        withError error: Error
+    ) {
+        let url = webView.url ?? (topViewController as! WebNavigationEntryController).url
+
+        logger.error(
+            "Failed navigation with code \(String((error as NSError).code), privacy: .public) (\"\(error.localizedDescription)\") to: \(url.absoluteString, privacy: .public)"
+        )
+
+        if webViewHealthState.provisionalNavigation === navigation {
+            webViewHealthState.navigationError = error
+        }
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        let url = webView.url ?? (topViewController as! WebNavigationEntryController).url
+
+        logger.error(
+            "Failed navigation with code \(String((error as NSError).code), privacy: .public) (\"\(error.localizedDescription)\") to: \(url.absoluteString, privacy: .public)"
+        )
+
+        if webViewHealthState.provisionalNavigation === navigation {
+            webViewHealthState.navigationError = error
+        }
     }
 
     func webView(
@@ -2956,9 +2987,14 @@ private class WebNavigationEntryController: UIViewController {
         _ webView: WKWebView,
         healthState: WebNavigationController.WebViewHealthState
     ) {
+        if let navigationError = healthState.navigationError {
+            replaceWebViewWithSnapshotView()
+            clearLoadingIndicatorTimer()
+            presentUnhealthyAlert(navigationError: navigationError)
+        }
         // We may become unhealthy while loading as WebKit stops executing JavaScript.
         // So if `isLoading` is true then don't show the unhealthy alert.
-        if healthState.isLoading {
+        else if healthState.isLoading {
             replaceWebViewWithSnapshotView()
 
             // If there's currently stuff in our view then immediately show a loading
@@ -3218,17 +3254,39 @@ private class WebNavigationEntryController: UIViewController {
         present(loadingIndicator, animated: false)
     }
 
-    // NOCOMMIT: I want a button in the "More" tab for developers that debugs
-    // unhealthy.
-    private func presentUnhealthyAlert() {
-        let alert = UIAlertController(
-            title: "Couldn’t respond",
-            // This message is copied from `error_display_message_renderer.tsx`. If we update
-            // the message here then we should update it there as well.
-            message:
-                "An unexpected error occurred, please try again. If the problem continues, let us know at support@cyberworlds.dev",
-            preferredStyle: .alert
-        )
+    private func presentUnhealthyAlert(navigationError: (any Error)? = nil) {
+        let isOfflineNavigationError =
+            if let navigationError = navigationError as NSError? {
+                // This error mostly happens in development when the dev server isn't running.
+                //
+                // https://developer.apple.com/documentation/foundation/1508628-url_loading_system_error_codes/nsurlerrorcannotconnecttohost
+                navigationError.code == -1004
+                    // https://developer.apple.com/documentation/foundation/1508628-url_loading_system_error_codes/nsurlerrornetworkconnectionlost
+                    || navigationError.code == -1005
+                    // https://developer.apple.com/documentation/foundation/1508628-url_loading_system_error_codes/nsurlerrornotconnectedtointernet
+                    || navigationError.code == -1009
+            } else { false }
+
+        let alert =
+            if !isOfflineNavigationError {
+                UIAlertController(
+                    title: "Couldn’t respond",
+                    // This message is copied from `error_display_message_renderer.tsx`. If we update
+                    // the message here then we should update it there as well.
+                    message:
+                        "An unexpected error occurred, please try again. If the problem continues, let us know at support@cyberworlds.dev",
+                    preferredStyle: .alert
+                )
+            } else {
+                UIAlertController(
+                    title: "Couldn’t connect",
+                    // This message is copied from `fetch_with_tracer.ts`. If we update the message
+                    // here then we should update it there as well.
+                    message:
+                        "Couldn’t connect to the internet. Make sure you’re online and try again.",
+                    preferredStyle: .alert
+                )
+            }
 
         alert.addAction(
             UIAlertAction(

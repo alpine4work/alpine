@@ -13,6 +13,11 @@ import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagat
 import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
+// The same error message is copied in `WebNavigationController.swift`'s
+// `showUnhealthyAlert()` function. If we update the message here, we should
+// update it there as well.
+const offlineErrorDisplayMessage = errorDisplayMessage`Couldn’t connect to the internet. Make sure you’re online and try again.`;
+
 const globalFetch = typeof fetch !== "undefined" ? fetch : undefined;
 
 /**
@@ -191,9 +196,7 @@ export async function fetchWithTracer<ResponseData>(
                 displayMessage:
                     // If we're in a web browser, if we failed to make a request it's probably the
                     // user's internet connection and they should look into a fix.
-                    typeof window !== "undefined"
-                        ? errorDisplayMessage`Couldn’t connect to the internet. Make sure you’re online and try again.`
-                        : undefined,
+                    typeof window !== "undefined" ? offlineErrorDisplayMessage : undefined,
             });
         });
 
