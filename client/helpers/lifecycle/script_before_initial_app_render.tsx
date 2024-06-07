@@ -17,9 +17,13 @@ import {SafeString, isSafeString} from "~/shared/helpers/string/safe_string.js";
  * `SafeString` is guaranteed to only use constants from our code and never
  * have user input.
  */
-export function ScriptBeforeAppInitialRender({script}: {script: SafeString}) {
+export function ScriptBeforeAppInitialRender({script}: {script: SafeString | (() => SafeString)}) {
     const isInitialAppRender = useIsInitialAppRender();
     if (!isInitialAppRender) return null;
+
+    if (typeof script === "function") {
+        script = script();
+    }
 
     // Double check to make sure an attacker didn't sneak in a JSON object.
     assert(isSafeString(script));

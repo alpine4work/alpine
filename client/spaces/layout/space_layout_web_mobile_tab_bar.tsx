@@ -2,7 +2,7 @@ import {differenceInMinutes} from "date-fns";
 import {Bell, House, IconContext, List, MagnifyingGlass, Plus} from "phosphor-react";
 import {ReactNode, useCallback, useContext, useMemo} from "react";
 import {usePress} from "react-aria";
-import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
+import {UNSAFE_DataRouterStateContext as DataRouterStateContext, useLocation} from "react-router";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
@@ -21,7 +21,12 @@ import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {safe, safeIdentifierString, safeJoin} from "~/shared/helpers/string/safe_string.js";
+import {
+    safe,
+    safeAlphanumericString,
+    safeIdentifierString,
+    safeJoin,
+} from "~/shared/helpers/string/safe_string.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {getInboxWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -35,14 +40,6 @@ export const spaceLayoutWebMobileTabBarHeight = "12";
 
 type WebMobileTab = SchemaType<typeof WebMobileTabSchema>;
 const WebMobileTabSchema = Schema.enum(spaceLayoutStyles.webMobileTabs);
-
-const beforeAppInitialRenderScript = safe`var tabBar = document.currentScript.parentNode; var classNames = {${safeJoin(
-    Object.entries(spaceLayoutStyles.selectedClassNameByTab).map(
-        ([tab, className]) =>
-            safe`${safeIdentifierString(tab)}: "${safeIdentifierString(className)}"`,
-    ),
-    safe`, `,
-)}}; tabBar.className = (classNames[(sessionStorage.getItem("cyberworlds/webMobileTab") || "").slice(1, -1)] || classNames.Home) + " " + tabBar.className;`;
 
 export function getWebMobileTabFromPathname(pathname: string): WebMobileTab | null {
     const match = pathname.match(/^\/s\/(?:[a-zA-Z0-9]+)(\/search|\/create|\/inbox|\/more)?$/);
@@ -79,6 +76,7 @@ export function SpaceLayoutWebMobileTabBar({
     const isMobile = useIsMobile();
     const {isNativeMobile} = useClientInfo();
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
+    const location = useLocation();
 
     // In native mobile, we expect that this component shouldn't render. Instead
     // `<SpaceLayoutNativeMobileInboxController>` should render. This assert is a
@@ -138,7 +136,9 @@ export function SpaceLayoutWebMobileTabBar({
                     // server rendered HTML before the initial render.
                     typeof window !== "undefined"
                     ? cast<{[key: string]: string}>(spaceLayoutStyles.selectedClassNameByTab)[
-                          (sessionStorage.getItem("cyberworlds/webMobileTab") ?? "").slice(1, -1)
+                          (
+                              sessionStorage.getItem(`cyberworlds/webMobileTab/${space.id}`) ?? ""
+                          ).slice(1, -1)
                       ] ?? spaceLayoutStyles.selectedClassNameByTab.Home
                     : undefined
             }
@@ -160,30 +160,54 @@ export function SpaceLayoutWebMobileTabBar({
                 // To avoid a flash where the wrong tab is selected, we have a script that runs
                 // before initial render to add a class which will render the right tab as
                 // selected from `sessionStorage`.
-                script={beforeAppInitialRenderScript}
+                script={() =>
+                    safe`var tabBar = document.currentScript.parentNode; var classNames = {${safeJoin(
+                        Object.entries(spaceLayoutStyles.selectedClassNameByTab).map(
+                            ([tab, className]) =>
+                                safe`${safeIdentifierString(tab)}: "${safeIdentifierString(
+                                    className,
+                                )}"`,
+                        ),
+                        safe`, `,
+                    )}}; tabBar.className = (classNames[(sessionStorage.getItem("cyberworlds/webMobileTab/" + "${safeAlphanumericString(
+                        space.id,
+                    )}") || "").slice(1, -1)] || classNames.Home) + " " + tabBar.className`
+                }
             />
             <SpaceLayoutWebMobileTabBarButton
                 tab="Home"
                 icon={<House />}
                 onPress={() => {
-                    // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                    void navigate(`/s/${space.id}`);
+                    const pathname = `/s/${space.id}`;
+
+                    if (location.pathname !== pathname) {
+                        // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+                        void navigate(pathname);
+                    }
                 }}
             />
             <SpaceLayoutWebMobileTabBarButton
                 tab="Search"
                 icon={<MagnifyingGlass />}
                 onPress={() => {
-                    // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                    void navigate(`/s/${space.id}/search`);
+                    const pathname = `/s/${space.id}/search`;
+
+                    if (location.pathname !== pathname) {
+                        // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+                        void navigate(pathname);
+                    }
                 }}
             />
             <SpaceLayoutWebMobileTabBarButton
                 tab="Create"
                 icon={<Plus />}
                 onPress={() => {
-                    // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                    void navigate(`/s/${space.id}/create`);
+                    const pathname = `/s/${space.id}/create`;
+
+                    if (location.pathname !== pathname) {
+                        // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+                        void navigate(pathname);
+                    }
                 }}
             />
             <SpaceLayoutWebMobileTabBarButton
@@ -235,16 +259,24 @@ export function SpaceLayoutWebMobileTabBar({
                     </Box>
                 }
                 onPress={() => {
-                    // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                    void navigate(`/s/${space.id}/inbox`);
+                    const pathname = `/s/${space.id}/inbox`;
+
+                    if (location.pathname !== pathname) {
+                        // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+                        void navigate(`/s/${space.id}/inbox`);
+                    }
                 }}
             />
             <SpaceLayoutWebMobileTabBarButton
                 tab="More"
                 icon={<List />}
                 onPress={() => {
-                    // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                    void navigate(`/s/${space.id}/more`);
+                    const pathname = `/s/${space.id}/more`;
+
+                    if (location.pathname !== pathname) {
+                        // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+                        void navigate(pathname);
+                    }
                 }}
             />
         </Box>
