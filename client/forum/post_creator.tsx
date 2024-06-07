@@ -23,6 +23,7 @@ import {
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useSessionStorage} from "~/client/helpers/use_local_storage.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -179,6 +180,10 @@ export function PostCreator({
                 } else {
                     await navigate(`/s/${space.id}/posts/${post.id}`, {
                         replace: true,
+                        // In our native mobile app, we want to call
+                        // `NativeMobileBridge.navigation.replaceWithPushAnimation()` to run the native
+                        // push animation while replacing in the history stack.
+                        state: NativeMobileBridge ? {withPushAnimation: true} : undefined,
                     });
                 }
 

@@ -69,29 +69,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         websiteDataStore.httpCookieStore.setCookie(sessionCookie)
 
         webNavigationController = WebNavigationController(
-            // NOCOMMIT: Proper initial path. Just for debugging
-            // initialPath: "/s/\(spaceId)/tasks/wstgc96gen6yp2zfetsksmg4t0",
-            // initialPath: "/s/\(spaceId)/tasks/aqz6s9yy1c8vwzpqvf8ngxjma0",
-            // initialPath: "/s/\(spaceId)/chat/with/2wf86qqvavtzkgatx9czwbtcb8",
-            // initialPath: "/s/\(spaceId)/documents/2v1kz5r5w3tdb7zv6xt98wm7qg",
-            // initialPath: "/s/\(spaceId)/documents/3bvke6qzpyr2tzysk0a9p5sa8r",
-            // initialPath: "/s/\(spaceId)/tasks",
-            // initialPath: "/s/\(spaceId)/tasks/view",
-            // initialPath: "/s/\(spaceId)/chat/new",
-            // initialPath: "/s/\(spaceId)/posts/sjb6kfpyxyew5yytwhq4fpmcjc",
-            initialPath: "/s/\(session.spaceId)/posts/r4tahf9swd0zrn0p4c5e6s68v0",
-            // initialPath:
-            //     "/s/\(spaceId)/notifications/channel-posts/qk8jepk9epmb48b3fbaykw4vk0-8546",  // 10 posts
-            // initialPath:
-            //     "/s/\(spaceId)/notifications/channel-posts/qk8jepk9epmb48b3fbaykw4vk0-8088",  // 1 post
-            // initialPath:
-            //     "/s/\(spaceId)/notifications/document-comment-threads/2v1kz5r5w3tdb7zv6xt98wm7qg-6178",  // 3 threads
-            // initialPath:
-            //     "/s/\(spaceId)/notifications/document-comment-threads/qyzzez8e4814wwk2axaaagwp3w-8856",  // 11 threads
-            // initialPath:
-            //     "/s/\(spaceId)/notifications/document-comment-threads/2v1kz5r5w3tdb7zv6xt98wm7qg-8306",  // 1 thread
-            // initialPath:
-            //     "/s/\(spaceId)/documents/2v1kz5r5w3tdb7zv6xt98wm7qg/comments/h2wjjg78958c16j5bm42cphwy4",
+            initialPath: "/s/\(session.spaceId)",
             initialPathByTab: WebNavigationController.InitialPathByTab(
                 home: "/s/\(session.spaceId)",
                 search: "/s/\(session.spaceId)/search",
