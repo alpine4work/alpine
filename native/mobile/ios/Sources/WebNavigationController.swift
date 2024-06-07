@@ -1179,7 +1179,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         } else if messageBody == "navigation.finishExternalPop" {
             cleanupModalPresentedViewController()
 
-            logger.info("Finishing external pop navigation")
+            logger.info(
+                "Finishing external pop navigation to: \((self.topViewController! as! WebNavigationEntryController).url.absoluteString, privacy: .public)"
+            )
 
             (topViewController! as! WebNavigationEntryController).moveWebViewInto(webView)
 
@@ -2450,14 +2452,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // If we're already at the root view controller, don't pop more.
         if viewControllers.count <= 1 { return nil }
 
-        let viewControllers = super.popToRootViewController(animated: animated)!
+        let poppedViewControllers = super.popToRootViewController(animated: animated)!
 
         propagateExternalPopNavigation(
-            lastTopViewController: viewControllers.last! as! WebNavigationEntryController,
-            delta: viewControllers.count - 1
+            lastTopViewController: poppedViewControllers.last! as! WebNavigationEntryController,
+            delta: poppedViewControllers.count
         )
 
-        return viewControllers
+        return poppedViewControllers
     }
 
     // Override pop navigation functions. We need to let JavaScript control when
@@ -2474,14 +2476,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // We're trying to pop to the view controller that's already visible.
         if viewControllers.count == index + 1 { return nil }
 
-        let viewControllers = super.popToViewController(viewController, animated: animated)!
+        let poppedViewControllers = super.popToViewController(viewController, animated: animated)!
 
         propagateExternalPopNavigation(
-            lastTopViewController: viewControllers.last! as! WebNavigationEntryController,
-            delta: viewControllers.count - (index + 1)
+            lastTopViewController: poppedViewControllers.last! as! WebNavigationEntryController,
+            delta: poppedViewControllers.count
         )
 
-        return viewControllers
+        return poppedViewControllers
     }
 
     private func propagateExternalPopNavigation(
@@ -2836,15 +2838,33 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     /// Change the tab currently being displayed in our web navigation controller.
     func switchTab(_ tab: WebNavigationController.Tab) {
-        let url =
-            (viewControllersByInactiveTab[tab]?.last as? WebNavigationEntryController)?.url ?? URL(
-                string: initialPathByTab.get(tab),
-                relativeTo: WebNavigationController.baseUrl
-            )!
+        if currentTab == tab {
+            // NOTE(calebmer): Annoyingly, if we call `popToRootViewController(animated: true)`
+            // directly in `tabBarController(_:didSelect:)` we successfully pop but we
+            // don't animate! However, waiting a bit then calling
+            // `popToRootViewController(animated: true)` does animate...
+            //
+            // I assume something before `tabBarController(_:didSelect:)` is blocking
+            // animations but since I'm not a veteran iOS developer I don't know what or
+            // how to go about debugging it.
+            //
+            // Hopefully StackOverflow can help:
+            // https://stackoverflow.com/questions/78593250/poptorootviewcontrolleranimated-true-doesn-t-animate-when-called-from-tabbarc
+            Timer.scheduledTimer(withTimeInterval: perceivedAsInstantLimitSeconds, repeats: false) {
+                [weak self] (_) in let _ = self?.popToRootViewController(animated: true)
+            }
+        } else {
+            let url =
+                (viewControllersByInactiveTab[tab]?.last as? WebNavigationEntryController)?.url
+                ?? URL(
+                    string: initialPathByTab.get(tab),
+                    relativeTo: WebNavigationController.baseUrl
+                )!
 
-        webView.evaluateJavaScript(
-            "window.__NativeMobileBridge.navigation._callExternalSwitchTabListeners(\(tab.jsonString()), \(jsonString(url.absoluteString)))"
-        )
+            webView.evaluateJavaScript(
+                "window.__NativeMobileBridge.navigation._callExternalSwitchTabListeners(\(tab.jsonString()), \(jsonString(url.absoluteString)))"
+            )
+        }
     }
 
     /// Currently unused. Useful why developing to see what native thinks the
