@@ -2,7 +2,6 @@ import {CalendarDate} from "@internationalized/date";
 import {RefObject, useEffect, useMemo, useRef} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
-import {useReporter} from "~/client/design/reporter.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
@@ -55,8 +54,6 @@ function createTaskGridViewExpansionStateManager({
     initialState: TaskGridViewExpansionState;
     broadcastChannelRef: RefObject<BroadcastChannel | null>;
 }) {
-    const reporter = useReporter();
-
     let state: TaskGridViewExpansionState = null;
     const areChildTasksExpandedStoreByTaskPath = new StoreMap<string, true>();
 
@@ -129,10 +126,9 @@ function createTaskGridViewExpansionStateManager({
                 //
                 // This is a glitch. Users won't see the correct tasks expanded/collapsed when
                 // they reload the page.
-                reporter.logErrorWithoutDisplaying(
-                    "Couldn't persist task grid view expansion state",
-                    error,
-                );
+                context.tracer
+                    .getRoot()
+                    .logUncaughtException("Couldn't persist task grid view expansion state", error);
             });
         };
 

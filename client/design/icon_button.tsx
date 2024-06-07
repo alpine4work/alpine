@@ -297,11 +297,7 @@ function IconButton(
                 },
                 error => {
                     setIsPendingFromPress(false);
-                    showToast({
-                        type: "Error",
-                        title: pressErrorTitle,
-                        error,
-                    });
+                    reporter.displayError(pressErrorTitle, error);
                 },
             );
         }

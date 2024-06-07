@@ -45,8 +45,8 @@ import {
     SpaceLayoutWebMobileTabBar,
     spaceLayoutWebMobileTabBarHeight,
 } from "~/client/spaces/layout/space_layout_web_mobile_tab_bar.js";
+import {SpaceRouteErrorRenderer} from "~/client/spaces/layout/space_route_error_renderer.js";
 import {SpaceContextProvider} from "~/client/spaces/space_context.js";
-import {SpaceRouteErrorRenderer} from "~/client/spaces/space_route_error_renderer.js";
 import {
     TaskRealtimeClientContextProvider,
     clientLoaderTaskStoreLoaderData,

@@ -14,7 +14,6 @@ import {Memo, Ref, useCallback, useEffect, useId, useMemo, useRef, useState} fro
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {createCommentThreadMetaKey} from "~/client/content/content_editor_state.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
-import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";

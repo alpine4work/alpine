@@ -271,6 +271,8 @@ function reduceReporterState(state: ReporterState, action: ReporterAction): Repo
         }
         case "DisplayError": {
             if (state.isMobile) {
+                // NOTE(calebmer): The dialog doesn't show an error icon. That's because we
+                // don't have much ability to customize the native iOS dialog we render.
                 return reduceReporterState(state, {
                     type: "ShowDialog",
                     dialog: {

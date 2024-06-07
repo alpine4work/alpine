@@ -15,7 +15,6 @@ import {
 } from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
-import {useAppContext} from "~/client/context/app_context.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
