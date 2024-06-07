@@ -59,7 +59,10 @@ export default function HomeRoute() {
             withoutMobileBackButton={true}
         >
             <Box width="full" maxWidth={maxWidth} marginX="center">
-                <Box paddingX={contentSchemaStyles.screenPaddingXWithoutBlockPaddingX}>
+                <Box
+                    paddingX={contentSchemaStyles.screenPaddingXWithoutBlockPaddingX}
+                    userSelect="text"
+                >
                     <p className={contentSchemaStyles.paragraphClassName}>
                         Eventually, we’ll have something smart for you here in the home tab but
                         nothing’s been implemented yet. All the other tabs work. Try creating
