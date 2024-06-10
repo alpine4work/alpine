@@ -16,14 +16,21 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
  * Also see `DefaultMap` for a version that's not weak.
  */
 export class DefaultWeakMap<Key extends object, Value> extends WeakMap<Key, Value> {
-    public readonly getDefault: (key: Key) => Value;
+    private readonly _getDefault: (key: Key) => Value;
 
     constructor(
         getDefault: (key: Key) => Value,
         entries?: ReadonlyArray<readonly [Key, Value]> | null,
     ) {
         super(entries);
-        this.getDefault = getDefault;
+        this._getDefault = getDefault;
+    }
+
+    /**
+     * Create a new map reusing the "get default" function from this map.
+     */
+    public newWithGetDefault(entries?: ReadonlyArray<readonly [Key, Value]> | null) {
+        return new DefaultWeakMap(this._getDefault, entries);
     }
 
     /**
@@ -31,6 +38,6 @@ export class DefaultWeakMap<Key extends object, Value> extends WeakMap<Key, Valu
      * default function provided in the constructor.
      */
     public getOrSetDefault(key: Key): Value {
-        return getOrSetDefaultMapValue<WeakMap<Key, Value>>(this, key, this.getDefault);
+        return getOrSetDefaultMapValue<WeakMap<Key, Value>>(this, key, this._getDefault);
     }
 }

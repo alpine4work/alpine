@@ -68,7 +68,7 @@ function scheduleBuildBazelTargets() {
             function buildLoop() {
                 // Clear `nextBuildByTarget` so that we can collect the next targets to build.
                 const buildByTarget = nextBuildByTarget;
-                nextBuildByTarget = new DefaultMap(nextBuildByTarget.getDefault);
+                nextBuildByTarget = nextBuildByTarget.newWithGetDefault();
 
                 // For every target we are building, remember at what time we started building.
                 // This is the latest time we know for certain that the target is up-to-date.

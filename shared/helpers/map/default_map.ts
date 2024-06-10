@@ -18,14 +18,18 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
  * can treat as immutable. `LazyMap` has the interface of an immutable value.
  */
 export class DefaultMap<Key, Value> extends Map<Key, Value> {
-    public readonly getDefault: (key: Key) => Value;
+    private readonly _getDefault: (key: Key) => Value;
 
-    constructor(
-        getDefault: (key: Key) => Value,
-        entries?: ReadonlyArray<readonly [Key, Value]> | null,
-    ) {
+    constructor(getDefault: (key: Key) => Value, entries?: Iterable<readonly [Key, Value]> | null) {
         super(entries);
-        this.getDefault = getDefault;
+        this._getDefault = getDefault;
+    }
+
+    /**
+     * Create a new map reusing the "get default" function from this map.
+     */
+    public newWithGetDefault(entries?: Iterable<readonly [Key, Value]> | null) {
+        return new DefaultMap(this._getDefault, entries);
     }
 
     /**
@@ -33,6 +37,6 @@ export class DefaultMap<Key, Value> extends Map<Key, Value> {
      * default function provided in the constructor.
      */
     public getOrSetDefault(key: Key): Value {
-        return getOrSetDefaultMapValue<Map<Key, Value>>(this, key, this.getDefault);
+        return getOrSetDefaultMapValue<Map<Key, Value>>(this, key, this._getDefault);
     }
 }
