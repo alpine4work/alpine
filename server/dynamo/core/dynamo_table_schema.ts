@@ -4558,6 +4558,19 @@ function getAndCheckDynamoTableSchemaDescriptions(
 
                 const sortRangeIds = new Set();
 
+                if (lastPartitionDescription) {
+                    for (const {id: sortRangeId} of Object.values(
+                        lastPartitionDescription.sortRangeByType,
+                    )) {
+                        assert(
+                            !sortRangeIds.has(sortRangeId),
+                            "Found duplicate sort range ID in partition",
+                        );
+
+                        sortRangeIds.add(sortRangeId);
+                    }
+                }
+
                 const partitionDescription: DynamoTableSchemaTypes.Partition.Description = {
                     id: partitionId,
                     partitionKeyAttributeByKey: mapObjectValues(
@@ -4582,12 +4595,14 @@ function getAndCheckDynamoTableSchemaDescriptions(
                                 while (sortRangeIds.has(sortRangeId)) {
                                     sortRangeId++;
                                 }
-                            }
 
-                            assert(
-                                !sortRangeIds.has(sortRangeId),
-                                "Found duplicate sort range ID in partition",
-                            );
+                                assert(
+                                    !sortRangeIds.has(sortRangeId),
+                                    "Found duplicate sort range ID in partition",
+                                );
+
+                                sortRangeIds.add(sortRangeId);
+                            }
 
                             // Partition IDs should be a valid uint8 so we can write it into a byte.
                             assert(
@@ -4596,8 +4611,6 @@ function getAndCheckDynamoTableSchemaDescriptions(
                                     sortRangeId <= 2 ** 8 - 1,
                                 "Invalid sort range ID",
                             );
-
-                            sortRangeIds.add(sortRangeId);
 
                             const sortRangeDescription: DynamoTableSchemaTypes.SortRange.Description =
                                 {

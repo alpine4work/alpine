@@ -31,6 +31,7 @@ import {getTaskCollectionFromIndex, getTaskFromIndex} from "~/server/tasks/data/
 import {TaskApproximateActionCountByAccountId} from "~/server/tasks/data/task_index_doc.js";
 import {
     TaskStepCountByAccountId,
+    getTaskCommentPayload,
     getTaskNotesContentWithoutReferences,
 } from "~/server/tasks/data/task_table.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
@@ -72,6 +73,11 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
+import {
+    TaskCollectionAccessLevel,
+    TaskCollectionAccessPolicy,
+    hasTaskCollectionAccessLevel,
+} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
 const searchEntityMajorContributorCutOff = 0.2;
@@ -119,6 +125,28 @@ export type SearchEntityEmbeddingChunk = {
  * up too much space.
  */
 const searchEntityEmbeddingPreambleTitleTokenCount = 16;
+
+/**
+ * Data on a `TaskModel` that influences who has access. Use this interface if
+ * you're recording a dependency only on a task's `Authorization` trait.
+ */
+interface TaskModelForAuthorization {
+    isDeleted(): boolean;
+    getCreator(): {readonly accountId: AccountId};
+    getAssignee(): {readonly assignee: {readonly accountId: AccountId}} | null;
+    getParent(): {readonly taskId: TaskId} | null;
+    getCollections(): {getArray(): ReadonlyArray<{readonly collectionId: TaskCollectionId}>};
+}
+
+/**
+ * Data on a `TaskCollectionModel` that influences who has access. Use this
+ * interface if you're recording a dependency only on a collection's
+ * `Authorization` trait.
+ */
+interface TaskCollectionModelForAuthorization {
+    isDeleted(): boolean;
+    getAccessPolicy(): TaskCollectionAccessPolicy;
+}
 
 /**
  * Object that controls reading of a search entity. The implementations of
@@ -350,6 +378,23 @@ class SearchEntityReadState {
         });
     }
 
+    public getTaskCommentPayload(
+        taskId: TaskId,
+        commentIndex: number,
+    ): Promise<{
+        createdTime: Date;
+        authorId: AccountId;
+        payload: MessagePayload;
+    }> {
+        this._recordDependencyId(`TaskComment:${taskId}-${commentIndex}`);
+
+        return getTaskCommentPayload(this._context, {
+            taskId,
+            commentIndex,
+            consistency: "Strong",
+        });
+    }
+
     public getChatAccountIds(
         chatId: ChatId,
     ): Promise<{createdTime: Date; hasMessages: boolean; accountIds: ReadonlyArray<AccountId>}> {
@@ -379,8 +424,11 @@ class SearchEntityReadState {
 
     public async getTask(taskId: TaskId): Promise<{
         task: TaskModel;
-        referencedTaskById: ReadonlyMap<TaskId, TaskModel>;
-        referencedCollectionById: ReadonlyMap<TaskCollectionId, TaskCollectionModel>;
+        referencedTaskById: ReadonlyMap<TaskId, TaskModelForAuthorization>;
+        referencedCollectionById: ReadonlyMap<
+            TaskCollectionId,
+            TaskCollectionModelForAuthorization
+        >;
         approximateActionCountByAccountId: TaskApproximateActionCountByAccountId;
         notesContent: {
             version: number;
@@ -421,6 +469,44 @@ class SearchEntityReadState {
             referencedCollectionById,
             approximateActionCountByAccountId,
             notesContent,
+        };
+    }
+
+    public async getTaskForAuthorization(taskId: TaskId): Promise<{
+        task: TaskModelForAuthorization;
+        referencedTaskById: ReadonlyMap<TaskId, TaskModelForAuthorization>;
+        referencedCollectionById: ReadonlyMap<
+            TaskCollectionId,
+            TaskCollectionModelForAuthorization
+        >;
+    }> {
+        this._recordDependencyId(`Task:${taskId}:Authorization`);
+
+        const {task, referencedTasks, referencedCollections} = await getTaskFromIndex(
+            this._context,
+            this._context.actor.getSpaceId(),
+            taskId,
+        );
+
+        const referencedTaskById = new Map<TaskId, TaskModel>(
+            referencedTasks.map(task => {
+                this._recordDependencyId(`Task:${task.id}:Authorization`);
+
+                return [task.id, task];
+            }),
+        );
+        const referencedCollectionById = new Map<TaskCollectionId, TaskCollectionModel>(
+            referencedCollections.map(collection => {
+                this._recordDependencyId(`TaskCollection:${collection.id}:Authorization`);
+
+                return [collection.id, collection];
+            }),
+        );
+
+        return {
+            task,
+            referencedTaskById,
+            referencedCollectionById,
         };
     }
 
@@ -490,6 +576,8 @@ async function actuallyGetSearchEntity(
             return getTaskSearchEntity(state, idObject.taskId);
         case "TaskCollection":
             return getTaskCollectionSearchEntity(state, idObject.collectionId);
+        case "TaskComment":
+            return getTaskCommentSearchEntity(state, idObject);
         default:
             throw exhaustive(idObject);
     }
@@ -966,26 +1054,27 @@ async function getChatMessageSearchEntity(
     };
 }
 
-async function getTaskSearchEntity(
-    state: SearchEntityReadState,
-    taskId: TaskId,
-): Promise<SearchEntity> {
-    const {
-        task,
-        referencedTaskById,
-        referencedCollectionById,
-        approximateActionCountByAccountId: approximateActionCountByAccountIdWithoutNotesStepCount,
-        notesContent,
-    } = await state.getTask(taskId);
-
+function getTaskSearchEntityAccessPolicy({
+    task,
+    referencedTaskById,
+    referencedCollectionById,
+    expectedAccessLevel,
+}: {
+    task: TaskModelForAuthorization;
+    referencedTaskById: ReadonlyMap<TaskId, TaskModelForAuthorization>;
+    referencedCollectionById: ReadonlyMap<TaskCollectionId, TaskCollectionModelForAuthorization>;
+    expectedAccessLevel: TaskCollectionAccessLevel;
+}): SearchEntityIndexAccessPolicy {
     let defaultGrantType: SearchEntityIndexDefaultGrantType | null = null;
     let accountGrantAccountIds = new Set<AccountId>();
 
-    const trackTaskDependencies = (task: TaskModel) => {
-        accountGrantAccountIds.add(task.getCreator().accountId);
+    const trackTaskDependencies = (task: TaskModelForAuthorization) => {
+        if (hasTaskCollectionAccessLevel("Edit", expectedAccessLevel)) {
+            accountGrantAccountIds.add(task.getCreator().accountId);
+        }
 
         const assignee = task.getAssignee();
-        if (assignee) {
+        if (assignee && hasTaskCollectionAccessLevel("Edit", expectedAccessLevel)) {
             accountGrantAccountIds.add(assignee.assignee.accountId);
         }
 
@@ -998,7 +1087,10 @@ async function getTaskSearchEntity(
 
             const accessPolicy = collection.getAccessPolicy();
 
-            if (accessPolicy.defaultGrant !== null) {
+            if (
+                accessPolicy.defaultGrant !== null &&
+                hasTaskCollectionAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
+            ) {
                 if (defaultGrantType === null) {
                     defaultGrantType = accessPolicy.defaultGrant.type;
                 } else {
@@ -1009,8 +1101,10 @@ async function getTaskSearchEntity(
                 }
             }
 
-            for (const accountId of accessPolicy.accountGrantById.keys()) {
-                accountGrantAccountIds.add(accountId);
+            for (const [accountId, grant] of accessPolicy.accountGrantById) {
+                if (hasTaskCollectionAccessLevel(grant.level, expectedAccessLevel)) {
+                    accountGrantAccountIds.add(accountId);
+                }
             }
         }
 
@@ -1035,6 +1129,24 @@ async function getTaskSearchEntity(
         accountGrantAccountIds = new Set();
     }
 
+    return {
+        accountGrantAccountIds,
+        defaultGrantType,
+    };
+}
+
+async function getTaskSearchEntity(
+    state: SearchEntityReadState,
+    taskId: TaskId,
+): Promise<SearchEntity> {
+    const {
+        task,
+        referencedTaskById,
+        referencedCollectionById,
+        approximateActionCountByAccountId: approximateActionCountByAccountIdWithoutNotesStepCount,
+        notesContent,
+    } = await state.getTask(taskId);
+
     // Index no content for deleted tasks.
     if (task.isDeleted()) {
         return {
@@ -1049,6 +1161,13 @@ async function getTaskSearchEntity(
             contributorIds: new Map(),
         };
     }
+
+    const accessPolicy = getTaskSearchEntityAccessPolicy({
+        task,
+        referencedTaskById,
+        referencedCollectionById,
+        expectedAccessLevel: "View",
+    });
 
     const title = addFallbackToTaskTitle(task.getTitle().getText());
 
@@ -1160,7 +1279,7 @@ async function getTaskSearchEntity(
 
     return {
         id: `Task:${taskId}`,
-        accessPolicy: {accountGrantAccountIds, defaultGrantType},
+        accessPolicy,
         createdTime: new Date(task.getCreatedTime().absoluteTime[0]),
         title,
         body: getFullText(),
@@ -1215,6 +1334,52 @@ async function getTaskCollectionSearchEntity(
         creatorId: collection.rawData.creatorId,
         // In the future we could keep track of which accounts were adding tasks to the
         // collection to answer queries like "collections I've added tasks to".
+        contributorIds: new Map(),
+    };
+}
+
+async function getTaskCommentSearchEntity(
+    state: SearchEntityReadState,
+    {taskId, commentIndex}: {taskId: TaskId; commentIndex: number},
+): Promise<SearchEntity> {
+    const [
+        {task, referencedTaskById, referencedCollectionById},
+        {createdTime, authorId, payload: commentPayload},
+    ] = await runAllPromises([
+        state.getTaskForAuthorization(taskId),
+        state.getTaskCommentPayload(taskId, commentIndex),
+    ]);
+
+    const accessPolicy = getTaskSearchEntityAccessPolicy({
+        task,
+        referencedTaskById,
+        referencedCollectionById,
+        expectedAccessLevel: "Comment",
+    });
+
+    const content =
+        commentPayload.type === "Content"
+            ? await chunkSearchContent(commentPayload.content, {
+                  tokenizer: state.tokenizer,
+                  getAccountIfExists: state.getAccountIfExists,
+                  getChunkPreamble: ({isInitialChunk}) => {
+                      return {
+                          text: `This is${isInitialChunk ? " a " : " from a "}comment on a task:`,
+                          lineMarginBottom: 2,
+                      };
+                  },
+              })
+            : null;
+
+    return {
+        id: `TaskComment:${taskId}-${commentIndex}`,
+        accessPolicy,
+        createdTime,
+        title: null,
+        body: content?.getFullText() ?? null,
+        media: {type: "Account", accountId: authorId},
+        embeddingChunks: content?.embeddingChunks ?? [],
+        creatorId: authorId,
         contributorIds: new Map(),
     };
 }

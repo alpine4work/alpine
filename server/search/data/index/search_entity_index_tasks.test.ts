@@ -12,7 +12,7 @@ import {
 import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
+import {createTaskComment, updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -20,8 +20,10 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {SearchEntityId} from "~/shared/search/search_entity_id.js";
+import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 
 beforeEach(() => {
@@ -1098,6 +1100,391 @@ test(
     // This test has a lot going on. Give it a long timeout.
     45 * 1000,
 );
+
+test("will not allow users to view task comments they do not have access to", async () => {
+    const space = await TestSpace.create(context);
+
+    const [
+        unauthorizedSession,
+        viewerSession,
+        commenterSession,
+        editorSession,
+        manageSession,
+        creatorSession,
+        assigneeSession,
+    ] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const [privateTask, publicTask, privateCollection, publicCollection] = await runAllPromises([
+        TestTask.create(creatorSession, {title: "test1"}),
+        TestTask.create(creatorSession, {title: "test2"}),
+        TestTaskCollection.createPrivate(creatorSession, {name: "private test session1"}),
+        TestTaskCollection.createPublic(creatorSession, {name: "public test session1"}),
+    ]);
+
+    const privateTaskCommentDetails = {
+        taskId: privateTask.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("task comment1"),
+    };
+
+    const publicTaskCommentDetails = {
+        taskId: publicTask.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("task comment2"),
+    };
+
+    await runAllPromises([
+        privateTask.addCollection(creatorSession, privateCollection),
+        publicTask.addCollection(creatorSession, publicCollection),
+        createTaskComment(context.action(creatorSession), privateTaskCommentDetails),
+        createTaskComment(context.action(creatorSession), publicTaskCommentDetails),
+    ]);
+
+    import.meta.jest.advanceTimersByTime(60 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    await privateTask.updateAssignee(creatorSession, assigneeSession);
+
+    await privateCollection.updateAccessPolicy(creatorSession, {
+        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+            [creatorSession.account.id, {level: "Manage"}],
+            [manageSession.account.id, {level: "Manage"}],
+            [editorSession.account.id, {level: "Edit"}],
+            [commenterSession.account.id, {level: "Comment"}],
+            [viewerSession.account.id, {level: "View"}],
+        ]),
+        defaultGrant: null,
+    });
+
+    const taskSearchEntityIdOrder: Array<SearchEntityId> = [
+        `Task:${privateTask.id}`,
+        `Task:${publicTask.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskComment:${privateTask.id}-0`,
+        `TaskComment:${publicTask.id}-0`,
+    ];
+
+    const getSearchEntityIds = async (session: TestSpaceSession) => {
+        await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+        const {results} = await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "task comment",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        });
+
+        return results
+            .map(result => result.id)
+            .filter(resultId => !resultId.startsWith("Account:"))
+            .sort(
+                (id1, id2) =>
+                    assertExists(taskSearchEntityIdOrder.findIndex(id => id === id1)) -
+                    assertExists(taskSearchEntityIdOrder.findIndex(id => id === id2)),
+            );
+    };
+
+    import.meta.jest.advanceTimersByTime(60 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getSearchEntityIds(creatorSession)).toEqual([
+        `Task:${privateTask.id}`,
+        `Task:${publicTask.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskComment:${privateTask.id}-0`,
+        `TaskComment:${publicTask.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(viewerSession)).toEqual([
+        `Task:${privateTask.id}`,
+        `Task:${publicTask.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskComment:${publicTask.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(unauthorizedSession)).toEqual([
+        `Task:${publicTask.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskComment:${publicTask.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(editorSession)).toEqual([
+        `Task:${privateTask.id}`,
+        `Task:${publicTask.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskComment:${privateTask.id}-0`,
+        `TaskComment:${publicTask.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(commenterSession)).toEqual([
+        `Task:${privateTask.id}`,
+        `Task:${publicTask.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskComment:${privateTask.id}-0`,
+        `TaskComment:${publicTask.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(manageSession)).toEqual([
+        `Task:${privateTask.id}`,
+        `Task:${publicTask.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskComment:${privateTask.id}-0`,
+        `TaskComment:${publicTask.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(assigneeSession)).toEqual([
+        `Task:${privateTask.id}`,
+        `Task:${publicTask.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskComment:${privateTask.id}-0`,
+        `TaskComment:${publicTask.id}-0`,
+    ]);
+});
+
+test("will not allow users to view task comments they do not have access to after switching access", async () => {
+    const space = await TestSpace.create(context);
+
+    const [viewerSession, commenterSession, creatorSession] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const [privateTask, publicTask, privateCollection, publicCollection] = await runAllPromises([
+        TestTask.create(creatorSession, {title: "test1"}),
+        TestTask.create(creatorSession, {title: "test2"}),
+        TestTaskCollection.createPrivate(creatorSession, {name: "private test session1"}),
+        TestTaskCollection.createPublic(creatorSession, {name: "public test session1"}),
+    ]);
+
+    const privateTaskCommentDetails = {
+        taskId: privateTask.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("task comment1"),
+    };
+
+    const publicTaskCommentDetails = {
+        taskId: publicTask.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("task comment2"),
+    };
+
+    await runAllPromises([
+        privateTask.addCollection(creatorSession, privateCollection),
+        publicTask.addCollection(creatorSession, publicCollection),
+        createTaskComment(context.action(creatorSession), privateTaskCommentDetails),
+        createTaskComment(context.action(creatorSession), publicTaskCommentDetails),
+    ]);
+
+    import.meta.jest.advanceTimersByTime(60 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    const taskSearchEntityIdOrder: Array<SearchEntityId> = [
+        `Task:${privateTask.id}`,
+        `Task:${publicTask.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskComment:${privateTask.id}-0`,
+        `TaskComment:${publicTask.id}-0`,
+    ];
+
+    await privateCollection.updateAccessPolicy(creatorSession, {
+        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+            [creatorSession.account.id, {level: "Manage"}],
+            [commenterSession.account.id, {level: "Comment"}],
+            [viewerSession.account.id, {level: "View"}],
+        ]),
+        defaultGrant: null,
+    });
+
+    const getSearchEntityIds = async (session: TestSpaceSession) => {
+        await context.opensearch.refresh(SearchEntityKeywordIndex);
+        const {results} = await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "task comment",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        });
+
+        return results
+            .map(result => result.id)
+            .filter(resultId => !resultId.startsWith("Account:"))
+            .sort(
+                (id1, id2) =>
+                    assertExists(taskSearchEntityIdOrder.findIndex(id => id === id1)) -
+                    assertExists(taskSearchEntityIdOrder.findIndex(id => id === id2)),
+            );
+    };
+
+    import.meta.jest.advanceTimersByTime(60 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getSearchEntityIds(commenterSession)).toEqual([
+        `Task:${privateTask.id}`,
+        `Task:${publicTask.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskComment:${privateTask.id}-0`,
+        `TaskComment:${publicTask.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(viewerSession)).toEqual([
+        `Task:${privateTask.id}`,
+        `Task:${publicTask.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskComment:${publicTask.id}-0`,
+    ]);
+
+    await privateCollection.updateAccessPolicy(creatorSession, {
+        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+            [creatorSession.account.id, {level: "Manage"}],
+            [commenterSession.account.id, {level: "View"}],
+            [viewerSession.account.id, {level: "Comment"}],
+        ]),
+        defaultGrant: null,
+    });
+
+    import.meta.jest.advanceTimersByTime(60 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getSearchEntityIds(viewerSession)).toEqual([
+        `Task:${privateTask.id}`,
+        `Task:${publicTask.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskComment:${privateTask.id}-0`,
+        `TaskComment:${publicTask.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(commenterSession)).toEqual([
+        `Task:${privateTask.id}`,
+        `Task:${publicTask.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskComment:${publicTask.id}-0`,
+    ]);
+});
+
+test("will not allow users to view task comments they do not have access to when collection is set from defaultGrant", async () => {
+    const space = await TestSpace.create(context);
+
+    const [viewerSession, creatorSession] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const [privateTask, publicTask, privateCollection, publicCollection] = await runAllPromises([
+        TestTask.create(creatorSession, {title: "test1"}),
+        TestTask.create(creatorSession, {title: "test2"}),
+        TestTaskCollection.createPrivate(creatorSession, {name: "private test session1"}),
+        TestTaskCollection.createPublic(creatorSession, {name: "public test session1"}),
+    ]);
+
+    const privateTaskCommentDetails = {
+        taskId: privateTask.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("task comment1"),
+    };
+
+    const publicTaskCommentDetails = {
+        taskId: publicTask.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("task comment2"),
+    };
+
+    await runAllPromises([
+        privateTask.addCollection(creatorSession, privateCollection),
+        publicTask.addCollection(creatorSession, publicCollection),
+        createTaskComment(context.action(creatorSession), privateTaskCommentDetails),
+        createTaskComment(context.action(creatorSession), publicTaskCommentDetails),
+    ]);
+
+    import.meta.jest.advanceTimersByTime(60 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    const taskSearchEntityIdOrder: Array<SearchEntityId> = [
+        `Task:${privateTask.id}`,
+        `Task:${publicTask.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskComment:${privateTask.id}-0`,
+        `TaskComment:${publicTask.id}-0`,
+    ];
+
+    await privateCollection.updateAccessPolicy(creatorSession, {
+        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+            [creatorSession.account.id, {level: "Manage"}],
+        ]),
+        defaultGrant: {type: "Space", level: "View"},
+    });
+
+    const getSearchEntityIds = async (session: TestSpaceSession) => {
+        await context.opensearch.refresh(SearchEntityKeywordIndex);
+        const {results} = await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "task comment",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        });
+
+        return results
+            .map(result => result.id)
+            .filter(resultId => !resultId.startsWith("Account:"))
+            .sort(
+                (id1, id2) =>
+                    assertExists(taskSearchEntityIdOrder.findIndex(id => id === id1)) -
+                    assertExists(taskSearchEntityIdOrder.findIndex(id => id === id2)),
+            );
+    };
+
+    import.meta.jest.advanceTimersByTime(60 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getSearchEntityIds(viewerSession)).toEqual([
+        `Task:${privateTask.id}`,
+        `Task:${publicTask.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskComment:${publicTask.id}-0`,
+    ]);
+
+    await privateCollection.updateAccessPolicy(creatorSession, {
+        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+            [creatorSession.account.id, {level: "Manage"}],
+        ]),
+        defaultGrant: {type: "Space", level: "Comment"},
+    });
+
+    import.meta.jest.advanceTimersByTime(60 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getSearchEntityIds(viewerSession)).toEqual([
+        `Task:${privateTask.id}`,
+        `Task:${publicTask.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskComment:${privateTask.id}-0`,
+        `TaskComment:${publicTask.id}-0`,
+    ]);
+});
 
 test("will not index a task twice if notes update happened within the timeout", async () => {
     const space = await TestSpace.create(context);

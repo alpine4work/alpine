@@ -4,6 +4,10 @@ import murmurhash from "murmurhash";
 import {Step} from "prosemirror-transform";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
+    applyMentionCountByAccountIdDifferenceFromContentUpdate,
+    getMentionedAccountIdsInContent,
+} from "~/server/content/get_mentioned_account_ids_in_content.js";
+import {
     ServerActionContext,
     ServerSessionActionContext,
     ServerSessionActionContextModules,
@@ -17,10 +21,13 @@ import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_en
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
+import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
+import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
+    getAccount,
     getAccountIfExists,
     isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
@@ -61,9 +68,12 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
+import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {isVtencBigInt64SetEmpty} from "~/shared/helpers/number/vtenc_big_uint_64_set.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -73,6 +83,7 @@ import {decodeIdInto, encodeId, generateId, getMinId, idByteLength} from "~/shar
 import {
     AccountId,
     BrowserId,
+    ContentMentionAccountId,
     SpaceId,
     TaskActionTransactionId,
     TaskActionTransactionLeaseId,
@@ -80,6 +91,9 @@ import {
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
+import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
+import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {MessagePayload, MessagePayloadSchema} from "~/shared/messaging/message_model.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
@@ -95,6 +109,7 @@ import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
+import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {printTaskCollectionSearchResultBodyTextSnippet} from "~/shared/tasks/print_task_collection_search_result_body_text_snippet.js";
 import {
     TaskCollectionAccessLevel,
@@ -565,7 +580,75 @@ const TaskTable = DynamoTableSchema.new({
                             .default(null),
                     }),
                 },
+                /**
+                 * Information regarding the task's comments. Including comment count and the
+                 * next comment index.
+                 */
+                // NOTE(calebmer, 2024-06-05): Comment information is in a separate DynamoDB
+                // item for tasks unlike the `commentsSummary` or `messagesSummary` properties
+                // in the chat, forum, and document messaging systems which live in the main
+                // attributes object for their respective entities. It's hard to predict
+                // without sufficient production data, but I'm starting to suspect that for
+                // messaging rooms that themselves carry a lot of data (just posts and tasks
+                // right now) it may be more efficient to have a separate `CommentsSummary`
+                // item than to have a `commentsSummary` property on the main item.
+                //
+                // If we had a `commentsSummary` property in a task's `EssentialAttributes`
+                // item then if the combined object exceeds 1kb we have to pay an extra
+                // DynamoDB WCU when either updating `EssentialAttributes` or
+                // creating/updating any comment. In binary ~7 `Id`s (at 128 bits each) are
+                // enough to fill a 1kb WCU. So a separate `CommentsSummary` item saves WCUs.
+                //
+                // A separate `CommentsSummary` item doesn't increase our DynamoDB read cost
+                // (RCUs) if we're careful to read them with a DynamoDB `query()` (instead of
+                // `getItem()`) since they're physically next to each other on disk.
+                {
+                    name: "CommentsSummary",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        /**
+                         * The index of the next comment.
+                         */
+                        nextCommentIndex: Schema.integer.min(0),
 
+                        /**
+                         * The last time a comment was changed. This should equal the `changeTime` of
+                         * the highest item in `CommentChangeLog`.
+                         */
+                        lastChangeTime: Schema.date.nullable().default(null),
+
+                        /**
+                         * All the accounts which have commented on the task and the number of comments
+                         * they have made. The map is ordered by when the account first commented on
+                         * the task.
+                         *
+                         * This map can grow unbounded. When a user deletes a comment it leaves a
+                         * gravestone so comment counts should never be decremented.
+                         */
+                        commentCountByAuthorId: Schema.map(
+                            Schema.id<AccountId>(),
+                            Schema.integer.min(1),
+                        ),
+
+                        /**
+                         * All the accounts which have been mentioned at some point in the task's
+                         * comments or task's content and how many times the account was mentioned.
+                         *
+                         * Accounts that exist in the map with a mention count of zero have a
+                         * special meaning:
+                         *
+                         * - If an account exists in the map they were mentioned at some point
+                         * - If an account exists in the map with a mention count of zero then they
+                         *   were mentioned at some point but all mentions have been removed by updates
+                         * - If an account does not exist in the map they were never mentioned in
+                         *   the task
+                         **/
+                        mentionCountByAccountId: Schema.map(
+                            Schema.id<ContentMentionAccountId>(),
+                            Schema.integer.min(0),
+                        ).default(new Map()),
+                    }),
+                },
                 /**
                  * All queryable task data is updated through `TaskAction`s and indexed in
                  * OpenSearch. Task notes are a freeform, collaborative, text area that's not
@@ -643,6 +726,60 @@ const TaskTable = DynamoTableSchema.new({
                         ),
                     }),
                 },
+                /**
+                 * Comments on a task. Has all the attributes needed for a message in
+                 * `MessageInterface`.
+                 */
+                {
+                    name: "Comments",
+                    sortKeyAttributes: {
+                        commentIndex: DynamoKeyAttributeSchema.integer,
+                    },
+                    attributes: Schema.object({
+                        authorId: Schema.id<AccountId>(),
+                        createdTime: Schema.date,
+                        payload: MessagePayloadSchema,
+                    }),
+                },
+                /**
+                 * We keep a log of changes to comments so that when backfilling for realtime
+                 * we can send any missed updates between the last time data was loaded and
+                 * the backfill.
+                 *
+                 * `changeTime` should be monotonically increasing which is managed by
+                 * `lastChangeTime` in the `CommentsSummary` item.
+                 *
+                 * This log does not include when comments are created, only updated or
+                 * deleted. Because comment indexes are dense we can take the last seen comment
+                 * index and load comments after that to backfill.
+                 *
+                 * Log items will expire after a certain amount of time. If a client hasn't
+                 * backfilled in a long time it will need to fully reload since we won't know
+                 * what changed.
+                 */
+                {
+                    name: "CommentChangeLog",
+                    sortKeyAttributes: {
+                        changeTime: DynamoKeyAttributeSchema.date,
+                    },
+                    withExpirationTime: "Required",
+                    attributes: Schema.object({
+                        commentIndex: Schema.integer,
+                        change: Schema.union({
+                            UpdateContent: Schema.object({
+                                type: Schema.value("UpdateContent"),
+                                content: MessageContentSchema,
+                                // `contentUpdatedTime` is the `changeTime` sort key attribute. We don't
+                                // duplicate it here.
+                            }),
+                            Delete: Schema.object({
+                                type: Schema.value("Delete"),
+                                // `deletedTime` is the `changeTime` sort key attribute. We don't
+                                // duplicate it here.
+                            }),
+                        }),
+                    }),
+                },
             ],
         },
         {
@@ -698,6 +835,8 @@ export type TaskEssentialAttributesItem = DynamoTableItemType<
     "EssentialAttributes"
 >;
 
+type TaskCommentsSummaryItem = DynamoTableItemType<typeof TaskTable, "Task", "CommentsSummary">;
+
 type TaskEssentialAttributesItemBase = Omit<
     TaskEssentialAttributesItem,
     "childTaskIds" | "validLeaseId"
@@ -715,6 +854,8 @@ type TaskCollectionEssentialAttributesItemBase = Omit<
 >;
 
 type TaskNotesItem = DynamoTableItemType<typeof TaskTable, "Task", "Notes">;
+
+type TaskCommentItem = DynamoTableItemType<typeof TaskTable, "Task", "Comments">;
 
 /**
  * Scan every task and task collection in our database. Use when
@@ -759,6 +900,19 @@ export async function getTaskItemForTest(
     return TaskTable.getItem(context, {
         partitionType: "Task",
         sortRangeType: "EssentialAttributes",
+        taskId,
+    });
+}
+
+export async function getTaskCommentsSummaryItemIfExistsForTest(
+    context: DynamoContext,
+    taskId: TaskId,
+): Promise<TaskCommentsSummaryItem | null> {
+    assert(import.meta.jest);
+
+    return TaskTable.getItemIfExists(context, {
+        partitionType: "Task",
+        sortRangeType: "CommentsSummary",
         taskId,
     });
 }
@@ -3737,7 +3891,7 @@ async function isTaskAccessAuthorized(
             collectionId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null,
-): Promise<{spaceId: SpaceId; hasAccess: boolean}> {
+): Promise<{spaceId: SpaceId; createdTime: HybridLogicalTime; hasAccess: boolean}> {
     const taskItem = await getTaskItemForAuthorization(context, taskId, loaders);
 
     return {
@@ -3753,6 +3907,7 @@ async function isTaskAccessAuthorized(
                     getTaskCollectionItemForAuthorization(context, collectionId, loaders),
             },
         ),
+        createdTime: taskItem.createdTime,
     };
 }
 
@@ -3775,15 +3930,15 @@ export async function authorizeTaskAccess(
             collectionId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null,
-): Promise<{spaceId: SpaceId}> {
+): Promise<{spaceId: SpaceId; createdTime: HybridLogicalTime}> {
     switch (context.actor.type) {
         case "System": {
             const taskItem = await getTaskItemForAuthorization(context, taskId, loaders);
             await authorizeSpaceAccess(context, taskItem.spaceId);
-            return {spaceId: taskItem.spaceId};
+            return {spaceId: taskItem.spaceId, createdTime: taskItem.createdTime};
         }
         case "Session": {
-            const {spaceId, hasAccess} = await isTaskAccessAuthorized(
+            const {spaceId, hasAccess, createdTime} = await isTaskAccessAuthorized(
                 context as ServerSessionActionContext,
                 taskId,
                 expectedAccessLevel,
@@ -3802,7 +3957,97 @@ export async function authorizeTaskAccess(
                 );
             }
 
-            return {spaceId};
+            return {spaceId, createdTime};
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
+}
+
+async function authorizeTaskAccessAndGetCommentsSummaryItem(
+    context: ServerActionContext,
+    taskId: TaskId,
+    expectedAccessLevel: TaskCollectionAccessLevel,
+): Promise<{
+    spaceId: SpaceId;
+    createdTime: HybridLogicalTime;
+    commentsSummaryItem: TaskCommentsSummaryItem | null;
+}> {
+    let taskItem: TaskEssentialAttributesItem | null = null;
+    let taskCommentsSummaryItem: TaskCommentsSummaryItem | null = null;
+
+    for await (const item of TaskTable.query(context, {
+        partitionKey: {
+            partitionType: "Task",
+            taskId,
+        },
+        startSortKey: {
+            sortRangeType: "EssentialAttributes",
+        },
+        endSortKey: {
+            sortRangeType: "CommentsSummary",
+        },
+        limit: "All",
+    })) {
+        if (item.sortRangeType === "EssentialAttributes") {
+            taskItem = item;
+        } else if (item.sortRangeType === "CommentsSummary") {
+            taskCommentsSummaryItem = item;
+        }
+    }
+
+    if (!taskItem) {
+        throw new NotFoundError("Task not found");
+    }
+
+    // Cache the `taskItem` in case `getTaskItemForAuthorization()` is called for
+    // the same `TaskId` later.
+    TaskItemAuthorizationCache.set(context, taskId, taskItem);
+
+    switch (context.actor.type) {
+        case "System": {
+            await authorizeSpaceAccess(context, taskItem.spaceId);
+
+            return {
+                spaceId: taskItem.spaceId,
+                createdTime: taskItem.createdTime,
+                commentsSummaryItem: taskCommentsSummaryItem,
+            };
+        }
+        case "Session": {
+            const hasAccess = await isTaskItemAccessAuthorized(
+                context,
+                context.actor.getAccountId(),
+                taskItem,
+                expectedAccessLevel,
+                {
+                    getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
+                    getCollectionItem: collectionId =>
+                        getTaskCollectionItemForAuthorization(
+                            context as ServerSessionActionContext,
+                            collectionId,
+                            null,
+                        ),
+                },
+            );
+
+            if (!hasAccess) {
+                throw new PermissionDeniedError(
+                    quote`Actor does not have ${expectedAccessLevel} access level to task`,
+                    {
+                        displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
+                            taskItem,
+                            expectedAccessLevel,
+                        ),
+                    },
+                );
+            }
+
+            return {
+                spaceId: taskItem.spaceId,
+                createdTime: taskItem.createdTime,
+                commentsSummaryItem: taskCommentsSummaryItem,
+            };
         }
         default:
             throw exhaustive(context.actor);
@@ -3852,6 +4097,952 @@ async function authorizeTaskItemAccess(
             },
         );
     }
+}
+
+export async function getTaskComment(
+    context: ServerActionContext,
+    {taskId, commentIndex}: {taskId: TaskId; commentIndex: number},
+): Promise<TaskCommentModel> {
+    const [{spaceId}, commentsSummaryItem] = await runAllPromises([
+        authorizeTaskAccess(context, taskId, "Comment", null),
+        TaskTable.getItem(context, {
+            partitionType: "Task",
+            sortRangeType: "Comments",
+            taskId,
+            commentIndex,
+        }),
+    ]);
+
+    return createTaskCommentModelFromItem(context, spaceId, commentsSummaryItem);
+}
+
+export async function getTaskCommentPayload(
+    context: ServerActionContext,
+    {
+        taskId,
+        commentIndex,
+        consistency = "Eventual",
+    }: {
+        taskId: TaskId;
+        commentIndex: number;
+        consistency?: DynamoReadConsistency;
+    },
+): Promise<{
+    createdTime: Date;
+    authorId: AccountId;
+    payload: MessagePayload;
+}> {
+    const [, item] = await runAllPromises([
+        authorizeTaskAccess(context, taskId, "Comment", null),
+        TaskTable.getItem(
+            context,
+            {
+                partitionType: "Task",
+                sortRangeType: "Comments",
+                taskId,
+                commentIndex,
+            },
+            {consistency},
+        ),
+    ]);
+
+    return {
+        createdTime: item.createdTime,
+        authorId: item.authorId,
+        payload: item.payload,
+    };
+}
+
+async function createTaskCommentModelFromItem(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    item: TaskCommentItem,
+): Promise<TaskCommentModel> {
+    const [author, payload] = await runAllPromises([
+        getAccount(context, spaceId, item.authorId),
+        createMessagePayloadModel(context, spaceId, item.payload),
+    ]);
+
+    return new TaskCommentModel({
+        taskId: item.taskId,
+        index: item.commentIndex,
+        author,
+        createdTime: item.createdTime,
+        payload,
+    });
+}
+
+export function updateTaskCommentContent(
+    context: ServerSessionActionContext,
+    {
+        taskId,
+        commentIndex,
+        content,
+    }: {
+        taskId: TaskId;
+        commentIndex: number;
+        content: MessageContent;
+    },
+): Promise<{
+    contentUpdatedTime: Date;
+}> {
+    return context.dynamo.retryTransaction(async context => {
+        const [{spaceId, createdTime, commentsSummaryItem}, taskCommentItem] = await runAllPromises(
+            [
+                authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment"),
+                TaskTable.getItemIfExists(context, {
+                    partitionType: "Task",
+                    sortRangeType: "Comments",
+                    taskId,
+                    commentIndex,
+                }),
+            ],
+        );
+        if (!commentsSummaryItem) throw new NotFoundError("Task comments summary item not found");
+        if (!taskCommentItem) throw new NotFoundError("Task comment not found");
+
+        if (taskCommentItem.authorId !== context.actor.getAccountId()) {
+            throw new PermissionDeniedError("Can only update Task comments you authored");
+        }
+
+        if (taskCommentItem.payload.type !== "Content")
+            throw new FailedPreconditionError("Can not update comments with a non-content payload");
+
+        const contentUpdatedTime = new Date(
+            Math.max(
+                (commentsSummaryItem.lastChangeTime ?? new Date(createdTime[0])).getTime() + 1,
+                Date.now(),
+            ),
+        );
+
+        // `lastChangeTime` should always be greater than or equal
+        // to `contentUpdatedTime`.
+        assert(
+            !taskCommentItem.payload.contentUpdatedTime ||
+                contentUpdatedTime > taskCommentItem.payload.contentUpdatedTime,
+        );
+
+        const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
+            commentsSummaryItem.mentionCountByAccountId,
+            taskCommentItem.payload.content,
+            content,
+        );
+
+        await DynamoTableSchema.executeTransaction(context, [
+            TaskTable.transactionDirectlyUpdateItem({
+                ...taskCommentItem,
+                payload: {
+                    ...taskCommentItem.payload,
+                    content,
+                    contentUpdatedTime,
+                },
+            }),
+            TaskTable.transactionDirectlyUpdateItem({
+                ...commentsSummaryItem,
+                taskId,
+                nextCommentIndex: commentsSummaryItem.nextCommentIndex,
+                lastChangeTime: contentUpdatedTime,
+                commentCountByAuthorId: commentsSummaryItem.commentCountByAuthorId,
+                mentionCountByAccountId: newMentionCountByAccountId,
+                updateLockVersion: commentsSummaryItem.updateLockVersion,
+            }),
+            TaskTable.transactionCreateOrReplaceItem({
+                partitionType: "Task",
+                sortRangeType: "CommentChangeLog",
+                taskId,
+                changeTime: contentUpdatedTime,
+                commentIndex: taskCommentItem.commentIndex,
+                change: {
+                    type: "UpdateContent",
+                    content,
+                },
+                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(contentUpdatedTime),
+            }),
+        ]);
+
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId,
+            update: {
+                type: "TaskComment",
+                taskId,
+                commentIndex,
+                updatedTraits: {type: "Some", traits: []},
+            },
+        });
+
+        return {contentUpdatedTime};
+    });
+}
+
+export function deleteTaskComment(
+    context: ServerSessionActionContext,
+    {taskId, commentIndex}: {taskId: TaskId; commentIndex: number},
+): Promise<{deletedTime: Date}> {
+    return context.dynamo.retryTransaction(async context => {
+        const [{spaceId, createdTime, commentsSummaryItem}, taskCommentItem] = await runAllPromises(
+            [
+                authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment"),
+                TaskTable.getItemIfExists(context, {
+                    partitionType: "Task",
+                    sortRangeType: "Comments",
+                    taskId,
+                    commentIndex,
+                }),
+            ],
+        );
+        if (!commentsSummaryItem) throw new NotFoundError("Task comments summary item not found");
+        if (!taskCommentItem) throw new NotFoundError("Task comment not found");
+
+        if (taskCommentItem.authorId !== context.actor.getAccountId())
+            throw new PermissionDeniedError("Can only delete task comments you authored");
+
+        if (taskCommentItem.payload.type !== "Content")
+            throw new FailedPreconditionError("Can not delete comments with a non-content payload");
+
+        const deletedTime = new Date(
+            Math.max(
+                (commentsSummaryItem.lastChangeTime ?? new Date(createdTime[0])).getTime() + 1,
+                Date.now(),
+            ),
+        );
+
+        // `lastChangeTime` should always be greater than or equal
+        // to `deletedTime`.
+        assert(
+            !taskCommentItem.payload.contentUpdatedTime ||
+                deletedTime > taskCommentItem.payload.contentUpdatedTime,
+        );
+
+        const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
+            commentsSummaryItem.mentionCountByAccountId,
+            taskCommentItem.payload.content,
+            null,
+        );
+
+        await DynamoTableSchema.executeTransaction(context, [
+            TaskTable.transactionDirectlyUpdateItem({
+                ...taskCommentItem,
+                payload: {type: "Deleted", deletedTime},
+            }),
+            TaskTable.transactionDirectlyUpdateItem({
+                ...commentsSummaryItem,
+                taskId,
+                nextCommentIndex: commentsSummaryItem.nextCommentIndex,
+                lastChangeTime: deletedTime,
+                commentCountByAuthorId: commentsSummaryItem.commentCountByAuthorId,
+                mentionCountByAccountId: newMentionCountByAccountId,
+                updateLockVersion: commentsSummaryItem.updateLockVersion,
+            }),
+            // Create-or-replace is safe because the change time is guaranteed to be unique
+            // and monotonically increasing.
+            TaskTable.transactionCreateOrReplaceItem({
+                partitionType: "Task",
+                sortRangeType: "CommentChangeLog",
+                taskId,
+                changeTime: deletedTime,
+                commentIndex: taskCommentItem.commentIndex,
+                change: {type: "Delete"},
+                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(deletedTime),
+            }),
+        ]);
+
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId,
+            update: {
+                type: "TaskComment",
+                taskId,
+                commentIndex,
+                updatedTraits: {type: "Some", traits: []},
+            },
+        });
+
+        return {deletedTime};
+    });
+}
+
+export async function createTaskComment(
+    context: ServerSessionActionContext,
+    {
+        taskId,
+        parentCommentIndex,
+        content,
+    }: {
+        taskId: TaskId;
+        parentCommentIndex: number | null;
+        content: MessageContent;
+    },
+): Promise<{
+    index: number;
+    createdTime: Date;
+}> {
+    return context.dynamo.retryTransaction(async context => {
+        const [{spaceId, commentsSummaryItem}] = await runAllPromiseThunks(
+            async () => {
+                const {spaceId, commentsSummaryItem} =
+                    await authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment");
+
+                return {spaceId, commentsSummaryItem};
+            },
+            async () => {
+                if (typeof parentCommentIndex !== "number") return;
+
+                const parentCommentItem = await TaskTable.getPartialItemIfExists(
+                    context,
+                    {
+                        partitionType: "Task",
+                        sortRangeType: "Comments",
+                        taskId,
+                        commentIndex: parentCommentIndex,
+                    },
+                    {
+                        attributes: [],
+                    },
+                );
+                if (!parentCommentItem) throw new NotFoundError("Task parent comment not found");
+            },
+        );
+
+        const commentIndex = commentsSummaryItem?.nextCommentIndex ?? 0;
+        const createdTime = new Date();
+        const authorId = context.actor.getAccountId();
+
+        const newCommentCountByAuthorId = new Map(commentsSummaryItem?.commentCountByAuthorId);
+        newCommentCountByAuthorId.set(authorId, (newCommentCountByAuthorId.get(authorId) ?? 0) + 1);
+
+        const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
+            commentsSummaryItem?.mentionCountByAccountId ?? new Map(),
+            null,
+            content,
+        );
+
+        await DynamoTableSchema.executeTransaction(context, [
+            TaskTable.transactionCreateItem({
+                partitionType: "Task",
+                sortRangeType: "Comments",
+                taskId,
+                commentIndex,
+                authorId,
+                createdTime,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: parentCommentIndex,
+                    content,
+                    contentUpdatedTime: null,
+                },
+            }),
+            commentsSummaryItem !== null
+                ? TaskTable.transactionDirectlyUpdateItem({
+                      ...commentsSummaryItem,
+                      nextCommentIndex: commentsSummaryItem.nextCommentIndex + 1,
+                      lastChangeTime: commentsSummaryItem.lastChangeTime,
+                      commentCountByAuthorId: newCommentCountByAuthorId,
+                      mentionCountByAccountId: newMentionCountByAccountId,
+                      updateLockVersion: commentsSummaryItem.updateLockVersion,
+                  })
+                : TaskTable.transactionCreateItem({
+                      partitionType: "Task",
+                      sortRangeType: "CommentsSummary",
+                      taskId,
+                      nextCommentIndex: commentIndex + 1,
+                      lastChangeTime: null,
+                      commentCountByAuthorId: newCommentCountByAuthorId,
+                      mentionCountByAccountId: newMentionCountByAccountId,
+                  }),
+        ]);
+
+        const mentionedAccountIds = getMentionedAccountIdsInContent(content);
+
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId: spaceId,
+            update: {
+                type: "TaskComment",
+                taskId,
+                commentIndex,
+                updatedTraits: {type: "None"},
+            },
+        });
+
+        context.process.waitUntil(
+            markSearchAffinityInteraction(context, {
+                spaceId: spaceId,
+                affinityId: `Task:${taskId}`,
+                interaction:
+                    content.nodeSize < 50
+                        ? {type: "LowIntentUpdate"}
+                        : {type: "MediumIntentUpdate"},
+            }),
+        );
+
+        for (const mentionedAccountId of mentionedAccountIds) {
+            context.process.waitUntil(async () => {
+                if (await isAccountMemberOfSpace(context, spaceId, mentionedAccountId)) {
+                    await markSearchAffinityInteraction(context, {
+                        spaceId: spaceId,
+                        affinityId: `Account:${mentionedAccountId as AccountId}`,
+                        interaction: {type: "HighIntentUpdate"},
+                    });
+                }
+            });
+        }
+
+        return {
+            index: commentIndex,
+            createdTime,
+        };
+    });
+}
+
+export async function getTaskCommentsFromStart(
+    context: ServerActionContext,
+    {
+        taskId,
+        limit,
+        afterCommentIndex,
+        beforeCommentIndex,
+    }: {
+        taskId: TaskId;
+        limit: number;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
+    },
+): Promise<{
+    commentCount: number;
+    comments: Array<TaskCommentModel>;
+    otherReferencedComments: Array<TaskCommentModel>;
+    lastCommentChangeTime: Date | null;
+}> {
+    const authorizationPromise = authorizeTaskAccessAndGetCommentsSummaryItem(
+        context,
+        taskId,
+        "Comment",
+    );
+
+    const [{commentsSummaryItem}, {comments, otherReferencedComments}] = await runAllPromises([
+        authorizationPromise,
+        getTaskCommentsFromStartAssumingAuthorizedTask(context, {
+            taskId,
+            getSpaceId: () => authorizationPromise.then(({spaceId}) => spaceId),
+            limit,
+            afterCommentIndex,
+            beforeCommentIndex,
+        }),
+    ]);
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+
+    return {
+        commentCount: Math.max(
+            reduceIterable(
+                commentsSummaryItem?.commentCountByAuthorId.values() ?? [],
+                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                0,
+            ),
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            // consistency race conditions.
+            lastCommentIndex + 1,
+        ),
+        comments,
+        otherReferencedComments,
+        lastCommentChangeTime: commentsSummaryItem?.lastChangeTime ?? null,
+    };
+}
+
+async function getTaskCommentsFromStartAssumingAuthorizedTask(
+    context: ServerActionContext,
+    {
+        taskId,
+        getSpaceId,
+        limit,
+        afterCommentIndex,
+        beforeCommentIndex,
+        consistency = "Eventual",
+    }: {
+        taskId: TaskId;
+        getSpaceId: () => Promise<SpaceId>;
+        limit: number;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
+        consistency?: DynamoReadConsistency;
+    },
+): Promise<{
+    comments: Array<TaskCommentModel>;
+    otherReferencedComments: Array<TaskCommentModel>;
+}> {
+    if (limit === 0) return {comments: [], otherReferencedComments: []};
+
+    const commentItems = await arrayFromAsyncIterable(
+        TaskTable.query(context, {
+            partitionKey: {
+                partitionType: "Task",
+                taskId,
+            },
+            startSortKey: {
+                sortRangeType: "Comments",
+                commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+            },
+            endSortKey: {
+                sortRangeType: "Comments",
+                commentIndex:
+                    typeof beforeCommentIndex === "number"
+                        ? beforeCommentIndex - 1
+                        : Number.MAX_SAFE_INTEGER,
+            },
+            limit,
+            consistency,
+        }),
+    );
+
+    if (commentItems.length === 0) return {comments: [], otherReferencedComments: []};
+
+    const startCommentIndex = commentItems[0]!.commentIndex;
+    const endCommentIndex = commentItems[commentItems.length - 1]!.commentIndex;
+
+    const spaceId = await getSpaceId();
+
+    let otherReferencedCommentPromiseByIndex = new Map<number, Promise<void>>();
+    const otherReferencedComments: Array<TaskCommentModel> = [];
+
+    const loadOtherReferencedComment = (commentIndex: number) => {
+        // If this message is already in our loaded messages range then we don't need
+        // to load it again.
+        if (startCommentIndex <= commentIndex && commentIndex <= endCommentIndex) return;
+
+        const promise = getOrSetDefaultMapValue(
+            otherReferencedCommentPromiseByIndex,
+            commentIndex,
+            async () => {
+                const item = await TaskTable.getItemIfExists(
+                    context,
+                    {
+                        partitionType: "Task",
+                        sortRangeType: "Comments",
+                        taskId,
+                        commentIndex,
+                    },
+                    {consistency},
+                );
+                if (!item) throw new InternalError("Parent comment not found");
+
+                // Recursively load any referenced parent messages...
+                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
+                    loadOtherReferencedComment(item.payload.parentMessageIndex);
+                }
+
+                otherReferencedComments.push(
+                    await createTaskCommentModelFromItem(context, spaceId, item),
+                );
+            },
+        );
+
+        // We await this promise later.
+        void promise;
+    };
+
+    const comments = await runAllPromises(
+        commentItems.map(item => {
+            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
+                loadOtherReferencedComment(item.payload.parentMessageIndex);
+            }
+
+            // Don't propagate `consistency` when loading model references. We
+            // accept references can have eventual consistency.
+            return createTaskCommentModelFromItem(context, spaceId, item);
+        }),
+    );
+
+    // Keep loading other referenced comments until we have all of them. A
+    // referenced comment may itself reference more comments.
+    while (otherReferencedCommentPromiseByIndex.size > 0) {
+        const promises = Array.from(otherReferencedCommentPromiseByIndex.values());
+        otherReferencedCommentPromiseByIndex = new Map();
+        await runAllPromises(promises);
+    }
+
+    return {
+        comments,
+        otherReferencedComments: otherReferencedComments.sort(
+            (comment1, comment2) => comment1.index - comment2.index,
+        ),
+    };
+}
+
+export async function getTaskCommentsFromEnd(
+    context: ServerActionContext,
+    {
+        taskId,
+        limit,
+        afterCommentIndex,
+        beforeCommentIndex,
+    }: {
+        taskId: TaskId;
+        limit: number;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
+    },
+): Promise<{
+    commentCount: number;
+    comments: Array<TaskCommentModel>;
+    otherReferencedComments: Array<TaskCommentModel>;
+    lastCommentChangeTime: Date | null;
+}> {
+    const authorizationPromise = authorizeTaskAccessAndGetCommentsSummaryItem(
+        context,
+        taskId,
+        "Comment",
+    );
+    const [{commentsSummaryItem}, {comments, otherReferencedComments}] = await runAllPromises([
+        authorizationPromise,
+        getTaskCommentsFromEndAssumingAuthorizedTask(context, {
+            taskId,
+            getSpaceId: () => authorizationPromise.then(({spaceId}) => spaceId),
+            limit,
+            afterCommentIndex,
+            beforeCommentIndex,
+        }),
+    ]);
+
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+
+    return {
+        commentCount: Math.max(
+            reduceIterable(
+                commentsSummaryItem?.commentCountByAuthorId.values() ?? [],
+                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                0,
+            ),
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            // consistency race conditions.
+            lastCommentIndex + 1,
+        ),
+        comments,
+        otherReferencedComments,
+        lastCommentChangeTime: commentsSummaryItem?.lastChangeTime ?? null,
+    };
+}
+
+async function getTaskCommentsFromEndAssumingAuthorizedTask(
+    context: ServerActionContext,
+    {
+        taskId,
+        getSpaceId,
+        limit,
+        afterCommentIndex,
+        beforeCommentIndex,
+    }: {
+        taskId: TaskId;
+        getSpaceId: () => Promise<SpaceId>;
+        limit: number;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
+    },
+): Promise<{
+    comments: Array<TaskCommentModel>;
+    otherReferencedComments: Array<TaskCommentModel>;
+}> {
+    if (limit === 0) return {comments: [], otherReferencedComments: []};
+
+    const commentItems = await arrayFromAsyncIterable(
+        typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
+            ? TaskTable.query(context, {
+                  partitionKey: {
+                      partitionType: "Task",
+                      taskId,
+                  },
+                  startSortKey: {
+                      sortRangeType: "Comments",
+                      commentIndex:
+                          typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+                  },
+                  endSortKey: {
+                      sortRangeType: "Comments",
+                      commentIndex:
+                          typeof beforeCommentIndex === "number"
+                              ? beforeCommentIndex - 1
+                              : Number.MAX_SAFE_INTEGER,
+                  },
+                  limit,
+                  // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
+                  // at the end instead of start.
+                  descending: true,
+              })
+            : (async function* () {})(),
+    );
+
+    if (commentItems.length === 0) return {comments: [], otherReferencedComments: []};
+
+    const endCommentIndex = commentItems[0]!.commentIndex;
+    const startCommentIndex = commentItems[commentItems.length - 1]!.commentIndex;
+
+    const spaceId = await getSpaceId();
+
+    let otherReferencedCommentPromiseByIndex = new Map<number, Promise<void>>();
+    const otherReferencedComments: Array<TaskCommentModel> = [];
+
+    const loadOtherReferencedComment = (commentIndex: number) => {
+        // If this message is already in our loaded messages range then we don't need
+        // to load it again.
+        if (startCommentIndex <= commentIndex && commentIndex <= endCommentIndex) return;
+
+        const promise = getOrSetDefaultMapValue(
+            otherReferencedCommentPromiseByIndex,
+            commentIndex,
+            async () => {
+                const item = await TaskTable.getItemIfExists(context, {
+                    partitionType: "Task",
+                    sortRangeType: "Comments",
+                    taskId,
+                    commentIndex,
+                });
+                if (!item) throw new InternalError("Parent comment not found");
+
+                // Recursively load any referenced parent messages...
+                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
+                    loadOtherReferencedComment(item.payload.parentMessageIndex);
+                }
+
+                otherReferencedComments.push(
+                    await createTaskCommentModelFromItem(context, spaceId, item),
+                );
+            },
+        );
+
+        // We await this promise later.
+        void promise;
+    };
+
+    const comments = await runAllPromises(
+        commentItems.map(item => {
+            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
+                loadOtherReferencedComment(item.payload.parentMessageIndex);
+            }
+            return createTaskCommentModelFromItem(context, spaceId, item);
+        }),
+    );
+
+    // Keep loading other referenced comments until we have all of them. A
+    // referenced comment may itself reference more comments.
+    while (otherReferencedCommentPromiseByIndex.size > 0) {
+        const promises = Array.from(otherReferencedCommentPromiseByIndex.values());
+        otherReferencedCommentPromiseByIndex = new Map();
+        await runAllPromises(promises);
+    }
+
+    // We queried in descending order so put comments back in the right order.
+    comments.reverse();
+
+    return {
+        comments,
+        otherReferencedComments: otherReferencedComments.sort(
+            (comment1, comment2) => comment1.index - comment2.index,
+        ),
+    };
+}
+
+export type TaskCommentChangesResult =
+    | {
+          type: "Available";
+          changes: Array<MessageChange>;
+      }
+    | {
+          type: "Unavailable";
+      };
+
+export async function backfillTaskComments(
+    context: ServerActionContext,
+    {
+        taskId,
+        clientCommentCount,
+        clientLastCommentChangeTime,
+        newCommentLimit,
+    }: {
+        taskId: TaskId;
+        clientCommentCount: number;
+        clientLastCommentChangeTime: Date | null;
+        newCommentLimit: number;
+    },
+): Promise<{
+    commentCount: number;
+    lastCommentChangeTime: Date | null;
+    newComments: Array<TaskCommentModel>;
+    newOtherReferencedComments: Array<TaskCommentModel>;
+    commentChangesResult: TaskCommentChangesResult;
+}> {
+    const authorizationPromise = authorizeTaskAccessAndGetCommentsSummaryItem(
+        context,
+        taskId,
+        "Comment",
+    );
+    const [{commentsSummaryItem}, {comments, otherReferencedComments}, commentChangesResult] =
+        await runAllPromises([
+            authorizationPromise,
+            getTaskCommentsFromStartAssumingAuthorizedTask(context, {
+                taskId,
+                getSpaceId: () => authorizationPromise.then(({spaceId}) => spaceId),
+                limit: newCommentLimit,
+                afterCommentIndex: clientCommentCount - 1,
+                beforeCommentIndex: null,
+                // Use a strong read consistency when backfilling. This guarantees the caller
+                // will observe all realtime events before this function call. Realtime events
+                // that happen during the function call may be missed. You should be subscribed
+                // to new realtime events before starting to backfill.
+                consistency: "Strong",
+            }),
+            (async () => {
+                const {spaceId, createdTime, commentsSummaryItem} = await authorizationPromise;
+                if (!commentsSummaryItem) return null;
+
+                return queryTaskCommentChangeLogAssumingAuthorizedTask(context, {
+                    commentsSummaryItem,
+                    spaceId,
+                    createdTime,
+                    lastCommentChangeTime: clientLastCommentChangeTime,
+                    // Use a strong read consistency when backfilling. This guarantees the caller
+                    // will observe all realtime events before this function call. Realtime events
+                    // that happen during the function call may be missed. You should be subscribed
+                    // to new realtime events before starting to backfill.
+                    consistency: "Strong",
+                });
+            })(),
+        ]);
+
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+
+    const lastCommentChangeTime =
+        commentChangesResult &&
+        commentChangesResult.type === "Available" &&
+        commentChangesResult.changes.length > 0
+            ? getMessageChangeTime(
+                  commentChangesResult.changes[commentChangesResult.changes.length - 1]!,
+              )
+            : null;
+
+    return {
+        commentCount: Math.max(
+            reduceIterable(
+                commentsSummaryItem?.commentCountByAuthorId.values() ?? [],
+                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                0,
+            ),
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            // consistency race conditions.
+            lastCommentIndex + 1,
+        ),
+        lastCommentChangeTime:
+            lastCommentChangeTime &&
+            // Make sure `lastCommentChangeTime` is consistent with
+            // `commentChangesResult` in case of eventual consistency race conditions.
+            (!commentsSummaryItem?.lastChangeTime ||
+                lastCommentChangeTime > commentsSummaryItem.lastChangeTime)
+                ? lastCommentChangeTime
+                : commentsSummaryItem?.lastChangeTime ?? null,
+        newComments: comments,
+        newOtherReferencedComments: otherReferencedComments,
+        commentChangesResult: commentChangesResult ?? {type: "Available", changes: []},
+    };
+}
+
+async function queryTaskCommentChangeLogAssumingAuthorizedTask(
+    context: ServerActionContext,
+    {
+        commentsSummaryItem,
+        spaceId,
+        createdTime,
+        lastCommentChangeTime,
+        consistency = "Eventual",
+    }: {
+        commentsSummaryItem: Pick<
+            TaskCommentsSummaryItem,
+            | "taskId"
+            | "lastChangeTime"
+            | "nextCommentIndex"
+            | "lastChangeTime"
+            | "commentCountByAuthorId"
+            | "mentionCountByAccountId"
+        >;
+        spaceId: SpaceId;
+        createdTime: HybridLogicalTime;
+        lastCommentChangeTime: Date | null;
+        consistency?: DynamoReadConsistency;
+    },
+): Promise<TaskCommentChangesResult> {
+    // No changes occurred during the backfill period, there is nothing we need
+    // to query.
+
+    if (commentsSummaryItem.lastChangeTime?.getTime() === lastCommentChangeTime?.getTime())
+        return {type: "Available", changes: []};
+
+    const lastCommentChangeExpirationTime = getMessageChangeLogExpirationTimeFromChangeTime(
+        lastCommentChangeTime ?? new Date(createdTime[0]),
+    );
+
+    // If our last change item has expired then other relevant changelog entries
+    // may have also expired. The client will need to fully reset its state since
+    // we don't have the data necessary to backfill.
+    if (
+        isDatePossiblyLessThanWithUncertaintyWindow(
+            lastCommentChangeExpirationTime,
+            // Use `Date.now()` so tests can mock the `Date.now()` function.
+            new Date(Date.now()),
+        )
+    ) {
+        return {type: "Unavailable"};
+    }
+
+    const changes = await parallelMapAsyncIterableToArray(
+        TaskTable.query(context, {
+            partitionKey: {
+                partitionType: "Task",
+                taskId: commentsSummaryItem.taskId,
+            },
+            startSortKey: {
+                sortRangeType: "CommentChangeLog",
+                changeTime: new Date(
+                    (lastCommentChangeTime ?? new Date(createdTime[0])).getTime() + 1,
+                ),
+            },
+            endSortKey: {
+                sortRangeType: "CommentChangeLog",
+                changeTime: DynamoKeyAttributeSchema.date.maxValue,
+            },
+            limit: "All",
+            consistency,
+        }),
+        async (item): Promise<MessageChange> => {
+            switch (item.change.type) {
+                case "UpdateContent": {
+                    return {
+                        type: "UpdateContent",
+                        index: item.commentIndex,
+                        content: {
+                            doc: item.change.content,
+
+                            // Don't propagate `consistency` when loading content references. We
+                            // accept references can have eventual consistency.
+                            references: await getContentReferencesForNode(
+                                context,
+                                spaceId,
+                                item.change.content,
+                            ),
+                        },
+                        contentUpdatedTime: item.changeTime,
+                    };
+                }
+                case "Delete": {
+                    return {
+                        type: "Delete",
+                        index: item.commentIndex,
+                        deletedTime: item.changeTime,
+                    };
+                }
+                default:
+                    throw exhaustive(item.change);
+            }
+        },
+    );
+
+    return {type: "Available", changes};
 }
 
 function getTaskItemPermissionDeniedErrorDisplayMessage(

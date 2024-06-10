@@ -1,8 +1,15 @@
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {addSpaceAccountForTest, createSpaceForTest} from "~/server/spaces/spaces_table.js";
+import {
+    addSpaceAccountForTest,
+    createSpaceForTest,
+    getSpace,
+    isAccountMemberOfSpace,
+    isAccountMemberOfSpaceWithoutAuthorization,
+} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -56,6 +63,18 @@ export class TestSpace {
         return new TestSpace(context, id);
     }
 
+    /**
+     * Get a `TestSpace` helper object for an existing space. In case you didn't
+     * create the space with `TestSpace.create()`. Throws an error if the space
+     * doesn't already exist.
+     */
+    public static async get(context: TestContext, id: SpaceId) {
+        // Confirm the space exists.
+        await getSpace(context.systemAction(id), id);
+
+        return new TestSpace(context, id);
+    }
+
     public systemAction() {
         return this.context.systemAction(this.id);
     }
@@ -69,7 +88,7 @@ export class TestSpace {
 
         const [session] = await runAllPromises([
             TestSpaceSession._create(this, account),
-            this.addAccount(account),
+            this.addAccountIfNotExists(account),
         ]);
 
         return session;
@@ -80,5 +99,19 @@ export class TestSpace {
             spaceId: this.id,
             accountId: account instanceof TestSession ? account.account.id : account.id,
         });
+    }
+
+    public async addAccountIfNotExists(account: TestAccount | TestSession) {
+        if (
+            await isAccountMemberOfSpaceWithoutAuthorization(
+                this.context.clone({cache: new CacheContextModule()}),
+                this.id,
+                account instanceof TestSession ? account.account.id : account.id,
+            )
+        ) {
+            return;
+        }
+
+        await this.addAccount(account);
     }
 }
