@@ -29,6 +29,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {greyElevated2ClassName, toastStyles} from "~/shared/styles/styles.js";
 
@@ -96,6 +97,9 @@ export type Reporter = Memo<{
 // A `ReporterWithoutContext` object needs to be provided an `AppContext` since
 // it doesn't know itself the context in which its methods are called.
 type ReporterWithoutContext = {
+    // Cache of `Reporter` objects by `AppContext`.
+    readonly cache: DefaultWeakMap<AppContext, Reporter>;
+
     readonly showDialog: (dialog: Omit<ModalDialogProps, "onClose">) => void;
     readonly displayError: (context: AppContext, title: string, error: unknown) => void;
     readonly logErrorWithoutDisplaying: (
@@ -132,17 +136,7 @@ export function useReporter(): Reporter {
         throw new InternalError("Must render in a `<ReporterContextProvider>` to display errors");
     }
 
-    // Ok since we only break the rules of hooks and return in unit tests.
-    //
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useMemo(
-        () => ({
-            showDialog: reporter.showDialog,
-            displayError: reporter.displayError.bind(undefined, context),
-            logErrorWithoutDisplaying: reporter.logErrorWithoutDisplaying.bind(undefined, context),
-        }),
-        [context, reporter],
-    );
+    return reporter.cache.getOrSetDefault(context);
 }
 
 /**
@@ -426,6 +420,18 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
 
     const reporter: ReporterWithoutContext = useMemo(
         () => ({
+            cache: new DefaultWeakMap<AppContext, Reporter>(
+                context =>
+                    ({
+                        showDialog: reporter.showDialog,
+                        displayError: reporter.displayError.bind(undefined, context),
+                        logErrorWithoutDisplaying: reporter.logErrorWithoutDisplaying.bind(
+                            undefined,
+                            context,
+                        ),
+                    } as Memo<Reporter>),
+            ),
+
             showDialog: dialog => {
                 dispatch({
                     type: "ShowDialog",

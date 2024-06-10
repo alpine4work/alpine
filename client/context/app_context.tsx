@@ -19,7 +19,7 @@ const AppReactContext = createContext<AppContext | null>(null);
 
 export function useAppContext() {
     const context = useContext(AppReactContext);
-    assert(context, "Expected the React tree to be rendered inside `AppContextProvider`");
+    assert(context, "Expected the React tree to be rendered inside `<AppContextProvider>`");
     return context;
 }
 
