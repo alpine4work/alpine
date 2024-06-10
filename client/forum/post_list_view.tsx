@@ -18,6 +18,7 @@ import {
 import {useAppContext} from "~/client/context/app_context.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
+import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {
     NavigationBarRef,
     NavigationBarResult,
@@ -350,11 +351,10 @@ function PostListView(
     }
 
     const isLoadingRef = useRef(false);
-    const [errorState, setErrorState] = useState<
-        {hasError: false} | {hasError: true; error: unknown}
-    >({hasError: false});
-
-    if (errorState.hasError) throw errorState.error;
+    const [loadingErrorState, setLoadingErrorState] = useState<{
+        type: "Posts" | "PostComments";
+        error: unknown;
+    } | null>(null);
 
     const tryLoadingMoreData = useEvent(
         (
@@ -373,7 +373,7 @@ function PostListView(
                 },
                 error => {
                     isLoadingRef.current = false;
-                    setErrorState({hasError: true, error});
+                    setLoadingErrorState({type: result.type, error});
                 },
             );
             return result;
@@ -382,7 +382,9 @@ function PostListView(
             // `isLoadingRef` or error handling.
             function actuallyTryLoadingMoreData(
                 renderedRange: {startIndex: number; endIndex: number} | null,
-            ): {isLoading: false} | {isLoading: true; promise: Promise<void>} {
+            ):
+                | {isLoading: false}
+                | {isLoading: true; type: "Posts" | "PostComments"; promise: Promise<void>} {
                 if (!renderedRange) return {isLoading: false};
 
                 const view = assertExists(viewRef.current);
@@ -471,6 +473,7 @@ function PostListView(
                     if (result.isLoading) {
                         return {
                             isLoading: true,
+                            type: "PostComments",
                             promise: result.promise.then(result => {
                                 onUpdatePostComments(item.post.id, postComments =>
                                     postComments.loadMessages(result),
@@ -486,6 +489,7 @@ function PostListView(
                 if (renderedRangeEndItem.type === "MoreUnloadedPosts") {
                     return {
                         isLoading: true,
+                        type: "Posts",
                         promise: (async () => {
                             assert(
                                 onLoadMorePosts,
@@ -526,9 +530,14 @@ function PostListView(
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         posts;
 
+        // If a loading error is dismissed, try loading data again.
+        //
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        loadingErrorState;
+
         const view = assertExists(viewRef.current);
         tryLoadingMoreData(view.getRenderedRange());
-    }, [posts, tryLoadingMoreData]);
+    }, [loadingErrorState, posts, tryLoadingMoreData]);
 
     const loadInitialPostComments = useEvent(
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -568,7 +577,7 @@ function PostListView(
 
                 isLoadingRef.current = false;
             } catch (error) {
-                setErrorState({hasError: true, error});
+                setLoadingErrorState({type: "PostComments", error});
             }
         },
     );
@@ -1574,6 +1583,22 @@ function PostListView(
         <>
             {messageEditingModals}
             {postEditingModals}
+            {loadingErrorState && (
+                <ModalDialog
+                    title={
+                        loadingErrorState.type === "PostComments"
+                            ? "Couldn’t get comments"
+                            : "Couldn’t get posts"
+                    }
+                    description={{type: "Error", error: loadingErrorState.error}}
+                    // User must explicitly press retry to close modal dialog. When the modal closes
+                    // we will try loading again.
+                    primaryButtonLabel="Retry"
+                    shouldHideCancelButton
+                    withoutCloseInteractions
+                    onClose={() => setLoadingErrorState(null)}
+                />
+            )}
             {isMobile && postEditing.state.isEditing && (
                 <MobileFullScreenModal
                     onClose={() => postEditing.dispatch({type: "CancelEditing"})}
