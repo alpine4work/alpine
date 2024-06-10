@@ -155,6 +155,14 @@ const searchEntityUpdateSchemaDescription = {
         }),
         updatableTraits: ["Authorization"],
     },
+    TaskComment: {
+        schema: Schema.object({
+            type: Schema.value("TaskComment"),
+            taskId: Schema.id<TaskId>(),
+            commentIndex: Schema.integer,
+        }),
+        updatableTraits: [],
+    },
 } as const;
 
 export const SearchEntityUpdateSchema = Schema.union(

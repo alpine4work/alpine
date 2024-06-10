@@ -29,7 +29,8 @@ export type SearchEntityId =
     | `Chat:${ChatId}`
     | `ChatMessage:${ChatId}-${number}`
     | `Task:${TaskId}`
-    | `TaskCollection:${TaskCollectionId}`;
+    | `TaskCollection:${TaskCollectionId}`
+    | `TaskComment:${TaskId}-${number}`;
 
 export const SearchEntityIdSchema = Schema.string as Schema<SearchEntityId>;
 
@@ -52,7 +53,8 @@ export type SearchEntityIdObject =
     | {readonly type: "Chat"; readonly chatId: ChatId}
     | {readonly type: "ChatMessage"; readonly chatId: ChatId; readonly messageIndex: number}
     | {readonly type: "Task"; readonly taskId: TaskId}
-    | {readonly type: "TaskCollection"; readonly collectionId: TaskCollectionId};
+    | {readonly type: "TaskCollection"; readonly collectionId: TaskCollectionId}
+    | {readonly type: "TaskComment"; readonly taskId: TaskId; readonly commentIndex: number};
 
 /**
  * Parse a `SearchEntityId` into a more convenient to use object format.
@@ -95,6 +97,12 @@ export function parseSearchEntityId(id: SearchEntityId): SearchEntityIdObject {
             return {type: "Task", taskId: idPayloadParts[0] as TaskId};
         case "TaskCollection":
             return {type: "TaskCollection", collectionId: idPayloadParts[0] as TaskCollectionId};
+        case "TaskComment":
+            return {
+                type: "TaskComment",
+                taskId: idPayloadParts[0] as TaskId,
+                commentIndex: parseInt(idPayloadParts[1]!, 10),
+            };
         default:
             throw new InternalError(quote`Unrecognized search entity ID type ${idType ?? ""}`);
     }
@@ -126,6 +134,8 @@ export function printSearchEntityId(idObject: SearchEntityIdObject): SearchEntit
             return `Task:${idObject.taskId}`;
         case "TaskCollection":
             return `TaskCollection:${idObject.collectionId}`;
+        case "TaskComment":
+            return `TaskComment:${idObject.taskId}-${idObject.commentIndex}`;
         default:
             throw exhaustive(idObject);
     }

@@ -6,6 +6,7 @@ import {
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
+import {NotFoundError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -48,6 +49,18 @@ export class TestAccount {
         });
 
         return new TestAccount(context, id, name);
+    }
+
+    /**
+     * Get a `TestAccount` helper object for an existing account. In case you
+     * didn't create the space with `TestAccount.create()`. Throws an error if
+     * the account doesn't already exist.
+     */
+    public static async get(context: TestContext, accountId: AccountId) {
+        const account = await dangerouslyGetAccountIfExistsWithoutCaching(context, accountId);
+        if (!account) throw new NotFoundError("Account not found");
+
+        return new TestAccount(context, accountId, account.initialData.name);
     }
 
     /**

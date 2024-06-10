@@ -21,12 +21,20 @@ import {
     authorizeTaskAccess,
     authorizeTaskQueryAccess,
     backfillTaskActionTransactionHistory,
+    backfillTaskComments,
     commitTaskActionTransaction,
     commitTaskActionTransactionBeforeExecuteTestCheckpoint,
+    createTaskComment,
     deleteTaskAndAllChildren,
     deleteTaskAndAllChildrenBeforeExecuteTestCheckpoint,
+    deleteTaskComment,
+    getTaskComment,
+    getTaskCommentPayload,
+    getTaskCommentsFromEnd,
+    getTaskCommentsFromStart,
     getTaskNotesContent,
     getTaskNotesContentWithoutReferences,
+    updateTaskCommentContent,
     updateTaskNotesContent,
 } from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
@@ -51,11 +59,13 @@ import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.j
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
 import {
+    AccountId,
     SpaceId,
     TaskActionTransactionLeaseId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
+import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
@@ -18357,4 +18367,925 @@ test("counts notes step count contributions for each account", async () => {
             [session3.account.id, 2],
         ]),
     );
+});
+
+test("throws error for users that only have view access when trying to access task comments", async () => {
+    const space = await TestSpace.create(context);
+
+    const [
+        unauthorizedSession,
+        viewerSession,
+        commenterSession,
+        editorSession,
+        manageSession,
+        creatorSession,
+        assigneeSession,
+    ] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const task = await TestTask.create(creatorSession);
+
+    const content1 = createSimpleMessageContent("test1");
+    const taskComment = await createTaskComment(context.action(creatorSession), {
+        taskId: task.id,
+        parentCommentIndex: null,
+        content: content1,
+    });
+
+    const collection = await TestTaskCollection.createPrivate(creatorSession);
+
+    await collection.updateAccessPolicy(creatorSession, {
+        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+            [creatorSession.account.id, {level: "Manage"}],
+            [manageSession.account.id, {level: "Manage"}],
+            [editorSession.account.id, {level: "Edit"}],
+            [commenterSession.account.id, {level: "Comment"}],
+            [viewerSession.account.id, {level: "View"}],
+        ]),
+        defaultGrant: null,
+    });
+
+    await task.addCollection(creatorSession, collection);
+
+    await expect(
+        getTaskComment(assigneeSession.action(), {
+            taskId: task.id,
+            commentIndex: taskComment.index,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await task.updateAssignee(creatorSession, assigneeSession);
+
+    const taskCommentIdAndIndex = {
+        taskId: task.id,
+        commentIndex: taskComment.index,
+    };
+
+    await expect(
+        getTaskComment(assigneeSession.action(), taskCommentIdAndIndex),
+    ).resolves.not.toBeNull();
+
+    await expect(
+        getTaskComment(unauthorizedSession.action(), taskCommentIdAndIndex),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(getTaskComment(viewerSession.action(), taskCommentIdAndIndex)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(
+        getTaskComment(commenterSession.action(), taskCommentIdAndIndex),
+    ).resolves.not.toBeNull();
+    await expect(
+        getTaskComment(editorSession.action(), taskCommentIdAndIndex),
+    ).resolves.not.toBeNull();
+    await expect(
+        getTaskComment(manageSession.action(), taskCommentIdAndIndex),
+    ).resolves.not.toBeNull();
+    await expect(
+        getTaskComment(creatorSession.action(), taskCommentIdAndIndex),
+    ).resolves.not.toBeNull();
+
+    await expect(
+        getTaskCommentPayload(unauthorizedSession.action(), taskCommentIdAndIndex),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        getTaskCommentPayload(viewerSession.action(), taskCommentIdAndIndex),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        getTaskCommentPayload(commenterSession.action(), taskCommentIdAndIndex),
+    ).resolves.not.toBeNull();
+    await expect(
+        getTaskCommentPayload(editorSession.action(), taskCommentIdAndIndex),
+    ).resolves.not.toBeNull();
+    await expect(
+        getTaskCommentPayload(manageSession.action(), taskCommentIdAndIndex),
+    ).resolves.not.toBeNull();
+    await expect(
+        getTaskCommentPayload(creatorSession.action(), taskCommentIdAndIndex),
+    ).resolves.not.toBeNull();
+});
+
+test("throws error for users that only have view access when trying to create task comments", async () => {
+    const space = await TestSpace.create(context);
+
+    const [
+        unauthorizedSession,
+        viewerSession,
+        commenterSession,
+        editorSession,
+        manageSession,
+        creatorSession,
+        assigneeSession,
+    ] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const task = await TestTask.create(creatorSession);
+
+    const content1 = createSimpleMessageContent("test1");
+    const taskCommentDetails = {
+        taskId: task.id,
+        parentCommentIndex: null,
+        content: content1,
+    };
+
+    const collection = await TestTaskCollection.createPrivate(creatorSession);
+    await task.addCollection(creatorSession, collection);
+
+    await collection.updateAccessPolicy(creatorSession, {
+        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+            [creatorSession.account.id, {level: "Manage"}],
+            [manageSession.account.id, {level: "Manage"}],
+            [editorSession.account.id, {level: "Edit"}],
+            [commenterSession.account.id, {level: "Comment"}],
+            [viewerSession.account.id, {level: "View"}],
+        ]),
+        defaultGrant: null,
+    });
+
+    await task.updateAssignee(creatorSession, assigneeSession);
+
+    await expect(
+        createTaskComment(assigneeSession.action(), taskCommentDetails),
+    ).resolves.not.toBeNull();
+    await expect(
+        createTaskComment(unauthorizedSession.action(), taskCommentDetails),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(createTaskComment(viewerSession.action(), taskCommentDetails)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(
+        createTaskComment(commenterSession.action(), taskCommentDetails),
+    ).resolves.not.toBeNull();
+    await expect(
+        createTaskComment(editorSession.action(), taskCommentDetails),
+    ).resolves.not.toBeNull();
+    await expect(
+        createTaskComment(manageSession.action(), taskCommentDetails),
+    ).resolves.not.toBeNull();
+});
+
+test("throws error for users that only have view access when trying to update task comments", async () => {
+    const space = await TestSpace.create(context);
+
+    const [
+        unauthorizedSession,
+        viewerSession,
+        commenterSession,
+        editorSession,
+        manageSession,
+        creatorSession,
+        assigneeSession,
+    ] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const task = await TestTask.create(creatorSession);
+
+    const collection = await TestTaskCollection.createPublic(creatorSession);
+    await task.addCollection(creatorSession, collection);
+
+    const content1 = createSimpleMessageContent("test1");
+    const taskCommentDetails = {
+        taskId: task.id,
+        parentCommentIndex: null,
+        content: content1,
+    };
+
+    const creatorTaskComment = await createTaskComment(
+        context.action(creatorSession),
+        taskCommentDetails,
+    );
+    const manageTaskComment = await createTaskComment(
+        context.action(manageSession),
+        taskCommentDetails,
+    );
+    const editorTaskComment = await createTaskComment(
+        context.action(editorSession),
+        taskCommentDetails,
+    );
+    const commenterTaskComment = await createTaskComment(
+        context.action(commenterSession),
+        taskCommentDetails,
+    );
+    const viewerTaskComment = await createTaskComment(
+        context.action(viewerSession),
+        taskCommentDetails,
+    );
+    const unauthorizedTaskComment = await createTaskComment(
+        context.action(unauthorizedSession),
+        taskCommentDetails,
+    );
+    const assigneeTaskComment = await createTaskComment(
+        context.action(assigneeSession),
+        taskCommentDetails,
+    );
+
+    const updatedContent1 = createSimpleMessageContent("updated test1");
+    const updatedCreatorTaskCommentDetails = {
+        taskId: task.id,
+        commentIndex: creatorTaskComment.index,
+        content: updatedContent1,
+    };
+
+    const updatedAssigneeTaskCommentDetails = {
+        taskId: task.id,
+        commentIndex: assigneeTaskComment.index,
+        content: updatedContent1,
+    };
+
+    const updatedUnauthorizedTaskCommentDetails = {
+        taskId: task.id,
+        commentIndex: unauthorizedTaskComment.index,
+        content: updatedContent1,
+    };
+
+    const updatedViewerTaskCommentDetails = {
+        taskId: task.id,
+        commentIndex: viewerTaskComment.index,
+        content: updatedContent1,
+    };
+
+    const updatedCommenterTaskCommentDetails = {
+        taskId: task.id,
+        commentIndex: commenterTaskComment.index,
+        content: updatedContent1,
+    };
+
+    const updatedEditorTaskCommentDetails = {
+        taskId: task.id,
+        commentIndex: editorTaskComment.index,
+        content: updatedContent1,
+    };
+
+    const updatedManageTaskCommentDetails = {
+        taskId: task.id,
+        commentIndex: manageTaskComment.index,
+        content: updatedContent1,
+    };
+
+    await expect(
+        updateTaskCommentContent(assigneeSession.action(), updatedAssigneeTaskCommentDetails),
+    ).resolves.not.toBeNull();
+    await expect(
+        updateTaskCommentContent(
+            unauthorizedSession.action(),
+            updatedUnauthorizedTaskCommentDetails,
+        ),
+    ).resolves.not.toBeNull();
+    await expect(
+        updateTaskCommentContent(viewerSession.action(), updatedViewerTaskCommentDetails),
+    ).resolves.not.toBeNull();
+    await expect(
+        updateTaskCommentContent(creatorSession.action(), updatedCreatorTaskCommentDetails),
+    ).resolves.not.toBeNull();
+    await expect(
+        updateTaskCommentContent(commenterSession.action(), updatedCommenterTaskCommentDetails),
+    ).resolves.not.toBeNull();
+    await expect(
+        updateTaskCommentContent(editorSession.action(), updatedEditorTaskCommentDetails),
+    ).resolves.not.toBeNull();
+    await expect(
+        updateTaskCommentContent(manageSession.action(), updatedManageTaskCommentDetails),
+    ).resolves.not.toBeNull();
+
+    await collection.updateAccessPolicy(creatorSession, {
+        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+            [creatorSession.account.id, {level: "Manage"}],
+            [manageSession.account.id, {level: "Manage"}],
+            [editorSession.account.id, {level: "Edit"}],
+            [commenterSession.account.id, {level: "Comment"}],
+            [viewerSession.account.id, {level: "View"}],
+        ]),
+        defaultGrant: null,
+    });
+
+    await task.updateAssignee(creatorSession, assigneeSession);
+
+    const secondUpdatedTaskComment = createSimpleMessageContent("updated test2");
+    const secondUpdatedCreatorTaskCommentDetails = {
+        taskId: task.id,
+        commentIndex: creatorTaskComment.index,
+        content: secondUpdatedTaskComment,
+    };
+
+    const secondUpdatedAssigneeTaskCommentDetails = {
+        taskId: task.id,
+        commentIndex: assigneeTaskComment.index,
+        content: secondUpdatedTaskComment,
+    };
+
+    const secondUpdatedUnauthorizedTaskCommentDetails = {
+        taskId: task.id,
+        commentIndex: unauthorizedTaskComment.index,
+        content: secondUpdatedTaskComment,
+    };
+
+    const secondUpdatedViewerTaskCommentDetails = {
+        taskId: task.id,
+        commentIndex: viewerTaskComment.index,
+        content: secondUpdatedTaskComment,
+    };
+
+    const secondUpdatedCommenterTaskCommentDetails = {
+        taskId: task.id,
+        commentIndex: commenterTaskComment.index,
+        content: secondUpdatedTaskComment,
+    };
+
+    const secondUpdatedEditorTaskCommentDetails = {
+        taskId: task.id,
+        commentIndex: editorTaskComment.index,
+        content: secondUpdatedTaskComment,
+    };
+
+    const secondUpdatedManageTaskCommentDetails = {
+        taskId: task.id,
+        commentIndex: manageTaskComment.index,
+        content: secondUpdatedTaskComment,
+    };
+
+    await expect(
+        updateTaskCommentContent(assigneeSession.action(), secondUpdatedAssigneeTaskCommentDetails),
+    ).resolves.not.toBeNull();
+    await expect(
+        updateTaskCommentContent(
+            unauthorizedSession.action(),
+            secondUpdatedUnauthorizedTaskCommentDetails,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        updateTaskCommentContent(viewerSession.action(), secondUpdatedViewerTaskCommentDetails),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        updateTaskCommentContent(creatorSession.action(), secondUpdatedCreatorTaskCommentDetails),
+    ).resolves.not.toBeNull();
+    await expect(
+        updateTaskCommentContent(
+            commenterSession.action(),
+            secondUpdatedCommenterTaskCommentDetails,
+        ),
+    ).resolves.not.toBeNull();
+    await expect(
+        updateTaskCommentContent(editorSession.action(), secondUpdatedEditorTaskCommentDetails),
+    ).resolves.not.toBeNull();
+    await expect(
+        updateTaskCommentContent(manageSession.action(), secondUpdatedManageTaskCommentDetails),
+    ).resolves.not.toBeNull();
+});
+
+test("throws error for users that only have view access when trying to delete task comments", async () => {
+    const space = await TestSpace.create(context);
+
+    const [
+        unauthorizedSession,
+        viewerSession,
+        commenterSession,
+        editorSession,
+        manageSession,
+        creatorSession,
+        assigneeSession,
+    ] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const task = await TestTask.create(creatorSession);
+    const collection = await TestTaskCollection.createPublic(creatorSession);
+    await task.addCollection(creatorSession, collection);
+
+    await task.updateAssignee(creatorSession, assigneeSession);
+
+    const content1 = createSimpleMessageContent("test1");
+
+    const taskCommentDetails = {
+        taskId: task.id,
+        parentCommentIndex: null,
+        content: content1,
+    };
+
+    const creatorTaskComment = await createTaskComment(
+        context.action(creatorSession),
+        taskCommentDetails,
+    );
+
+    const manageTaskComment = await createTaskComment(
+        context.action(manageSession),
+        taskCommentDetails,
+    );
+    const editorTaskComment = await createTaskComment(
+        context.action(editorSession),
+        taskCommentDetails,
+    );
+    const commenterTaskComment = await createTaskComment(
+        context.action(commenterSession),
+        taskCommentDetails,
+    );
+    const viewerTaskComment = await createTaskComment(
+        context.action(viewerSession),
+        taskCommentDetails,
+    );
+    const unauthorizedTaskComment = await createTaskComment(
+        context.action(unauthorizedSession),
+        taskCommentDetails,
+    );
+    const assigneeTaskComment = await createTaskComment(
+        context.action(assigneeSession),
+        taskCommentDetails,
+    );
+
+    await collection.updateAccessPolicy(creatorSession, {
+        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+            [creatorSession.account.id, {level: "Manage"}],
+            [manageSession.account.id, {level: "Manage"}],
+            [editorSession.account.id, {level: "Edit"}],
+            [commenterSession.account.id, {level: "Comment"}],
+            [viewerSession.account.id, {level: "View"}],
+        ]),
+        defaultGrant: null,
+    });
+
+    await expect(
+        deleteTaskComment(assigneeSession.action(), {
+            taskId: task.id,
+            commentIndex: assigneeTaskComment.index,
+        }),
+    ).resolves.not.toBeNull();
+    await expect(
+        deleteTaskComment(commenterSession.action(), {
+            taskId: task.id,
+            commentIndex: commenterTaskComment.index,
+        }),
+    ).resolves.not.toBeNull();
+    await expect(
+        deleteTaskComment(editorSession.action(), {
+            taskId: task.id,
+            commentIndex: editorTaskComment.index,
+        }),
+    ).resolves.not.toBeNull();
+    await expect(
+        deleteTaskComment(manageSession.action(), {
+            taskId: task.id,
+            commentIndex: manageTaskComment.index,
+        }),
+    ).resolves.not.toBeNull();
+    await expect(
+        deleteTaskComment(creatorSession.action(), {
+            taskId: task.id,
+            commentIndex: creatorTaskComment.index,
+        }),
+    ).resolves.not.toBeNull();
+
+    await expect(
+        deleteTaskComment(unauthorizedSession.action(), {
+            taskId: task.id,
+            commentIndex: unauthorizedTaskComment.index,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        deleteTaskComment(viewerSession.action(), {
+            taskId: task.id,
+            commentIndex: viewerTaskComment.index,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("throws error for users that only have view access when trying to get task comments from start", async () => {
+    const space = await TestSpace.create(context);
+
+    const [
+        unauthorizedSession,
+        viewerSession,
+        commenterSession,
+        editorSession,
+        manageSession,
+        creatorSession,
+        assigneeSession,
+    ] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const task = await TestTask.create(creatorSession);
+
+    const collection = await TestTaskCollection.createPublic(creatorSession);
+    await task.addCollection(creatorSession, collection);
+
+    const content1 = createSimpleMessageContent("test1");
+    const firstTaskCommentDetails = {
+        taskId: task.id,
+        parentCommentIndex: null,
+        content: content1,
+    };
+
+    const content2 = createSimpleMessageContent("test2");
+    const secondTaskCommentDetails = {
+        taskId: task.id,
+        parentCommentIndex: null,
+        content: content2,
+    };
+
+    const content3 = createSimpleMessageContent("test3");
+    const thirdTaskCommentDetails = {
+        taskId: task.id,
+        parentCommentIndex: null,
+        content: content3,
+    };
+
+    await createTaskComment(context.action(creatorSession), firstTaskCommentDetails);
+    await createTaskComment(context.action(creatorSession), secondTaskCommentDetails);
+    await createTaskComment(context.action(creatorSession), thirdTaskCommentDetails);
+
+    await collection.updateAccessPolicy(creatorSession, {
+        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+            [creatorSession.account.id, {level: "Manage"}],
+            [manageSession.account.id, {level: "Manage"}],
+            [editorSession.account.id, {level: "Edit"}],
+            [commenterSession.account.id, {level: "Comment"}],
+            [viewerSession.account.id, {level: "View"}],
+        ]),
+        defaultGrant: null,
+    });
+
+    await task.updateAssignee(creatorSession, assigneeSession);
+
+    await expect(
+        getTaskCommentsFromStart(assigneeSession.action(), {
+            taskId: task.id,
+            limit: 10,
+            afterCommentIndex: 0,
+            beforeCommentIndex: 2,
+        }),
+    ).resolves.not.toBeNull();
+
+    await expect(
+        getTaskCommentsFromStart(unauthorizedSession.action(), {
+            taskId: task.id,
+            limit: 10,
+            afterCommentIndex: 0,
+            beforeCommentIndex: 2,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getTaskCommentsFromStart(viewerSession.action(), {
+            taskId: task.id,
+            limit: 10,
+            afterCommentIndex: 0,
+            beforeCommentIndex: 2,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getTaskCommentsFromStart(commenterSession.action(), {
+            taskId: task.id,
+            limit: 10,
+            afterCommentIndex: 0,
+            beforeCommentIndex: 2,
+        }),
+    ).resolves.not.toBeNull();
+
+    await expect(
+        getTaskCommentsFromStart(editorSession.action(), {
+            taskId: task.id,
+            limit: 10,
+            afterCommentIndex: 0,
+            beforeCommentIndex: 2,
+        }),
+    ).resolves.not.toBeNull();
+
+    await expect(
+        getTaskCommentsFromStart(manageSession.action(), {
+            taskId: task.id,
+            limit: 10,
+            afterCommentIndex: 0,
+            beforeCommentIndex: 2,
+        }),
+    ).resolves.not.toBeNull();
+
+    await expect(
+        getTaskCommentsFromStart(creatorSession.action(), {
+            taskId: task.id,
+            limit: 10,
+            afterCommentIndex: 0,
+            beforeCommentIndex: 2,
+        }),
+    ).resolves.not.toBeNull();
+});
+
+test("throws error for users that only have view access when trying to get task comments from end", async () => {
+    const space = await TestSpace.create(context);
+
+    const [
+        unauthorizedSession,
+        viewerSession,
+        commenterSession,
+        editorSession,
+        manageSession,
+        creatorSession,
+        assigneeSession,
+    ] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const task = await TestTask.create(creatorSession);
+
+    const collection = await TestTaskCollection.createPublic(creatorSession);
+    await task.addCollection(creatorSession, collection);
+
+    const content1 = createSimpleMessageContent("test1");
+    const firstTaskCommentDetails = {
+        taskId: task.id,
+        parentCommentIndex: null,
+        content: content1,
+    };
+
+    const content2 = createSimpleMessageContent("test2");
+    const secondTaskCommentDetails = {
+        taskId: task.id,
+        parentCommentIndex: null,
+        content: content2,
+    };
+
+    const content3 = createSimpleMessageContent("test3");
+    const thirdTaskCommentDetails = {
+        taskId: task.id,
+        parentCommentIndex: null,
+        content: content3,
+    };
+
+    await createTaskComment(context.action(creatorSession), firstTaskCommentDetails);
+    await createTaskComment(context.action(creatorSession), secondTaskCommentDetails);
+    await createTaskComment(context.action(creatorSession), thirdTaskCommentDetails);
+
+    await collection.updateAccessPolicy(creatorSession, {
+        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+            [creatorSession.account.id, {level: "Manage"}],
+            [manageSession.account.id, {level: "Manage"}],
+            [editorSession.account.id, {level: "Edit"}],
+            [commenterSession.account.id, {level: "Comment"}],
+            [viewerSession.account.id, {level: "View"}],
+        ]),
+        defaultGrant: null,
+    });
+
+    await task.updateAssignee(creatorSession, assigneeSession);
+
+    await expect(
+        getTaskCommentsFromEnd(assigneeSession.action(), {
+            taskId: task.id,
+            limit: 10,
+            afterCommentIndex: 0,
+            beforeCommentIndex: 2,
+        }),
+    ).resolves.not.toBeNull();
+
+    await expect(
+        getTaskCommentsFromEnd(unauthorizedSession.action(), {
+            taskId: task.id,
+            limit: 10,
+            afterCommentIndex: 0,
+            beforeCommentIndex: 2,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getTaskCommentsFromEnd(viewerSession.action(), {
+            taskId: task.id,
+            limit: 10,
+            afterCommentIndex: 0,
+            beforeCommentIndex: 2,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getTaskCommentsFromEnd(commenterSession.action(), {
+            taskId: task.id,
+            limit: 10,
+            afterCommentIndex: 0,
+            beforeCommentIndex: 2,
+        }),
+    ).resolves.not.toBeNull();
+
+    await expect(
+        getTaskCommentsFromEnd(editorSession.action(), {
+            taskId: task.id,
+            limit: 10,
+            afterCommentIndex: 0,
+            beforeCommentIndex: 2,
+        }),
+    ).resolves.not.toBeNull();
+
+    await expect(
+        getTaskCommentsFromEnd(manageSession.action(), {
+            taskId: task.id,
+            limit: 10,
+            afterCommentIndex: 0,
+            beforeCommentIndex: 2,
+        }),
+    ).resolves.not.toBeNull();
+
+    await expect(
+        getTaskCommentsFromEnd(creatorSession.action(), {
+            taskId: task.id,
+            limit: 10,
+            afterCommentIndex: 0,
+            beforeCommentIndex: 2,
+        }),
+    ).resolves.not.toBeNull();
+});
+
+test("throws error for users that only have view access when trying to get task comments from backfill", async () => {
+    const space = await TestSpace.create(context);
+
+    const [
+        unauthorizedSession,
+        viewerSession,
+        commenterSession,
+        editorSession,
+        manageSession,
+        creatorSession,
+        assigneeSession,
+    ] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const task = await TestTask.create(creatorSession);
+
+    const collection = await TestTaskCollection.createPublic(creatorSession);
+    await task.addCollection(creatorSession, collection);
+
+    const content1 = createSimpleMessageContent("test1");
+    const firstTaskCommentDetails = {
+        taskId: task.id,
+        parentCommentIndex: null,
+        content: content1,
+    };
+
+    const creatorTaskComment = await createTaskComment(
+        context.action(creatorSession),
+        firstTaskCommentDetails,
+    );
+
+    await createTaskComment(context.action(editorSession), firstTaskCommentDetails);
+
+    await createTaskComment(context.action(manageSession), firstTaskCommentDetails);
+
+    await collection.updateAccessPolicy(creatorSession, {
+        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+            [creatorSession.account.id, {level: "Manage"}],
+            [manageSession.account.id, {level: "Manage"}],
+            [editorSession.account.id, {level: "Edit"}],
+            [commenterSession.account.id, {level: "Comment"}],
+            [viewerSession.account.id, {level: "View"}],
+        ]),
+        defaultGrant: null,
+    });
+
+    await task.updateAssignee(creatorSession, assigneeSession);
+
+    expect(
+        await backfillTaskComments(creatorSession.action(), {
+            taskId: task.id,
+            clientCommentCount: 3,
+            clientLastCommentChangeTime: null,
+            newCommentLimit: 100,
+        }),
+    ).toEqual({
+        commentCount: 3,
+        lastCommentChangeTime: null,
+        newComments: [],
+        newOtherReferencedComments: [],
+        commentChangesResult: {type: "Available", changes: []},
+    });
+
+    const updatedMessageContent1 = createSimpleMessageContent("updated test1");
+    const updatedFirstTaskCommentDetails = {
+        taskId: task.id,
+        commentIndex: creatorTaskComment.index,
+        content: updatedMessageContent1,
+    };
+
+    const updatedCreatorTaskComment = await updateTaskCommentContent(
+        creatorSession.action(),
+        updatedFirstTaskCommentDetails,
+    );
+
+    expect(
+        await backfillTaskComments(assigneeSession.action(), {
+            taskId: task.id,
+            clientCommentCount: 3,
+            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+            newCommentLimit: 100,
+        }),
+    ).toEqual({
+        commentCount: 3,
+        lastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+        newComments: [],
+        newOtherReferencedComments: [],
+        commentChangesResult: {type: "Available", changes: []},
+    });
+
+    expect(
+        await backfillTaskComments(manageSession.action(), {
+            taskId: task.id,
+            clientCommentCount: 3,
+            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+            newCommentLimit: 100,
+        }),
+    ).toEqual({
+        commentCount: 3,
+        lastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+        newComments: [],
+        newOtherReferencedComments: [],
+        commentChangesResult: {type: "Available", changes: []},
+    });
+
+    expect(
+        await backfillTaskComments(editorSession.action(), {
+            taskId: task.id,
+            clientCommentCount: 3,
+            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+            newCommentLimit: 100,
+        }),
+    ).toEqual({
+        commentCount: 3,
+        lastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+        newComments: [],
+        newOtherReferencedComments: [],
+        commentChangesResult: {type: "Available", changes: []},
+    });
+
+    expect(
+        await backfillTaskComments(commenterSession.action(), {
+            taskId: task.id,
+            clientCommentCount: 3,
+            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+            newCommentLimit: 100,
+        }),
+    ).toEqual({
+        commentCount: 3,
+        lastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+        newComments: [],
+        newOtherReferencedComments: [],
+        commentChangesResult: {type: "Available", changes: []},
+    });
+
+    await expect(
+        backfillTaskComments(viewerSession.action(), {
+            taskId: task.id,
+            clientCommentCount: 3,
+            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+            newCommentLimit: 100,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        backfillTaskComments(unauthorizedSession.action(), {
+            taskId: task.id,
+            clientCommentCount: 3,
+            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+            newCommentLimit: 100,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
 });

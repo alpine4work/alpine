@@ -280,6 +280,16 @@ export type TestMessagingImplementation<RoomKey extends string> = {
      * when data was loaded and when we connected to our realtime WebSocket.
      */
     backfillMessages: BackfillMessagesFunctionForTest<MessageModel<RoomKey>>;
+
+    /**
+     * When the user doesn't have access to a space, it's typically caught by
+     * a `authorizeSpaceAccess()` which throws a `PermissionDeniedError` with
+     * a message of "Account does not have access to space". However, sometimes
+     * a different error message maybe used when account doesn't have access to
+     * a space. This property allows us to configure what error message the
+     * test suite expects when the account doesn't have access to a space.
+     */
+    spacePermissionDeniedErrorMessage?: string;
 };
 
 /**
@@ -320,6 +330,7 @@ export function testMessagingImplementation<RoomKey extends string>(
         updateMessageContent,
         deleteMessage,
         backfillMessages,
+        spacePermissionDeniedErrorMessage = "Account does not have access to space",
     }: TestMessagingImplementation<RoomKey>,
 ) {
     const space = createTestSpace(context);
@@ -568,7 +579,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
 
                 await expect(getRoom(context.action(session4), room1.key)).rejects.toThrow(
-                    PermissionDeniedError,
+                    new PermissionDeniedError(spacePermissionDeniedErrorMessage),
                 );
             });
         }
@@ -732,7 +743,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     parentMessageIndex: null,
                     content: content1,
                 }),
-            ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
+            ).rejects.toThrow(new PermissionDeniedError(spacePermissionDeniedErrorMessage));
         });
 
         if (createPrivateRoom !== "Unimplemented") {
@@ -1175,7 +1186,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: message.index,
                     content: content2,
                 }),
-            ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
+            ).rejects.toThrow(new PermissionDeniedError(spacePermissionDeniedErrorMessage));
 
             await expectGetMessage(
                 context.action(session1),
@@ -1467,7 +1478,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: room.key,
                     messageIndex: message.index,
                 }),
-            ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
+            ).rejects.toThrow(new PermissionDeniedError(spacePermissionDeniedErrorMessage));
 
             await expectGetMessage(
                 context.action(session1),
@@ -2044,7 +2055,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     afterMessageIndex: null,
                     beforeMessageIndex: null,
                 }),
-            ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
+            ).rejects.toThrow(new PermissionDeniedError(spacePermissionDeniedErrorMessage));
         });
 
         if (createPrivateRoom !== "Unimplemented") {
@@ -3784,7 +3795,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     afterMessageIndex: null,
                     beforeMessageIndex: null,
                 }),
-            ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
+            ).rejects.toThrow(new PermissionDeniedError(spacePermissionDeniedErrorMessage));
         });
 
         if (createPrivateRoom !== "Unimplemented") {
@@ -5433,13 +5444,9 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         test("if time hasn't moved forward updating a message will set it to +1ms of the room creation time", async () => {
             const originalDateNow = Date.now;
-            const mockTime = 1675809808692;
-            Date.now = () => mockTime;
 
             try {
                 const room = await createRoom(context.action(session1), space.id);
-
-                expect(room.createdTime).toEqual(new Date(mockTime));
 
                 const message = await createMessage(context.action(session1), {
                     roomKey: room.key,
@@ -5447,7 +5454,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     content: content1,
                 });
 
-                Date.now = () => mockTime - 1000 * 60;
+                Date.now = () => room.createdTime.getTime() - 1000 * 60;
 
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
@@ -5462,7 +5469,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     });
                     assert(updatedMessage?.payload.type === "Content");
                     expect(updatedMessage.payload.contentUpdatedTime).toEqual(
-                        new Date(mockTime + 1),
+                        new Date(room.createdTime.getTime() + 1),
                     );
                 }
             } finally {
@@ -5472,13 +5479,9 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         test("if time hasn't moved forward deleting a message will set it to +1ms of the room creation time", async () => {
             const originalDateNow = Date.now;
-            const mockTime = 1675809808692;
-            Date.now = () => mockTime;
 
             try {
                 const room = await createRoom(context.action(session1), space.id);
-
-                expect(room.createdTime).toEqual(new Date(mockTime));
 
                 const message = await createMessage(context.action(session1), {
                     roomKey: room.key,
@@ -5486,7 +5489,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     content: content1,
                 });
 
-                Date.now = () => mockTime - 1000 * 60;
+                Date.now = () => room.createdTime.getTime() - 1000 * 60;
 
                 await deleteMessage(context.action(session1), {
                     roomKey: room.key,
@@ -5499,7 +5502,9 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message.index,
                     });
                     assert(updatedMessage?.payload.type === "Deleted");
-                    expect(updatedMessage.payload.deletedTime).toEqual(new Date(mockTime + 1));
+                    expect(updatedMessage.payload.deletedTime).toEqual(
+                        new Date(room.createdTime.getTime() + 1),
+                    );
                 }
             } finally {
                 Date.now = originalDateNow;
@@ -5508,19 +5513,17 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         test("if time hasn't moved forward updating a message will set it to +1ms of the last update time", async () => {
             const originalDateNow = Date.now;
-            const mockTime = 1675809808692;
-            Date.now = () => mockTime;
 
             try {
                 const room = await createRoom(context.action(session1), space.id);
-
-                expect(room.createdTime).toEqual(new Date(mockTime));
 
                 const message = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
                 });
+
+                Date.now = () => room.createdTime.getTime() - 1000 * 60;
 
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
@@ -5535,7 +5538,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     });
                     assert(updatedMessage?.payload.type === "Content");
                     expect(updatedMessage.payload.contentUpdatedTime).toEqual(
-                        new Date(mockTime + 1),
+                        new Date(room.createdTime.getTime() + 1),
                     );
                 }
 
@@ -5552,11 +5555,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                     });
                     assert(updatedMessage?.payload.type === "Content");
                     expect(updatedMessage.payload.contentUpdatedTime).toEqual(
-                        new Date(mockTime + 2),
+                        new Date(room.createdTime.getTime() + 2),
                     );
                 }
-
-                Date.now = () => mockTime - 1000 * 60;
+                Date.now = () => room.createdTime.getTime() - 1000 * 60;
 
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
@@ -5571,7 +5573,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     });
                     assert(updatedMessage?.payload.type === "Content");
                     expect(updatedMessage.payload.contentUpdatedTime).toEqual(
-                        new Date(mockTime + 3),
+                        new Date(room.createdTime.getTime() + 3),
                     );
                 }
             } finally {
@@ -5581,13 +5583,11 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         test("if time hasn't moved forward deleting a message will set it to +1ms of the last update time", async () => {
             const originalDateNow = Date.now;
-            const mockTime = 1675809808692;
-            Date.now = () => mockTime;
 
             try {
                 const room = await createRoom(context.action(session1), space.id);
 
-                expect(room.createdTime).toEqual(new Date(mockTime));
+                Date.now = () => room.createdTime.getTime() - 1000 * 60;
 
                 const message = await createMessage(context.action(session1), {
                     roomKey: room.key,
@@ -5608,7 +5608,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     });
                     assert(updatedMessage?.payload.type === "Content");
                     expect(updatedMessage.payload.contentUpdatedTime).toEqual(
-                        new Date(mockTime + 1),
+                        new Date(room.createdTime.getTime() + 1),
                     );
                 }
 
@@ -5623,7 +5623,9 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message.index,
                     });
                     assert(updatedMessage?.payload.type === "Deleted");
-                    expect(updatedMessage.payload.deletedTime).toEqual(new Date(mockTime + 2));
+                    expect(updatedMessage.payload.deletedTime).toEqual(
+                        new Date(room.createdTime.getTime() + 2),
+                    );
                 }
             } finally {
                 Date.now = originalDateNow;
@@ -5632,13 +5634,11 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         test("if time hasn't moved forward updating a message will set it to +1ms of the last update time for a different message", async () => {
             const originalDateNow = Date.now;
-            const mockTime = 1675809808692;
-            Date.now = () => mockTime;
 
             try {
                 const room = await createRoom(context.action(session1), space.id);
 
-                expect(room.createdTime).toEqual(new Date(mockTime));
+                Date.now = () => room.createdTime.getTime() - 1000 * 60;
 
                 const message1 = await createMessage(context.action(session1), {
                     roomKey: room.key,
@@ -5671,7 +5671,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     });
                     assert(updatedMessage?.payload.type === "Content");
                     expect(updatedMessage.payload.contentUpdatedTime).toEqual(
-                        new Date(mockTime + 1),
+                        new Date(room.createdTime.getTime() + 1),
                     );
                 }
 
@@ -5688,11 +5688,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     });
                     assert(updatedMessage?.payload.type === "Content");
                     expect(updatedMessage.payload.contentUpdatedTime).toEqual(
-                        new Date(mockTime + 2),
+                        new Date(room.createdTime.getTime() + 2),
                     );
                 }
 
-                Date.now = () => mockTime - 1000 * 60;
+                Date.now = () => room.createdTime.getTime() - 1000 * 60;
 
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
@@ -5707,7 +5707,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     });
                     assert(updatedMessage?.payload.type === "Content");
                     expect(updatedMessage.payload.contentUpdatedTime).toEqual(
-                        new Date(mockTime + 3),
+                        new Date(room.createdTime.getTime() + 3),
                     );
                 }
             } finally {
@@ -5717,13 +5717,11 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         test("if time hasn't moved forward deleting a message will set it to +1ms of the last update time for a different message", async () => {
             const originalDateNow = Date.now;
-            const mockTime = 1675809808692;
-            Date.now = () => mockTime;
 
             try {
                 const room = await createRoom(context.action(session1), space.id);
 
-                expect(room.createdTime).toEqual(new Date(mockTime));
+                Date.now = () => room.createdTime.getTime() - 1000 * 60;
 
                 const message1 = await createMessage(context.action(session1), {
                     roomKey: room.key,
@@ -5756,7 +5754,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     });
                     assert(updatedMessage?.payload.type === "Content");
                     expect(updatedMessage.payload.contentUpdatedTime).toEqual(
-                        new Date(mockTime + 1),
+                        new Date(room.createdTime.getTime() + 1),
                     );
                 }
 
@@ -5771,10 +5769,12 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message2.index,
                     });
                     assert(updatedMessage?.payload.type === "Deleted");
-                    expect(updatedMessage.payload.deletedTime).toEqual(new Date(mockTime + 2));
+                    expect(updatedMessage.payload.deletedTime).toEqual(
+                        new Date(room.createdTime.getTime() + 2),
+                    );
                 }
 
-                Date.now = () => mockTime - 1000 * 60;
+                Date.now = () => room.createdTime.getTime() - 1000 * 60;
 
                 await deleteMessage(context.action(session1), {
                     roomKey: room.key,
@@ -5787,7 +5787,9 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message3.index,
                     });
                     assert(updatedMessage?.payload.type === "Deleted");
-                    expect(updatedMessage.payload.deletedTime).toEqual(new Date(mockTime + 3));
+                    expect(updatedMessage.payload.deletedTime).toEqual(
+                        new Date(room.createdTime.getTime() + 3),
+                    );
                 }
             } finally {
                 Date.now = originalDateNow;
@@ -5796,13 +5798,11 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         test("if time hasn't moved forward updating a message will set it to +1ms of the last delete time for a different message", async () => {
             const originalDateNow = Date.now;
-            const mockTime = 1675809808692;
-            Date.now = () => mockTime;
 
             try {
                 const room = await createRoom(context.action(session1), space.id);
 
-                expect(room.createdTime).toEqual(new Date(mockTime));
+                Date.now = () => room.createdTime.getTime() - 1000 * 60;
 
                 await createMessage(context.action(session1), {
                     roomKey: room.key,
@@ -5833,10 +5833,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message2.index,
                     });
                     assert(updatedMessage?.payload.type === "Deleted");
-                    expect(updatedMessage.payload.deletedTime).toEqual(new Date(mockTime + 1));
+                    expect(updatedMessage.payload.deletedTime).toEqual(
+                        new Date(room.createdTime.getTime() + 1),
+                    );
                 }
-
-                Date.now = () => mockTime - 1000 * 60;
 
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
@@ -5851,7 +5851,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     });
                     assert(updatedMessage?.payload.type === "Content");
                     expect(updatedMessage.payload.contentUpdatedTime).toEqual(
-                        new Date(mockTime + 2),
+                        new Date(room.createdTime.getTime() + 2),
                     );
                 }
             } finally {
@@ -7421,7 +7421,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
-            ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
+            ).rejects.toThrow(new PermissionDeniedError(spacePermissionDeniedErrorMessage));
         });
 
         if (createPrivateRoom !== "Unimplemented") {
