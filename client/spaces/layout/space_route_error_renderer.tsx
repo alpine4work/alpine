@@ -8,6 +8,7 @@ import {mobileNavigationBarGap, navigationBarHeight} from "~/client/design/navig
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useRouteErrorTitle} from "~/client/spaces/layout/route_error_title.js";
 import {getWebMobileTabFromPathname} from "~/client/spaces/layout/space_layout_web_mobile_tab_bar.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {sprinkles} from "~/shared/styles/styles.js";
@@ -59,15 +60,7 @@ export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
                         paddingY: isMobile ? "4" : "32",
                     })}
                 >
-                    <ErrorBodyRenderer
-                        // TODO(calebmer): "Couldn't show content" is way too generic. Can I write a
-                        // route pattern matcher so we can be more specific like "Couldn't open task"
-                        // or "Couldn't open document" for initial page loads. Ideally we'd have a more
-                        // specific error if the error was thrown after page load like "Task broke" or
-                        // something but I don't know what that message is.
-                        title="Couldn’t show content"
-                        error={error}
-                    />
+                    <ErrorBodyRenderer title={useRouteErrorTitle()} error={error} />
                 </Box>
             </Box>
         </Box>

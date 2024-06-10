@@ -43,6 +43,7 @@ import {CurrentTimeContextProvider} from "~/client/remix/use_current_time_rounde
 import {IsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
 import {WaitForNavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
+import {useRouteErrorTitle} from "~/client/spaces/layout/route_error_title.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {spacing} from "~/shared/design/spacing.js";
@@ -277,7 +278,7 @@ export default function Root() {
                             error={error}
                             title={
                                 isRouteErrorResponse(routeError) && routeError.status === 404
-                                    ? "Could not find content"
+                                    ? "Couldn’t find content"
                                     : undefined
                             }
                         />
@@ -304,7 +305,7 @@ export default function Root() {
                         error={error}
                         title={
                             isRouteErrorResponse(routeError) && routeError.status === 404
-                                ? "Could not find content"
+                                ? "Couldn’t find content"
                                 : undefined
                         }
                     />
@@ -535,6 +536,8 @@ function RootErrorRenderer({error: _error, title}: {error: unknown; title?: stri
     // identity to determine whether we need to log the error.
     const error = useStableValue(ErrorSchema, _error);
 
+    const defaultTitle = useRouteErrorTitle();
+
     return (
         <Box display="flex" justifyContent="center" padding="safe-area-inset">
             <main
@@ -545,7 +548,7 @@ function RootErrorRenderer({error: _error, title}: {error: unknown; title?: stri
                     paddingY: {desktop: "32", mobile: "16"},
                 })}
             >
-                <ErrorBodyRenderer title={title ?? "Couldn’t show content"} error={error} />
+                <ErrorBodyRenderer title={title ?? defaultTitle} error={error} />
             </main>
         </Box>
     );

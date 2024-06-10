@@ -109,8 +109,8 @@ import {
 
 /**
  * Shimmer component for each space route. The test
- * `app/tests/space_routes_have_shimmers.test.ts` makes sure we have a shimmer
- * definition for each space route.
+ * `app/tests/space_routes.test.ts` makes sure we have a shimmer definition for
+ * each space route.
  *
  * If a shimmer definition is `false` that means we show a generic fullscreen
  * loading spinner instead of a custom shimmer.
