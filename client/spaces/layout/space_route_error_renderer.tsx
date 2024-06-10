@@ -8,8 +8,8 @@ import {mobileNavigationBarGap, navigationBarHeight} from "~/client/design/navig
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {useRouteErrorTitle} from "~/client/spaces/layout/route_error_title.js";
 import {getWebMobileTabFromPathname} from "~/client/spaces/layout/space_layout_web_mobile_tab_bar.js";
+import {useRouteErrorTitle} from "~/client/spaces/route_error_title.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 

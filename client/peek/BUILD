@@ -19,6 +19,7 @@ ts_project(
         "//client/design",
         "//client/helpers",
         "//client/remix",
+        "//client/spaces",
         "//shared/design",
         "//shared/error",
         "//shared/helpers",

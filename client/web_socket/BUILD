@@ -10,6 +10,7 @@ ts_project(
         "//:node_modules/@types/react",
         "//:node_modules/react",
         "//client/context",
+        "//client/design",
         "//client/helpers",
         "//shared/error",
         "//shared/helpers",

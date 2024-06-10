@@ -43,7 +43,7 @@ import {CurrentTimeContextProvider} from "~/client/remix/use_current_time_rounde
 import {IsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
 import {WaitForNavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
-import {useRouteErrorTitle} from "~/client/spaces/layout/route_error_title.js";
+import {useRouteErrorTitle} from "~/client/spaces/route_error_title.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {spacing} from "~/shared/design/spacing.js";

@@ -218,8 +218,6 @@ export function AppRouterProvider({
 
                 const url = new URL(router.createHref(state.location), window.location.href);
 
-                console.log("NAVIGATE", state);
-
                 if (state.historyAction === "PUSH") {
                     if (state.location.state?.isTabSwitch) {
                         NativeMobileBridge?.navigation.switchTab(

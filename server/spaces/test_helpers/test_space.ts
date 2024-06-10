@@ -3,7 +3,6 @@ import {
     addSpaceAccountForTest,
     createSpaceForTest,
     getSpace,
-    isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";

@@ -1,3 +1,4 @@
+import {UnimplementedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
@@ -208,6 +209,10 @@ function getSearchEntityPath(spaceId: SpaceId, entityId: SearchEntityIdObject): 
         }
         case "TaskCollection": {
             return `/s/${spaceId}/tasks/collections/${entityId.collectionId}`;
+        }
+        case "TaskComment": {
+            // TODO(#task-comments): https://cyberworlds.dev/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/gj7bnv44em5dhcaqzfcaxn7ta8
+            throw new UnimplementedError("TODO");
         }
         default:
             throw exhaustive(entityId);
