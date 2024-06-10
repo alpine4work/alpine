@@ -521,6 +521,15 @@ export class DocumentContentEditorWebSocketClient {
         this._disconnect = null;
     }
 
+    public reconnect() {
+        // If we're not disconnected then disconnect...
+        if (this._disconnect !== null) {
+            this.disconnect();
+        }
+
+        this.connect();
+    }
+
     public subscribeToCommentThreadEvents(
         commentThreadId: DocumentCommentThreadId,
         subscriber: (

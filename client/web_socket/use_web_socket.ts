@@ -110,7 +110,7 @@ export function useWebSocket<Protocol extends WebSocketProtocolBase>(
  * user.
  */
 export function useWebSocketErrorDialog(
-    client: {connect(): void; disconnect(): void} | null,
+    client: {reconnect(): void} | null,
     errorState: {hasError: false} | {hasError: true; error: unknown} | null,
 ) {
     const reporter = useReporter();
@@ -122,7 +122,11 @@ export function useWebSocketErrorDialog(
         // WebSocket connections that disconnect at the same time (e.g. during a deploy
         // or if the user goes into a subway tunnel) but we should show the user only
         // one lost connection error message.
-        if (!reporter.hasDialogWithKey(webSocketErrorDialogKey)) {
+        if (reporter.hasDialogWithKey(webSocketErrorDialogKey)) {
+            // If a lost connection dialog is already open, log any additional WebSocket
+            // errors we have to telemetry.
+            reporter.logErrorWithoutDisplaying("Additional WebSocket error", errorState.error);
+        } else {
             reporter.showDialog({
                 key: webSocketErrorDialogKey,
                 title: "Lost connection",
@@ -142,8 +146,7 @@ export function useWebSocketErrorDialog(
         }
 
         return webSocketErrorDialogEventEmitter.subscribe(() => {
-            client.disconnect();
-            client.connect();
+            client.reconnect();
         });
     }, [client, errorState, reporter]);
 }

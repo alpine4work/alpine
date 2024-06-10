@@ -202,18 +202,13 @@ function remixLiveReloadConnect(config) {
 
     ws.onclose = (event) => {
         if (event.code === 1006) {
-            console.log("Remix dev asset server web socket closed. Reconnecting...");
+            console.error(\`Remix dev server WebSocket closed unexpectedly with code \${event.code}\${event.reason ? \`and reason "\${event.reason}"\` : ""}\${!event.wasClean ? " (did not close cleanly)" : ""}. Reconnecting...\`);
             setTimeout(() => {
                 remixLiveReloadConnect({
                     onOpen: () => window.location.reload(),
                 });
             }, 1000);
         }
-    };
-
-    ws.onerror = (error) => {
-        console.log("Remix dev asset server web socket error:");
-        console.error(error);
     };
 }
 

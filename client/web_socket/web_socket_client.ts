@@ -17,8 +17,7 @@ import {
 
 const reconnectTimeoutBaseMs = 1200;
 const maxReconnectTimeoutMs = 2500;
-// NOCOMMIT
-const reconnectAttemptsBeforeError = 4;
+const reconnectAttemptsBeforeError = 20;
 const openHealthyDurationMs = 10000;
 
 type WebSocketClientDisconnectTransition = "Disconnected" | "DocumentNotVisible";
@@ -441,6 +440,20 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
             this._state.getSnapshot().type === "Disconnected",
             "WebSocket internals should have updated state to `Disconnected`",
         );
+    }
+
+    /**
+     * Reconnect the WebSocket. If the WebSocket is currently connected then this
+     * closes the old connection and starts a new one. If the WebSocket is not
+     * connected then we start a new connection.
+     */
+    public reconnect() {
+        // If we're not disconnected then disconnect...
+        if (this._state.getSnapshot().type !== "Disconnected") {
+            this.disconnect();
+        }
+
+        this.connect();
     }
 
     /**

@@ -8,6 +8,7 @@ import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
 import {useBrowserId} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {unwrapLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
@@ -20,6 +21,7 @@ import {
     TaskRealtimeClient,
     unknownTaskQueryFromServerRetentionPeriodMs,
 } from "~/client/tasks/task_realtime_client.js";
+import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -286,6 +288,9 @@ export function TaskRealtimeClientContextProvider({
             "Can't change initial `SpaceId` passed into `<TaskStoreContextProvider>`, must remount the component",
         );
     }
+
+    const webSocketState = useStore(client.webSocketState);
+    useWebSocketErrorDialog(client, webSocketState);
 
     // Connect the client when our store has some queries and disconnect the client
     // if the store has no remaining queries.

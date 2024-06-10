@@ -317,4 +317,13 @@ export class TaskDetailNotesContentEditorWebSocketClient {
         this._disconnect();
         this._disconnect = null;
     }
+
+    public reconnect() {
+        // If we're not disconnected then disconnect...
+        if (this._disconnect !== null) {
+            this.disconnect();
+        }
+
+        this.connect();
+    }
 }

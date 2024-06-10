@@ -1,12 +1,13 @@
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
+import {Store} from "~/client/helpers/store/store.js";
 import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
-import {WebSocketClient} from "~/client/web_socket/web_socket_client.js";
+import {WebSocketClient, WebSocketClientState} from "~/client/web_socket/web_socket_client.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -62,6 +63,10 @@ export class TaskRealtimeClient {
         TaskClientQuery,
         TaskGridViewExpansionState
     >();
+
+    public get webSocketState(): Store<WebSocketClientState> {
+        return this._client.state;
+    }
 
     constructor(
         getContext: () => AppContext,
@@ -181,12 +186,9 @@ export class TaskRealtimeClient {
                 });
 
                 if (!hasCaughtError) {
-                    this._getContext()
-                        .tracer.getRoot()
-                        .logUncaughtException(
-                            "Task realtime connection closed with error",
-                            clientState.error,
-                        );
+                    // NOTE(calebmer): `<TaskRealtimeClientContextProvider>` should render an error
+                    // modal when `clientState.hasError` is true causing us to log the error to our
+                    // telemetry provider.
                 }
             }
 
@@ -786,6 +788,15 @@ export class TaskRealtimeClient {
         assert(this._disconnect !== null, "WebSocket is already disconnected");
         this._disconnect();
         this._disconnect = null;
+    }
+
+    public reconnect() {
+        // If we're not disconnected then disconnect...
+        if (this._disconnect !== null) {
+            this.disconnect();
+        }
+
+        this.connect();
     }
 
     /**
