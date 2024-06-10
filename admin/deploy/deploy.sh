@@ -11,6 +11,10 @@ source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
   { echo>&2 "ERROR: cannot find $f"; exit 1; }; f=; set -e
 # --- end runfiles.bash initialization v3 ---
 
+# NOCOMMIT: Permanently upload static assets to Cloudflare before dploying app
+# service. So if we deploy while the page is open the page can still use the
+# old code.
+
 "$(rlocation cyberworlds/admin/aws/cdk.sh)" deploy
 
 # TODO(calebmer): Someday, deploy to Cloudflare in an AWS custom resource so

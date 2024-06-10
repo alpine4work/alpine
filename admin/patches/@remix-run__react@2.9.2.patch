@@ -154,6 +154,62 @@ index 9f487c5a068f238eca60982460f8270e497445cb..d5c4ad85462064dab0234849cc4864de
 +// for correct usage of this dependency's internals.
 +export { loadRouteModuleWithBlockingLinks, createClientRoutes, createServerRoutes, shouldHydrateRouteLoader } from './routes.js';
 +export { deserializeErrors } from './errors.js';
+diff --git a/dist/esm/routeModules.js b/dist/esm/routeModules.js
+index 88a2d4710006342c42bb1c2d8ecedc9effaf7708..679445d81d6c3831ccf14f9e866eebc889e79469 100644
+--- a/dist/esm/routeModules.js
++++ b/dist/esm/routeModules.js
+@@ -65,24 +65,33 @@ async function loadRouteModule(route, routeModulesCache) {
+     routeModulesCache[route.id] = routeModule;
+     return routeModule;
+   } catch (error) {
+-    // User got caught in the middle of a deploy and the CDN no longer has the
+-    // asset we're trying to import! Reload from the server and the user
+-    // (should) get the new manifest--unless the developer purged the static
+-    // assets, the manifest path, but not the documents 😬
+-    if (window.__remixContext.isSpaMode &&
+-    // @ts-expect-error
+-    typeof import.meta.hot !== "undefined") {
+-      // In SPA Mode (which implies vite) we don't want to perform a hard reload
+-      // on dev-time errors since it's a vite compilation error and a reload is
+-      // just going to fail with the same issue.  Let the UI bubble to the error
+-      // boundary and let them see the error in the overlay or the dev server log
+-      console.error(`Error loading route module \`${route.module}\`:`, error);
+-      throw error;
+-    }
+-    window.location.reload();
+-    return new Promise(() => {
+-      // check out of this hook cause the DJs never gonna re[s]olve this
+-    });
++    // NOTE(calebmer): We could get an error here because:
++    //
++    // 1. The client is offline
++    // 2. The server can't return the asset (the browser gets a status code
++    //    like 404 or 500)
++    //    a. Could happen if the client is old and referencing an old
++    //       asset that was deleted during a deploy. If we delete old assets
++    //       every deploy this will happen frequently!
++    //    b. Could happen if the server is down.
++    //
++    // In cases 1 and 2b we want to show the user an error message. Case 2a
++    // shouldn't happen because we'd like to keep old assets around so old page
++    // loads can keep working without a disruptive reload.
++    //
++    // By default, Remix assumes we're in case 2a since this case happens often
++    // if you delete assets on every deploy (which we don't do). In case 2a
++    // reloading the page is the best solution since the client will pick up new
++    // code.
++    //
++    // Given case 2a shouldn't apply to us (since the backend keeps assets
++    // around) and in cases 1 and 2b we want to throw an error, we patch Remix's
++    // handling to instead always throw an error.
++    //
++    // Unfortunately, the error thrown by the browser's `import()` function does
++    // not let us tell which error case we're in. Otherwise we'd handle 404s
++    // differently.
++    throw error;
+   }
+ }
+
 diff --git a/dist/esm/routes.js b/dist/esm/routes.js
 index 44a0b4e39b459308cf1bd105fab69332e72cc856..f0e4e68e37b57127195e1a2a2fb13f9837b08b63 100644
 --- a/dist/esm/routes.js
@@ -207,8 +263,64 @@ index 72aaefa0ac982a913826e2b1d664076d20187dc0..e5615daf80396a407b3ddc36260bd41a
 +exports.createServerRoutes = routes.createServerRoutes;
 +exports.shouldHydrateRouteLoader = routes.shouldHydrateRouteLoader;
 +exports.deserializeErrors = errors.deserializeErrors;
+diff --git a/dist/routeModules.js b/dist/routeModules.js
+index 096b724e7754194ae98227486c5186f0098fc64d..45410914198ce3e4f15dc2c9cce2a00c2a7e7040 100644
+--- a/dist/routeModules.js
++++ b/dist/routeModules.js
+@@ -87,24 +87,33 @@ async function loadRouteModule(route, routeModulesCache) {
+     routeModulesCache[route.id] = routeModule;
+     return routeModule;
+   } catch (error) {
+-    // User got caught in the middle of a deploy and the CDN no longer has the
+-    // asset we're trying to import! Reload from the server and the user
+-    // (should) get the new manifest--unless the developer purged the static
+-    // assets, the manifest path, but not the documents 😬
+-    if (window.__remixContext.isSpaMode &&
+-    // @ts-expect-error
+-    typeof undefined !== "undefined") {
+-      // In SPA Mode (which implies vite) we don't want to perform a hard reload
+-      // on dev-time errors since it's a vite compilation error and a reload is
+-      // just going to fail with the same issue.  Let the UI bubble to the error
+-      // boundary and let them see the error in the overlay or the dev server log
+-      console.error(`Error loading route module \`${route.module}\`:`, error);
+-      throw error;
+-    }
+-    window.location.reload();
+-    return new Promise(() => {
+-      // check out of this hook cause the DJs never gonna re[s]olve this
+-    });
++    // NOTE(calebmer): We could get an error here because:
++    //
++    // 1. The client is offline
++    // 2. The server can't return the asset (the browser gets a status code
++    //    like 404 or 500)
++    //    a. Could happen if the client is old and referencing an old
++    //       asset that was deleted during a deploy. If we delete old assets
++    //       every deploy this will happen frequently!
++    //    b. Could happen if the server is down.
++    //
++    // In cases 1 and 2b we want to show the user an error message. Case 2a
++    // shouldn't happen because we'd like to keep old assets around so old page
++    // loads can keep working without a disruptive reload.
++    //
++    // By default, Remix assumes we're in case 2a since this case happens often
++    // if you delete assets on every deploy (which we don't do). In case 2a
++    // reloading the page is the best solution since the client will pick up new
++    // code.
++    //
++    // Given case 2a shouldn't apply to us (since the backend keeps assets
++    // around) and in cases 1 and 2b we want to throw an error, we patch Remix's
++    // handling to instead always throw an error.
++    //
++    // Unfortunately, the error thrown by the browser's `import()` function does
++    // not let us tell which error case we're in. Otherwise we'd handle 404s
++    // differently.
++    throw error;
+   }
+ }
+
 diff --git a/dist/routes.d.ts b/dist/routes.d.ts
-index 47c3aff1afa72c19924fe3fe9c64713aab080eab..566692230959317d1a4f644f15b8b063314497c5 100644
+index 47c3aff1afa72c19924fe3fe9c64713aab080eab..26731fecd2580c7e1b974e7f7ea7d22d5e2baff2 100644
 --- a/dist/routes.d.ts
 +++ b/dist/routes.d.ts
 @@ -29,4 +29,5 @@ export declare function createServerRoutes(manifest: RouteManifest<EntryRoute>,

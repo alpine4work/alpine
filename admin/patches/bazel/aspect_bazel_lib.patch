@@ -54,7 +54,7 @@ index 75cd340..66f6fe9 100644
 +                        new_patch_content_lines.append(patch_content_line)
 +
 +                new_patchfile = "patch{}.patch".format(i + 1)
-+                ctx.file(new_patchfile, "".join(new_patch_content_lines))
++                ctx.file(new_patchfile, "".join(new_patch_content_lines), executable = False, legacy_utf8 = False)
 +                new_patches.append(new_patchfile)
 +
 +                i += 1

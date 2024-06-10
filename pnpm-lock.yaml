@@ -64,7 +64,7 @@ patchedDependencies:
     hash: ceajr5qo4y5pdowju2wo6baryu
     path: admin/patches/@remix-run__dev@2.9.2.patch
   '@remix-run/react@2.9.2':
-    hash: 6og2os7wp6po5gkxqocgnnfyz4
+    hash: 7nw3bx3i4jke6ijt2hrbcremca
     path: admin/patches/@remix-run__react@2.9.2.patch
   '@remix-run/router@1.16.1':
     hash: xeuovmt6chd26fxiymdnwo3xka
@@ -238,7 +238,7 @@ dependencies:
     version: 2.9.2(typescript@5.1.3)
   '@remix-run/react':
     specifier: 2.9.2
-    version: 2.9.2(patch_hash=6og2os7wp6po5gkxqocgnnfyz4)(react-dom@18.2.0)(react@18.2.0)(typescript@5.1.3)
+    version: 2.9.2(patch_hash=7nw3bx3i4jke6ijt2hrbcremca)(react-dom@18.2.0)(react@18.2.0)(typescript@5.1.3)
   '@remix-run/router':
     specifier: 1.16.1
     version: 1.16.1(patch_hash=xeuovmt6chd26fxiymdnwo3xka)
@@ -5088,7 +5088,7 @@ packages:
       '@mdx-js/mdx': 2.3.0
       '@npmcli/package-json': 4.0.1
       '@remix-run/node': 2.9.2(typescript@5.1.3)
-      '@remix-run/react': 2.9.2(patch_hash=6og2os7wp6po5gkxqocgnnfyz4)(react-dom@18.2.0)(react@18.2.0)(typescript@5.1.3)
+      '@remix-run/react': 2.9.2(patch_hash=7nw3bx3i4jke6ijt2hrbcremca)(react-dom@18.2.0)(react@18.2.0)(typescript@5.1.3)
       '@remix-run/router': 1.16.1(patch_hash=xeuovmt6chd26fxiymdnwo3xka)
       '@remix-run/server-runtime': 2.9.2(patch_hash=ek3oeq543cngana75ib6nchevu)(typescript@5.1.3)
       '@types/mdx': 2.0.13
@@ -5203,7 +5203,7 @@ packages:
       undici: 6.17.0
     dev: false
 
-  /@remix-run/react@2.9.2(patch_hash=6og2os7wp6po5gkxqocgnnfyz4)(react-dom@18.2.0)(react@18.2.0)(typescript@5.1.3):
+  /@remix-run/react@2.9.2(patch_hash=7nw3bx3i4jke6ijt2hrbcremca)(react-dom@18.2.0)(react@18.2.0)(typescript@5.1.3):
     resolution: {integrity: sha512-DcZDzm68MBxGn8hjf/VsuUpjxDYZ8VOOH79P1zWu4hb3hBr90WV1Sa/gIAFUEGpOCcSQ0EG/ci8MaFxcAaPz2Q==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
