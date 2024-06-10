@@ -3283,7 +3283,7 @@ private class WebNavigationEntryController: UIViewController {
                     // This message is copied from `fetch_with_tracer.ts`. If we update the message
                     // here then we should update it there as well.
                     message:
-                        "Couldn’t connect to the internet. Make sure you’re online and try again.",
+                        "Your device isn’t connected to the internet. Make sure you’re online and try again.",
                     preferredStyle: .alert
                 )
             }

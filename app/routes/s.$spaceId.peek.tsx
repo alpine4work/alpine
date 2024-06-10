@@ -1,17 +1,14 @@
 import {Outlet} from "@remix-run/react";
 import {useContext, useMemo} from "react";
-import {UNSAFE_DataRouterStateContext as DataRouterStateContext, useRouteError} from "react-router";
+import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
 import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicator_space_outlet_container.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
-import {Box} from "~/client/design/box.js";
-import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
-import {useStableValue} from "~/client/helpers/use_stable_value.js";
+import {PeekErrorBoundary} from "~/client/peek/peek_error_boundary.js";
 import {usePeekContext} from "~/client/peek/peek_remix_embed.js";
 import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
-import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
@@ -129,25 +126,4 @@ export default function PeekLayout() {
     );
 }
 
-export function ErrorBoundary() {
-    // It appears that Remix does not `useMemo()` its error object. So stabilize
-    // the object reference here. Our error rendering components use referential
-    // identity to determine whether we need to log the error.
-    const error = useStableValue(ErrorSchema, useRouteError());
-
-    const withMobileLayout = usePeekContext()?.withMobileLayout ?? false;
-
-    return (
-        <Box display="flex" justifyContent="center" padding="safe-area-inset">
-            <Box
-                width="full"
-                maxWidth="128"
-                paddingX="8"
-                paddingTop={withMobileLayout ? "16" : "32"}
-                paddingBottom="8"
-            >
-                <ErrorBodyRenderer title="Couldn’t show content" error={error} />
-            </Box>
-        </Box>
-    );
-}
+export const ErrorBoundary = PeekErrorBoundary;

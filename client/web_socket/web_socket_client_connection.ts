@@ -1,5 +1,5 @@
 import {AppContext} from "~/client/context/app_context.js";
-import {InternalError, UnavailableError} from "~/shared/error/error.js";
+import {FailedPreconditionError, InternalError, UnavailableError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -11,6 +11,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {WebSocketProcedureRequestId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
+import {offlineErrorDisplayMessage} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {webSocketExpirationTimeoutMs} from "~/shared/web_socket/web_socket_expiration_timeout_ms.js";
 import {
@@ -191,25 +192,34 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
             for (const promiseResolver of this._procedureResponsePromiseResolverByRequestId.values()) {
                 promiseResolver.reject(
                     closeErrorResult?.error ??
-                        new UnavailableError("WebSocket closed before procedure response", {
-                            displayMessage: errorDisplayMessage`Your connection to our servers was ended unexpectedly. Please try again.`,
-                        }),
+                        // If the user is offline then we use a `FailedPreconditionError` since it's a
+                        // user error (no internet connection) not a system error. System errors show a
+                        // red error icon.
+                        new (navigator.onLine ? UnavailableError : FailedPreconditionError)(
+                            "WebSocket closed before procedure response",
+                            {
+                                displayMessage: errorDisplayMessage`Your connection to our servers was ended unexpectedly. Please try again.`,
+                            },
+                        ),
                 );
             }
             this._procedureResponsePromiseResolverByRequestId.clear();
 
-            // If the WebSocket gave us an error object, use that when closing instead of
+            // If the WebSocket gave us an error object, use that when rejecting instead of
             // an `UnavailableError`.
             const error =
                 closeErrorResult?.error ??
                 (!wasCloseExpected
-                    ? new UnavailableError(
+                    ? // If the user is offline then we use a `FailedPreconditionError` since it's a
+                      // user error (no internet connection) not a system error. System errors show a
+                      // red error icon.
+                      new (navigator.onLine ? UnavailableError : FailedPreconditionError)(
                           `WebSocket closed unexpectedly with code ${event.code}${
                               event.reason ? quote`and reason ${event.reason}` : ""
                           }${!event.wasClean ? " (did not close cleanly)" : ""}`,
                           {
                               displayMessage: wasConnecting
-                                  ? errorDisplayMessage`Couldn’t connect to the internet. Make sure you’re online and try again.`
+                                  ? offlineErrorDisplayMessage
                                   : wasOpen
                                   ? errorDisplayMessage`Your connection to our servers was ended unexpectedly. Please try again.`
                                   : undefined,

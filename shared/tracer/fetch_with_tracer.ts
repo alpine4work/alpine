@@ -1,7 +1,7 @@
 import {parse as parseCookieHeader} from "cookie";
 import {parse as parseSetCookieHeader} from "set-cookie-parser";
 import {formatDate as formatHttpDate} from "tough-cookie";
-import {UnavailableError} from "~/shared/error/error.js";
+import {FailedPreconditionError, UnavailableError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
@@ -16,7 +16,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 // The same error message is copied in `WebNavigationController.swift`'s
 // `showUnhealthyAlert()` function. If we update the message here, we should
 // update it there as well.
-const offlineErrorDisplayMessage = errorDisplayMessage`Couldn’t connect to the internet. Make sure you’re online and try again.`;
+export const offlineErrorDisplayMessage = errorDisplayMessage`Your device isn’t connected to the internet. Make sure you’re online then try again.`;
 
 const globalFetch = typeof fetch !== "undefined" ? fetch : undefined;
 
@@ -192,7 +192,15 @@ export async function fetchWithTracer<ResponseData>(
         // eslint-disable-next-line no-global-fetch
         const response = await fetch(request).catch(error => {
             // Classify network errors as the `Unavailable` status code.
-            throw UnavailableError.from(error, undefined, {
+            //
+            // If the user is offline then we use a `FailedPreconditionError` since it's a
+            // user error (no internet connection) not a system error. System errors show a
+            // red error icon.
+            throw (
+                typeof window !== "undefined" && !navigator.onLine
+                    ? FailedPreconditionError
+                    : UnavailableError
+            ).from(error, undefined, {
                 displayMessage:
                     // If we're in a web browser, if we failed to make a request it's probably the
                     // user's internet connection and they should look into a fix.

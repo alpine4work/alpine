@@ -21,6 +21,7 @@ import {
 import {StaticRouterProvider} from "react-router-dom/server.js";
 import {BottomBarFrameContextProvider} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {PeekErrorBoundary} from "~/client/peek/peek_error_boundary.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -111,6 +112,7 @@ export function usePeekRemixEmbedRouter() {
                     id: rootRoute.id,
                     caseSensitive: spaceRoute.caseSensitive,
                     path: spaceRoute.path,
+                    errorElement: <PeekErrorBoundary />,
                     children: [spacePeekRoute],
                 },
             ];

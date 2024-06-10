@@ -4,6 +4,7 @@ import {DataRouteObject, LazyRouteFunction} from "react-router";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {createLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {processLoaderResult} from "~/client/remix/process_loader_result.js";
+import {FailedPreconditionError, UnavailableError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
@@ -13,6 +14,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {assertId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {offlineErrorDisplayMessage} from "~/shared/tracer/fetch_with_tracer.js";
 
 /**
  * Create the `react-router` [route tree][1] for our app. This is based on
@@ -54,6 +56,8 @@ export function createAppClientRoutes() {
     }
 
     function updateDataRoute(route: DataRouteObject) {
+        makeDataRouteThrowUnavailableError(route);
+
         if (route.id === "routes/s.$spaceId.inbox") {
             hasUpdatedInboxDataRoute = true;
             updateInboxDataRoute(route, routeById);
@@ -102,6 +106,99 @@ export function createAppClientRoutes() {
     assert(hasUpdatedPeekTaskDataRoute);
 
     return routes;
+}
+
+/**
+ * Make sure all asynchronous methods of the route (`loader`, `action`, and
+ * `lazy`) throw an `UnavailableError` (or `FailedPreconditionError` if the
+ * user is offline therefore the error is not a system error) if an error is
+ * thrown.
+ *
+ * Since Remix makes HTTP requests for these functions under the hood. Our
+ * custom function `fetchWithTracer()` automatically treats errors this way but
+ * since Remix dispatches its own network requests, errors are not identified.
+ */
+function makeDataRouteThrowUnavailableError(route: DataRouteObject) {
+    if (typeof route.loader === "function") {
+        const originalRouteLoader = route.loader;
+
+        route.loader = async (...args) => {
+            try {
+                const result = await originalRouteLoader(...args);
+                return result;
+            } catch (error) {
+                // Classify network errors as the `Unavailable` status code.
+                //
+                // If the user is offline then we use a `FailedPreconditionError` since it's a
+                // user error (no internet connection) not a system error. System errors show a
+                // red error icon.
+                throw (!navigator.onLine ? FailedPreconditionError : UnavailableError).from(
+                    error,
+                    undefined,
+                    {
+                        displayMessage:
+                            // If we're in a web browser, if we failed to make a request it's probably the
+                            // user's internet connection and they should look into a fix.
+                            typeof window !== "undefined" ? offlineErrorDisplayMessage : undefined,
+                    },
+                );
+            }
+        };
+    }
+
+    if (typeof route.action === "function") {
+        const originalRouteAction = route.action;
+
+        route.action = async (...args) => {
+            try {
+                const result = await originalRouteAction(...args);
+                return result;
+            } catch (error) {
+                // Classify network errors as the `Unavailable` status code.
+                //
+                // If the user is offline then we use a `FailedPreconditionError` since it's a
+                // user error (no internet connection) not a system error. System errors show a
+                // red error icon.
+                throw (!navigator.onLine ? FailedPreconditionError : UnavailableError).from(
+                    error,
+                    undefined,
+                    {
+                        displayMessage:
+                            // If we're in a web browser, if we failed to make a request it's probably the
+                            // user's internet connection and they should look into a fix.
+                            typeof window !== "undefined" ? offlineErrorDisplayMessage : undefined,
+                    },
+                );
+            }
+        };
+    }
+
+    if (typeof route.lazy === "function") {
+        const originalRouteLazy = route.lazy;
+
+        route.lazy = async (...args) => {
+            try {
+                const result = await originalRouteLazy(...args);
+                return result;
+            } catch (error) {
+                // Classify network errors as the `Unavailable` status code.
+                //
+                // If the user is offline then we use a `FailedPreconditionError` since it's a
+                // user error (no internet connection) not a system error. System errors show a
+                // red error icon.
+                throw (!navigator.onLine ? FailedPreconditionError : UnavailableError).from(
+                    error,
+                    undefined,
+                    {
+                        displayMessage:
+                            // If we're in a web browser, if we failed to make a request it's probably the
+                            // user's internet connection and they should look into a fix.
+                            typeof window !== "undefined" ? offlineErrorDisplayMessage : undefined,
+                    },
+                );
+            }
+        };
+    }
 }
 
 /**

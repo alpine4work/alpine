@@ -22,12 +22,15 @@ export function ErrorBodyRenderer({title, error}: {title: string; error: unknown
             <Box display="flex" gap="2" paddingBottom="2.5">
                 {!dontShowErrorIcon && (
                     <Box
+                        position="relative"
                         flexShrink="0"
                         color="red-40"
                         display="flex"
                         justifyContent="center"
                         alignItems="center"
                         style={{
+                            // Vertically align error icon with title.
+                            top: "0.0625rem",
                             fontSize: fontSizes["400"].fontSize,
                             height: fontSizes["400"].lineHeight,
                         }}
