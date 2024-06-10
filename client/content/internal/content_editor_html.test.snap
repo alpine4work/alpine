@@ -15,7 +15,7 @@ exports[`bold 1`] = `
   >
     Hello 
     <strong
-      class="content_schema__14lcw3gu"
+      class="content_schema__14lcw3gv"
     >
       world
     </strong>
@@ -36,6 +36,8 @@ exports[`bold: clipboard 1`] = `
 </div>
 `;
 
+exports[`bold: clipboard text 1`] = `"Hello world!"`;
+
 exports[`bullet list bold: clipboard 1`] = `
 <div>
   <ul>
@@ -51,6 +53,8 @@ exports[`bullet list bold: clipboard 1`] = `
   </ul>
 </div>
 `;
+
+exports[`bullet list bold: clipboard text 1`] = `"Hello world!"`;
 
 exports[`bullet list code: clipboard 1`] = `
 <div>
@@ -68,6 +72,8 @@ exports[`bullet list code: clipboard 1`] = `
 </div>
 `;
 
+exports[`bullet list code: clipboard text 1`] = `"Hello world!"`;
+
 exports[`bullet list empty: clipboard 1`] = `
 <div>
   <ul>
@@ -77,6 +83,8 @@ exports[`bullet list empty: clipboard 1`] = `
   </ul>
 </div>
 `;
+
+exports[`bullet list empty: clipboard text 1`] = `""`;
 
 exports[`bullet list highlight: clipboard 1`] = `
 <div>
@@ -96,6 +104,8 @@ exports[`bullet list highlight: clipboard 1`] = `
 </div>
 `;
 
+exports[`bullet list highlight: clipboard text 1`] = `"Hello world!"`;
+
 exports[`bullet list italic: clipboard 1`] = `
 <div>
   <ul>
@@ -111,6 +121,8 @@ exports[`bullet list italic: clipboard 1`] = `
   </ul>
 </div>
 `;
+
+exports[`bullet list italic: clipboard text 1`] = `"Hello world!"`;
 
 exports[`bullet list link: clipboard 1`] = `
 <div>
@@ -132,6 +144,8 @@ exports[`bullet list link: clipboard 1`] = `
 </div>
 `;
 
+exports[`bullet list link: clipboard text 1`] = `"Hello world!"`;
+
 exports[`bullet list plain 1`] = `
 <div
   aria-label="Test"
@@ -143,9 +157,9 @@ exports[`bullet list plain 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gk"
+    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -168,6 +182,8 @@ exports[`bullet list plain: clipboard 1`] = `
 </div>
 `;
 
+exports[`bullet list plain: clipboard text 1`] = `"Hello world!"`;
+
 exports[`bullet list strike: clipboard 1`] = `
 <div>
   <ul>
@@ -184,6 +200,8 @@ exports[`bullet list strike: clipboard 1`] = `
 </div>
 `;
 
+exports[`bullet list strike: clipboard text 1`] = `"Hello world!"`;
+
 exports[`bullet list with multiple items 1`] = `
 <div
   aria-label="Test"
@@ -195,9 +213,9 @@ exports[`bullet list with multiple items 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gk"
+    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -206,9 +224,9 @@ exports[`bullet list with multiple items 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gk"
+    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -217,9 +235,9 @@ exports[`bullet list with multiple items 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gk"
+    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -252,6 +270,14 @@ exports[`bullet list with multiple items: clipboard 1`] = `
 </div>
 `;
 
+exports[`bullet list with multiple items: clipboard text 1`] = `
+"Item 1
+
+Item 2
+
+Item 3"
+`;
+
 exports[`bullet list with sub-list 1`] = `
 <div
   aria-label="Test"
@@ -263,9 +289,9 @@ exports[`bullet list with sub-list 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gk"
+    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -274,9 +300,9 @@ exports[`bullet list with sub-list 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gk"
+    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -285,9 +311,9 @@ exports[`bullet list with sub-list 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gk"
+    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -296,9 +322,9 @@ exports[`bullet list with sub-list 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gk"
+    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -320,9 +346,9 @@ exports[`bullet list with sub-list of another type 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gk"
+    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -331,10 +357,10 @@ exports[`bullet list with sub-list of another type 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gl"
+    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -343,10 +369,10 @@ exports[`bullet list with sub-list of another type 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gl"
+    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -355,10 +381,10 @@ exports[`bullet list with sub-list of another type 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gl"
+    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -398,6 +424,16 @@ exports[`bullet list with sub-list of another type: clipboard 1`] = `
 </div>
 `;
 
+exports[`bullet list with sub-list of another type: clipboard text 1`] = `
+"Test
+
+Item 1
+
+Item 2
+
+Item 3"
+`;
+
 exports[`bullet list with sub-list: clipboard 1`] = `
 <div>
   <ul>
@@ -427,6 +463,16 @@ exports[`bullet list with sub-list: clipboard 1`] = `
 </div>
 `;
 
+exports[`bullet list with sub-list: clipboard text 1`] = `
+"Test
+
+Item 1
+
+Item 2
+
+Item 3"
+`;
+
 exports[`can put hard breaks inside list items 1`] = `
 <div
   aria-label="Test"
@@ -438,9 +484,9 @@ exports[`can put hard breaks inside list items 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gk"
+    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -466,6 +512,8 @@ exports[`can put hard breaks inside list items: clipboard 1`] = `
   </ul>
 </div>
 `;
+
+exports[`can put hard breaks inside list items: clipboard text 1`] = `"Hello……world!"`;
 
 exports[`can put hard breaks inside paragraphs 1`] = `
 <div
@@ -497,6 +545,8 @@ exports[`can put hard breaks inside paragraphs: clipboard 1`] = `
 </div>
 `;
 
+exports[`can put hard breaks inside paragraphs: clipboard text 1`] = `"Hello……world!"`;
+
 exports[`can put multiple paragraphs inside list items 1`] = `
 <div
   aria-label="Test"
@@ -508,9 +558,9 @@ exports[`can put multiple paragraphs inside list items 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gk"
+    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -541,6 +591,12 @@ exports[`can put multiple paragraphs inside list items: clipboard 1`] = `
 </div>
 `;
 
+exports[`can put multiple paragraphs inside list items: clipboard text 1`] = `
+"Hello…
+
+…world!"
+`;
+
 exports[`check list (checked) bold: clipboard 1`] = `
 <div>
   <ul>
@@ -561,6 +617,8 @@ exports[`check list (checked) bold: clipboard 1`] = `
   </ul>
 </div>
 `;
+
+exports[`check list (checked) bold: clipboard text 1`] = `"Hello world!"`;
 
 exports[`check list (checked) code: clipboard 1`] = `
 <div>
@@ -583,6 +641,8 @@ exports[`check list (checked) code: clipboard 1`] = `
 </div>
 `;
 
+exports[`check list (checked) code: clipboard text 1`] = `"Hello world!"`;
+
 exports[`check list (checked) empty: clipboard 1`] = `
 <div>
   <ul>
@@ -597,6 +657,8 @@ exports[`check list (checked) empty: clipboard 1`] = `
   </ul>
 </div>
 `;
+
+exports[`check list (checked) empty: clipboard text 1`] = `""`;
 
 exports[`check list (checked) highlight: clipboard 1`] = `
 <div>
@@ -621,6 +683,8 @@ exports[`check list (checked) highlight: clipboard 1`] = `
 </div>
 `;
 
+exports[`check list (checked) highlight: clipboard text 1`] = `"Hello world!"`;
+
 exports[`check list (checked) italic: clipboard 1`] = `
 <div>
   <ul>
@@ -641,6 +705,8 @@ exports[`check list (checked) italic: clipboard 1`] = `
   </ul>
 </div>
 `;
+
+exports[`check list (checked) italic: clipboard text 1`] = `"Hello world!"`;
 
 exports[`check list (checked) link: clipboard 1`] = `
 <div>
@@ -667,6 +733,8 @@ exports[`check list (checked) link: clipboard 1`] = `
 </div>
 `;
 
+exports[`check list (checked) link: clipboard text 1`] = `"Hello world!"`;
+
 exports[`check list (checked) plain 1`] = `
 <div
   aria-label="Test"
@@ -678,18 +746,18 @@ exports[`check list (checked) plain 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gm"
+    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <div
-      class="content_schema__14lcw3go"
+      class="content_schema__14lcw3gp"
     >
       <div
-        class="content_schema__14lcw3gp"
+        class="content_schema__14lcw3gq"
       >
         <svg
-          class="content_schema__14lcw3gr"
+          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -710,7 +778,7 @@ exports[`check list (checked) plain 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gn"
+      class="content_schema__14lcw3go"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -739,6 +807,8 @@ exports[`check list (checked) plain: clipboard 1`] = `
 </div>
 `;
 
+exports[`check list (checked) plain: clipboard text 1`] = `"Hello world!"`;
+
 exports[`check list (checked) strike: clipboard 1`] = `
 <div>
   <ul>
@@ -760,6 +830,8 @@ exports[`check list (checked) strike: clipboard 1`] = `
 </div>
 `;
 
+exports[`check list (checked) strike: clipboard text 1`] = `"Hello world!"`;
+
 exports[`check list (unchecked) bold: clipboard 1`] = `
 <div>
   <ul>
@@ -779,6 +851,8 @@ exports[`check list (unchecked) bold: clipboard 1`] = `
   </ul>
 </div>
 `;
+
+exports[`check list (unchecked) bold: clipboard text 1`] = `"Hello world!"`;
 
 exports[`check list (unchecked) code: clipboard 1`] = `
 <div>
@@ -800,6 +874,8 @@ exports[`check list (unchecked) code: clipboard 1`] = `
 </div>
 `;
 
+exports[`check list (unchecked) code: clipboard text 1`] = `"Hello world!"`;
+
 exports[`check list (unchecked) empty: clipboard 1`] = `
 <div>
   <ul>
@@ -813,6 +889,8 @@ exports[`check list (unchecked) empty: clipboard 1`] = `
   </ul>
 </div>
 `;
+
+exports[`check list (unchecked) empty: clipboard text 1`] = `""`;
 
 exports[`check list (unchecked) highlight: clipboard 1`] = `
 <div>
@@ -836,6 +914,8 @@ exports[`check list (unchecked) highlight: clipboard 1`] = `
 </div>
 `;
 
+exports[`check list (unchecked) highlight: clipboard text 1`] = `"Hello world!"`;
+
 exports[`check list (unchecked) italic: clipboard 1`] = `
 <div>
   <ul>
@@ -855,6 +935,8 @@ exports[`check list (unchecked) italic: clipboard 1`] = `
   </ul>
 </div>
 `;
+
+exports[`check list (unchecked) italic: clipboard text 1`] = `"Hello world!"`;
 
 exports[`check list (unchecked) link: clipboard 1`] = `
 <div>
@@ -880,6 +962,8 @@ exports[`check list (unchecked) link: clipboard 1`] = `
 </div>
 `;
 
+exports[`check list (unchecked) link: clipboard text 1`] = `"Hello world!"`;
+
 exports[`check list (unchecked) plain 1`] = `
 <div
   aria-label="Test"
@@ -891,18 +975,18 @@ exports[`check list (unchecked) plain 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gj"
+    class="content_schema__14lcw3gk"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <div
-      class="content_schema__14lcw3go"
+      class="content_schema__14lcw3gp"
     >
       <div
-        class="content_schema__14lcw3gp"
+        class="content_schema__14lcw3gq"
       >
         <svg
-          class="content_schema__14lcw3gr"
+          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -923,7 +1007,7 @@ exports[`check list (unchecked) plain 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gn"
+      class="content_schema__14lcw3go"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -951,6 +1035,8 @@ exports[`check list (unchecked) plain: clipboard 1`] = `
 </div>
 `;
 
+exports[`check list (unchecked) plain: clipboard text 1`] = `"Hello world!"`;
+
 exports[`check list (unchecked) strike: clipboard 1`] = `
 <div>
   <ul>
@@ -971,6 +1057,8 @@ exports[`check list (unchecked) strike: clipboard 1`] = `
 </div>
 `;
 
+exports[`check list (unchecked) strike: clipboard text 1`] = `"Hello world!"`;
+
 exports[`check list with multiple items 1`] = `
 <div
   aria-label="Test"
@@ -982,18 +1070,18 @@ exports[`check list with multiple items 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gm"
+    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <div
-      class="content_schema__14lcw3go"
+      class="content_schema__14lcw3gp"
     >
       <div
-        class="content_schema__14lcw3gp"
+        class="content_schema__14lcw3gq"
       >
         <svg
-          class="content_schema__14lcw3gr"
+          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1014,7 +1102,7 @@ exports[`check list with multiple items 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gn"
+      class="content_schema__14lcw3go"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -1024,18 +1112,18 @@ exports[`check list with multiple items 1`] = `
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gj"
+    class="content_schema__14lcw3gk"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <div
-      class="content_schema__14lcw3go"
+      class="content_schema__14lcw3gp"
     >
       <div
-        class="content_schema__14lcw3gp"
+        class="content_schema__14lcw3gq"
       >
         <svg
-          class="content_schema__14lcw3gr"
+          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1056,7 +1144,7 @@ exports[`check list with multiple items 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gn"
+      class="content_schema__14lcw3go"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -1066,18 +1154,18 @@ exports[`check list with multiple items 1`] = `
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gm"
+    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <div
-      class="content_schema__14lcw3go"
+      class="content_schema__14lcw3gp"
     >
       <div
-        class="content_schema__14lcw3gp"
+        class="content_schema__14lcw3gq"
       >
         <svg
-          class="content_schema__14lcw3gr"
+          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1098,7 +1186,7 @@ exports[`check list with multiple items 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gn"
+      class="content_schema__14lcw3go"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -1146,6 +1234,14 @@ exports[`check list with multiple items: clipboard 1`] = `
 </div>
 `;
 
+exports[`check list with multiple items: clipboard text 1`] = `
+"Item 1
+
+Item 2
+
+Item 3"
+`;
+
 exports[`check list with sub-list 1`] = `
 <div
   aria-label="Test"
@@ -1157,18 +1253,18 @@ exports[`check list with sub-list 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gm"
+    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <div
-      class="content_schema__14lcw3go"
+      class="content_schema__14lcw3gp"
     >
       <div
-        class="content_schema__14lcw3gp"
+        class="content_schema__14lcw3gq"
       >
         <svg
-          class="content_schema__14lcw3gr"
+          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1189,7 +1285,7 @@ exports[`check list with sub-list 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gn"
+      class="content_schema__14lcw3go"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -1199,18 +1295,18 @@ exports[`check list with sub-list 1`] = `
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gm"
+    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <div
-      class="content_schema__14lcw3go"
+      class="content_schema__14lcw3gp"
     >
       <div
-        class="content_schema__14lcw3gp"
+        class="content_schema__14lcw3gq"
       >
         <svg
-          class="content_schema__14lcw3gr"
+          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1231,7 +1327,7 @@ exports[`check list with sub-list 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gn"
+      class="content_schema__14lcw3go"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -1241,18 +1337,18 @@ exports[`check list with sub-list 1`] = `
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gj"
+    class="content_schema__14lcw3gk"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <div
-      class="content_schema__14lcw3go"
+      class="content_schema__14lcw3gp"
     >
       <div
-        class="content_schema__14lcw3gp"
+        class="content_schema__14lcw3gq"
       >
         <svg
-          class="content_schema__14lcw3gr"
+          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1273,7 +1369,7 @@ exports[`check list with sub-list 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gn"
+      class="content_schema__14lcw3go"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -1283,18 +1379,18 @@ exports[`check list with sub-list 1`] = `
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gm"
+    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <div
-      class="content_schema__14lcw3go"
+      class="content_schema__14lcw3gp"
     >
       <div
-        class="content_schema__14lcw3gp"
+        class="content_schema__14lcw3gq"
       >
         <svg
-          class="content_schema__14lcw3gr"
+          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1315,7 +1411,7 @@ exports[`check list with sub-list 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gn"
+      class="content_schema__14lcw3go"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -1338,18 +1434,18 @@ exports[`check list with sub-list of another type 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gm"
+    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <div
-      class="content_schema__14lcw3go"
+      class="content_schema__14lcw3gp"
     >
       <div
-        class="content_schema__14lcw3gp"
+        class="content_schema__14lcw3gq"
       >
         <svg
-          class="content_schema__14lcw3gr"
+          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1370,7 +1466,7 @@ exports[`check list with sub-list of another type 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gn"
+      class="content_schema__14lcw3go"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -1380,10 +1476,10 @@ exports[`check list with sub-list of another type 1`] = `
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gl"
+    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -1392,10 +1488,10 @@ exports[`check list with sub-list of another type 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gl"
+    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -1404,10 +1500,10 @@ exports[`check list with sub-list of another type 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gl"
+    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -1450,6 +1546,16 @@ exports[`check list with sub-list of another type: clipboard 1`] = `
     </ol>
   </ul>
 </div>
+`;
+
+exports[`check list with sub-list of another type: clipboard text 1`] = `
+"Test
+
+Item 1
+
+Item 2
+
+Item 3"
 `;
 
 exports[`check list with sub-list: clipboard 1`] = `
@@ -1500,6 +1606,310 @@ exports[`check list with sub-list: clipboard 1`] = `
 </div>
 `;
 
+exports[`check list with sub-list: clipboard text 1`] = `
+"Test
+
+Item 1
+
+Item 2
+
+Item 3"
+`;
+
+exports[`code (multiline) bold: clipboard 1`] = `
+<div>
+  <pre>
+    <code>
+      Hello 
+      <strong>
+        world
+      </strong>
+      !
+      
+
+      
+
+        Hello 
+      <strong>
+        world
+      </strong>
+      !
+      
+
+      Hello 
+      <strong>
+        world
+      </strong>
+      !
+    </code>
+  </pre>
+</div>
+`;
+
+exports[`code (multiline) bold: clipboard text 1`] = `
+"Hello world!
+
+  Hello world!
+Hello world!"
+`;
+
+exports[`code (multiline) empty: clipboard 1`] = `
+<div>
+  <pre>
+    <code>
+      
+
+      
+
+        
+      
+
+    </code>
+  </pre>
+</div>
+`;
+
+exports[`code (multiline) empty: clipboard text 1`] = `
+"
+
+  
+"
+`;
+
+exports[`code (multiline) highlight: clipboard 1`] = `
+<div>
+  <pre>
+    <code>
+      Hello 
+      <mark
+        data-highlight-color="green"
+      >
+        world
+      </mark>
+      !
+      
+
+      
+
+        Hello 
+      <mark
+        data-highlight-color="green"
+      >
+        world
+      </mark>
+      !
+      
+
+      Hello 
+      <mark
+        data-highlight-color="green"
+      >
+        world
+      </mark>
+      !
+    </code>
+  </pre>
+</div>
+`;
+
+exports[`code (multiline) highlight: clipboard text 1`] = `
+"Hello world!
+
+  Hello world!
+Hello world!"
+`;
+
+exports[`code (multiline) italic: clipboard 1`] = `
+<div>
+  <pre>
+    <code>
+      Hello 
+      <em>
+        world
+      </em>
+      !
+      
+
+      
+
+        Hello 
+      <em>
+        world
+      </em>
+      !
+      
+
+      Hello 
+      <em>
+        world
+      </em>
+      !
+    </code>
+  </pre>
+</div>
+`;
+
+exports[`code (multiline) italic: clipboard text 1`] = `
+"Hello world!
+
+  Hello world!
+Hello world!"
+`;
+
+exports[`code (multiline) link: clipboard 1`] = `
+<div>
+  <pre>
+    <code>
+      Hello 
+      <a
+        href="https://example.com/"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        world
+      </a>
+      !
+      
+
+      
+
+        Hello 
+      <a
+        href="https://example.com/"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        world
+      </a>
+      !
+      
+
+      Hello 
+      <a
+        href="https://example.com/"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        world
+      </a>
+      !
+    </code>
+  </pre>
+</div>
+`;
+
+exports[`code (multiline) link: clipboard text 1`] = `
+"Hello world!
+
+  Hello world!
+Hello world!"
+`;
+
+exports[`code (multiline) plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  class="ProseMirror content_schema__14lcw3g3"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <pre
+    class="content_schema__14lcw3gg"
+  >
+    <code
+      class="content_schema__14lcw3gh"
+    >
+      <div
+        class="content_schema__14lcw3gi"
+      >
+        Hello world!
+      </div>
+      <div
+        class="content_schema__14lcw3gi"
+      >
+        <br
+          class="ProseMirror-trailingBreak"
+        />
+      </div>
+      <div
+        class="content_schema__14lcw3gi"
+      >
+          Hello world!
+      </div>
+      <div
+        class="content_schema__14lcw3gi"
+      >
+        Hello world!
+      </div>
+    </code>
+  </pre>
+</div>
+`;
+
+exports[`code (multiline) plain: clipboard 1`] = `
+<div>
+  <pre>
+    <code>
+      Hello world!
+      
+
+      
+
+        Hello world!
+      
+
+      Hello world!
+    </code>
+  </pre>
+</div>
+`;
+
+exports[`code (multiline) plain: clipboard text 1`] = `
+"Hello world!
+
+  Hello world!
+Hello world!"
+`;
+
+exports[`code (multiline) strike: clipboard 1`] = `
+<div>
+  <pre>
+    <code>
+      Hello 
+      <del>
+        world
+      </del>
+      !
+      
+
+      
+
+        Hello 
+      <del>
+        world
+      </del>
+      !
+      
+
+      Hello 
+      <del>
+        world
+      </del>
+      !
+    </code>
+  </pre>
+</div>
+`;
+
+exports[`code (multiline) strike: clipboard text 1`] = `
+"Hello world!
+
+  Hello world!
+Hello world!"
+`;
+
 exports[`code 1`] = `
 <div
   aria-label="Test"
@@ -1515,7 +1925,7 @@ exports[`code 1`] = `
   >
     Hello 
     <code
-      class="content_schema__14lcw3gt"
+      class="content_schema__14lcw3gu"
     >
       world
     </code>
@@ -1524,15 +1934,85 @@ exports[`code 1`] = `
 </div>
 `;
 
-exports[`code empty: clipboard 1`] = `
+exports[`code bold: clipboard 1`] = `
 <div>
   <pre>
     <code>
-      <span />
+      Hello 
+      <strong>
+        world
+      </strong>
+      !
     </code>
   </pre>
 </div>
 `;
+
+exports[`code bold: clipboard text 1`] = `"Hello world!"`;
+
+exports[`code empty: clipboard 1`] = `
+<div>
+  <pre>
+    <code />
+  </pre>
+</div>
+`;
+
+exports[`code empty: clipboard text 1`] = `""`;
+
+exports[`code highlight: clipboard 1`] = `
+<div>
+  <pre>
+    <code>
+      Hello 
+      <mark
+        data-highlight-color="green"
+      >
+        world
+      </mark>
+      !
+    </code>
+  </pre>
+</div>
+`;
+
+exports[`code highlight: clipboard text 1`] = `"Hello world!"`;
+
+exports[`code italic: clipboard 1`] = `
+<div>
+  <pre>
+    <code>
+      Hello 
+      <em>
+        world
+      </em>
+      !
+    </code>
+  </pre>
+</div>
+`;
+
+exports[`code italic: clipboard text 1`] = `"Hello world!"`;
+
+exports[`code link: clipboard 1`] = `
+<div>
+  <pre>
+    <code>
+      Hello 
+      <a
+        href="https://example.com/"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        world
+      </a>
+      !
+    </code>
+  </pre>
+</div>
+`;
+
+exports[`code link: clipboard text 1`] = `"Hello world!"`;
 
 exports[`code plain 1`] = `
 <div
@@ -1547,12 +2027,14 @@ exports[`code plain 1`] = `
   <pre
     class="content_schema__14lcw3gg"
   >
-    <code>
-      <span
-        class="content_schema__14lcw3gh"
+    <code
+      class="content_schema__14lcw3gh"
+    >
+      <div
+        class="content_schema__14lcw3gi"
       >
         Hello world!
-      </span>
+      </div>
     </code>
   </pre>
 </div>
@@ -1562,13 +2044,29 @@ exports[`code plain: clipboard 1`] = `
 <div>
   <pre>
     <code>
-      <span>
-        Hello world!
-      </span>
+      Hello world!
     </code>
   </pre>
 </div>
 `;
+
+exports[`code plain: clipboard text 1`] = `"Hello world!"`;
+
+exports[`code strike: clipboard 1`] = `
+<div>
+  <pre>
+    <code>
+      Hello 
+      <del>
+        world
+      </del>
+      !
+    </code>
+  </pre>
+</div>
+`;
+
+exports[`code strike: clipboard text 1`] = `"Hello world!"`;
 
 exports[`code: clipboard 1`] = `
 <div>
@@ -1582,6 +2080,8 @@ exports[`code: clipboard 1`] = `
 </div>
 `;
 
+exports[`code: clipboard text 1`] = `"Hello world!"`;
+
 exports[`divider empty 1`] = `
 <div
   aria-label="Test"
@@ -1593,7 +2093,7 @@ exports[`divider empty 1`] = `
   translate="no"
 >
   <hr
-    class="content_schema__14lcw3gs"
+    class="content_schema__14lcw3gt"
   />
 </div>
 `;
@@ -1603,6 +2103,8 @@ exports[`divider empty: clipboard 1`] = `
   <hr />
 </div>
 `;
+
+exports[`divider empty: clipboard text 1`] = `""`;
 
 exports[`heading 1 bold: clipboard 1`] = `
 <div>
@@ -1616,6 +2118,8 @@ exports[`heading 1 bold: clipboard 1`] = `
 </div>
 `;
 
+exports[`heading 1 bold: clipboard text 1`] = `"Hello world!"`;
+
 exports[`heading 1 code: clipboard 1`] = `
 <div>
   <h2>
@@ -1628,11 +2132,15 @@ exports[`heading 1 code: clipboard 1`] = `
 </div>
 `;
 
+exports[`heading 1 code: clipboard text 1`] = `"Hello world!"`;
+
 exports[`heading 1 empty: clipboard 1`] = `
 <div>
   <h2 />
 </div>
 `;
+
+exports[`heading 1 empty: clipboard text 1`] = `""`;
 
 exports[`heading 1 highlight: clipboard 1`] = `
 <div>
@@ -1648,6 +2156,8 @@ exports[`heading 1 highlight: clipboard 1`] = `
 </div>
 `;
 
+exports[`heading 1 highlight: clipboard text 1`] = `"Hello world!"`;
+
 exports[`heading 1 italic: clipboard 1`] = `
 <div>
   <h2>
@@ -1659,6 +2169,8 @@ exports[`heading 1 italic: clipboard 1`] = `
   </h2>
 </div>
 `;
+
+exports[`heading 1 italic: clipboard text 1`] = `"Hello world!"`;
 
 exports[`heading 1 link: clipboard 1`] = `
 <div>
@@ -1675,6 +2187,8 @@ exports[`heading 1 link: clipboard 1`] = `
   </h2>
 </div>
 `;
+
+exports[`heading 1 link: clipboard text 1`] = `"Hello world!"`;
 
 exports[`heading 1 plain 1`] = `
 <div
@@ -1702,6 +2216,8 @@ exports[`heading 1 plain: clipboard 1`] = `
 </div>
 `;
 
+exports[`heading 1 plain: clipboard text 1`] = `"Hello world!"`;
+
 exports[`heading 1 strike: clipboard 1`] = `
 <div>
   <h2>
@@ -1713,6 +2229,8 @@ exports[`heading 1 strike: clipboard 1`] = `
   </h2>
 </div>
 `;
+
+exports[`heading 1 strike: clipboard text 1`] = `"Hello world!"`;
 
 exports[`heading 2 bold: clipboard 1`] = `
 <div>
@@ -1726,6 +2244,8 @@ exports[`heading 2 bold: clipboard 1`] = `
 </div>
 `;
 
+exports[`heading 2 bold: clipboard text 1`] = `"Hello world!"`;
+
 exports[`heading 2 code: clipboard 1`] = `
 <div>
   <h3>
@@ -1738,11 +2258,15 @@ exports[`heading 2 code: clipboard 1`] = `
 </div>
 `;
 
+exports[`heading 2 code: clipboard text 1`] = `"Hello world!"`;
+
 exports[`heading 2 empty: clipboard 1`] = `
 <div>
   <h3 />
 </div>
 `;
+
+exports[`heading 2 empty: clipboard text 1`] = `""`;
 
 exports[`heading 2 highlight: clipboard 1`] = `
 <div>
@@ -1758,6 +2282,8 @@ exports[`heading 2 highlight: clipboard 1`] = `
 </div>
 `;
 
+exports[`heading 2 highlight: clipboard text 1`] = `"Hello world!"`;
+
 exports[`heading 2 italic: clipboard 1`] = `
 <div>
   <h3>
@@ -1769,6 +2295,8 @@ exports[`heading 2 italic: clipboard 1`] = `
   </h3>
 </div>
 `;
+
+exports[`heading 2 italic: clipboard text 1`] = `"Hello world!"`;
 
 exports[`heading 2 link: clipboard 1`] = `
 <div>
@@ -1785,6 +2313,8 @@ exports[`heading 2 link: clipboard 1`] = `
   </h3>
 </div>
 `;
+
+exports[`heading 2 link: clipboard text 1`] = `"Hello world!"`;
 
 exports[`heading 2 plain 1`] = `
 <div
@@ -1812,6 +2342,8 @@ exports[`heading 2 plain: clipboard 1`] = `
 </div>
 `;
 
+exports[`heading 2 plain: clipboard text 1`] = `"Hello world!"`;
+
 exports[`heading 2 strike: clipboard 1`] = `
 <div>
   <h3>
@@ -1823,6 +2355,8 @@ exports[`heading 2 strike: clipboard 1`] = `
   </h3>
 </div>
 `;
+
+exports[`heading 2 strike: clipboard text 1`] = `"Hello world!"`;
 
 exports[`heading 3 bold: clipboard 1`] = `
 <div>
@@ -1836,6 +2370,8 @@ exports[`heading 3 bold: clipboard 1`] = `
 </div>
 `;
 
+exports[`heading 3 bold: clipboard text 1`] = `"Hello world!"`;
+
 exports[`heading 3 code: clipboard 1`] = `
 <div>
   <h4>
@@ -1848,11 +2384,15 @@ exports[`heading 3 code: clipboard 1`] = `
 </div>
 `;
 
+exports[`heading 3 code: clipboard text 1`] = `"Hello world!"`;
+
 exports[`heading 3 empty: clipboard 1`] = `
 <div>
   <h4 />
 </div>
 `;
+
+exports[`heading 3 empty: clipboard text 1`] = `""`;
 
 exports[`heading 3 highlight: clipboard 1`] = `
 <div>
@@ -1868,6 +2408,8 @@ exports[`heading 3 highlight: clipboard 1`] = `
 </div>
 `;
 
+exports[`heading 3 highlight: clipboard text 1`] = `"Hello world!"`;
+
 exports[`heading 3 italic: clipboard 1`] = `
 <div>
   <h4>
@@ -1879,6 +2421,8 @@ exports[`heading 3 italic: clipboard 1`] = `
   </h4>
 </div>
 `;
+
+exports[`heading 3 italic: clipboard text 1`] = `"Hello world!"`;
 
 exports[`heading 3 link: clipboard 1`] = `
 <div>
@@ -1895,6 +2439,8 @@ exports[`heading 3 link: clipboard 1`] = `
   </h4>
 </div>
 `;
+
+exports[`heading 3 link: clipboard text 1`] = `"Hello world!"`;
 
 exports[`heading 3 plain 1`] = `
 <div
@@ -1922,6 +2468,8 @@ exports[`heading 3 plain: clipboard 1`] = `
 </div>
 `;
 
+exports[`heading 3 plain: clipboard text 1`] = `"Hello world!"`;
+
 exports[`heading 3 strike: clipboard 1`] = `
 <div>
   <h4>
@@ -1933,6 +2481,8 @@ exports[`heading 3 strike: clipboard 1`] = `
   </h4>
 </div>
 `;
+
+exports[`heading 3 strike: clipboard text 1`] = `"Hello world!"`;
 
 exports[`highlight 1`] = `
 <div
@@ -1949,7 +2499,7 @@ exports[`highlight 1`] = `
   >
     Hello 
     <mark
-      class="content_schema__14lcw3g12"
+      class="content_schema__14lcw3g13"
       data-highlight-color="green"
     >
       world
@@ -1973,6 +2523,8 @@ exports[`highlight: clipboard 1`] = `
 </div>
 `;
 
+exports[`highlight: clipboard text 1`] = `"Hello world!"`;
+
 exports[`italic 1`] = `
 <div
   aria-label="Test"
@@ -1988,7 +2540,7 @@ exports[`italic 1`] = `
   >
     Hello 
     <em
-      class="content_schema__14lcw3gv"
+      class="content_schema__14lcw3gw"
     >
       world
     </em>
@@ -2009,6 +2561,8 @@ exports[`italic: clipboard 1`] = `
 </div>
 `;
 
+exports[`italic: clipboard text 1`] = `"Hello world!"`;
+
 exports[`link (XSS vulnerability) 1`] = `
 <div
   aria-label="Test"
@@ -2024,7 +2578,7 @@ exports[`link (XSS vulnerability) 1`] = `
   >
     Hello 
     <a
-      class="content_schema__14lcw3g16"
+      class="content_schema__14lcw3g17"
       href="about:blank#blocked"
       rel="noopener noreferrer"
       target="_blank"
@@ -2051,7 +2605,7 @@ exports[`link 1`] = `
   >
     Hello 
     <a
-      class="content_schema__14lcw3g16"
+      class="content_schema__14lcw3g17"
       href="https://example.com/"
       rel="noopener noreferrer"
       target="_blank"
@@ -2079,6 +2633,8 @@ exports[`link: clipboard 1`] = `
 </div>
 `;
 
+exports[`link: clipboard text 1`] = `"Hello world!"`;
+
 exports[`ordered list bold: clipboard 1`] = `
 <div>
   <ol>
@@ -2094,6 +2650,8 @@ exports[`ordered list bold: clipboard 1`] = `
   </ol>
 </div>
 `;
+
+exports[`ordered list bold: clipboard text 1`] = `"Hello world!"`;
 
 exports[`ordered list code: clipboard 1`] = `
 <div>
@@ -2111,6 +2669,8 @@ exports[`ordered list code: clipboard 1`] = `
 </div>
 `;
 
+exports[`ordered list code: clipboard text 1`] = `"Hello world!"`;
+
 exports[`ordered list empty: clipboard 1`] = `
 <div>
   <ol>
@@ -2120,6 +2680,8 @@ exports[`ordered list empty: clipboard 1`] = `
   </ol>
 </div>
 `;
+
+exports[`ordered list empty: clipboard text 1`] = `""`;
 
 exports[`ordered list highlight: clipboard 1`] = `
 <div>
@@ -2139,6 +2701,8 @@ exports[`ordered list highlight: clipboard 1`] = `
 </div>
 `;
 
+exports[`ordered list highlight: clipboard text 1`] = `"Hello world!"`;
+
 exports[`ordered list italic: clipboard 1`] = `
 <div>
   <ol>
@@ -2154,6 +2718,8 @@ exports[`ordered list italic: clipboard 1`] = `
   </ol>
 </div>
 `;
+
+exports[`ordered list italic: clipboard text 1`] = `"Hello world!"`;
 
 exports[`ordered list link: clipboard 1`] = `
 <div>
@@ -2175,6 +2741,8 @@ exports[`ordered list link: clipboard 1`] = `
 </div>
 `;
 
+exports[`ordered list link: clipboard text 1`] = `"Hello world!"`;
+
 exports[`ordered list plain 1`] = `
 <div
   aria-label="Test"
@@ -2186,10 +2754,10 @@ exports[`ordered list plain 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gl"
+    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2212,6 +2780,8 @@ exports[`ordered list plain: clipboard 1`] = `
 </div>
 `;
 
+exports[`ordered list plain: clipboard text 1`] = `"Hello world!"`;
+
 exports[`ordered list strike: clipboard 1`] = `
 <div>
   <ol>
@@ -2228,6 +2798,8 @@ exports[`ordered list strike: clipboard 1`] = `
 </div>
 `;
 
+exports[`ordered list strike: clipboard text 1`] = `"Hello world!"`;
+
 exports[`ordered list with multiple items 1`] = `
 <div
   aria-label="Test"
@@ -2239,10 +2811,10 @@ exports[`ordered list with multiple items 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gl"
+    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2251,10 +2823,10 @@ exports[`ordered list with multiple items 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gl"
+    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2263,10 +2835,10 @@ exports[`ordered list with multiple items 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gl"
+    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2299,6 +2871,14 @@ exports[`ordered list with multiple items: clipboard 1`] = `
 </div>
 `;
 
+exports[`ordered list with multiple items: clipboard text 1`] = `
+"Item 1
+
+Item 2
+
+Item 3"
+`;
+
 exports[`ordered list with sub-list 1`] = `
 <div
   aria-label="Test"
@@ -2310,10 +2890,10 @@ exports[`ordered list with sub-list 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gl"
+    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2322,10 +2902,10 @@ exports[`ordered list with sub-list 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gl"
+    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2334,10 +2914,10 @@ exports[`ordered list with sub-list 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gl"
+    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2346,10 +2926,10 @@ exports[`ordered list with sub-list 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gl"
+    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2371,10 +2951,10 @@ exports[`ordered list with sub-list of another type 1`] = `
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gl"
+    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gi:0"
+    style="--list-item-indent__14lcw3gj:0"
   >
     <p
       class="content_schema__14lcw3g6"
@@ -2383,18 +2963,18 @@ exports[`ordered list with sub-list of another type 1`] = `
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gm"
+    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <div
-      class="content_schema__14lcw3go"
+      class="content_schema__14lcw3gp"
     >
       <div
-        class="content_schema__14lcw3gp"
+        class="content_schema__14lcw3gq"
       >
         <svg
-          class="content_schema__14lcw3gr"
+          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -2415,7 +2995,7 @@ exports[`ordered list with sub-list of another type 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gn"
+      class="content_schema__14lcw3go"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -2425,18 +3005,18 @@ exports[`ordered list with sub-list of another type 1`] = `
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gj"
+    class="content_schema__14lcw3gk"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <div
-      class="content_schema__14lcw3go"
+      class="content_schema__14lcw3gp"
     >
       <div
-        class="content_schema__14lcw3gp"
+        class="content_schema__14lcw3gq"
       >
         <svg
-          class="content_schema__14lcw3gr"
+          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -2457,7 +3037,7 @@ exports[`ordered list with sub-list of another type 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gn"
+      class="content_schema__14lcw3go"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -2467,18 +3047,18 @@ exports[`ordered list with sub-list of another type 1`] = `
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gj content_schema__14lcw3gm"
+    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gi:1"
+    style="--list-item-indent__14lcw3gj:1"
   >
     <div
-      class="content_schema__14lcw3go"
+      class="content_schema__14lcw3gp"
     >
       <div
-        class="content_schema__14lcw3gp"
+        class="content_schema__14lcw3gq"
       >
         <svg
-          class="content_schema__14lcw3gr"
+          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -2499,7 +3079,7 @@ exports[`ordered list with sub-list of another type 1`] = `
       </div>
     </div>
     <div
-      class="content_schema__14lcw3gn"
+      class="content_schema__14lcw3go"
     >
       <p
         class="content_schema__14lcw3g6"
@@ -2554,6 +3134,16 @@ exports[`ordered list with sub-list of another type: clipboard 1`] = `
 </div>
 `;
 
+exports[`ordered list with sub-list of another type: clipboard text 1`] = `
+"Test
+
+Item 1
+
+Item 2
+
+Item 3"
+`;
+
 exports[`ordered list with sub-list: clipboard 1`] = `
 <div>
   <ol>
@@ -2583,6 +3173,16 @@ exports[`ordered list with sub-list: clipboard 1`] = `
 </div>
 `;
 
+exports[`ordered list with sub-list: clipboard text 1`] = `
+"Test
+
+Item 1
+
+Item 2
+
+Item 3"
+`;
+
 exports[`paragraph bold: clipboard 1`] = `
 <div>
   <p>
@@ -2594,6 +3194,8 @@ exports[`paragraph bold: clipboard 1`] = `
   </p>
 </div>
 `;
+
+exports[`paragraph bold: clipboard text 1`] = `"Hello world!"`;
 
 exports[`paragraph code: clipboard 1`] = `
 <div>
@@ -2607,11 +3209,15 @@ exports[`paragraph code: clipboard 1`] = `
 </div>
 `;
 
+exports[`paragraph code: clipboard text 1`] = `"Hello world!"`;
+
 exports[`paragraph empty: clipboard 1`] = `
 <div>
   <p />
 </div>
 `;
+
+exports[`paragraph empty: clipboard text 1`] = `""`;
 
 exports[`paragraph highlight: clipboard 1`] = `
 <div>
@@ -2627,6 +3233,8 @@ exports[`paragraph highlight: clipboard 1`] = `
 </div>
 `;
 
+exports[`paragraph highlight: clipboard text 1`] = `"Hello world!"`;
+
 exports[`paragraph italic: clipboard 1`] = `
 <div>
   <p>
@@ -2638,6 +3246,8 @@ exports[`paragraph italic: clipboard 1`] = `
   </p>
 </div>
 `;
+
+exports[`paragraph italic: clipboard text 1`] = `"Hello world!"`;
 
 exports[`paragraph link: clipboard 1`] = `
 <div>
@@ -2654,6 +3264,8 @@ exports[`paragraph link: clipboard 1`] = `
   </p>
 </div>
 `;
+
+exports[`paragraph link: clipboard text 1`] = `"Hello world!"`;
 
 exports[`paragraph plain 1`] = `
 <div
@@ -2681,6 +3293,8 @@ exports[`paragraph plain: clipboard 1`] = `
 </div>
 `;
 
+exports[`paragraph plain: clipboard text 1`] = `"Hello world!"`;
+
 exports[`paragraph strike: clipboard 1`] = `
 <div>
   <p>
@@ -2692,6 +3306,8 @@ exports[`paragraph strike: clipboard 1`] = `
   </p>
 </div>
 `;
+
+exports[`paragraph strike: clipboard text 1`] = `"Hello world!"`;
 
 exports[`quote bold: clipboard 1`] = `
 <div>
@@ -2707,6 +3323,8 @@ exports[`quote bold: clipboard 1`] = `
 </div>
 `;
 
+exports[`quote bold: clipboard text 1`] = `"Hello world!"`;
+
 exports[`quote code: clipboard 1`] = `
 <div>
   <blockquote>
@@ -2721,6 +3339,8 @@ exports[`quote code: clipboard 1`] = `
 </div>
 `;
 
+exports[`quote code: clipboard text 1`] = `"Hello world!"`;
+
 exports[`quote empty: clipboard 1`] = `
 <div>
   <blockquote>
@@ -2728,6 +3348,8 @@ exports[`quote empty: clipboard 1`] = `
   </blockquote>
 </div>
 `;
+
+exports[`quote empty: clipboard text 1`] = `""`;
 
 exports[`quote highlight: clipboard 1`] = `
 <div>
@@ -2745,6 +3367,8 @@ exports[`quote highlight: clipboard 1`] = `
 </div>
 `;
 
+exports[`quote highlight: clipboard text 1`] = `"Hello world!"`;
+
 exports[`quote italic: clipboard 1`] = `
 <div>
   <blockquote>
@@ -2758,6 +3382,8 @@ exports[`quote italic: clipboard 1`] = `
   </blockquote>
 </div>
 `;
+
+exports[`quote italic: clipboard text 1`] = `"Hello world!"`;
 
 exports[`quote link: clipboard 1`] = `
 <div>
@@ -2776,6 +3402,8 @@ exports[`quote link: clipboard 1`] = `
   </blockquote>
 </div>
 `;
+
+exports[`quote link: clipboard text 1`] = `"Hello world!"`;
 
 exports[`quote plain 1`] = `
 <div
@@ -2809,6 +3437,8 @@ exports[`quote plain: clipboard 1`] = `
 </div>
 `;
 
+exports[`quote plain: clipboard text 1`] = `"Hello world!"`;
+
 exports[`quote strike: clipboard 1`] = `
 <div>
   <blockquote>
@@ -2822,6 +3452,8 @@ exports[`quote strike: clipboard 1`] = `
   </blockquote>
 </div>
 `;
+
+exports[`quote strike: clipboard text 1`] = `"Hello world!"`;
 
 exports[`strike 1`] = `
 <div
@@ -2838,7 +3470,7 @@ exports[`strike 1`] = `
   >
     Hello 
     <del
-      class="content_schema__14lcw3gw"
+      class="content_schema__14lcw3gx"
     >
       world
     </del>
@@ -2858,3 +3490,5 @@ exports[`strike: clipboard 1`] = `
   </p>
 </div>
 `;
+
+exports[`strike: clipboard text 1`] = `"Hello world!"`;

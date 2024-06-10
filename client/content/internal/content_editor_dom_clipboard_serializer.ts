@@ -109,9 +109,13 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                 }
 
                 const childDom = this.serializeNodeInner(childNode, options);
-                assert(childDom instanceof HTMLSpanElement);
+                assert(childDom instanceof HTMLDivElement);
 
-                for (const grandChildDom of childDom.childNodes) {
+                // NOTE(calebmer): We must clone the `childNodes` array before iterating over
+                // it since `appendChild()` will remove the node from `childDom` and add it to
+                // `codeDom`. Mutating the array we are iterating over causes problems so we
+                // clone the array to avoid problems.
+                for (const grandChildDom of [...childDom.childNodes]) {
                     codeDom.appendChild(grandChildDom);
                 }
             });

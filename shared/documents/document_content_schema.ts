@@ -118,6 +118,7 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
          * `createCommentThread` option you may use for this purpose.
          */
         comment: {
+            group: "allowedInCodeBlock",
             attrs: {
                 commentThreadId: {
                     schema: Schema.id<DocumentCommentThreadId>(),
@@ -169,6 +170,7 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
          * close visually to red and yellow.
          */
         highlight: {
+            group: "allowedInCodeBlock",
             attrs: {
                 color: {
                     schema: Schema.enum(HighlightColor),

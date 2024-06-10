@@ -212,7 +212,14 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
         );
 
         return new InputRule(regExp, (state, match, start, end) => {
+            const $from = state.doc.resolve(state.selection.from);
             const offset = match[1]!.length;
+            const isInCodeBlockLine = $from.node().type.name === "codeBlockLine";
+
+            if (isInCodeBlockLine) {
+                return null;
+            }
+
             return state.tr
                 .delete(start + offset, start + offset + 1)
                 .addMark(start + offset, end - offset, markType.create());

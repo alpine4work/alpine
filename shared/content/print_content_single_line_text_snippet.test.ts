@@ -105,6 +105,28 @@ test("code block collapses multiple lines of text onto the same line", () => {
     );
 });
 
+test("code block with marks collapses multiple lines of text onto the same line", () => {
+    const doc = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [schema.text("This paragraph precedes.")]),
+        schema.node("codeBlock", {}, [
+            schema.node("codeBlockLine", {}, [schema.text("codeBlockLine1")]),
+            schema.node("codeBlockLine", {}, [
+                schema.text("code"),
+                schema.text("Block", [schema.mark("bold")]),
+                schema.text("Line2"),
+            ]),
+            schema.node("codeBlockLine", {}, [schema.text("codeBlockLine3")]),
+        ]),
+        schema.node("paragraph", {}, [
+            schema.node("break"),
+            schema.text("This paragraph follows."),
+        ]),
+    ]);
+    expect(printContentSingleLineTextSnippet({doc, references: emptyContentReferences})).toEqual(
+        "This paragraph precedes. codeBlockLine1 codeBlockLine2 codeBlockLine3 This paragraph follows.",
+    );
+});
+
 test("quote blocks collapse onto the same line", () => {
     const doc = schema.node("doc", {}, [
         schema.node("paragraph", {}, [schema.text("paragraph1")]),

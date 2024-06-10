@@ -639,6 +639,9 @@ export const boldClassName = style({
         [`${codeClassName} &`]: {
             ...fontStyles["code-bold"],
         },
+        [`${codeBlockClassName} &`]: {
+            ...fontStyles["code-bold"],
+        },
         [`${headingLevel1ClassName} &`]: {
             ...fontStyles["ultra-bold"],
         },

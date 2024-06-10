@@ -3,6 +3,7 @@ import classNames from "classnames";
 import {
     DOMParser,
     Fragment,
+    MarkSpec,
     Node,
     NodeSpec,
     ParseRule,
@@ -10,7 +11,9 @@ import {
     SchemaSpec,
 } from "prosemirror-model";
 import {ContentMention, ContentMentionSchema} from "~/shared/content/content_mention.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {htmlBlockTagNames} from "~/shared/helpers/html/html_block_tag_names.js";
+import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
@@ -76,7 +79,34 @@ export type ContentProsemirrorSchema = ProsemirrorSchema<
     keyof (typeof contentBaseProsemirrorSchemaSpec)["marks"]
 >;
 
-const contentBaseWithoutCodeBlockProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
+const paragraphParseRules = [
+    {tag: "p", priority: 50},
+    {
+        tag: "div",
+        priority: 50,
+        getAttrs: node => {
+            if (!(node instanceof HTMLElement)) return {};
+
+            // If this is a wrapper `<div>` with `<p>` or `<div>` or `<table>` or any block
+            // tags inside, then we want to use our `<p>` rule to parse the DOM instead of
+            // our `<div>` rule.
+            let hasBlockChildNode = false;
+            for (const childNode of node.childNodes) {
+                if (!(childNode instanceof HTMLElement)) continue;
+
+                if (htmlBlockTagNames.has(childNode.tagName.toLowerCase())) {
+                    hasBlockChildNode = true;
+                    break;
+                }
+            }
+
+            if (hasBlockChildNode) return false;
+            return {};
+        },
+    },
+] satisfies Array<ParseRule>;
+
+export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {
         /**
          * Document root, every ProseMirror schema requires this.
@@ -100,32 +130,7 @@ const contentBaseWithoutCodeBlockProsemirrorSchemaSpec = createProsemirrorSchema
             group: "block",
             content: "inline*",
             toDOM: () => ["p", {class: paragraphClassName}, 0],
-            parseDOM: [
-                {tag: "p", priority: 50},
-                {
-                    tag: "div",
-                    priority: 50,
-                    getAttrs: node => {
-                        if (!(node instanceof HTMLElement)) return {};
-
-                        // If this is a wrapper `<div>` with `<p>` or `<div>` or `<table>` or any block
-                        // tags inside, then we want to use our `<p>` rule to parse the DOM instead of
-                        // our `<div>` rule.
-                        let hasBlockChildNode = false;
-                        for (const childNode of node.childNodes) {
-                            if (!(childNode instanceof HTMLElement)) continue;
-
-                            if (htmlBlockTagNames.has(childNode.tagName.toLowerCase())) {
-                                hasBlockChildNode = true;
-                                break;
-                            }
-                        }
-
-                        if (hasBlockChildNode) return false;
-                        return {};
-                    },
-                },
-            ],
+            parseDOM: paragraphParseRules,
         },
 
         /**
@@ -164,9 +169,21 @@ const contentBaseWithoutCodeBlockProsemirrorSchemaSpec = createProsemirrorSchema
         // new lines, only keep spaces.
         codeBlockLine: {
             content: "text*",
+            marks: "allowedInCodeBlock",
             defining: true,
-            toDOM: () => ["span", {class: codeBlockLineClassName}, 0],
+            toDOM: () => ["div", {class: codeBlockLineClassName}, 0],
+            // If we're in a code block, parse anything that would have been parsed as a
+            // `paragraph` (`<p>` elements or `<div>` elements) as a `codeBlockLine`.
+            // That way if you paste multiple lines of plain text into a code block they're
+            // treated as `codeBlockLine`s.
+            parseDOM: paragraphParseRules.map(parseRule => ({
+                ...parseRule,
+                context: "codeBlock//",
+                // Make sure the priority is higher than `paragraph` parse rules.
+                priority: parseRule.priority + 50,
+            })),
         },
+
         codeBlock: {
             group: "block",
             content: "codeBlockLine+",
@@ -176,7 +193,7 @@ const contentBaseWithoutCodeBlockProsemirrorSchemaSpec = createProsemirrorSchema
                 {class: codeBlockWrapperClassName},
                 ["code", {class: codeBlockClassName}, 0],
             ],
-            parseDOM: [{tag: "pre"}],
+            parseDOM: createCodeBlockParseRules(),
         },
 
         // Welcome to the list items! You'll notice that we structure them
@@ -369,6 +386,7 @@ const contentBaseWithoutCodeBlockProsemirrorSchemaSpec = createProsemirrorSchema
         // wrapper so that hovering over build text within a link doesn't break the
         // hover link preview.
         link: {
+            group: "allowedInCodeBlock",
             attrs: {
                 url: {
                     schema: Schema.string,
@@ -427,6 +445,7 @@ const contentBaseWithoutCodeBlockProsemirrorSchemaSpec = createProsemirrorSchema
          * typically more eye catching than italics.
          */
         bold: {
+            group: "allowedInCodeBlock",
             inclusive: false,
             toDOM: () => ["strong", {class: boldClassName}, 0],
             parseDOM: [
@@ -453,6 +472,7 @@ const contentBaseWithoutCodeBlockProsemirrorSchemaSpec = createProsemirrorSchema
          * catching but alters the voice of some bit of text.
          */
         italic: {
+            group: "allowedInCodeBlock",
             inclusive: false,
             toDOM: () => ["em", {class: italicClassName}, 0],
             parseDOM: [{tag: "em"}, {tag: "i"}, {style: "font-style=italic"}],
@@ -465,67 +485,11 @@ const contentBaseWithoutCodeBlockProsemirrorSchemaSpec = createProsemirrorSchema
          * strike one out which to the reader appears as you editing yourself.
          */
         strike: {
+            group: "allowedInCodeBlock",
             inclusive: false,
             toDOM: () => ["del", {class: strikeClassName}, 0],
             parseDOM: [{tag: "del"}],
         },
-    },
-});
-
-const contentBaseCodeBlockLineProsemirrorSchemaSpec = {
-    content: "text*",
-    defining: true,
-    toDOM: () => ["span", {class: codeBlockLineClassName}, 0],
-    // If we're in a code block, parse anything that would have been parsed as a
-    // `paragraph` (`<p>` elements or `<div>` elements) as a `codeBlockLine`.
-    // That way if you paste multiple lines of plain text into a code block they're
-    // treated as `codeBlockLine`s.
-    parseDOM: contentBaseWithoutCodeBlockProsemirrorSchemaSpec.nodes.paragraph.parseDOM.map(
-        parseRule => ({
-            ...parseRule,
-            context: "codeBlock//",
-            // Make sure the priority is higher than `paragraph` parse rules.
-            priority: parseRule.priority + 50,
-        }),
-    ),
-} satisfies NodeSpec;
-
-export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
-    nodes: {
-        ...contentBaseWithoutCodeBlockProsemirrorSchemaSpec.nodes,
-
-        /**
-         * Text formatted with a monospace font that is horizontally scrollable
-         * (instead of letting the text wrap). Useful for code, but also useful for
-         * drawing ASCII diagrams since all characters are of equal width. Text in a
-         * code block may not have inline formatting since in the future we'll want
-         * to add syntax highlighting.
-         */
-        // TODO(calebmer): Implement styling for code blocks.
-
-        // TODO(calebmer): Syntax highlighting for code. Allow user to pick the
-        // language.
-
-        // TODO(calebmer): Some nice keyboard shortcuts for code editing. For
-        // example, "newline" on a line with indentation should preserve that
-        // indentation. Another example, typing balanced characters (`(`, `{`, `[`)
-        // should add the other side.
-
-        // NOTE(maximchen): we remove `code: true` from codeBlock and codeBlock
-        // line because, `code: true` defaults white-space property to `pre`
-        // which preserves new lines. However, we don't want to keep
-        // new lines, only keep spaces.
-        codeBlockLine: contentBaseCodeBlockLineProsemirrorSchemaSpec,
-        codeBlock: {
-            group: "block",
-            content: "codeBlockLine+",
-            defining: true,
-            toDOM: () => ["pre", {class: codeBlockClassName}, ["code", 0]],
-            parseDOM: createCodeBlockParseRules(),
-        },
-    },
-    marks: {
-        ...contentBaseWithoutCodeBlockProsemirrorSchemaSpec.marks,
     },
 });
 
@@ -599,36 +563,49 @@ export function createListItemParseRule(firstListParentTagName: "ul" | "ol"): Pa
  * `codeBlockLine` for each new line we find.
  */
 function createCodeBlockParseRules(): Array<ParseRule> {
-    const CodeBlockIntermediateProsemirrorSchema = new ProsemirrorSchema({
-        topNode: "codeBlock",
-        nodes: {
-            ...omitObject(contentBaseWithoutCodeBlockProsemirrorSchemaSpec.nodes, ["doc"]),
+    const CodeBlockIntermediateProsemirrorSchema = new DefaultWeakMap<
+        ProsemirrorSchema,
+        ProsemirrorSchema
+    >(schema => {
+        const schemaNodes: {[key: string]: NodeSpec} = {};
+        schema.spec.nodes.forEach((key, value) => (schemaNodes[key] = value));
 
-            codeBlock: {
-                // Make sure we have the same content that can go in a code block line.
-                ...contentBaseCodeBlockLineProsemirrorSchemaSpec,
+        const schemaMarks: {[key: string]: MarkSpec} = {};
+        schema.spec.marks.forEach((key, value) => (schemaMarks[key] = value));
 
-                // White-space should not be collapsed in this intermediate schema. Newlines
-                // should be included between lines of text.
-                whitespace: "pre",
+        return new ProsemirrorSchema({
+            topNode: "codeBlock",
+            nodes: {
+                ...omitObject(schemaNodes, ["doc", "codeBlock", "codeBlockLine"]),
 
-                // Ignore `codeBlockLine`'s DOM parsing/serialization logic. We're implementing
-                // custom logic here.
-                toDOM: undefined,
-                parseDOM: undefined,
+                codeBlock: {
+                    // Make sure we have the same content that can go in a code block line.
+                    ...assertExists(schemaNodes.codeBlockLine),
+
+                    // White-space should not be collapsed in this intermediate schema. Newlines
+                    // should be included between lines of text.
+                    whitespace: "pre",
+
+                    // Ignore `codeBlockLine`'s DOM parsing/serialization logic. We're implementing
+                    // custom logic here.
+                    toDOM: undefined,
+                    parseDOM: undefined,
+                },
             },
-        },
-        marks: {
-            ...omitObject(contentBaseWithoutCodeBlockProsemirrorSchemaSpec.marks, [
-                // Don't parse `<code>` elements as the `code` mark. The `code` mark may not be
-                // used inside of code blocks.
-                "code",
-            ]),
-        },
+            marks: {
+                ...omitObject(schemaMarks, [
+                    // Don't parse `<code>` elements as the `code` mark. The `code` mark may not be
+                    // used inside of code blocks.
+                    "code",
+                ]),
+            },
+        });
     });
 
     const getContent = (node: globalThis.Node, schema: ProsemirrorSchema): Fragment => {
-        const parser = DOMParser.fromSchema(CodeBlockIntermediateProsemirrorSchema);
+        const parser = DOMParser.fromSchema(
+            CodeBlockIntermediateProsemirrorSchema.getOrSetDefault(schema),
+        );
 
         // Convert...
         //

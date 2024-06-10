@@ -561,6 +561,13 @@ function ContentEditorPointerToolbarButtons({
 }) {
     const {isAppleDevice} = useClientInfo();
 
+    const isSelectionInCodeBlock = useMemo(() => {
+        const {$from, $to} = state.selection;
+        return (
+            $from.parent.type.name === "codeBlockLine" || $to.parent.type.name === "codeBlockLine"
+        );
+    }, [state.selection]);
+
     const shouldDisableTooltips = isLinkInputOpen || isHighlightSelectorOpen;
 
     const {isBold, isItalic, isStrike, activeLinkMark, activeHighlightMark} = useMemo(() => {
@@ -612,6 +619,22 @@ function ContentEditorPointerToolbarButtons({
         [state.doc, state.schema.nodes.heading, state.selection],
     );
 
+    const isUnorderedListItemActive = useMemo(
+        () =>
+            areAllNodesListItemType(
+                state.doc,
+                state.selection,
+                state.schema.nodes.unorderedListItem,
+            ),
+        [state.doc, state.schema.nodes.unorderedListItem, state.selection],
+    );
+
+    const isOrderedListItemActive = useMemo(
+        () =>
+            areAllNodesListItemType(state.doc, state.selection, state.schema.nodes.orderedListItem),
+        [state.doc, state.schema.nodes.orderedListItem, state.selection],
+    );
+
     return (
         <>
             <ContentEditorPointerToolbarButton
@@ -648,7 +671,10 @@ function ContentEditorPointerToolbarButtons({
                 <TextStrikethrough />
             </ContentEditorPointerToolbarButton>
             <ContentEditorPointerToolbarLinkButton
-                dividerRight={!state.schema.marks.highlight}
+                dividerRight={
+                    !state.schema.marks.highlight &&
+                    (!isSelectionInCodeBlock || !!state.schema.marks.comment)
+                }
                 state={state}
                 viewRef={viewRef}
                 isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
@@ -661,7 +687,7 @@ function ContentEditorPointerToolbarButtons({
             />
             {state.schema.marks.highlight && (
                 <ContentEditorPointerToolbarHighlightButton
-                    dividerRight
+                    dividerRight={!isSelectionInCodeBlock || !!state.schema.marks.comment}
                     viewRef={viewRef}
                     isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
@@ -672,47 +698,37 @@ function ContentEditorPointerToolbarButtons({
                     onHighlightSelectorClose={onHighlightSelectorClose}
                 />
             )}
-            <ContentEditorPointerToolbarButton
-                dividerLeft
-                description="Bullet list"
-                keyboardShortcutHint="- Hello"
-                viewRef={viewRef}
-                isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
-                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                isActive={useMemo(
-                    () =>
-                        areAllNodesListItemType(
-                            state.doc,
-                            state.selection,
-                            state.schema.nodes.unorderedListItem,
-                        ),
-                    [state.doc, state.schema.nodes.unorderedListItem, state.selection],
-                )}
-                command={createToggleListItemsCommand(state.schema.nodes.unorderedListItem)}
-            >
-                <ListBullets />
-            </ContentEditorPointerToolbarButton>
-            <ContentEditorPointerToolbarButton
-                dividerRight={!state.schema.nodes.checkListItem && !!state.schema.nodes.heading}
-                description="Number list"
-                keyboardShortcutHint="1. Hello"
-                viewRef={viewRef}
-                isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
-                sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
-                isActive={useMemo(
-                    () =>
-                        areAllNodesListItemType(
-                            state.doc,
-                            state.selection,
-                            state.schema.nodes.orderedListItem,
-                        ),
-                    [state.doc, state.schema.nodes.orderedListItem, state.selection],
-                )}
-                command={createToggleListItemsCommand(state.schema.nodes.orderedListItem)}
-            >
-                <ListNumbers />
-            </ContentEditorPointerToolbarButton>
-            {state.schema.nodes.checkListItem && (
+            {!isSelectionInCodeBlock && (
+                <>
+                    <ContentEditorPointerToolbarButton
+                        dividerLeft
+                        description="Bullet list"
+                        keyboardShortcutHint="- Hello"
+                        viewRef={viewRef}
+                        isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
+                        sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                        isActive={isUnorderedListItemActive}
+                        command={createToggleListItemsCommand(state.schema.nodes.unorderedListItem)}
+                    >
+                        <ListBullets />
+                    </ContentEditorPointerToolbarButton>
+                    <ContentEditorPointerToolbarButton
+                        dividerRight={
+                            !state.schema.nodes.checkListItem && !!state.schema.nodes.heading
+                        }
+                        description="Number list"
+                        keyboardShortcutHint="1. Hello"
+                        viewRef={viewRef}
+                        isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
+                        sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                        isActive={isOrderedListItemActive}
+                        command={createToggleListItemsCommand(state.schema.nodes.orderedListItem)}
+                    >
+                        <ListNumbers />
+                    </ContentEditorPointerToolbarButton>
+                </>
+            )}
+            {state.schema.nodes.checkListItem && !isSelectionInCodeBlock && (
                 <ContentEditorPointerToolbarButton
                     dividerRight={!!state.schema.nodes.heading}
                     description="Check list"
@@ -726,7 +742,7 @@ function ContentEditorPointerToolbarButtons({
                     <ListChecks />
                 </ContentEditorPointerToolbarButton>
             )}
-            {state.schema.nodes.heading && (
+            {state.schema.nodes.heading && !isSelectionInCodeBlock && (
                 <>
                     <ContentEditorPointerToolbarButton
                         dividerLeft

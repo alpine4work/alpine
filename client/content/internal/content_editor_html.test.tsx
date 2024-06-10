@@ -7,6 +7,7 @@
 import {fireEvent, render, screen} from "@testing-library/react";
 import {Mark, Node} from "prosemirror-model";
 import {useState} from "react";
+import {text} from "stream/consumers";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
@@ -20,7 +21,7 @@ const schema = DocumentWithoutTitleContentProsemirrorSchema;
 const blockTestCases: Array<{
     name: string;
     disableContentTests?: boolean;
-    disableInlineTests?: boolean;
+    disableInlineTests?: boolean | ((inlineTestCase: (typeof inlineTestCases)[number]) => boolean);
     build: (content: Array<Node>) => Node;
 }> = [
     {
@@ -45,8 +46,19 @@ const blockTestCases: Array<{
     },
     {
         name: "code",
-        disableInlineTests: true,
+        disableInlineTests: inlineTestCase => inlineTestCase.name === "code",
         build: content => schema.node("codeBlock", {}, schema.node("codeBlockLine", {}, content)),
+    },
+    {
+        name: "code (multiline)",
+        disableInlineTests: inlineTestCase => inlineTestCase.name === "code",
+        build: content =>
+            schema.node("codeBlock", {}, [
+                schema.node("codeBlockLine", {}, content),
+                schema.node("codeBlockLine", {}, []),
+                schema.node("codeBlockLine", {}, [schema.text("  "), ...content]),
+                schema.node("codeBlockLine", {}, content),
+            ]),
     },
     {
         name: "divider",
@@ -161,11 +173,15 @@ for (const blockTestCase of blockTestCases) {
         expectClipboardRoundtripToWork();
     });
 
-    if (blockTestCase.disableInlineTests) {
-        continue;
-    }
-
     for (const inlineTestCase of inlineTestCases) {
+        if (
+            blockTestCase.disableInlineTests &&
+            (typeof blockTestCase.disableInlineTests === "boolean" ||
+                blockTestCase.disableInlineTests(inlineTestCase))
+        ) {
+            continue;
+        }
+
         test(`${blockTestCase.name} ${inlineTestCase.name}`, () => {
             const content = schema.node("doc", {}, [
                 blockTestCase.build([
@@ -231,11 +247,13 @@ function expectClipboardRoundtripToWork() {
 
     const copiedDoc = editor.state.doc;
     const copiedFragment = editor.props.clipboardSerializer!.serializeFragment(copiedDoc.content);
+    const copiedFragmentText = editor.props.clipboardTextSerializer!(copiedDoc.slice(0));
     const copiedElement = document.createElement("div");
     copiedElement.appendChild(copiedFragment);
     const copiedHtml = copiedElement.innerHTML;
 
     expect(copiedElement).toMatchSnapshot("clipboard");
+    expect(copiedFragmentText).toMatchSnapshot("clipboard text");
 
     function TestContentEditor() {
         const [state, setState] = useState(() =>
