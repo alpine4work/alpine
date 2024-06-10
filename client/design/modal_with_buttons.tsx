@@ -37,6 +37,7 @@ function ModalWithButtons(
         maxWidth,
         withoutCloseAnimation,
         withoutCloseButton,
+        withoutCloseInteractions,
         buttonsPaddingX = "5",
         buttonsPaddingBottom = "4",
     }: {
@@ -57,6 +58,7 @@ function ModalWithButtons(
         maxWidth?: Spacing | RemLength;
         withoutCloseAnimation?: boolean;
         withoutCloseButton?: boolean;
+        withoutCloseInteractions?: boolean;
         buttonsPaddingX?: Spacing;
         buttonsPaddingBottom?: Spacing;
     },
@@ -85,6 +87,7 @@ function ModalWithButtons(
             maxWidth={maxWidth}
             withoutCloseAnimation={withoutCloseAnimation}
             withoutCloseButton={withoutCloseButton}
+            withoutCloseInteractions={withoutCloseInteractions}
         >
             {({onCloseWithAnimation, onCloseWithoutAnimation}) => {
                 const pressPrimaryButton = () => {

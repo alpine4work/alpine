@@ -141,8 +141,8 @@ export function useMessagingRealtime<
     );
 
     // Whenever we connect to the WebSocket, request a message backfill. If the
-    // visits another browser tab this will disconnect the WebSocket then when the
-    // user returns to this browser tab we will send another backfill.
+    // user visits another browser tab this will disconnect the WebSocket then when
+    // the user returns to this browser tab we will send another backfill.
     const backfillPromiseRef = useRef<Promise<void> | null>(null);
     useEffect(() => {
         if (!isConnected) {

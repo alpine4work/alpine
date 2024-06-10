@@ -20,6 +20,7 @@ import {useStore} from "~/client/helpers/store/use_store.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/internal/task_detail_notes_content_editor_web_socket_client.js";
 import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
+import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
 import {screenPaddingX} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -123,11 +124,11 @@ function TaskDetailNotesField(
     }, [client, shouldConnect]);
 
     const state = useStore(client.state);
+    const webSocketState = useStore(client.webSocketState);
 
-    // TODO(calebmer): We probably want some retry mechanism for the user? But
-    // until the user retries, we don't want an infinite loop where we keep trying
-    // to update the document content.
-    if (state?.errorState.hasError) throw state.errorState.error;
+    // Show the "Lost connection" error dialog if any error occurs in our WebSocket
+    // connection.
+    useWebSocketErrorDialog(client, webSocketState?.hasError ? webSocketState : state.errorState);
 
     return (
         <Box>

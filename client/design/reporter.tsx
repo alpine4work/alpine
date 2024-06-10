@@ -21,6 +21,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {ModalDialog, ModalDialogProps} from "~/client/design/modal_dialog.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {ErrorBase, InternalError, UnimplementedError} from "~/shared/error/error.js";
@@ -45,6 +46,8 @@ import {greyElevated2ClassName, toastStyles} from "~/shared/styles/styles.js";
  */
 const defaultErrorToastDurationSeconds = 6;
 
+export type ReporterModalDialogProps = Omit<ModalDialogProps, "onClose"> & {readonly key?: unknown};
+
 /**
  * The reporter abstraction is used for conveniently reporting some message to
  * the user from anywhere in the product. Primarily, it's used for reporting
@@ -62,7 +65,14 @@ export type Reporter = Memo<{
      * an alternative to rendering a `<ModalDialog>` component yourself if you're
      * in a position where doing so may be complicated.
      */
-    showDialog(dialog: Omit<ModalDialogProps, "onClose">): void;
+    showDialog(dialogProps: ReporterModalDialogProps): void;
+
+    /**
+     * Are we showing a dialog with the provided key? Returns true if we have an
+     * active dialog with the provided key or if we have a dialog queued with the
+     * provided key.
+     */
+    hasDialogWithKey(key: unknown): boolean;
 
     /**
      * Display an error to the user.
@@ -100,7 +110,8 @@ type ReporterWithoutContext = {
     // Cache of `Reporter` objects by `AppContext`.
     readonly cache: DefaultWeakMap<AppContext, Reporter>;
 
-    readonly showDialog: (dialog: Omit<ModalDialogProps, "onClose">) => void;
+    readonly showDialog: (context: AppContext, dialogProps: ReporterModalDialogProps) => void;
+    readonly hasDialogWithKey: (key: unknown) => boolean;
     readonly displayError: (context: AppContext, title: string, error: unknown) => void;
     readonly logErrorWithoutDisplaying: (
         context: AppContext,
@@ -115,6 +126,9 @@ const reporterForTest: Reporter | null = import.meta.jest
     ? markMemoIfNotRendering({
           showDialog: () => {
               throw new UnimplementedError("Can't present dialog in test");
+          },
+          hasDialogWithKey: () => {
+              return false;
           },
           displayError: () => {
               throw new UnimplementedError("Can't display error in test");
@@ -176,9 +190,17 @@ type ErrorToast = {
     readonly reportingContext: AppContext;
 };
 
+let nextReporterModalDialogId = 1;
+
 type ReporterState = {
-    readonly activeDialog: Omit<ModalDialogProps, "onClose"> | null;
-    readonly dialogQueue: ReadonlyArray<Omit<ModalDialogProps, "onClose">>;
+    readonly activeDialog: {
+        readonly id: number;
+        readonly props: ReporterModalDialogProps;
+    } | null;
+    readonly dialogQueue: ReadonlyArray<{
+        readonly id: number;
+        readonly props: ReporterModalDialogProps;
+    }>;
 } & (
     | {
           readonly isMobile: true;
@@ -224,7 +246,7 @@ type ReporterAction =
       }
     | {
           readonly type: "ShowDialog";
-          readonly dialog: Omit<ModalDialogProps, "onClose">;
+          readonly dialogProps: ReporterModalDialogProps;
       }
     | {
           readonly type: "CloseActiveDialog";
@@ -269,7 +291,7 @@ function reduceReporterState(state: ReporterState, action: ReporterAction): Repo
                 // don't have much ability to customize the native iOS dialog we render.
                 return reduceReporterState(state, {
                     type: "ShowDialog",
-                    dialog: {
+                    dialogProps: {
                         title: action.title,
                         description: {
                             type: "Error",
@@ -294,15 +316,18 @@ function reduceReporterState(state: ReporterState, action: ReporterAction): Repo
             }
         }
         case "ShowDialog": {
+            const id = nextReporterModalDialogId;
+            nextReporterModalDialogId += 1;
+
             if (state.activeDialog) {
                 return {
                     ...state,
-                    dialogQueue: [...state.dialogQueue, action.dialog],
+                    dialogQueue: [...state.dialogQueue, {id, props: action.dialogProps}],
                 };
             } else {
                 return {
                     ...state,
-                    activeDialog: action.dialog,
+                    activeDialog: {id, props: action.dialogProps},
                 };
             }
         }
@@ -397,6 +422,11 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
         state = reduceReporterState(state, action);
     }
 
+    const stateRef = useRef(state);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        stateRef.current = state;
+    });
+
     useEffect(() => {
         if (state.isMobile || !state.activeToast || !state.activeToast.isAnimatingOut) return;
 
@@ -418,26 +448,42 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
         [],
     );
 
-    const reporter: ReporterWithoutContext = useMemo(
-        () => ({
-            cache: new DefaultWeakMap<AppContext, Reporter>(
-                context =>
-                    ({
-                        showDialog: reporter.showDialog,
-                        displayError: reporter.displayError.bind(undefined, context),
-                        logErrorWithoutDisplaying: reporter.logErrorWithoutDisplaying.bind(
-                            undefined,
-                            context,
-                        ),
-                    } as Memo<Reporter>),
-            ),
+    const reporter: ReporterWithoutContext = useMemo(() => {
+        const reporter: ReporterWithoutContext = {
+            cache: new DefaultWeakMap<AppContext, Reporter>(context => {
+                const newReporter = {
+                    showDialog: reporter.showDialog.bind(undefined, context),
+                    hasDialogWithKey: reporter.hasDialogWithKey,
+                    displayError: reporter.displayError.bind(undefined, context),
+                    logErrorWithoutDisplaying: reporter.logErrorWithoutDisplaying.bind(
+                        undefined,
+                        context,
+                    ),
+                };
 
-            showDialog: dialog => {
+                return newReporter as Memo<typeof newReporter>;
+            }),
+
+            showDialog: (context, dialogProps) => {
                 dispatch({
                     type: "ShowDialog",
-                    dialog,
+                    dialogProps: {
+                        ...dialogProps,
+                        description:
+                            typeof dialogProps.description === "object"
+                                ? {...dialogProps.description, reportingContext: context}
+                                : dialogProps.description,
+                    },
                 });
             },
+
+            hasDialogWithKey: key => {
+                return (
+                    stateRef.current.activeDialog?.props.key === key ||
+                    stateRef.current.dialogQueue.some(dialog => dialog.props.key === key)
+                );
+            },
+
             displayError: (context, title, error) => {
                 dispatch({
                     type: "DisplayError",
@@ -447,19 +493,22 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
                     reportingContext: context,
                 });
             },
+
             logErrorWithoutDisplaying: (context, title, error) => {
                 context.tracer.getRoot().logUncaughtException(title, error);
             },
-        }),
-        [],
-    );
+        };
+
+        return reporter;
+    }, []);
 
     return (
         <ReporterContext.Provider value={reporter}>
             {children}
             {state.activeDialog && (
                 <ModalDialog
-                    {...state.activeDialog}
+                    {...state.activeDialog.props}
+                    key={state.activeDialog.id}
                     onClose={() => dispatch({type: "CloseActiveDialog"})}
                 />
             )}

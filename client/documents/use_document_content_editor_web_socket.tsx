@@ -19,6 +19,7 @@ import {useStore} from "~/client/helpers/store/use_store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
@@ -182,11 +183,11 @@ export function useDocumentContentEditorWebSocket(
         setShouldConnect(shouldConnect => !shouldConnect);
     }, []);
 
-    const [errorState, setErrorState] = useState<
+    const [createDocumentErrorState, setCreateDocumentErrorState] = useState<
         {hasError: false} | {hasError: true; error: unknown}
     >({hasError: false});
 
-    if (errorState.hasError) throw errorState.error;
+    if (createDocumentErrorState.hasError) throw createDocumentErrorState.error;
 
     const createDocumentPromiseRef = useRef<Promise<void> | null>(null);
 
@@ -224,7 +225,7 @@ export function useDocumentContentEditorWebSocket(
                 onCreate?.();
             },
             error => {
-                setErrorState({hasError: true, error});
+                setCreateDocumentErrorState({hasError: true, error});
                 createDocumentPromiseRef.current = null;
             },
         );
@@ -260,10 +261,12 @@ export function useDocumentContentEditorWebSocket(
         clientState.type === "Exists" ? clientState.client.webSocketState : nullStore,
     );
 
-    // TODO(calebmer): We probably want some retry mechanism for the user? But
-    // until the user retries, we don't want an infinite loop where we keep trying
-    // to update the document content.
-    if (state?.errorState.hasError) throw state.errorState.error;
+    // Show the "Lost connection" error dialog if any error occurs in our WebSocket
+    // connection.
+    useWebSocketErrorDialog(
+        clientState.type === "Exists" ? clientState.client : null,
+        webSocketState?.hasError ? webSocketState : state.errorState,
+    );
 
     return {
         spaceId,

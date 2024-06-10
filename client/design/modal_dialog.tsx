@@ -54,6 +54,7 @@ export type ModalDialogProps = {
     readonly onCancelButtonPress?: () => MaybePromise<void>;
     readonly shouldHideCancelButton?: boolean;
     readonly onClose: () => void;
+    readonly withoutCloseInteractions?: boolean;
 };
 
 function ModalDialog({
@@ -68,6 +69,7 @@ function ModalDialog({
     onCancelButtonPress,
     shouldHideCancelButton,
     onClose,
+    withoutCloseInteractions,
 }: ModalDialogProps) {
     // Can't server-render `<ModalDialog>` since in our native mobile app we'll
     // have a different implementation then on the server.
@@ -114,6 +116,7 @@ function ModalDialog({
             // dialog's two buttons will usually be the main actions you want to take.
             // Dismissing a modal by clicking the background should also feel natural.
             withoutCloseButton={true}
+            withoutCloseInteractions={withoutCloseInteractions}
         >
             <Box userSelect="text">
                 <h2

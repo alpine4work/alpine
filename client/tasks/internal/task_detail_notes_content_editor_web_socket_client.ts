@@ -64,6 +64,7 @@ const reduceCollaborativeContentEditorState = createCollaborativeContentEditorSt
 export class TaskDetailNotesContentEditorWebSocketClient {
     public readonly taskId: TaskId;
     private readonly _displayError: (title: string, error: unknown) => void;
+    private readonly _getContext: () => AppContext;
     private readonly _client: WebSocketClient<typeof TaskNotesCollaborationProtocol>;
     private readonly _state: ValueStore<TaskNotesContentEditorState>;
     private _disconnect: (() => void) | null = null;
@@ -91,6 +92,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
         },
     ) {
         this.taskId = taskId;
+        this._getContext = getContext;
         this._client = new WebSocketClient(
             getContext,
             "TaskNotesCollaborationService",
@@ -248,7 +250,8 @@ export class TaskDetailNotesContentEditorWebSocketClient {
             maybeSendUpdatesToServer();
         });
 
-        let lastPendingSendableStepsVersionSentToServer: number | null = null;
+        let updateGeneration = 0;
+        let lastPendingSendableStepsVersionSentToServer: number | "SilentError" | null = null;
 
         // NOTE(calebmer): Originally this function (and everything around it) was
         // implemented as a `useDocumentContentEditorState()` hook. This function
@@ -273,15 +276,31 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                 state.pendingSendableSteps &&
                 lastPendingSendableStepsVersionSentToServer !== state.pendingSendableSteps.version
             ) {
+                updateGeneration += 1;
+                const generation = updateGeneration;
+
+                lastPendingSendableStepsVersionSentToServer = state.pendingSendableSteps.version;
+
                 this._client.procedures
                     .updateContent({
                         version: state.pendingSendableSteps.version,
                         steps: state.pendingSendableSteps.steps,
                         clientId: state.pendingSendableSteps.clientId,
                     })
-                    .catch(error => this._dispatch({type: "Error", error}));
+                    .catch(error => {
+                        this._getContext()
+                            .tracer.getRoot()
+                            .logUncaughtException("Couldn't update content", error);
 
-                lastPendingSendableStepsVersionSentToServer = state.pendingSendableSteps.version;
+                        // Next time we send updates, we'll silently retry updating content if another
+                        // `updateContent()` call hasn't happened in the meantime.
+                        //
+                        // For example, maybe the WebSocket abruptly disconnected while executing this
+                        // procedure. When the WebSocket reconnects we'll try again.
+                        if (generation === updateGeneration) {
+                            lastPendingSendableStepsVersionSentToServer = "SilentError";
+                        }
+                    });
             }
         };
 

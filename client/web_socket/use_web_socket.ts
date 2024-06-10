@@ -1,11 +1,13 @@
 import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {WebSocketClient, WebSocketClientProcedures} from "~/client/web_socket/web_socket_client.js";
 import {InternalError} from "~/shared/error/error.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
@@ -14,6 +16,9 @@ import {
     WebSocketProtocolEventType,
     WebSocketProtocolProceduresType,
 } from "~/shared/web_socket/web_socket_protocol.js";
+
+const webSocketErrorDialogKey = Symbol("webSocketError");
+const webSocketErrorDialogEventEmitter = new EventEmitter();
 
 /**
  * React hook for connecting to a WebSocket using our `WebSocketClient`
@@ -45,6 +50,7 @@ export function useWebSocket<Protocol extends WebSocketProtocolBase>(
     toggleShouldConnect: () => void;
 } {
     const context = useAppContext();
+
     const contextRef = useRef(context);
     useLayoutEffectWithoutServerSideWarning(() => {
         contextRef.current = context;
@@ -57,9 +63,7 @@ export function useWebSocket<Protocol extends WebSocketProtocolBase>(
 
     const clientState = useStore(client?.state ?? null);
 
-    // TODO(calebmer): This should probably be an interrupting error modal with a
-    // retry button instead of a component crash.
-    if (clientState?.hasError) throw clientState.error;
+    useWebSocketErrorDialog(client, clientState);
 
     const [shouldConnect, setShouldConnect] = useState(true);
 
@@ -96,4 +100,50 @@ export function useWebSocket<Protocol extends WebSocketProtocolBase>(
         ),
         toggleShouldConnect,
     };
+}
+
+/**
+ * We may have multiple WebSocket connections at once. If the user loses all
+ * connections at the same time (e.g. during a deploy or if the user goes into
+ * a subway tunnel) then we should only show one lost connection error message
+ * to the user. This hook manages presenting that one error message to the
+ * user.
+ */
+export function useWebSocketErrorDialog(
+    client: {connect(): void; disconnect(): void} | null,
+    errorState: {hasError: false} | {hasError: true; error: unknown} | null,
+) {
+    const reporter = useReporter();
+
+    useEffect(() => {
+        if (!client || !errorState?.hasError) return;
+
+        // Only show one "Lost connection" dialog at a time. We may have multiple
+        // WebSocket connections that disconnect at the same time (e.g. during a deploy
+        // or if the user goes into a subway tunnel) but we should show the user only
+        // one lost connection error message.
+        if (!reporter.hasDialogWithKey(webSocketErrorDialogKey)) {
+            reporter.showDialog({
+                key: webSocketErrorDialogKey,
+                title: "Lost connection",
+                description: {
+                    type: "Error",
+                    error: errorState.error,
+                },
+                // User must explicitly press retry to close modal dialog. When the modal closes
+                // we will try loading again.
+                primaryButtonLabel: "Retry",
+                shouldHideCancelButton: true,
+                withoutCloseInteractions: true,
+                onPrimaryButtonPress: () => {
+                    webSocketErrorDialogEventEmitter.emit();
+                },
+            });
+        }
+
+        return webSocketErrorDialogEventEmitter.subscribe(() => {
+            client.disconnect();
+            client.connect();
+        });
+    }, [client, errorState, reporter]);
 }

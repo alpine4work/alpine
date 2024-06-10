@@ -17,7 +17,8 @@ import {
 
 const reconnectTimeoutBaseMs = 1200;
 const maxReconnectTimeoutMs = 2500;
-const reconnectAttemptsBeforeError = 20;
+// NOCOMMIT
+const reconnectAttemptsBeforeError = 4;
 const openHealthyDurationMs = 10000;
 
 type WebSocketClientDisconnectTransition = "Disconnected" | "DocumentNotVisible";

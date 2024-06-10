@@ -37,6 +37,7 @@ export function Modal({
     withoutOpenAnimation,
     withoutCloseAnimation,
     withoutCloseButton,
+    withoutCloseInteractions,
 }: {
     /**
      * The contents of the modal. If the contents are too big for the screen then
@@ -105,6 +106,14 @@ export function Modal({
      * the background to close the modal. We just won't have an explicit action.
      */
     withoutCloseButton?: boolean;
+
+    /**
+     * If true, disables all close interactions. Include the close button, clicking
+     * the underlay to close, and pressing the escape key to close.
+     *
+     * Defaults to false. Automatically sets `withoutCloseButton` to true.
+     */
+    withoutCloseInteractions?: boolean;
 } & (
     | {
           /**
@@ -181,13 +190,13 @@ export function Modal({
                 // If the underlay is clicked, we close the modal. This element is not
                 // focusable or keyboard accessible. You can hit the "Escape" key as a shortcut
                 // to close the modal.
-                onPointerDown={onCloseWithAnimation}
+                onPointerDown={!withoutCloseInteractions ? onCloseWithAnimation : undefined}
             />
             <FocusScope restoreFocus contain>
                 <GlobalKeyDownEventModal>
                     <GlobalKeyDownEvent
                         onGlobalKeyDown={event => {
-                            if (event.key === "Escape") {
+                            if (!withoutCloseInteractions && event.key === "Escape") {
                                 event.stopPropagation();
                                 event.preventDefault();
                                 onCloseWithoutAnimation();
@@ -263,7 +272,7 @@ export function Modal({
                                               onCloseWithoutAnimation,
                                           })
                                         : children}
-                                    {!withoutCloseButton && (
+                                    {!withoutCloseInteractions && !withoutCloseButton && (
                                         <Box position="absolute" top="1.5" right="1.5">
                                             <IconButton
                                                 size="xs"

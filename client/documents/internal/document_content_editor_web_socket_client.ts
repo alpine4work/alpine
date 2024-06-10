@@ -87,6 +87,7 @@ export class DocumentContentEditorWebSocketClient {
     >;
 
     public readonly documentId: DocumentId;
+    private readonly _getContext: () => AppContext;
     private readonly _client: WebSocketClient<typeof DocumentCollaborationProtocol>;
     private readonly _state: ValueStore<DocumentContentEditorState>;
     private _disconnect: (() => void) | null = null;
@@ -109,6 +110,7 @@ export class DocumentContentEditorWebSocketClient {
         initialState: DocumentContentEditorState,
     ) {
         this.documentId = documentId;
+        this._getContext = getContext;
         this._client = new WebSocketClient(
             getContext,
             "DocumentCollaborationService",
@@ -342,11 +344,12 @@ export class DocumentContentEditorWebSocketClient {
             maybeSendUpdatesToServer();
         });
 
-        let lastPendingSendableStepsVersionSentToServer: number | null = null;
-        let lastOurPresenceStateSentToServer: {
-            readonly version: number;
-            readonly selection: Selection;
-        } | null = null;
+        let updateGeneration = 0;
+        let lastPendingSendableStepsVersionSentToServer: number | "SilentError" | null = null;
+        let lastOurPresenceStateSentToServer:
+            | {readonly version: number; readonly selection: Selection}
+            | "SilentError"
+            | null = null;
         let cursorDisappearTimeout: Timeout | null = null;
 
         // NOTE(calebmer): Originally this function (and everything around it) was
@@ -377,6 +380,12 @@ export class DocumentContentEditorWebSocketClient {
                 cursorDisappearTimeout?.clear();
                 cursorDisappearTimeout = null;
 
+                updateGeneration += 1;
+                const generation = updateGeneration;
+
+                lastPendingSendableStepsVersionSentToServer = state.pendingSendableSteps.version;
+                lastOurPresenceStateSentToServer = state.extra.ourPresenceState;
+
                 this._client.procedures
                     .updateContent({
                         version: state.pendingSendableSteps.version,
@@ -394,13 +403,25 @@ export class DocumentContentEditorWebSocketClient {
                                 : null,
                         },
                     })
-                    .catch(error => this._dispatch({type: "Error", error}));
+                    .catch(error => {
+                        this._getContext()
+                            .tracer.getRoot()
+                            .logUncaughtException("Couldn't update content", error);
 
-                lastPendingSendableStepsVersionSentToServer = state.pendingSendableSteps.version;
-                lastOurPresenceStateSentToServer = state.extra.ourPresenceState;
+                        // Next time we send updates, we'll silently retry updating content if another
+                        // `updateContent()` call hasn't happened in the meantime.
+                        //
+                        // For example, maybe the WebSocket abruptly disconnected while executing this
+                        // procedure. When the WebSocket reconnects we'll try again.
+                        if (generation === updateGeneration) {
+                            lastPendingSendableStepsVersionSentToServer = "SilentError";
+                            lastOurPresenceStateSentToServer = "SilentError";
+                        }
+                    });
             }
 
             if (
+                lastOurPresenceStateSentToServer === "SilentError" ||
                 (lastOurPresenceStateSentToServer === null) !==
                     (state.extra.ourPresenceState === null) ||
                 (lastOurPresenceStateSentToServer !== null &&
@@ -413,6 +434,11 @@ export class DocumentContentEditorWebSocketClient {
                 cursorDisappearTimeout?.clear();
                 cursorDisappearTimeout = null;
 
+                updateGeneration += 1;
+                const generation = updateGeneration;
+
+                lastOurPresenceStateSentToServer = state.extra.ourPresenceState;
+
                 this._client.procedures
                     .updateOurPresenceState({
                         state: state.extra.ourPresenceState
@@ -424,9 +450,20 @@ export class DocumentContentEditorWebSocketClient {
                               }
                             : null,
                     })
-                    .catch(error => this._dispatch({type: "Error", error}));
+                    .catch(error => {
+                        this._getContext()
+                            .tracer.getRoot()
+                            .logUncaughtException("Couldn't update our presence state", error);
 
-                lastOurPresenceStateSentToServer = state.extra.ourPresenceState;
+                        // Next time we send updates, we'll silently retry sending our presence state
+                        // if another `updateOurPresenceState()` call hasn't happened in the meantime.
+                        //
+                        // For example, maybe the WebSocket abruptly disconnected while executing this
+                        // procedure. When the WebSocket reconnects we'll try again.
+                        if (generation === updateGeneration) {
+                            lastOurPresenceStateSentToServer = "SilentError";
+                        }
+                    });
 
                 // Clear our presence state after some period of inactivity so you don't have a
                 // bunch of cursors laying around the document.
@@ -441,9 +478,30 @@ export class DocumentContentEditorWebSocketClient {
                             : 15 * 60 * 1000;
 
                     cursorDisappearTimeout = createTimeout(() => {
+                        updateGeneration += 1;
+                        const generation = updateGeneration;
+
+                        lastOurPresenceStateSentToServer = null;
+
                         this._client.procedures
                             .updateOurPresenceState({state: null})
-                            .catch(error => this._dispatch({type: "Error", error}));
+                            .catch(error => {
+                                this._getContext()
+                                    .tracer.getRoot()
+                                    .logUncaughtException(
+                                        "Couldn't update our presence state",
+                                        error,
+                                    );
+
+                                // Next time we send updates, we'll silently retry sending our presence state
+                                // if another `updateOurPresenceState()` call hasn't happened in the meantime.
+                                //
+                                // For example, maybe the WebSocket abruptly disconnected while executing this
+                                // procedure. When the WebSocket reconnects we'll try again.
+                                if (generation === updateGeneration) {
+                                    lastOurPresenceStateSentToServer = "SilentError";
+                                }
+                            });
                     }, cursorDisappearTimeoutMs);
                 }
             }
