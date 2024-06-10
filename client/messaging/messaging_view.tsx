@@ -15,7 +15,6 @@ import {
 } from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
-import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
@@ -398,16 +397,16 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     );
 
     const isLoadingRef = useRef(false);
-    const [loadingErrorState, setLoadingErrorState] = useState<{error: unknown} | null>(null);
+    const [errorState, setErrorState] = useState<
+        {hasError: false} | {hasError: true; error: unknown}
+    >({hasError: false});
+
+    if (errorState.hasError) throw errorState.error;
 
     const tryLoadingMoreData = useEvent(
         (
             renderedRange: {startIndex: number; endIndex: number} | null,
         ): {isLoading: false} | {isLoading: true; promise: Promise<void>} => {
-            // If there was an error while loading, don't try loading more until the error
-            // is dismissed by the user.
-            if (loadingErrorState) return {isLoading: false};
-
             // If we're already loading, don't try to load more comments.
             if (isLoadingRef.current) return {isLoading: false};
 
@@ -421,7 +420,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 },
                 error => {
                     isLoadingRef.current = false;
-                    setLoadingErrorState({error});
+                    setErrorState({hasError: true, error});
                 },
             );
             return result;
@@ -468,14 +467,9 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         state;
 
-        // If a loading error is dismissed, try loading data again.
-        //
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        loadingErrorState;
-
         const view = assertExists(viewRef.current);
         tryLoadingMoreData(view.getRenderedRange());
-    }, [loadingErrorState, state, tryLoadingMoreData]);
+    }, [state, tryLoadingMoreData]);
 
     // Manages which comment `<MessageInput>` is currently replying to.
     const [replyingToMessageIndex, setReplyingToMessageIndex] = useState<number | null>(null);
@@ -695,18 +689,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     return (
         <>
             {modals}
-            {loadingErrorState && (
-                <ModalDialog
-                    title={`Couldn’t get ${messageNoun}s`}
-                    description={{type: "Error", error: loadingErrorState.error}}
-                    // User must explicitly press retry to close modal dialog. When the modal closes
-                    // we will try loading again.
-                    primaryButtonLabel="Retry"
-                    shouldHideCancelButton
-                    withoutCloseInteractions
-                    onClose={() => setLoadingErrorState(null)}
-                />
-            )}
             <div
                 className={sprinkles({
                     flexGrow: "1",
