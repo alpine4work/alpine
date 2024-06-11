@@ -7,7 +7,6 @@
 import {fireEvent, render, screen} from "@testing-library/react";
 import {Mark, Node} from "prosemirror-model";
 import {useState} from "react";
-import {text} from "stream/consumers";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
