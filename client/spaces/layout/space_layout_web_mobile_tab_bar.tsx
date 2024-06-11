@@ -213,15 +213,7 @@ export function SpaceLayoutWebMobileTabBar({
             <SpaceLayoutWebMobileTabBarButton
                 tab="Inbox"
                 icon={
-                    <Box
-                        position="relative"
-                        zIndex="0"
-                        width="8"
-                        height="8"
-                        display="flex"
-                        justifyContent="center"
-                        alignItems="center"
-                    >
+                    <>
                         <Bell />
                         {inbox.model.loudNotificationCount > 0 ? (
                             <LoudNotificationBadge
@@ -256,7 +248,7 @@ export function SpaceLayoutWebMobileTabBar({
                                 }}
                             />
                         ) : null}
-                    </Box>
+                    </>
                 }
                 onPress={() => {
                     const pathname = `/s/${space.id}/inbox`;
@@ -304,7 +296,17 @@ function SpaceLayoutWebMobileTabBarButton({
             color="grey-30"
             data-tab={tab}
         >
-            <IconContext.Provider value={{size: spacing["5"]}}>{icon}</IconContext.Provider>
+            <Box
+                position="relative"
+                zIndex="0"
+                width="8"
+                height="8"
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+            >
+                <IconContext.Provider value={{size: spacing["5"]}}>{icon}</IconContext.Provider>
+            </Box>
         </Box>
     );
 }
