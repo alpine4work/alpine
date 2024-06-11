@@ -168,6 +168,7 @@ export function PostContentView({
                     <Box position="absolute" top={screenPaddingX} right={screenPaddingX}>
                         {!isEditingPost ? (
                             <MenuButton
+                                placement="bottom-end"
                                 actions={getPostMoreActions({
                                     currentAccount,
                                     post,
