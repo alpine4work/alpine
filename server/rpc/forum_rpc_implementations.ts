@@ -172,14 +172,14 @@ implementRpc(
     async (unknownContext, input) => {
         const context = unknownContext.actor.authorizeSession();
 
-        const [{index, createdTime}, [author, contentReferences]] = await runAllPromises([
-            createPostComment(context.actor.authorizeSession(), input),
-            authorizePostAccess(context, input.postId).then(({spaceId}) =>
-                runAllPromises([
-                    getAccount(context, spaceId, context.actor.getAccountId()),
-                    getContentReferencesForNode(context, spaceId, input.content),
-                ]),
-            ),
+        const {spaceId, index, createdTime} = await createPostComment(
+            context.actor.authorizeSession(),
+            input,
+        );
+
+        const [author, contentReferences] = await runAllPromises([
+            getAccount(context, spaceId, context.actor.getAccountId()),
+            getContentReferencesForNode(context, spaceId, input.content),
         ]);
 
         const comment = new PostCommentModel({
@@ -206,12 +206,16 @@ implementRpc(
     definition.updatePostCommentContent,
     {visibility: ["PostRealtimeService"]},
     async (context, input) => {
-        const [{contentUpdatedTime}, contentReferences] = await runAllPromises([
-            updatePostCommentContent(context.actor.authorizeSession(), input),
-            authorizePostAccess(context.actor.authorizeSession(), input.postId).then(({spaceId}) =>
-                getContentReferencesForNode(context, spaceId, input.content),
-            ),
-        ]);
+        const {spaceId, contentUpdatedTime} = await updatePostCommentContent(
+            context.actor.authorizeSession(),
+            input,
+        );
+
+        const contentReferences = await getContentReferencesForNode(
+            context,
+            spaceId,
+            input.content,
+        );
 
         return {contentUpdatedTime, contentReferences};
     },
